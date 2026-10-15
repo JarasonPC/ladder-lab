@@ -93,7 +93,7 @@ func test_release_opens_no_before_nc_closes() -> void:
 func test_self_holding_needs_full_pick_up() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
 	var sim: Simulator = _sim(doc)
-	var start: PushButton = doc.circuit.get_component("S1") as PushButton
+	var start: PushButton = doc.circuit.get_component("SB1") as PushButton
 	var k1: Coil = doc.circuit.get_coil("KM1")
 	start.press()
 	_run(sim, 0.005, 0.001)
@@ -112,8 +112,8 @@ func test_self_holding_needs_full_pick_up() -> void:
 func test_forward_reverse_race_has_one_winner() -> void:
 	var doc: SchematicDocument = ExampleCircuits.forward_reverse()
 	var sim: Simulator = _sim(doc)
-	(doc.circuit.get_component("S1") as PushButton).press()
-	(doc.circuit.get_component("S2") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
+	(doc.circuit.get_component("SB2") as PushButton).press()
 	var r: StepResult = _run(sim, 0.2)
 	var k1: Coil = doc.circuit.get_coil("KM1")
 	var k2: Coil = doc.circuit.get_coil("KM2")
@@ -126,7 +126,7 @@ func test_forward_reverse_race_has_one_winner() -> void:
 func test_self_cutoff_chatters_at_expected_rate() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_cutoff()
 	var sim: Simulator = _sim(doc)
-	(doc.circuit.get_component("S1") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
 	var r: StepResult = _run(sim, 0.6)
 	assert_eq(r.oscillating_tags, PackedStringArray(["KM1"]))
 	var a: Armature = doc.circuit.get_coil("KM1").armature
@@ -139,7 +139,7 @@ func test_on_delay_adds_output_pick_up() -> void:
 	var doc: SchematicDocument = ExampleCircuits.time_relays()
 	var sim: Simulator = _sim(doc)
 	var kt1: TimerRelay = doc.circuit.get_coil("KT1") as TimerRelay
-	(doc.circuit.get_component("S1") as LatchingSwitch).set_switched_on(true)
+	(doc.circuit.get_component("RB1") as LatchingSwitch).set_switched_on(true)
 	sim.step()
 	_run(sim, 3.0 + kt1.output_armature.pick_up_time * 0.5, 0.001)
 	assert_false(_lamp(doc, "H1"), "delay over, output relay still moving")

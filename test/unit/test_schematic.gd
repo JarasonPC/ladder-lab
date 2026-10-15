@@ -22,14 +22,14 @@ func test_mirrored_terminals_and_lead() -> void:
 func test_transpose_makes_horizontal_paths() -> void:
 	var doc: SchematicDocument = ExampleCircuits.build(0, true)
 	assert_true(doc.horizontal)
-	assert_eq(doc.terminal_cell("S1:13"), Vector2i(12, 5))
-	assert_eq(doc.terminal_cell("S1:14"), Vector2i(15, 5))
+	assert_eq(doc.terminal_cell("SB1:13"), Vector2i(12, 5))
+	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(15, 5))
 	var cells: Array[Vector2i] = doc.junction_cells()
 	cells.sort()
 	assert_eq(cells, [Vector2i(6, 5), Vector2i(11, 5), Vector2i(16, 5), Vector2i(22, 5)] as Array[Vector2i])
 	doc.transpose()
 	assert_false(doc.horizontal)
-	assert_eq(doc.terminal_cell("S1:14"), Vector2i(5, 15))
+	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(5, 15))
 
 
 func test_rotated_body_hit() -> void:
@@ -41,7 +41,7 @@ func test_rotated_body_hit() -> void:
 
 func test_component_at() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_eq(doc.component_at(Vector2(5.0, 13.5)).id, "S1:13-14")
+	assert_eq(doc.component_at(Vector2(5.0, 13.5)).id, "SB1:13-14")
 	assert_eq(doc.component_at(Vector2(8.0, 13.5)).id, "KM1:13-14")
 	assert_eq(doc.component_at(Vector2(5.0, 18.5)).id, "KM1")
 	assert_null(doc.component_at(Vector2(0.0, 0.0)))
