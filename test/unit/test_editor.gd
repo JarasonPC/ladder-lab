@@ -1,0 +1,117 @@
+extends GutTest
+## SchematicEditor commands on a live SchematicView. Mouse position is set
+## directly because headless runs have no pointer.
+
+var view: SchematicView
+var editor: SchematicEditor
+
+
+func before_each() -> void:
+	view = SchematicView.new()
+	add_child_autofree(view)
+	editor = SchematicEditor.new()
+	editor.view = view
+	add_child_autofree(editor)
+	editor.document_replaced.connect(func(doc: SchematicDocument) -> void: view.load_document(doc, false))
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, 12))
+	view.load_document(doc, false)
+	editor.active = true
+
+
+func _at(cell: Vector2) -> void:
+	editor._mouse_point = cell
+	editor._mouse_cell = Vector2i(cell.round())
+
+
+func _place(template: Dictionary, cell: Vector2i) -> void:
+	editor.begin_place(template)
+	_at(Vector2(cell))
+	editor._on_left_pressed(false)
+	editor._cancel_tool()
+
+
+func _wire(points: Array[Vector2]) -> void:
+	_at(points[0])
+	editor._on_left_pressed(false)
+	editor._on_left_released(false)
+	for i: int in range(1, points.size()):
+		_at(points[i])
+		editor._on_left_pressed(false)
+		editor._on_left_released(false)
+
+
+func test_place_wire_and_simulate() -> void:
+	_place({"type": "latching_switch", "contact": "NO"}, Vector2i(5, 2))
+	_place({"type": "lamp"}, Vector2i(5, 7))
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_component("S1"))
+	assert_not_null(doc.circuit.get_component("H1"))
+	assert_eq(view.get_symbol("H1").position, Vector2(5, 7) * SymbolGeometry.GRID)
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 2)])
+	_wire([Vector2(5, 5), Vector2(5, 7)])
+	_wire([Vector2(5, 10), Vector2(5, 12), Vector2(2, 12)])
+	assert_eq(doc.get_wire_count(), 3)
+	assert_eq(doc.get_route(0).corners, [Vector2i(5, 1)] as Array[Vector2i])
+	(doc.circuit.get_component("S1") as LatchingSwitch).set_switched_on(true)
+	Simulator.new(doc.circuit).step()
+	assert_true((doc.circuit.get_component("H1") as Lamp).energized)
+
+
+func test_wire_ending_on_wire_adds_junction() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_place({"type": "lamp"}, Vector2i(9, 4))
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])
+	_wire([Vector2(9, 4), Vector2(9, 1), Vector2(3.9, 1.1)])
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_component("J1"))
+	assert_eq(doc.get_placement("J1").cell, Vector2i(4, 1))
+	assert_eq(doc.circuit.wires_of(doc.circuit.get_component("J1")).size(), 3)
+
+
+func test_contact_takes_coil_designation_and_next_number() -> void:
+	_place({"type": "coil", "kind": "contactor"}, Vector2i(5, 7))
+	_place({"type": "contact", "contact": "NO"}, Vector2i(9, 2))
+	_place({"type": "contact", "contact": "NC"}, Vector2i(12, 2))
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_component("K1:13-14"))
+	assert_not_null(doc.circuit.get_component("K1:21-22"))
+
+
+func test_undo_redo_and_delete() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])
+	assert_eq(editor.document().get_wire_count(), 1)
+	editor.undo()
+	assert_eq(editor.document().get_wire_count(), 0)
+	assert_not_null(editor.document().circuit.get_component("H1"))
+	editor.redo()
+	assert_eq(editor.document().get_wire_count(), 1)
+	editor.selected_components["H1"] = true
+	editor.delete_selection()
+	assert_null(editor.document().circuit.get_component("H1"))
+	assert_eq(editor.document().get_wire_count(), 0)
+	editor.undo()
+	assert_not_null(editor.document().circuit.get_component("H1"))
+
+
+func test_properties_change_and_conflict() -> void:
+	_place({"type": "push_button", "contact": "NO"}, Vector2i(5, 2))
+	_place({"type": "push_button", "contact": "NO"}, Vector2i(9, 2))
+	var data: Dictionary = DocumentSerializer.component_to_dict(editor.document().circuit.get_component("S2"))
+	data["contact"] = "NC"
+	assert_eq(editor.apply_properties("S2", data), "")
+	assert_true(editor.document().circuit.has_terminal("S2:11"))
+	data["designation"] = "S1"
+	assert_ne(editor.apply_properties("S2", data), "", "S1 is taken")
+	assert_not_null(editor.document().circuit.get_component("S2"))
+
+
+func test_rotate_selection_turns_component() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	editor.selected_components["H1"] = true
+	editor.rotate_selection()
+	assert_eq(editor.document().get_placement("H1").rotation, 1)
+	editor.mirror_selection()
+	assert_true(editor.document().get_placement("H1").mirrored)

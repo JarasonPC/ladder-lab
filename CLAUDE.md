@@ -23,5 +23,8 @@
   ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated/mirrored, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
+- `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
+  edits go through SchematicDocument methods, which are tested without nodes
+- Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
 - `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech
 - `test/unit/` GUT tests; headless Godot is not preinstalled in cloud sessions

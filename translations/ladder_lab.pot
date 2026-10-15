@@ -5,9 +5,6 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8-bit\n"
 
-msgid "Circuit:"
-msgstr ""
-
 msgid "Self-holding start/stop"
 msgstr ""
 
@@ -23,6 +20,140 @@ msgstr ""
 msgid "Short circuit"
 msgstr ""
 
+msgid "L supply"
+msgstr ""
+
+msgid "N supply"
+msgstr ""
+
+msgid "Push button NO"
+msgstr ""
+
+msgid "Push button NC"
+msgstr ""
+
+msgid "Switch NO"
+msgstr ""
+
+msgid "Switch NC"
+msgstr ""
+
+msgid "Contact NO"
+msgstr ""
+
+msgid "Contact NC"
+msgstr ""
+
+msgid "Delayed contact NO"
+msgstr ""
+
+msgid "Delayed contact NC"
+msgstr ""
+
+msgid "Contactor coil"
+msgstr ""
+
+msgid "Relay coil"
+msgstr ""
+
+msgid "On-delay timer"
+msgstr ""
+
+msgid "Off-delay timer"
+msgstr ""
+
+msgid "Lamp"
+msgstr ""
+
+msgid "Motor"
+msgstr ""
+
+msgid "Properties"
+msgstr ""
+
+msgid "Select one component to edit it."
+msgstr ""
+
+msgid "Conductor"
+msgstr ""
+
+msgid "Wire junction"
+msgstr ""
+
+msgid "Designation"
+msgstr ""
+
+msgid "Contact"
+msgstr ""
+
+msgid "NO (make)"
+msgstr ""
+
+msgid "NC (break)"
+msgstr ""
+
+msgid "Contact number"
+msgstr ""
+
+msgid "Delayed (timer contact)"
+msgstr ""
+
+msgid "Kind"
+msgstr ""
+
+msgid "Contactor"
+msgstr ""
+
+msgid "Relay"
+msgstr ""
+
+msgid "Function"
+msgstr ""
+
+msgid "On-delay"
+msgstr ""
+
+msgid "Off-delay"
+msgstr ""
+
+msgid "Delay (s)"
+msgstr ""
+
+#, c-format
+msgid "Terminals: %s"
+msgstr ""
+
+msgid "The designation must not be empty."
+msgstr ""
+
+#, c-format
+msgid "%s is already used in this circuit."
+msgstr ""
+
+msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
+msgstr ""
+
+msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
+msgstr ""
+
+msgid "Click a terminal to draw a wire. Drag to move. R rotates, F mirrors, Del deletes, Ctrl+Z undoes."
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Simulate"
+msgstr ""
+
+msgid "Circuit:"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "Start an empty schematic with L and N supplies"
+msgstr ""
+
 msgid "Layout:"
 msgstr ""
 
@@ -32,10 +163,25 @@ msgstr ""
 msgid "Horizontal"
 msgstr ""
 
-msgid "Run"
+msgid "Undo"
 msgstr ""
 
-msgid "Pause"
+msgid "Redo"
+msgstr ""
+
+msgid "Rotate"
+msgstr ""
+
+msgid "Rotate by 90° (R)"
+msgstr ""
+
+msgid "Mirror"
+msgstr ""
+
+msgid "Mirror across the symbol axis (F)"
+msgstr ""
+
+msgid "Delete"
 msgstr ""
 
 msgid "Step"
@@ -50,7 +196,19 @@ msgstr ""
 msgid "Reset"
 msgstr ""
 
-msgid "Reload the circuit in its initial state"
+msgid "Restart the simulation from the initial state"
+msgstr ""
+
+msgid "Pause"
+msgstr ""
+
+msgid "Run"
+msgstr ""
+
+msgid "New schematic"
+msgstr ""
+
+msgid "Right or middle drag pans, wheel zooms."
 msgstr ""
 
 msgid "Click buttons and switches to operate them. Right or middle drag pans, wheel zooms."

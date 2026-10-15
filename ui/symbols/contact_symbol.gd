@@ -1,6 +1,7 @@
 class_name ContactSymbol
 extends SchematicSymbol
-## NO / NC contact (IEC 60617 S00227 / S00229) drawn in its current position,
+## NO / NC contact (IEC 60617 S00227 / S00229) drawn in its current position
+## (NO opens upward, NC is drawn pivoting from the top and opens downward),
 ## with the push-button (S00253) or turn-switch (S00254) actuator, and the
 ## delay "parachute" (S00243-S00246) for delayed timer contacts.
 ## The arc is drawn so the movement toward its centre is the delayed one.
@@ -26,15 +27,21 @@ func _draw_shape(color: Color, width: float) -> void:
 	var element: SwitchingElement = component as SwitchingElement
 	var is_nc: bool = element.contact_type == SwitchingElement.ContactType.NC
 	var closed: bool = element.is_closed()
-	draw_line(Vector2(0, 0), FIXED_END, color, width)
-	draw_line(Vector2(0, 3 * G), PIVOT, color, width)
+	# NO: pivot at the bottom, blade opens upward. NC: drawn upside down, with
+	# the pivot at the top and the hook at the bottom, so it opens downward.
+	var flip: Callable = func(v: Vector2) -> Vector2:
+		return Vector2(v.x, 3 * G - v.y) if is_nc else v
+	var pivot: Vector2 = flip.call(PIVOT)
+	draw_line(flip.call(Vector2(0, 0)), flip.call(FIXED_END), color, width)
+	draw_line(flip.call(Vector2(0, 3 * G)), pivot, color, width)
 	if is_nc:
-		draw_line(FIXED_END, HOOK_END, color, width)
+		draw_line(flip.call(FIXED_END), flip.call(HOOK_END), color, width)
 	var tip: Vector2 = OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
-	draw_line(PIVOT, tip, color, width)
-	var middle: Vector2 = PIVOT.lerp(tip, 0.5)
+	tip = flip.call(tip)
+	draw_line(pivot, tip, color, width)
+	var middle: Vector2 = pivot.lerp(tip, 0.5)
 
 	if component is PushButton:
 		_draw_push_actuator(middle, (component as PushButton).pressed, color)

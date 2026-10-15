@@ -10,7 +10,10 @@ func _draw_shape(color: Color, width: float) -> void:
 
 
 func _draw_labels() -> void:
-	draw_label(component.designation, Vector2(-0.6 * G, 0.0), SchematicTheme.LABEL_SIZE + 2, _conductor_color())
+	# Several supply points may share a conductor ("L", "L.2"); show the conductor.
+	var supply: PowerSupply = component as PowerSupply
+	var text: String = "L" if supply.conductor == PowerSupply.Conductor.L else "N"
+	draw_label(text, Vector2(-0.6 * G, 0.0), SchematicTheme.LABEL_SIZE + 2, _conductor_color())
 
 
 func _conductor_color() -> Color:

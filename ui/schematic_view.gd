@@ -1,7 +1,8 @@
 class_name SchematicView
 extends Node2D
-## Shows a [SchematicDocument] and runs its simulation. Push buttons are held
-## with the left mouse button, switches toggle on click.
+## Shows a [SchematicDocument]. When [member simulating], runs its simulation:
+## push buttons are held with the left mouse button, switches toggle on click.
+## Otherwise the schematic is shown at rest for editing.
 
 signal stepped(result: StepResult)
 
@@ -10,6 +11,7 @@ const BLINK_PERIOD: float = 0.5
 
 var document: SchematicDocument
 var simulator: Simulator
+var simulating: bool = true
 var running: bool = true
 ## Simulation time multiplier.
 var speed: float = 1.0
@@ -24,23 +26,37 @@ var _hovered: SchematicSymbol = null
 var _blink_time: float = 0.0
 
 
-func load_document(doc: SchematicDocument) -> void:
-	for child: Node in get_children():
-		child.queue_free()
-	_symbols.clear()
-	_held = null
-	_hovered = null
+func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 	document = doc
+	simulating = simulate
 	simulator = Simulator.new(doc.circuit)
 	sim_time = 0.0
+	rebuild()
+	if simulating:
+		_apply(simulator.step())
+	else:
+		_apply(StepResult.new())
+
+
+## Recreates all symbol nodes, e.g. after the document was edited.
+func rebuild() -> void:
+	_set_hovered(null)
+	for child: Node in get_children():
+		child.free()
+	_symbols.clear()
+	_held = null
 	_wire_layer = WireLayer.new()
 	add_child(_wire_layer)
-	_wire_layer.set_document(doc)
-	for c: CircuitComponent in doc.circuit.get_components():
-		var symbol: SchematicSymbol = SymbolFactory.create(c, doc.get_placement(c.id))
+	_wire_layer.set_document(document)
+	for c: CircuitComponent in document.circuit.get_components():
+		var symbol: SchematicSymbol = SymbolFactory.create(c, document.get_placement(c.id))
 		add_child(symbol)
 		_symbols[c.id] = symbol
-	_apply(simulator.step())
+	_update_visuals()
+
+
+func get_symbol(component_id: String) -> SchematicSymbol:
+	return _symbols.get(component_id, null)
 
 
 ## Call after placements changed (e.g. the document was transposed).
@@ -61,7 +77,7 @@ func _process(delta: float) -> void:
 	if document == null:
 		return
 	_blink_time = fmod(_blink_time + delta, BLINK_PERIOD)
-	if running:
+	if simulating and running:
 		sim_time += delta * speed
 		_apply(simulator.step(delta * speed))
 	else:
@@ -93,7 +109,7 @@ func _update_visuals() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if document == null:
+	if document == null or not simulating:
 		return
 	if event is InputEventMouseMotion:
 		_update_hover()
@@ -126,9 +142,13 @@ func _update_hover() -> void:
 	var symbol: SchematicSymbol = _symbols.get(c.id, null) if c != null else null
 	if symbol != null and not symbol.is_interactive():
 		symbol = null
+	_set_hovered(symbol)
+
+
+func _set_hovered(symbol: SchematicSymbol) -> void:
 	if symbol == _hovered:
 		return
-	if _hovered != null:
+	if _hovered != null and is_instance_valid(_hovered):
 		_hovered.hovered = false
 		_hovered.queue_redraw()
 	_hovered = symbol

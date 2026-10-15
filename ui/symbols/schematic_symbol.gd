@@ -14,6 +14,8 @@ var carries_current: bool = false
 ## Blinking warning (oscillation), already gated by the blink phase.
 var warning: bool = false
 var hovered: bool = false
+## False for palette previews.
+var show_labels: bool = true
 
 
 func setup(p_component: CircuitComponent, p_placement: Placement) -> void:
@@ -39,7 +41,8 @@ func _draw() -> void:
 		draw_rect(Rect2(body.position * G, body.size * G), SchematicTheme.HOVER)
 	_draw_shape(stroke_color(), stroke_width())
 	draw_set_transform_matrix(Transform2D.IDENTITY)
-	_draw_labels()
+	if show_labels:
+		_draw_labels()
 
 
 func stroke_color() -> Color:

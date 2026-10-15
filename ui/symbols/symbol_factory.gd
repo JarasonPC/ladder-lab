@@ -15,6 +15,8 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = MotorSymbol.new()
 	elif component is PowerSupply:
 		symbol = SupplySymbol.new()
+	elif component is Junction:
+		symbol = JunctionSymbol.new()
 	else:
 		symbol = SchematicSymbol.new()
 	symbol.setup(component, placement)
