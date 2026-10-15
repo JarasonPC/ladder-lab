@@ -2,10 +2,10 @@ class_name MotorBreaker
 extends PoleDevice
 ## Multi-pole circuit breaker (2-4 poles; 3 poles as a motor protective
 ## breaker, designation "Q1").
-## Fault current through any pole trips all poles; it is switched off and on
+## It starts switched off. Fault current through any pole trips all poles; it is switched off and on
 ## by hand, and switching on resets a trip.
 
-var switched_on: bool = true
+var switched_on: bool = false
 var tripped: bool = false
 
 

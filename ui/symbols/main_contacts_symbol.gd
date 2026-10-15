@@ -28,20 +28,20 @@ func _designation_anchor() -> Vector2:
 
 func _draw_shape(_color: Color, _width: float) -> void:
 	var contacts: MainContacts = component as MainContacts
-	var travel: float = contacts.get_travel()
+	# All blades on one armature, moving smoothly to where it is heading.
+	var target: float = 1.0 if contacts.is_path_closed(0) else minf(contacts.get_travel(), 0.85)
+	if contacts.fault == SwitchingElement.Fault.OPEN:
+		target = 0.0
+	var tip: Vector2 = OPEN_TIP.lerp(CLOSED_TIP, shown("blade", target))
 	var poles: int = component.get_terminal_names().size() / 2
 	var link_x: PackedFloat32Array = PackedFloat32Array()
 	for pole: int in poles:
 		var x: Vector2 = Vector2(pole_x(pole), 0)
-		var closed: bool = contacts.is_path_closed(pole)
 		var top: int = pole * 2
 		var bottom: int = top + 1
 		aa_line(x, x + FIXED_END, lead_color(top), lead_width(top))
 		aa_arc(x + ARC_CENTER, ARC_RADIUS, PI * 0.5, PI * 1.5, 10, lead_color(top), SchematicTheme.LINE_WIDTH * 0.8)
 		aa_line(x + Vector2(0, 3 * G), x + PIVOT, lead_color(bottom), lead_width(bottom))
-		var tip: Vector2 = CLOSED_TIP if closed else OPEN_TIP.lerp(CLOSED_TIP, minf(travel, 0.85))
-		if contacts.fault == SwitchingElement.Fault.OPEN:
-			tip = OPEN_TIP
 		draw_blade(x + PIVOT, x + tip, lead_color(bottom), lead_width(bottom))
 		link_x.append(x.x + PIVOT.x + (tip.x - PIVOT.x) * (PIVOT.y - LINK_Y) / (PIVOT.y - tip.y))
 	if poles > 1:

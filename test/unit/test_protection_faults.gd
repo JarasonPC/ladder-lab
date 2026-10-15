@@ -73,6 +73,8 @@ func test_breaker_trips_resets_and_switches() -> void:
 	_fused_doc()
 	doc.replace_component("F1", CircuitBreaker.new("F1"))
 	var breaker: CircuitBreaker = doc.circuit.get_component("F1") as CircuitBreaker
+	assert_false(breaker.is_closed(), "a breaker starts switched off")
+	breaker.toggle()
 	_switch("S1", true)
 	_switch("S2", true)
 	sim.step()

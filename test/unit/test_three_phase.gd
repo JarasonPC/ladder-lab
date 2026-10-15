@@ -9,11 +9,19 @@ const CW := ThreePhaseMotor.Direction.CLOCKWISE
 const CCW := ThreePhaseMotor.Direction.COUNTERCLOCKWISE
 
 
+## Breakers and fuse holders start switched off: these tests switch them on.
 func _sim(doc: SchematicDocument, realistic: bool = false) -> Simulator:
+	_switch_on_protection(doc)
 	var sim: Simulator = Simulator.new(doc.circuit)
 	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
 	sim.step()
 	return sim
+
+
+func _switch_on_protection(doc: SchematicDocument) -> void:
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is Fuse or c is ThreePoleFuse or c is CircuitBreaker or c is MotorBreaker:
+			c.set("switched_on", true)
 
 
 ## Steps [param seconds] in small steps; returns the event texts.
@@ -252,6 +260,7 @@ func test_three_pole_fuse_blows_only_the_poles_with_fault_current() -> void:
 
 func test_motor_breaker_trips_all_poles() -> void:
 	var breaker: MotorBreaker = MotorBreaker.new("Q1")
+	breaker.switched_on = true
 	var setup: Array = _protected_short(breaker, true)
 	var sim: Simulator = setup[1]
 	(setup[2] as LatchingSwitch).set_switched_on(true)
@@ -341,6 +350,9 @@ func test_fuse_holders_open_and_blow() -> void:
 	assert_true(lamp.energized)
 	var single: Fuse = Fuse.new("F2")
 	single.holder = true
+	assert_false(single.is_closed(), "a holder starts open")
+	single.toggle()
+	assert_true(single.is_closed())
 	single.toggle()
 	assert_false(single.is_closed(), "a 1-pole holder opens too")
 	assert_true(DocumentSerializer.component_from_dict(DocumentSerializer.component_to_dict(single)).holder)

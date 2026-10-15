@@ -15,11 +15,14 @@
   carries the same time relay mark ")=" whatever the function. Breakers carry the cross plus thermal and
   magnetic releases. Fuses can be fuse holders (holder = true: can be opened by clicking). No dot
   grid by default; while placing, guide lines run through the new part's terminals.
-  Voltage colour goes on leads and conductors only; symbol bodies stay black, except coils.
+  Voltage colour goes on the wires up to the terminal squares only; symbols stay in the line
+  colour, except coils.
   Symbols draw shapes through SchematicSymbol.aa_* helpers (antialiased with a one-pixel edge at
   any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
-  are drawn mirrored along their axis so the blade pivots on the left. Buttons, switches and breakers
-  move smoothly (_shown); the push-button stem is dashed; breaker releases turn with the blade.
+  are drawn mirrored along their axis so the blade pivots on the left. Every moving part (blades,
+  buttons, holders) moves smoothly (SchematicSymbol.shown); marks fixed to a blade (breaker
+  releases, delay marks, overload hooks) turn with it, button and switch heads stay upright; the
+  push-button stem is dashed. Breakers and fuse holders start switched off (open).
 - Time relays (TimerRelay) are multifunction relays: functions F1-F12 (TimerRelay.Mode, codes as in
   real relays; F10-F12 use two times t1 = delay, t2 = delay2) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
   active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram

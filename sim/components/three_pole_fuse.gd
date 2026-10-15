@@ -9,8 +9,8 @@ extends PoleDevice
 var blown: PackedByteArray = PackedByteArray([0, 0, 0])
 ## Mounted in a fuse holder that can be opened (design data).
 var holder: bool = false
-## A fuse holder is closed (simulation state).
-var switched_on: bool = true
+## A fuse holder is closed (simulation state; holders start open).
+var switched_on: bool = false
 
 
 func _init(p_designation: String) -> void:

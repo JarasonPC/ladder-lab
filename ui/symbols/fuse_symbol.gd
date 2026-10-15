@@ -27,7 +27,7 @@ func is_interactive() -> bool:
 func _draw_shape(color: Color, width: float) -> void:
 	var fuse: Fuse = component as Fuse
 	if fuse.holder:
-		_draw_holder(self, Vector2.ZERO, 0, 1, fuse.switched_on, fuse.tripped, color, width)
+		_draw_holder(self, Vector2.ZERO, 0, 1, shown("holder", 1.0 if fuse.switched_on else 0.0), fuse.tripped, color, width)
 		return
 	aa_line(Vector2(0, 0), Vector2(0, BOX.position.y), lead_color(0), lead_width(0))
 	aa_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), lead_color(1), lead_width(1))
@@ -52,8 +52,8 @@ func _draw_labels() -> void:
 
 ## Half the width of a fuse holder's body, measured horizontally through its
 ## middle (wider when the blade is open and tilted).
-static func holder_half_extent(closed: bool) -> float:
-	var along: Vector2 = ((HOLDER_FIXED if closed else HOLDER_OPEN_TIP) - HOLDER_PIVOT).normalized()
+static func holder_half_extent(closed: float) -> float:
+	var along: Vector2 = (HOLDER_OPEN_TIP.lerp(HOLDER_FIXED, closed) - HOLDER_PIVOT).normalized()
 	var extent: float = HOLDER_HALF_WIDTH / absf(along.y)
 	if absf(along.x) > 0.001:
 		extent = minf(extent, HOLDER_HALF_LENGTH / absf(along.x))
@@ -62,14 +62,15 @@ static func holder_half_extent(closed: bool) -> float:
 
 ## Fuse holder pole at [param x]: the blade carries the fuse body. Shared with
 ## [ThreePoleFuseSymbol]. Returns the middle of the fuse body.
-static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: int, closed: bool, blown: bool, color: Color, width: float) -> Vector2:
+## [param closed] 0 open .. 1 closed (moving smoothly in between).
+static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: int, closed: float, blown: bool, color: Color, width: float) -> Vector2:
 	var g: float = SymbolGeometry.GRID
 	var pivot: Vector2 = x + HOLDER_PIVOT
 	var fixed_end: Vector2 = x + HOLDER_FIXED
 	symbol.aa_line(x, fixed_end, symbol.lead_color(top), symbol.lead_width(top))
 	symbol.aa_line(x + Vector2(0, 3 * g), pivot, symbol.lead_color(bottom), symbol.lead_width(bottom))
 	# Closed, the blade runs straight on to the fixed contact.
-	var tip: Vector2 = fixed_end if closed else x + HOLDER_OPEN_TIP
+	var tip: Vector2 = (x + HOLDER_OPEN_TIP).lerp(fixed_end, closed)
 	var blade: Color = symbol.lead_color(bottom) if symbol.reach(bottom) != SchematicSymbol.REACH_NONE else color
 	symbol.draw_blade(pivot, tip, blade, symbol.lead_width(bottom))
 	# The fuse body sits on the blade.

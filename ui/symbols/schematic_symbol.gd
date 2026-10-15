@@ -85,6 +85,33 @@ func _draw() -> void:
 	drawn_scale = _k
 
 
+# --- Smooth movement ----------------------------------------------------------
+
+## Seconds a moving part (blade, button, holder) takes on the drawing.
+const MOVE_TIME: float = 0.15
+
+var _shown: Dictionary[String, float] = {}
+var _targets: Dictionary[String, float] = {}
+
+
+## Position (0..1) to draw a moving part [param key] at: it follows
+## [param target] smoothly over [constant MOVE_TIME], so switching is seen as
+## a movement rather than a jump. The first value is taken as it is.
+func shown(key: String, target: float) -> float:
+	_targets[key] = target
+	if not _shown.has(key):
+		_shown[key] = target
+	return _shown[key]
+
+
+func _process(delta: float) -> void:
+	for key: String in _targets:
+		var now: float = _shown.get(key, _targets[key])
+		if now != _targets[key]:
+			_shown[key] = move_toward(now, _targets[key], delta / MOVE_TIME)
+			queue_redraw()
+
+
 # --- Drawing helpers: antialiased with a one-pixel edge (see _draw) --------------
 
 func aa_line(from: Vector2, to: Vector2, color: Color, width: float = -1.0) -> void:
@@ -156,7 +183,7 @@ func any_live() -> bool:
 	return false
 
 
-## Colour of the symbol body. Voltage reach shows on the leads only; a coil
+## Colour of the symbol body. Voltage reach shows on the wires only; a coil
 ## is the exception and takes the colour of the first phase that reaches it
 ## (else N when N does).
 func stroke_color() -> Color:
@@ -176,15 +203,15 @@ func stroke_width() -> float:
 	return SchematicTheme.LIVE_WIDTH if warning or any_live() or live.has(REACH_N) else SchematicTheme.LINE_WIDTH
 
 
-## Colour of the lead and contact parts on the side of one terminal.
-func lead_color(terminal_index: int) -> Color:
-	if warning:
-		return SchematicTheme.WARNING
-	return SchematicTheme.reach_color(reach(terminal_index))
+## Colour of the lead and contact parts on the side of one terminal. The
+## voltage shows on the wires up to the terminal squares, not inside the
+## symbol: leads stay in the line colour.
+func lead_color(_terminal_index: int) -> Color:
+	return SchematicTheme.WARNING if warning else SchematicTheme.LINE
 
 
-func lead_width(terminal_index: int) -> float:
-	return SchematicTheme.LIVE_WIDTH if warning or reach(terminal_index) != REACH_NONE else SchematicTheme.LINE_WIDTH
+func lead_width(_terminal_index: int) -> float:
+	return SchematicTheme.LIVE_WIDTH if warning else SchematicTheme.LINE_WIDTH
 
 
 ## Contact blade: a line with round ends, so slanted blades meet their

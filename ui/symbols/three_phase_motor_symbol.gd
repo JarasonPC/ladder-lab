@@ -13,6 +13,7 @@ var _angle: float = 0.0
 
 
 func _process(delta: float) -> void:
+	super(delta)
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
 	if motor.is_running():
 		var turn: float = 1.0 if motor.direction == ThreePhaseMotor.Direction.CLOCKWISE else -1.0

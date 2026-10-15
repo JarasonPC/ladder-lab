@@ -22,10 +22,10 @@ func _draw_shape(_color: Color, width: float) -> void:
 	if fuse.holder:
 		var middles: PackedVector2Array = PackedVector2Array()
 		for pole: int in fuse.poles:
-			middles.append(FuseSymbol._draw_holder(self, Vector2(pole_x(pole), 0), pole * 2, pole * 2 + 1, fuse.switched_on, fuse.blown[pole] == 1, color, width))
+			middles.append(FuseSymbol._draw_holder(self, Vector2(pole_x(pole), 0), pole * 2, pole * 2 + 1, shown("holder", 1.0 if fuse.switched_on else 0.0), fuse.blown[pole] == 1, color, width))
 		# The link runs between the fuse bodies, never across them.
 		var link: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-		var gap: float = FuseSymbol.holder_half_extent(fuse.switched_on) + 2.0
+		var gap: float = FuseSymbol.holder_half_extent(shown("holder", 1.0 if fuse.switched_on else 0.0)) + 2.0
 		for pole: int in range(fuse.poles - 1):
 			var from: Vector2 = middles[pole] + Vector2(gap, 0)
 			var to: Vector2 = middles[pole + 1] - Vector2(gap, 0)
