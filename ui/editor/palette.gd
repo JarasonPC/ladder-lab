@@ -7,10 +7,10 @@ signal template_chosen(template: Dictionary)
 
 ## Entries: English title (translated with tr()) and component template.
 const ENTRIES: Array[Dictionary] = [
-	{"title": "L supply", "template": {"type": "supply", "conductor": "L"}},
-	{"title": "N supply", "template": {"type": "supply", "conductor": "N"}},
+	{"title": "L1 supply", "template": {"type": "supply", "conductor": "L"}},
 	{"title": "L2 supply", "template": {"type": "supply", "conductor": "L2"}},
 	{"title": "L3 supply", "template": {"type": "supply", "conductor": "L3"}},
+	{"title": "N supply", "template": {"type": "supply", "conductor": "N"}},
 	{"title": "Push button NO", "template": {"type": "push_button", "contact": "NO"}},
 	{"title": "Push button NC", "template": {"type": "push_button", "contact": "NC"}},
 	{"title": "Switch NO", "template": {"type": "latching_switch", "contact": "NO"}},
@@ -43,9 +43,9 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Motor 3~ three windings", "template": {"type": "motor3", "motor_kind": "three_windings"}},
 ]
 
-const ICON_SCALE: float = 0.7
-## Three-pole symbols and motors are drawn upright and smaller.
-const LARGE_ICON_SCALE: float = 0.38
+## Largest scale of a symbol on its tile; smaller when it would not fit.
+const MAX_ICON_SCALE: float = 0.7
+const ICON_PADDING: float = 3.0
 ## Paper tile behind each symbol, at the left of its row.
 const TILE := Rect2(6, 4, 54, 34)
 
@@ -157,16 +157,19 @@ func retranslate() -> void:
 		_headers[i].text = _group_title(_header_titles[i]).to_upper()
 
 
-## Draws the symbol lying horizontally on a paper tile at the left of the button.
+## Draws the symbol on a paper tile at the left of the button, scaled to fit
+## it: two-terminal symbols and supplies lying horizontally, three-pole
+## devices and motors upright. Supplies show their conductor name in the circle.
 func _add_icon(button: Button, template: Dictionary) -> void:
 	var data: Dictionary = template.duplicate()
-	data["designation"] = str(data["conductor"]) if data.has("conductor") else "X1"
+	var conductor: String = str(data.get("conductor", ""))
+	data["designation"] = ("L1" if conductor == "L" else conductor) if not conductor.is_empty() else "X1"
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
-	var large: bool = component.get_terminal_names().size() > 3 or component is ThreePhaseMotor
-	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if large else Placement.new(Vector2i.ZERO, 3, true)
+	var supply: bool = component is PowerSupply
+	var upright: bool = component is ThreePhaseMotor or component.get_terminal_names().size() > 3
+	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)
 	var symbol: SchematicSymbol = SymbolFactory.create(component, placement)
-	symbol.show_labels = false
-	symbol.scale = Vector2.ONE * (LARGE_ICON_SCALE if large else ICON_SCALE)
+	symbol.show_labels = supply
 	# Symbols are drawn for the light schematic paper, so give them a tile of it.
 	var paper: Panel = Panel.new()
 	_tiles.append(paper)
@@ -175,10 +178,21 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	paper.position = TILE.position
 	paper.size = TILE.size
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	paper.clip_contents = true
 	button.add_child(paper)
-	var span: float = SymbolGeometry.SPAN * SymbolGeometry.GRID * ICON_SCALE
-	var at: Vector2 = Vector2(6.0 + (span * 0.5 if component is PowerSupply else 0.0), 18.0)
-	if large:
-		at = Vector2(10.0, 5.0) if not (component is ThreePhaseMotor) else Vector2(7.0, 1.0)
-	symbol.position = TILE.position + at
-	button.add_child(symbol)
+	# Extent of the drawing: body and terminals, turned like the placement.
+	var g: float = float(SymbolGeometry.GRID)
+	var local: Rect2 = SymbolGeometry.local_body(component)
+	for cell: Vector2i in SymbolGeometry.local_terminals(component).values():
+		local = local.expand(Vector2(cell))
+	local = Rect2(local.position * g, local.size * g).grow(2.0 if supply else 6.0)
+	var t: Transform2D = SymbolGeometry.draw_transform(placement)
+	var extent: Rect2 = Rect2(t * local.position, Vector2.ZERO)
+	for corner: Vector2 in [local.end, Vector2(local.position.x, local.end.y), Vector2(local.end.x, local.position.y)]:
+		extent = extent.expand(t * corner)
+	var room: Vector2 = TILE.size - Vector2.ONE * 2.0 * ICON_PADDING
+	# Supplies at full size, so the conductor name in the circle stays readable.
+	var s: float = minf(1.0 if supply else MAX_ICON_SCALE, minf(room.x / extent.size.x, room.y / extent.size.y))
+	symbol.scale = Vector2(s, s)
+	symbol.position = TILE.size * 0.5 - extent.get_center() * s
+	paper.add_child(symbol)

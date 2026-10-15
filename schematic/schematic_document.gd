@@ -555,11 +555,19 @@ func next_supply_designation(conductor: PowerSupply.Conductor) -> String:
 	var base: String = "N"
 	match conductor:
 		PowerSupply.Conductor.L:
-			# Next to L2 and L3 the first phase is called L1.
-			base = "L"
+			# L1, unless a single-phase drawing already names its phase plain
+			# "L" (then "L.2", "L.3", ...); next to L2 or L3 always L1.
+			base = "L1"
+			var plain: bool = false
 			for c: CircuitComponent in circuit.get_components():
-				if c is PowerSupply and (c as PowerSupply).conductor in [PowerSupply.Conductor.L2, PowerSupply.Conductor.L3]:
-					base = "L1"
+				if c is PowerSupply:
+					if (c as PowerSupply).conductor in [PowerSupply.Conductor.L2, PowerSupply.Conductor.L3]:
+						plain = false
+						break
+					if c.designation == "L" or c.designation.begins_with("L."):
+						plain = true
+			if plain:
+				base = "L"
 		PowerSupply.Conductor.L2:
 			base = "L2"
 		PowerSupply.Conductor.L3:

@@ -180,17 +180,17 @@ msgstr "Ochrany"
 msgid "Power circuit"
 msgstr "Silový obvod"
 
-msgid "L supply"
-msgstr "Přívod L"
-
-msgid "N supply"
-msgstr "Přívod N"
+msgid "L1 supply"
+msgstr "Přívod L1"
 
 msgid "L2 supply"
 msgstr "Přívod L2"
 
 msgid "L3 supply"
 msgstr "Přívod L3"
+
+msgid "N supply"
+msgstr "Přívod N"
 
 msgid "Push button NO"
 msgstr "Tlačítko spínací"

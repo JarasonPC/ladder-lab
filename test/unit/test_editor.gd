@@ -237,7 +237,7 @@ func test_changeover_contact_follows_coil_and_changes_type() -> void:
 func test_three_phase_parts_from_the_palette() -> void:
 	_place({"type": "coil", "kind": "contactor"}, Vector2i(20, 4))
 	var x: int = 5
-	var wanted: PackedStringArray = ["L2 supply", "L supply", "L3 supply", "Main contacts", "Fuse 3-pole", "Motor breaker 3-pole", "Overload relay 3-pole", "Motor 3~", "Motor 3~ star/delta", "Motor 3~ Dahlander", "Motor 3~ two windings", "Motor 3~ three windings"]
+	var wanted: PackedStringArray = ["L2 supply", "L1 supply", "L3 supply", "Main contacts", "Fuse 3-pole", "Motor breaker 3-pole", "Overload relay 3-pole", "Motor 3~", "Motor 3~ star/delta", "Motor 3~ Dahlander", "Motor 3~ two windings", "Motor 3~ three windings"]
 	for title: String in wanted:
 		for entry: Dictionary in Palette.ENTRIES:
 			if entry["title"] == title:

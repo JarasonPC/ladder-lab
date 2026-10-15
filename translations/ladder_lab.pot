@@ -177,16 +177,16 @@ msgstr ""
 msgid "Power circuit"
 msgstr ""
 
-msgid "L supply"
-msgstr ""
-
-msgid "N supply"
+msgid "L1 supply"
 msgstr ""
 
 msgid "L2 supply"
 msgstr ""
 
 msgid "L3 supply"
+msgstr ""
+
+msgid "N supply"
 msgstr ""
 
 msgid "Push button NO"
