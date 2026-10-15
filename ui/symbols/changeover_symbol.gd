@@ -7,8 +7,9 @@ extends SchematicSymbol
 
 const PIVOT := Vector2(0, 40)
 const NO_END := Vector2(0, 20)
+## Both tips as far from the pivot: the blade keeps its length.
 const NC_TIP := Vector2(10, 18)
-const NO_TIP := Vector2(-3, 20)
+const NO_TIP := Vector2(-1, 15.85)
 
 
 func _designation_anchor() -> Vector2:
@@ -29,7 +30,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 		target = 1.0
 	elif contact.is_path_closed(ChangeoverContact.PATH_NC):
 		target = 0.0
-	var tip: Vector2 = NC_TIP.lerp(NO_TIP, shown("blade", target))
+	var tip: Vector2 = blade_tip(PIVOT, NC_TIP, NO_TIP, shown("blade", target))
 	draw_blade(PIVOT, tip, lead_color(0), lead_width(0))
 	if contact.delayed:
 		# The delay mark is fixed to the blade and turns with it.
