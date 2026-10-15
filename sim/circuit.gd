@@ -68,3 +68,8 @@ func get_wires() -> Array[PackedStringArray]:
 
 func has_terminal(key: String) -> bool:
 	return _terminal_owner.has(key)
+
+
+## Component that owns a terminal, or null.
+func get_terminal_owner(key: String) -> CircuitComponent:
+	return _terminal_owner.get(key, null)

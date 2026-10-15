@@ -1,0 +1,92 @@
+extends GutTest
+
+
+func test_rotated_terminals() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(10, 10), 1)
+	doc.add(Lamp.new("H2"), Vector2i(10, 10), 2)
+	assert_eq(doc.terminal_cell("H1:X1"), Vector2i(10, 10))
+	assert_eq(doc.terminal_cell("H1:X2"), Vector2i(7, 10), "quarter turn clockwise points left")
+	assert_eq(doc.terminal_cell("H2:X2"), Vector2i(10, 7))
+
+
+func test_mirrored_terminals_and_lead() -> void:
+	var p: Placement = Placement.new(Vector2i.ZERO, 3, true)
+	assert_eq(SymbolGeometry.transform_cell(Vector2i(0, 3), p), Vector2i(3, 0), "runs left to right")
+	assert_eq(SymbolGeometry.transform_cell(Vector2i(-1, 1), p), Vector2i(1, -1), "left side ends up on top")
+	assert_eq(SymbolGeometry.transform_direction(SymbolGeometry.DIR_DOWN, p), SymbolGeometry.DIR_RIGHT)
+	var t: Transform2D = SymbolGeometry.draw_transform(p)
+	assert_almost_eq(t * Vector2(-20, 20), Vector2(20, -20), Vector2(0.001, 0.001), "draw transform matches grid transform")
+
+
+func test_transpose_makes_horizontal_paths() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(0, true)
+	assert_true(doc.horizontal)
+	assert_eq(doc.terminal_cell("S1:13"), Vector2i(8, 5))
+	assert_eq(doc.terminal_cell("S1:14"), Vector2i(11, 5))
+	var cells: Array[Vector2i] = doc.junction_cells()
+	cells.sort()
+	assert_eq(cells, [Vector2i(1, 5), Vector2i(7, 5), Vector2i(12, 5), Vector2i(18, 5)] as Array[Vector2i])
+	doc.transpose()
+	assert_false(doc.horizontal)
+	assert_eq(doc.terminal_cell("S1:14"), Vector2i(5, 11))
+
+
+func test_rotated_body_hit() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(10, 10), 1)
+	assert_eq(doc.component_at(Vector2(8.5, 10.0)).id, "H1")
+	assert_null(doc.component_at(Vector2(10.0, 11.5)))
+
+
+func test_component_at() -> void:
+	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	assert_eq(doc.component_at(Vector2(5.0, 9.5)).id, "S1")
+	assert_eq(doc.component_at(Vector2(8.0, 9.5)).id, "K1:13-14")
+	assert_eq(doc.component_at(Vector2(5.0, 14.5)).id, "K1")
+	assert_null(doc.component_at(Vector2(0.0, 0.0)))
+
+
+func test_junction_dots() -> void:
+	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var cells: Array[Vector2i] = doc.junction_cells()
+	cells.sort()
+	assert_eq(cells, [Vector2i(5, 1), Vector2i(5, 7), Vector2i(5, 12), Vector2i(5, 18)] as Array[Vector2i])
+
+
+func test_examples_are_consistent() -> void:
+	for index: int in ExampleCircuits.count() * 2:
+		var doc: SchematicDocument = ExampleCircuits.build(index / 2, index % 2 == 1)
+		assert_not_null(doc, "example %d builds" % index)
+		assert_eq(doc.get_wire_count(), doc.circuit.get_wires().size())
+		for c: CircuitComponent in doc.circuit.get_components():
+			assert_not_null(doc.get_placement(c.id), "%s is placed" % c.id)
+		for w: int in doc.get_wire_count():
+			var points: Array[Vector2i] = doc.wire_points(w)
+			for s: int in range(1, points.size()):
+				var d: Vector2i = points[s] - points[s - 1]
+				assert_true(d.x == 0 or d.y == 0, "%s wire %d segment %d is orthogonal" % [doc.title, w, s])
+		var r: StepResult = Simulator.new(doc.circuit).step()
+		assert_true(r.stable, "%s settles at rest" % doc.title)
+
+
+func test_wires_do_not_cross_symbol_bodies() -> void:
+	# A wire running through a symbol would look like a connection that is not there.
+	var crossings: PackedStringArray = PackedStringArray()
+	for index: int in ExampleCircuits.count() * 2:
+		var doc: SchematicDocument = ExampleCircuits.build(index / 2, index % 2 == 1)
+		for w: int in doc.get_wire_count():
+			var points: Array[Vector2i] = doc.wire_points(w)
+			for s: int in range(1, points.size()):
+				var a: Vector2 = Vector2(points[s - 1])
+				var b: Vector2 = Vector2(points[s])
+				for k: int in range(1, 20):
+					var p: Vector2 = a.lerp(b, k / 20.0)
+					var hit: CircuitComponent = doc.component_at(p)
+					if hit != null and not (hit is PowerSupply):
+						var body: Rect2 = doc.component_body(hit)
+						# Leads run along the symbol axis; only the middle of the body counts.
+						var core: Rect2 = body.grow(-0.45)
+						if core.has_point(p):
+							crossings.append("%s wire %d crosses %s" % [doc.title, w, hit.id])
+	assert_eq(crossings, PackedStringArray())
