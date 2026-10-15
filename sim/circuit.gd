@@ -157,6 +157,7 @@ func _relink_contacts() -> void:
 			else:
 				buttons[c.designation] = button.actuator
 		elif c is LatchingSwitch:
+			# Limit switches and switches share actuators by designation alike.
 			var switch: LatchingSwitch = c as LatchingSwitch
 			if switches.has(c.designation):
 				switch.actuator = switches[c.designation]

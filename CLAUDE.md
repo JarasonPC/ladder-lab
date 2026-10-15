@@ -49,8 +49,9 @@
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, S = push button/switch,
-  H = lamp, M = motor, F = fuse/overload relay, Q = circuit/motor breaker, X = terminal, supplies L (= L1), L2, L3 and N
+- Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
+  button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
+  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2

@@ -146,7 +146,7 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 
 static func _family(kind: String) -> String:
 	match kind:
-		"push_button", "latching_switch", "contact":
+		"push_button", "latching_switch", "limit_switch", "contact":
 			return "switching"
 		"coil", "timer":
 			return "coil"
@@ -344,7 +344,10 @@ func change_type(component_id: String, template: Dictionary) -> String:
 		"switching":
 			var element: SwitchingElement = old as SwitchingElement
 			var to_contact: bool = template["type"] == "contact"
-			var designation: String = old.designation if (old is Contact) == to_contact else _new_designation(template)
+			# The designation follows the type: SB push button, RB switch, SQ
+			# limit switch, a contact that of its coil.
+			var same_kind: bool = old_data["type"] == template["type"] or (old is Contact and to_contact)
+			var designation: String = old.designation if same_kind else _new_designation(template)
 			if to_contact and template.get("delayed", false) and not (doc.circuit.get_coil(designation) is TimerRelay):
 				for c: CircuitComponent in doc.circuit.get_components():
 					if c is TimerRelay:
@@ -373,6 +376,9 @@ func change_type(component_id: String, template: Dictionary) -> String:
 				data["delay"] = (old as TimerRelay).delay
 		"load":
 			data["designation"] = _new_designation(template)
+		"protection":
+			# FU fuse, FA circuit breaker.
+			data["designation"] = old.designation if old_data["type"] == template["type"] else _new_designation(template)
 		_:
 			data["designation"] = old.designation
 	return apply_properties(component_id, data)
@@ -709,7 +715,7 @@ func _place_at(cell: Vector2i) -> void:
 			return
 	var data: Dictionary = _template.duplicate()
 	data["designation"] = _new_designation(data)
-	if ["contact", "changeover", "push_button", "latching_switch"].has(data["type"]):
+	if ["contact", "changeover", "push_button", "latching_switch", "limit_switch"].has(data["type"]):
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
 	if data["type"] == "terminal" and str(data.get("label", "")).is_empty():
 		data["label"] = str(data["designation"]).trim_prefix("X")
@@ -741,6 +747,8 @@ static func _designation_group(c: CircuitComponent) -> String:
 		return "relay"
 	if c is PushButton:
 		return "push_button"
+	if c is LimitSwitch:
+		return "limit_switch"
 	if c is LatchingSwitch:
 		return "switch"
 	return ""
@@ -788,12 +796,18 @@ func _new_designation(data: Dictionary) -> String:
 	match data["type"]:
 		"supply":
 			return doc.next_supply_designation(_conductor(data))
-		"push_button", "latching_switch":
-			return doc.next_designation("S")
-		"fuse", "overload_relay":
-			return doc.next_designation("F")
+		"push_button":
+			return doc.next_designation("SB")
+		"latching_switch":
+			return doc.next_designation("RB")
+		"limit_switch":
+			return doc.next_designation("SQ")
+		"fuse":
+			return doc.next_designation("FU")
 		"breaker":
-			return doc.next_designation("Q")
+			return doc.next_designation("FA")
+		"overload_relay":
+			return doc.next_designation("F")
 		"main_contacts":
 			# Belongs to the selected contactor, else to the first one.
 			for id: String in selected_components:

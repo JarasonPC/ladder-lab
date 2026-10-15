@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3"]
 
@@ -148,6 +148,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["sequence"] = s.sequence
 		if c is PushButton:
 			d["type"] = "push_button"
+		elif c is LimitSwitch:
+			d["type"] = "limit_switch"
 		elif c is LatchingSwitch:
 			d["type"] = "latching_switch"
 		else:
@@ -222,6 +224,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			return PushButton.new(designation, contact, sequence)
 		"latching_switch":
 			return LatchingSwitch.new(designation, contact, sequence)
+		"limit_switch":
+			return LimitSwitch.new(designation, contact, sequence)
 		"contact":
 			return Contact.new(designation, contact, sequence, bool(d.get("delayed", false)))
 		"changeover":

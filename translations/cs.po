@@ -207,6 +207,12 @@ msgstr "Spínač spínací"
 msgid "Switch NC"
 msgstr "Spínač rozpínací"
 
+msgid "Limit switch NO"
+msgstr "Koncový spínač NO"
+
+msgid "Limit switch NC"
+msgstr "Koncový spínač NC"
+
 msgid "Contact NO"
 msgstr "Kontakt spínací"
 
