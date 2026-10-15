@@ -154,7 +154,7 @@ func _designation_anchor() -> Vector2:
 ## [param line] > 0 writes a further line: below the first one when the text is
 ## beside the symbol, further away from the symbol when it is above or below.
 func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Color, line: int = 0) -> void:
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = AppTheme.schematic_font()
 	var anchor: Vector2 = SymbolGeometry.draw_transform(placement) * local_anchor
 	var axis_point: Vector2 = SymbolGeometry.draw_transform(placement) * Vector2(0.0, local_anchor.y)
 	var away: Vector2 = anchor - axis_point

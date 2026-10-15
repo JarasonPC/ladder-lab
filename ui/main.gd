@@ -6,6 +6,7 @@ extends Node
 
 enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, QUIT }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT }
 
 const SPEEDS: Array[float] = [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]
@@ -14,6 +15,8 @@ const STEP_SECONDS: float = 0.1
 const LOCALES: PackedStringArray = ["en", "cs"]
 ## Language names are shown in their own language, never translated.
 const LOCALE_NAMES: PackedStringArray = ["English", "Čeština"]
+## Interface sizes offered in the View menu; 0 follows the screen.
+const UI_SCALES: Array[float] = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0]
 const SETTINGS_PATH: String = "user://settings.cfg"
 const MAX_RECENT: int = 8
 const EXPORT_MARGIN: float = 40.0
@@ -38,11 +41,10 @@ var _after_discard: Callable = Callable()
 
 var _file_menu: MenuButton
 var _recent_menu: PopupMenu
+var _view_menu: MenuButton
 var _edit_button: Button
 var _simulate_button: Button
-var _circuit_label: Label
 var _circuit_select: OptionButton
-var _layout_label: Label
 var _layout_select: OptionButton
 var _edit_tools: HBoxContainer
 var _undo_button: Button
@@ -52,19 +54,15 @@ var _mirror_button: Button
 var _delete_button: Button
 var _check_button: Button
 var _sim_tools: HBoxContainer
-var _switching_label: Label
 var _switching_select: OptionButton
 var _chart_button: Button
 var _log_button: Button
 var _timing_panel: TimingPanel
 var _run_button: Button
 var _step_button: Button
-var _speed_label: Label
 var _speed_select: OptionButton
 var _reset_button: Button
 var _time_label: Label
-var _fullscreen_button: Button
-var _language_select: OptionButton
 var _palette: Palette
 var _side: VBoxContainer
 ## Part of the window where the schematic is visible (between the panels).
@@ -79,6 +77,10 @@ var _editor_hint: String = ""
 ## Timing chart and event log shown in Simulate mode (remembered).
 var _show_chart: bool = true
 var _show_log: bool = true
+var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
+## Chosen interface size (see UI_SCALES), 0 = automatic.
+var _ui_scale: float = 0.0
+var _locale_index: int = 0
 var _file_dialog: FileDialog
 var _unsaved_dialog: ConfirmationDialog
 var _discard_button: Button
@@ -97,6 +99,9 @@ func _ready() -> void:
 	add_child(camera)
 	camera.make_current()
 	_load_settings()
+	_apply_ui_scale()
+	_apply_theme()
+	TranslationServer.set_locale(LOCALES[_locale_index])
 	_build_ui()
 	_build_dialogs()
 	view.stepped.connect(_on_stepped)
@@ -122,7 +127,6 @@ func _process(_delta: float) -> void:
 	_rotate_button.disabled = not has_selection and editor.tool != SchematicEditor.Tool.PLACE
 	_mirror_button.disabled = _rotate_button.disabled
 	_delete_button.disabled = not has_selection and editor.selected_wires.is_empty()
-	_fullscreen_button.set_pressed_no_signal(_is_fullscreen())
 
 
 func _notification(what: int) -> void:
@@ -163,46 +167,59 @@ func _build_ui() -> void:
 	var root: VBoxContainer = VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.theme = _panel_theme()
+	root.add_theme_constant_override("separation", 0)
 	layer.add_child(root)
 
 	var top: PanelContainer = PanelContainer.new()
+	top.theme_type_variation = "Toolbar"
 	root.add_child(top)
 	# Wraps onto a second row when the window (or a translation) is too narrow.
 	var bar: HFlowContainer = HFlowContainer.new()
-	bar.add_theme_constant_override("h_separation", 6)
-	bar.add_theme_constant_override("v_separation", 4)
 	top.add_child(bar)
 
-	_file_menu = MenuButton.new()
-	_file_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_file_menu.flat = false
-	_file_menu.focus_mode = Control.FOCUS_NONE
-	bar.add_child(_file_menu)
+	var brand: Label = Label.new()
+	brand.text = "LadderLab"
+	brand.theme_type_variation = "BrandLabel"
+	brand.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	brand.custom_minimum_size = Vector2(0, 32)
+	brand.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bar.add_child(brand)
+	bar.add_child(_spacer(6))
+	_file_menu = _menu(bar)
 	_recent_menu = PopupMenu.new()
 	_recent_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_recent_menu.index_pressed.connect(_on_recent_pressed)
 	_file_menu.get_popup().add_child(_recent_menu)
 	_file_menu.get_popup().id_pressed.connect(_on_file_menu)
+	_view_menu = _menu(bar)
+	_view_menu.get_popup().id_pressed.connect(_on_view_menu)
+	_view_menu.about_to_popup.connect(_rebuild_view_menu)
+	bar.add_child(VSeparator.new())
 
+	# Edit | Simulate as one segmented switch.
+	var track: PanelContainer = PanelContainer.new()
+	track.theme_type_variation = "SegmentTrack"
+	bar.add_child(track)
+	var segments: HBoxContainer = HBoxContainer.new()
+	segments.add_theme_constant_override("separation", 2)
+	track.add_child(segments)
 	var mode_group: ButtonGroup = ButtonGroup.new()
-	_edit_button = _button(bar, func() -> void: _set_mode(Mode.EDIT))
-	_simulate_button = _button(bar, func() -> void: _set_mode(Mode.SIMULATE))
+	_edit_button = _button(segments, func() -> void: _set_mode(Mode.EDIT), "edit")
+	_simulate_button = _button(segments, func() -> void: _set_mode(Mode.SIMULATE), "simulate")
 	for b: Button in [_edit_button, _simulate_button]:
+		b.theme_type_variation = "SegmentButton"
 		b.toggle_mode = true
 		b.button_group = mode_group
 	_edit_button.button_pressed = true
 	bar.add_child(VSeparator.new())
 
-	_circuit_label = _label(bar)
 	_circuit_select = _option(bar)
 	_circuit_select.fit_to_longest_item = false
 	_circuit_select.clip_text = true
-	_circuit_select.custom_minimum_size = Vector2(210, 0)
+	_circuit_select.custom_minimum_size = Vector2(220, 0)
 	for i: int in ExampleCircuits.count():
 		_circuit_select.add_item("")
 	_circuit_select.item_selected.connect(_on_example_selected)
-	_layout_label = _label(bar)
 	_layout_select = _option(bar)
 	_layout_select.add_item("")
 	_layout_select.add_item("")
@@ -210,47 +227,46 @@ func _build_ui() -> void:
 	bar.add_child(VSeparator.new())
 
 	_edit_tools = HBoxContainer.new()
+	_edit_tools.add_theme_constant_override("separation", 2)
 	bar.add_child(_edit_tools)
-	_undo_button = _button(_edit_tools, func() -> void: editor.undo())
-	_redo_button = _button(_edit_tools, func() -> void: editor.redo())
-	_rotate_button = _button(_edit_tools, func() -> void: editor.rotate_selection())
-	_mirror_button = _button(_edit_tools, func() -> void: editor.mirror_selection())
-	_delete_button = _button(_edit_tools, func() -> void: editor.delete_selection())
-	_check_button = _button(_edit_tools, func() -> void: _check_panel.run(edit_doc))
+	_undo_button = _tool(_edit_tools, func() -> void: editor.undo(), "undo")
+	_redo_button = _tool(_edit_tools, func() -> void: editor.redo(), "redo")
+	_edit_tools.add_child(_spacer(8))
+	_rotate_button = _tool(_edit_tools, func() -> void: editor.rotate_selection(), "rotate")
+	_mirror_button = _tool(_edit_tools, func() -> void: editor.mirror_selection(), "mirror")
+	_delete_button = _tool(_edit_tools, func() -> void: editor.delete_selection(), "delete")
+	_edit_tools.add_child(_spacer(8))
+	_check_button = _button(_edit_tools, func() -> void: _check_panel.run(edit_doc), "check")
 
 	_sim_tools = HBoxContainer.new()
+	_sim_tools.add_theme_constant_override("separation", 4)
 	bar.add_child(_sim_tools)
-	_switching_label = _label(_sim_tools)
-	_switching_select = _option(_sim_tools)
-	_switching_select.add_item("")
-	_switching_select.add_item("")
-	_switching_select.item_selected.connect(_on_switching_selected)
-	_run_button = _button(_sim_tools, _on_run_pressed)
-	_step_button = _button(_sim_tools, func() -> void: view.step_once(STEP_SECONDS * view.speed))
-	_speed_label = _label(_sim_tools)
+	_run_button = _button(_sim_tools, _on_run_pressed, "pause")
+	_run_button.theme_type_variation = "PrimaryButton"
+	_run_button.custom_minimum_size = Vector2(96, 0)
+	_step_button = _tool(_sim_tools, func() -> void: view.step_once(STEP_SECONDS * view.speed), "step")
+	_reset_button = _tool(_sim_tools, _start_simulation, "reset")
+	_time_label = _label(_sim_tools)
+	_time_label.theme_type_variation = "TimeLabel"
+	_time_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_sim_tools.add_child(_spacer(6))
 	_speed_select = _option(_sim_tools)
 	for s: float in SPEEDS:
 		_speed_select.add_item("×%s" % str(s))
 	_speed_select.select(SPEEDS.find(1.0))
 	_speed_select.item_selected.connect(func(i: int) -> void: view.speed = SPEEDS[i])
-	_reset_button = _button(_sim_tools, _start_simulation)
-	_chart_button = _button(_sim_tools, _on_timing_parts_toggled)
+	_switching_select = _option(_sim_tools)
+	_switching_select.add_item("")
+	_switching_select.add_item("")
+	_switching_select.item_selected.connect(_on_switching_selected)
+	_sim_tools.add_child(VSeparator.new())
+	_chart_button = _tool(_sim_tools, _on_timing_parts_toggled, "chart")
 	_chart_button.toggle_mode = true
 	_chart_button.button_pressed = _show_chart
-	_log_button = _button(_sim_tools, _on_timing_parts_toggled)
+	_log_button = _tool(_sim_tools, _on_timing_parts_toggled, "log")
 	_log_button.toggle_mode = true
 	_log_button.button_pressed = _show_log
 
-	var spacer: Control = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(spacer)
-	_time_label = _label(bar)
-	_fullscreen_button = _button(bar, _toggle_fullscreen)
-	_fullscreen_button.toggle_mode = true
-	_language_select = _option(bar)
-	for language: String in LOCALE_NAMES:
-		_language_select.add_item(language)
-	_language_select.item_selected.connect(_on_language_selected)
 
 	var middle: HBoxContainer = HBoxContainer.new()
 	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -265,38 +281,43 @@ func _build_ui() -> void:
 	_short_banner = Label.new()
 	_short_banner.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_short_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_short_banner.add_theme_font_size_override("font_size", 26)
+	_short_banner.add_theme_font_override("font", AppTheme.bold_font())
+	_short_banner.add_theme_font_size_override("font_size", 20)
 	_short_banner.add_theme_color_override("font_color", Color.WHITE)
-	var banner_style: StyleBoxFlat = StyleBoxFlat.new()
-	banner_style.bg_color = SchematicTheme.LIVE
-	banner_style.set_content_margin_all(10.0)
-	banner_style.set_corner_radius_all(6)
+	var banner_style: StyleBoxFlat = AppTheme.box(AppTheme.danger, 10, 22.0, 10.0)
+	banner_style.shadow_color = Color(0, 0, 0, 0.25)
+	banner_style.shadow_size = 12
+	banner_style.shadow_offset = Vector2(0, 4)
 	_short_banner.add_theme_stylebox_override("normal", banner_style)
 	_short_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	_short_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_short_banner.position.y = 12.0
+	_short_banner.position.y = 16.0
 	_short_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_short_banner.hide()
 	_canvas_area.add_child(_short_banner)
 	_side = VBoxContainer.new()
+	_side.add_theme_constant_override("separation", 0)
 	middle.add_child(_side)
 	_properties = PropertiesPanel.new()
 	_properties.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_side.add_child(_properties)
 	_check_panel = CheckPanel.new()
-	_check_panel.custom_minimum_size = Vector2(220, 0)
+	_check_panel.custom_minimum_size = Vector2(250, 0)
 	_side.add_child(_check_panel)
 
 	_timing_panel = TimingPanel.new()
 	root.add_child(_timing_panel)
 
 	var bottom: PanelContainer = PanelContainer.new()
+	bottom.theme_type_variation = "Statusbar"
 	root.add_child(bottom)
 	var status: HBoxContainer = HBoxContainer.new()
+	status.add_theme_constant_override("separation", 12)
 	bottom.add_child(status)
 	_status_label = _label(status)
-	status.add_child(VSeparator.new())
+	_status_label.add_theme_font_size_override("font_size", AppTheme.SMALL_FONT_SIZE)
 	_hint_label = _label(status)
+	_hint_label.theme_type_variation = "MutedLabel"
 	_hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint_label.clip_text = true
@@ -322,20 +343,6 @@ func _build_dialogs() -> void:
 	_retranslate_dialogs()
 
 
-## Opaque panels: the default ones are see-through, so the schematic would
-## show behind the toolbar and the timing chart.
-func _panel_theme() -> Theme:
-	var panel: StyleBoxFlat = StyleBoxFlat.new()
-	panel.bg_color = Color("2b2d31")
-	panel.content_margin_left = 4.0
-	panel.content_margin_right = 4.0
-	panel.content_margin_top = 3.0
-	panel.content_margin_bottom = 3.0
-	var t: Theme = Theme.new()
-	t.set_stylebox("panel", "PanelContainer", panel)
-	return t
-
-
 func _label(parent: Control) -> Label:
 	var label: Label = Label.new()
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -343,13 +350,39 @@ func _label(parent: Control) -> Label:
 	return label
 
 
-func _button(parent: Control, on_pressed: Callable) -> Button:
+## Button with text and an optional icon from [method AppTheme.icon].
+func _button(parent: Control, on_pressed: Callable, icon_name: String = "") -> Button:
 	var button: Button = Button.new()
 	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	button.focus_mode = Control.FOCUS_NONE
+	if not icon_name.is_empty():
+		button.icon = AppTheme.icon(icon_name)
 	button.pressed.connect(on_pressed)
 	parent.add_child(button)
 	return button
+
+
+## Icon-only toolbar button; its name is in the tooltip.
+func _tool(parent: Control, on_pressed: Callable, icon_name: String) -> Button:
+	var button: Button = _button(parent, on_pressed, icon_name)
+	button.theme_type_variation = "ToolButton"
+	return button
+
+
+func _menu(parent: Control) -> MenuButton:
+	var menu: MenuButton = MenuButton.new()
+	menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	menu.focus_mode = Control.FOCUS_NONE
+	menu.switch_on_hover = true
+	parent.add_child(menu)
+	return menu
+
+
+func _spacer(width: float) -> Control:
+	var c: Control = Control.new()
+	c.custom_minimum_size = Vector2(width, 0)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
 
 
 func _option(parent: Control) -> OptionButton:
@@ -364,40 +397,32 @@ func _option(parent: Control) -> OptionButton:
 func _retranslate() -> void:
 	_file_menu.text = tr("File")
 	_rebuild_file_menu()
+	_view_menu.text = tr("View")
 	_edit_button.text = tr("Edit")
 	_simulate_button.text = tr("Simulate")
-	_circuit_label.text = tr("Example:")
+	_circuit_select.tooltip_text = tr("Example circuit")
 	for i: int in ExampleCircuits.count():
 		_circuit_select.set_item_text(i, tr(ExampleCircuits.TITLES[i]))
-	_layout_label.text = tr("Layout:")
+	_layout_select.tooltip_text = tr("Direction of the current paths")
 	_layout_select.set_item_text(0, tr("Vertical"))
 	_layout_select.set_item_text(1, tr("Horizontal"))
-	_undo_button.text = tr("Undo")
-	_undo_button.tooltip_text = "Ctrl+Z"
-	_redo_button.text = tr("Redo")
-	_redo_button.tooltip_text = "Ctrl+Y"
-	_rotate_button.text = tr("Rotate (R)")
-	_rotate_button.tooltip_text = tr("Rotate by 90°")
-	_mirror_button.text = tr("Mirror (F)")
-	_mirror_button.tooltip_text = tr("Mirror across the symbol axis")
-	_delete_button.text = tr("Delete (Del)")
+	_undo_button.tooltip_text = tr("Undo") + "  (Ctrl+Z)"
+	_redo_button.tooltip_text = tr("Redo") + "  (Ctrl+Y)"
+	_rotate_button.tooltip_text = tr("Rotate by 90°") + "  (R)"
+	_mirror_button.tooltip_text = tr("Mirror across the symbol axis") + "  (F)"
+	_delete_button.tooltip_text = tr("Delete") + "  (Del)"
 	_check_button.text = tr("Check")
 	_check_button.tooltip_text = tr("Look for unconnected terminals, contacts without a coil and other mistakes")
-	_switching_label.text = tr("Switching:")
 	_switching_select.set_item_text(0, tr("Realistic"))
 	_switching_select.set_item_text(1, tr("Ideal"))
 	_switching_select.tooltip_text = tr("Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly.")
-	_chart_button.text = tr("Timing chart")
 	_chart_button.tooltip_text = tr("Show or hide the timing chart")
-	_log_button.text = tr("Event log")
 	_log_button.tooltip_text = tr("Show or hide the event log")
-	_step_button.text = tr("Step")
-	_step_button.tooltip_text = tr("Advance the simulation by 0.1 s times the speed")
-	_speed_label.text = tr("Speed:")
-	_reset_button.text = tr("Reset")
-	_reset_button.tooltip_text = tr("Restart the simulation from the initial state")
-	_fullscreen_button.text = tr("Fullscreen")
-	_fullscreen_button.tooltip_text = "F11"
+	_step_button.tooltip_text = tr("Step") + " – " + tr("Advance the simulation by 0.1 s times the speed")
+	_speed_select.tooltip_text = tr("Simulation speed")
+	_time_label.tooltip_text = tr("Simulation time")
+	_time_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	_reset_button.tooltip_text = tr("Reset") + " – " + tr("Restart the simulation from the initial state")
 	_palette.retranslate()
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
@@ -438,6 +463,68 @@ func _rebuild_file_menu() -> void:
 		_recent_menu.set_item_tooltip(_recent_menu.item_count - 1, path)
 
 
+func _rebuild_view_menu() -> void:
+	var popup: PopupMenu = _view_menu.get_popup()
+	popup.clear()
+	popup.add_check_item(tr("Fullscreen"), ViewMenuId.FULLSCREEN, KEY_F11)
+	popup.set_item_checked(0, _is_fullscreen())
+	popup.add_separator(tr("Theme"))
+	popup.add_radio_check_item(tr("Dark"), ViewMenuId.THEME_DARK)
+	popup.set_item_checked(popup.item_count - 1, _theme_variant == AppTheme.Variant.DARK)
+	popup.add_radio_check_item(tr("Light"), ViewMenuId.THEME_LIGHT)
+	popup.set_item_checked(popup.item_count - 1, _theme_variant == AppTheme.Variant.LIGHT)
+	popup.add_separator(tr("Language"))
+	for i: int in LOCALE_NAMES.size():
+		popup.add_radio_check_item(LOCALE_NAMES[i], ViewMenuId.LANGUAGE + i)
+		popup.set_item_checked(popup.item_count - 1, i == _locale_index)
+	popup.add_separator(tr("Interface size"))
+	for i: int in UI_SCALES.size():
+		var title: String = tr("Automatic") if UI_SCALES[i] == 0.0 else "%d %%" % roundi(UI_SCALES[i] * 100.0)
+		popup.add_radio_check_item(title, ViewMenuId.SCALE + i)
+		popup.set_item_checked(popup.item_count - 1, is_equal_approx(UI_SCALES[i], _ui_scale))
+
+
+func _on_view_menu(id: int) -> void:
+	if id == ViewMenuId.FULLSCREEN:
+		_toggle_fullscreen()
+	elif id == ViewMenuId.THEME_DARK or id == ViewMenuId.THEME_LIGHT:
+		_theme_variant = AppTheme.Variant.DARK if id == ViewMenuId.THEME_DARK else AppTheme.Variant.LIGHT
+		_apply_theme()
+		_save_settings()
+	elif id >= ViewMenuId.SCALE:
+		_ui_scale = UI_SCALES[id - ViewMenuId.SCALE]
+		_apply_ui_scale()
+		_save_settings()
+		_fit_camera_later()
+	elif id >= ViewMenuId.LANGUAGE:
+		set_language(id - ViewMenuId.LANGUAGE)
+
+
+## Puts the [AppTheme] in place for every control and window, including popups
+## that are not under the main panel.
+func _apply_theme() -> void:
+	AppTheme.use(_theme_variant)
+	var theme: Theme = AppTheme.build()
+	var base: Theme = ThemeDB.get_default_theme()
+	base.merge_with(theme)
+	base.default_font = AppTheme.ui_font()
+	base.default_font_size = AppTheme.FONT_SIZE
+	get_tree().root.propagate_notification(Control.NOTIFICATION_THEME_CHANGED)
+
+
+## Interface size: the chosen one, or the screen's scale (HiDPI and Windows
+## display scaling). Text and icons are drawn at the real resolution, so they
+## stay sharp at every size.
+func _apply_ui_scale() -> void:
+	var factor: float = _ui_scale
+	if factor <= 0.0:
+		factor = DisplayServer.screen_get_scale()
+		if factor <= 1.0 and OS.get_name() == "Windows":
+			factor = DisplayServer.screen_get_dpi() / 96.0
+		factor = clampf(snappedf(factor, 0.25), 1.0, 3.0)
+	get_window().content_scale_factor = factor
+
+
 func _update_mode_ui() -> void:
 	var editing: bool = mode == Mode.EDIT
 	_edit_tools.visible = editing
@@ -454,6 +541,7 @@ func _update_mode_ui() -> void:
 
 func _update_run_button() -> void:
 	_run_button.text = tr("Pause") if view.running else tr("Run")
+	_run_button.icon = AppTheme.icon("pause" if view.running else "play")
 	_step_button.disabled = view.running
 
 
@@ -620,9 +708,11 @@ func _on_run_pressed() -> void:
 	_update_run_button()
 
 
-func _on_language_selected(index: int) -> void:
+func set_language(index: int) -> void:
+	_locale_index = index
 	TranslationServer.set_locale(LOCALES[index])
 	_retranslate()
+	_save_settings()
 
 
 func _is_fullscreen() -> bool:
@@ -798,6 +888,9 @@ func _load_settings() -> void:
 		_recent = config.get_value("files", "recent", PackedStringArray())
 		_show_chart = config.get_value("view", "timing_chart", true)
 		_show_log = config.get_value("view", "event_log", true)
+		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
+		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
+		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 
 
 func _save_settings() -> void:
@@ -806,6 +899,9 @@ func _save_settings() -> void:
 	config.set_value("files", "recent", _recent)
 	config.set_value("view", "timing_chart", _show_chart)
 	config.set_value("view", "event_log", _show_log)
+	config.set_value("view", "theme", "light" if _theme_variant == AppTheme.Variant.LIGHT else "dark")
+	config.set_value("view", "ui_scale", _ui_scale)
+	config.set_value("view", "language", LOCALES[_locale_index])
 	config.save(SETTINGS_PATH)
 
 
@@ -860,7 +956,7 @@ func _on_stepped(result: StepResult) -> void:
 		_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
 		return
 	_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.")
-	_time_label.text = tr("Time: %.3f s") % view.sim_time
+	_time_label.text = "%.3f s" % view.sim_time
 	_timing_panel.chart.set_time(view.sim_time)
 	_timing_panel.event_log.add_events(result.events)
 	var tripped: String = _tripped_protection()

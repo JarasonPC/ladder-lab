@@ -25,7 +25,7 @@ func _draw_shape(color: Color, width: float) -> void:
 
 func _draw_labels() -> void:
 	super()
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = AppTheme.schematic_font()
 	var c: Vector2 = to_upright(CENTER)
 	var size: int = 16
 	var w: float = font.get_string_size("M", HORIZONTAL_ALIGNMENT_LEFT, -1, size).x

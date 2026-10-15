@@ -159,6 +159,27 @@ msgstr[0] "Kontrola: %d problém"
 msgstr[1] "Kontrola: %d problémy"
 msgstr[2] "Kontrola: %d problémů"
 
+msgid "Supplies"
+msgstr "Napájení"
+
+msgid "Buttons and switches"
+msgstr "Tlačítka a spínače"
+
+msgid "Contacts"
+msgstr "Kontakty"
+
+msgid "Coils"
+msgstr "Cívky"
+
+msgid "Loads"
+msgstr "Spotřebiče"
+
+msgid "Protection"
+msgstr "Ochrany"
+
+msgid "Power circuit"
+msgstr "Silový obvod"
+
 msgid "L supply"
 msgstr "Přívod L"
 
@@ -388,17 +409,20 @@ msgstr "Kliknutím na svorku nakreslíte vodič. Tažením přesunete. Pravým t
 msgid "File"
 msgstr "Soubor"
 
+msgid "View"
+msgstr "Zobrazení"
+
 msgid "Edit"
 msgstr "Úpravy"
 
 msgid "Simulate"
 msgstr "Simulace"
 
-msgid "Example:"
-msgstr "Příklad:"
+msgid "Example circuit"
+msgstr "Ukázkové zapojení"
 
-msgid "Layout:"
-msgstr "Rozvržení:"
+msgid "Direction of the current paths"
+msgstr "Směr proudových drah"
 
 msgid "Vertical"
 msgstr "Svisle"
@@ -412,26 +436,14 @@ msgstr "Zpět"
 msgid "Redo"
 msgstr "Znovu"
 
-msgid "Rotate (R)"
-msgstr "Otočit (R)"
-
 msgid "Rotate by 90°"
 msgstr "Otočit o 90°"
-
-msgid "Mirror (F)"
-msgstr "Zrcadlit (F)"
 
 msgid "Mirror across the symbol axis"
 msgstr "Zrcadlit podle osy značky"
 
-msgid "Delete (Del)"
-msgstr "Smazat (Del)"
-
 msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
 msgstr "Vyhledat nepřipojené svorky, kontakty bez cívky a další chyby"
-
-msgid "Switching:"
-msgstr "Spínání:"
 
 msgid "Realistic"
 msgstr "Reálné"
@@ -442,14 +454,8 @@ msgstr "Ideální"
 msgid "Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly."
 msgstr "Reálné: relé potřebují svou dobu přítahu a odpadu, rozpínací kontakty rozepnou dříve, než spínací sepnou. Ideální: relé spínají okamžitě."
 
-msgid "Timing chart"
-msgstr "Časový diagram"
-
 msgid "Show or hide the timing chart"
 msgstr "Zobrazit nebo skrýt časový diagram"
-
-msgid "Event log"
-msgstr "Záznam událostí"
 
 msgid "Show or hide the event log"
 msgstr "Zobrazit nebo skrýt záznam událostí"
@@ -460,17 +466,17 @@ msgstr "Krok"
 msgid "Advance the simulation by 0.1 s times the speed"
 msgstr "Posunout simulaci o 0,1 s (násobeno rychlostí)"
 
-msgid "Speed:"
-msgstr "Rychlost:"
+msgid "Simulation speed"
+msgstr "Rychlost simulace"
+
+msgid "Simulation time"
+msgstr "Čas simulace"
 
 msgid "Reset"
 msgstr "Reset"
 
 msgid "Restart the simulation from the initial state"
 msgstr "Spustit simulaci znovu od výchozího stavu"
-
-msgid "Fullscreen"
-msgstr "Celá obrazovka"
 
 msgid "Unsaved changes"
 msgstr "Neuložené změny"
@@ -504,6 +510,27 @@ msgstr "Exportovat PNG…"
 
 msgid "Quit"
 msgstr "Ukončit"
+
+msgid "Fullscreen"
+msgstr "Celá obrazovka"
+
+msgid "Theme"
+msgstr "Motiv"
+
+msgid "Dark"
+msgstr "Tmavý"
+
+msgid "Light"
+msgstr "Světlý"
+
+msgid "Language"
+msgstr "Jazyk"
+
+msgid "Interface size"
+msgstr "Velikost rozhraní"
+
+msgid "Automatic"
+msgstr "Automaticky"
 
 msgid "Pause"
 msgstr "Pozastavit"
@@ -564,10 +591,6 @@ msgstr "Tažením pravým nebo prostředním tlačítkem myši posunete pohled, 
 
 msgid "Click buttons and switches to operate them. Right or middle drag pans, wheel zooms."
 msgstr "Tlačítka a spínače ovládáte kliknutím. Tažením pravým nebo prostředním tlačítkem myši posunete pohled, kolečkem přiblížíte."
-
-#, c-format
-msgid "Time: %.3f s"
-msgstr "Čas: %.3f s"
 
 #, c-format
 msgid "NO FUSE and SHORT CIRCUIT! %s"
@@ -669,6 +692,9 @@ msgstr "chybné zapojení"
 #, c-format
 msgid "speed %d"
 msgstr "%d. stupeň"
+
+msgid "Event log"
+msgstr "Záznam událostí"
 
 msgid "Clear"
 msgstr "Vymazat"

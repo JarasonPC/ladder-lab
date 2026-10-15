@@ -17,8 +17,16 @@ config/icon="res://icon.svg"
 
 [display]
 
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/size/viewport_width=1440
+window/size/viewport_height=900
+window/stretch/mode="disabled"
+window/dpi/allow_hidpi=true
+
+[gui]
+
+common/snap_controls_to_pixels=true
+theme/default_font_hinting=1
+theme/default_font_subpixel_positioning=1
 
 [internationalization]
 

@@ -77,7 +77,7 @@ func _draw_labels() -> void:
 		elif i >= 6:
 			offset = Vector2(-0.3 * G, -0.3 * G)
 		draw_label(names[i], cell + offset, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = AppTheme.schematic_font()
 	var c: Vector2 = to_upright(CENTER)
 	_centered(font, "M", c + Vector2(0, -6), 16, SchematicTheme.TEXT)
 	_centered(font, "3~", c + Vector2(0, 10), 12, SchematicTheme.TEXT)

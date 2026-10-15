@@ -12,11 +12,15 @@ var _data: Dictionary = {}
 var _box: VBoxContainer
 var _title: Label
 var _message: Label
+## Caption and field of the property being added.
+var _group: VBoxContainer
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(220, 0)
+	custom_minimum_size = Vector2(250, 0)
+	theme_type_variation = "RightPanel"
 	_box = VBoxContainer.new()
+	_box.add_theme_constant_override("separation", 14)
 	add_child(_box)
 	show_component(null)
 
@@ -26,11 +30,11 @@ func show_component(component: CircuitComponent) -> void:
 	for child: Node in _box.get_children():
 		_box.remove_child(child)
 		child.queue_free()
-	_title = _label(tr("Properties"))
-	_title.add_theme_font_size_override("font_size", 16)
+	_group = null
+	_title = _note(tr("Properties"), "TitleLabel")
 	if component == null:
 		_component_id = ""
-		_label(tr("Select one component to edit it."))
+		_note(tr("Select one component to edit it."), "MutedLabel")
 		return
 	_component_id = component.id
 	_data = DocumentSerializer.component_to_dict(component)
@@ -46,12 +50,12 @@ func show_component(component: CircuitComponent) -> void:
 				type_select.select(i)
 		var id: String = component.id
 		type_select.item_selected.connect(func(i: int) -> void: type_changed.emit(id, options[i]["template"]))
-		_box.add_child(type_select)
+		_add(type_select)
 	match kind:
 		"supply":
 			_choice(tr("Conductor"), "conductor", ["L", "L2", "L3", "N"], ["L / L1", "L2", "L3", "N"])
 		"junction":
-			_label(tr("Wire junction"))
+			_note(tr("Wire junction"), "MutedLabel")
 		"push_button", "latching_switch", "contact":
 			_text(tr("Designation"), "designation")
 			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO (make)"), tr("NC (break)")])
@@ -85,7 +89,8 @@ func show_component(component: CircuitComponent) -> void:
 			_text(tr("Designation"), "designation")
 	if component.supports_custom_terminals():
 		_terminals(component)
-	_message = _label("")
+	_group = null
+	_message = _note("", "MutedLabel")
 	_message.add_theme_color_override("font_color", SchematicTheme.FAULT)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
@@ -96,13 +101,33 @@ func show_error(text: String) -> void:
 		_message.text = text
 
 
-func _label(text: String) -> Label:
+## Text on its own line (title, hint, error).
+func _note(text: String, variation: String) -> Label:
 	var label: Label = Label.new()
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.theme_type_variation = variation
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_box.add_child(label)
 	return label
+
+
+## Starts a property: a small caption with its field below.
+func _label(text: String) -> Label:
+	_group = VBoxContainer.new()
+	_group.add_theme_constant_override("separation", 4)
+	_box.add_child(_group)
+	var label: Label = Label.new()
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.theme_type_variation = "CaptionLabel"
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_group.add_child(label)
+	return label
+
+
+func _add(control: Control) -> void:
+	(_group if _group != null else _box).add_child(control)
 
 
 func _emit(key: String, value: Variant) -> void:
@@ -119,7 +144,7 @@ func _text(caption: String, key: String) -> void:
 	edit.focus_exited.connect(func() -> void:
 		if edit.text.strip_edges() != _data[key]:
 			_emit(key, edit.text.strip_edges()))
-	_box.add_child(edit)
+	_add(edit)
 
 
 func _choice(caption: String, key: String, values: Array, titles: Array) -> void:
@@ -130,7 +155,7 @@ func _choice(caption: String, key: String, values: Array, titles: Array) -> void
 		option.add_item(t)
 	option.select(values.find(_data[key]))
 	option.item_selected.connect(func(i: int) -> void: _emit(key, values[i]))
-	_box.add_child(option)
+	_add(option)
 
 
 func _number(caption: String, key: String, min_value: float, max_value: float, step: float) -> void:
@@ -141,7 +166,7 @@ func _number(caption: String, key: String, min_value: float, max_value: float, s
 	spin.step = step
 	spin.value = _data[key]
 	spin.value_changed.connect(func(value: float) -> void: _emit(key, value))
-	_box.add_child(spin)
+	_add(spin)
 
 
 ## A time stored in seconds, edited in milliseconds.
@@ -153,7 +178,7 @@ func _milliseconds(caption: String, key: String) -> void:
 	spin.step = 0.1
 	spin.value = float(_data[key]) * 1000.0
 	spin.value_changed.connect(func(value: float) -> void: _emit(key, value / 1000.0))
-	_box.add_child(spin)
+	_add(spin)
 
 
 ## Terminal names as "13-14" (or "15-16-18"), editable, plus a button that
@@ -161,7 +186,7 @@ func _milliseconds(caption: String, key: String) -> void:
 func _terminals(component: CircuitComponent) -> void:
 	_label(tr("Terminals"))
 	var row: HBoxContainer = HBoxContainer.new()
-	_box.add_child(row)
+	_add(row)
 	var names: PackedStringArray = component.get_terminal_names()
 	var edit: LineEdit = LineEdit.new()
 	edit.text = "-".join(names)
@@ -193,4 +218,5 @@ func _check(caption: String, key: String) -> void:
 	box.text = caption
 	box.button_pressed = _data[key]
 	box.toggled.connect(func(on: bool) -> void: _emit(key, on))
+	_group = null
 	_box.add_child(box)
