@@ -7,7 +7,7 @@
   every terminal coloured by voltage reach, branch dots in the wire colour, "-KM1" designations
   and terminal numbers in teal, supplies as circles with the name inside, lit lamps filled grey;
   colours live in SchematicTheme, which also has a dark paper (dark theme, unless View > White
-  schematic paper); PNG export always uses white paper. Lamps may carry a purpose text drawn above
+  schematic paper); export always uses white paper. Lamps may carry a purpose text drawn above
   the designation; 3~ motors have a PE terminal (last terminal, below left, ignored by the solver).
   Every contact (NO, NC, changeover, main contacts, breakers, fuse holders) pivots at its
   second/bottom terminal (changeover: common at the bottom); NO blades stand off to the actuator
@@ -42,6 +42,20 @@
   mark removes it); wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
   numbering tool or double click; the palette panel is resizable
+- Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
+  shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
+  = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
+  junction_cells, wire_number_ends) look at the current page; new parts go on it; a wire joins
+  terminals of one page. Page tabs above the drawing (add from presets, double-click renames,
+  drag reorders, right click: move/delete; page edits undoable via SchematicEditor.edit_pages)
+- Page connectors (PageConnector, internal designation "PC1", drawn as an arrow pointing away from
+  the wire, label in the wire-number colour, cross reference "/page.path" below): all connectors
+  with the same label are joined (Circuit.get_links, used by the solver and by wire_net); numbering
+  runs over the pages and connectors take their net's wire number as label; right click (Edit) or
+  click (Simulate) jumps to the partner page
+- Export: File > Export page as PNG / Export all pages as PDF; each page on an A4/A3 sheet
+  (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
+  (SheetFrame), rendered by SheetRenderer at 200 dpi; PdfWriter writes one Flate image per page
 - Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, optional lamp under a button or switch);
@@ -57,6 +71,7 @@
 - Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N
+  (supply points of one conductor are the same potential on every page)
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2
@@ -72,7 +87,7 @@
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
-  ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
+  ExampleCircuits, SheetLayout, PdfWriter) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
@@ -81,6 +96,7 @@
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
   per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
+- `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block)
 - `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes

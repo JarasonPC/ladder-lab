@@ -87,6 +87,8 @@ var _relay_overcurrent: PackedByteArray = PackedByteArray()
 var _short: bool = false
 ## Terminal index (into the current-flow graph) of every terminal key.
 var _terminal_index: Dictionary[String, int] = {}
+## Terminal pairs joined by page connectors (see [method Circuit.get_links]).
+var _links: Array[PackedStringArray] = []
 ## Realistic mode: times at which each coil (by designation) switched recently.
 var _toggles: Dictionary[String, PackedFloat64Array] = {}
 var _chattering: Dictionary[String, bool] = {}
@@ -149,6 +151,10 @@ func _build() -> void:
 	for w: int in wires.size():
 		if not circuit.broken_wires.has(w):
 			uf.union(index[wires[w][0]], index[wires[w][1]])
+	# Page connectors with the same label join their pages.
+	_links = circuit.get_links()
+	for link: PackedStringArray in _links:
+		uf.union(index[link[0]], index[link[1]])
 
 	var net_of_root: Dictionary[int, int] = {}
 	_net_of_key.clear()
@@ -723,6 +729,7 @@ func _find_current_paths(result: StepResult, include_loads: bool = true) -> void
 	const SWITCH := 1
 	const LOAD := 2
 	const VIRTUAL := 3
+	const LINK := 4
 	var terminal_count: int = _terminal_index.size()
 	# Virtual vertices: hub, then one per conductor bit (1, 2, 4, 8).
 	var hub: int = terminal_count
@@ -741,6 +748,11 @@ func _find_current_paths(result: StepResult, include_loads: bool = true) -> void
 		edge_b.append(_terminal_index[wires[i][1]])
 		edge_kind.append(WIRE)
 		edge_ref.append(i)
+	for link: PackedStringArray in _links:
+		edge_a.append(_terminal_index[link[0]])
+		edge_b.append(_terminal_index[link[1]])
+		edge_kind.append(LINK)
+		edge_ref.append(-1)
 	for i: int in _switches.size():
 		if _switch_closed(i):
 			edge_a.append(_switch_terms[2 * i])

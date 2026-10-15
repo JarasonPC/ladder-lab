@@ -18,7 +18,9 @@ const FORMAT: String = "ladder-lab"
 ## fuses and breakers of 1-4 poles saved as "fuse" / "breaker" with "poles"
 ## (older "fuse3" / "breaker3" still load), main contacts with "poles".
 ## 10: control boxes of the operator panel (missing before: no boxes).
-const VERSION: int = 10
+## 11: pages (titles, the page of each component, the page shown) and page
+## connectors (missing before: one untitled page).
+const VERSION: int = 11
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

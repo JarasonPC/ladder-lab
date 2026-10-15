@@ -1,6 +1,7 @@
 class_name WireLayer
 extends Node2D
-## Draws the grid, all wires and junction dots of a [SchematicDocument].
+## Draws the grid, the wires and junction dots of the current page of a
+## [SchematicDocument].
 ## Wires reached by a phase are drawn in that phase's colour, wires reached by
 ## N in the neutral colour; during a short the fault-current path blinks on top.
 
@@ -43,19 +44,22 @@ func _draw() -> void:
 				draw_rect(Rect2(Vector2(x, y) * G - Vector2.ONE, Vector2(2, 2)), SchematicTheme.GRID_DOT)
 
 	# Dead wires first, then N, then the phases on top.
+	var wires: PackedInt32Array = document.wires_on_page()
 	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_SEVERAL]]:
-		for w: int in document.get_wire_count():
+		for w: int in wires:
 			var code: int = _reach(w)
 			if pass_codes.has(code):
 				var width: float = SchematicTheme.LINE_WIDTH if code == StepResult.REACH_NONE else SchematicTheme.LIVE_WIDTH
 				draw_polyline(_pixels(w), SchematicTheme.reach_color(code), width)
 	if blink_on:
 		for w: int in fault_wires:
-			draw_polyline(_pixels(w), SchematicTheme.FAULT, SchematicTheme.LIVE_WIDTH)
+			if wires.has(w):
+				draw_polyline(_pixels(w), SchematicTheme.FAULT, SchematicTheme.LIVE_WIDTH)
 	for w: int in document.circuit.broken_wires:
-		_draw_break(w)
+		if wires.has(w):
+			_draw_break(w)
 	for cell: Vector2i in _junctions:
-		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell)))
+		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell, wires)))
 	if show_numbers:
 		_draw_wire_numbers()
 	_draw_path_numbers()
@@ -130,9 +134,9 @@ func _reach(wire_index: int) -> int:
 	return wire_reach[wire_index] if wire_index < wire_reach.size() else StepResult.REACH_NONE
 
 
-## Reach code of the wires through a junction cell (they all share one net).
-func _reach_at(cell: Vector2i) -> int:
-	for w: int in document.get_wire_count():
+## Reach code of the [param wires] through a junction cell (they all share one net).
+func _reach_at(cell: Vector2i, wires: PackedInt32Array) -> int:
+	for w: int in wires:
 		if _reach(w) == StepResult.REACH_NONE:
 			continue
 		var points: Array[Vector2i] = document.wire_points(w)

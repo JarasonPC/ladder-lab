@@ -19,6 +19,7 @@ const TITLES: PackedStringArray = [
 	"Star/delta start 3~",
 	"Dahlander two-speed motor",
 	"Two-speed motor, separate windings",
+	"Direct-on-line start 3~ on three pages",
 ]
 
 
@@ -54,6 +55,8 @@ static func build(index: int, horizontal: bool = false) -> SchematicDocument:
 			doc = dahlander()
 		11:
 			doc = two_windings()
+		12:
+			doc = direct_on_line_pages()
 	if doc != null and doc.control_boxes.is_empty():
 		doc.add_control_box_for_all()
 	if doc != null and horizontal:
@@ -639,4 +642,59 @@ static func two_windings() -> SchematicDocument:
 	_two_speed_power(doc, ThreePhaseMotor.Kind.TWO_WINDINGS)
 	var feed: String = _control_head(doc, 24, "FU2", ["F1", "F2"], true)
 	_two_way_control(doc, 24, 17, feed, "KM1", "KM2", 42, "SB1", "SB2", "SB3", true)
+	return doc
+
+
+## [method direct_on_line] drawn on three pages, as a real project: the power
+## circuit, the control circuit (KM1's coil, its main contacts stay on the
+## power page) and the signalling. The control voltage after FU2 and F1 95-96
+## continues to the signalling page through page connectors; the wires are
+## numbered, so the connectors carry the wire number of their link.
+static func direct_on_line_pages() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new(TITLES[12])
+	doc.pages = PackedStringArray(["Power section", "Control section", "Signalling section"])
+	doc.add(ThreePoleFuse.new("FU1"), Vector2i(5, 2))
+	_phases(doc, 5)
+	doc.add(MainContacts.new("KM1"), Vector2i(5, 7))
+	doc.add(OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 12))
+	doc.add(ThreePhaseMotor.new("M1"), Vector2i(5, 17))
+	_straight(doc, "FU1", "KM1", POLES)
+	_straight(doc, "KM1", "F1", POLES)
+	_straight(doc, "F1", "M1", ["U1", "V1", "W1"])
+
+	doc.page = 1
+	var x: int = 8
+	var feed: String = _control_head(doc, x, "FU2", ["F1"])
+	doc.add(PushButton.new("SB0", NC), Vector2i(x, 12))
+	doc.add(PushButton.new("SB1", NO), Vector2i(x, 17))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 4, 17))
+	doc.add(Coil.new("KM1"), Vector2i(x, 22))
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(x - 3, 27))
+	doc.connect_terminals(feed, "SB0:11")
+	doc.connect_terminals("SB0:12", "SB1:13")
+	doc.connect_terminals("SB0:12", "KM1:13", _c([Vector2i(x, 16), Vector2i(x + 4, 16)]))
+	doc.connect_terminals("SB1:14", "KM1:14")
+	doc.connect_terminals("SB1:14", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(x, 27)]))
+	# The signalling page is fed after the control fuse: arrow to the right.
+	doc.add(PageConnector.new("PC1", "1"), Vector2i(16, 6), 1)
+	doc.connect_terminals("FU2:2", "PC1", _c([Vector2i(x, 6)]))
+
+	doc.page = 2
+	doc.add(PageConnector.new("PC2", "1"), Vector2i(5, 4), 3)
+	doc.add(_lamp("H1", "Voltage on"), Vector2i(8, 12))
+	doc.add(OverloadContact.new("F1", NO), Vector2i(15, 7))
+	doc.add(_lamp("H2", "Fault"), Vector2i(15, 12))
+	doc.add(Contact.new("KM1", NO, 2), Vector2i(22, 7))
+	doc.add(_lamp("H3", "Running"), Vector2i(22, 12))
+	doc.add(PowerSupply.new("N.2", PowerSupply.Conductor.N), Vector2i(5, 17))
+	doc.connect_terminals("PC2", "H1:X1", _c([Vector2i(8, 4)]))
+	doc.connect_terminals("PC2", "F1:97", _c([Vector2i(15, 4)]))
+	doc.connect_terminals("F1:98", "H2:X1")
+	doc.connect_terminals("PC2", "KM1:23", _c([Vector2i(22, 4)]))
+	doc.connect_terminals("KM1:24", "H3:X1")
+	for lamp: Array in [["H1", 8], ["H2", 15], ["H3", 22]]:
+		doc.connect_terminals(lamp[0] + ":X2", "N.2", _c([Vector2i(lamp[1], 17)]))
+	doc.number_wires()
+	doc.page = 0
 	return doc

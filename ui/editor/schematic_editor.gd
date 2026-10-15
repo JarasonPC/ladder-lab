@@ -18,13 +18,16 @@ signal edited
 signal document_replaced(doc: SchematicDocument)
 signal selection_changed(component: CircuitComponent)
 signal hint_changed(text: String)
+## Another page should be shown, centred on [param focus_id] (a page
+## connector's partner, from the right click menu).
+signal page_requested(index: int, focus_id: String)
 
 enum Tool { SELECT, PLACE, WIRE }
 
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 
@@ -89,6 +92,9 @@ var _right_press: Vector2 = Vector2.ZERO
 var _menu: PopupMenu
 var _change_menu: PopupMenu
 var _change_options: Array[Dictionary] = []
+## Where the page connector of the context menu continues (see
+## [method SchematicDocument.connector_targets]).
+var _go_to_targets: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -421,13 +427,38 @@ func paste() -> void:
 	_changed()
 
 
+## Selects everything on the page shown.
 func select_all() -> void:
 	_cancel_tool()
-	for c: CircuitComponent in document().circuit.get_components():
+	for c: CircuitComponent in document().components_on_page():
 		selected_components[c.id] = true
-	for w: int in document().get_wire_count():
+	for w: int in document().wires_on_page():
 		selected_wires[w] = true
 	_selection_updated()
+
+
+## Applies [param change] (called with the document) to the pages (add,
+## rename, move, delete) as one undoable edit.
+func edit_pages(change: Callable) -> void:
+	_cancel_tool()
+	_record()
+	change.call(document())
+	_clear_selection()
+	_changed()
+
+
+## Call before another page is shown: a wire in progress is dropped and the
+## selection cleared; placing goes on, on the new page.
+func leave_page() -> void:
+	if tool == Tool.WIRE:
+		_cancel_tool()
+	_close_inline()
+	_dragging = false
+	_boxing = false
+	_wire_drag = -1
+	_number_drag = Vector2i(-1, -1)
+	_marking_drag = false
+	_clear_selection()
 
 
 func has_clipboard() -> bool:
@@ -524,6 +555,14 @@ func _open_context_menu() -> void:
 	_menu.clear()
 	_change_menu.clear()
 	_change_options.clear()
+	_go_to_targets.clear()
+	if hit is PageConnector:
+		_go_to_targets = doc.connector_targets(hit.id)
+	if not _go_to_targets.is_empty():
+		for i: int in _go_to_targets.size():
+			var target: Dictionary = _go_to_targets[i]
+			_menu.add_item(tr("Go to page %d (%s)") % [target["page"] + 1, tr(doc.page_name(target["page"], tr("Page %d")))], MenuId.GO_TO + i)
+		_menu.add_separator()
 	if hit != null and selected_components.size() == 1:
 		_change_options = type_options(hit)
 		if _change_options.size() > 1:
@@ -550,6 +589,10 @@ func _open_context_menu() -> void:
 
 
 func _on_menu_id(id: int) -> void:
+	if id >= MenuId.GO_TO and id - MenuId.GO_TO < _go_to_targets.size():
+		var target: Dictionary = _go_to_targets[id - MenuId.GO_TO]
+		page_requested.emit(target["page"], target["id"])
+		return
 	match id:
 		MenuId.ROTATE:
 			rotate_selection()
@@ -727,6 +770,8 @@ func _place_at(cell: Vector2i) -> void:
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
 	if data["type"] == "terminal" and str(data.get("label", "")).is_empty():
 		data["label"] = str(data["designation"]).trim_prefix("X")
+	if data["type"] == "connector" and str(data.get("label", "")).is_empty():
+		data["label"] = doc.next_connector_label()
 	_follow_device(data)
 	var c: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if not _can_add(c):
@@ -862,6 +907,9 @@ func _new_designation(data: Dictionary) -> String:
 			return doc.next_designation("M")
 		"terminal":
 			return doc.next_designation("X")
+		"connector":
+			# Never shown: the connector shows its label.
+			return doc.next_designation("PC")
 	return doc.next_designation("X")
 
 
@@ -989,7 +1037,7 @@ func edit_marking_at(point: Vector2) -> bool:
 		var kind: String = "designation"
 		if hit is Lamp:
 			kind = "purpose"
-		elif hit is TerminalBlock:
+		elif hit is TerminalBlock or hit is PageConnector:
 			kind = "label"
 		return _edit_marking(hit, kind, -1)
 	var w: int = doc.wire_at(point)
@@ -1029,7 +1077,7 @@ func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
 		"purpose":
 			text = (c as Lamp).purpose
 		"label":
-			text = (c as TerminalBlock).label
+			text = (c as PageConnector).label if c is PageConnector else (c as TerminalBlock).label
 	var symbol: SchematicSymbol = view.get_symbol(c.id)
 	var rect: Rect2 = symbol.marking_rect(kind, index)
 	var at: Vector2 = symbol.position + (rect.position if rect.has_area() else Vector2.ZERO)
@@ -1150,10 +1198,10 @@ func _drag_number_to(delta: Vector2) -> void:
 
 func _select_in_box(box: Rect2) -> void:
 	var doc: SchematicDocument = document()
-	for c: CircuitComponent in doc.circuit.get_components():
+	for c: CircuitComponent in doc.components_on_page():
 		if box.intersects(doc.component_body(c)):
 			selected_components[c.id] = true
-	for w: int in doc.get_wire_count():
+	for w: int in doc.wires_on_page():
 		var inside: bool = true
 		for p: Vector2i in doc.wire_points(w):
 			if not box.has_point(Vector2(p)):
@@ -1311,7 +1359,7 @@ func _draw() -> void:
 	for wire: PackedStringArray in doc.circuit.get_wires():
 		connected[wire[0]] = true
 		connected[wire[1]] = true
-	for c: CircuitComponent in doc.circuit.get_components():
+	for c: CircuitComponent in doc.components_on_page():
 		if c is Junction:
 			continue
 		for key: String in c.get_terminal_keys():

@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "connector"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3"]
 
@@ -21,6 +21,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		d["cell"] = [p.cell.x, p.cell.y]
 		d["rotation"] = p.rotation
 		d["mirrored"] = p.mirrored
+		if p.page != 0:
+			d["page"] = p.page
 		if not p.labels.is_empty():
 			d["labels"] = p.labels_to_data()
 		if not p.strips.is_empty():
@@ -39,7 +41,7 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 			if offsets[0] != Vector2.ZERO or offsets[1] != Vector2.ZERO:
 				wd["number_offsets"] = [[offsets[0].x, offsets[0].y], [offsets[1].x, offsets[1].y]]
 		wires.append(wd)
-	var result: Dictionary = {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "components": components, "wires": wires}
+	var result: Dictionary = {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "pages": Array(doc.pages), "page": doc.page, "components": components, "wires": wires}
 	if not doc.control_boxes.is_empty():
 		var boxes: Array[Dictionary] = []
 		for box: ControlBox in doc.control_boxes:
@@ -49,7 +51,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 
 
 ## Builds a document, or returns null if the data is malformed (unknown
-## component type, duplicate designation, wire to a missing terminal, ...).
+## component type, duplicate designation, wire to a missing terminal, a page
+## that does not exist, a wire between two pages, ...).
 ## Never pushes errors, so it can check untrusted files.
 static func from_dict(d: Dictionary) -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(str(d.get("title", "")))
@@ -57,15 +60,25 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 	doc.realistic_timing = d.get("switching", "realistic") != "ideal"
 	var components: Variant = d.get("components", [])
 	var wires: Variant = d.get("wires", [])
-	if not (components is Array and wires is Array):
+	# Files before version 11 have a single page.
+	var raw_pages: Variant = d.get("pages", [""])
+	if not (components is Array and wires is Array and raw_pages is Array) or (raw_pages as Array).is_empty():
 		return null
+	var titles: PackedStringArray = PackedStringArray()
+	for title: Variant in raw_pages:
+		if not (title is String):
+			return null
+		titles.append((title as String).strip_edges())
+	doc.pages = titles
 	for cd: Variant in components:
 		if not (cd is Dictionary):
 			return null
 		var c: CircuitComponent = component_from_dict(cd)
 		var cell: Vector2i = _cell(cd.get("cell", null))
-		if c == null or cell == INVALID_CELL or not _fits(doc.circuit, c):
+		var on_page: Variant = cd.get("page", 0)
+		if c == null or cell == INVALID_CELL or not _fits(doc.circuit, c) or not (on_page is int or on_page is float) or int(on_page) < 0 or int(on_page) >= titles.size():
 			return null
+		doc.page = int(on_page)
 		doc.add(c, cell, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
 		doc.get_placement(c.id).labels_from_data(cd.get("labels", {}))
 		doc.get_placement(c.id).strips_from_data(cd.get("strips", {}))
@@ -76,6 +89,8 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 		var b: String = str(wd.get("b", ""))
 		var raw_corners: Variant = wd.get("corners", [])
 		if not doc.circuit.has_terminal(a) or not doc.circuit.has_terminal(b) or not (raw_corners is Array):
+			return null
+		if doc.page_of(doc.circuit.get_terminal_owner(a).id) != doc.page_of(doc.circuit.get_terminal_owner(b).id):
 			return null
 		var corners: Array[Vector2i] = []
 		for corner: Variant in raw_corners:
@@ -92,6 +107,8 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 				var o: Variant = raw_offsets[end]
 				if o is Array and (o as Array).size() == 2 and (o[0] is float or o[0] is int) and (o[1] is float or o[1] is int):
 					route.number_offsets[end] = Vector2(float(o[0]), float(o[1]))
+	var shown: Variant = d.get("page", 0)
+	doc.page = int(shown) if (shown is int or shown is float) else 0
 	# Control boxes are only design data around the circuit: malformed ones are left out.
 	var raw_boxes: Variant = d.get("control_boxes", [])
 	if raw_boxes is Array:
@@ -119,6 +136,9 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	elif c is TerminalBlock:
 		d["type"] = "terminal"
 		d["label"] = (c as TerminalBlock).label
+	elif c is PageConnector:
+		d["type"] = "connector"
+		d["label"] = (c as PageConnector).label
 	elif c is Fuse:
 		d["type"] = "fuse"
 		if (c as Fuse).holder:
@@ -233,6 +253,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			var block: TerminalBlock = TerminalBlock.new(designation)
 			block.label = str(d.get("label", "")).strip_edges()
 			return block
+		"connector":
+			return PageConnector.new(designation, str(d.get("label", "")).strip_edges())
 		"push_button":
 			return PushButton.new(designation, contact, sequence)
 		"latching_switch":

@@ -33,6 +33,8 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = SupplySymbol.new()
 	elif component is TerminalBlock:
 		symbol = TerminalBlockSymbol.new()
+	elif component is PageConnector:
+		symbol = PageConnectorSymbol.new()
 	elif component is Junction:
 		symbol = JunctionSymbol.new()
 	else:

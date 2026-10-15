@@ -8,6 +8,9 @@ var cell: Vector2i
 ## Clockwise quarter turns, 0..3.
 var rotation: int
 var mirrored: bool
+## Page of the schematic the component is drawn on (see
+## [member SchematicDocument.pages]).
+var page: int = 0
 ## Markings moved by the user: marking key ("designation", "terminal:1",
 ## "purpose", "label") -> offset in cells on the drawing (upright).
 var labels: Dictionary[String, Vector2] = {}

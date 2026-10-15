@@ -23,7 +23,8 @@ var hovered: bool = false
 var show_labels: bool = true
 ## Markings written at the last draw, for editing them in place:
 ## [kind, index, Rect2 in node coordinates]; kind is "designation",
-## "terminal" (index = terminal index), "purpose" (lamp) or "label" (terminal block).
+## "terminal" (index = terminal index), "purpose" (lamp) or "label" (terminal
+## block, page connector).
 var marking_rects: Array = []
 ## Local anchor the designation was last written at (texts written there
 ## follow it when it is dragged).
@@ -375,7 +376,7 @@ func _marking_of(text: String) -> Array:
 		return ["designation", -1]
 	if component is Lamp and text == (component as Lamp).purpose:
 		return ["purpose", -1]
-	if component is TerminalBlock:
+	if component is TerminalBlock or (component is PageConnector and text == (component as PageConnector).label):
 		return ["label", -1]
 	var i: int = component.get_terminal_names().find(text)
 	return ["terminal", i] if i >= 0 else []

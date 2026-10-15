@@ -5,9 +5,13 @@ extends Node
 ## All user-facing text is English source text passed through tr().
 
 enum Mode { EDIT, SIMULATE }
-enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, QUIT }
+enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, QUIT }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, LANGUAGE = 10, SCALE = 20 }
-enum DialogPurpose { OPEN, SAVE, EXPORT }
+enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
+enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE }
+## Titles offered for a new page (English source text: saved like that and
+## shown translated, as every page title).
+const PAGE_PRESETS: PackedStringArray = ["Power section", "Control section", "Signalling section"]
 
 const SPEEDS: Array[float] = [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]
 ## Simulated seconds per press of Step at speed x1.
@@ -19,7 +23,6 @@ const LOCALE_NAMES: PackedStringArray = ["English", "Čeština"]
 const UI_SCALES: Array[float] = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0]
 const SETTINGS_PATH: String = "user://settings.cfg"
 const MAX_RECENT: int = 8
-const EXPORT_MARGIN: float = 40.0
 ## Width range of the palette (resized with the grip beside it).
 const PALETTE_MIN_WIDTH: float = 180.0
 const PALETTE_MAX_WIDTH: float = 560.0
@@ -76,6 +79,18 @@ var _palette_width: float = 250.0
 var _side: VBoxContainer
 ## Part of the window where the schematic is visible (between the panels).
 var _canvas_area: Control
+## Tabs of the pages above the schematic, and the button adding a page.
+var _page_tabs: TabBar
+var _page_add: MenuButton
+## Right click menu of a page tab, for page [member _menu_page].
+var _page_menu: PopupMenu
+var _menu_page: int = -1
+var _rename_dialog: ConfirmationDialog
+var _rename_field: LineEdit
+## True while the tabs are being filled (their signals are ignored).
+var _updating_pages: bool = false
+## Renders the pages for PNG and PDF export.
+var _sheet_renderer: SheetRenderer
 ## Big red warning over the schematic during an unprotected short circuit.
 var _short_banner: Label
 var _properties: PropertiesPanel
@@ -121,7 +136,12 @@ func _ready() -> void:
 	TranslationServer.set_locale(LOCALES[_locale_index])
 	_build_ui()
 	_build_dialogs()
+	_sheet_renderer = SheetRenderer.new()
+	add_child(_sheet_renderer)
 	view.stepped.connect(_on_stepped)
+	view.page_requested.connect(_show_page)
+	editor.page_requested.connect(_show_page)
+	editor.edited.connect(_refresh_pages)
 	view.event_logged.connect(func(text: String, args: Array) -> void:
 		var entries: Array[Dictionary] = [{"time": view.sim_time, "text": text, "args": args}]
 		_timing_panel.event_log.add_events(entries))
@@ -314,10 +334,16 @@ func _build_ui() -> void:
 	_palette_grip.mouse_default_cursor_shape = Control.CURSOR_HSIZE
 	_palette_grip.gui_input.connect(_on_palette_grip_input)
 	middle.add_child(_palette_grip)
+	var canvas_column: VBoxContainer = VBoxContainer.new()
+	canvas_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	canvas_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas_column.add_theme_constant_override("separation", 0)
+	middle.add_child(canvas_column)
+	canvas_column.add_child(_build_page_bar())
 	_canvas_area = Control.new()
-	_canvas_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_canvas_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_canvas_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	middle.add_child(_canvas_area)
+	canvas_column.add_child(_canvas_area)
 	_short_banner = Label.new()
 	_short_banner.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_short_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -367,6 +393,48 @@ func _build_ui() -> void:
 	_update_mode_ui()
 
 
+## Tabs of the pages (click to show one, drag to reorder, double-click to
+## rename, right click for more) and a button adding a page.
+func _build_page_bar() -> Control:
+	var bar: PanelContainer = PanelContainer.new()
+	bar.theme_type_variation = "PageBar"
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	bar.add_child(row)
+	_page_tabs = TabBar.new()
+	_page_tabs.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_page_tabs.focus_mode = Control.FOCUS_NONE
+	_page_tabs.clip_tabs = true
+	_page_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_page_tabs.max_tab_width = 260
+	_page_tabs.tab_changed.connect(func(tab: int) -> void:
+		if not _updating_pages:
+			_show_page(tab))
+	_page_tabs.tab_rmb_clicked.connect(_open_page_menu)
+	_page_tabs.active_tab_rearranged.connect(func(to: int) -> void:
+		if not _updating_pages:
+			var from: int = edit_doc.page
+			editor.edit_pages(func(doc: SchematicDocument) -> void: doc.move_page(from, to)))
+	_page_tabs.gui_input.connect(func(event: InputEvent) -> void:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb != null and mb.pressed and mb.double_click and mb.button_index == MOUSE_BUTTON_LEFT and mode == Mode.EDIT:
+			var tab: int = _page_tabs.get_tab_idx_at_point(mb.position)
+			if tab >= 0:
+				_show_rename_dialog(tab))
+	row.add_child(_page_tabs)
+	_page_add = _menu(row)
+	_page_add.theme_type_variation = "ToolButton"
+	_page_add.icon = AppTheme.icon("plus")
+	_page_add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_page_add.get_popup().id_pressed.connect(func(id: int) -> void:
+		_add_page(PAGE_PRESETS[id] if id < PAGE_PRESETS.size() else ""))
+	_page_menu = PopupMenu.new()
+	_page_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_page_menu.id_pressed.connect(_on_page_menu)
+	bar.add_child(_page_menu)
+	return bar
+
+
 func _build_dialogs() -> void:
 	_file_dialog = FileDialog.new()
 	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -382,6 +450,18 @@ func _build_dialogs() -> void:
 	add_child(_unsaved_dialog)
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
+	_rename_dialog = ConfirmationDialog.new()
+	_rename_field = LineEdit.new()
+	_rename_field.custom_minimum_size = Vector2(280, 0)
+	_rename_dialog.add_child(_rename_field)
+	_rename_dialog.register_text_enter(_rename_field)
+	_rename_dialog.confirmed.connect(func() -> void:
+		var index: int = _menu_page
+		var title: String = _rename_field.text.strip_edges()
+		if title == _page_title(index):
+			return
+		editor.edit_pages(func(doc: SchematicDocument) -> void: doc.rename_page(index, title)))
+	add_child(_rename_dialog)
 	_retranslate_dialogs()
 
 
@@ -469,6 +549,15 @@ func _retranslate() -> void:
 	_time_label.tooltip_text = tr("Simulation time")
 	_time_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	_reset_button.tooltip_text = tr("Reset") + " – " + tr("Restart the simulation from the initial state")
+	_page_add.tooltip_text = tr("Add a page")
+	var page_popup: PopupMenu = _page_add.get_popup()
+	page_popup.clear()
+	for i: int in PAGE_PRESETS.size():
+		page_popup.add_item(tr(PAGE_PRESETS[i]), i)
+	page_popup.add_separator()
+	page_popup.add_item(tr("Empty page"), PAGE_PRESETS.size())
+	_page_tabs.tooltip_text = tr("Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more")
+	_refresh_pages()
 	_palette.retranslate()
 	_control_panel.retranslate()
 	_timing_panel.retranslate()
@@ -489,6 +578,9 @@ func _retranslate_dialogs() -> void:
 	_unsaved_dialog.cancel_button_text = tr("Cancel")
 	_discard_button.text = tr("Don't save")
 	_error_dialog.title = tr("Error")
+	_rename_dialog.title = tr("Rename page")
+	_rename_dialog.ok_button_text = tr("Rename")
+	_rename_dialog.cancel_button_text = tr("Cancel")
 
 
 func _rebuild_file_menu() -> void:
@@ -501,7 +593,8 @@ func _rebuild_file_menu() -> void:
 	popup.add_separator()
 	popup.add_item(tr("Save"), FileMenuId.SAVE, KEY_MASK_CTRL | KEY_S)
 	popup.add_item(tr("Save as…"), FileMenuId.SAVE_AS, KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_S)
-	popup.add_item(tr("Export PNG…"), FileMenuId.EXPORT_PNG)
+	popup.add_item(tr("Export page as PNG…"), FileMenuId.EXPORT_PNG)
+	popup.add_item(tr("Export all pages as PDF…"), FileMenuId.EXPORT_PDF)
 	popup.add_separator()
 	popup.add_item(tr("Quit"), FileMenuId.QUIT, KEY_MASK_CTRL | KEY_Q)
 	_recent_menu.clear()
@@ -634,6 +727,7 @@ func _update_mode_ui() -> void:
 	if editing:
 		_timing_panel.visible = false
 	_update_run_button()
+	_refresh_pages()
 	_on_stepped(view.last_result)
 
 
@@ -704,6 +798,7 @@ func _show_document(doc: SchematicDocument, fit: bool) -> void:
 	_layout_select.select(1 if doc.horizontal else 0)
 	_switching_select.select(0 if doc.realistic_timing else 1)
 	_check_panel.hide()
+	_refresh_pages()
 	if fit:
 		_fit_camera()
 
@@ -786,6 +881,8 @@ func _on_type_changed(component_id: String, template: Dictionary) -> void:
 
 
 func _on_issue_selected(ids: PackedStringArray) -> void:
+	if not ids.is_empty() and edit_doc.circuit.get_component(ids[0]) != null and edit_doc.page_of(ids[0]) != edit_doc.page:
+		_show_page(edit_doc.page_of(ids[0]))
 	editor._clear_selection()
 	for id: String in ids:
 		editor.selected_components[id] = true
@@ -844,7 +941,9 @@ func _on_file_menu(id: int) -> void:
 		FileMenuId.SAVE_AS:
 			_save_as()
 		FileMenuId.EXPORT_PNG:
-			_show_file_dialog(DialogPurpose.EXPORT)
+			_show_file_dialog(DialogPurpose.EXPORT_PNG)
+		FileMenuId.EXPORT_PDF:
+			_show_file_dialog(DialogPurpose.EXPORT_PDF)
 		FileMenuId.QUIT:
 			_confirm_discard(func() -> void: get_tree().quit())
 
@@ -882,12 +981,15 @@ func _show_file_dialog(purpose: DialogPurpose) -> void:
 			_file_dialog.title = tr("Save schematic")
 			_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [ProjectFile.EXTENSION, tr("LadderLab schematic")]])
 			_file_dialog.current_file = (_file_path.get_file() if not _file_path.is_empty() else tr("schematic") + "." + ProjectFile.EXTENSION)
-		DialogPurpose.EXPORT:
+		DialogPurpose.EXPORT_PNG, DialogPurpose.EXPORT_PDF:
+			var pdf: bool = purpose == DialogPurpose.EXPORT_PDF
 			_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-			_file_dialog.title = tr("Export PNG")
-			_file_dialog.filters = PackedStringArray(["*.png ; PNG"])
+			_file_dialog.title = tr("Export PDF") if pdf else tr("Export PNG")
+			_file_dialog.filters = PackedStringArray(["*.pdf ; PDF"] if pdf else ["*.png ; PNG"])
 			var base: String = _file_path.get_file().get_basename() if not _file_path.is_empty() else tr("schematic")
-			_file_dialog.current_file = base + ".png"
+			if not pdf and edit_doc.pages.size() > 1:
+				base += "-%d" % (edit_doc.page + 1)
+			_file_dialog.current_file = base + (".pdf" if pdf else ".png")
 	_file_dialog.popup_centered_ratio(0.6)
 
 
@@ -902,10 +1004,14 @@ func _on_file_selected(path: String) -> void:
 				var then: Callable = _after_save
 				_after_save = Callable()
 				then.call()
-		DialogPurpose.EXPORT:
+		DialogPurpose.EXPORT_PNG:
 			if path.get_extension().to_lower() != "png":
 				path += ".png"
 			export_png(path)
+		DialogPurpose.EXPORT_PDF:
+			if path.get_extension().to_lower() != "pdf":
+				path += ".pdf"
+			export_pdf(path)
 
 
 ## Saves to the current file, or asks for one. [param then] runs after a
@@ -950,33 +1056,124 @@ func open_file(path: String) -> bool:
 	return true
 
 
-## Renders the edited schematic at rest (100 % scale) on white paper and
-## saves it as PNG.
+## Saves the page shown as a PNG image: the drawing at rest on white paper,
+## on a sheet with a frame and title block (see [SheetRenderer]).
 func export_png(path: String) -> void:
-	var dark_paper: bool = SchematicTheme.dark
-	SchematicTheme.use(false)
-	var b: Rect2 = edit_doc.bounds()
-	var origin: Vector2 = b.position * SymbolGeometry.GRID - Vector2(EXPORT_MARGIN, EXPORT_MARGIN * 2.0)
-	var size: Vector2 = b.size * SymbolGeometry.GRID + Vector2(EXPORT_MARGIN * 2.0, EXPORT_MARGIN * 3.0)
-	var viewport: SubViewport = SubViewport.new()
-	viewport.size = Vector2i(size.ceil())
-	viewport.transparent_bg = false
-	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
-	var background: ColorRect = ColorRect.new()
-	background.color = SchematicTheme.BACKGROUND
-	background.size = size
-	viewport.add_child(background)
-	var copy: SchematicView = SchematicView.new()
-	copy.position = -origin
-	viewport.add_child(copy)
-	add_child(viewport)
-	copy.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), false)
-	await RenderingServer.frame_post_draw
-	var image: Image = viewport.get_texture().get_image()
-	viewport.queue_free()
-	SchematicTheme.use(dark_paper)
-	if image == null or image.save_png(path) != OK:
+	_prepare_export()
+	var images: Array[Image] = await _sheet_renderer.render(edit_doc, PackedInt32Array([edit_doc.page]))
+	if images.is_empty() or images[0] == null or images[0].save_png(path) != OK:
 		_show_error(tr("Could not save %s.") % path.get_file())
+
+
+## Saves every page as one page of a PDF document.
+func export_pdf(path: String) -> void:
+	_prepare_export()
+	var pages: PackedInt32Array = PackedInt32Array()
+	for i: int in edit_doc.pages.size():
+		pages.append(i)
+	var images: Array[Image] = await _sheet_renderer.render(edit_doc, pages)
+	var pdf: PdfWriter = PdfWriter.new()
+	pdf.title = tr(edit_doc.title)
+	for i: int in images.size():
+		if images[i] == null:
+			_show_error(tr("Could not save %s.") % path.get_file())
+			return
+		pdf.add_page(images[i], _sheet_renderer.layouts[i].paper_points())
+	if pdf.save(path) != OK:
+		_show_error(tr("Could not save %s.") % path.get_file())
+
+
+## Texts of the title block and what to draw, as chosen in the window.
+func _prepare_export() -> void:
+	_sheet_renderer.wire_numbers = _wire_numbers
+	_sheet_renderer.file_name = _file_path.get_file()
+	_sheet_renderer.title = tr(edit_doc.title)
+	_sheet_renderer.untitled_page = tr("Page %d")
+	_sheet_renderer.page_caption = tr("Page")
+
+
+# --- Pages ------------------------------------------------------------------------
+
+## Fills the page tabs from the document shown.
+func _refresh_pages() -> void:
+	if _page_tabs == null or view.document == null:
+		return
+	var doc: SchematicDocument = view.document
+	_updating_pages = true
+	_page_tabs.tab_count = doc.pages.size()
+	for i: int in doc.pages.size():
+		var title: String = tr("Page %d") % (i + 1) if doc.pages[i].is_empty() else "%d  %s" % [i + 1, tr(doc.pages[i])]
+		_page_tabs.set_tab_title(i, title)
+	_page_tabs.current_tab = doc.page
+	_page_tabs.drag_to_rearrange_enabled = mode == Mode.EDIT
+	_page_add.visible = mode == Mode.EDIT
+	_updating_pages = false
+
+
+## Shows page [param index]; with [param focus_id], centred on that component.
+func _show_page(index: int, focus_id: String = "") -> void:
+	if index < 0 or index >= edit_doc.pages.size():
+		return
+	editor.leave_page()
+	edit_doc.page = index
+	view.show_page(index)
+	_refresh_pages()
+	var focus: CircuitComponent = view.document.circuit.get_component(focus_id) if not focus_id.is_empty() else null
+	if focus != null:
+		camera.look_at_world(view.document.component_body(focus).get_center() * SymbolGeometry.GRID, _canvas_area.get_global_rect())
+	else:
+		_fit_camera()
+
+
+## Adds a page titled [param title] after the last one and shows it (undoable).
+func _add_page(title: String) -> void:
+	editor.edit_pages(func(doc: SchematicDocument) -> void: doc.page = doc.add_page(title))
+	_fit_camera()
+
+
+func _open_page_menu(tab: int) -> void:
+	if mode != Mode.EDIT:
+		return
+	_menu_page = tab
+	_page_menu.clear()
+	_page_menu.add_item(tr("Rename…"), PageMenuId.RENAME)
+	_page_menu.add_item(tr("Move left"), PageMenuId.MOVE_LEFT)
+	_page_menu.set_item_disabled(_page_menu.item_count - 1, tab == 0)
+	_page_menu.add_item(tr("Move right"), PageMenuId.MOVE_RIGHT)
+	_page_menu.set_item_disabled(_page_menu.item_count - 1, tab == edit_doc.pages.size() - 1)
+	_page_menu.add_separator()
+	_page_menu.add_item(tr("Delete page"), PageMenuId.DELETE)
+	_page_menu.set_item_disabled(_page_menu.item_count - 1, edit_doc.pages.size() <= 1)
+	_page_menu.set_item_tooltip(_page_menu.item_count - 1, tr("Removes the page with everything drawn on it (Ctrl+Z brings it back)"))
+	_page_menu.reset_size()
+	_page_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+
+
+func _on_page_menu(id: int) -> void:
+	var index: int = _menu_page
+	match id:
+		PageMenuId.RENAME:
+			_show_rename_dialog(index)
+		PageMenuId.MOVE_LEFT, PageMenuId.MOVE_RIGHT:
+			var to: int = index + (-1 if id == PageMenuId.MOVE_LEFT else 1)
+			editor.edit_pages(func(doc: SchematicDocument) -> void: doc.move_page(index, to))
+		PageMenuId.DELETE:
+			editor.edit_pages(func(doc: SchematicDocument) -> void: doc.remove_page(index))
+			_fit_camera()
+
+
+## Title of page [param index] as shown ("" when untitled).
+func _page_title(index: int) -> String:
+	return tr(edit_doc.pages[index]) if not edit_doc.pages[index].is_empty() else ""
+
+
+func _show_rename_dialog(index: int) -> void:
+	_menu_page = index
+	_rename_dialog.dialog_text = tr("Title of page %d:") % (index + 1)
+	_rename_field.text = _page_title(index)
+	_rename_dialog.popup_centered()
+	_rename_field.grab_focus()
+	_rename_field.select_all()
 
 
 func _show_error(text: String) -> void:
