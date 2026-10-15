@@ -54,7 +54,7 @@ func _draw_labels() -> void:
 	if relay.poles == 3:
 		anchor = Vector2(-1.2 * G, 1.5 * G)
 		_draw_pole_labels()
-	draw_label(component.designation, anchor, SchematicTheme.LABEL_SIZE, SchematicTheme.TEXT)
+	draw_label(designation_text(), anchor, SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	var text: String = "%.1f s" % relay.trip_delay
 	if relay.is_heating() and not relay.tripped:
 		text = "%.1f / %.1f s" % [relay.elapsed, relay.trip_delay]

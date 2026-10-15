@@ -32,5 +32,5 @@ func _draw_shape(_color: Color, width: float) -> void:
 
 
 func _draw_labels() -> void:
-	draw_label(component.designation, Vector2(-1.0 * G, 1.5 * G), SchematicTheme.LABEL_SIZE, SchematicTheme.TEXT)
+	draw_label(designation_text(), Vector2(-1.0 * G, 1.5 * G), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	_draw_pole_labels()

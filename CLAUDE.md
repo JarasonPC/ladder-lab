@@ -3,6 +3,10 @@
 - Engine: Godot 4.7.2, GDScript only (no C#)
 - Use static typing everywhere (var x: int, func f() -> void)
 - Schematic symbols follow IEC 60617, drawn in code with _draw(), no image assets
+- Drawing style follows the course guide (style "A"): white paper, thin black lines, a square at
+  every terminal coloured by voltage reach, branch dots in the wire colour, "-KM1" designations
+  and terminal numbers in teal, supplies as circles with the name inside, lit lamps filled grey;
+  colours live in SchematicTheme
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd

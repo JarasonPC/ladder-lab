@@ -67,7 +67,7 @@ func _draw_shape(color: Color, width: float) -> void:
 
 func _draw_labels() -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
-	draw_label(component.designation, _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.TEXT)
+	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	var names: PackedStringArray = motor.get_terminal_names()
 	for i: int in names.size():
 		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i)) * G
@@ -79,8 +79,7 @@ func _draw_labels() -> void:
 		draw_label(names[i], cell + offset, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	var font: Font = AppTheme.schematic_font()
 	var c: Vector2 = to_upright(CENTER)
-	_centered(font, "M", c + Vector2(0, -6), 16, SchematicTheme.TEXT)
-	_centered(font, "3~", c + Vector2(0, 10), 12, SchematicTheme.TEXT)
+	_centered(font, "M3~", c, 15, SchematicTheme.TEXT)
 	var status: String = ""
 	var status_color: Color = SchematicTheme.TEXT
 	match motor.state:
