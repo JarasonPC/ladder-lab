@@ -227,7 +227,7 @@ func test_custom_terminals_rename_and_swap_keep_wires() -> void:
 	data["terminals"] = ["A2", "A1"]
 	assert_true(doc.replace_component("K1", DocumentSerializer.component_from_dict(data)))
 	assert_eq(doc.circuit.get_component("K1").get_terminal_names(), PackedStringArray(["A2", "A1"]))
-	assert_eq(doc.terminal_cell("K1:A2"), Vector2i(5, 13), "A2 now at the top")
+	assert_eq(doc.terminal_cell("K1:A2"), Vector2i(5, 17), "A2 now at the top")
 	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
 	assert_true(wires.any(func(w: PackedStringArray) -> bool: return w[0] == "S1:14" and w[1] == "K1:A2"), "the top wire stays at the top")
 	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("S1:13-14"))
@@ -283,7 +283,8 @@ func _reversing(realistic: bool) -> void:
 	rev.release()
 	run.call(0.1)
 	assert_true(k2.energized and not k1.energized, "reverse straight from forward, without STOP")
-	assert_true((doc.circuit.get_component("M1") as Motor).energized)
+	assert_true((doc.circuit.get_component("H2") as Lamp).energized, "reverse lamp")
+	assert_false((doc.circuit.get_component("H1") as Lamp).energized)
 
 
 func test_button_interlock_reverses_without_stop_ideal() -> void:

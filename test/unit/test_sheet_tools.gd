@@ -45,8 +45,8 @@ func test_paste_renames_coil_with_its_contacts() -> void:
 	assert_eq(data["wires"].size(), 2, "only wires between copied parts")
 	var ids: PackedStringArray = doc.insert(data, Vector2i(20, 0))
 	assert_eq(ids, PackedStringArray(["S2:13-14", "K2:13-14", "K2"]))
-	assert_eq(doc.get_placement("K2").cell, Vector2i(25, 13))
-	assert_eq(doc.get_wire_count(), 11)
+	assert_eq(doc.get_placement("K2").cell, Vector2i(25, 17))
+	assert_eq(doc.get_wire_count(), 12)
 	assert_eq((doc.circuit.get_component("K2:13-14") as Contact).linked_coil, doc.circuit.get_coil("K2"))
 
 

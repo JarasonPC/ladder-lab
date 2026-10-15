@@ -207,11 +207,14 @@ func test_dahlander_both_speeds_is_miswired() -> void:
 func test_two_windings_speeds() -> void:
 	var doc: SchematicDocument = ExampleCircuits.two_windings()
 	var sim: Simulator = _sim(doc, true)
+	var texts: PackedStringArray = _press(doc, sim, "S2")
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "S2 low speed")
+	texts.append_array(_press(doc, sim, "S3", 0.2))
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2], "S3 switches to high speed without STOP (button interlock)")
+	assert_false(texts.has("Short circuit: %s"))
+	assert_false(doc.circuit.get_coil("K1").energized)
 	_press(doc, sim, "S1")
-	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1])
-	_press(doc, sim, "S0")
-	_press(doc, sim, "S2")
-	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2])
+	assert_eq(_motor(doc).state, ST.STOPPED, "S1 stops")
 
 
 # --- Three-pole protection ------------------------------------------------------

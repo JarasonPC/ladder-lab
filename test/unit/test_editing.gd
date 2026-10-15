@@ -193,13 +193,13 @@ func test_rotated_symbol_wires_do_not_cross_own_terminals() -> void:
 	for horizontal: bool in [false, true]:
 		var doc: SchematicDocument = ExampleCircuits.build(1, horizontal)
 		for turn: int in 4:
-			doc.rotate_component("M1")
+			doc.rotate_component("H1")
 			_assert_routes_valid(doc)
-			var u1: Vector2i = doc.terminal_cell("M1:U1")
-			var u2: Vector2i = doc.terminal_cell("M1:U2")
-			for w: int in doc.circuit.wires_of(doc.circuit.get_component("M1")):
+			var u1: Vector2i = doc.terminal_cell("H1:X1")
+			var u2: Vector2i = doc.terminal_cell("H1:X2")
+			for w: int in doc.circuit.wires_of(doc.circuit.get_component("H1")):
 				var wire: PackedStringArray = doc.circuit.get_wires()[w]
-				var other: Vector2i = u1 if wire.has("M1:U2") else u2
+				var other: Vector2i = u1 if wire.has("H1:X2") else u2
 				var points: Array[Vector2i] = doc.wire_points(w)
 				for s: int in range(1, points.size()):
 					assert_false(SchematicDocument._on_segment(other, points[s - 1], points[s]),
