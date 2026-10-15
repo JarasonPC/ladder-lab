@@ -9,8 +9,8 @@ const TIMER_BOX := Rect2(-28, 20, 14, 20)
 
 func _draw_shape(color: Color, width: float) -> void:
 	var coil: Coil = component as Coil
-	draw_line(Vector2(0, 0), Vector2(0, BOX.position.y), color, width)
-	draw_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), color, width)
+	draw_line(Vector2(0, 0), Vector2(0, BOX.position.y), lead_color(0), lead_width(0))
+	draw_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), lead_color(1), lead_width(1))
 	if coil.energized:
 		draw_rect(BOX, SchematicTheme.COIL_ON)
 	draw_rect(BOX, color, false, width)

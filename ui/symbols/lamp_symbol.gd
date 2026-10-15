@@ -8,8 +8,8 @@ const RADIUS: float = 11.0
 
 func _draw_shape(color: Color, width: float) -> void:
 	var lit: bool = (component as Load).energized
-	draw_line(Vector2(0, 0), Vector2(0, CENTER.y - RADIUS), color, width)
-	draw_line(Vector2(0, CENTER.y + RADIUS), Vector2(0, 3 * G), color, width)
+	draw_line(Vector2(0, 0), Vector2(0, CENTER.y - RADIUS), lead_color(0), lead_width(0))
+	draw_line(Vector2(0, CENTER.y + RADIUS), Vector2(0, 3 * G), lead_color(1), lead_width(1))
 	if lit:
 		draw_circle(CENTER, RADIUS + 7.0, SchematicTheme.LAMP_GLOW)
 		draw_circle(CENTER, RADIUS, SchematicTheme.LAMP_ON)

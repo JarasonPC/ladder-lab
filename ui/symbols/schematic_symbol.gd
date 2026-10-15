@@ -9,8 +9,9 @@ const G: float = float(SymbolGeometry.GRID)
 
 var component: CircuitComponent
 var placement: Placement
-## Set by the view from the last [StepResult].
-var carries_current: bool = false
+## Per terminal (in [method CircuitComponent.get_terminal_names] order): 1 when
+## the terminal is at L potential. Set by the view from the last [StepResult].
+var live: PackedByteArray = PackedByteArray()
 ## Blinking warning (oscillation), already gated by the blink phase.
 var warning: bool = false
 var hovered: bool = false
@@ -45,14 +46,34 @@ func _draw() -> void:
 		_draw_labels()
 
 
+func is_live(terminal_index: int) -> bool:
+	return terminal_index < live.size() and live[terminal_index] == 1
+
+
+func any_live() -> bool:
+	return live.has(1)
+
+
+## Colour of the symbol body: live when voltage reaches any terminal.
 func stroke_color() -> Color:
 	if warning:
 		return SchematicTheme.WARNING
-	return SchematicTheme.CURRENT if carries_current else SchematicTheme.LINE
+	return SchematicTheme.LIVE if any_live() else SchematicTheme.LINE
 
 
 func stroke_width() -> float:
-	return SchematicTheme.CURRENT_WIDTH if carries_current or warning else SchematicTheme.LINE_WIDTH
+	return SchematicTheme.LIVE_WIDTH if any_live() or warning else SchematicTheme.LINE_WIDTH
+
+
+## Colour of the lead and contact parts on the side of one terminal.
+func lead_color(terminal_index: int) -> Color:
+	if warning:
+		return SchematicTheme.WARNING
+	return SchematicTheme.LIVE if is_live(terminal_index) else SchematicTheme.LINE
+
+
+func lead_width(terminal_index: int) -> float:
+	return SchematicTheme.LIVE_WIDTH if is_live(terminal_index) or warning else SchematicTheme.LINE_WIDTH
 
 
 ## Draws the symbol in local coordinates. Override.

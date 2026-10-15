@@ -23,7 +23,7 @@ func _designation_anchor() -> Vector2:
 	return Vector2(-1.9 * G if has_mark else -1.3 * G, 1.5 * G)
 
 
-func _draw_shape(color: Color, width: float) -> void:
+func _draw_shape(color: Color, _width: float) -> void:
 	var element: SwitchingElement = component as SwitchingElement
 	var is_nc: bool = element.contact_type == SwitchingElement.ContactType.NC
 	var closed: bool = element.is_closed()
@@ -31,17 +31,26 @@ func _draw_shape(color: Color, width: float) -> void:
 	# the pivot at the top and the hook at the bottom, so it opens downward.
 	var flip: Callable = func(v: Vector2) -> Vector2:
 		return Vector2(v.x, 3 * G - v.y) if is_nc else v
+	# Terminal 0 is at the top: the fixed side of an NO contact, the pivot of an NC.
+	var fixed_terminal: int = 1 if is_nc else 0
+	var pivot_terminal: int = 1 - fixed_terminal
+	var fixed_color: Color = lead_color(fixed_terminal)
+	var fixed_width: float = lead_width(fixed_terminal)
+	var pivot_color: Color = lead_color(pivot_terminal)
+	var pivot_width: float = lead_width(pivot_terminal)
 	var pivot: Vector2 = flip.call(PIVOT)
-	draw_line(flip.call(Vector2(0, 0)), flip.call(FIXED_END), color, width)
-	draw_line(flip.call(Vector2(0, 3 * G)), pivot, color, width)
+	draw_line(flip.call(Vector2(0, 0)), flip.call(FIXED_END), fixed_color, fixed_width)
+	draw_line(flip.call(Vector2(0, 3 * G)), pivot, pivot_color, pivot_width)
 	if is_nc:
-		draw_line(flip.call(FIXED_END), flip.call(HOOK_END), color, width)
+		draw_line(flip.call(FIXED_END), flip.call(HOOK_END), fixed_color, fixed_width)
 	var tip: Vector2 = OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
 	tip = flip.call(tip)
-	draw_line(pivot, tip, color, width)
+	draw_line(pivot, tip, pivot_color, pivot_width)
 	var middle: Vector2 = pivot.lerp(tip, 0.5)
+	# The actuator is insulated from the contact: never live.
+	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
 
 	if component is PushButton:
 		_draw_push_actuator(middle, (component as PushButton).pressed, color)

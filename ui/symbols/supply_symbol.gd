@@ -4,7 +4,7 @@ extends SchematicSymbol
 
 
 func _draw_shape(color: Color, width: float) -> void:
-	var c: Color = color if carries_current else _conductor_color()
+	var c: Color = color if any_live() else _conductor_color()
 	draw_circle(Vector2.ZERO, 5.0, SchematicTheme.BACKGROUND)
 	draw_arc(Vector2.ZERO, 5.0, 0.0, TAU, 20, c, width)
 

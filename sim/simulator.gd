@@ -159,6 +159,7 @@ func _settle() -> StepResult:
 	if _short:
 		result.short_circuit_path = _find_short_path()
 	_find_current_paths(result)
+	_find_live_parts(result)
 	return result
 
 
@@ -278,6 +279,28 @@ func _find_short_path() -> PackedStringArray:
 				prev_switch[other] = edges[e]
 				queue.append(other)
 	return PackedStringArray()
+
+
+## Fills [member StepResult.live_terminals] and [member StepResult.live_wires]:
+## everything joined to an L supply by wires and closed switching elements,
+## whether or not current flows there. Loads do not pass the voltage on.
+func _find_live_parts(result: StepResult) -> void:
+	var uf: UnionFind = UnionFind.new(_net_count)
+	for i: int in _switches.size():
+		if _switches[i].is_closed():
+			uf.union(_switch_nets[2 * i], _switch_nets[2 * i + 1])
+	var l_roots: Dictionary[int, bool] = {}
+	for supply: PowerSupply in _l_supplies:
+		l_roots[uf.find(_net_of_key[supply.designation])] = true
+	if l_roots.is_empty():
+		return
+	for key: String in _net_of_key:
+		if l_roots.has(uf.find(_net_of_key[key])):
+			result.live_terminals.append(key)
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		if l_roots.has(uf.find(_net_of_key[wires[i][0]])):
+			result.live_wires.append(i)
 
 
 ## Fills [member StepResult.current_wires] and [member StepResult.current_components].

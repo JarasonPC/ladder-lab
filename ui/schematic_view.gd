@@ -92,18 +92,24 @@ func _apply(result: StepResult) -> void:
 
 func _update_visuals() -> void:
 	var blink_on: bool = _blink_time < BLINK_PERIOD * 0.5
-	var current: Dictionary[String, bool] = {}
-	for id: String in last_result.current_components:
-		current[id] = true
-	_wire_layer.current_wires.clear()
-	for w: int in last_result.current_wires:
-		_wire_layer.current_wires[w] = true
-	_wire_layer.fault = last_result.short_circuit
+	var live_keys: Dictionary[String, bool] = {}
+	for key: String in last_result.live_terminals:
+		live_keys[key] = true
+	_wire_layer.live_wires.clear()
+	for w: int in last_result.live_wires:
+		_wire_layer.live_wires[w] = true
+	_wire_layer.fault_wires.clear()
+	if last_result.short_circuit:
+		for w: int in last_result.current_wires:
+			_wire_layer.fault_wires[w] = true
 	_wire_layer.blink_on = blink_on
 	_wire_layer.queue_redraw()
 	for id: String in _symbols:
 		var symbol: SchematicSymbol = _symbols[id]
-		symbol.carries_current = current.has(id)
+		var keys: PackedStringArray = symbol.component.get_terminal_keys()
+		symbol.live.resize(keys.size())
+		for k: int in keys.size():
+			symbol.live[k] = 1 if live_keys.has(keys[k]) else 0
 		symbol.warning = blink_on and last_result.oscillating_tags.has(symbol.component.designation) and not (symbol.component is PowerSupply)
 		symbol.queue_redraw()
 
