@@ -3,7 +3,7 @@ extends GutTest
 
 func test_wires_join_terminals_into_nets() -> void:
 	var c: Circuit = Circuit.new()
-	c.add(PowerRail.new("L", PowerRail.Conductor.L))
+	c.add(PowerSupply.new("L", PowerSupply.Conductor.L))
 	c.add(PushButton.new("S1", SwitchingElement.ContactType.NO))
 	c.add(Coil.new("K1"))
 	c.connect_terminals("L", "S1:13")

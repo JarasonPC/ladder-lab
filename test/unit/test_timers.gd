@@ -14,8 +14,8 @@ var h2: Lamp
 func _build(mode: TimerRelay.Mode, delay: float) -> void:
 	const NO := SwitchingElement.ContactType.NO
 	circuit = Circuit.new()
-	circuit.add(PowerRail.new("L", PowerRail.Conductor.L))
-	circuit.add(PowerRail.new("N", PowerRail.Conductor.N))
+	circuit.add(PowerSupply.new("L", PowerSupply.Conductor.L))
+	circuit.add(PowerSupply.new("N", PowerSupply.Conductor.N))
 	s1 = circuit.add(LatchingSwitch.new("S1", NO)) as LatchingSwitch
 	kt1 = circuit.add(TimerRelay.new("KT1", mode, delay)) as TimerRelay
 	circuit.add(Contact.new("KT1", NO, 1, true))

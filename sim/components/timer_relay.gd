@@ -57,3 +57,9 @@ func advance(delta: float) -> void:
 				if elapsed + _EPSILON >= delay:
 					output = false
 
+
+
+## Seconds left until the output switches, 0 when not timing.
+func get_remaining() -> float:
+	var timing: bool = (energized and not output) if mode == Mode.ON_DELAY else (not energized and output)
+	return maxf(delay - elapsed, 0.0) if timing else 0.0

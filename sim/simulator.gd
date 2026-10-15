@@ -30,9 +30,11 @@ var _loads: Array[Load] = []
 var _load_nets: PackedInt32Array = PackedInt32Array()
 ## Indices into [member _loads] of the coils, in the order they were added.
 var _coil_indices: PackedInt32Array = PackedInt32Array()
-var _l_rails: Array[PowerRail] = []
-var _n_rails: Array[PowerRail] = []
+var _l_supplies: Array[PowerSupply] = []
+var _n_supplies: Array[PowerSupply] = []
 var _short: bool = false
+## Terminal index (into the current-flow graph) of every terminal key.
+var _terminal_index: Dictionary[String, int] = {}
 
 
 func _init(p_circuit: Circuit) -> void:
@@ -72,6 +74,7 @@ func _build() -> void:
 	for c: CircuitComponent in circuit.get_components():
 		for key: String in c.get_terminal_keys():
 			index[key] = index.size()
+	_terminal_index = index
 
 	var uf: UnionFind = UnionFind.new(index.size())
 	for wire: PackedStringArray in circuit.get_wires():
@@ -91,8 +94,8 @@ func _build() -> void:
 	_loads.clear()
 	_load_nets.clear()
 	_coil_indices.clear()
-	_l_rails.clear()
-	_n_rails.clear()
+	_l_supplies.clear()
+	_n_supplies.clear()
 	for c: CircuitComponent in circuit.get_components():
 		var keys: PackedStringArray = c.get_terminal_keys()
 		if c is SwitchingElement:
@@ -105,12 +108,12 @@ func _build() -> void:
 			_loads.append(c as Load)
 			_load_nets.append(_net_of_key[keys[0]])
 			_load_nets.append(_net_of_key[keys[1]])
-		elif c is PowerRail:
-			var rail: PowerRail = c as PowerRail
-			if rail.conductor == PowerRail.Conductor.L:
-				_l_rails.append(rail)
+		elif c is PowerSupply:
+			var supply: PowerSupply = c as PowerSupply
+			if supply.conductor == PowerSupply.Conductor.L:
+				_l_supplies.append(supply)
 			else:
-				_n_rails.append(rail)
+				_n_supplies.append(supply)
 
 
 func _settle() -> StepResult:
@@ -155,6 +158,7 @@ func _settle() -> StepResult:
 	result.short_circuit = _short
 	if _short:
 		result.short_circuit_path = _find_short_path()
+	_find_current_paths(result)
 	return result
 
 
@@ -168,11 +172,11 @@ func _evaluate() -> PackedByteArray:
 			uf.union(_switch_nets[2 * i], _switch_nets[2 * i + 1])
 
 	var l_roots: Dictionary[int, bool] = {}
-	for rail: PowerRail in _l_rails:
-		l_roots[uf.find(_net_of_key[rail.designation])] = true
+	for supply: PowerSupply in _l_supplies:
+		l_roots[uf.find(_net_of_key[supply.designation])] = true
 	var n_roots: Dictionary[int, bool] = {}
-	for rail: PowerRail in _n_rails:
-		n_roots[uf.find(_net_of_key[rail.designation])] = true
+	for supply: PowerSupply in _n_supplies:
+		n_roots[uf.find(_net_of_key[supply.designation])] = true
 
 	_short = false
 	for root: int in n_roots:
@@ -218,7 +222,7 @@ func _changing_tags(states: Array[PackedByteArray]) -> PackedStringArray:
 	return tags
 
 
-## Shortest chain of closed switching elements from an L rail to an N rail:
+## Shortest chain of closed switching elements from an L supply to an N supply:
 ## [L designation, element ids..., N designation].
 func _find_short_path() -> PackedStringArray:
 	var adjacency: Array[PackedInt32Array] = []
@@ -232,9 +236,9 @@ func _find_short_path() -> PackedStringArray:
 			adjacency[a].append_array(PackedInt32Array([i, b]))
 			adjacency[b].append_array(PackedInt32Array([i, a]))
 
-	var n_rail_of_net: Dictionary[int, PowerRail] = {}
-	for rail: PowerRail in _n_rails:
-		n_rail_of_net[_net_of_key[rail.designation]] = rail
+	var n_supply_of_net: Dictionary[int, PowerSupply] = {}
+	for supply: PowerSupply in _n_supplies:
+		n_supply_of_net[_net_of_key[supply.designation]] = supply
 
 	var prev_net: PackedInt32Array = PackedInt32Array()
 	var prev_switch: PackedInt32Array = PackedInt32Array()
@@ -242,29 +246,29 @@ func _find_short_path() -> PackedStringArray:
 	prev_switch.resize(_net_count)
 	prev_net.fill(-2)
 	prev_switch.fill(-1)
-	var start_rail: Dictionary[int, PowerRail] = {}
+	var start_supply: Dictionary[int, PowerSupply] = {}
 	var queue: PackedInt32Array = PackedInt32Array()
-	for rail: PowerRail in _l_rails:
-		var net: int = _net_of_key[rail.designation]
+	for supply: PowerSupply in _l_supplies:
+		var net: int = _net_of_key[supply.designation]
 		if prev_net[net] == -2:
 			prev_net[net] = -1
-			start_rail[net] = rail
+			start_supply[net] = supply
 			queue.append(net)
 
 	var head: int = 0
 	while head < queue.size():
 		var net: int = queue[head]
 		head += 1
-		if n_rail_of_net.has(net):
+		if n_supply_of_net.has(net):
 			var middle: PackedStringArray = PackedStringArray()
 			var cursor: int = net
 			while prev_net[cursor] != -1:
 				middle.append(_switches[prev_switch[cursor]].id)
 				cursor = prev_net[cursor]
 			middle.reverse()
-			var path: PackedStringArray = PackedStringArray([start_rail[cursor].designation])
+			var path: PackedStringArray = PackedStringArray([start_supply[cursor].designation])
 			path.append_array(middle)
-			path.append(n_rail_of_net[net].designation)
+			path.append(n_supply_of_net[net].designation)
 			return path
 		var edges: PackedInt32Array = adjacency[net]
 		for e: int in range(0, edges.size(), 2):
@@ -274,3 +278,148 @@ func _find_short_path() -> PackedStringArray:
 				prev_switch[other] = edges[e]
 				queue.append(other)
 	return PackedStringArray()
+
+
+## Fills [member StepResult.current_wires] and [member StepResult.current_components].
+##
+## Graph: terminals are vertices; wires, closed switching elements and energized
+## loads are edges. A virtual source edge joins all L supplies to all N supplies.
+## A wire or element carries current exactly when it lies on a simple cycle
+## through the source edge, i.e. in the same biconnected component. Dead-end
+## branches and loops hanging off a single point stay dark. During a short the
+## loads are off, so the result is the fault-current path.
+func _find_current_paths(result: StepResult) -> void:
+	if _l_supplies.is_empty() or _n_supplies.is_empty():
+		return
+	const WIRE := 0
+	const SWITCH := 1
+	const LOAD := 2
+	const VIRTUAL := 3
+	var terminal_count: int = _terminal_index.size()
+	var v_l: int = terminal_count
+	var v_n: int = terminal_count + 1
+	# Edges as parallel arrays indexed by edge id.
+	var edge_a: PackedInt32Array = PackedInt32Array()
+	var edge_b: PackedInt32Array = PackedInt32Array()
+	var edge_kind: PackedInt32Array = PackedInt32Array()
+	var edge_ref: PackedInt32Array = PackedInt32Array()
+
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		edge_a.append(_terminal_index[wires[i][0]])
+		edge_b.append(_terminal_index[wires[i][1]])
+		edge_kind.append(WIRE)
+		edge_ref.append(i)
+	for i: int in _switches.size():
+		if _switches[i].is_closed():
+			var keys: PackedStringArray = _switches[i].get_terminal_keys()
+			edge_a.append(_terminal_index[keys[0]])
+			edge_b.append(_terminal_index[keys[1]])
+			edge_kind.append(SWITCH)
+			edge_ref.append(i)
+	for i: int in _loads.size():
+		if _loads[i].energized:
+			var keys: PackedStringArray = _loads[i].get_terminal_keys()
+			edge_a.append(_terminal_index[keys[0]])
+			edge_b.append(_terminal_index[keys[1]])
+			edge_kind.append(LOAD)
+			edge_ref.append(i)
+	for supply: PowerSupply in _l_supplies + _n_supplies:
+		edge_a.append(v_l if supply.conductor == PowerSupply.Conductor.L else v_n)
+		edge_b.append(_terminal_index[supply.designation])
+		edge_kind.append(VIRTUAL)
+		edge_ref.append(-1)
+	var source_edge: int = edge_a.size()
+	edge_a.append(v_l)
+	edge_b.append(v_n)
+	edge_kind.append(VIRTUAL)
+	edge_ref.append(-1)
+
+	var adjacency: Array[PackedInt32Array] = []
+	adjacency.resize(terminal_count + 2)
+	for i: int in adjacency.size():
+		adjacency[i] = PackedInt32Array()
+	for e: int in edge_a.size():
+		if edge_a[e] != edge_b[e]:
+			adjacency[edge_a[e]].append_array(PackedInt32Array([edge_b[e], e]))
+			adjacency[edge_b[e]].append_array(PackedInt32Array([edge_a[e], e]))
+
+	var block: PackedInt32Array = _biconnected_block(adjacency, v_l, source_edge)
+	block.sort()
+	for e: int in block:
+		match edge_kind[e]:
+			WIRE:
+				result.current_wires.append(edge_ref[e])
+			SWITCH:
+				result.current_components.append(_switches[edge_ref[e]].id)
+			LOAD:
+				result.current_components.append(_loads[edge_ref[e]].id)
+
+
+## Edges of the biconnected component that contains [param target_edge],
+## found with an iterative Tarjan search started at [param root].
+## [param adjacency] holds (neighbor, edge id) pairs per vertex.
+func _biconnected_block(adjacency: Array[PackedInt32Array], root: int, target_edge: int) -> PackedInt32Array:
+	var vertex_count: int = adjacency.size()
+	var disc: PackedInt32Array = PackedInt32Array()
+	var low: PackedInt32Array = PackedInt32Array()
+	disc.resize(vertex_count)
+	low.resize(vertex_count)
+	disc.fill(-1)
+	low.fill(-1)
+	var edge_stack: PackedInt32Array = PackedInt32Array()
+	# Frames: vertex, edge used to enter it, next adjacency position.
+	var frame_vertex: PackedInt32Array = PackedInt32Array([root])
+	var frame_edge: PackedInt32Array = PackedInt32Array([-1])
+	var frame_pos: PackedInt32Array = PackedInt32Array([0])
+	var time: int = 0
+	disc[root] = time
+	low[root] = time
+	time += 1
+
+	while not frame_vertex.is_empty():
+		var top: int = frame_vertex.size() - 1
+		var u: int = frame_vertex[top]
+		var pos: int = frame_pos[top]
+		var edges: PackedInt32Array = adjacency[u]
+		if pos < edges.size():
+			frame_pos[top] = pos + 2
+			var v: int = edges[pos]
+			var e: int = edges[pos + 1]
+			if e == frame_edge[top]:
+				continue
+			if disc[v] == -1:
+				edge_stack.append(e)
+				disc[v] = time
+				low[v] = time
+				time += 1
+				frame_vertex.append(v)
+				frame_edge.append(e)
+				frame_pos.append(0)
+			elif disc[v] < disc[u]:
+				edge_stack.append(e)
+				low[u] = mini(low[u], disc[v])
+			continue
+
+		var entered_by: int = frame_edge[top]
+		frame_vertex.resize(top)
+		frame_edge.resize(top)
+		frame_pos.resize(top)
+		if top == 0:
+			break
+		var parent: int = frame_vertex[top - 1]
+		low[parent] = mini(low[parent], low[u])
+		if low[u] >= disc[parent]:
+			var block: PackedInt32Array = PackedInt32Array()
+			var found: bool = false
+			while not edge_stack.is_empty():
+				var x: int = edge_stack[edge_stack.size() - 1]
+				edge_stack.resize(edge_stack.size() - 1)
+				block.append(x)
+				if x == target_edge:
+					found = true
+				if x == entered_by:
+					break
+			if found:
+				return block
+	return PackedInt32Array()

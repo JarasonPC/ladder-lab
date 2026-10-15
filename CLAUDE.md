@@ -11,8 +11,8 @@
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
 - Device designations: K = relay/contactor, KT = time relay, S = push button/switch,
-  H = lamp, M = motor, rails L and N
-- Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; rails are just "L" / "N"
+  H = lamp, M = motor, supplies L and N
+- Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2
 

@@ -10,8 +10,8 @@ var h1: Lamp
 
 func before_each() -> void:
 	circuit = Circuit.new()
-	circuit.add(PowerRail.new("L", PowerRail.Conductor.L))
-	circuit.add(PowerRail.new("N", PowerRail.Conductor.N))
+	circuit.add(PowerSupply.new("L", PowerSupply.Conductor.L))
+	circuit.add(PowerSupply.new("N", PowerSupply.Conductor.N))
 	s1 = circuit.add(PushButton.new("S1", SwitchingElement.ContactType.NO)) as PushButton
 	s2 = circuit.add(PushButton.new("S2", SwitchingElement.ContactType.NO)) as PushButton
 	h1 = circuit.add(Lamp.new("H1")) as Lamp

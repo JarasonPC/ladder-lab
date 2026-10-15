@@ -18,8 +18,8 @@ func before_each() -> void:
 	const NO := SwitchingElement.ContactType.NO
 	const NC := SwitchingElement.ContactType.NC
 	circuit = Circuit.new()
-	circuit.add(PowerRail.new("L", PowerRail.Conductor.L))
-	circuit.add(PowerRail.new("N", PowerRail.Conductor.N))
+	circuit.add(PowerSupply.new("L", PowerSupply.Conductor.L))
+	circuit.add(PowerSupply.new("N", PowerSupply.Conductor.N))
 	stop = circuit.add(PushButton.new("S0", NC)) as PushButton
 	fwd = circuit.add(PushButton.new("S1", NO)) as PushButton
 	rev = circuit.add(PushButton.new("S2", NO)) as PushButton

@@ -11,9 +11,15 @@ var oscillating_tags: PackedStringArray = PackedStringArray()
 ## True when closed switching elements connect L directly to N.
 ## While it lasts all loads are without power (the protective device trips).
 var short_circuit: bool = false
-## The line that closes L-N: the L rail, the closed elements in order, the N rail,
+## The line that closes L-N: the L supply, the closed elements in order, the N supply,
 ## e.g. ["L", "S1:13-14", "K1:13-14", "N"].
 var short_circuit_path: PackedStringArray = PackedStringArray()
+
+## Indices into [method Circuit.get_wires] of the wires that carry current.
+## During a short these are the wires carrying the fault current.
+var current_wires: PackedInt32Array = PackedInt32Array()
+## Ids of closed switching elements and energized loads that carry current.
+var current_components: PackedStringArray = PackedStringArray()
 
 
 func is_oscillating() -> bool:

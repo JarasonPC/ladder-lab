@@ -1,7 +1,8 @@
-class_name PowerRail
+class_name PowerSupply
 extends CircuitComponent
-## Supply rail of the control circuit. Has a single terminal addressed by its
-## designation alone ("L" or "N").
+## Supply point of the control circuit: one for L, another for N. Has a single
+## terminal addressed by its designation alone (e.g. "L" or "N"). All supply
+## points belong to the same source.
 
 enum Conductor { L, N }
 
