@@ -29,8 +29,9 @@ func _draw_shape(color: Color, width: float) -> void:
 func _draw_labels() -> void:
 	var anchor: Vector2 = Vector2(-1.8 * G, 1.5 * G)
 	draw_label(component.designation, anchor, SchematicTheme.LABEL_SIZE, SchematicTheme.TEXT)
-	draw_label("A1", Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-	draw_label("A2", Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	var names: PackedStringArray = component.get_terminal_names()
+	draw_label(names[0], Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	if component is TimerRelay:
 		var timer: TimerRelay = component as TimerRelay
 		var remaining: float = timer.get_remaining()

@@ -68,6 +68,8 @@ var _palette: Palette
 var _side: VBoxContainer
 ## Part of the window where the schematic is visible (between the panels).
 var _canvas_area: Control
+## Big red warning over the schematic during an unprotected short circuit.
+var _short_banner: Label
 var _properties: PropertiesPanel
 var _check_panel: CheckPanel
 var _status_label: Label
@@ -255,6 +257,22 @@ func _build_ui() -> void:
 	_canvas_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_canvas_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	middle.add_child(_canvas_area)
+	_short_banner = Label.new()
+	_short_banner.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_short_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_short_banner.add_theme_font_size_override("font_size", 26)
+	_short_banner.add_theme_color_override("font_color", Color.WHITE)
+	var banner_style: StyleBoxFlat = StyleBoxFlat.new()
+	banner_style.bg_color = SchematicTheme.LIVE
+	banner_style.set_content_margin_all(10.0)
+	banner_style.set_corner_radius_all(6)
+	_short_banner.add_theme_stylebox_override("normal", banner_style)
+	_short_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_short_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_short_banner.position.y = 12.0
+	_short_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_short_banner.hide()
+	_canvas_area.add_child(_short_banner)
 	_side = VBoxContainer.new()
 	middle.add_child(_side)
 	_properties = PropertiesPanel.new()
@@ -794,6 +812,9 @@ func _on_editor_hint(text: String) -> void:
 func _on_stepped(result: StepResult) -> void:
 	if _time_label == null:
 		return
+	_short_banner.visible = mode == Mode.SIMULATE and result.short_circuit
+	if _short_banner.visible:
+		_short_banner.text = tr("NO FUSE and SHORT CIRCUIT!")
 	if mode == Mode.EDIT:
 		_status_label.text = _editor_hint
 		_status_label.remove_theme_color_override("font_color")

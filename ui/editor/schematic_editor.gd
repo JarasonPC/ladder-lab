@@ -223,7 +223,7 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 			data.erase("drop_out")
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if replacement == null:
-		return tr("Terminal names must be different from each other, without spaces or \":\".")
+		return tr("Terminal names must all be different, without spaces or colons.")
 	var snapshot: Dictionary = DocumentSerializer.to_dict(doc)
 	if not _can_replace(old, replacement):
 		return tr("%s is already used in this circuit.") % replacement.id

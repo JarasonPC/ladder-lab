@@ -72,6 +72,13 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	var symbol: SchematicSymbol = SymbolFactory.create(component, placement)
 	symbol.show_labels = false
 	symbol.scale = Vector2(ICON_SCALE, ICON_SCALE)
+	# Symbols are drawn for the light schematic paper, so give them a tile of it.
+	var paper: ColorRect = ColorRect.new()
+	paper.color = SchematicTheme.BACKGROUND
+	paper.position = Vector2(4, 4)
+	paper.size = Vector2(54, 36)
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(paper)
 	var span: float = SymbolGeometry.SPAN * SymbolGeometry.GRID * ICON_SCALE
 	symbol.position = Vector2(10.0 + (span * 0.5 if component is PowerSupply else 0.0), 23.0)
 	button.add_child(symbol)

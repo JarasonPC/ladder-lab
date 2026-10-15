@@ -29,6 +29,11 @@
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
+- Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
+  through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are
+  simulation-only state (never saved)
+- Buttons/switches with the same designation share one actuator (multi-block devices); ids of
+  switching elements are "<designation>:<terminals>"; any component may have custom terminal names
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION on
   format changes and keep older versions loading
