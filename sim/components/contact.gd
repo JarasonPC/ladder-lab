@@ -1,8 +1,9 @@
 class_name Contact
 extends SwitchingElement
-## Auxiliary or main contact of a relay, contactor or timer. Follows the coil
-## with the same designation. Delayed contacts (terminals x5-x6 / x7-x8) follow
-## the timed output of a [TimerRelay]; ordinary contacts follow the coil power.
+## Auxiliary or main contact of a relay, contactor or timer. Follows the
+## armature of the coil with the same designation (see [Armature] for when NO
+## and NC contacts switch). Delayed contacts (terminals x5-x6 / x7-x8) follow
+## the timed output of a [TimerRelay]; ordinary contacts follow the coil.
 ## A contact with no matching coil stays in its rest position.
 
 var delayed: bool
@@ -17,6 +18,16 @@ func _init(p_designation: String, p_type: ContactType, p_sequence: int = 1, p_de
 
 
 func is_actuated() -> bool:
+	return linked_coil != null and linked_coil.get_armature(delayed).no_closed
+
+
+func is_closed() -> bool:
 	if linked_coil == null:
-		return false
-	return linked_coil.get_contact_state(delayed)
+		return contact_type == ContactType.NC
+	var a: Armature = linked_coil.get_armature(delayed)
+	return a.no_closed if contact_type == ContactType.NO else not a.nc_open
+
+
+## Armature position 0..1 driving this contact (for drawing it in motion).
+func get_travel() -> float:
+	return linked_coil.get_armature(delayed).position if linked_coil != null else 0.0

@@ -1,23 +1,44 @@
 class_name Simulator
 extends RefCounted
 ## Solves a [Circuit]: which loads have power and which contacts are operated.
+## Power is traced from L through closed switching elements; a load has power
+## when L reaches one terminal and N the other.
 ##
-## Each [method step] advances the timers by the given time, then settles the
-## circuit: power is traced from L through closed switching elements, the coils
-## that should change are found and the first one (in the order components were
-## added) is switched, which may move its contacts. This repeats until nothing
-## wants to change. Switching one coil at a time models the fact that real relays
-## never operate at exactly the same instant, so races have a defined winner.
+## [enum Mode] IDEAL: relays switch instantly. Each [method step] advances the
+## timers, then settles: the coils that should change are found and the first
+## one (in the order components were added) is switched, which may move its
+## contacts, until nothing wants to change. A circuit state seen twice while
+## settling is an oscillation (e.g. a relay whose own NC contact feeds its
+## coil); it is reported in [StepResult] instead of looping, with
+## [member max_iterations] as a hard cap.
 ##
-## A circuit state seen twice while settling is an oscillation (e.g. a relay
-## whose own NC contact feeds its coil); it is reported in [StepResult] instead
-## of looping. [member max_iterations] is a hard cap on top of that.
+## [enum Mode] REALISTIC: coils get power at once but their [Armature] needs the
+## pick-up or drop-out time to move, so NC contacts break before NO contacts
+## make and races are decided by the relays' times. A step jumps from event to
+## event (a contact switching, an armature reaching an end, a timer expiring)
+## and re-traces power after each one. A coil switching on and off fast is
+## reported as chattering; [member max_events] caps the work per step.
+
+enum Mode { IDEAL, REALISTIC }
 
 const DEFAULT_MAX_ITERATIONS: int = 1000
+const DEFAULT_MAX_EVENTS: int = 20000
+## A coil that switched at least this often within [constant CHATTER_WINDOW]
+## seconds is reported as chattering.
+const CHATTER_TOGGLES: int = 8
+const CHATTER_WINDOW: float = 0.5
+## Event log entries kept per step at most.
+const MAX_LOGGED_EVENTS: int = 50
 
 var circuit: Circuit
+var mode: Mode = Mode.IDEAL
 var max_iterations: int = DEFAULT_MAX_ITERATIONS
+var max_events: int = DEFAULT_MAX_EVENTS
 var last_result: StepResult = StepResult.new()
+## Simulated seconds so far.
+var time: float = 0.0
+## Optional: receives coil power, armature positions and load states.
+var trace: TraceRecorder = null
 
 var _built_version: int = -1
 var _net_count: int = 0
@@ -35,19 +56,31 @@ var _n_supplies: Array[PowerSupply] = []
 var _short: bool = false
 ## Terminal index (into the current-flow graph) of every terminal key.
 var _terminal_index: Dictionary[String, int] = {}
+## Realistic mode: times at which each coil (by designation) switched recently.
+var _toggles: Dictionary[String, PackedFloat64Array] = {}
+var _chattering: Dictionary[String, bool] = {}
+## Realistic mode: when the present short circuit began, or -1.
+var _short_since: float = -1.0
 
 
 func _init(p_circuit: Circuit) -> void:
 	circuit = p_circuit
 
 
-## Advances timers by [param delta] seconds, then settles the circuit.
+## Advances the simulation by [param delta] seconds.
 func step(delta: float = 0.0) -> StepResult:
 	_ensure_built()
-	if delta > 0.0:
-		for i: int in _coil_indices:
-			(_loads[i] as Coil).advance(delta)
-	last_result = _settle()
+	if mode == Mode.REALISTIC:
+		last_result = _step_realistic(maxf(delta, 0.0))
+	else:
+		if delta > 0.0:
+			for i: int in _coil_indices:
+				var coil: Coil = _loads[i] as Coil
+				coil.advance(delta)
+				coil.snap()
+		time += maxf(delta, 0.0)
+		last_result = _settle()
+		_record_trace()
 	return last_result
 
 
@@ -140,6 +173,7 @@ func _settle() -> StepResult:
 			var want: bool = desired[i] == 1
 			if coil.energized != want:
 				coil.set_energized(want)
+				coil.snap()
 				switched = true
 				break
 		if not switched:
@@ -155,12 +189,133 @@ func _settle() -> StepResult:
 	for i: int in _loads.size():
 		if not (_loads[i] is Coil):
 			_loads[i].energized = desired[i] == 1
+	_finish(result)
+	return result
+
+
+func _finish(result: StepResult) -> void:
 	result.short_circuit = _short
 	if _short:
 		result.short_circuit_path = _find_short_path()
 	_find_current_paths(result)
 	_find_live_parts(result)
+
+
+# --- Realistic mode ------------------------------------------------------------
+
+func _step_realistic(delta: float) -> StepResult:
+	var result: StepResult = StepResult.new()
+	var remaining: float = delta
+	var events: int = 0
+	while true:
+		_apply_power(result)
+		var dt: float = remaining
+		for i: int in _coil_indices:
+			dt = minf(dt, (_loads[i] as Coil).time_to_next_event())
+		dt = maxf(dt, 0.0)
+		_advance_armatures(dt, result)
+		time += dt
+		remaining -= dt
+		events += 1
+		if remaining <= 1e-12:
+			break
+		if events >= max_events:
+			# Too much going on: move on without tracing every event.
+			_advance_armatures(remaining, result)
+			time += remaining
+			result.stable = false
+			break
+	_apply_power(result)
+	result.iterations = events
+	_update_chatter(result)
+	_finish(result)
 	return result
+
+
+## Traces power for the present contact positions: coils get or lose power
+## (their armatures start moving), lamps and motors follow at once.
+func _apply_power(result: StepResult) -> void:
+	var desired: PackedByteArray = _evaluate()
+	for i: int in _loads.size():
+		var want: bool = desired[i] == 1
+		var load: Load = _loads[i]
+		if load.energized == want:
+			continue
+		if load is Coil:
+			(load as Coil).set_energized(want)
+			_note_toggle(load.designation)
+		else:
+			load.energized = want
+	if _short and _short_since < 0.0:
+		_short_since = time
+		_log(result, "Short circuit: %s", [" → ".join(_find_short_path())])
+	elif not _short and _short_since >= 0.0:
+		_log(result, "Short circuit ended after %.1f ms", [(time - _short_since) * 1000.0])
+		_short_since = -1.0
+	_record_trace()
+
+
+func _advance_armatures(dt: float, result: StepResult) -> void:
+	for i: int in _coil_indices:
+		var coil: Coil = _loads[i] as Coil
+		var was_in: bool = coil.armature.position >= 1.0
+		var was_out: bool = coil.armature.position <= 0.0
+		var timer: TimerRelay = coil as TimerRelay
+		var output_before: bool = timer.output if timer != null else false
+		coil.move_armatures(dt)
+		coil.advance(dt)
+		if not was_in and coil.armature.position >= 1.0:
+			_log(result, "%s pulled in", [coil.designation], time + dt)
+		elif not was_out and coil.armature.position <= 0.0:
+			_log(result, "%s released", [coil.designation], time + dt)
+		if timer != null and timer.output != output_before:
+			_log(result, "%s timed output on" if timer.output else "%s timed output off", [coil.designation], time + dt)
+
+
+func _note_toggle(designation: String) -> void:
+	var times: PackedFloat64Array = _toggles.get(designation, PackedFloat64Array())
+	times.append(time)
+	var cut: int = 0
+	while cut < times.size() and times[cut] < time - CHATTER_WINDOW:
+		cut += 1
+	_toggles[designation] = times.slice(cut)
+
+
+func _update_chatter(result: StepResult) -> void:
+	for designation: String in _toggles:
+		var times: PackedFloat64Array = _toggles[designation]
+		var recent: int = 0
+		for t: float in times:
+			if t >= time - CHATTER_WINDOW:
+				recent += 1
+		if recent >= CHATTER_TOGGLES:
+			var span: float = maxf(times[times.size() - 1] - times[times.size() - recent], 1e-6)
+			result.oscillating_tags.append(designation)
+			result.chatter_hz[designation] = (recent - 1) / 2.0 / span
+			if not _chattering.has(designation):
+				_chattering[designation] = true
+				_log(result, "%s is chattering", [designation])
+		else:
+			_chattering.erase(designation)
+	if not result.oscillating_tags.is_empty():
+		result.stable = false
+
+
+func _log(result: StepResult, text: String, args: Array, at: float = -1.0) -> void:
+	if result.events.size() < MAX_LOGGED_EVENTS:
+		result.events.append({"time": at if at >= 0.0 else time, "text": text, "args": args})
+
+
+func _record_trace() -> void:
+	if trace == null:
+		return
+	for i: int in _loads.size():
+		var load: Load = _loads[i]
+		trace.record(load.designation, time, 1.0 if load.energized else 0.0)
+		if load is Coil:
+			trace.record(load.designation + "/armature", time, (load as Coil).armature.position, true)
+			if load is TimerRelay:
+				trace.record(load.designation + "/output", time, (load as TimerRelay).output_armature.position, true)
 
 
 ## Returns, per load, 1 if it has L on one terminal and N on the other through

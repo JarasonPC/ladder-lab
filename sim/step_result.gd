@@ -7,7 +7,13 @@ var stable: bool = true
 ## Evaluation passes used while settling.
 var iterations: int = 0
 ## Coils that kept switching in a cycle (e.g. a relay cutting off its own coil).
+## In realistic mode: coils that are chattering.
 var oscillating_tags: PackedStringArray = PackedStringArray()
+## Realistic mode: approximate switching frequency of each chattering coil.
+var chatter_hz: Dictionary[String, float] = {}
+## Realistic mode: what happened during the step, oldest first. Each entry has
+## "time" (seconds), "text" (English, with %s placeholders) and "args".
+var events: Array[Dictionary] = []
 ## True when closed switching elements connect L directly to N.
 ## While it lasts all loads are without power (the protective device trips).
 var short_circuit: bool = false
