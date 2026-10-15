@@ -18,5 +18,10 @@
 
 ## Layout
 
-- `sim/` solver (Circuit, Simulator, StepResult, UnionFind, components/)
+- `sim/` solver (Circuit, Simulator, StepResult, UnionFind, components/) - no nodes
+- `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
+  ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated/mirrored, so
+  vertical and horizontal current paths can be mixed
+- `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
+- `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech
 - `test/unit/` GUT tests; headless Godot is not preinstalled in cloud sessions

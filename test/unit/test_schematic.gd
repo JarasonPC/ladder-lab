@@ -90,3 +90,22 @@ func test_wires_do_not_cross_symbol_bodies() -> void:
 						if core.has_point(p):
 							crossings.append("%s wire %d crosses %s" % [doc.title, w, hit.id])
 	assert_eq(crossings, PackedStringArray())
+
+
+func test_mixed_horizontal_and_vertical_symbols() -> void:
+	# S1 lies horizontally (turned and mirrored), K1 stands vertically.
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, 6))
+	var s1: PushButton = doc.add(PushButton.new("S1", SwitchingElement.ContactType.NO), Vector2i(4, 1), 3, true) as PushButton
+	var k1: Coil = doc.add(Coil.new("K1"), Vector2i(9, 1)) as Coil
+	assert_eq(doc.terminal_cell("S1:14"), Vector2i(7, 1))
+	assert_true(doc.connect_terminals("L", "S1:13"))
+	assert_true(doc.connect_terminals("S1:14", "K1:A1"))
+	assert_true(doc.connect_terminals("K1:A2", "N", [Vector2i(9, 6)] as Array[Vector2i]))
+	var sim: Simulator = Simulator.new(doc.circuit)
+	s1.press()
+	var r: StepResult = sim.step()
+	assert_true(k1.energized)
+	assert_eq(r.current_wires, PackedInt32Array([0, 1, 2]))
+	assert_eq(doc.junction_cells(), [] as Array[Vector2i])

@@ -1,0 +1,77 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: LadderLab\n"
+"Language: cs\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8-bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+
+msgid "Circuit:"
+msgstr "Obvod:"
+
+msgid "Self-holding start/stop"
+msgstr "Samodržení start/stop"
+
+msgid "Forward/reverse with interlock"
+msgstr "Reverzace s blokováním"
+
+msgid "Time relays"
+msgstr "Časová relé"
+
+msgid "Self-cutoff (oscillation)"
+msgstr "Samovypínání (kmitání)"
+
+msgid "Short circuit"
+msgstr "Zkrat"
+
+msgid "Layout:"
+msgstr "Rozvržení:"
+
+msgid "Vertical"
+msgstr "Svisle"
+
+msgid "Horizontal"
+msgstr "Vodorovně"
+
+msgid "Run"
+msgstr "Spustit"
+
+msgid "Pause"
+msgstr "Pozastavit"
+
+msgid "Step"
+msgstr "Krok"
+
+msgid "Advance the simulation by 0.1 s"
+msgstr "Posunout simulaci o 0,1 s"
+
+msgid "Speed:"
+msgstr "Rychlost:"
+
+msgid "Reset"
+msgstr "Reset"
+
+msgid "Reload the circuit in its initial state"
+msgstr "Znovu načíst obvod ve výchozím stavu"
+
+msgid "Click buttons and switches to operate them. Right or middle drag pans, wheel zooms."
+msgstr "Tlačítka a spínače ovládáte kliknutím. Tažením pravým nebo prostředním tlačítkem myši posunete pohled, kolečkem přiblížíte."
+
+#, c-format
+msgid "Time: %.1f s"
+msgstr "Čas: %.1f s"
+
+#, c-format
+msgid "Short circuit: %s"
+msgstr "Zkrat: %s"
+
+#, c-format
+msgid "Oscillation: %s keeps switching on and off"
+msgstr "Kmitání: %s stále přitahuje a odpadá"
+
+msgid "Running"
+msgstr "Běží"
+
+msgid "Paused"
+msgstr "Pozastaveno"
