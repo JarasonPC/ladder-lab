@@ -451,6 +451,21 @@ func mirror_component(component_id: String) -> void:
 	_reroute_component(component_id)
 
 
+## Mirrors a component top to bottom, across the horizontal axis through its
+## middle: it stays in place and its upper and lower terminals swap.
+func flip_component(component_id: String) -> void:
+	component_id = _id(component_id)
+	var p: Placement = _placements[component_id]
+	var height: int = 0
+	for cell: Vector2i in SymbolGeometry.local_terminals(circuit.get_component(component_id)).values():
+		height = maxi(height, cell.y)
+	# Mirroring y = mirroring x and a half turn; shift so the ends swap.
+	p.cell += SymbolGeometry.transform_cell(Vector2i(0, height), p)
+	p.mirrored = not p.mirrored
+	p.rotation = (p.rotation + 2) % 4
+	_reroute_component(component_id)
+
+
 ## Replaces a component (e.g. after its properties were edited) keeping its
 ## placement and wiring. Returns false if the circuit refused it.
 func replace_component(old_id: String, new_component: CircuitComponent) -> bool:

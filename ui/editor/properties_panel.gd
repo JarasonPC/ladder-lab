@@ -9,6 +9,7 @@ signal type_changed(component_id: String, template: Dictionary)
 ## The Rotate / Mirror buttons were pressed.
 signal rotate_requested
 signal mirror_requested
+signal flip_requested
 
 var _component_id: String = ""
 var _data: Dictionary = {}
@@ -202,10 +203,18 @@ func _orientation() -> void:
 	mirror.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	mirror.text = tr("Mirror")
 	mirror.icon = AppTheme.icon("mirror")
-	mirror.tooltip_text = tr("Mirror across the symbol axis") + "  (F)"
+	mirror.tooltip_text = tr("Mirror left-right, across the symbol axis") + "  (F)"
 	mirror.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mirror.pressed.connect(func() -> void: mirror_requested.emit())
 	row.add_child(mirror)
+	var flip: Button = Button.new()
+	flip.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	flip.text = tr("Flip")
+	flip.icon = AppTheme.icon("flip")
+	flip.tooltip_text = tr("Mirror top-bottom: the upper and lower terminals swap") + "  (Shift+F)"
+	flip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	flip.pressed.connect(func() -> void: flip_requested.emit())
+	row.add_child(flip)
 	_add(row)
 
 

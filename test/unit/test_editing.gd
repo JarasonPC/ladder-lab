@@ -298,3 +298,21 @@ func test_short_wire_shows_its_number_once() -> void:
 	doc.set_wire_number(0, "1")
 	assert_eq(doc.wire_number_ends().size(), 1, "a one-cell wire is numbered once")
 	assert_eq(doc.wire_number_point(0, doc.wire_number_ends()[0].y), Vector2(2, 5.5), "in its middle")
+
+
+func test_flip_swaps_the_ends_in_place() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Contact.new("KM1", SwitchingElement.ContactType.NO, 1), Vector2i(4, 2))
+	doc.flip_component("KM1:13-14")
+	assert_eq(doc.terminal_cell("KM1:13"), Vector2i(4, 5), "13 goes down")
+	assert_eq(doc.terminal_cell("KM1:14"), Vector2i(4, 2), "14 comes up")
+	doc.flip_component("KM1:13-14")
+	assert_eq(doc.terminal_cell("KM1:13"), Vector2i(4, 2), "flipped twice: as before")
+	var p: Placement = doc.get_placement("KM1:13-14")
+	assert_eq([p.rotation, p.mirrored], [0, false])
+	# Turned into a horizontal path, the ends still swap.
+	doc.rotate_component("KM1:13-14")
+	var a: Vector2i = doc.terminal_cell("KM1:13")
+	var b: Vector2i = doc.terminal_cell("KM1:14")
+	doc.flip_component("KM1:13-14")
+	assert_eq([doc.terminal_cell("KM1:13"), doc.terminal_cell("KM1:14")], [b, a])

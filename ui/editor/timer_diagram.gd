@@ -8,7 +8,6 @@ extends Control
 
 const DURATION: float = 9.5
 const STEP: float = 0.01
-const ROW_HEIGHT: float = 24.0
 const LABEL_WIDTH: float = 26.0
 const DIMENSION_HEIGHT: float = 18.0
 const FONT_SIZE: int = 11
@@ -22,6 +21,12 @@ var mode: TimerRelay.Mode = TimerRelay.Mode.ON_DELAY:
 	set(value):
 		mode = value
 		_compute()
+		queue_redraw()
+## Height of one signal row; larger in the list of all functions.
+var row_height: float = 24.0:
+	set(value):
+		row_height = value
+		update_minimum_size()
 		queue_redraw()
 ## Name of the control input on the drawing ("S", "TL", ...).
 var input_name: String = "S":
@@ -47,7 +52,7 @@ func _notification(what: int) -> void:
 
 
 func _get_minimum_size() -> Vector2:
-	return Vector2(200, _row_count() * ROW_HEIGHT + DIMENSION_HEIGHT + 10.0)
+	return Vector2(200, _row_count() * row_height + DIMENSION_HEIGHT + 10.0)
 
 
 func _row_count() -> int:
@@ -104,7 +109,7 @@ func _draw() -> void:
 	var plot_x: float = LABEL_WIDTH
 	var plot_w: float = size.x - LABEL_WIDTH - 10.0
 	var top_y: float = 6.0
-	var bottom_y: float = top_y + rows.size() * ROW_HEIGHT
+	var bottom_y: float = top_y + rows.size() * row_height
 	var x_of: Callable = func(time: float) -> float:
 		return plot_x + time / DURATION * plot_w
 	# A line through all the rows at every rising and falling edge.
@@ -118,8 +123,8 @@ func _draw() -> void:
 		var x: float = x_of.call(float(i) * STEP)
 		_dashed_vertical(x, top_y, bottom_y, Color(AppTheme.text_muted, 0.7))
 	for r: int in rows.size():
-		var top: float = top_y + r * ROW_HEIGHT + 5.0
-		var base: float = top_y + (r + 1) * ROW_HEIGHT - 3.0
+		var top: float = top_y + r * row_height + 5.0
+		var base: float = top_y + (r + 1) * row_height - 3.0
 		var name: String = rows[r][0]
 		draw_string(font, Vector2(8.0, base - 1.0), name, HORIZONTAL_ALIGNMENT_LEFT, LABEL_WIDTH - 10.0, FONT_SIZE, AppTheme.text)
 		draw_line(Vector2(plot_x, base), Vector2(plot_x + plot_w, base), AppTheme.chart_grid, 1.0)

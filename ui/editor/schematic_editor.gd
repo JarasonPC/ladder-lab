@@ -24,7 +24,7 @@ enum Tool { SELECT, PLACE, WIRE }
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, CUT, COPY, PASTE, DELETE, SELECT_ALL }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 
@@ -113,7 +113,9 @@ static func type_options(c: CircuitComponent) -> Array[Dictionary]:
 		if current.has("poles") and not data.has("poles"):
 			data["poles"] = current["poles"]
 		var trial: CircuitComponent = DocumentSerializer.component_from_dict(data)
-		if trial != null and trial.get_terminal_names().size() == terminals:
+		# A time relay with its control input S can still turn into a coil
+		# (the S wire goes); otherwise only types with as many terminals.
+		if trial != null and (trial.get_terminal_names().size() == terminals or family == "coil"):
 			result.append(entry)
 	return result
 
@@ -129,8 +131,6 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 			continue
 		if d.get(key, false) != template[key]:
 			return false
-	if (template["type"] == "contact" or template["type"] == "changeover") and d.get("delayed", false) != template.get("delayed", false):
-		return false
 	if d.get("holder", false) != template.get("holder", false):
 		return false
 	return true
@@ -231,6 +231,21 @@ func mirror_selection() -> void:
 	_changed()
 
 
+## Mirrors the selection (or the part being placed) top to bottom.
+func flip_selection() -> void:
+	if tool == Tool.PLACE:
+		_ghost_mirrored = not _ghost_mirrored
+		_ghost_rotation = (_ghost_rotation + 2) % 4
+		_rebuild_ghost()
+		return
+	if selected_components.is_empty():
+		return
+	_record()
+	for id: String in selected_components:
+		document().flip_component(id)
+	_changed()
+
+
 ## Applies properties edited in the [PropertiesPanel]. Returns an error text,
 ## or "" on success.
 func apply_properties(component_id: String, data: Dictionary) -> String:
@@ -263,7 +278,7 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 					shared = true
 			if not shared:
 				data["designation"] = doc.next_designation(new_prefix)
-	_follow_overload_relay(data)
+	_follow_device(data, old.designation)
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if replacement == null:
 		return tr("Terminal names must all be different, without spaces or colons.")
@@ -427,6 +442,8 @@ func _on_key(key: InputEventKey) -> void:
 			select_all()
 		KEY_R:
 			rotate_selection()
+		KEY_F when key.shift_pressed:
+			flip_selection()
 		KEY_F, KEY_M:
 			mirror_selection()
 		KEY_DELETE:
@@ -469,7 +486,8 @@ func _open_context_menu() -> void:
 			_menu.add_separator()
 	if not selected_components.is_empty():
 		_menu.add_item(tr("Rotate"), MenuId.ROTATE, KEY_R)
-		_menu.add_item(tr("Mirror"), MenuId.MIRROR, KEY_F)
+		_menu.add_item(tr("Mirror left-right"), MenuId.MIRROR, KEY_F)
+		_menu.add_item(tr("Mirror top-bottom"), MenuId.FLIP, KEY_MASK_SHIFT | KEY_F)
 		_menu.add_separator()
 		_menu.add_item(tr("Cut"), MenuId.CUT, KEY_MASK_CTRL | KEY_X)
 		_menu.add_item(tr("Copy"), MenuId.COPY, KEY_MASK_CTRL | KEY_C)
@@ -489,6 +507,8 @@ func _on_menu_id(id: int) -> void:
 			rotate_selection()
 		MenuId.MIRROR:
 			mirror_selection()
+		MenuId.FLIP:
+			flip_selection()
 		MenuId.CUT:
 			cut_selection()
 		MenuId.COPY:
@@ -627,7 +647,7 @@ func _place_at(cell: Vector2i) -> void:
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
 	if data["type"] == "terminal" and str(data.get("label", "")).is_empty():
 		data["label"] = str(data["designation"]).trim_prefix("X")
-	_follow_overload_relay(data)
+	_follow_device(data)
 	var c: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if not _can_add(c):
 		hint_changed.emit(tr("%s is already used in this circuit.") % c.id)
@@ -645,11 +665,17 @@ func _place_at(cell: Vector2i) -> void:
 	_rebuild_ghost()
 
 
-## A contact designated like an overload relay (e.g. "F2") becomes its
-## overload contact (95-96 / 97-98, drawn with the thermal actuator); an
-## overload contact designated otherwise becomes a plain contact again.
-func _follow_overload_relay(data: Dictionary) -> void:
+## A contact follows the device it is designated to: a contact (or
+## changeover) of a time relay KT is delayed (unless unticked later, while its
+## designation stays); a contact designated like an overload relay (e.g. "F2")
+## becomes its overload contact (95-96 / 97-98, drawn with the thermal
+## actuator); an overload contact designated otherwise becomes a plain
+## contact again. [param old_designation]: before the edit ("" when new).
+func _follow_device(data: Dictionary, old_designation: String = "") -> void:
 	var doc: SchematicDocument = document()
+	var designation: String = str(data.get("designation", ""))
+	if (data["type"] == "contact" or data["type"] == "changeover") and (not data.has("delayed") or designation != old_designation):
+		data["delayed"] = doc.circuit.get_coil(designation) is TimerRelay
 	var relay: OverloadRelay = doc.circuit.get_overload_relay(str(data.get("designation", "")))
 	if data["type"] == "contact" and relay != null and not data.get("delayed", false):
 		data["type"] = "overload_contact"
@@ -701,7 +727,7 @@ func _new_designation(data: Dictionary) -> String:
 					return relay.designation
 			for id: String in selected_components:
 				var selected: CircuitComponent = doc.circuit.get_component(id)
-				if selected is Coil and (selected is TimerRelay) == want_timer:
+				if selected is Coil and (selected is TimerRelay or not want_timer):
 					return selected.designation
 			for c: CircuitComponent in doc.circuit.get_components():
 				if c is Coil and (c is TimerRelay) == want_timer:
@@ -1067,11 +1093,11 @@ func _can_replace(old: CircuitComponent, replacement: CircuitComponent) -> bool:
 func _emit_hint() -> void:
 	match tool:
 		Tool.PLACE:
-			hint_changed.emit(tr("Click to place. R rotates, F mirrors. Right click or Esc stops placing."))
+			hint_changed.emit(tr("Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."))
 		Tool.WIRE:
 			hint_changed.emit(tr("Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."))
 		_:
-			hint_changed.emit(tr("Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F mirrors, Del deletes."))
+			hint_changed.emit(tr("Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F / Shift+F mirror, Del deletes."))
 
 
 # --- Drawing --------------------------------------------------------------------
