@@ -70,9 +70,13 @@ func show_component(component: CircuitComponent) -> void:
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"timer":
-			_choice(tr("Function"), "mode", Array(TimerRelay.MODE_NAMES), _timer_function_titles())
+			_choice(tr("Function"), "mode", Array(TimerRelay.MODE_NAMES), _timer_function_titles(_input_name(component as TimerRelay)))
 			_all_functions_button(component as TimerRelay)
-			_number(tr("Time t (s)"), "delay", 0.1, 3600.0, 0.1)
+			if TimerRelay.uses_two_times((component as TimerRelay).mode):
+				_number(tr("Time t1 (s)"), "delay", 0.1, 3600.0, 0.1)
+				_number(tr("Time t2 (s)"), "delay2", 0.1, 3600.0, 0.1)
+			else:
+				_number(tr("Time t (s)"), "delay", 0.1, 3600.0, 0.1)
 			_check(tr("Control input S (A1-S-A2)"), "control_input")
 			_timer_diagram(component as TimerRelay)
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
@@ -235,7 +239,7 @@ func _all_functions_button(timer: TimerRelay) -> void:
 		popup.popup_hide.connect(popup.queue_free)
 		add_child(popup)
 		var names: PackedStringArray = timer.get_terminal_names()
-		popup.setup(_timer_function_titles(), timer.mode, names[2] if names.size() > 2 else "S")
+		popup.setup(_timer_function_titles(_input_name(timer)), timer.mode, _input_name(timer))
 		popup.function_chosen.connect(func(mode_name: String) -> void: _emit("mode", mode_name))
 		popup.popup_centered(popup.size))
 	row.add_child(button)
@@ -253,19 +257,29 @@ func _check(caption: String, key: String) -> void:
 
 
 ## Titles of the time relay functions, in [constant TimerRelay.MODE_NAMES] order.
-func _timer_function_titles() -> Array:
+## [param input]: name of the control input (S, TL, ...) written in the titles.
+func _timer_function_titles(input: String) -> Array:
 	return [
 		tr("F2 – On-delay"),
 		tr("Off-delay (on power loss)"),
 		tr("F1 – Pulse after power on"),
-		tr("F3 – Pulse when S is pressed"),
-		tr("F4 – On-delay after S is released"),
-		tr("F5 – Pulse after S is released"),
+		tr("F3 – Pulse when %s is pressed") % input,
+		tr("F4 – On-delay after %s is released") % input,
+		tr("F5 – Pulse after %s is released") % input,
 		tr("F6 – Impulse relay (no memory)"),
 		tr("F7 – Pulse generator"),
 		tr("F8 – Shifted pulse"),
 		tr("F9 – Test (always on)"),
+		tr("F10 – Cycler starting with the pause (t2 off, t1 on)"),
+		tr("F11 – Cycler starting with the pulse (t1 on, t2 off)"),
+		tr("F12 – On-delay t1 and off-delay t2 with %s") % input,
 	]
+
+
+## Name of the control input of [param timer] ("S" unless renamed).
+func _input_name(timer: TimerRelay) -> String:
+	var names: PackedStringArray = timer.get_terminal_names()
+	return names[2] if names.size() > 2 else "S"
 
 
 ## Timing diagram of the chosen function (Un, S, R).

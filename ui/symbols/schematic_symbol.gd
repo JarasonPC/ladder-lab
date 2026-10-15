@@ -25,6 +25,15 @@ var show_labels: bool = true
 ## [kind, index, Rect2 in node coordinates]; kind is "designation",
 ## "terminal" (index = terminal index), "purpose" (lamp) or "label" (terminal block).
 var marking_rects: Array = []
+## Local anchor the designation was last written at (texts written there
+## follow it when it is dragged).
+var _designation_anchor_drawn: Vector2 = Vector2(INF, INF)
+## On-screen scale while drawing (see _draw); [member drawn_scale] is the one
+## of the last draw, so the view can redraw when the zoom changes.
+var _k: float = 1.0
+var drawn_scale: float = 0.0
+## The shape is being drawn mirrored along its axis (see [method flips_when_horizontal]).
+var _ends_swapped: bool = false
 
 
 func setup(p_component: CircuitComponent, p_placement: Placement) -> void:
@@ -43,12 +52,25 @@ func is_interactive() -> bool:
 
 
 func _draw() -> void:
+	# Shapes go through the aa_* helpers: coordinates scaled up by the
+	# on-screen scale under a transform scaled back down, so Godot's
+	# antialiasing edge (one coordinate unit) is one screen pixel at any zoom.
+	_k = maxf(get_global_transform_with_canvas().get_scale().x, 0.05)
+	var unscale: Transform2D = Transform2D().scaled(Vector2.ONE / _k)
 	var t: Transform2D = SymbolGeometry.draw_transform(placement)
-	draw_set_transform_matrix(t)
+	# Lying horizontally, switching symbols are drawn mirrored along their
+	# axis, so the blade pivots on the left and rises to the right.
+	_ends_swapped = flips_when_horizontal() and placement.rotation % 2 == 1
+	var shape_t: Transform2D = t
+	if _ends_swapped:
+		shape_t = t * Transform2D(Vector2(1, 0), Vector2(0, -1), Vector2(0, _span() * G))
+	draw_set_transform_matrix(shape_t * unscale)
 	if hovered and is_interactive():
 		var body: Rect2 = SymbolGeometry.local_body(component)
-		draw_rect(Rect2(body.position * G, body.size * G), SchematicTheme.HOVER)
+		aa_rect(Rect2(body.position * G, body.size * G), SchematicTheme.HOVER)
 	_draw_shape(stroke_color(), stroke_width())
+	_ends_swapped = false
+	draw_set_transform_matrix(t * unscale)
 	if show_labels:
 		_draw_terminals()
 	draw_set_transform_matrix(Transform2D.IDENTITY)
@@ -56,11 +78,73 @@ func _draw() -> void:
 	if show_labels:
 		_draw_labels()
 	if has_fault():
+		draw_set_transform_matrix(unscale)
 		_draw_fault_marker(to_upright(Vector2(0.9 * G, 0.9 * G)))
+		draw_set_transform_matrix(Transform2D.IDENTITY)
+	drawn_scale = _k
+
+
+# --- Drawing helpers: antialiased with a one-pixel edge (see _draw) --------------
+
+func aa_line(from: Vector2, to: Vector2, color: Color, width: float = -1.0) -> void:
+	draw_line(from * _k, to * _k, color, _px(width), true)
+
+
+func aa_polyline(points: PackedVector2Array, color: Color, width: float = -1.0) -> void:
+	draw_polyline(_scaled(points), color, _px(width), true)
+
+
+func aa_arc(center: Vector2, radius: float, start: float, end: float, point_count: int, color: Color, width: float = -1.0) -> void:
+	draw_arc(center * _k, radius * _k, start, end, point_count, color, _px(width), true)
+
+
+func aa_circle(center: Vector2, radius: float, color: Color, filled: bool = true, width: float = -1.0) -> void:
+	draw_circle(center * _k, radius * _k, color, filled, _px(width) if not filled else -1.0, true)
+
+
+func aa_dashed_line(from: Vector2, to: Vector2, color: Color, width: float = -1.0, dash: float = 2.0) -> void:
+	draw_dashed_line(from * _k, to * _k, color, _px(width), dash * _k, true, true)
+
+
+func aa_rect(rect: Rect2, color: Color, filled: bool = true, width: float = -1.0) -> void:
+	draw_rect(Rect2(rect.position * _k, rect.size * _k), color, filled, _px(width) if not filled else -1.0)
+
+
+func aa_polygon(points: PackedVector2Array, color: Color) -> void:
+	draw_colored_polygon(_scaled(points), color)
+
+
+func _px(width: float) -> float:
+	return width * _k if width > 0.0 else 1.0
+
+
+func _scaled(points: PackedVector2Array) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	result.resize(points.size())
+	for i: int in points.size():
+		result[i] = points[i] * _k
+	return result
 
 
 func reach(terminal_index: int) -> int:
+	if _ends_swapped:
+		# Drawn mirrored along the axis: the ends trade places.
+		terminal_index = 1 - terminal_index if component.get_terminal_names().size() == 2 else terminal_index ^ 1
 	return live[terminal_index] if terminal_index < live.size() else REACH_NONE
+
+
+## True for symbols whose blade should pivot on the left when they lie
+## horizontally (contacts, breakers, fuse holders). Override.
+func flips_when_horizontal() -> bool:
+	return false
+
+
+## Distance from the first to the last terminal along the symbol axis, in cells.
+func _span() -> int:
+	var span: int = 0
+	for cell: Vector2i in SymbolGeometry.local_terminals(component).values():
+		span = maxi(span, cell.y)
+	return span
 
 
 ## True when a phase (or several supplies) reaches any terminal.
@@ -105,9 +189,9 @@ func lead_width(terminal_index: int) -> float:
 ## Contact blade: a line with round ends, so slanted blades meet their
 ## leads cleanly.
 func draw_blade(from: Vector2, to: Vector2, color: Color, width: float) -> void:
-	draw_line(from, to, color, width)
-	draw_circle(from, width * 0.5, color)
-	draw_circle(to, width * 0.5, color)
+	aa_line(from, to, color, width)
+	aa_circle(from, width * 0.5, color)
+	aa_circle(to, width * 0.5, color)
 
 
 ## Draws the symbol in local coordinates. Override.
@@ -131,7 +215,7 @@ func _draw_terminals() -> void:
 		var at: Vector2 = Vector2(cells[names[i]]) * G
 		var code: int = reach(i)
 		var fill: Color = SchematicTheme.TERMINAL_DEAD if code == REACH_NONE else SchematicTheme.reach_color(code)
-		draw_rect(Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), fill)
+		aa_rect(Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), fill)
 
 
 ## Draws designation and terminal numbers. Override to add more.
@@ -179,8 +263,8 @@ func _draw_fault_marker(at: Vector2) -> void:
 	var bolt: PackedVector2Array = PackedVector2Array([Vector2(2, -9), Vector2(-3, 0), Vector2(1, 0), Vector2(-2, 9), Vector2(4, -2), Vector2(0, -2), Vector2(2, -9)])
 	for i: int in bolt.size():
 		bolt[i] += at
-	draw_colored_polygon(bolt, SchematicTheme.FAULT)
-	draw_polyline(bolt, SchematicTheme.LIVE, 1.0)
+	aa_polygon(bolt, SchematicTheme.FAULT)
+	aa_polyline(bolt, SchematicTheme.LIVE, 1.0)
 
 
 ## Local point next to which the designation is written.
@@ -210,10 +294,27 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 		var line_height: float = font.get_height(maxi(font_size, SchematicTheme.LABEL_SIZE))
 		var direction: float = -1.0 if absf(away.x) < absf(away.y) and away.y < 0.0 else 1.0
 		pos.y += direction * line * line_height
-	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	# Markings the user dragged elsewhere; texts written with the
+	# designation (times, states, a lamp's label) move along with it.
 	var marking: Array = _marking_of(text)
+	if not marking.is_empty() and marking[0] == "designation":
+		_designation_anchor_drawn = local_anchor
+	if marking.is_empty() or marking[0] == "purpose":
+		if local_anchor == _designation_anchor_drawn:
+			pos += placement.labels.get("designation", Vector2.ZERO) * G
+	var own: Vector2 = Vector2.ZERO
 	if not marking.is_empty():
-		marking_rects.append([marking[0], marking[1], Rect2(Vector2(pos.x, pos.y - ascent), size)])
+		own = placement.labels.get(marking_key(marking[0], marking[1]), Vector2.ZERO)
+		pos += own * G
+	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	if not marking.is_empty():
+		marking_rects.append([marking[0], marking[1], Rect2(Vector2(pos.x, pos.y - ascent), size), own])
+
+
+## Key of a marking in [member Placement.labels]: "designation",
+## "terminal:<index>", "purpose" or "label".
+static func marking_key(kind: String, index: int) -> String:
+	return "terminal:%d" % index if kind == "terminal" else kind
 
 
 ## What a written [param text] marks: [kind, index] (see [member
@@ -230,11 +331,14 @@ func _marking_of(text: String) -> Array:
 
 
 ## Rectangle of the marking [param kind] (and [param index]) as last drawn,
+## moved to where its offset puts it now (it may have been dragged since),
 ## or an empty Rect2.
 func marking_rect(kind: String, index: int = -1) -> Rect2:
 	for m: Array in marking_rects:
 		if m[0] == kind and m[1] == index:
-			return m[2]
+			var now: Vector2 = placement.labels.get(marking_key(kind, index), Vector2.ZERO)
+			var r: Rect2 = m[2]
+			return Rect2(r.position + (now - (m[3] as Vector2)) * G, r.size)
 	return Rect2()
 
 

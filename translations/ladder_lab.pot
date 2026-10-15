@@ -303,6 +303,12 @@ msgstr ""
 msgid "Function"
 msgstr ""
 
+msgid "Time t1 (s)"
+msgstr ""
+
+msgid "Time t2 (s)"
+msgstr ""
+
 msgid "Time t (s)"
 msgstr ""
 
@@ -381,13 +387,16 @@ msgstr ""
 msgid "F1 – Pulse after power on"
 msgstr ""
 
-msgid "F3 – Pulse when S is pressed"
+#, c-format
+msgid "F3 – Pulse when %s is pressed"
 msgstr ""
 
-msgid "F4 – On-delay after S is released"
+#, c-format
+msgid "F4 – On-delay after %s is released"
 msgstr ""
 
-msgid "F5 – Pulse after S is released"
+#, c-format
+msgid "F5 – Pulse after %s is released"
 msgstr ""
 
 msgid "F6 – Impulse relay (no memory)"
@@ -402,10 +411,23 @@ msgstr ""
 msgid "F9 – Test (always on)"
 msgstr ""
 
+msgid "F10 – Cycler starting with the pause (t2 off, t1 on)"
+msgstr ""
+
+msgid "F11 – Cycler starting with the pulse (t1 on, t2 off)"
+msgstr ""
+
+#, c-format
+msgid "F12 – On-delay t1 and off-delay t2 with %s"
+msgstr ""
+
 msgid "Function diagram"
 msgstr ""
 
 msgid "The designation must not be empty."
+msgstr ""
+
+msgid "A designation must not contain spaces or colons."
 msgstr ""
 
 msgid "Terminal names must all be different, without spaces or colons."
@@ -413,6 +435,10 @@ msgstr ""
 
 #, c-format
 msgid "%s is already used in this circuit."
+msgstr ""
+
+#, c-format
+msgid "%s is already the designation of another device."
 msgstr ""
 
 msgid "Change to"
@@ -455,7 +481,7 @@ msgid "Time relay functions"
 msgstr ""
 
 #, c-format
-msgid "U supply A1-A2, %s control input, R output (delayed contacts), t the set time. Click a function to use it."
+msgid "U supply A1-A2, %s control input, R output (delayed contacts), t the set time (t1, t2 where there are two). Click a function to use it."
 msgstr ""
 
 msgid "Use this function"

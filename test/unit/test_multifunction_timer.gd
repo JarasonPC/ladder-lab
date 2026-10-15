@@ -165,3 +165,48 @@ func test_realistic_mode_runs_functions() -> void:
 	button.release()
 	assert_true(_run(0.3), "output contacts closed during the pulse")
 	assert_false(_run(1.0))
+
+
+func test_cycler_with_two_times() -> void:
+	var t: TimerRelay = TimerRelay.new("KT1", TimerRelay.Mode.CYCLE_PAUSE_FIRST, 2.0)
+	t.delay2 = 1.0
+	t.set_energized(true)
+	assert_false(t.output, "starts with the pause")
+	t.advance(1.0)
+	assert_true(t.output, "after t2 on")
+	t.advance(1.9)
+	assert_true(t.output)
+	t.advance(0.2)
+	assert_false(t.output, "after t1 off again")
+	var p: TimerRelay = TimerRelay.new("KT2", TimerRelay.Mode.CYCLE_PULSE_FIRST, 2.0)
+	p.delay2 = 1.0
+	p.set_energized(true)
+	assert_true(p.output, "starts with the pulse")
+	p.advance(2.1)
+	assert_false(p.output)
+	p.advance(1.0)
+	assert_true(p.output)
+
+
+func test_on_and_off_delay_with_s() -> void:
+	var t: TimerRelay = TimerRelay.new("KT1", TimerRelay.Mode.ON_OFF_DELAY, 2.0)
+	t.delay2 = 1.0
+	t.control_input = true
+	t.set_energized(true)
+	t.set_control(true)
+	t.advance(1.9)
+	assert_false(t.output)
+	t.advance(0.2)
+	assert_true(t.output, "on t1 after S")
+	t.set_control(false)
+	t.advance(0.9)
+	assert_true(t.output)
+	t.advance(0.2)
+	assert_false(t.output, "off t2 after S released")
+	t.set_control(true)
+	t.advance(1.0)
+	t.set_control(false)
+	t.advance(5.0)
+	assert_false(t.output, "a press shorter than t1 does nothing")
+	var copy: TimerRelay = DocumentSerializer.component_from_dict(DocumentSerializer.component_to_dict(t)) as TimerRelay
+	assert_eq([copy.mode, copy.delay, copy.delay2], [TimerRelay.Mode.ON_OFF_DELAY, 2.0, 1.0], "t2 is saved")

@@ -16,8 +16,12 @@
   magnetic releases. Fuses can be fuse holders (holder = true: can be opened by clicking). No dot
   grid by default; while placing, guide lines run through the new part's terminals.
   Voltage colour goes on leads and conductors only; symbol bodies stay black, except coils.
-- Time relays (TimerRelay) are multifunction relays: functions F1-F9 (TimerRelay.Mode, codes as in
-  real relays) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
+  Symbols draw shapes through SchematicSymbol.aa_* helpers (antialiased with a one-pixel edge at
+  any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
+  are drawn mirrored along their axis so the blade pivots on the left. Buttons and switches move
+  smoothly (ContactSymbol._shown); the push-button stem is dashed.
+- Time relays (TimerRelay) are multifunction relays: functions F1-F12 (TimerRelay.Mode, codes as in
+  real relays; F10-F12 use two times t1 = delay, t2 = delay2) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
   active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram
   (TimerDiagram, computed by running TimerRelay itself) and a list of all functions
   (TimerFunctionsPopup). The palette has one time relay. Any 3~ motor can be drawn as its
@@ -26,7 +30,10 @@
   overload relay none or 3 (set in the properties); a contact designated like an overload relay
   becomes its OverloadContact; a contact of a time relay KT is delayed by default (no separate
   delayed contacts in the palette). Markings (designations, terminal names, lamp and terminal labels,
-  wire numbers) are edited by double-clicking them on the drawing, not in the properties panel
+  wire numbers) are edited by double-clicking them on the drawing, not in the properties panel;
+  a click highlights a marking, dragging moves it (Placement.labels, saved). Designations: no
+  spaces or colons; only parts of one device share one (coil with its contacts, overload relay
+  with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts
 - Terminals (TerminalBlock, "X1", free label) sit on wires; wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
   numbering tool or double click; the palette panel is resizable

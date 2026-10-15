@@ -21,6 +21,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		d["cell"] = [p.cell.x, p.cell.y]
 		d["rotation"] = p.rotation
 		d["mirrored"] = p.mirrored
+		if not p.labels.is_empty():
+			d["labels"] = p.labels_to_data()
 		components.append(d)
 	var wires: Array[Dictionary] = []
 	var circuit_wires: Array[PackedStringArray] = doc.circuit.get_wires()
@@ -57,6 +59,7 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 		if c == null or cell == INVALID_CELL or not _fits(doc.circuit, c):
 			return null
 		doc.add(c, cell, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
+		doc.get_placement(c.id).labels_from_data(cd.get("labels", {}))
 	for wd: Variant in wires:
 		if not (wd is Dictionary):
 			return null
@@ -154,6 +157,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		if t.control_input:
 			d["control_input"] = true
 		d["delay"] = t.delay
+		if TimerRelay.uses_two_times(t.mode) or not is_equal_approx(t.delay2, 1.0):
+			d["delay2"] = t.delay2
 		d["pick_up"] = t.pick_up_time
 		d["drop_out"] = t.drop_out_time
 	elif c is Coil:
@@ -263,6 +268,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			var mode: int = maxi(TimerRelay.MODE_NAMES.find(str(d.get("mode", "on_delay"))), 0)
 			var timer: TimerRelay = TimerRelay.new(designation, mode as TimerRelay.Mode, maxf(float(d.get("delay", 1.0)), 0.0), _seconds(d, "pick_up"), _seconds(d, "drop_out"))
 			timer.control_input = bool(d.get("control_input", false))
+			timer.delay2 = _seconds_or(d, "delay2", 1.0, 360000.0)
 			return timer
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)

@@ -32,7 +32,7 @@ func setup(titles: Array, current: TimerRelay.Mode, input_name: String) -> void:
 	box.add_child(title)
 	var hint: Label = Label.new()
 	hint.theme_type_variation = "MutedLabel"
-	hint.text = tr("U supply A1-A2, %s control input, R output (delayed contacts), t the set time. Click a function to use it.") % input_name
+	hint.text = tr("U supply A1-A2, %s control input, R output (delayed contacts), t the set time (t1, t2 where there are two). Click a function to use it.") % input_name
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(width - 40.0, 0)
 	box.add_child(hint)
@@ -51,12 +51,16 @@ func setup(titles: Array, current: TimerRelay.Mode, input_name: String) -> void:
 	for m: int in TimerRelay.MODE_NAMES.size():
 		order.append(m)
 	order.sort_custom(func(a: int, b: int) -> bool:
-		var ca: String = TimerRelay.MODE_CODES[a] if not TimerRelay.MODE_CODES[a].is_empty() else "Z"
-		var cb: String = TimerRelay.MODE_CODES[b] if not TimerRelay.MODE_CODES[b].is_empty() else "Z"
-		return ca < cb)
+		return _code_number(a) < _code_number(b))
 	for m: int in order:
 		grid.add_child(_card(m, titles[m], m == current, input_name))
 	size = Vector2i(int(width), int(window.y * WINDOW_SHARE))
+
+
+## Number of the function code (F1 -> 1), 99 for the true off-delay.
+static func _code_number(m: int) -> int:
+	var code: String = TimerRelay.MODE_CODES[m]
+	return int(code.substr(1)) if not code.is_empty() else 99
 
 
 func _card(m: int, title: String, active: bool, input_name: String) -> Control:

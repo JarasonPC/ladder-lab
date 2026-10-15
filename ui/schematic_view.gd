@@ -32,6 +32,8 @@ var _wire_layer: WireLayer
 var _grid_visible: bool = false
 var _numbers_visible: bool = true
 var _symbols: Dictionary[String, SchematicSymbol] = {}
+## Zoom the symbols were last drawn for.
+var _drawn_scale: float = 0.0
 var _held: PushButton = null
 var _hovered: SchematicSymbol = null
 var _blink_time: float = 0.0
@@ -144,6 +146,12 @@ func set_realistic_timing(on: bool) -> void:
 func _process(delta: float) -> void:
 	if document == null:
 		return
+	# Symbols draw their antialiasing for the current zoom: redraw on zoom.
+	var scale_now: float = get_global_transform_with_canvas().get_scale().x
+	if not is_equal_approx(scale_now, _drawn_scale):
+		_drawn_scale = scale_now
+		for symbol: SchematicSymbol in _symbols.values():
+			symbol.queue_redraw()
 	_blink_time = fmod(_blink_time + delta, BLINK_PERIOD)
 	if simulating and running:
 		_apply(simulator.step(delta * speed))

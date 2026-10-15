@@ -11,11 +11,16 @@ const STEP: float = 0.01
 const LABEL_WIDTH: float = 26.0
 const DIMENSION_HEIGHT: float = 18.0
 const FONT_SIZE: int = 11
+## The second time t2 on the drawing, in units of t1.
+const T2: float = 0.6
 ## Supply on / off in units of t.
 const POWER_ON: float = 0.5
 const POWER_OFF: float = 7.5
 ## Presses of S: [start, end] in units of t.
 const PRESSES: Array = [[1.5, 2.0], [4.2, 4.6], [5.4, 6.4]]
+## Presses for the on-/off-delay with S: a long one, one shorter than t1
+## (nothing happens) and one cut off by the supply.
+const LONG_PRESSES: Array = [[1.2, 3.4], [4.4, 4.9], [5.6, 7.2]]
 
 var mode: TimerRelay.Mode = TimerRelay.Mode.ON_DELAY:
 	set(value):
@@ -62,6 +67,8 @@ func _row_count() -> int:
 ## Runs the scenario and samples U, S, R and the timed intervals.
 func _compute() -> void:
 	var relay: TimerRelay = TimerRelay.new("KT", mode, 1.0)
+	# t2 shorter than t1, so the two read apart.
+	relay.delay2 = T2
 	relay.control_input = true
 	_power.clear()
 	_input.clear()
@@ -73,7 +80,7 @@ func _compute() -> void:
 	while t <= DURATION + 1e-9:
 		var powered: bool = t >= POWER_ON and t < POWER_OFF
 		var pressed: bool = false
-		for p: Array in PRESSES:
+		for p: Array in (LONG_PRESSES if mode == TimerRelay.Mode.ON_OFF_DELAY else PRESSES):
 			if t >= p[0] and t < p[1]:
 				pressed = true
 		relay.set_energized(powered)
@@ -131,10 +138,20 @@ func _draw() -> void:
 		_draw_signal(rows[r][1], rows[r][2], top, base, x_of)
 	# Dimensions of the timed intervals.
 	var dim_y: float = bottom_y + 7.0
+	var two_times: bool = TimerRelay.uses_two_times(mode)
 	for run: Vector2 in _runs:
 		var x0: float = x_of.call(run.x)
 		var x1: float = x_of.call(run.y)
-		if x1 - x0 < 4.0:
+		# Only full timings are dimensioned (a timing cut short is not).
+		var length: float = run.y - run.x
+		var text: String = ""
+		if absf(length - 1.0) < 0.05:
+			text = "t1" if two_times else "t"
+		elif two_times and absf(length - T2) < 0.05:
+			text = "t2"
+		elif mode == TimerRelay.Mode.PULSE_GENERATOR and absf(length - TimerRelay.GENERATOR_PULSE) < 0.05:
+			text = "%s s" % str(TimerRelay.GENERATOR_PULSE)
+		if text.is_empty() or x1 - x0 < 4.0:
 			continue
 		var color: Color = AppTheme.text_muted
 		draw_line(Vector2(x0, dim_y - 4.0), Vector2(x0, dim_y + 4.0), color, 1.0)
@@ -142,14 +159,6 @@ func _draw() -> void:
 		draw_line(Vector2(x0, dim_y), Vector2(x1, dim_y), color, 1.0)
 		_arrow(Vector2(x0, dim_y), 1.0, color)
 		_arrow(Vector2(x1, dim_y), -1.0, color)
-		var length: float = run.y - run.x
-		var text: String = ""
-		if absf(length - 1.0) < 0.05:
-			text = "t"
-		elif absf(length - TimerRelay.GENERATOR_PULSE) < 0.05:
-			text = "%s s" % str(TimerRelay.GENERATOR_PULSE)
-		else:
-			continue
 		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1).x
 		var label_pos: Vector2 = Vector2((x0 + x1) * 0.5 - w * 0.5, dim_y + 12.0)
 		draw_string(font, label_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1, AppTheme.text_muted)
