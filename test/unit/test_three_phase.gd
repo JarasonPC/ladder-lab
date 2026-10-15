@@ -124,23 +124,23 @@ func test_direct_on_line_runs_clockwise() -> void:
 		var doc: SchematicDocument = ExampleCircuits.direct_on_line()
 		var sim: Simulator = _sim(doc, realistic)
 		assert_eq(_motor(doc).state, ST.STOPPED)
-		_press(doc, sim, "S1")
+		_press(doc, sim, "SB1")
 		assert_eq(_motor(doc).state, ST.RUNNING, "runs after START (realistic %s)" % realistic)
 		assert_eq(_motor(doc).direction, CW)
-		_press(doc, sim, "S0")
+		_press(doc, sim, "SB0")
 		assert_eq(_motor(doc).state, ST.STOPPED, "stops after STOP")
 
 
 func test_forward_reverse_turns_both_ways() -> void:
 	var doc: SchematicDocument = ExampleCircuits.forward_reverse_3()
 	var sim: Simulator = _sim(doc, true)
-	_press(doc, sim, "S1")
+	_press(doc, sim, "SB1")
 	assert_eq(_motor(doc).direction, CW, "KM1 forward")
-	var texts: PackedStringArray = _press(doc, sim, "S2")
+	var texts: PackedStringArray = _press(doc, sim, "SB2")
 	assert_eq(_motor(doc).direction, CW, "KM1 interlocks KM2")
 	assert_false(texts.has("Short circuit: %s"))
-	_press(doc, sim, "S0")
-	_press(doc, sim, "S2")
+	_press(doc, sim, "SB0")
+	_press(doc, sim, "SB2")
 	assert_true(_motor(doc).is_running())
 	assert_eq(_motor(doc).direction, CCW, "KM2 swaps L1 and L3")
 
@@ -148,11 +148,11 @@ func test_forward_reverse_turns_both_ways() -> void:
 func test_phase_loss_trips_the_overload_relay() -> void:
 	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
 	var sim: Simulator = _sim(doc)
-	_press(doc, sim, "S1")
-	(doc.circuit.get_component("F1") as ThreePoleFuse).blown[1] = 1
+	_press(doc, sim, "SB1")
+	(doc.circuit.get_component("FU1") as ThreePoleFuse).blown[1] = 1
 	sim.step()
 	assert_eq(_motor(doc).state, ST.PHASE_LOSS)
-	var relay: OverloadRelay = doc.circuit.get_overload_relay("F2")
+	var relay: OverloadRelay = doc.circuit.get_overload_relay("F1")
 	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY * 0.9)
 	assert_false(relay.tripped, "not before the trip delay")
 	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY * 0.2)
@@ -166,17 +166,17 @@ func test_overloaded_motor_trips_its_relay() -> void:
 	var sim: Simulator = _sim(doc)
 	_motor(doc).overloaded = true
 	sim.step(10.0)
-	assert_false(doc.circuit.get_overload_relay("F2").tripped, "a stopped motor draws no current")
-	_press(doc, sim, "S1")
+	assert_false(doc.circuit.get_overload_relay("F1").tripped, "a stopped motor draws no current")
+	_press(doc, sim, "SB1")
 	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY + 0.1)
-	assert_true(doc.circuit.get_overload_relay("F2").tripped)
+	assert_true(doc.circuit.get_overload_relay("F1").tripped)
 	assert_false(_motor(doc).is_running())
 
 
 func test_star_delta_3_switches_without_short() -> void:
 	var doc: SchematicDocument = ExampleCircuits.star_delta_3()
 	var sim: Simulator = _sim(doc, true)
-	var start: PushButton = doc.circuit.get_component("S2") as PushButton
+	var start: PushButton = doc.circuit.get_component("SB2") as PushButton
 	start.press()
 	var texts: PackedStringArray = _run(sim, 0.2)
 	assert_eq(_motor(doc).state, ST.STAR, "star while START is held")
@@ -191,12 +191,12 @@ func test_star_delta_3_switches_without_short() -> void:
 func test_dahlander_speeds() -> void:
 	var doc: SchematicDocument = ExampleCircuits.dahlander()
 	var sim: Simulator = _sim(doc, true)
-	var texts: PackedStringArray = _press(doc, sim, "S1")
+	var texts: PackedStringArray = _press(doc, sim, "SB1")
 	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "low speed")
-	texts.append_array(_press(doc, sim, "S2"))
+	texts.append_array(_press(doc, sim, "SB2"))
 	assert_eq(_motor(doc).speed, 1, "KM1 21-22 keeps high speed off")
-	_press(doc, sim, "S0")
-	texts.append_array(_press(doc, sim, "S2"))
+	_press(doc, sim, "SB0")
+	texts.append_array(_press(doc, sim, "SB2"))
 	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2], "high speed")
 	assert_true(doc.circuit.get_coil("KM3").energized, "star point closed")
 	assert_false(texts.has("Short circuit: %s"))
@@ -206,23 +206,23 @@ func test_dahlander_both_speeds_is_miswired() -> void:
 	var doc: SchematicDocument = ExampleCircuits.dahlander()
 	var sim: Simulator = _sim(doc)
 	(doc.circuit.get_component("KM2:1-2-3-4-5-6") as MainContacts).fault = SwitchingElement.Fault.WELDED
-	_press(doc, sim, "S1")
+	_press(doc, sim, "SB1")
 	assert_eq(_motor(doc).state, ST.MISWIRED)
 	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY + 0.1)
-	assert_true(doc.circuit.get_overload_relay("F2").tripped, "overheats and trips")
+	assert_true(doc.circuit.get_overload_relay("F1").tripped, "overheats and trips")
 
 
 func test_two_windings_speeds() -> void:
 	var doc: SchematicDocument = ExampleCircuits.two_windings()
 	var sim: Simulator = _sim(doc, true)
-	var texts: PackedStringArray = _press(doc, sim, "S2")
-	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "S2 low speed")
-	texts.append_array(_press(doc, sim, "S3", 0.2))
-	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2], "S3 switches to high speed without STOP (button interlock)")
+	var texts: PackedStringArray = _press(doc, sim, "SB2")
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "SB2 low speed")
+	texts.append_array(_press(doc, sim, "SB3", 0.2))
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2], "SB3 switches to high speed without STOP (button interlock)")
 	assert_false(texts.has("Short circuit: %s"))
 	assert_false(doc.circuit.get_coil("KM1").energized)
-	_press(doc, sim, "S1")
-	assert_eq(_motor(doc).state, ST.STOPPED, "S1 stops")
+	_press(doc, sim, "SB1")
+	assert_eq(_motor(doc).state, ST.STOPPED, "SB1 stops")
 
 
 # --- Three-pole protection ------------------------------------------------------
@@ -310,7 +310,7 @@ func test_motor_pe_terminal() -> void:
 	assert_eq(doc.terminal_cell("M1:PE"), doc.get_placement("M1").cell + SymbolGeometry.MOTOR_PE_CELL)
 	# PE does not count as a winding: the motor still runs clockwise.
 	var sim: Simulator = _sim(doc)
-	_press(doc, sim, "S1")
+	_press(doc, sim, "SB1")
 	assert_eq([_motor(doc).state, _motor(doc).direction], [ST.RUNNING, CW])
 
 

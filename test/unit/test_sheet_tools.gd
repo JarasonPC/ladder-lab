@@ -7,7 +7,7 @@ const NC := SwitchingElement.ContactType.NC
 
 func test_current_paths_vertical_and_horizontal() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_eq(doc.current_paths(), PackedFloat32Array([5.0, 8.0, 12.0]), "S0, S1 and KM1 share path 1")
+	assert_eq(doc.current_paths(), PackedFloat32Array([5.0, 8.0, 12.0]), "SB0, SB1 and KM1 share path 1")
 	doc.transpose()
 	assert_eq(doc.current_paths().size(), 3, "rows when horizontal")
 
@@ -41,10 +41,10 @@ func test_examples_pass_the_check() -> void:
 
 func test_paste_renames_coil_with_its_contacts() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	var data: Dictionary = doc.extract(PackedStringArray(["S1:13-14", "KM1:13-14", "KM1"]))
+	var data: Dictionary = doc.extract(PackedStringArray(["SB1:13-14", "KM1:13-14", "KM1"]))
 	assert_eq(data["wires"].size(), 2, "only wires between copied parts")
 	var ids: PackedStringArray = doc.insert(data, Vector2i(20, 0))
-	assert_eq(ids, PackedStringArray(["S2:13-14", "KM2:13-14", "KM2"]))
+	assert_eq(ids, PackedStringArray(["SB2:13-14", "KM2:13-14", "KM2"]))
 	assert_eq(doc.get_placement("KM2").cell, Vector2i(25, 17))
 	assert_eq(doc.get_wire_count(), 12)
 	assert_eq((doc.circuit.get_component("KM2:13-14") as Contact).linked_coil, doc.circuit.get_coil("KM2"))

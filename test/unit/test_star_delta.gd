@@ -14,8 +14,8 @@ func _setup(realistic: bool) -> void:
 	doc = ExampleCircuits.star_delta()
 	sim = Simulator.new(doc.circuit)
 	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
-	stop = doc.circuit.get_component("S1") as PushButton
-	start = doc.circuit.get_component("S2") as PushButton
+	stop = doc.circuit.get_component("SB1") as PushButton
+	start = doc.circuit.get_component("SB2") as PushButton
 	km1 = doc.circuit.get_coil("KM1")
 	km2 = doc.circuit.get_coil("KM2")
 	km3 = doc.circuit.get_coil("KM3")

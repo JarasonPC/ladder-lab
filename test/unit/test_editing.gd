@@ -30,9 +30,9 @@ func _lamp_doc() -> SchematicDocument:
 func test_remove_component_removes_its_wires() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
 	var wires_before: int = doc.get_wire_count()
-	doc.remove_component("S1")
-	assert_null(doc.circuit.get_component("S1"))
-	assert_null(doc.get_placement("S1"))
+	doc.remove_component("SB1")
+	assert_null(doc.circuit.get_component("SB1"))
+	assert_null(doc.get_placement("SB1"))
 	assert_eq(doc.get_wire_count(), wires_before - 3)
 	_assert_routes_valid(doc)
 
@@ -58,9 +58,9 @@ func test_renaming_coil_relinks_contacts() -> void:
 
 func test_replace_rejects_taken_designation() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_false(doc.replace_component("S1", PushButton.new("S0", NC)))
+	assert_false(doc.replace_component("SB1", PushButton.new("SB0", NC)))
 	assert_push_error("duplicate component id")
-	assert_not_null(doc.circuit.get_component("S1"))
+	assert_not_null(doc.circuit.get_component("SB1"))
 
 
 func test_move_reroutes_attached_wires() -> void:
@@ -153,7 +153,7 @@ func test_hit_queries() -> void:
 
 func test_designation_helpers() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_eq(doc.next_designation("S"), "S2")
+	assert_eq(doc.next_designation("SB"), "SB2")
 	assert_eq(doc.next_designation("KM"), "KM2")
 	assert_eq(doc.next_designation("KT"), "KT1")
 	assert_eq(doc.next_contact_sequence("KM1"), 3)
@@ -169,9 +169,9 @@ func test_serializer_round_trip() -> void:
 	var original: SchematicDocument = ExampleCircuits.self_holding()
 	var restored: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(original))
 	var sim: Simulator = Simulator.new(restored.circuit)
-	(restored.circuit.get_component("S1") as PushButton).press()
+	(restored.circuit.get_component("SB1") as PushButton).press()
 	sim.step()
-	(restored.circuit.get_component("S1") as PushButton).release()
+	(restored.circuit.get_component("SB1") as PushButton).release()
 	sim.step()
 	assert_true((restored.circuit.get_component("KM1") as Coil).energized, "restored copy still self-holds")
 
@@ -237,7 +237,7 @@ func test_terminal_block_on_a_wire() -> void:
 	assert_eq(doc.split_wire(w, cell, block), "X1")
 	assert_true(doc.circuit.has_component_id("X1"))
 	var sim: Simulator = Simulator.new(doc.circuit)
-	(doc.circuit.get_component("S1") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
 	sim.step()
 	assert_true(doc.circuit.get_coil("KM1").energized, "the terminal passes the circuit on")
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
@@ -255,12 +255,12 @@ func _wire_of(doc: SchematicDocument, a: String, b: String) -> int:
 func test_wire_numbers_follow_the_net() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
 	doc.number_wires()
-	var hold: int = _wire_of(doc, "S1:14", "KM1:14")
-	var coil: int = _wire_of(doc, "S1:14", "KM1:A1")
+	var hold: int = _wire_of(doc, "SB1:14", "KM1:14")
+	var coil: int = _wire_of(doc, "SB1:14", "KM1:A1")
 	assert_ne(doc.get_route(hold).number, "")
 	assert_eq(doc.get_route(hold).number, doc.get_route(coil).number, "one net, one number")
-	assert_ne(doc.get_route(_wire_of(doc, "S0:12", "S1:13")).number, doc.get_route(hold).number, "another net")
-	assert_eq(doc.get_route(_wire_of(doc, "L", "F1:1")).number, "", "supply nets stay unnumbered")
+	assert_ne(doc.get_route(_wire_of(doc, "SB0:12", "SB1:13")).number, doc.get_route(hold).number, "another net")
+	assert_eq(doc.get_route(_wire_of(doc, "L", "FU1:1")).number, "", "supply nets stay unnumbered")
 	assert_eq(doc.get_route(_wire_of(doc, "KM1:A2", "N")).number, "")
 	doc.set_wire_number(coil, "208")
 	assert_eq(doc.get_route(hold).number, "208", "renaming one wire renames its net")
