@@ -7,9 +7,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8-bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
 
-msgid "Circuit:"
-msgstr "Obvod:"
-
 msgid "Self-holding start/stop"
 msgstr "Samodržení start/stop"
 
@@ -25,6 +22,140 @@ msgstr "Samovypínání (kmitání)"
 msgid "Short circuit"
 msgstr "Zkrat"
 
+msgid "L supply"
+msgstr "Přívod L"
+
+msgid "N supply"
+msgstr "Přívod N"
+
+msgid "Push button NO"
+msgstr "Tlačítko spínací"
+
+msgid "Push button NC"
+msgstr "Tlačítko rozpínací"
+
+msgid "Switch NO"
+msgstr "Spínač spínací"
+
+msgid "Switch NC"
+msgstr "Spínač rozpínací"
+
+msgid "Contact NO"
+msgstr "Kontakt spínací"
+
+msgid "Contact NC"
+msgstr "Kontakt rozpínací"
+
+msgid "Delayed contact NO"
+msgstr "Zpožděný kontakt spínací"
+
+msgid "Delayed contact NC"
+msgstr "Zpožděný kontakt rozpínací"
+
+msgid "Contactor coil"
+msgstr "Cívka stykače"
+
+msgid "Relay coil"
+msgstr "Cívka relé"
+
+msgid "On-delay timer"
+msgstr "Časové relé (přítah)"
+
+msgid "Off-delay timer"
+msgstr "Časové relé (odpad)"
+
+msgid "Lamp"
+msgstr "Signálka"
+
+msgid "Motor"
+msgstr "Motor"
+
+msgid "Properties"
+msgstr "Vlastnosti"
+
+msgid "Select one component to edit it."
+msgstr "Pro úpravu vyberte jeden prvek."
+
+msgid "Conductor"
+msgstr "Vodič"
+
+msgid "Wire junction"
+msgstr "Uzel vodičů"
+
+msgid "Designation"
+msgstr "Označení"
+
+msgid "Contact"
+msgstr "Kontakt"
+
+msgid "NO (make)"
+msgstr "NO (spínací)"
+
+msgid "NC (break)"
+msgstr "NC (rozpínací)"
+
+msgid "Contact number"
+msgstr "Číslo kontaktu"
+
+msgid "Delayed (timer contact)"
+msgstr "Zpožděný (kontakt časového relé)"
+
+msgid "Kind"
+msgstr "Druh"
+
+msgid "Contactor"
+msgstr "Stykač"
+
+msgid "Relay"
+msgstr "Relé"
+
+msgid "Function"
+msgstr "Funkce"
+
+msgid "On-delay"
+msgstr "Zpoždění při přítahu"
+
+msgid "Off-delay"
+msgstr "Zpoždění při odpadu"
+
+msgid "Delay (s)"
+msgstr "Zpoždění (s)"
+
+#, c-format
+msgid "Terminals: %s"
+msgstr "Svorky: %s"
+
+msgid "The designation must not be empty."
+msgstr "Označení nesmí být prázdné."
+
+#, c-format
+msgid "%s is already used in this circuit."
+msgstr "Označení %s je v tomto obvodu již použito."
+
+msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
+msgstr "Kliknutím prvek umístíte. R otočí, F zrcadlí. Pravým tlačítkem myši nebo Esc vkládání ukončíte."
+
+msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
+msgstr "Kliknutím do prázdných polí přidáte lomy, kreslení ukončíte na svorce nebo vodiči. Backspace odebere lom, Esc zruší."
+
+msgid "Click a terminal to draw a wire. Drag to move. R rotates, F mirrors, Del deletes, Ctrl+Z undoes."
+msgstr "Kliknutím na svorku nakreslíte vodič. Tažením přesunete. R otočí, F zrcadlí, Del smaže, Ctrl+Z vrátí zpět."
+
+msgid "Edit"
+msgstr "Úpravy"
+
+msgid "Simulate"
+msgstr "Simulace"
+
+msgid "Circuit:"
+msgstr "Obvod:"
+
+msgid "New"
+msgstr "Nový"
+
+msgid "Start an empty schematic with L and N supplies"
+msgstr "Založit prázdné schéma s přívody L a N"
+
 msgid "Layout:"
 msgstr "Rozvržení:"
 
@@ -34,11 +165,26 @@ msgstr "Svisle"
 msgid "Horizontal"
 msgstr "Vodorovně"
 
-msgid "Run"
-msgstr "Spustit"
+msgid "Undo"
+msgstr "Zpět"
 
-msgid "Pause"
-msgstr "Pozastavit"
+msgid "Redo"
+msgstr "Znovu"
+
+msgid "Rotate"
+msgstr "Otočit"
+
+msgid "Rotate by 90° (R)"
+msgstr "Otočit o 90° (R)"
+
+msgid "Mirror"
+msgstr "Zrcadlit"
+
+msgid "Mirror across the symbol axis (F)"
+msgstr "Zrcadlit podle osy značky (F)"
+
+msgid "Delete"
+msgstr "Smazat"
 
 msgid "Step"
 msgstr "Krok"
@@ -52,8 +198,20 @@ msgstr "Rychlost:"
 msgid "Reset"
 msgstr "Reset"
 
-msgid "Reload the circuit in its initial state"
-msgstr "Znovu načíst obvod ve výchozím stavu"
+msgid "Restart the simulation from the initial state"
+msgstr "Spustit simulaci znovu od výchozího stavu"
+
+msgid "Pause"
+msgstr "Pozastavit"
+
+msgid "Run"
+msgstr "Spustit"
+
+msgid "New schematic"
+msgstr "Nové schéma"
+
+msgid "Right or middle drag pans, wheel zooms."
+msgstr "Tažením pravým nebo prostředním tlačítkem myši posunete pohled, kolečkem přiblížíte."
 
 msgid "Click buttons and switches to operate them. Right or middle drag pans, wheel zooms."
 msgstr "Tlačítka a spínače ovládáte kliknutím. Tažením pravým nebo prostředním tlačítkem myši posunete pohled, kolečkem přiblížíte."
