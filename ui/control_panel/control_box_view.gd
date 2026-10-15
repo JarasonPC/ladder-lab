@@ -42,6 +42,9 @@ const BEZEL := Color("17181a")
 const BEZEL_INNER := Color("2c2e31")
 const MARK_TEXT := Color("3a3d41")
 const TITLE_TEXT := Color("80858a")
+## Designation marks ("-SB1", "-H1"), teal as on the light schematic paper.
+const MARK_DESIGNATION := Color("2c8b86")
+const MARK_FONT_SIZE: int = 10
 ## Cap, grip and lens colours by [constant ControlBoxItem.COLORS] name.
 const COLORS: Dictionary[String, Color] = {
 	"green": Color("2ea44f"),
@@ -247,6 +250,9 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 	var text: String = item.label if not item.label.is_empty() else item.designation
 	_plate_text(plate, text if not text.is_empty() else "?")
 	var center: Vector2 = Vector2(plate.end.x + 14.0 + BEZEL_R, cy)
+	if not item.label.is_empty() and not item.designation.is_empty():
+		# Which device it is, under the plate (the plate shows it when it has no text).
+		_mark("-" + item.designation, Vector2(plate.get_center().x, plate.end.y + 2.0), HORIZONTAL_ALIGNMENT_CENTER)
 	var color: Color = COLORS.get(item.color, COLORS["green"])
 	match item.kind:
 		ControlBoxItem.Kind.BUTTON:
@@ -256,10 +262,20 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 		ControlBoxItem.Kind.LAMP:
 			_draw_lamp(center, BEZEL_R - 2.0, color, _lit(item.designation))
 	if _has_lamp_under(item):
-		_draw_lamp(Vector2(center.x, cell.position.y + ROW_H + 12.0), SMALL_LAMP_R, COLORS.get(item.lamp_color, COLORS["green"]), _lit(item.lamp))
+		var lamp_center: Vector2 = Vector2(center.x, cell.position.y + ROW_H + 12.0)
+		_draw_lamp(lamp_center, SMALL_LAMP_R, COLORS.get(item.lamp_color, COLORS["green"]), _lit(item.lamp))
+		_mark("-" + item.lamp, Vector2(lamp_center.x - SMALL_LAMP_R - 6.0, lamp_center.y - AppTheme.ui_font().get_height(MARK_FONT_SIZE) * 0.5), HORIZONTAL_ALIGNMENT_RIGHT)
 	if not _assigned(item):
 		# Not connected to the schematic: faded.
 		draw_rect(cell.grow(-1.0), Color(COVER, 0.55))
+
+
+## Small designation mark with its top at [param at], centred on it or ending there.
+func _mark(text: String, at: Vector2, alignment: HorizontalAlignment) -> void:
+	var font: Font = AppTheme.ui_font()
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, MARK_FONT_SIZE).x
+	var x: float = at.x - width * (0.5 if alignment == HORIZONTAL_ALIGNMENT_CENTER else 1.0)
+	draw_string(font, Vector2(x, at.y + font.get_ascent(MARK_FONT_SIZE)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, MARK_FONT_SIZE, MARK_DESIGNATION)
 
 
 ## Text on a label plate, smaller when it is long, cut off when it still does not fit.
