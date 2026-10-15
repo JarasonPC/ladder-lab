@@ -15,6 +15,8 @@ const PIVOT := Vector2(0, 40)
 const OPEN_TIP := Vector2(-13, 18)
 const NO_CLOSED_TIP := Vector2(-3, 20)
 const NC_CLOSED_TIP := Vector2(10, 18)
+## An open NC blade swings further away from its stop, on the same side.
+const NC_OPEN_TIP := Vector2(18, 24)
 const HOOK_END := Vector2(9, 20)
 
 
@@ -49,14 +51,14 @@ func _draw_shape(color: Color, _width: float) -> void:
 	draw_line(flip.call(Vector2(0, 3 * G)), pivot, pivot_color, pivot_width)
 	if is_nc:
 		draw_line(flip.call(FIXED_END), flip.call(HOOK_END), fixed_color, fixed_width)
-	var tip: Vector2 = OPEN_TIP
+	var tip: Vector2 = NC_OPEN_TIP if is_nc else OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
 	if element.get_armature() != null and not closed:
 		# Contacts are drawn where their armature or actuator is, so they visibly move.
 		var travel: float = element.get_travel()
 		if is_nc:
-			tip = NC_CLOSED_TIP.lerp(OPEN_TIP, clampf((travel - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.15, 1.0))
+			tip = NC_CLOSED_TIP.lerp(NC_OPEN_TIP, clampf((travel - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.15, 1.0))
 		else:
 			tip = OPEN_TIP.lerp(NO_CLOSED_TIP, minf(travel, 0.85))
 	tip = flip.call(tip)
@@ -73,10 +75,14 @@ func _draw_shape(color: Color, _width: float) -> void:
 		_draw_thermal_actuator(middle, color)
 	elif component is Contact:
 		var contact: Contact = component as Contact
-		if contact.delayed and contact.linked_coil is TimerRelay:
+		var timing_mode: int = (contact.linked_coil as TimerRelay).mode if contact.linked_coil is TimerRelay else -1
+		# The delay arc shows on-/off-delay; output contacts of the other
+		# functions are drawn as plain contacts.
+		if contact.delayed and (timing_mode == TimerRelay.Mode.ON_DELAY or timing_mode == TimerRelay.Mode.OFF_DELAY):
 			var on_delay: bool = (contact.linked_coil as TimerRelay).mode == TimerRelay.Mode.ON_DELAY
-			# NO closes (moves right) and NC opens (moves left) when operated.
-			var delayed_move_right: bool = on_delay != is_nc
+			# Operated, both blades move right: an NO blade to close, an NC
+			# blade away from its stop to open. On-delay delays that move.
+			var delayed_move_right: bool = on_delay
 			_draw_parachute(middle, delayed_move_right, color)
 
 

@@ -23,6 +23,11 @@ var direction: Direction = Direction.NONE
 var speed: int = 0
 ## Injected fault: the motor is overloaded (heats its overload relay).
 var overloaded: bool = false
+## Drawing only, standard motors: show the terminal board (U1 V1 W1 / W2 U2 V2)
+## instead of the motor circle, with star or delta bridges.
+var terminal_box: bool = false
+## Bridges on the terminal board: delta (true) or star (false); drawing only.
+var delta_bridges: bool = false
 
 
 func _init(p_designation: String, p_kind: Kind = Kind.STANDARD) -> void:

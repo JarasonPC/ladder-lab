@@ -26,7 +26,9 @@ func _draw_shape(color: Color, width: float) -> void:
 		draw_line(Vector2(-5, 25), Vector2(5, 35), SchematicTheme.FAULT, 2.5)
 		draw_line(Vector2(-5, 35), Vector2(5, 25), SchematicTheme.FAULT, 2.5)
 	else:
-		draw_line(Vector2(0, BOX.position.y), Vector2(0, BOX.end.y), color, width)
+		# The fuse element is a conductor: it shows the voltage like a lead.
+		var element: Color = lead_color(0) if reach(0) != REACH_NONE else color
+		draw_line(Vector2(0, BOX.position.y), Vector2(0, BOX.end.y), element, lead_width(0))
 
 
 func _draw_labels() -> void:

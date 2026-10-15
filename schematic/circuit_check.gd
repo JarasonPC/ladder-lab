@@ -49,6 +49,9 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 		if c is ThreePhaseMotor:
 			# The PE terminal of the frame may stay open on the drawing.
 			keys = keys.slice(0, (c as ThreePhaseMotor).winding_terminal_count())
+		if c is TimerRelay and keys.size() > 2 and not TimerRelay.uses_control((c as TimerRelay).mode):
+			# The control input of a function that does not use it may stay open.
+			keys = keys.slice(0, 2)
 		for key: String in keys:
 			if not connected.has(key):
 				issues.append(_issue("Terminal %s is not connected.", [key], [c.id]))

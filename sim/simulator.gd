@@ -66,6 +66,8 @@ var _switch_terms: PackedInt32Array = PackedInt32Array()
 var _loads: Array[Load] = []
 ## Two nets per load, in the order of [member _loads].
 var _load_nets: PackedInt32Array = PackedInt32Array()
+## Load index -> net of the control input S of time relays that have one.
+var _control_nets: Dictionary[int, int] = {}
 ## Indices into [member _loads] of the coils, in the order they were added.
 var _coil_indices: PackedInt32Array = PackedInt32Array()
 ## Actuators of push buttons and switches (one per device).
@@ -163,6 +165,7 @@ func _build() -> void:
 	_switch_terms.clear()
 	_loads.clear()
 	_load_nets.clear()
+	_control_nets.clear()
 	_coil_indices.clear()
 	_supplies.clear()
 	_actuators.clear()
@@ -194,6 +197,8 @@ func _build() -> void:
 			if c is Coil:
 				_coil_indices.append(_loads.size())
 			_loads.append(c as Load)
+			if c is TimerRelay and (c as TimerRelay).control_input and keys.size() > 2:
+				_control_nets[_loads.size() - 1] = _net_of_key[keys[2]]
 			_load_nets.append(_net_of_key[keys[0]])
 			_load_nets.append(_net_of_key[keys[1]])
 		elif c is PowerSupply:
@@ -256,7 +261,7 @@ static func _phase_of(mask: int) -> int:
 func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
 	for i: int in _loads.size():
 		if not (_loads[i] is Coil):
-			_loads[i].energized = desired[i] == 1
+			_loads[i].energized = (desired[i] & 1) == 1
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
 		var new_state: ThreePhaseMotor.State = _motor_states[m] as ThreePhaseMotor.State
@@ -305,9 +310,14 @@ func _settle(result: StepResult) -> StepResult:
 		var switched: bool = false
 		for i: int in _coil_indices:
 			var coil: Coil = _loads[i] as Coil
-			var want: bool = desired[i] == 1
+			var want: bool = (desired[i] & 1) == 1
 			if coil.energized != want:
 				coil.set_energized(want)
+				coil.snap()
+				switched = true
+				break
+			if _control_nets.has(i) and (coil as TimerRelay).control != ((desired[i] & 2) != 0):
+				(coil as TimerRelay).set_control((desired[i] & 2) != 0)
 				coil.snap()
 				switched = true
 				break
@@ -375,10 +385,12 @@ func _apply_power(result: StepResult) -> void:
 	var desired: PackedByteArray = _evaluate_protected(result)
 	for i: int in _coil_indices:
 		var coil: Coil = _loads[i] as Coil
-		var want: bool = desired[i] == 1
+		var want: bool = (desired[i] & 1) == 1
 		if coil.energized != want:
 			coil.set_energized(want)
 			_note_toggle(coil.designation)
+		if _control_nets.has(i):
+			(coil as TimerRelay).set_control((desired[i] & 2) != 0)
 	_apply_outputs(desired, result)
 	if _short and _short_since < 0.0:
 		_short_since = time
@@ -512,6 +524,11 @@ func _evaluate() -> PackedByteArray:
 		if _loads[i] is Coil and (_loads[i] as Coil).fault == Coil.Fault.OPEN:
 			# A broken winding has voltage but draws no current.
 			result[i] = 0
+		if _control_nets.has(i):
+			# Control input S: pressed when it has voltage against A2 (bit 1).
+			var s: int = masks.get(uf.find(_control_nets[i]), 0)
+			if _is_single_source(s) and _is_single_source(b) and s != b:
+				result[i] |= 2
 	_evaluate_motors(uf, masks)
 	return result
 
@@ -564,6 +581,8 @@ func _signature() -> PackedByteArray:
 		var b: int = 1 if coil.energized else 0
 		if coil is TimerRelay and (coil as TimerRelay).output:
 			b |= 2
+		if coil is TimerRelay and (coil as TimerRelay).control:
+			b |= 4
 		sig.append(b)
 	for device: CircuitComponent in _protective:
 		sig.append(device.protection_state())

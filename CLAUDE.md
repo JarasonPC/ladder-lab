@@ -11,7 +11,13 @@
   the designation; 3~ motors have a PE terminal (last terminal, below left, ignored by the solver).
   Every contact (NO, NC, changeover, main contacts, breakers) pivots at its first/top terminal;
   NO blades stand off to the actuator side, NC blades rest under a stop on the other side.
-  Fuses can be fuse holders (holder = true: can be opened by clicking). No dot grid by default
+  Fuses can be fuse holders (holder = true: can be opened by clicking). No dot grid by default.
+  Voltage colour goes on leads and conductors only; symbol bodies stay black, except coils.
+- Time relays (TimerRelay) are multifunction relays: functions F1-F9 (TimerRelay.Mode, codes as in
+  real relays) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
+  active with voltage against A2); the properties panel shows a timing diagram (TimerDiagram)
+  computed by running TimerRelay itself. Standard 3~ motors can be drawn as a terminal box
+  (star/delta bridges, drawing only)
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
