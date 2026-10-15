@@ -1,8 +1,10 @@
 class_name ContactSymbol
 extends SchematicSymbol
-## NO / NC contact (IEC 60617 S00227 / S00229) drawn in its current position
-## (NO opens upward, NC is drawn pivoting from the top and opens downward;
-## both blades lean to the same side, as in the guide),
+## NO / NC contact (IEC 60617 S00227 / S00229) drawn in its current position.
+## As in the guide, every contact pivots at its first terminal (top, or left
+## in horizontal paths) and its blade runs toward the fixed contact: an NO
+## blade stands off to the actuator side, an NC blade rests under the stop
+## that hangs from its fixed contact on the other side. Shown
 ## with the push-button (S00253) or turn-switch (S00254) actuator, the thermal
 ## actuator of overload relay contacts, and the delay "parachute"
 ## (S00243-S00246) for delayed timer contacts.
@@ -32,13 +34,11 @@ func _draw_shape(color: Color, _width: float) -> void:
 	var element: SwitchingElement = component as SwitchingElement
 	var is_nc: bool = element.contact_type == SwitchingElement.ContactType.NC
 	var closed: bool = element.is_closed()
-	# NO: pivot at the bottom, blade opens upward. NC: turned half round, with
-	# the pivot at the top and the hook at the bottom, so it opens downward and
-	# its blade leans to the same side as an NO blade.
+	# The geometry constants describe the IEC drawing with the pivot at the
+	# bottom; it is drawn upside down, so the pivot is at terminal 0 (top).
 	var flip: Callable = func(v: Vector2) -> Vector2:
-		return Vector2(-v.x, 3 * G - v.y) if is_nc else v
-	# Terminal 0 is at the top: the fixed side of an NO contact, the pivot of an NC.
-	var fixed_terminal: int = 1 if is_nc else 0
+		return Vector2(v.x, 3 * G - v.y)
+	var fixed_terminal: int = 1
 	var pivot_terminal: int = 1 - fixed_terminal
 	var fixed_color: Color = lead_color(fixed_terminal)
 	var fixed_width: float = lead_width(fixed_terminal)
@@ -75,10 +75,8 @@ func _draw_shape(color: Color, _width: float) -> void:
 		var contact: Contact = component as Contact
 		if contact.delayed and contact.linked_coil is TimerRelay:
 			var on_delay: bool = (contact.linked_coil as TimerRelay).mode == TimerRelay.Mode.ON_DELAY
-			# Operated, an NO blade moves right to close and an NC blade (turned
-			# half round) moves right to open: the delayed move is to the
-			# right for on-delay contacts.
-			var delayed_move_right: bool = on_delay
+			# NO closes (moves right) and NC opens (moves left) when operated.
+			var delayed_move_right: bool = on_delay != is_nc
 			_draw_parachute(middle, delayed_move_right, color)
 
 

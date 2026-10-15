@@ -12,6 +12,8 @@ var wire_reach: PackedByteArray = PackedByteArray()
 ## Wires carrying the short-circuit current (empty when there is no short).
 var fault_wires: Dictionary[int, bool] = {}
 var blink_on: bool = true
+## Dot grid behind the drawing (off unless chosen for editing).
+var show_grid: bool = false
 
 var _junctions: Array[Vector2i] = []
 
@@ -30,10 +32,11 @@ func refresh_layout() -> void:
 func _draw() -> void:
 	if document == null:
 		return
-	var area: Rect2 = document.bounds().grow(4.0)
-	for x: int in range(floori(area.position.x), ceili(area.end.x) + 1):
-		for y: int in range(floori(area.position.y), ceili(area.end.y) + 1):
-			draw_rect(Rect2(Vector2(x, y) * G - Vector2.ONE, Vector2(2, 2)), SchematicTheme.GRID_DOT)
+	if show_grid:
+		var area: Rect2 = document.bounds().grow(4.0)
+		for x: int in range(floori(area.position.x), ceili(area.end.x) + 1):
+			for y: int in range(floori(area.position.y), ceili(area.end.y) + 1):
+				draw_rect(Rect2(Vector2(x, y) * G - Vector2.ONE, Vector2(2, 2)), SchematicTheme.GRID_DOT)
 
 	# Dead wires first, then N, then the phases on top.
 	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_SEVERAL]]:

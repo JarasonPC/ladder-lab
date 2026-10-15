@@ -1,17 +1,22 @@
 class_name FuseSymbol
 extends SchematicSymbol
 ## Fuse (IEC 60617 S00362): rectangle with the conductor running through.
-## A blown fuse shows the conductor broken with a cross.
+## A blown fuse shows the conductor broken with a cross. A fuse holder (fuse
+## disconnector, as in the guide) is drawn as a switch blade carrying the fuse,
+## pivoting at the top terminal; click it to open or close it.
 
 const BOX := Rect2(-6, 14, 12, 32)
 
 
 func is_interactive() -> bool:
-	return (component as Fuse).tripped
+	return (component as Fuse).tripped or (component as Fuse).holder
 
 
 func _draw_shape(color: Color, width: float) -> void:
 	var fuse: Fuse = component as Fuse
+	if fuse.holder:
+		_draw_holder(self, Vector2.ZERO, 0, 1, fuse.switched_on, fuse.tripped, color, width)
+		return
 	draw_line(Vector2(0, 0), Vector2(0, BOX.position.y), lead_color(0), lead_width(0))
 	draw_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), lead_color(1), lead_width(1))
 	draw_rect(BOX, color, false, SchematicTheme.LINE_WIDTH)
@@ -29,3 +34,35 @@ func _draw_labels() -> void:
 	var names: PackedStringArray = component.get_terminal_names()
 	draw_label(names[0], Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+
+
+## Fuse holder pole at [param x]: the blade carries the fuse body. Shared with
+## [ThreePoleFuseSymbol]. Returns the middle of the fuse body.
+static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: int, closed: bool, blown: bool, color: Color, width: float) -> Vector2:
+	var g: float = SymbolGeometry.GRID
+	var pivot: Vector2 = x + Vector2(0, 14)
+	var fixed_end: Vector2 = x + Vector2(0, 46)
+	symbol.draw_line(x, pivot, symbol.lead_color(top), symbol.lead_width(top))
+	symbol.draw_line(x + Vector2(0, 3 * g), fixed_end, symbol.lead_color(bottom), symbol.lead_width(bottom))
+	# Closed, the blade still leans a little, as the symbol is drawn in the guide.
+	var tip: Vector2 = fixed_end + Vector2(-4, 0) if closed else x + Vector2(-15, 44)
+	var blade: Color = symbol.lead_color(top) if symbol.reach(top) != SchematicSymbol.REACH_NONE else color
+	symbol.draw_line(pivot, tip, blade, symbol.lead_width(top))
+	# The fuse body sits on the blade.
+	var along: Vector2 = (tip - pivot).normalized()
+	var across: Vector2 = Vector2(-along.y, along.x)
+	var middle: Vector2 = pivot.lerp(tip, 0.5)
+	var half_l: float = 9.0
+	var half_w: float = 4.5
+	var corners: PackedVector2Array = PackedVector2Array([
+		middle - along * half_l - across * half_w, middle + along * half_l - across * half_w,
+		middle + along * half_l + across * half_w, middle - along * half_l + across * half_w,
+		middle - along * half_l - across * half_w])
+	symbol.draw_colored_polygon(corners.slice(0, 4), SchematicTheme.BACKGROUND)
+	symbol.draw_polyline(corners, color, SchematicTheme.LINE_WIDTH * 0.8)
+	if blown:
+		symbol.draw_line(middle - Vector2(5, 5), middle + Vector2(5, 5), SchematicTheme.FAULT, 2.5)
+		symbol.draw_line(middle - Vector2(5, -5), middle + Vector2(5, -5), SchematicTheme.FAULT, 2.5)
+	else:
+		symbol.draw_line(middle - along * half_l, middle + along * half_l, blade, width)
+	return middle

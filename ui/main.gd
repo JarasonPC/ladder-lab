@@ -6,7 +6,7 @@ extends Node
 
 enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, QUIT }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, LANGUAGE = 10, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT }
 
 const SPEEDS: Array[float] = [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]
@@ -80,6 +80,8 @@ var _show_log: bool = true
 var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
 ## Keep the schematic on white paper in the dark theme.
 var _white_paper: bool = false
+## Dot grid while editing (never while simulating).
+var _edit_grid: bool = false
 ## Chosen interface size (see UI_SCALES), 0 = automatic.
 var _ui_scale: float = 0.0
 var _locale_index: int = 0
@@ -478,6 +480,8 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_checked(popup.item_count - 1, _white_paper or _theme_variant == AppTheme.Variant.LIGHT)
 	popup.set_item_disabled(popup.item_count - 1, _theme_variant == AppTheme.Variant.LIGHT)
 	popup.set_item_tooltip(popup.item_count - 1, tr("Draw the schematic on white paper in the dark theme, as in the guide"))
+	popup.add_check_item(tr("Grid while editing"), ViewMenuId.GRID)
+	popup.set_item_checked(popup.item_count - 1, _edit_grid)
 	popup.add_separator(tr("Language"))
 	for i: int in LOCALE_NAMES.size():
 		popup.add_radio_check_item(LOCALE_NAMES[i], ViewMenuId.LANGUAGE + i)
@@ -495,6 +499,10 @@ func _on_view_menu(id: int) -> void:
 	elif id == ViewMenuId.THEME_DARK or id == ViewMenuId.THEME_LIGHT:
 		_theme_variant = AppTheme.Variant.DARK if id == ViewMenuId.THEME_DARK else AppTheme.Variant.LIGHT
 		_apply_theme()
+		_save_settings()
+	elif id == ViewMenuId.GRID:
+		_edit_grid = not _edit_grid
+		_update_mode_ui()
 		_save_settings()
 	elif id == ViewMenuId.WHITE_PAPER:
 		_white_paper = not _white_paper
@@ -541,6 +549,7 @@ func _apply_ui_scale() -> void:
 
 func _update_mode_ui() -> void:
 	var editing: bool = mode == Mode.EDIT
+	view.set_grid_visible(editing and _edit_grid)
 	_edit_tools.visible = editing
 	_palette.visible = editing
 	_side.visible = editing
@@ -908,6 +917,7 @@ func _load_settings() -> void:
 		_show_log = config.get_value("view", "event_log", true)
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
 		_white_paper = bool(config.get_value("view", "white_paper", false))
+		_edit_grid = bool(config.get_value("view", "grid", false))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 
@@ -921,6 +931,7 @@ func _save_settings() -> void:
 	config.set_value("view", "theme", "light" if _theme_variant == AppTheme.Variant.LIGHT else "dark")
 	config.set_value("view", "ui_scale", _ui_scale)
 	config.set_value("view", "white_paper", _white_paper)
+	config.set_value("view", "grid", _edit_grid)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.save(SETTINGS_PATH)
 

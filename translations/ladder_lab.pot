@@ -219,10 +219,7 @@ msgstr ""
 msgid "Delayed changeover contact"
 msgstr ""
 
-msgid "Contactor coil"
-msgstr ""
-
-msgid "Relay coil"
+msgid "Coil (contactor KM / relay KA)"
 msgstr ""
 
 msgid "On-delay timer"
@@ -238,6 +235,9 @@ msgid "Motor"
 msgstr ""
 
 msgid "Fuse"
+msgstr ""
+
+msgid "Fuse holder"
 msgstr ""
 
 msgid "Circuit breaker"
@@ -256,6 +256,9 @@ msgid "Main contacts"
 msgstr ""
 
 msgid "Fuse 3-pole"
+msgstr ""
+
+msgid "Fuse holder 3-pole"
 msgstr ""
 
 msgid "Motor breaker 3-pole"
@@ -532,6 +535,9 @@ msgstr ""
 msgid "Draw the schematic on white paper in the dark theme, as in the guide"
 msgstr ""
 
+msgid "Grid while editing"
+msgstr ""
+
 msgid "Language"
 msgstr ""
 
@@ -651,15 +657,15 @@ msgid "%s replaced"
 msgstr ""
 
 #, c-format
-msgid "%s reset"
-msgstr ""
-
-#, c-format
 msgid "%s switched on"
 msgstr ""
 
 #, c-format
 msgid "%s switched off"
+msgstr ""
+
+#, c-format
+msgid "%s reset"
 msgstr ""
 
 #, c-format

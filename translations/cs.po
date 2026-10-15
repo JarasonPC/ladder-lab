@@ -222,11 +222,8 @@ msgstr "Přepínací kontakt"
 msgid "Delayed changeover contact"
 msgstr "Zpožděný přepínací kontakt"
 
-msgid "Contactor coil"
-msgstr "Cívka stykače"
-
-msgid "Relay coil"
-msgstr "Cívka relé"
+msgid "Coil (contactor KM / relay KA)"
+msgstr "Cívka (stykač KM / relé KA)"
 
 msgid "On-delay timer"
 msgstr "Časové relé (přítah)"
@@ -242,6 +239,9 @@ msgstr "Motor"
 
 msgid "Fuse"
 msgstr "Pojistka"
+
+msgid "Fuse holder"
+msgstr "Pojistkový odpojovač"
 
 msgid "Circuit breaker"
 msgstr "Jistič"
@@ -260,6 +260,9 @@ msgstr "Hlavní kontakty"
 
 msgid "Fuse 3-pole"
 msgstr "Pojistka trojpólová"
+
+msgid "Fuse holder 3-pole"
+msgstr "Pojistkový odpojovač trojpólový"
 
 msgid "Motor breaker 3-pole"
 msgstr "Motorový spouštěč trojpólový"
@@ -535,6 +538,9 @@ msgstr "Bílý papír schématu"
 msgid "Draw the schematic on white paper in the dark theme, as in the guide"
 msgstr "V tmavém motivu kreslit schéma na bílý papír, jako ve skriptech"
 
+msgid "Grid while editing"
+msgstr "Mřížka při úpravách"
+
 msgid "Language"
 msgstr "Jazyk"
 
@@ -654,16 +660,16 @@ msgid "%s replaced"
 msgstr "%s vyměněna"
 
 #, c-format
-msgid "%s reset"
-msgstr "%s: reset"
-
-#, c-format
 msgid "%s switched on"
 msgstr "%s zapnut"
 
 #, c-format
 msgid "%s switched off"
 msgstr "%s vypnut"
+
+#, c-format
+msgid "%s reset"
+msgstr "%s: reset"
 
 #, c-format
 msgid "Fault: %s welded"

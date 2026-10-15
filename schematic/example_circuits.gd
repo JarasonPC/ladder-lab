@@ -365,9 +365,11 @@ static func _star_bridge(doc: SchematicDocument, contacts: String) -> void:
 ## the 95-96 of each overload relay in [param overloads], one under the other
 ## in column [param x] from row 2. Returns the key of the last 96; the next
 ## part goes at row 7 + 5 * overloads.size().
-static func _control_head(doc: SchematicDocument, x: int, fuse: String, overloads: Array) -> String:
+static func _control_head(doc: SchematicDocument, x: int, fuse: String, overloads: Array, holder: bool = false) -> String:
 	doc.add(PowerSupply.new("L1.2", PowerSupply.Conductor.L), Vector2i(x - 3, 1))
-	doc.add(Fuse.new(fuse), Vector2i(x, 2))
+	var control_fuse: Fuse = Fuse.new(fuse)
+	control_fuse.holder = holder
+	doc.add(control_fuse, Vector2i(x, 2))
 	doc.connect_terminals("L1.2", fuse + ":1", _c([Vector2i(x, 1)]))
 	var last: String = fuse + ":2"
 	for i: int in overloads.size():
@@ -546,7 +548,10 @@ static func star_delta_3() -> SchematicDocument:
 ## KM2 - overload relay F3 - 2U-2V-2W (high speed, from below). Each speed has
 ## its own overload relay, set to the current of that speed.
 static func _two_speed_power(doc: SchematicDocument, kind: ThreePhaseMotor.Kind) -> void:
-	doc.add(ThreePoleFuse.new("F1"), Vector2i(5, 2))
+	# Fuse holders (fuse disconnectors) F1 and F4, as on page 47.
+	var f1: ThreePoleFuse = ThreePoleFuse.new("F1")
+	f1.holder = true
+	doc.add(f1, Vector2i(5, 2))
 	_phases(doc, 5)
 	doc.add(MainContacts.new("KM1"), Vector2i(5, 11))
 	doc.add(MainContacts.new("KM2"), Vector2i(13, 11))
@@ -579,7 +584,7 @@ static func dahlander() -> SchematicDocument:
 
 	var x: int = 32
 	var xb: int = x + 8
-	var feed: String = _control_head(doc, x, "F4", ["F2", "F3"])
+	var feed: String = _control_head(doc, x, "F4", ["F2", "F3"], true)
 	doc.add(PushButton.new("S0", NC), Vector2i(x, 17))
 	doc.add(PushButton.new("S1", NO), Vector2i(x, 22))
 	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 4, 22))
@@ -619,6 +624,6 @@ static func dahlander() -> SchematicDocument:
 static func two_windings() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[11])
 	_two_speed_power(doc, ThreePhaseMotor.Kind.TWO_WINDINGS)
-	var feed: String = _control_head(doc, 24, "F4", ["F2", "F3"])
+	var feed: String = _control_head(doc, 24, "F4", ["F2", "F3"], true)
 	_two_way_control(doc, 24, 17, feed, "KM1", "KM2", 42, "S1", "S2", "S3", true)
 	return doc

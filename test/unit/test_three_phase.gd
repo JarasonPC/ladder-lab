@@ -318,3 +318,30 @@ func test_lamp_purpose_is_saved() -> void:
 	assert_eq(d["purpose"], "Chod")
 	assert_eq((DocumentSerializer.component_from_dict(d) as Lamp).purpose, "Chod")
 	assert_false(DocumentSerializer.component_to_dict(Lamp.new("H1")).has("purpose"), "no empty purpose in files")
+
+
+func test_fuse_holders_open_and_blow() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	_three_supplies(doc)
+	var holder: ThreePoleFuse = ThreePoleFuse.new("F1")
+	holder.holder = true
+	doc.add(holder, Vector2i(0, 2))
+	for i: int in 3:
+		doc.connect_terminals(["L1", "L2", "L3"][i], "F1:%d" % (2 * i + 1))
+	var lamp: Lamp = doc.add(Lamp.new("H1"), Vector2i(0, 7)) as Lamp
+	doc.connect_terminals("F1:2", "H1:X1")
+	doc.connect_terminals("H1:X2", "F1:4", [Vector2i(0, 12), Vector2i(2, 12)] as Array[Vector2i])
+	var sim: Simulator = _sim(doc)
+	assert_true(lamp.energized, "400 V through the closed holder")
+	holder.toggle()
+	sim.step()
+	assert_false(lamp.energized, "opened holder")
+	holder.toggle()
+	sim.step()
+	assert_true(lamp.energized)
+	var single: Fuse = Fuse.new("F2")
+	single.holder = true
+	single.toggle()
+	assert_false(single.is_closed(), "a 1-pole holder opens too")
+	assert_true(DocumentSerializer.component_from_dict(DocumentSerializer.component_to_dict(single)).holder)
+	assert_false(Fuse.new("F3").holder)

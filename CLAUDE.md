@@ -8,7 +8,10 @@
   and terminal numbers in teal, supplies as circles with the name inside, lit lamps filled grey;
   colours live in SchematicTheme, which also has a dark paper (dark theme, unless View > White
   schematic paper); PNG export always uses white paper. Lamps may carry a purpose text drawn above
-  the designation; 3~ motors have a PE terminal (last terminal, below left, ignored by the solver)
+  the designation; 3~ motors have a PE terminal (last terminal, below left, ignored by the solver).
+  Every contact (NO, NC, changeover, main contacts, breakers) pivots at its first/top terminal;
+  NO blades stand off to the actuator side, NC blades rest under a stop on the other side.
+  Fuses can be fuse holders (holder = true: can be opened by clicking). No dot grid by default
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd

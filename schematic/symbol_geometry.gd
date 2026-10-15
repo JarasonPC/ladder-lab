@@ -43,10 +43,10 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		result[names[0]] = Vector2i.ZERO
 		result[names[1]] = Vector2i(0, SPAN)
 	elif names.size() == 3:
-		# Changeover contact: common below, NO above it, NC one cell to the right.
-		result[names[0]] = Vector2i(0, SPAN)
-		result[names[1]] = Vector2i(1, 0)
-		result[names[2]] = Vector2i.ZERO
+		# Changeover contact: common on top, NO below it, NC one cell to the right.
+		result[names[0]] = Vector2i.ZERO
+		result[names[1]] = Vector2i(1, SPAN)
+		result[names[2]] = Vector2i(0, SPAN)
 	return result
 
 
@@ -62,7 +62,7 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 			return DIR_UP
 		return DIR_DOWN if i < 3 else (DIR_UP if i < 6 else DIR_LEFT)
 	if names.size() == 3:
-		return DIR_UP if terminal_name == names[0] else DIR_DOWN
+		return DIR_DOWN if terminal_name == names[0] else DIR_UP
 	if names.size() != 2:
 		return 0
 	return DIR_DOWN if terminal_name == names[0] else DIR_UP
