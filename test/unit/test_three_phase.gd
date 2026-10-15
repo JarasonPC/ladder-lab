@@ -288,3 +288,30 @@ func test_three_phase_round_trip() -> void:
 		var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 		assert_not_null(copy, doc.title)
 		assert_eq(DocumentSerializer.to_dict(copy), DocumentSerializer.to_dict(doc), doc.title)
+
+
+func test_motor_pe_terminal() -> void:
+	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M1", K.THREE_WINDINGS)
+	assert_eq(motor.get_terminal_names()[motor.winding_terminal_count()], "PE")
+	assert_eq(motor.winding_terminal_count(), 9)
+	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	assert_eq(doc.terminal_cell("M1:PE"), doc.get_placement("M1").cell + SymbolGeometry.MOTOR_PE_CELL)
+	# PE does not count as a winding: the motor still runs clockwise.
+	var sim: Simulator = _sim(doc)
+	_press(doc, sim, "S1")
+	assert_eq([_motor(doc).state, _motor(doc).direction], [ST.RUNNING, CW])
+
+
+func test_version_4_custom_motor_terminals_get_pe() -> void:
+	var c: CircuitComponent = DocumentSerializer.component_from_dict({"type": "motor3", "designation": "M1", "terminals": ["A", "B", "C"]})
+	assert_not_null(c)
+	assert_eq(c.get_terminal_names(), PackedStringArray(["A", "B", "C", "PE"]))
+
+
+func test_lamp_purpose_is_saved() -> void:
+	var lamp: Lamp = Lamp.new("H3")
+	lamp.purpose = "Chod"
+	var d: Dictionary = DocumentSerializer.component_to_dict(lamp)
+	assert_eq(d["purpose"], "Chod")
+	assert_eq((DocumentSerializer.component_from_dict(d) as Lamp).purpose, "Chod")
+	assert_false(DocumentSerializer.component_to_dict(Lamp.new("H1")).has("purpose"), "no empty purpose in files")

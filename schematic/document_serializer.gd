@@ -126,6 +126,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["drop_out"] = (c as Coil).drop_out_time
 	elif c is Lamp:
 		d["type"] = "lamp"
+		if not (c as Lamp).purpose.is_empty():
+			d["purpose"] = (c as Lamp).purpose
 	elif c is Motor:
 		d["type"] = "motor"
 	if not c.custom_terminals.is_empty():
@@ -144,6 +146,9 @@ static func component_from_dict(d: Dictionary) -> CircuitComponent:
 	var names: PackedStringArray = PackedStringArray()
 	for n: Variant in raw:
 		names.append(str(n))
+	if c is ThreePhaseMotor and names.size() == c.default_terminal_names().size() - 1:
+		# Saved before motors had a PE terminal (file version 4).
+		names.append("PE")
 	if not c.supports_custom_terminals() or names.size() != c.default_terminal_names().size() or not CircuitComponent.valid_terminal_names(names):
 		return null
 	if names != c.default_terminal_names():
@@ -196,7 +201,9 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			var mode: TimerRelay.Mode = TimerRelay.Mode.OFF_DELAY if d.get("mode", "on_delay") == "off_delay" else TimerRelay.Mode.ON_DELAY
 			return TimerRelay.new(designation, mode, maxf(float(d.get("delay", 1.0)), 0.0), _seconds(d, "pick_up"), _seconds(d, "drop_out"))
 		"lamp":
-			return Lamp.new(designation)
+			var lamp: Lamp = Lamp.new(designation)
+			lamp.purpose = str(d.get("purpose", "")).strip_edges()
+			return lamp
 		"motor":
 			return Motor.new(designation)
 	return null

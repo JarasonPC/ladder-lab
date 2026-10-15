@@ -351,6 +351,12 @@ msgstr "NO 97-98 (spínací)"
 msgid "NC 95-96"
 msgstr "NC 95-96 (rozpínací)"
 
+msgid "Label above the lamp"
+msgstr "Popisek nad kontrolkou"
+
+msgid "e.g. Running, Fault"
+msgstr "např. Chod, Porucha"
+
 msgid "Terminals"
 msgstr "Svorky"
 
@@ -522,6 +528,12 @@ msgstr "Tmavý"
 
 msgid "Light"
 msgstr "Světlý"
+
+msgid "White schematic paper"
+msgstr "Bílý papír schématu"
+
+msgid "Draw the schematic on white paper in the dark theme, as in the guide"
+msgstr "V tmavém motivu kreslit schéma na bílý papír, jako ve skriptech"
 
 msgid "Language"
 msgstr "Jazyk"

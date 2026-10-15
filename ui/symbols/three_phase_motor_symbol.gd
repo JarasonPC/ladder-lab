@@ -3,7 +3,8 @@ extends SchematicSymbol
 ## Three-phase motor (IEC 60617 S00819 style): circle with "M 3~" and a lead
 ## per terminal. While it runs an arrow turns around it in its direction of
 ## rotation, faster at higher speeds; Y / Δ or the speed step is written
-## beside it, a phase loss or wrong connection in the fault colour.
+## beside it, a phase loss or wrong connection in the fault colour. The PE
+## terminal of the frame is below left, as in the guide.
 
 const CENTER := Vector2(2.0 * G, 2.0 * G)
 const RADIUS: float = 26.0
@@ -20,13 +21,18 @@ func _process(delta: float) -> void:
 
 
 func _designation_anchor() -> Vector2:
-	return Vector2(-0.8 * G, 2.0 * G)
+	return Vector2(-1.4 * G, 1.2 * G)
 
 
 func _draw_shape(color: Color, width: float) -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
 	var names: PackedStringArray = motor.get_terminal_names()
-	for i: int in names.size():
+	var windings: int = motor.winding_terminal_count()
+	# PE: from the frame to the left, then down to its terminal.
+	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G
+	var frame: Vector2 = CENTER + Vector2.from_angle(PI * 0.88) * RADIUS
+	draw_polyline(PackedVector2Array([frame, Vector2(pe_cell.x, frame.y), pe_cell]), lead_color(windings), lead_width(windings))
+	for i: int in windings:
 		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i)) * G
 		var angle: float
 		var bend: Vector2
@@ -69,7 +75,9 @@ func _draw_labels() -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	var names: PackedStringArray = motor.get_terminal_names()
-	for i: int in names.size():
+	var windings: int = motor.winding_terminal_count()
+	draw_label(names[windings], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	for i: int in windings:
 		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i)) * G
 		var offset: Vector2 = Vector2(0.3 * G, 0.4 * G)
 		if i >= 3 and i < 6:

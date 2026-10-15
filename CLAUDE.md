@@ -6,7 +6,9 @@
 - Drawing style follows the course guide (style "A"): white paper, thin black lines, a square at
   every terminal coloured by voltage reach, branch dots in the wire colour, "-KM1" designations
   and terminal numbers in teal, supplies as circles with the name inside, lit lamps filled grey;
-  colours live in SchematicTheme
+  colours live in SchematicTheme, which also has a dark paper (dark theme, unless View > White
+  schematic paper); PNG export always uses white paper. Lamps may carry a purpose text drawn above
+  the designation; 3~ motors have a PE terminal (last terminal, below left, ignored by the solver)
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd

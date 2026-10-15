@@ -9,7 +9,8 @@ extends CircuitComponent
 ## terminals make it run (at [member speed] for multi-speed motors); the phase
 ## order L1-L2-L3 on the fed U-V-W is clockwise. Two phases only is a phase
 ## loss (hums, overheats); feeding two speeds at once or a wrong connection is
-## MISWIRED (overheats too).
+## MISWIRED (overheats too). The last terminal is PE (protective earth of the
+## frame); it takes no part in the evaluation.
 
 enum Kind { STANDARD, STAR_DELTA, DAHLANDER, TWO_WINDINGS, THREE_WINDINGS }
 enum State { STOPPED, RUNNING, STAR, DELTA, PHASE_LOSS, MISWIRED }
@@ -30,14 +31,23 @@ func _init(p_designation: String, p_kind: Kind = Kind.STANDARD) -> void:
 
 
 func default_terminal_names() -> PackedStringArray:
+	var names: PackedStringArray
 	match kind:
 		Kind.STAR_DELTA:
-			return PackedStringArray(["U1", "V1", "W1", "U2", "V2", "W2"])
+			names = PackedStringArray(["U1", "V1", "W1", "U2", "V2", "W2"])
 		Kind.DAHLANDER, Kind.TWO_WINDINGS:
-			return PackedStringArray(["1U", "1V", "1W", "2U", "2V", "2W"])
+			names = PackedStringArray(["1U", "1V", "1W", "2U", "2V", "2W"])
 		Kind.THREE_WINDINGS:
-			return PackedStringArray(["1U", "1V", "1W", "2U", "2V", "2W", "3U", "3V", "3W"])
-	return PackedStringArray(["U1", "V1", "W1"])
+			names = PackedStringArray(["1U", "1V", "1W", "2U", "2V", "2W", "3U", "3V", "3W"])
+		_:
+			names = PackedStringArray(["U1", "V1", "W1"])
+	names.append("PE")
+	return names
+
+
+## Number of winding terminals (all terminals but PE).
+func winding_terminal_count() -> int:
+	return default_terminal_names().size() - 1
 
 
 ## Number of speeds (1 for single-speed motors).
