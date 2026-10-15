@@ -48,12 +48,20 @@ func remove(component: CircuitComponent) -> PackedInt32Array:
 ## Puts [param new_component] in place of [param old], keeping its position in
 ## the component order. Wires move to the new terminals by terminal index, so
 ## e.g. an NO contact 13-14 replaced by an NC contact 11-12 keeps its wiring.
-## Fails if the terminal count differs or an id or terminal is taken.
+## Fails if a terminal the new component lacks still has wires, or an id or
+## terminal is taken.
 func replace(old: CircuitComponent, new_component: CircuitComponent) -> bool:
 	var index: int = _components.find(old)
 	var old_keys: PackedStringArray = old.get_terminal_keys()
 	var new_keys: PackedStringArray = new_component.get_terminal_keys()
-	if index < 0 or old_keys.size() != new_keys.size():
+	# Terminals beyond the new count must have no wires (see
+	# SchematicDocument.replace_component); the others keep theirs by position.
+	var dropped: bool = false
+	for i: int in range(new_keys.size(), old_keys.size()):
+		for wire: PackedStringArray in _wires:
+			if wire.has(old_keys[i]):
+				dropped = true
+	if index < 0 or dropped:
 		push_error("Circuit: cannot replace '%s' with '%s'" % [old.id, new_component.id])
 		return false
 	if new_component.id != old.id and _by_id.has(new_component.id):

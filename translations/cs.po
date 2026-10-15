@@ -231,6 +231,9 @@ msgstr "Časové relé (přítah)"
 msgid "Off-delay timer"
 msgstr "Časové relé (odpad)"
 
+msgid "Multifunction timer (A1-S-A2)"
+msgstr "Multifunkční časové relé (A1-S-A2)"
+
 msgid "Lamp"
 msgstr "Signálka"
 
@@ -336,14 +339,11 @@ msgstr "Doba odpadu (ms)"
 msgid "Function"
 msgstr "Funkce"
 
-msgid "On-delay"
-msgstr "Zpoždění při přítahu"
+msgid "Time t (s)"
+msgstr "Čas t (s)"
 
-msgid "Off-delay"
-msgstr "Zpoždění při odpadu"
-
-msgid "Delay (s)"
-msgstr "Zpoždění (s)"
+msgid "Control input S (A1-S-A2)"
+msgstr "Řídicí vstup S (A1-S-A2)"
 
 msgid "Trip delay (s)"
 msgstr "Zpoždění vybavení (s)"
@@ -360,6 +360,18 @@ msgstr "Popisek nad kontrolkou"
 msgid "e.g. Running, Fault"
 msgstr "např. Chod, Porucha"
 
+msgid "Draw as terminal box"
+msgstr "Kreslit jako svorkovnici"
+
+msgid "Bridges"
+msgstr "Propojky"
+
+msgid "Star (Y)"
+msgstr "Hvězda (Y)"
+
+msgid "Delta (Δ)"
+msgstr "Trojúhelník (Δ)"
+
 msgid "Terminals"
 msgstr "Svorky"
 
@@ -371,6 +383,39 @@ msgstr "Prohodit"
 
 msgid "Swap the terminal names, e.g. A1-A2 to A2-A1"
 msgstr "Prohodit označení svorek, např. A1-A2 na A2-A1"
+
+msgid "F2 – On-delay"
+msgstr "F2 – Zpožděný přítah"
+
+msgid "Off-delay (on power loss)"
+msgstr "Zpožděný odpad (po odpojení napájení)"
+
+msgid "F1 – Pulse after power on"
+msgstr "F1 – Impulz po zapnutí"
+
+msgid "F3 – Pulse when S is pressed"
+msgstr "F3 – Impulz po stisku tlačítka"
+
+msgid "F4 – On-delay after S is released"
+msgstr "F4 – Zpožděný přítah po uvolnění tlačítka"
+
+msgid "F5 – Pulse after S is released"
+msgstr "F5 – Impulz po uvolnění tlačítka"
+
+msgid "F6 – Impulse relay (no memory)"
+msgstr "F6 – Impulzní relé (bez paměti)"
+
+msgid "F7 – Pulse generator"
+msgstr "F7 – Generátor impulzů"
+
+msgid "F8 – Shifted pulse"
+msgstr "F8 – Posunutý impulz"
+
+msgid "F9 – Test (always on)"
+msgstr "F9 – Test (trvale sepnuto)"
+
+msgid "Function diagram"
+msgstr "Diagram funkce"
 
 msgid "The designation must not be empty."
 msgstr "Označení nesmí být prázdné."

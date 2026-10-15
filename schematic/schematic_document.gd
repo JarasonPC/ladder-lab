@@ -265,6 +265,15 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 	if old == null:
 		return false
 	old_id = old.id
+	# Wires on terminals the new component no longer has go away.
+	var new_count: int = new_component.get_terminal_keys().size()
+	var old_keys: PackedStringArray = old.get_terminal_keys()
+	for i: int in range(circuit.get_wires().size() - 1, -1, -1):
+		var wire: PackedStringArray = circuit.get_wires()[i]
+		for k: int in range(new_count, old_keys.size()):
+			if wire.has(old_keys[k]):
+				remove_wire(i)
+				break
 	var p: Placement = _placements[old_id]
 	if not circuit.replace(old, new_component):
 		return false

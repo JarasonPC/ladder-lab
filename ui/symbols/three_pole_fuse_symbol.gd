@@ -29,7 +29,7 @@ func _draw_shape(_color: Color, width: float) -> void:
 		var box: Rect2 = Rect2(BOX.position + x, BOX.size)
 		draw_line(x, x + Vector2(0, BOX.position.y), lead_color(top), lead_width(top))
 		draw_line(x + Vector2(0, BOX.end.y), x + Vector2(0, 3 * G), lead_color(bottom), lead_width(bottom))
-		draw_rect(box, lead_color(top) if reach(top) != REACH_NONE else color, false, SchematicTheme.LINE_WIDTH)
+		draw_rect(box, color, false, SchematicTheme.LINE_WIDTH)
 		if fuse.blown[pole] == 1:
 			draw_line(x + Vector2(0, BOX.position.y), x + Vector2(0, 24), lead_color(top), SchematicTheme.LINE_WIDTH)
 			draw_line(x + Vector2(0, 36), x + Vector2(0, BOX.end.y), lead_color(bottom), SchematicTheme.LINE_WIDTH)

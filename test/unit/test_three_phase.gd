@@ -345,3 +345,14 @@ func test_fuse_holders_open_and_blow() -> void:
 	assert_false(single.is_closed(), "a 1-pole holder opens too")
 	assert_true(DocumentSerializer.component_from_dict(DocumentSerializer.component_to_dict(single)).holder)
 	assert_false(Fuse.new("F3").holder)
+
+
+func test_terminal_box_view_is_saved() -> void:
+	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M1")
+	motor.terminal_box = true
+	motor.delta_bridges = true
+	var d: Dictionary = DocumentSerializer.component_to_dict(motor)
+	assert_eq([d["terminal_box"], d["connection"]], [true, "delta"])
+	var copy: ThreePhaseMotor = DocumentSerializer.component_from_dict(d) as ThreePhaseMotor
+	assert_true(copy.terminal_box and copy.delta_bridges)
+	assert_false(DocumentSerializer.component_to_dict(ThreePhaseMotor.new("M2", K.DAHLANDER)).has("terminal_box"), "standard motors only")

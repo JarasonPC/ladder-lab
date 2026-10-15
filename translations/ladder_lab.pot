@@ -228,6 +228,9 @@ msgstr ""
 msgid "Off-delay timer"
 msgstr ""
 
+msgid "Multifunction timer (A1-S-A2)"
+msgstr ""
+
 msgid "Lamp"
 msgstr ""
 
@@ -333,13 +336,10 @@ msgstr ""
 msgid "Function"
 msgstr ""
 
-msgid "On-delay"
+msgid "Time t (s)"
 msgstr ""
 
-msgid "Off-delay"
-msgstr ""
-
-msgid "Delay (s)"
+msgid "Control input S (A1-S-A2)"
 msgstr ""
 
 msgid "Trip delay (s)"
@@ -357,6 +357,18 @@ msgstr ""
 msgid "e.g. Running, Fault"
 msgstr ""
 
+msgid "Draw as terminal box"
+msgstr ""
+
+msgid "Bridges"
+msgstr ""
+
+msgid "Star (Y)"
+msgstr ""
+
+msgid "Delta (Δ)"
+msgstr ""
+
 msgid "Terminals"
 msgstr ""
 
@@ -367,6 +379,39 @@ msgid "Swap"
 msgstr ""
 
 msgid "Swap the terminal names, e.g. A1-A2 to A2-A1"
+msgstr ""
+
+msgid "F2 – On-delay"
+msgstr ""
+
+msgid "Off-delay (on power loss)"
+msgstr ""
+
+msgid "F1 – Pulse after power on"
+msgstr ""
+
+msgid "F3 – Pulse when S is pressed"
+msgstr ""
+
+msgid "F4 – On-delay after S is released"
+msgstr ""
+
+msgid "F5 – Pulse after S is released"
+msgstr ""
+
+msgid "F6 – Impulse relay (no memory)"
+msgstr ""
+
+msgid "F7 – Pulse generator"
+msgstr ""
+
+msgid "F8 – Shifted pulse"
+msgstr ""
+
+msgid "F9 – Test (always on)"
+msgstr ""
+
+msgid "Function diagram"
 msgstr ""
 
 msgid "The designation must not be empty."

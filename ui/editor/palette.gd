@@ -24,6 +24,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Coil (contactor KM / relay KA)", "template": {"type": "coil"}},
 	{"title": "On-delay timer", "template": {"type": "timer", "mode": "on_delay", "delay": 3.0}},
 	{"title": "Off-delay timer", "template": {"type": "timer", "mode": "off_delay", "delay": 3.0}},
+	{"title": "Multifunction timer (A1-S-A2)", "template": {"type": "timer", "mode": "pulse_on_press", "delay": 3.0, "control_input": true}},
 	{"title": "Lamp", "template": {"type": "lamp"}},
 	{"title": "Motor", "template": {"type": "motor"}},
 	{"title": "Fuse", "template": {"type": "fuse"}},

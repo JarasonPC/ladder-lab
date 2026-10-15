@@ -66,11 +66,14 @@ func any_live() -> bool:
 	return false
 
 
-## Colour of the symbol body: the first phase that reaches a terminal, else N
-## when N does.
+## Colour of the symbol body. Voltage reach shows on the leads only; a coil
+## is the exception and takes the colour of the first phase that reaches it
+## (else N when N does).
 func stroke_color() -> Color:
 	if warning:
 		return SchematicTheme.WARNING
+	if not (component is Coil):
+		return SchematicTheme.LINE
 	for code: int in live:
 		if code != REACH_NONE and code != REACH_N:
 			return SchematicTheme.reach_color(code)
@@ -78,6 +81,8 @@ func stroke_color() -> Color:
 
 
 func stroke_width() -> float:
+	if not (component is Coil):
+		return SchematicTheme.LINE_WIDTH
 	return SchematicTheme.LIVE_WIDTH if warning or any_live() or live.has(REACH_N) else SchematicTheme.LINE_WIDTH
 
 

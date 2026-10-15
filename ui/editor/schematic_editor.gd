@@ -103,8 +103,12 @@ static func type_options(c: CircuitComponent) -> Array[Dictionary]:
 ## True if [param c] is what [param template] would create.
 static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 	var d: Dictionary = DocumentSerializer.component_to_dict(c)
+	var multifunction: bool = template.get("control_input", false)
+	if d.get("control_input", false) != multifunction:
+		return false
 	for key: String in template:
-		if key == "delay":
+		# A multifunction timer is one type, whatever function it is set to.
+		if key == "delay" or (key == "mode" and multifunction):
 			continue
 		if d.get(key, false) != template[key]:
 			return false

@@ -33,7 +33,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 		var t: float = clampf(contact.get_travel(), 0.15, 0.85)
 		tip = NC_TIP.lerp(Vector2(-13, 42), t)
 	draw_line(PIVOT, tip, lead_color(0), lead_width(0))
-	if contact.delayed and contact.linked_coil is TimerRelay:
+	if contact.delayed and contact.linked_coil is TimerRelay and (contact.linked_coil as TimerRelay).mode in [TimerRelay.Mode.ON_DELAY, TimerRelay.Mode.OFF_DELAY]:
 		var on_delay: bool = (contact.linked_coil as TimerRelay).mode == TimerRelay.Mode.ON_DELAY
 		var middle: Vector2 = PIVOT.lerp(tip, 0.5)
 		var c: Vector2 = Vector2(-12.0, middle.y)

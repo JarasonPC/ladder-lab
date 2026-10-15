@@ -104,7 +104,11 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "breaker3"
 	elif c is ThreePhaseMotor:
 		d["type"] = "motor3"
-		d["motor_kind"] = MOTOR_KINDS[(c as ThreePhaseMotor).kind]
+		var motor: ThreePhaseMotor = c as ThreePhaseMotor
+		d["motor_kind"] = MOTOR_KINDS[motor.kind]
+		if motor.kind == ThreePhaseMotor.Kind.STANDARD:
+			d["terminal_box"] = motor.terminal_box
+			d["connection"] = "delta" if motor.delta_bridges else "star"
 	elif c is SwitchingElement:
 		var s: SwitchingElement = c as SwitchingElement
 		d["contact"] = "NO" if s.contact_type == NO else "NC"
@@ -119,7 +123,9 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	elif c is TimerRelay:
 		var t: TimerRelay = c as TimerRelay
 		d["type"] = "timer"
-		d["mode"] = "on_delay" if t.mode == TimerRelay.Mode.ON_DELAY else "off_delay"
+		d["mode"] = TimerRelay.MODE_NAMES[t.mode]
+		if t.control_input:
+			d["control_input"] = true
 		d["delay"] = t.delay
 		d["pick_up"] = t.pick_up_time
 		d["drop_out"] = t.drop_out_time
@@ -199,15 +205,20 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			return MotorBreaker.new(designation)
 		"motor3":
 			var motor_kind: int = maxi(MOTOR_KINDS.find(str(d.get("motor_kind", "standard"))), 0)
-			return ThreePhaseMotor.new(designation, motor_kind as ThreePhaseMotor.Kind)
+			var motor3: ThreePhaseMotor = ThreePhaseMotor.new(designation, motor_kind as ThreePhaseMotor.Kind)
+			motor3.terminal_box = bool(d.get("terminal_box", false))
+			motor3.delta_bridges = d.get("connection", "star") == "delta"
+			return motor3
 		"overload_contact":
 			return OverloadContact.new(designation, contact)
 		"coil":
 			var coil_kind: Coil.Kind = Coil.Kind.RELAY if d.get("kind", "contactor") == "relay" else Coil.Kind.CONTACTOR
 			return Coil.new(designation, coil_kind, _seconds(d, "pick_up"), _seconds(d, "drop_out"))
 		"timer":
-			var mode: TimerRelay.Mode = TimerRelay.Mode.OFF_DELAY if d.get("mode", "on_delay") == "off_delay" else TimerRelay.Mode.ON_DELAY
-			return TimerRelay.new(designation, mode, maxf(float(d.get("delay", 1.0)), 0.0), _seconds(d, "pick_up"), _seconds(d, "drop_out"))
+			var mode: int = maxi(TimerRelay.MODE_NAMES.find(str(d.get("mode", "on_delay"))), 0)
+			var timer: TimerRelay = TimerRelay.new(designation, mode as TimerRelay.Mode, maxf(float(d.get("delay", 1.0)), 0.0), _seconds(d, "pick_up"), _seconds(d, "drop_out"))
+			timer.control_input = bool(d.get("control_input", false))
+			return timer
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)
 			lamp.purpose = str(d.get("purpose", "")).strip_edges()

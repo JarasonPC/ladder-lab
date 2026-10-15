@@ -69,15 +69,17 @@ func show_component(component: CircuitComponent) -> void:
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"timer":
 			_text(tr("Designation"), "designation")
-			_choice(tr("Function"), "mode", ["on_delay", "off_delay"], [tr("On-delay"), tr("Off-delay")])
-			_number(tr("Delay (s)"), "delay", 0.1, 3600.0, 0.1)
+			_choice(tr("Function"), "mode", Array(TimerRelay.MODE_NAMES), _timer_function_titles())
+			_number(tr("Time t (s)"), "delay", 0.1, 3600.0, 0.1)
+			_check(tr("Control input S (A1-S-A2)"), "control_input")
+			_timer_diagram(component as TimerRelay)
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"changeover":
 			_text(tr("Designation"), "designation")
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")
-		"fuse", "breaker", "fuse3", "breaker3", "main_contacts", "motor3":
+		"fuse", "breaker", "fuse3", "breaker3", "main_contacts":
 			_text(tr("Designation"), "designation")
 		"overload_relay":
 			_text(tr("Designation"), "designation")
@@ -90,6 +92,11 @@ func show_component(component: CircuitComponent) -> void:
 			_text(tr("Label above the lamp"), "purpose", tr("e.g. Running, Fault"))
 		"motor":
 			_text(tr("Designation"), "designation")
+		"motor3":
+			_text(tr("Designation"), "designation")
+			if _data.has("terminal_box"):
+				_check(tr("Draw as terminal box"), "terminal_box")
+				_choice(tr("Bridges"), "connection", ["star", "delta"], [tr("Star (Y)"), tr("Delta (Δ)")])
 	if component.supports_custom_terminals():
 		_terminals(component)
 	_group = null
@@ -158,7 +165,7 @@ func _choice(caption: String, key: String, values: Array, titles: Array) -> void
 	option.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	for t: String in titles:
 		option.add_item(t)
-	option.select(values.find(_data[key]))
+	option.select(values.find(_data.get(key, values[0])))
 	option.item_selected.connect(func(i: int) -> void: _emit(key, values[i]))
 	_add(option)
 
@@ -221,7 +228,33 @@ func _check(caption: String, key: String) -> void:
 	var box: CheckBox = CheckBox.new()
 	box.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	box.text = caption
-	box.button_pressed = _data[key]
+	box.button_pressed = bool(_data.get(key, false))
 	box.toggled.connect(func(on: bool) -> void: _emit(key, on))
 	_group = null
 	_box.add_child(box)
+
+
+## Titles of the time relay functions, in [constant TimerRelay.MODE_NAMES] order.
+func _timer_function_titles() -> Array:
+	return [
+		tr("F2 – On-delay"),
+		tr("Off-delay (on power loss)"),
+		tr("F1 – Pulse after power on"),
+		tr("F3 – Pulse when S is pressed"),
+		tr("F4 – On-delay after S is released"),
+		tr("F5 – Pulse after S is released"),
+		tr("F6 – Impulse relay (no memory)"),
+		tr("F7 – Pulse generator"),
+		tr("F8 – Shifted pulse"),
+		tr("F9 – Test (always on)"),
+	]
+
+
+## Timing diagram of the chosen function (Un, S, R).
+func _timer_diagram(timer: TimerRelay) -> void:
+	_label(tr("Function diagram"))
+	var diagram: TimerDiagram = TimerDiagram.new()
+	var names: PackedStringArray = timer.get_terminal_names()
+	diagram.input_name = names[2] if names.size() > 2 else "S"
+	diagram.mode = timer.mode
+	_add(diagram)

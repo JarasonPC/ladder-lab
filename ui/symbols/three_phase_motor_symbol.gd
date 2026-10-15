@@ -24,8 +24,16 @@ func _designation_anchor() -> Vector2:
 	return Vector2(-1.4 * G, 1.2 * G)
 
 
+func _terminal_box() -> bool:
+	var motor: ThreePhaseMotor = component as ThreePhaseMotor
+	return motor.terminal_box and motor.kind == ThreePhaseMotor.Kind.STANDARD
+
+
 func _draw_shape(color: Color, width: float) -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
+	if _terminal_box():
+		_draw_terminal_box(motor, color)
+		return
 	var names: PackedStringArray = motor.get_terminal_names()
 	var windings: int = motor.winding_terminal_count()
 	# PE: from the frame to the left, then down to its terminal.
@@ -71,9 +79,69 @@ func _draw_shape(color: Color, width: float) -> void:
 		draw_colored_polygon(PackedVector2Array([tip + forward * 7.0, tip - side * 4.5, tip + side * 4.5]), SchematicTheme.LINE)
 
 
+## Box of the terminal board.
+const BOARD := Rect2(-12, 10, 104, 64)
+## Rows of the terminal studs: U1 V1 W1 (fed) and W2 U2 V2 below them.
+const FEED_ROW: float = 26.0
+const END_ROW: float = 58.0
+
+
+## The motor drawn as its terminal board (as in the guide): U1 V1 W1 fed from
+## above, W2 U2 V2 below them, joined by star (one bar along W2-U2-V2) or
+## delta bridges (U1-W2, V1-U2, W1-V2).
+func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
+	var fill: Color = SchematicTheme.COIL_ON if motor.is_running() else SchematicTheme.BACKGROUND
+	if motor.state == ThreePhaseMotor.State.PHASE_LOSS or motor.state == ThreePhaseMotor.State.MISWIRED:
+		fill = Color(SchematicTheme.FAULT, 0.25)
+	draw_rect(BOARD, fill)
+	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
+	draw_rect(BOARD, color, false, SchematicTheme.LINE_WIDTH)
+	for i: int in 3:
+		var x: float = i * SymbolGeometry.POLE_SPACING * G
+		draw_line(Vector2(x, 0), Vector2(x, FEED_ROW - 4.0), lead_color(i), lead_width(i))
+	var bridge_width: float = 1.8
+	if motor.delta_bridges:
+		for i: int in 3:
+			var x: float = i * SymbolGeometry.POLE_SPACING * G
+			_draw_bar(Vector2(x, FEED_ROW), Vector2(x, END_ROW), color, bridge_width)
+	else:
+		_draw_bar(Vector2(0, END_ROW), Vector2(4 * G, END_ROW), color, bridge_width)
+	for i: int in 3:
+		var x: float = i * SymbolGeometry.POLE_SPACING * G
+		for y: float in [FEED_ROW, END_ROW]:
+			draw_circle(Vector2(x, y), 3.5, SchematicTheme.BACKGROUND)
+			draw_arc(Vector2(x, y), 3.5, 0.0, TAU, 12, lead_color(i) if y == FEED_ROW and reach(i) != REACH_NONE else color, 1.5)
+	# PE: from the frame of the box to its terminal.
+	var windings: int = motor.winding_terminal_count()
+	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G
+	draw_polyline(PackedVector2Array([Vector2(BOARD.position.x, 3.0 * G), Vector2(pe_cell.x, 3.0 * G), pe_cell]), lead_color(windings), lead_width(windings))
+
+
+## Bridge: a rounded bar around two studs.
+func _draw_bar(a: Vector2, b: Vector2, color: Color, w: float) -> void:
+	var r: float = 7.0
+	var along: Vector2 = (b - a).normalized()
+	var across: Vector2 = Vector2(-along.y, along.x) * r
+	draw_line(a + across, b + across, color, w)
+	draw_line(a - across, b - across, color, w)
+	var start: float = across.angle()
+	draw_arc(a, r, start, start + PI, 10, color, w)
+	draw_arc(b, r, start + PI, start + TAU, 10, color, w)
+
+
 func _draw_labels() -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	if _terminal_box():
+		var names: PackedStringArray = motor.get_terminal_names()
+		var ends: PackedStringArray = ["W2", "U2", "V2"]
+		for i: int in 3:
+			var x: float = i * SymbolGeometry.POLE_SPACING * G
+			draw_label(names[i], Vector2(x + 7.0, FEED_ROW - 8.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+			draw_label(ends[i], Vector2(x + 7.0, END_ROW + 10.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label(names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label("Δ" if motor.delta_bridges else "Y", _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+		return
 	var names: PackedStringArray = motor.get_terminal_names()
 	var windings: int = motor.winding_terminal_count()
 	draw_label(names[windings], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
