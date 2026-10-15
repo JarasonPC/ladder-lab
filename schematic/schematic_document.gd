@@ -12,6 +12,9 @@ var horizontal: bool = false
 ## Simulate relays with pick-up and drop-out times (see [Armature]) rather
 ## than instant switching.
 var realistic_timing: bool = true
+## Operator panel: control boxes with the buttons, switches and signal lamps
+## of the circuit (see [ControlBox]).
+var control_boxes: Array[ControlBox] = []
 
 var _placements: Dictionary[String, Placement] = {}
 var _routes: Array[WireRoute] = []
@@ -541,6 +544,9 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 	_placements.erase(old_id)
 	_placements[new_component.id] = p
 	_reroute_component(new_component.id)
+	if new_component.designation != old.designation and circuit.get_component(old.designation) == null:
+		# The last part of the device was renamed: the control panel follows.
+		rename_control_device(old.designation, new_component.designation)
 	return true
 
 
@@ -1013,3 +1019,140 @@ static func _on_segment(cell: Vector2i, a: Vector2i, b: Vector2i) -> bool:
 func _terminal_name(owner: CircuitComponent, key: String) -> String:
 	var keys: PackedStringArray = owner.get_terminal_keys()
 	return owner.get_terminal_names()[keys.find(key)]
+
+
+# --- Control panel -------------------------------------------------------------
+
+## Adds an empty control box at the end of the panel.
+func add_control_box(title: String = "", columns: int = 1) -> ControlBox:
+	var box: ControlBox = ControlBox.new(title, columns)
+	control_boxes.append(box)
+	return box
+
+
+## Adds a control box with every push button, switch and signal lamp that is
+## not on the panel yet: buttons that only break (stop) red, other buttons
+## green, switches black, lamps green. Returns null when there is none.
+func add_control_box_for_all() -> ControlBox:
+	var items: Array[ControlBoxItem] = []
+	var listed: Dictionary[String, bool] = control_panel_devices()
+	var breaks_only: Dictionary[String, bool] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if c is PushButton:
+			var nc: bool = (c as PushButton).contact_type == SwitchingElement.ContactType.NC
+			breaks_only[c.designation] = breaks_only.get(c.designation, true) and nc
+	for kind: int in [ControlBoxItem.Kind.BUTTON, ControlBoxItem.Kind.SWITCH, ControlBoxItem.Kind.LAMP]:
+		for designation: String in control_devices(kind):
+			if listed.has(designation):
+				continue
+			var color: String = ControlBoxItem.default_color(kind as ControlBoxItem.Kind)
+			if kind == ControlBoxItem.Kind.BUTTON and breaks_only.get(designation, false):
+				color = "red"
+			var item: ControlBoxItem = ControlBoxItem.new(kind as ControlBoxItem.Kind, designation, color)
+			var device: CircuitComponent = circuit.get_component(designation)
+			if device is Lamp:
+				item.label = (device as Lamp).purpose
+			items.append(item)
+	if items.is_empty():
+		return null
+	var box: ControlBox = add_control_box("", 1 if items.size() <= 4 else 2)
+	box.items = items
+	return box
+
+
+func remove_control_box(index: int) -> void:
+	if index >= 0 and index < control_boxes.size():
+		control_boxes.remove_at(index)
+
+
+## Moves control box [param index] by [param delta] places (clamped).
+func move_control_box(index: int, delta: int) -> void:
+	if index < 0 or index >= control_boxes.size():
+		return
+	var box: ControlBox = control_boxes[index]
+	control_boxes.remove_at(index)
+	control_boxes.insert(clampi(index + delta, 0, control_boxes.size()), box)
+
+
+## Sets the text on a control box and how many items it has per row.
+func set_control_box(index: int, title: String, columns: int) -> void:
+	if index >= 0 and index < control_boxes.size():
+		control_boxes[index].title = title.strip_edges()
+		control_boxes[index].columns = columns
+
+
+## Adds a [param kind] item to control box [param box_index], showing the
+## first device of that kind not on the panel yet (or no device). Returns it.
+func add_control_item(box_index: int, kind: ControlBoxItem.Kind) -> ControlBoxItem:
+	if box_index < 0 or box_index >= control_boxes.size():
+		return null
+	var designation: String = ""
+	var listed: Dictionary[String, bool] = control_panel_devices()
+	for candidate: String in control_devices(kind):
+		if not listed.has(candidate):
+			designation = candidate
+			break
+	var item: ControlBoxItem = ControlBoxItem.new(kind, designation)
+	control_boxes[box_index].items.append(item)
+	return item
+
+
+func remove_control_item(box_index: int, item_index: int) -> void:
+	if _has_control_item(box_index, item_index):
+		control_boxes[box_index].items.remove_at(item_index)
+
+
+## Moves an item by [param delta] places within its box (clamped).
+func move_control_item(box_index: int, item_index: int, delta: int) -> void:
+	if not _has_control_item(box_index, item_index):
+		return
+	var items: Array[ControlBoxItem] = control_boxes[box_index].items
+	var item: ControlBoxItem = items[item_index]
+	items.remove_at(item_index)
+	items.insert(clampi(item_index + delta, 0, items.size()), item)
+
+
+## Replaces an item by one made from [method ControlBoxItem.to_data] data.
+## Returns false when the data is malformed.
+func set_control_item(box_index: int, item_index: int, data: Dictionary) -> bool:
+	var item: ControlBoxItem = ControlBoxItem.from_data(data)
+	if item == null or not _has_control_item(box_index, item_index):
+		return false
+	control_boxes[box_index].items[item_index] = item
+	return true
+
+
+## Designations of the devices that can be shown as [param kind] items, in
+## the order they were added to the circuit (each device once).
+func control_devices(kind: int) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for c: CircuitComponent in circuit.get_components():
+		if ControlBoxItem.kind_of(c) == kind and not result.has(c.designation):
+			result.append(c.designation)
+	return result
+
+
+## Points every control panel item (and lamp under one) showing device
+## [param old_designation] to [param new_designation].
+func rename_control_device(old_designation: String, new_designation: String) -> void:
+	for box: ControlBox in control_boxes:
+		for item: ControlBoxItem in box.items:
+			if item.designation == old_designation:
+				item.designation = new_designation
+			if item.lamp == old_designation:
+				item.lamp = new_designation
+
+
+func _has_control_item(box_index: int, item_index: int) -> bool:
+	return box_index >= 0 and box_index < control_boxes.size() and item_index >= 0 and item_index < control_boxes[box_index].items.size()
+
+
+## Designations already shown on the panel (items and lamps under them).
+func control_panel_devices() -> Dictionary[String, bool]:
+	var listed: Dictionary[String, bool] = {}
+	for box: ControlBox in control_boxes:
+		for item: ControlBoxItem in box.items:
+			listed[item.designation] = true
+			if not item.lamp.is_empty():
+				listed[item.lamp] = true
+	return listed

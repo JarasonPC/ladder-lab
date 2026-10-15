@@ -809,3 +809,118 @@ msgstr ""
 
 msgid "Drag to look back, wheel zooms"
 msgstr ""
+
+msgid "Show the control panel: boxes with the push buttons, switches and signal lamps"
+msgstr ""
+
+msgid "Control panel"
+msgstr ""
+
+msgid "No control boxes yet. Add a box and put the push buttons, switches and signal lamps of the schematic on it."
+msgstr ""
+
+msgid "No control boxes yet. Add them in Edit mode."
+msgstr ""
+
+msgid "Add box"
+msgstr ""
+
+msgid "Add an empty control box"
+msgstr ""
+
+msgid "Box with all devices"
+msgstr ""
+
+msgid "Add a control box with every push button, switch and signal lamp that is not on the panel yet"
+msgstr ""
+
+msgid "Text on the box"
+msgstr ""
+
+msgid "Items in a row"
+msgstr ""
+
+msgid "Move the box up"
+msgstr ""
+
+msgid "Delete the box"
+msgstr ""
+
+msgid "Button"
+msgstr ""
+
+msgid "Switch"
+msgstr ""
+
+msgid "Add a push button"
+msgstr ""
+
+msgid "Add a switch"
+msgstr ""
+
+msgid "Add a signal lamp"
+msgstr ""
+
+msgid "Push button"
+msgstr ""
+
+msgid "Signal lamp"
+msgstr ""
+
+msgid "Device"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+#, c-format
+msgid "%s (not in the schematic)"
+msgstr ""
+
+msgid "no device chosen"
+msgstr ""
+
+msgid "not in the schematic"
+msgstr ""
+
+msgid "Empty"
+msgstr ""
+
+msgid "Text on the plate"
+msgstr ""
+
+msgid "Colour"
+msgstr ""
+
+msgid "Green"
+msgstr ""
+
+msgid "Red"
+msgstr ""
+
+msgid "Black"
+msgstr ""
+
+msgid "White"
+msgstr ""
+
+msgid "Yellow"
+msgstr ""
+
+msgid "Blue"
+msgstr ""
+
+msgid "Signal lamp under it"
+msgstr ""
+
+msgid "Lamp colour"
+msgstr ""
+
+msgid "Move it one place back"
+msgstr ""
+
+msgid "Move it one place on"
+msgstr ""
+
+msgid "Remove"
+msgstr ""

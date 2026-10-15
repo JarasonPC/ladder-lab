@@ -39,7 +39,13 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 			if offsets[0] != Vector2.ZERO or offsets[1] != Vector2.ZERO:
 				wd["number_offsets"] = [[offsets[0].x, offsets[0].y], [offsets[1].x, offsets[1].y]]
 		wires.append(wd)
-	return {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "components": components, "wires": wires}
+	var result: Dictionary = {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "components": components, "wires": wires}
+	if not doc.control_boxes.is_empty():
+		var boxes: Array[Dictionary] = []
+		for box: ControlBox in doc.control_boxes:
+			boxes.append(box.to_data())
+		result["control_boxes"] = boxes
+	return result
 
 
 ## Builds a document, or returns null if the data is malformed (unknown
@@ -86,6 +92,13 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 				var o: Variant = raw_offsets[end]
 				if o is Array and (o as Array).size() == 2 and (o[0] is float or o[0] is int) and (o[1] is float or o[1] is int):
 					route.number_offsets[end] = Vector2(float(o[0]), float(o[1]))
+	# Control boxes are only design data around the circuit: malformed ones are left out.
+	var raw_boxes: Variant = d.get("control_boxes", [])
+	if raw_boxes is Array:
+		for bd: Variant in raw_boxes:
+			var box: ControlBox = ControlBox.from_data(bd)
+			if box != null:
+				doc.control_boxes.append(box)
 	return doc
 
 

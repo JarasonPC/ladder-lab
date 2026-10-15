@@ -8,6 +8,8 @@ signal stepped(result: StepResult)
 ## Something was operated or a fault changed outside the simulation step
 ## (English text with %s placeholders, see [member StepResult.events]).
 signal event_logged(text: String, args: Array)
+## A document was loaded (for simulating or for editing).
+signal loaded
 
 enum FaultId { WELDED, CONTACT_OPEN, COIL_OPEN, COIL_STUCK, OVERLOAD, WIRE_BROKEN, CLEAR, CLEAR_ALL }
 
@@ -62,6 +64,7 @@ func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 		_apply(simulator.step())
 	else:
 		_apply(StepResult.new())
+	loaded.emit()
 
 
 ## Recreates all symbol nodes, e.g. after the document was edited.
@@ -218,6 +221,28 @@ func _unhandled_input(event: InputEvent) -> void:
 			_held = null
 			_apply(simulator.step())
 			get_viewport().set_input_as_handled()
+
+
+## Presses or releases push button [param designation] (all its blocks), as
+## from a control box of the operator panel.
+func hold_button(designation: String, pressed: bool) -> void:
+	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	if not simulating or not (c is PushButton):
+		return
+	if pressed:
+		(c as PushButton).press()
+	else:
+		(c as PushButton).release()
+	_apply(simulator.step())
+
+
+## Turns switch [param designation] over, as from a control box.
+func toggle_switch(designation: String) -> void:
+	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	if not simulating or not (c is LatchingSwitch):
+		return
+	(c as LatchingSwitch).toggle()
+	_apply(simulator.step())
 
 
 ## Replaces a blown fuse, switches a breaker, resets a tripped overload relay.
