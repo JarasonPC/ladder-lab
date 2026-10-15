@@ -260,3 +260,19 @@ func test_three_phase_parts_from_the_palette() -> void:
 	data["conductor"] = "L3"
 	assert_eq(editor.apply_properties("L2", data), "")
 	assert_true(doc.circuit.has_component_id("L3.2"), "a second L3 point")
+
+
+func test_one_coil_entry_named_by_kind() -> void:
+	_place({"type": "coil"}, Vector2i(5, 4))
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_coil("KM1"), "a new coil is a contactor KM")
+	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_coil("KM1"))
+	data["kind"] = "relay"
+	assert_eq(editor.apply_properties("KM1", data), "")
+	assert_not_null(doc.circuit.get_coil("KA1"), "turned into a relay it becomes KA")
+	assert_eq(doc.circuit.get_coil("KA1").kind, Coil.Kind.RELAY)
+	_place({"type": "contact", "contact": "NO"}, Vector2i(9, 4))
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_coil("KA1"))
+	data["kind"] = "contactor"
+	assert_eq(editor.apply_properties("KA1", data), "")
+	assert_not_null(doc.circuit.get_coil("KA1"), "with a contact on it the name stays")

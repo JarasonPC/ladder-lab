@@ -78,6 +78,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "junction"
 	elif c is Fuse:
 		d["type"] = "fuse"
+		if (c as Fuse).holder:
+			d["holder"] = true
 	elif c is CircuitBreaker:
 		d["type"] = "breaker"
 	elif c is OverloadContact:
@@ -96,6 +98,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "main_contacts"
 	elif c is ThreePoleFuse:
 		d["type"] = "fuse3"
+		if (c as ThreePoleFuse).holder:
+			d["holder"] = true
 	elif c is MotorBreaker:
 		d["type"] = "breaker3"
 	elif c is ThreePhaseMotor:
@@ -178,7 +182,9 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"changeover":
 			return ChangeoverContact.new(designation, sequence, bool(d.get("delayed", false)))
 		"fuse":
-			return Fuse.new(designation)
+			var fuse: Fuse = Fuse.new(designation)
+			fuse.holder = bool(d.get("holder", false))
+			return fuse
 		"breaker":
 			return CircuitBreaker.new(designation)
 		"overload_relay":
@@ -186,7 +192,9 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"main_contacts":
 			return MainContacts.new(designation)
 		"fuse3":
-			return ThreePoleFuse.new(designation)
+			var fuse3: ThreePoleFuse = ThreePoleFuse.new(designation)
+			fuse3.holder = bool(d.get("holder", false))
+			return fuse3
 		"breaker3":
 			return MotorBreaker.new(designation)
 		"motor3":

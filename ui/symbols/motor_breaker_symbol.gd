@@ -4,8 +4,8 @@ extends SchematicSymbol
 ## at the fixed contact), poles joined by a dashed link to the manual
 ## actuator. Click to switch it; a trip shows in the warning colour.
 
-const FIXED_END := Vector2(0, 20)
-const PIVOT := Vector2(0, 40)
+const PIVOT := Vector2(0, 20)
+const FIXED_END := Vector2(0, 40)
 
 
 func is_interactive() -> bool:
@@ -24,16 +24,16 @@ func _draw_shape(_color: Color, _width: float) -> void:
 		var x: Vector2 = Vector2(pole_x(pole), 0)
 		var top: int = pole * 2
 		var bottom: int = top + 1
-		draw_line(x, x + FIXED_END, lead_color(top), lead_width(top))
-		draw_line(x + Vector2(0, 3 * G), x + PIVOT, lead_color(bottom), lead_width(bottom))
+		draw_line(x, x + PIVOT, lead_color(top), lead_width(top))
+		draw_line(x + Vector2(0, 3 * G), x + FIXED_END, lead_color(bottom), lead_width(bottom))
 		var s: float = 4.0
-		var cross: Color = lead_color(top)
+		var cross: Color = lead_color(bottom)
 		var f: Vector2 = x + FIXED_END
 		draw_line(f + Vector2(-s, -s), f + Vector2(s, s), cross, SchematicTheme.LINE_WIDTH)
 		draw_line(f + Vector2(-s, s), f + Vector2(s, -s), cross, SchematicTheme.LINE_WIDTH)
-		var tip: Vector2 = x + (Vector2(-3, 20) if closed else Vector2(-13, 18))
-		var blade: Color = SchematicTheme.WARNING if breaker.tripped else lead_color(bottom)
-		draw_line(x + PIVOT, tip, blade, lead_width(bottom))
+		var tip: Vector2 = x + (Vector2(-3, 40) if closed else Vector2(-13, 42))
+		var blade: Color = SchematicTheme.WARNING if breaker.tripped else lead_color(top)
+		draw_line(x + PIVOT, tip, blade, lead_width(top))
 		middles.append((x + PIVOT).lerp(tip, 0.5))
 	var head_x: float = -26.0
 	var y: float = middles[0].y

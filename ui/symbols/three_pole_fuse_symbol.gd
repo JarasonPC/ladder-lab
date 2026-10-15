@@ -2,17 +2,26 @@ class_name ThreePoleFuseSymbol
 extends SchematicSymbol
 ## Three fuses (IEC 60617 S00362) side by side. Each pole blows on its own and
 ## shows the conductor broken with a cross; click to replace the blown ones.
+## A three-pole fuse holder draws each pole as a blade carrying its fuse,
+## joined by a dashed link; click it to open or close it.
 
 const BOX := Rect2(-6, 14, 12, 32)
 
 
 func is_interactive() -> bool:
-	return (component as ThreePoleFuse).any_blown()
+	return (component as ThreePoleFuse).any_blown() or (component as ThreePoleFuse).holder
 
 
 func _draw_shape(_color: Color, width: float) -> void:
 	var color: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
 	var fuse: ThreePoleFuse = component as ThreePoleFuse
+	if fuse.holder:
+		var middles: PackedVector2Array = PackedVector2Array()
+		for pole: int in 3:
+			middles.append(FuseSymbol._draw_holder(self, Vector2(pole_x(pole), 0), pole * 2, pole * 2 + 1, fuse.switched_on, fuse.blown[pole] == 1, color, width))
+		var link: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
+		draw_dashed_line(Vector2(middles[0].x - 14.0, middles[0].y), middles[2] - Vector2(5, 0), link, 1.5, 3.0)
+		return
 	for pole: int in 3:
 		var x: Vector2 = Vector2(pole_x(pole), 0)
 		var top: int = pole * 2

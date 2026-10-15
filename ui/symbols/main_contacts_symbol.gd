@@ -2,12 +2,14 @@ class_name MainContactsSymbol
 extends SchematicSymbol
 ## Three main contacts of a contactor (IEC 60617 S00284: NO contact with the
 ## contactor semicircle on the fixed contact), joined by a dashed mechanical
-## link. Drawn where the armature is, so they visibly move.
+## link, drawn like the guide: each blade pivots at the top terminal (1, 3, 5)
+## and stands off to the left of the fixed contact below it (2, 4, 6). Drawn
+## where the armature is, so the blades visibly move.
 
-const FIXED_END := Vector2(0, 20)
-const PIVOT := Vector2(0, 40)
-const OPEN_TIP := Vector2(-13, 18)
-const CLOSED_TIP := Vector2(-3, 20)
+const PIVOT := Vector2(0, 20)
+const FIXED_END := Vector2(0, 40)
+const OPEN_TIP := Vector2(-13, 42)
+const CLOSED_TIP := Vector2(-3, 40)
 
 
 func _designation_anchor() -> Vector2:
@@ -23,13 +25,13 @@ func _draw_shape(_color: Color, _width: float) -> void:
 		var closed: bool = contacts.is_path_closed(pole)
 		var top: int = pole * 2
 		var bottom: int = top + 1
-		draw_line(x, x + FIXED_END, lead_color(top), lead_width(top))
-		draw_arc(x + FIXED_END + Vector2(0, 4), 4.0, -PI * 0.5, PI * 0.5, 8, lead_color(top), SchematicTheme.LINE_WIDTH * 0.75)
-		draw_line(x + Vector2(0, 3 * G), x + PIVOT, lead_color(bottom), lead_width(bottom))
+		draw_line(x, x + PIVOT, lead_color(top), lead_width(top))
+		draw_line(x + Vector2(0, 3 * G), x + FIXED_END, lead_color(bottom), lead_width(bottom))
+		draw_arc(x + FIXED_END - Vector2(0, 4), 4.0, -PI * 0.5, PI * 0.5, 8, lead_color(bottom), SchematicTheme.LINE_WIDTH * 0.75)
 		var tip: Vector2 = CLOSED_TIP if closed else OPEN_TIP.lerp(CLOSED_TIP, minf(travel, 0.85))
 		if contacts.fault == SwitchingElement.Fault.OPEN:
 			tip = OPEN_TIP
-		draw_line(x + PIVOT, x + tip, lead_color(bottom), lead_width(bottom))
+		draw_line(x + PIVOT, x + tip, lead_color(top), lead_width(top))
 		middles.append(x + PIVOT.lerp(tip, 0.5))
 	# The link is insulated from the contacts: never live.
 	var link: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE

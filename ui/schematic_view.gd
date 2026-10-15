@@ -29,6 +29,7 @@ var sim_time: float:
 		return simulator.time if simulator != null else 0.0
 
 var _wire_layer: WireLayer
+var _grid_visible: bool = false
 var _symbols: Dictionary[String, SchematicSymbol] = {}
 var _held: PushButton = null
 var _hovered: SchematicSymbol = null
@@ -69,6 +70,7 @@ func rebuild() -> void:
 	_symbols.clear()
 	_held = null
 	_wire_layer = WireLayer.new()
+	_wire_layer.show_grid = _grid_visible
 	add_child(_wire_layer)
 	_wire_layer.set_document(document)
 	for c: CircuitComponent in document.circuit.get_components():
@@ -83,6 +85,14 @@ func get_symbol(component_id: String) -> SchematicSymbol:
 
 
 ## Call after placements changed (e.g. the document was transposed).
+## Shows or hides the dot grid behind the drawing.
+func set_grid_visible(on: bool) -> void:
+	_grid_visible = on
+	if _wire_layer != null:
+		_wire_layer.show_grid = on
+		_wire_layer.queue_redraw()
+
+
 func refresh_layout() -> void:
 	for id: String in _symbols:
 		_symbols[id].update_position()
@@ -185,20 +195,30 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Returns false if nothing happened.
 func _operate_protection(c: CircuitComponent) -> bool:
 	if c is Fuse:
-		if not (c as Fuse).tripped:
+		var fuse: Fuse = c as Fuse
+		if fuse.tripped:
+			fuse.reset()
+			event_logged.emit("%s replaced", [c.designation])
+		elif fuse.holder:
+			fuse.toggle()
+			event_logged.emit("%s switched on" if fuse.switched_on else "%s switched off", [c.designation])
+		else:
 			return false
-		(c as Fuse).reset()
-		event_logged.emit("%s replaced", [c.designation])
 	elif c is CircuitBreaker:
 		var breaker: CircuitBreaker = c as CircuitBreaker
 		var was_tripped: bool = breaker.tripped
 		breaker.toggle()
 		event_logged.emit("%s reset" if was_tripped else ("%s switched on" if breaker.switched_on else "%s switched off"), [c.designation])
 	elif c is ThreePoleFuse:
-		if not (c as ThreePoleFuse).any_blown():
+		var fuse3: ThreePoleFuse = c as ThreePoleFuse
+		if fuse3.any_blown():
+			fuse3.reset()
+			event_logged.emit("%s replaced", [c.designation])
+		elif fuse3.holder:
+			fuse3.toggle()
+			event_logged.emit("%s switched on" if fuse3.switched_on else "%s switched off", [c.designation])
+		else:
 			return false
-		(c as ThreePoleFuse).reset()
-		event_logged.emit("%s replaced", [c.designation])
 	elif c is MotorBreaker:
 		var motor_breaker: MotorBreaker = c as MotorBreaker
 		var breaker_tripped: bool = motor_breaker.tripped

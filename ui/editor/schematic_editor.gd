@@ -110,6 +110,8 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 			return false
 	if (template["type"] == "contact" or template["type"] == "changeover") and d.get("delayed", false) != template.get("delayed", false):
 		return false
+	if d.get("holder", false) != template.get("holder", false):
+		return false
 	return true
 
 
@@ -231,6 +233,17 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 		if new_kind != coil.kind and is_equal_approx(coil.pick_up_time, Coil.DEFAULT_PICK_UP[coil.kind]) and is_equal_approx(coil.drop_out_time, Coil.DEFAULT_DROP_OUT[coil.kind]):
 			data.erase("pick_up")
 			data.erase("drop_out")
+		# A KM coil turned into a relay becomes KA (and back), as long as no
+		# contacts carry its designation yet (they would lose their coil).
+		var old_prefix: String = "KA" if coil.kind == Coil.Kind.RELAY else "KM"
+		var new_prefix: String = "KA" if new_kind == Coil.Kind.RELAY else "KM"
+		if new_kind != coil.kind and not (old is TimerRelay) and data["designation"] == old.designation and SchematicDocument._designation_prefix(old.designation) == old_prefix:
+			var shared: bool = false
+			for c: CircuitComponent in doc.circuit.get_components():
+				if c != old and c.designation == old.designation:
+					shared = true
+			if not shared:
+				data["designation"] = doc.next_designation(new_prefix)
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if replacement == null:
 		return tr("Terminal names must all be different, without spaces or colons.")
