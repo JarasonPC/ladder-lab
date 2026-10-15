@@ -24,18 +24,18 @@ func _lamp(doc: SchematicDocument, id: String) -> bool:
 	return (doc.circuit.get_component(id) as Lamp).energized
 
 
-## L - S1 - K1 coil - N; K1 13-14 lights H1, K1 21-22 lights H2.
+## L - S1 - KM1 coil - N; KM1 13-14 lights H1, KM1 21-22 lights H2.
 func _changeover_doc() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new()
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(0, 0))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(0, 20))
 	doc.add(LatchingSwitch.new("S1", NO), Vector2i(2, 2))
-	doc.add(Coil.new("K1"), Vector2i(2, 8))
-	doc.add(Contact.new("K1", NO, 1), Vector2i(6, 2))
+	doc.add(Coil.new("KM1"), Vector2i(2, 8))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(6, 2))
 	doc.add(Lamp.new("H1"), Vector2i(6, 8))
-	doc.add(Contact.new("K1", NC, 2), Vector2i(10, 2))
+	doc.add(Contact.new("KM1", NC, 2), Vector2i(10, 2))
 	doc.add(Lamp.new("H2"), Vector2i(10, 8))
-	for pair: Array in [["L", "S1:13"], ["S1:14", "K1:A1"], ["K1:A2", "N"], ["L", "K1:13"], ["K1:14", "H1:X1"], ["H1:X2", "N"], ["L", "K1:21"], ["K1:22", "H2:X1"], ["H2:X2", "N"]]:
+	for pair: Array in [["L", "S1:13"], ["S1:14", "KM1:A1"], ["KM1:A2", "N"], ["L", "KM1:13"], ["KM1:14", "H1:X1"], ["H1:X2", "N"], ["L", "KM1:21"], ["KM1:22", "H2:X1"], ["H2:X2", "N"]]:
 		doc.connect_terminals(pair[0], pair[1])
 	return doc
 
@@ -45,10 +45,10 @@ func test_ideal_is_the_solver_default() -> void:
 
 
 func test_tolerance_is_fixed_per_designation_and_within_5_percent() -> void:
-	var a: Coil = Coil.new("K1")
-	assert_eq(a.timing_factor(), Coil.new("K1").timing_factor())
-	assert_ne(a.timing_factor(), Coil.new("K2").timing_factor())
-	for name: String in ["K1", "K2", "K3", "KT1", "K10"]:
+	var a: Coil = Coil.new("KM1")
+	assert_eq(a.timing_factor(), Coil.new("KM1").timing_factor())
+	assert_ne(a.timing_factor(), Coil.new("KM2").timing_factor())
+	for name: String in ["KM1", "KM2", "KM3", "KT1", "K10"]:
 		var f: float = Coil.new(name).timing_factor()
 		assert_between(f, 0.95, 1.05)
 	assert_almost_eq(a.armature.pick_up_time, 0.020 * a.timing_factor(), 1e-9)
@@ -58,12 +58,12 @@ func test_tolerance_is_fixed_per_designation_and_within_5_percent() -> void:
 func test_nc_breaks_before_no_makes() -> void:
 	var doc: SchematicDocument = _changeover_doc()
 	var sim: Simulator = _sim(doc)
-	var t_up: float = (doc.circuit.get_coil("K1") as Coil).armature.pick_up_time
+	var t_up: float = (doc.circuit.get_coil("KM1") as Coil).armature.pick_up_time
 	sim.step()
 	assert_true(_lamp(doc, "H2"), "NC closed at rest")
 	(doc.circuit.get_component("S1") as LatchingSwitch).set_switched_on(true)
 	sim.step(2.0 * Armature.MIN_TIME)
-	assert_true(doc.circuit.get_coil("K1").energized, "coil gets power once the snap-action switch has moved")
+	assert_true(doc.circuit.get_coil("KM1").energized, "coil gets power once the snap-action switch has moved")
 	sim.step(Armature.NC_BREAK * t_up * 0.9)
 	assert_true(_lamp(doc, "H2"), "NC still closed early in the travel")
 	assert_false(_lamp(doc, "H1"))
@@ -78,7 +78,7 @@ func test_nc_breaks_before_no_makes() -> void:
 func test_release_opens_no_before_nc_closes() -> void:
 	var doc: SchematicDocument = _changeover_doc()
 	var sim: Simulator = _sim(doc)
-	var t_down: float = (doc.circuit.get_coil("K1") as Coil).armature.drop_out_time
+	var t_down: float = (doc.circuit.get_coil("KM1") as Coil).armature.drop_out_time
 	(doc.circuit.get_component("S1") as LatchingSwitch).set_switched_on(true)
 	_run(sim, 0.1)
 	(doc.circuit.get_component("S1") as LatchingSwitch).set_switched_on(false)
@@ -94,7 +94,7 @@ func test_self_holding_needs_full_pick_up() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
 	var sim: Simulator = _sim(doc)
 	var start: PushButton = doc.circuit.get_component("S1") as PushButton
-	var k1: Coil = doc.circuit.get_coil("K1")
+	var k1: Coil = doc.circuit.get_coil("KM1")
 	start.press()
 	_run(sim, 0.005, 0.001)
 	start.release()
@@ -115,8 +115,8 @@ func test_forward_reverse_race_has_one_winner() -> void:
 	(doc.circuit.get_component("S1") as PushButton).press()
 	(doc.circuit.get_component("S2") as PushButton).press()
 	var r: StepResult = _run(sim, 0.2)
-	var k1: Coil = doc.circuit.get_coil("K1")
-	var k2: Coil = doc.circuit.get_coil("K2")
+	var k1: Coil = doc.circuit.get_coil("KM1")
+	var k2: Coil = doc.circuit.get_coil("KM2")
 	assert_ne(k1.energized, k2.energized, "exactly one contactor wins")
 	assert_false(r.is_oscillating())
 	var faster: Coil = k1 if k1.armature.pick_up_time < k2.armature.pick_up_time else k2
@@ -128,10 +128,10 @@ func test_self_cutoff_chatters_at_expected_rate() -> void:
 	var sim: Simulator = _sim(doc)
 	(doc.circuit.get_component("S1") as PushButton).press()
 	var r: StepResult = _run(sim, 0.6)
-	assert_eq(r.oscillating_tags, PackedStringArray(["K1"]))
-	var a: Armature = doc.circuit.get_coil("K1").armature
+	assert_eq(r.oscillating_tags, PackedStringArray(["KM1"]))
+	var a: Armature = doc.circuit.get_coil("KM1").armature
 	var period: float = (Armature.NC_BREAK - Armature.NC_REMAKE) * (a.pick_up_time + a.drop_out_time)
-	assert_almost_eq(r.chatter_hz["K1"], 1.0 / period, 1.0 / period * 0.1)
+	assert_almost_eq(r.chatter_hz["KM1"], 1.0 / period, 1.0 / period * 0.1)
 	assert_lt(r.iterations, sim.max_events)
 
 
@@ -148,17 +148,17 @@ func test_on_delay_adds_output_pick_up() -> void:
 
 
 func test_brief_short_is_logged() -> void:
-	# A fast relay K1 makes its NO before contactor K2 has broken its NC:
-	# L - K1:13-14 - K2:21-22 - N is closed for a few milliseconds.
+	# A fast relay KM1 makes its NO before contactor KM2 has broken its NC:
+	# L - KM1:13-14 - KM2:21-22 - N is closed for a few milliseconds.
 	var doc: SchematicDocument = SchematicDocument.new()
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(0, 0))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(0, 30))
 	var s1: LatchingSwitch = doc.add(LatchingSwitch.new("S1", NO), Vector2i(2, 2)) as LatchingSwitch
-	doc.add(Coil.new("K1", Coil.Kind.RELAY, 0.002, 0.002), Vector2i(2, 8))
-	doc.add(Coil.new("K2", Coil.Kind.CONTACTOR, 0.030, 0.015), Vector2i(6, 8))
-	doc.add(Contact.new("K1", NO, 1), Vector2i(10, 2))
-	doc.add(Contact.new("K2", NC, 1), Vector2i(10, 8))
-	for pair: Array in [["L", "S1:13"], ["S1:14", "K1:A1"], ["S1:14", "K2:A1"], ["K1:A2", "N"], ["K2:A2", "N"], ["L", "K1:13"], ["K1:14", "K2:11"], ["K2:12", "N"]]:
+	doc.add(Coil.new("KM1", Coil.Kind.RELAY, 0.002, 0.002), Vector2i(2, 8))
+	doc.add(Coil.new("KM2", Coil.Kind.CONTACTOR, 0.030, 0.015), Vector2i(6, 8))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(10, 2))
+	doc.add(Contact.new("KM2", NC, 1), Vector2i(10, 8))
+	for pair: Array in [["L", "S1:13"], ["S1:14", "KM1:A1"], ["S1:14", "KM2:A1"], ["KM1:A2", "N"], ["KM2:A2", "N"], ["L", "KM1:13"], ["KM1:14", "KM2:11"], ["KM2:12", "N"]]:
 		doc.connect_terminals(pair[0], pair[1])
 	var sim: Simulator = _sim(doc)
 	sim.step()
@@ -180,10 +180,10 @@ func test_events_and_trace() -> void:
 	for i: int in 10:
 		for e: Dictionary in sim.step(0.01).events:
 			texts.append(e["text"] % e["args"])
-	assert_has(texts, "K1 pulled in")
-	var t_up: float = doc.circuit.get_coil("K1").armature.pick_up_time
-	assert_almost_eq(sim.trace.value_at("K1/armature", t_up * 0.5, true), 0.5, 0.01, "armature position is linear in time")
-	assert_eq(sim.trace.value_at("K1", 0.005), 1.0)
+	assert_has(texts, "KM1 pulled in")
+	var t_up: float = doc.circuit.get_coil("KM1").armature.pick_up_time
+	assert_almost_eq(sim.trace.value_at("KM1/armature", t_up * 0.5, true), 0.5, 0.01, "armature position is linear in time")
+	assert_eq(sim.trace.value_at("KM1", 0.005), 1.0)
 	assert_eq(sim.trace.value_at("H1", t_up * 0.5), 0.0)
 	assert_eq(sim.trace.value_at("H1", t_up * 1.01), 1.0)
 

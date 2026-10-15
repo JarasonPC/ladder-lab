@@ -52,9 +52,9 @@ func test_version_1_files_load_with_default_times() -> void:
 func test_switching_times_and_mode_are_saved() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
 	doc.realistic_timing = false
-	doc.replace_component("K1", Coil.new("K1", Coil.Kind.CONTACTOR, 0.035, 0.025))
+	doc.replace_component("KM1", Coil.new("KM1", Coil.Kind.CONTACTOR, 0.035, 0.025))
 	ProjectFile.save(doc, PATH)
 	var copy: SchematicDocument = ProjectFile.load_file(PATH)["document"]
 	assert_false(copy.realistic_timing)
-	assert_almost_eq(copy.circuit.get_coil("K1").pick_up_time, 0.035, 1e-9)
-	assert_almost_eq(copy.circuit.get_coil("K1").drop_out_time, 0.025, 1e-9)
+	assert_almost_eq(copy.circuit.get_coil("KM1").pick_up_time, 0.035, 1e-9)
+	assert_almost_eq(copy.circuit.get_coil("KM1").drop_out_time, 0.025, 1e-9)

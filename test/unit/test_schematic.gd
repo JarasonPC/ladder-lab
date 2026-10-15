@@ -42,8 +42,8 @@ func test_rotated_body_hit() -> void:
 func test_component_at() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
 	assert_eq(doc.component_at(Vector2(5.0, 13.5)).id, "S1:13-14")
-	assert_eq(doc.component_at(Vector2(8.0, 13.5)).id, "K1:13-14")
-	assert_eq(doc.component_at(Vector2(5.0, 18.5)).id, "K1")
+	assert_eq(doc.component_at(Vector2(8.0, 13.5)).id, "KM1:13-14")
+	assert_eq(doc.component_at(Vector2(5.0, 18.5)).id, "KM1")
 	assert_null(doc.component_at(Vector2(0.0, 0.0)))
 
 
@@ -93,16 +93,16 @@ func test_wires_do_not_cross_symbol_bodies() -> void:
 
 
 func test_mixed_horizontal_and_vertical_symbols() -> void:
-	# S1 lies horizontally (turned and mirrored), K1 stands vertically.
+	# S1 lies horizontally (turned and mirrored), KM1 stands vertically.
 	var doc: SchematicDocument = SchematicDocument.new()
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, 6))
 	var s1: PushButton = doc.add(PushButton.new("S1", SwitchingElement.ContactType.NO), Vector2i(4, 1), 3, true) as PushButton
-	var k1: Coil = doc.add(Coil.new("K1"), Vector2i(9, 1)) as Coil
+	var k1: Coil = doc.add(Coil.new("KM1"), Vector2i(9, 1)) as Coil
 	assert_eq(doc.terminal_cell("S1:14"), Vector2i(7, 1))
 	assert_true(doc.connect_terminals("L", "S1:13"))
-	assert_true(doc.connect_terminals("S1:14", "K1:A1"))
-	assert_true(doc.connect_terminals("K1:A2", "N", [Vector2i(9, 6)] as Array[Vector2i]))
+	assert_true(doc.connect_terminals("S1:14", "KM1:A1"))
+	assert_true(doc.connect_terminals("KM1:A2", "N", [Vector2i(9, 6)] as Array[Vector2i]))
 	var sim: Simulator = Simulator.new(doc.circuit)
 	s1.press()
 	var r: StepResult = sim.step()

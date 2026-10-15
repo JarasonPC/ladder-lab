@@ -85,31 +85,31 @@ static func _control_fuse(doc: SchematicDocument, n_row: int) -> void:
 	doc.connect_terminals("L", "F1:1", _c([Vector2i(5, 1)]))
 
 
-## L - F1 - S0 - S1 (K1 13-14 in parallel) - K1; K1 23-24 switches H1.
+## L - F1 - S0 - S1 (KM1 13-14 in parallel) - KM1; KM1 23-24 switches H1.
 static func self_holding() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[0])
 	_control_fuse(doc, 22)
 	doc.add(PushButton.new("S0", NC), Vector2i(5, 7))
 	doc.add(PushButton.new("S1", NO), Vector2i(5, 12))
-	doc.add(Contact.new("K1", NO, 1), Vector2i(8, 12))
-	doc.add(Coil.new("K1"), Vector2i(5, 17))
-	doc.add(Contact.new("K1", NO, 2), Vector2i(12, 12))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(8, 12))
+	doc.add(Coil.new("KM1"), Vector2i(5, 17))
+	doc.add(Contact.new("KM1", NO, 2), Vector2i(12, 12))
 	doc.add(_lamp("H1", "Running"), Vector2i(12, 17))
 
 	doc.connect_terminals("F1:2", "S0:11")
 	doc.connect_terminals("S0:12", "S1:13")
-	doc.connect_terminals("S0:12", "K1:13", _c([Vector2i(5, 11), Vector2i(8, 11)]))
-	doc.connect_terminals("S1:14", "K1:14", _c([Vector2i(5, 16), Vector2i(8, 16)]))
-	doc.connect_terminals("S1:14", "K1:A1")
-	doc.connect_terminals("K1:A2", "N", _c([Vector2i(5, 22)]))
-	doc.connect_terminals("F1:2", "K1:23", _c([Vector2i(5, 6), Vector2i(12, 6)]))
-	doc.connect_terminals("K1:24", "H1:X1")
+	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(5, 11), Vector2i(8, 11)]))
+	doc.connect_terminals("S1:14", "KM1:14", _c([Vector2i(5, 16), Vector2i(8, 16)]))
+	doc.connect_terminals("S1:14", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(5, 22)]))
+	doc.connect_terminals("F1:2", "KM1:23", _c([Vector2i(5, 6), Vector2i(12, 6)]))
+	doc.connect_terminals("KM1:24", "H1:X1")
 	doc.connect_terminals("H1:X2", "N", _c([Vector2i(12, 22)]))
 	return doc
 
 
 ## Two self-holding branches, each fed through an NC contact of the other
-## contactor (electrical interlock); K1 33-34 lights H1 (forward), K2 33-34
+## contactor (electrical interlock); KM1 33-34 lights H1 (forward), KM2 33-34
 ## lights H2 (reverse). The motor itself is in the three-phase examples.
 static func forward_reverse() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[1])
@@ -117,38 +117,38 @@ static func forward_reverse() -> SchematicDocument:
 	doc.add(PushButton.new("S0", NC), Vector2i(5, 7))
 	doc.add(PushButton.new("S1", NO), Vector2i(5, 12))
 	doc.add(PushButton.new("S2", NO), Vector2i(13, 12))
-	doc.add(Contact.new("K1", NO, 1), Vector2i(8, 12))
-	doc.add(Contact.new("K1", NC, 2), Vector2i(13, 17))
-	doc.add(Contact.new("K1", NO, 3), Vector2i(21, 12))
-	doc.add(Contact.new("K2", NO, 1), Vector2i(16, 12))
-	doc.add(Contact.new("K2", NC, 2), Vector2i(5, 17))
-	doc.add(Contact.new("K2", NO, 3), Vector2i(28, 12))
-	doc.add(Coil.new("K1"), Vector2i(5, 22))
-	doc.add(Coil.new("K2"), Vector2i(13, 22))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(8, 12))
+	doc.add(Contact.new("KM1", NC, 2), Vector2i(13, 17))
+	doc.add(Contact.new("KM1", NO, 3), Vector2i(21, 12))
+	doc.add(Contact.new("KM2", NO, 1), Vector2i(16, 12))
+	doc.add(Contact.new("KM2", NC, 2), Vector2i(5, 17))
+	doc.add(Contact.new("KM2", NO, 3), Vector2i(28, 12))
+	doc.add(Coil.new("KM1"), Vector2i(5, 22))
+	doc.add(Coil.new("KM2"), Vector2i(13, 22))
 	doc.add(_lamp("H1", "Forward"), Vector2i(21, 17))
 	doc.add(_lamp("H2", "Reverse"), Vector2i(28, 17))
 
 	doc.connect_terminals("F1:2", "S0:11")
 	# Forward.
 	doc.connect_terminals("S0:12", "S1:13")
-	doc.connect_terminals("S0:12", "K1:13", _c([Vector2i(5, 11), Vector2i(8, 11)]))
-	doc.connect_terminals("S1:14", "K1:14", _c([Vector2i(5, 16), Vector2i(8, 16)]))
-	doc.connect_terminals("S1:14", "K2:21")
-	doc.connect_terminals("K2:22", "K1:A1")
-	doc.connect_terminals("K1:A2", "N", _c([Vector2i(5, 27)]))
+	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(5, 11), Vector2i(8, 11)]))
+	doc.connect_terminals("S1:14", "KM1:14", _c([Vector2i(5, 16), Vector2i(8, 16)]))
+	doc.connect_terminals("S1:14", "KM2:21")
+	doc.connect_terminals("KM2:22", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(5, 27)]))
 	# Reverse.
 	doc.connect_terminals("S0:12", "S2:13", _c([Vector2i(5, 11), Vector2i(13, 11)]))
-	doc.connect_terminals("S0:12", "K2:13", _c([Vector2i(5, 11), Vector2i(16, 11)]))
-	doc.connect_terminals("S2:14", "K2:14", _c([Vector2i(13, 16), Vector2i(16, 16)]))
-	doc.connect_terminals("S2:14", "K1:21")
-	doc.connect_terminals("K1:22", "K2:A1")
-	doc.connect_terminals("K2:A2", "N", _c([Vector2i(13, 27)]))
+	doc.connect_terminals("S0:12", "KM2:13", _c([Vector2i(5, 11), Vector2i(16, 11)]))
+	doc.connect_terminals("S2:14", "KM2:14", _c([Vector2i(13, 16), Vector2i(16, 16)]))
+	doc.connect_terminals("S2:14", "KM1:21")
+	doc.connect_terminals("KM1:22", "KM2:A1")
+	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(13, 27)]))
 	# Signal lamps.
-	doc.connect_terminals("F1:2", "K1:33", _c([Vector2i(5, 6), Vector2i(21, 6)]))
-	doc.connect_terminals("F1:2", "K2:33", _c([Vector2i(5, 6), Vector2i(28, 6)]))
-	doc.connect_terminals("K1:34", "H1:X1")
+	doc.connect_terminals("F1:2", "KM1:33", _c([Vector2i(5, 6), Vector2i(21, 6)]))
+	doc.connect_terminals("F1:2", "KM2:33", _c([Vector2i(5, 6), Vector2i(28, 6)]))
+	doc.connect_terminals("KM1:34", "H1:X1")
 	doc.connect_terminals("H1:X2", "N", _c([Vector2i(21, 27)]))
-	doc.connect_terminals("K2:34", "H2:X1")
+	doc.connect_terminals("KM2:34", "H2:X1")
 	doc.connect_terminals("H2:X2", "N", _c([Vector2i(28, 27)]))
 	return doc
 
@@ -182,18 +182,18 @@ static func time_relays() -> SchematicDocument:
 	return doc
 
 
-## S1 feeds K1 through its own NC contact: K1 cuts itself off.
+## S1 feeds KM1 through its own NC contact: KM1 cuts itself off.
 static func self_cutoff() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[3])
 	_control_fuse(doc, 22)
 	doc.add(PushButton.new("S1", NO), Vector2i(5, 7))
-	doc.add(Contact.new("K1", NC, 1), Vector2i(5, 12))
-	doc.add(Coil.new("K1"), Vector2i(5, 17))
+	doc.add(Contact.new("KM1", NC, 1), Vector2i(5, 12))
+	doc.add(Coil.new("KM1"), Vector2i(5, 17))
 
 	doc.connect_terminals("F1:2", "S1:13")
-	doc.connect_terminals("S1:14", "K1:11")
-	doc.connect_terminals("K1:12", "K1:A1")
-	doc.connect_terminals("K1:A2", "N", _c([Vector2i(5, 22)]))
+	doc.connect_terminals("S1:14", "KM1:11")
+	doc.connect_terminals("KM1:12", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(5, 22)]))
 	return doc
 
 
@@ -266,42 +266,42 @@ static func forward_reverse_buttons() -> SchematicDocument:
 	doc.add(PushButton.new("S0", NC), Vector2i(5, 7))
 	doc.add(PushButton.new("S1", NO, 1), Vector2i(5, 12))
 	doc.add(PushButton.new("S2", NC, 2), Vector2i(5, 17))
-	doc.add(Contact.new("K2", NC, 2), Vector2i(5, 22))
-	doc.add(Coil.new("K1"), Vector2i(5, 27))
-	doc.add(Contact.new("K1", NO, 1), Vector2i(8, 12))
+	doc.add(Contact.new("KM2", NC, 2), Vector2i(5, 22))
+	doc.add(Coil.new("KM1"), Vector2i(5, 27))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(8, 12))
 	doc.add(PushButton.new("S2", NO, 1), Vector2i(13, 12))
 	doc.add(PushButton.new("S1", NC, 2), Vector2i(13, 17))
-	doc.add(Contact.new("K1", NC, 2), Vector2i(13, 22))
-	doc.add(Coil.new("K2"), Vector2i(13, 27))
-	doc.add(Contact.new("K2", NO, 1), Vector2i(16, 12))
-	doc.add(Contact.new("K1", NO, 3), Vector2i(21, 12))
-	doc.add(Contact.new("K2", NO, 3), Vector2i(28, 12))
+	doc.add(Contact.new("KM1", NC, 2), Vector2i(13, 22))
+	doc.add(Coil.new("KM2"), Vector2i(13, 27))
+	doc.add(Contact.new("KM2", NO, 1), Vector2i(16, 12))
+	doc.add(Contact.new("KM1", NO, 3), Vector2i(21, 12))
+	doc.add(Contact.new("KM2", NO, 3), Vector2i(28, 12))
 	doc.add(_lamp("H1", "Forward"), Vector2i(21, 17))
 	doc.add(_lamp("H2", "Reverse"), Vector2i(28, 17))
 
 	doc.connect_terminals("F1:2", "S0:11")
 	doc.connect_terminals("S0:12", "S1:13")
-	doc.connect_terminals("S0:12", "K1:13", _c([Vector2i(5, 11), Vector2i(8, 11)]))
+	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(5, 11), Vector2i(8, 11)]))
 	doc.connect_terminals("S0:12", "S2:13", _c([Vector2i(5, 11), Vector2i(13, 11)]))
-	doc.connect_terminals("S0:12", "K2:13", _c([Vector2i(5, 11), Vector2i(16, 11)]))
-	# Forward: S1 (or K1 holding), then S2's NC block and K2's NC contact.
-	doc.connect_terminals("S1:14", "K1:14", _c([Vector2i(5, 16), Vector2i(8, 16)]))
+	doc.connect_terminals("S0:12", "KM2:13", _c([Vector2i(5, 11), Vector2i(16, 11)]))
+	# Forward: S1 (or KM1 holding), then S2's NC block and KM2's NC contact.
+	doc.connect_terminals("S1:14", "KM1:14", _c([Vector2i(5, 16), Vector2i(8, 16)]))
 	doc.connect_terminals("S1:14", "S2:21")
-	doc.connect_terminals("S2:22", "K2:21")
-	doc.connect_terminals("K2:22", "K1:A1")
-	doc.connect_terminals("K1:A2", "N", _c([Vector2i(5, 32)]))
-	# Reverse: S2 (or K2 holding), then S1's NC block and K1's NC contact.
-	doc.connect_terminals("S2:14", "K2:14", _c([Vector2i(13, 16), Vector2i(16, 16)]))
+	doc.connect_terminals("S2:22", "KM2:21")
+	doc.connect_terminals("KM2:22", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(5, 32)]))
+	# Reverse: S2 (or KM2 holding), then S1's NC block and KM1's NC contact.
+	doc.connect_terminals("S2:14", "KM2:14", _c([Vector2i(13, 16), Vector2i(16, 16)]))
 	doc.connect_terminals("S2:14", "S1:21")
-	doc.connect_terminals("S1:22", "K1:21")
-	doc.connect_terminals("K1:22", "K2:A1")
-	doc.connect_terminals("K2:A2", "N", _c([Vector2i(13, 32)]))
+	doc.connect_terminals("S1:22", "KM1:21")
+	doc.connect_terminals("KM1:22", "KM2:A1")
+	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(13, 32)]))
 	# Signal lamps.
-	doc.connect_terminals("F1:2", "K1:33", _c([Vector2i(5, 6), Vector2i(21, 6)]))
-	doc.connect_terminals("F1:2", "K2:33", _c([Vector2i(5, 6), Vector2i(28, 6)]))
-	doc.connect_terminals("K1:34", "H1:X1")
+	doc.connect_terminals("F1:2", "KM1:33", _c([Vector2i(5, 6), Vector2i(21, 6)]))
+	doc.connect_terminals("F1:2", "KM2:33", _c([Vector2i(5, 6), Vector2i(28, 6)]))
+	doc.connect_terminals("KM1:34", "H1:X1")
 	doc.connect_terminals("H1:X2", "N", _c([Vector2i(21, 32)]))
-	doc.connect_terminals("K2:34", "H2:X1")
+	doc.connect_terminals("KM2:34", "H2:X1")
 	doc.connect_terminals("H2:X2", "N", _c([Vector2i(28, 32)]))
 	return doc
 
@@ -423,70 +423,70 @@ static func _two_way_control(doc: SchematicDocument, x: int, top: int, feed: Str
 	doc.connect_terminals(b + ":A2", "N", _c([Vector2i(xb, n_row), Vector2i(x, n_row)]))
 
 
-## Direct-on-line start: F1 - K1 - overload relay F2 - M1; S0 / S1 with K1 13-14
+## Direct-on-line start: F1 - KM1 - overload relay F2 - M1; S0 / S1 with KM1 13-14
 ## holding in the control circuit. Signal lamps as on page 40 of the guide:
-## H1 control voltage on, H2 overload tripped (F2 97-98), H3 running (K1 23-24,
+## H1 control voltage on, H2 overload tripped (F2 97-98), H3 running (KM1 23-24,
 ## a contact of the contactor itself, so a broken coil shows as not running).
 static func direct_on_line() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[7])
 	doc.add(ThreePoleFuse.new("F1"), Vector2i(5, 2))
 	_phases(doc, 5)
-	doc.add(MainContacts.new("K1"), Vector2i(5, 7))
+	doc.add(MainContacts.new("KM1"), Vector2i(5, 7))
 	doc.add(OverloadRelay.new("F2", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 12))
 	doc.add(ThreePhaseMotor.new("M1"), Vector2i(5, 17))
-	_straight(doc, "F1", "K1", POLES)
-	_straight(doc, "K1", "F2", POLES)
+	_straight(doc, "F1", "KM1", POLES)
+	_straight(doc, "KM1", "F2", POLES)
 	_straight(doc, "F2", "M1", ["U1", "V1", "W1"])
 
 	var x: int = 16
 	var feed: String = _control_head(doc, x, "F3", ["F2"])
 	doc.add(PushButton.new("S0", NC), Vector2i(x, 12))
 	doc.add(PushButton.new("S1", NO), Vector2i(x, 17))
-	doc.add(Contact.new("K1", NO, 1), Vector2i(x + 3, 17))
-	doc.add(Coil.new("K1"), Vector2i(x, 22))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 3, 17))
+	doc.add(Coil.new("KM1"), Vector2i(x, 22))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(x - 3, 27))
 	doc.connect_terminals(feed, "S0:11")
 	doc.connect_terminals("S0:12", "S1:13")
-	doc.connect_terminals("S0:12", "K1:13", _c([Vector2i(x, 16), Vector2i(x + 3, 16)]))
-	doc.connect_terminals("S1:14", "K1:14")
-	doc.connect_terminals("S1:14", "K1:A1")
-	doc.connect_terminals("K1:A2", "N", _c([Vector2i(x, 27)]))
+	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(x, 16), Vector2i(x + 3, 16)]))
+	doc.connect_terminals("S1:14", "KM1:14")
+	doc.connect_terminals("S1:14", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(x, 27)]))
 	# Signal lamps, fed after the control fuse.
 	doc.add(_lamp("H1", "Voltage on"), Vector2i(24, 22))
 	doc.add(OverloadContact.new("F2", NO), Vector2i(31, 7))
 	doc.add(_lamp("H2", "Fault"), Vector2i(31, 22))
-	doc.add(Contact.new("K1", NO, 2), Vector2i(38, 17))
+	doc.add(Contact.new("KM1", NO, 2), Vector2i(38, 17))
 	doc.add(_lamp("H3", "Running"), Vector2i(38, 22))
 	doc.connect_terminals("F3:2", "H1:X1", _c([Vector2i(x, 6), Vector2i(24, 6)]))
 	doc.connect_terminals("F3:2", "F2:97", _c([Vector2i(x, 6), Vector2i(31, 6)]))
 	doc.connect_terminals("F2:98", "H2:X1")
-	doc.connect_terminals("F3:2", "K1:23", _c([Vector2i(x, 6), Vector2i(38, 6)]))
-	doc.connect_terminals("K1:24", "H3:X1")
+	doc.connect_terminals("F3:2", "KM1:23", _c([Vector2i(x, 6), Vector2i(38, 6)]))
+	doc.connect_terminals("KM1:24", "H3:X1")
 	for lamp: Array in [["H1", 24], ["H2", 31], ["H3", 38]]:
 		doc.connect_terminals(lamp[0] + ":X2", "N", _c([Vector2i(lamp[1], 27)]))
 	return doc
 
 
-## Forward/reverse: K1 feeds the motor L1-L2-L3, K2 with L1 and L3 swapped;
+## Forward/reverse: KM1 feeds the motor L1-L2-L3, KM2 with L1 and L3 swapped;
 ## the contactors are interlocked by each other's 21-22.
 static func forward_reverse_3() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[8])
 	doc.add(ThreePoleFuse.new("F1"), Vector2i(5, 2))
 	_phases(doc, 5)
-	doc.add(MainContacts.new("K1"), Vector2i(5, 10))
-	doc.add(MainContacts.new("K2"), Vector2i(13, 10))
+	doc.add(MainContacts.new("KM1"), Vector2i(5, 10))
+	doc.add(MainContacts.new("KM2"), Vector2i(13, 10))
 	doc.add(OverloadRelay.new("F2", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 18))
 	doc.add(ThreePhaseMotor.new("M1"), Vector2i(5, 24))
-	_straight(doc, "F1", "K1", POLES)
-	_branch(doc, "F1", "K2", 7)
-	_straight(doc, "K1", "F2", POLES)
-	# K2 swaps L1 and L3.
-	doc.connect_terminals("K2:2", "F2:5", _c([Vector2i(13, 15), Vector2i(9, 15)]))
-	doc.connect_terminals("K2:4", "F2:3", _c([Vector2i(15, 16), Vector2i(7, 16)]))
-	doc.connect_terminals("K2:6", "F2:1", _c([Vector2i(17, 17), Vector2i(5, 17)]))
+	_straight(doc, "F1", "KM1", POLES)
+	_branch(doc, "F1", "KM2", 7)
+	_straight(doc, "KM1", "F2", POLES)
+	# KM2 swaps L1 and L3.
+	doc.connect_terminals("KM2:2", "F2:5", _c([Vector2i(13, 15), Vector2i(9, 15)]))
+	doc.connect_terminals("KM2:4", "F2:3", _c([Vector2i(15, 16), Vector2i(7, 16)]))
+	doc.connect_terminals("KM2:6", "F2:1", _c([Vector2i(17, 17), Vector2i(5, 17)]))
 	_straight(doc, "F2", "M1", ["U1", "V1", "W1"])
 	var feed: String = _control_head(doc, 24, "F3", ["F2"])
-	_two_way_control(doc, 24, 12, feed, "K1", "K2", 32, "S0", "S1", "S2", false)
+	_two_way_control(doc, 24, 12, feed, "KM1", "KM2", 32, "S0", "S1", "S2", false)
 	return doc
 
 
@@ -542,77 +542,77 @@ static func star_delta_3() -> SchematicDocument:
 
 
 ## Power part shared by the two-speed motors, as on page 47 of the guide:
-## F1, then K1 - overload relay F2 - 1U-1V-1W (low speed, from above) and
-## K2 - overload relay F3 - 2U-2V-2W (high speed, from below). Each speed has
+## F1, then KM1 - overload relay F2 - 1U-1V-1W (low speed, from above) and
+## KM2 - overload relay F3 - 2U-2V-2W (high speed, from below). Each speed has
 ## its own overload relay, set to the current of that speed.
 static func _two_speed_power(doc: SchematicDocument, kind: ThreePhaseMotor.Kind) -> void:
 	doc.add(ThreePoleFuse.new("F1"), Vector2i(5, 2))
 	_phases(doc, 5)
-	doc.add(MainContacts.new("K1"), Vector2i(5, 11))
-	doc.add(MainContacts.new("K2"), Vector2i(13, 11))
+	doc.add(MainContacts.new("KM1"), Vector2i(5, 11))
+	doc.add(MainContacts.new("KM2"), Vector2i(13, 11))
 	doc.add(OverloadRelay.new("F2", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 16))
 	doc.add(OverloadRelay.new("F3", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(13, 16))
 	doc.add(ThreePhaseMotor.new("M1", kind), Vector2i(5, 23))
-	_straight(doc, "F1", "K1", POLES)
-	_branch(doc, "F1", "K2", 7)
-	_straight(doc, "K1", "F2", POLES)
-	_straight(doc, "K2", "F3", POLES)
+	_straight(doc, "F1", "KM1", POLES)
+	_branch(doc, "F1", "KM2", 7)
+	_straight(doc, "KM1", "F2", POLES)
+	_straight(doc, "KM2", "F3", POLES)
 	_straight(doc, "F2", "M1", ["1U", "1V", "1W"])
 	_from_below(doc, "F3", ["2U", "2V", "2W"], 30)
 
 
-## Dahlander: low speed K1 feeds 1U-1V-1W (delta); high speed K3 joins
-## 1U-1V-1W (star point) and K2 feeds 2U-2V-2W (double star). S1 starts low
-## speed; S2 starts K3, whose 13-14 then switches K2 on, so the motor never
-## gets high speed without its star point. K3 21-22 keeps K1 off while the
-## star point is closed, K1 21-22 keeps K3 off. Control fuse F4, then the
+## Dahlander: low speed KM1 feeds 1U-1V-1W (delta); high speed KM3 joins
+## 1U-1V-1W (star point) and KM2 feeds 2U-2V-2W (double star). S1 starts low
+## speed; S2 starts KM3, whose 13-14 then switches KM2 on, so the motor never
+## gets high speed without its star point. KM3 21-22 keeps KM1 off while the
+## star point is closed, KM1 21-22 keeps KM3 off. Control fuse F4, then the
 ## 95-96 of both overload relays.
 static func dahlander() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[10])
 	_two_speed_power(doc, ThreePhaseMotor.Kind.DAHLANDER)
-	doc.add(MainContacts.new("K3"), Vector2i(21, 24))
+	doc.add(MainContacts.new("KM3"), Vector2i(21, 24))
 	for i: int in 3:
 		var a: String = "F2:" + POLE_OUTS[i]
 		var x: int = doc.terminal_cell(a).x
-		doc.connect_terminals(a, "K3:" + POLES[i], _c([Vector2i(x, 20 + i), Vector2i(21 + 2 * i, 20 + i)]))
-	_star_bridge(doc, "K3")
+		doc.connect_terminals(a, "KM3:" + POLES[i], _c([Vector2i(x, 20 + i), Vector2i(21 + 2 * i, 20 + i)]))
+	_star_bridge(doc, "KM3")
 
 	var x: int = 32
 	var xb: int = x + 7
 	var feed: String = _control_head(doc, x, "F4", ["F2", "F3"])
 	doc.add(PushButton.new("S0", NC), Vector2i(x, 17))
 	doc.add(PushButton.new("S1", NO), Vector2i(x, 22))
-	doc.add(Contact.new("K1", NO, 1), Vector2i(x + 3, 22))
-	doc.add(Contact.new("K3", NC, 2), Vector2i(x, 27))
-	doc.add(Coil.new("K1"), Vector2i(x, 32))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 3, 22))
+	doc.add(Contact.new("KM3", NC, 2), Vector2i(x, 27))
+	doc.add(Coil.new("KM1"), Vector2i(x, 32))
 	doc.add(PushButton.new("S2", NO), Vector2i(xb, 22))
-	doc.add(Contact.new("K2", NO, 1), Vector2i(xb + 3, 22))
-	doc.add(Contact.new("K1", NC, 2), Vector2i(xb, 27))
-	doc.add(Coil.new("K3"), Vector2i(xb, 32))
-	doc.add(Contact.new("K3", NO, 1), Vector2i(xb + 7, 27))
-	doc.add(Coil.new("K2"), Vector2i(xb + 7, 32))
+	doc.add(Contact.new("KM2", NO, 1), Vector2i(xb + 3, 22))
+	doc.add(Contact.new("KM1", NC, 2), Vector2i(xb, 27))
+	doc.add(Coil.new("KM3"), Vector2i(xb, 32))
+	doc.add(Contact.new("KM3", NO, 1), Vector2i(xb + 7, 27))
+	doc.add(Coil.new("KM2"), Vector2i(xb + 7, 32))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(x - 3, 38))
 	doc.connect_terminals(feed, "S0:11")
 	doc.connect_terminals("S0:12", "S1:13")
-	doc.connect_terminals("S0:12", "K1:13", _c([Vector2i(x, 21), Vector2i(x + 3, 21)]))
+	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(x, 21), Vector2i(x + 3, 21)]))
 	doc.connect_terminals("S0:12", "S2:13", _c([Vector2i(x, 21), Vector2i(xb, 21)]))
-	doc.connect_terminals("S0:12", "K2:13", _c([Vector2i(x, 21), Vector2i(xb + 3, 21)]))
-	doc.connect_terminals("S1:14", "K1:14")
-	doc.connect_terminals("S1:14", "K3:21")
-	doc.connect_terminals("K3:22", "K1:A1")
-	doc.connect_terminals("K1:A2", "N", _c([Vector2i(x, 38)]))
-	doc.connect_terminals("S2:14", "K2:14")
-	doc.connect_terminals("S2:14", "K1:21")
-	doc.connect_terminals("K1:22", "K3:A1")
-	doc.connect_terminals("K3:A2", "N", _c([Vector2i(xb, 38), Vector2i(x, 38)]))
-	doc.connect_terminals("K2:14", "K3:13", _c([Vector2i(xb + 3, 26), Vector2i(xb + 7, 26)]))
-	doc.connect_terminals("K3:14", "K2:A1")
-	doc.connect_terminals("K2:A2", "N", _c([Vector2i(xb + 7, 38), Vector2i(x, 38)]))
+	doc.connect_terminals("S0:12", "KM2:13", _c([Vector2i(x, 21), Vector2i(xb + 3, 21)]))
+	doc.connect_terminals("S1:14", "KM1:14")
+	doc.connect_terminals("S1:14", "KM3:21")
+	doc.connect_terminals("KM3:22", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(x, 38)]))
+	doc.connect_terminals("S2:14", "KM2:14")
+	doc.connect_terminals("S2:14", "KM1:21")
+	doc.connect_terminals("KM1:22", "KM3:A1")
+	doc.connect_terminals("KM3:A2", "N", _c([Vector2i(xb, 38), Vector2i(x, 38)]))
+	doc.connect_terminals("KM2:14", "KM3:13", _c([Vector2i(xb + 3, 26), Vector2i(xb + 7, 26)]))
+	doc.connect_terminals("KM3:14", "KM2:A1")
+	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(xb + 7, 38), Vector2i(x, 38)]))
 	return doc
 
 
-## Two separate windings, as on page 47 of the guide: K1 feeds the low-speed
-## winding 1U-1V-1W, K2 the high-speed winding 2U-2V-2W. S1 stops, S2 starts
+## Two separate windings, as on page 47 of the guide: KM1 feeds the low-speed
+## winding 1U-1V-1W, KM2 the high-speed winding 2U-2V-2W. S1 stops, S2 starts
 ## low speed, S3 high speed; each start button has an NC block 11-12 in the
 ## other branch and each contactor an NC 21-22 there (button and contactor
 ## interlock), so switching speed works without STOP.
@@ -620,5 +620,5 @@ static func two_windings() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[11])
 	_two_speed_power(doc, ThreePhaseMotor.Kind.TWO_WINDINGS)
 	var feed: String = _control_head(doc, 24, "F4", ["F2", "F3"])
-	_two_way_control(doc, 24, 17, feed, "K1", "K2", 42, "S1", "S2", "S3", true)
+	_two_way_control(doc, 24, 17, feed, "KM1", "KM2", 42, "S1", "S2", "S3", true)
 	return doc

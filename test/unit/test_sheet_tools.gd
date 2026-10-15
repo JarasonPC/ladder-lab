@@ -7,7 +7,7 @@ const NC := SwitchingElement.ContactType.NC
 
 func test_current_paths_vertical_and_horizontal() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_eq(doc.current_paths(), PackedFloat32Array([5.0, 8.0, 12.0]), "S0, S1 and K1 share path 1")
+	assert_eq(doc.current_paths(), PackedFloat32Array([5.0, 8.0, 12.0]), "S0, S1 and KM1 share path 1")
 	doc.transpose()
 	assert_eq(doc.current_paths().size(), 3, "rows when horizontal")
 
@@ -16,16 +16,16 @@ func test_check_finds_problems() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(0, 0))
 	doc.add(Contact.new("K9", NO, 1), Vector2i(3, 1))
-	doc.add(Coil.new("K1"), Vector2i(6, 1))
+	doc.add(Coil.new("KM1"), Vector2i(6, 1))
 	doc.add(TimerRelay.new("KT1", TimerRelay.Mode.ON_DELAY, 1.0), Vector2i(9, 1))
-	doc.add(Contact.new("K1", NO, 1, true), Vector2i(12, 1))
+	doc.add(Contact.new("KM1", NO, 1, true), Vector2i(12, 1))
 	doc.add(Contact.new("KT1", NO, 1, true), Vector2i(15, 1))
 	doc.connect_terminals("L", "K9:13")
 	var texts: PackedStringArray = PackedStringArray()
 	for issue: Dictionary in CircuitCheck.run(doc):
 		texts.append(issue["text"] % issue["args"])
 	assert_has(texts, "Contact K9:13-14 has no coil K9.")
-	assert_has(texts, "Delayed contact K1:17-18 belongs to K1, which is not a timer.")
+	assert_has(texts, "Delayed contact KM1:17-18 belongs to KM1, which is not a timer.")
 	assert_has(texts, "Terminal K9:14 is not connected.")
 	assert_does_not_have(texts, "Terminal K9:13 is not connected.")
 	assert_does_not_have(texts, "Coil KT1 has no contacts.")
@@ -41,19 +41,19 @@ func test_examples_pass_the_check() -> void:
 
 func test_paste_renames_coil_with_its_contacts() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	var data: Dictionary = doc.extract(PackedStringArray(["S1:13-14", "K1:13-14", "K1"]))
+	var data: Dictionary = doc.extract(PackedStringArray(["S1:13-14", "KM1:13-14", "KM1"]))
 	assert_eq(data["wires"].size(), 2, "only wires between copied parts")
 	var ids: PackedStringArray = doc.insert(data, Vector2i(20, 0))
-	assert_eq(ids, PackedStringArray(["S2:13-14", "K2:13-14", "K2"]))
-	assert_eq(doc.get_placement("K2").cell, Vector2i(25, 17))
+	assert_eq(ids, PackedStringArray(["S2:13-14", "KM2:13-14", "KM2"]))
+	assert_eq(doc.get_placement("KM2").cell, Vector2i(25, 17))
 	assert_eq(doc.get_wire_count(), 12)
-	assert_eq((doc.circuit.get_component("K2:13-14") as Contact).linked_coil, doc.circuit.get_coil("K2"))
+	assert_eq((doc.circuit.get_component("KM2:13-14") as Contact).linked_coil, doc.circuit.get_coil("KM2"))
 
 
 func test_paste_contact_without_coil_gets_free_number() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	var ids: PackedStringArray = doc.insert(doc.extract(PackedStringArray(["K1:13-14"])), Vector2i(0, 10))
-	assert_eq(ids, PackedStringArray(["K1:33-34"]), "stays with K1, next contact number")
+	var ids: PackedStringArray = doc.insert(doc.extract(PackedStringArray(["KM1:13-14"])), Vector2i(0, 10))
+	assert_eq(ids, PackedStringArray(["KM1:33-34"]), "stays with KM1, next contact number")
 
 
 func test_paste_supply_and_junction() -> void:

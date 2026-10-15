@@ -589,9 +589,9 @@ func _new_designation(data: Dictionary) -> String:
 				if picked is Coil and not (picked is TimerRelay):
 					return picked.designation
 			for c: CircuitComponent in doc.circuit.get_components():
-				if c is Coil and not (c is TimerRelay):
+				if c is Coil and not (c is TimerRelay) and (c as Coil).kind == Coil.Kind.CONTACTOR:
 					return c.designation
-			return "K1"
+			return "KM1"
 		"overload_contact":
 			for id: String in selected_components:
 				var chosen: CircuitComponent = doc.circuit.get_component(id)
@@ -611,9 +611,10 @@ func _new_designation(data: Dictionary) -> String:
 			for c: CircuitComponent in doc.circuit.get_components():
 				if c is Coil and (c is TimerRelay) == want_timer:
 					return c.designation
-			return "KT1" if want_timer else "K1"
+			return "KT1" if want_timer else "KM1"
 		"coil":
-			return doc.next_designation("K")
+			# Contactor KM, auxiliary (control) relay KA.
+			return doc.next_designation("KA" if data.get("kind", "contactor") == "relay" else "KM")
 		"timer":
 			return doc.next_designation("KT")
 		"lamp":

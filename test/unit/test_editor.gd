@@ -75,8 +75,8 @@ func test_contact_takes_coil_designation_and_next_number() -> void:
 	_place({"type": "contact", "contact": "NO"}, Vector2i(9, 2))
 	_place({"type": "contact", "contact": "NC"}, Vector2i(12, 2))
 	var doc: SchematicDocument = editor.document()
-	assert_not_null(doc.circuit.get_component("K1:13-14"))
-	assert_not_null(doc.circuit.get_component("K1:21-22"))
+	assert_not_null(doc.circuit.get_component("KM1:13-14"))
+	assert_not_null(doc.circuit.get_component("KM1:21-22"))
 
 
 func test_undo_redo_and_delete() -> void:
@@ -161,8 +161,8 @@ func test_change_switch_to_contacts_follows_coils() -> void:
 	_place({"type": "push_button", "contact": "NO"}, Vector2i(5, 2))
 	var doc: SchematicDocument = editor.document()
 	assert_eq(editor.change_type("S1", {"type": "contact", "contact": "NO"}), "")
-	assert_not_null(doc.circuit.get_component("K1:13-14"), "a contact belongs to the coil")
-	assert_eq(editor.change_type("K1:13-14", {"type": "contact", "contact": "NC", "delayed": true}), "")
+	assert_not_null(doc.circuit.get_component("KM1:13-14"), "a contact belongs to the coil")
+	assert_eq(editor.change_type("KM1:13-14", {"type": "contact", "contact": "NC", "delayed": true}), "")
 	var timer_contact: Contact = doc.circuit.get_component("KT1:15-16") as Contact
 	assert_not_null(timer_contact, "a delayed contact moves to the timer")
 	assert_true(timer_contact.linked_coil is TimerRelay)
@@ -198,10 +198,10 @@ func test_rename_and_swap_terminals_in_properties() -> void:
 	_place({"type": "coil", "kind": "relay"}, Vector2i(5, 4))
 	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])
 	var doc: SchematicDocument = editor.document()
-	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("K1"))
+	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("KA1"))
 	data["terminals"] = ["A2", "A1"]
-	assert_eq(editor.apply_properties("K1", data), "")
-	assert_eq(doc.circuit.get_wires()[0][1], "K1:A2", "the wire at the top now ends on A2")
+	assert_eq(editor.apply_properties("KA1", data), "")
+	assert_eq(doc.circuit.get_wires()[0][1], "KA1:A2", "the wire at the top now ends on A2")
 	_place({"type": "push_button", "contact": "NO"}, Vector2i(10, 4))
 	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("S1"))
 	data["terminals"] = ["5", "6"]
@@ -244,11 +244,11 @@ func test_three_phase_parts_from_the_palette() -> void:
 				_place(entry["template"], Vector2i(x, 20))
 		x += 8
 	var doc: SchematicDocument = editor.document()
-	for id: String in ["L2", "L1", "L3", "K1:1-2-3-4-5-6", "F1:1-2-3-4-5-6", "Q1:1-2-3-4-5-6", "F2:1-2-3-4-5-6", "M1", "M2", "M3", "M4", "M5"]:
+	for id: String in ["L2", "L1", "L3", "KM1:1-2-3-4-5-6", "F1:1-2-3-4-5-6", "Q1:1-2-3-4-5-6", "F2:1-2-3-4-5-6", "M1", "M2", "M3", "M4", "M5"]:
 		assert_true(doc.circuit.has_component_id(id), id + " placed")
 	assert_eq((doc.circuit.get_component("L1") as PowerSupply).conductor, PowerSupply.Conductor.L, "L next to L2 is called L1")
 	assert_eq((doc.circuit.get_component("M2") as ThreePhaseMotor).kind, ThreePhaseMotor.Kind.STAR_DELTA)
-	assert_eq((doc.circuit.get_component("K1:1-2-3-4-5-6") as MainContacts).linked_coil, doc.circuit.get_coil("K1"))
+	assert_eq((doc.circuit.get_component("KM1:1-2-3-4-5-6") as MainContacts).linked_coil, doc.circuit.get_coil("KM1"))
 	# Change to: only motor kinds with as many terminals.
 	var titles: Array = SchematicEditor.type_options(doc.circuit.get_component("M2")).map(func(e: Dictionary) -> String: return e["title"])
 	assert_eq(titles, ["Motor 3~ star/delta", "Motor 3~ Dahlander", "Motor 3~ two windings"])
