@@ -12,7 +12,11 @@ func _draw_shape(color: Color, width: float) -> void:
 func _draw_labels() -> void:
 	# Several supply points may share a conductor ("L", "L.2"); show the conductor.
 	var text: String = (component as PowerSupply).conductor_name()
-	draw_label(text, Vector2(-0.6 * G, 0.0), SchematicTheme.LABEL_SIZE + 2, _conductor_color())
+	# Centred above the terminal on screen, so L1, L2, L3 side by side do not overlap.
+	var font: Font = ThemeDB.fallback_font
+	var size: int = SchematicTheme.LABEL_SIZE + 2
+	var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	draw_string(font, Vector2(-w * 0.5, -8.0 - font.get_descent(size)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, _conductor_color())
 
 
 func _conductor_color() -> Color:

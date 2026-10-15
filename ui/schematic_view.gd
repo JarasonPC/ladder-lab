@@ -161,7 +161,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed:
 			var c: CircuitComponent = _component_under_mouse()
-			if c is Fuse or c is CircuitBreaker or c is OverloadRelay or c is OverloadContact:
+			if c is Fuse or c is CircuitBreaker or c is ThreePoleFuse or c is MotorBreaker or c is OverloadRelay or c is OverloadContact:
 				if _operate_protection(c):
 					_apply(simulator.step())
 					get_viewport().set_input_as_handled()
@@ -194,6 +194,16 @@ func _operate_protection(c: CircuitComponent) -> bool:
 		var was_tripped: bool = breaker.tripped
 		breaker.toggle()
 		event_logged.emit("%s reset" if was_tripped else ("%s switched on" if breaker.switched_on else "%s switched off"), [c.designation])
+	elif c is ThreePoleFuse:
+		if not (c as ThreePoleFuse).any_blown():
+			return false
+		(c as ThreePoleFuse).reset()
+		event_logged.emit("%s replaced", [c.designation])
+	elif c is MotorBreaker:
+		var motor_breaker: MotorBreaker = c as MotorBreaker
+		var breaker_tripped: bool = motor_breaker.tripped
+		motor_breaker.toggle()
+		event_logged.emit("%s reset" if breaker_tripped else ("%s switched on" if motor_breaker.switched_on else "%s switched off"), [c.designation])
 	else:
 		var relay: OverloadRelay = document.circuit.get_overload_relay(c.designation)
 		if relay == null or not relay.tripped:
@@ -208,7 +218,7 @@ func _open_fault_menu() -> void:
 	_fault_target = document.component_at(point)
 	_fault_wire = document.wire_at(point) if _fault_target == null else -1
 	_fault_menu.clear()
-	if _fault_target is SwitchingElement and not (_fault_target is ProtectiveDevice) or _fault_target is ChangeoverContact:
+	if _fault_target is SwitchingElement and not (_fault_target is ProtectiveDevice) or _fault_target is ChangeoverContact or _fault_target is MainContacts:
 		_fault_menu.add_item(tr("Contact welded (stays closed)"), FaultId.WELDED)
 		_fault_menu.add_item(tr("Contact burnt (does not close)"), FaultId.CONTACT_OPEN)
 	elif _fault_target is Coil:
@@ -216,6 +226,8 @@ func _open_fault_menu() -> void:
 		_fault_menu.add_item(tr("Armature stuck"), FaultId.COIL_STUCK)
 	elif _fault_target is OverloadRelay:
 		_fault_menu.add_item(tr("Overload"), FaultId.OVERLOAD)
+	elif _fault_target is ThreePhaseMotor:
+		_fault_menu.add_item(tr("Motor overloaded"), FaultId.OVERLOAD)
 	elif _fault_wire >= 0:
 		_fault_menu.add_item(tr("Broken wire"), FaultId.WIRE_BROKEN)
 	if _fault_menu.item_count > 0:
@@ -234,6 +246,8 @@ func _on_fault_menu(id: int) -> void:
 			var fault: SwitchingElement.Fault = SwitchingElement.Fault.WELDED if id == FaultId.WELDED else SwitchingElement.Fault.OPEN
 			if c is ChangeoverContact:
 				(c as ChangeoverContact).fault = fault
+			elif c is MainContacts:
+				(c as MainContacts).fault = fault
 			else:
 				(c as SwitchingElement).fault = fault
 			event_logged.emit("Fault: %s welded" if id == FaultId.WELDED else "Fault: %s burnt", [c.id])
@@ -241,7 +255,10 @@ func _on_fault_menu(id: int) -> void:
 			(c as Coil).fault = Coil.Fault.OPEN if id == FaultId.COIL_OPEN else Coil.Fault.STUCK
 			event_logged.emit("Fault: coil %s broken" if id == FaultId.COIL_OPEN else "Fault: %s armature stuck", [c.designation])
 		FaultId.OVERLOAD:
-			(c as OverloadRelay).overloaded = true
+			if c is ThreePhaseMotor:
+				(c as ThreePhaseMotor).overloaded = true
+			else:
+				(c as OverloadRelay).overloaded = true
 			event_logged.emit("Fault: overload on %s", [c.designation])
 		FaultId.WIRE_BROKEN:
 			document.circuit.set_wire_broken(_fault_wire, true)
@@ -269,8 +286,12 @@ static func _has_fault(c: CircuitComponent) -> bool:
 		return (c as ChangeoverContact).fault != SwitchingElement.Fault.NONE
 	if c is Coil:
 		return (c as Coil).fault != Coil.Fault.NONE
+	if c is MainContacts:
+		return (c as MainContacts).fault != SwitchingElement.Fault.NONE
 	if c is OverloadRelay:
 		return (c as OverloadRelay).overloaded
+	if c is ThreePhaseMotor:
+		return (c as ThreePhaseMotor).overloaded
 	return false
 
 
@@ -281,8 +302,12 @@ static func _clear_fault(c: CircuitComponent) -> void:
 		(c as ChangeoverContact).fault = SwitchingElement.Fault.NONE
 	elif c is Coil:
 		(c as Coil).fault = Coil.Fault.NONE
+	elif c is MainContacts:
+		(c as MainContacts).fault = SwitchingElement.Fault.NONE
 	elif c is OverloadRelay:
 		(c as OverloadRelay).overloaded = false
+	elif c is ThreePhaseMotor:
+		(c as ThreePhaseMotor).overloaded = false
 
 
 func _component_under_mouse() -> CircuitComponent:

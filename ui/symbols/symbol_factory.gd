@@ -5,7 +5,15 @@ extends RefCounted
 
 static func create(component: CircuitComponent, placement: Placement) -> SchematicSymbol:
 	var symbol: SchematicSymbol
-	if component is Fuse:
+	if component is MainContacts:
+		symbol = MainContactsSymbol.new()
+	elif component is ThreePoleFuse:
+		symbol = ThreePoleFuseSymbol.new()
+	elif component is MotorBreaker:
+		symbol = MotorBreakerSymbol.new()
+	elif component is ThreePhaseMotor:
+		symbol = ThreePhaseMotorSymbol.new()
+	elif component is Fuse:
 		symbol = FuseSymbol.new()
 	elif component is CircuitBreaker:
 		symbol = BreakerSymbol.new()

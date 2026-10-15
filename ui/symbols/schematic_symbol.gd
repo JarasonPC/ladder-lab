@@ -112,9 +112,27 @@ func has_fault() -> bool:
 		return (component as ChangeoverContact).fault != SwitchingElement.Fault.NONE
 	if component is Coil:
 		return (component as Coil).fault != Coil.Fault.NONE
+	if component is MainContacts:
+		return (component as MainContacts).fault != SwitchingElement.Fault.NONE
 	if component is OverloadRelay:
 		return (component as OverloadRelay).overloaded
+	if component is ThreePhaseMotor:
+		return (component as ThreePhaseMotor).overloaded
 	return false
+
+
+## Terminal numbers of a three-pole symbol: 1, 3, 5 on top, 2, 4, 6 below.
+func _draw_pole_labels() -> void:
+	var names: PackedStringArray = component.get_terminal_names()
+	for i: int in names.size():
+		var x: float = (i / 2) * SymbolGeometry.POLE_SPACING * G + 0.3 * G
+		var y: float = 0.4 * G if i % 2 == 0 else 2.6 * G
+		draw_label(names[i], Vector2(x, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+
+
+## Local x of pole [param pole] (0-2) of a three-pole symbol.
+static func pole_x(pole: int) -> float:
+	return pole * SymbolGeometry.POLE_SPACING * G
 
 
 ## Small lightning bolt marking an injected fault.

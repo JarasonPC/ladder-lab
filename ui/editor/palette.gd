@@ -9,6 +9,8 @@ signal template_chosen(template: Dictionary)
 const ENTRIES: Array[Dictionary] = [
 	{"title": "L supply", "template": {"type": "supply", "conductor": "L"}},
 	{"title": "N supply", "template": {"type": "supply", "conductor": "N"}},
+	{"title": "L2 supply", "template": {"type": "supply", "conductor": "L2"}},
+	{"title": "L3 supply", "template": {"type": "supply", "conductor": "L3"}},
 	{"title": "Push button NO", "template": {"type": "push_button", "contact": "NO"}},
 	{"title": "Push button NC", "template": {"type": "push_button", "contact": "NC"}},
 	{"title": "Switch NO", "template": {"type": "latching_switch", "contact": "NO"}},
@@ -30,9 +32,20 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Overload relay", "template": {"type": "overload_relay", "trip_delay": 5.0}},
 	{"title": "Overload contact NC", "template": {"type": "overload_contact", "contact": "NC"}},
 	{"title": "Overload contact NO", "template": {"type": "overload_contact", "contact": "NO"}},
+	{"title": "Main contacts", "template": {"type": "main_contacts"}},
+	{"title": "Fuse 3-pole", "template": {"type": "fuse3"}},
+	{"title": "Motor breaker 3-pole", "template": {"type": "breaker3"}},
+	{"title": "Overload relay 3-pole", "template": {"type": "overload_relay", "trip_delay": 5.0, "poles": 3}},
+	{"title": "Motor 3~", "template": {"type": "motor3", "motor_kind": "standard"}},
+	{"title": "Motor 3~ star/delta", "template": {"type": "motor3", "motor_kind": "star_delta"}},
+	{"title": "Motor 3~ Dahlander", "template": {"type": "motor3", "motor_kind": "dahlander"}},
+	{"title": "Motor 3~ two windings", "template": {"type": "motor3", "motor_kind": "two_windings"}},
+	{"title": "Motor 3~ three windings", "template": {"type": "motor3", "motor_kind": "three_windings"}},
 ]
 
 const ICON_SCALE: float = 0.7
+## Three-pole symbols and motors are drawn upright and smaller.
+const LARGE_ICON_SCALE: float = 0.38
 
 var _buttons: Array[Button] = []
 
@@ -66,12 +79,13 @@ func retranslate() -> void:
 ## Draws the symbol lying horizontally at the left of the button.
 func _add_icon(button: Button, template: Dictionary) -> void:
 	var data: Dictionary = template.duplicate()
-	data["designation"] = "L" if data.get("conductor", "") == "L" else ("N" if data.has("conductor") else "X1")
+	data["designation"] = str(data["conductor"]) if data.has("conductor") else "X1"
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
-	var placement: Placement = Placement.new(Vector2i.ZERO, 3, true)
+	var large: bool = component.get_terminal_names().size() > 3 or component is ThreePhaseMotor
+	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if large else Placement.new(Vector2i.ZERO, 3, true)
 	var symbol: SchematicSymbol = SymbolFactory.create(component, placement)
 	symbol.show_labels = false
-	symbol.scale = Vector2(ICON_SCALE, ICON_SCALE)
+	symbol.scale = Vector2.ONE * (LARGE_ICON_SCALE if large else ICON_SCALE)
 	# Symbols are drawn for the light schematic paper, so give them a tile of it.
 	var paper: ColorRect = ColorRect.new()
 	paper.color = SchematicTheme.BACKGROUND
@@ -81,4 +95,6 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	button.add_child(paper)
 	var span: float = SymbolGeometry.SPAN * SymbolGeometry.GRID * ICON_SCALE
 	symbol.position = Vector2(10.0 + (span * 0.5 if component is PowerSupply else 0.0), 23.0)
+	if large:
+		symbol.position = Vector2(14.0, 10.0) if not (component is ThreePhaseMotor) else Vector2(11.0, 6.0)
 	button.add_child(symbol)

@@ -11,10 +11,13 @@
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
 - Device designations: K = relay/contactor, KT = time relay, S = push button/switch,
-  H = lamp, M = motor, supplies L and N
+  H = lamp, M = motor, F = fuse/overload relay, Q = motor breaker, supplies L (= L1), L2, L3 and N
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2
+- Power circuit: three-pole devices (main contacts, fuses, motor breaker, overload relay)
+  1-2/3-4/5-6; 3~ motors U1-V1-W1 (+U2-V2-W2 star/delta), Dahlander and separate windings
+  1U-1V-1W/2U-2V-2W(/3U-3V-3W); phase order L1-L2-L3 on U-V-W = clockwise
 
 ## Layout
 

@@ -47,7 +47,7 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 			_rows.append({"label": c.designation, "band": c.designation, "line": c.designation + "/armature", "step": ""})
 			if c is TimerRelay:
 				_rows.append({"label": c.designation + " ◷", "band": "", "line": c.designation + "/output", "step": ""})
-		elif c is Lamp or c is Motor:
+		elif c is Lamp or c is Motor or c is ThreePhaseMotor:
 			_rows.append({"label": c.designation, "band": "", "line": "", "step": c.designation})
 	custom_minimum_size = Vector2(200, HEADER_HEIGHT + ROW_HEIGHT * maxi(_rows.size(), 1) + 4)
 	follow = true

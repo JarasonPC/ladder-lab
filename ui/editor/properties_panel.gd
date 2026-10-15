@@ -49,7 +49,7 @@ func show_component(component: CircuitComponent) -> void:
 		_box.add_child(type_select)
 	match kind:
 		"supply":
-			_choice(tr("Conductor"), "conductor", ["L", "N"], ["L", "N"])
+			_choice(tr("Conductor"), "conductor", ["L", "L2", "L3", "N"], ["L / L1", "L2", "L3", "N"])
 		"junction":
 			_label(tr("Wire junction"))
 		"push_button", "latching_switch", "contact":
@@ -73,7 +73,7 @@ func show_component(component: CircuitComponent) -> void:
 			_text(tr("Designation"), "designation")
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")
-		"fuse", "breaker":
+		"fuse", "breaker", "fuse3", "breaker3", "main_contacts", "motor3":
 			_text(tr("Designation"), "designation")
 		"overload_relay":
 			_text(tr("Designation"), "designation")

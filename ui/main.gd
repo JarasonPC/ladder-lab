@@ -818,11 +818,28 @@ func _tripped_protection() -> String:
 	for c: CircuitComponent in view.document.circuit.get_components():
 		if c is Fuse and (c as Fuse).tripped:
 			return tr("%s blown – click it to replace the fuse") % c.designation
-		if c is CircuitBreaker and (c as CircuitBreaker).tripped:
+		if c is ThreePoleFuse and (c as ThreePoleFuse).any_blown():
+			return tr("%s blown – click it to replace the fuse") % c.designation
+		if (c is CircuitBreaker and (c as CircuitBreaker).tripped) or (c is MotorBreaker and (c as MotorBreaker).tripped):
 			return tr("%s tripped – click it to switch it on again") % c.designation
 		if c is OverloadRelay and (c as OverloadRelay).tripped:
 			return tr("%s tripped by overload – click it to reset") % c.designation
 	return ""
+
+
+## Motors that lost a phase or are wrongly connected, for the status line.
+func _motor_trouble() -> String:
+	if view.document == null:
+		return ""
+	var parts: PackedStringArray = PackedStringArray()
+	for c: CircuitComponent in view.document.circuit.get_components():
+		if c is ThreePhaseMotor:
+			match (c as ThreePhaseMotor).state:
+				ThreePhaseMotor.State.PHASE_LOSS:
+					parts.append(tr("%s: phase loss – the motor hums and overheats") % c.designation)
+				ThreePhaseMotor.State.MISWIRED:
+					parts.append(tr("%s: windings wrongly connected") % c.designation)
+	return ", ".join(parts)
 
 
 func _on_editor_hint(text: String) -> void:
@@ -853,6 +870,9 @@ func _on_stepped(result: StepResult) -> void:
 	elif not tripped.is_empty():
 		_status_label.text = tripped
 		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
+	elif not _motor_trouble().is_empty():
+		_status_label.text = _motor_trouble()
+		_status_label.add_theme_color_override("font_color", SchematicTheme.FAULT)
 	elif not result.chatter_hz.is_empty():
 		var parts: PackedStringArray = PackedStringArray()
 		for designation: String in result.chatter_hz:

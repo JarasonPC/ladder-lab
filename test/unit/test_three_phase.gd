@@ -1,0 +1,290 @@
+extends GutTest
+## Phase 7: three-phase supplies, main contacts, three-pole protection and
+## three-phase motors (direction, star/delta, Dahlander, separate windings).
+
+const NO := SwitchingElement.ContactType.NO
+const K := ThreePhaseMotor.Kind
+const ST := ThreePhaseMotor.State
+const CW := ThreePhaseMotor.Direction.CLOCKWISE
+const CCW := ThreePhaseMotor.Direction.COUNTERCLOCKWISE
+
+
+func _sim(doc: SchematicDocument, realistic: bool = false) -> Simulator:
+	var sim: Simulator = Simulator.new(doc.circuit)
+	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
+	sim.step()
+	return sim
+
+
+## Steps [param seconds] in small steps; returns the event texts.
+func _run(sim: Simulator, seconds: float, dt: float = 0.001) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	var t: float = 0.0
+	while t < seconds - 1e-9:
+		for e: Dictionary in sim.step(dt).events:
+			texts.append(e["text"])
+		t += dt
+	return texts
+
+
+func _press(doc: SchematicDocument, sim: Simulator, button: String, hold: float = 0.1) -> PackedStringArray:
+	var b: PushButton = doc.circuit.get_component(button) as PushButton
+	b.press()
+	var texts: PackedStringArray = _run(sim, hold)
+	b.release()
+	texts.append_array(_run(sim, 0.1))
+	return texts
+
+
+func _motor(doc: SchematicDocument) -> ThreePhaseMotor:
+	return doc.circuit.get_component("M1") as ThreePhaseMotor
+
+
+func _three_supplies(doc: SchematicDocument) -> void:
+	doc.add(PowerSupply.new("L1", PowerSupply.Conductor.L), Vector2i(0, 0))
+	doc.add(PowerSupply.new("L2", PowerSupply.Conductor.L2), Vector2i(2, 0))
+	doc.add(PowerSupply.new("L3", PowerSupply.Conductor.L3), Vector2i(4, 0))
+
+
+# --- Solver ---------------------------------------------------------------------
+
+func test_coil_between_two_phases_pulls_in() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	_three_supplies(doc)
+	doc.add(PowerSupply.new("L1.2", PowerSupply.Conductor.L), Vector2i(8, 0))
+	doc.add(Coil.new("K1"), Vector2i(0, 4))
+	doc.add(Coil.new("K2"), Vector2i(8, 4))
+	doc.connect_terminals("L1", "K1:A1")
+	doc.connect_terminals("L2", "K1:A2", [Vector2i(2, 7)] as Array[Vector2i])
+	doc.connect_terminals("L1.2", "K2:A1")
+	doc.connect_terminals("L1", "K2:A2", [Vector2i(0, 2), Vector2i(10, 2), Vector2i(10, 7), Vector2i(8, 7)] as Array[Vector2i])
+	var r: StepResult = _sim(doc).last_result
+	assert_true(doc.circuit.get_coil("K1").energized, "400 V between L1 and L2")
+	assert_false(doc.circuit.get_coil("K2").energized, "L1 on both ends: no voltage")
+	assert_false(r.short_circuit)
+	assert_eq(r.terminal_reach["K1:A1"], StepResult.REACH_L1)
+	assert_eq(r.terminal_reach["K1:A2"], StepResult.REACH_L2)
+
+
+func test_phase_to_phase_short_is_found() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	_three_supplies(doc)
+	var s1: LatchingSwitch = doc.add(LatchingSwitch.new("S1", NO), Vector2i(2, 3)) as LatchingSwitch
+	doc.connect_terminals("L2", "S1:13")
+	doc.connect_terminals("S1:14", "L3", [Vector2i(2, 7), Vector2i(4, 7)] as Array[Vector2i])
+	var sim: Simulator = _sim(doc)
+	assert_false(sim.last_result.short_circuit)
+	s1.set_switched_on(true)
+	var r: StepResult = sim.step()
+	assert_true(r.short_circuit, "L2 - S1 - L3 is a short")
+	assert_eq(r.short_circuit_path, PackedStringArray(["L2", "S1:13-14", "L3"]))
+
+
+func test_motor_evaluation() -> void:
+	var none: Array[bool] = [false, false, false]
+	var star2: Array[bool] = [false, true, false]
+	var star1: Array[bool] = [true, false, false]
+	var cases: Array = [
+		[K.STANDARD, [1, 2, 3], none, [ST.RUNNING, CW, 0]],
+		[K.STANDARD, [2, 3, 1], none, [ST.RUNNING, CW, 0]],
+		[K.STANDARD, [3, 2, 1], none, [ST.RUNNING, CCW, 0]],
+		[K.STANDARD, [1, 2, 0], none, [ST.PHASE_LOSS, ThreePhaseMotor.Direction.NONE, 0]],
+		[K.STANDARD, [0, 0, 0], none, [ST.STOPPED, ThreePhaseMotor.Direction.NONE, 0]],
+		[K.STAR_DELTA, [1, 2, 3, 0, 0, 0], star2, [ST.STAR, CW, 0]],
+		[K.STAR_DELTA, [1, 2, 3, 2, 3, 1], none, [ST.DELTA, CW, 0]],
+		[K.STAR_DELTA, [1, 3, 2, 3, 2, 1], none, [ST.DELTA, CCW, 0]],
+		[K.STAR_DELTA, [1, 2, 3, 0, 0, 0], none, [ST.STOPPED, ThreePhaseMotor.Direction.NONE, 0]],
+		[K.DAHLANDER, [1, 2, 3, 0, 0, 0], none, [ST.RUNNING, CW, 1]],
+		[K.DAHLANDER, [0, 0, 0, 1, 2, 3], star1, [ST.RUNNING, CW, 2]],
+		[K.DAHLANDER, [1, 2, 3, 1, 2, 3], none, [ST.MISWIRED, ThreePhaseMotor.Direction.NONE, 0]],
+		[K.TWO_WINDINGS, [0, 0, 0, 3, 2, 1], none, [ST.RUNNING, CCW, 2]],
+		[K.TWO_WINDINGS, [1, 2, 3, 1, 2, 3], none, [ST.MISWIRED, ThreePhaseMotor.Direction.NONE, 0]],
+		[K.THREE_WINDINGS, [0, 0, 0, 0, 0, 0, 1, 2, 3], [false, false, false], [ST.RUNNING, CW, 3]],
+		[K.THREE_WINDINGS, [0, 0, 0, 1, 0, 3, 0, 0, 0], [false, false, false], [ST.PHASE_LOSS, ThreePhaseMotor.Direction.NONE, 0]],
+	]
+	for c: Array in cases:
+		var phases: PackedInt32Array = PackedInt32Array(c[1])
+		var points: Array[bool] = []
+		points.assign(c[2])
+		assert_eq(ThreePhaseMotor.evaluate(c[0], phases, points), c[3], "%s %s" % [K.keys()[c[0]], c[1]])
+
+
+# --- Examples -------------------------------------------------------------------
+
+func test_direct_on_line_runs_clockwise() -> void:
+	for realistic: bool in [false, true]:
+		var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+		var sim: Simulator = _sim(doc, realistic)
+		assert_eq(_motor(doc).state, ST.STOPPED)
+		_press(doc, sim, "S1")
+		assert_eq(_motor(doc).state, ST.RUNNING, "runs after START (realistic %s)" % realistic)
+		assert_eq(_motor(doc).direction, CW)
+		_press(doc, sim, "S0")
+		assert_eq(_motor(doc).state, ST.STOPPED, "stops after STOP")
+
+
+func test_forward_reverse_turns_both_ways() -> void:
+	var doc: SchematicDocument = ExampleCircuits.forward_reverse_3()
+	var sim: Simulator = _sim(doc, true)
+	_press(doc, sim, "S1")
+	assert_eq(_motor(doc).direction, CW, "K1 forward")
+	var texts: PackedStringArray = _press(doc, sim, "S2")
+	assert_eq(_motor(doc).direction, CW, "K1 interlocks K2")
+	assert_false(texts.has("Short circuit: %s"))
+	_press(doc, sim, "S0")
+	_press(doc, sim, "S2")
+	assert_true(_motor(doc).is_running())
+	assert_eq(_motor(doc).direction, CCW, "K2 swaps L1 and L3")
+
+
+func test_phase_loss_trips_the_overload_relay() -> void:
+	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var sim: Simulator = _sim(doc)
+	_press(doc, sim, "S1")
+	(doc.circuit.get_component("F1") as ThreePoleFuse).blown[1] = 1
+	sim.step()
+	assert_eq(_motor(doc).state, ST.PHASE_LOSS)
+	var relay: OverloadRelay = doc.circuit.get_overload_relay("F2")
+	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY * 0.9)
+	assert_false(relay.tripped, "not before the trip delay")
+	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY * 0.2)
+	assert_true(relay.tripped)
+	assert_false(doc.circuit.get_coil("K1").energized, "95-96 dropped K1")
+	assert_eq(_motor(doc).state, ST.STOPPED)
+
+
+func test_overloaded_motor_trips_its_relay() -> void:
+	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var sim: Simulator = _sim(doc)
+	_motor(doc).overloaded = true
+	sim.step(10.0)
+	assert_false(doc.circuit.get_overload_relay("F2").tripped, "a stopped motor draws no current")
+	_press(doc, sim, "S1")
+	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY + 0.1)
+	assert_true(doc.circuit.get_overload_relay("F2").tripped)
+	assert_false(_motor(doc).is_running())
+
+
+func test_star_delta_3_switches_without_short() -> void:
+	var doc: SchematicDocument = ExampleCircuits.star_delta_3()
+	var sim: Simulator = _sim(doc, true)
+	var start: PushButton = doc.circuit.get_component("S2") as PushButton
+	start.press()
+	var texts: PackedStringArray = _run(sim, 0.2)
+	assert_eq(_motor(doc).state, ST.STAR, "star while START is held")
+	assert_eq(_motor(doc).direction, CW)
+	start.release()
+	texts.append_array(_run(sim, 0.2))
+	assert_eq(_motor(doc).state, ST.DELTA, "delta after letting go")
+	assert_eq(_motor(doc).direction, CW, "same direction in delta")
+	assert_false(texts.has("Short circuit: %s"), "star and delta never overlap")
+
+
+func test_dahlander_speeds() -> void:
+	var doc: SchematicDocument = ExampleCircuits.dahlander()
+	var sim: Simulator = _sim(doc, true)
+	var texts: PackedStringArray = _press(doc, sim, "S1")
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "low speed")
+	texts.append_array(_press(doc, sim, "S2"))
+	assert_eq(_motor(doc).speed, 1, "K1 21-22 keeps high speed off")
+	_press(doc, sim, "S0")
+	texts.append_array(_press(doc, sim, "S2"))
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2], "high speed")
+	assert_true(doc.circuit.get_coil("K3").energized, "star point closed")
+	assert_false(texts.has("Short circuit: %s"))
+
+
+func test_dahlander_both_speeds_is_miswired() -> void:
+	var doc: SchematicDocument = ExampleCircuits.dahlander()
+	var sim: Simulator = _sim(doc)
+	(doc.circuit.get_component("K2:1-2-3-4-5-6") as MainContacts).fault = SwitchingElement.Fault.WELDED
+	_press(doc, sim, "S1")
+	assert_eq(_motor(doc).state, ST.MISWIRED)
+	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY + 0.1)
+	assert_true(doc.circuit.get_overload_relay("F2").tripped, "overheats and trips")
+
+
+func test_two_windings_speeds() -> void:
+	var doc: SchematicDocument = ExampleCircuits.two_windings()
+	var sim: Simulator = _sim(doc, true)
+	_press(doc, sim, "S1")
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1])
+	_press(doc, sim, "S0")
+	_press(doc, sim, "S2")
+	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2])
+
+
+# --- Three-pole protection ------------------------------------------------------
+
+## L1, L2, L3 - [param device] at (0, 2) - S1 joins 2 and 4 (and 6 with
+## [param with_l3]): a phase-to-phase short.
+func _protected_short(device: CircuitComponent, with_l3: bool) -> Array:
+	var doc: SchematicDocument = SchematicDocument.new()
+	_three_supplies(doc)
+	doc.add(device, Vector2i(0, 2))
+	for i: int in 3:
+		doc.connect_terminals(["L1", "L2", "L3"][i], "%s:%d" % [device.designation, 2 * i + 1])
+	var s1: LatchingSwitch = doc.add(LatchingSwitch.new("S1", NO), Vector2i(0, 7)) as LatchingSwitch
+	doc.connect_terminals(device.designation + ":2", "S1:13", [Vector2i(0, 6)] as Array[Vector2i])
+	doc.connect_terminals(device.designation + ":4", "S1:13", [Vector2i(2, 6), Vector2i(0, 6)] as Array[Vector2i])
+	if with_l3:
+		doc.connect_terminals("S1:14", device.designation + ":6", [Vector2i(0, 11), Vector2i(4, 11)] as Array[Vector2i])
+	else:
+		doc.connect_terminals("S1:14", device.designation + ":2", [Vector2i(-2, 10), Vector2i(-2, 5)] as Array[Vector2i])
+	var sim: Simulator = _sim(doc)
+	return [doc, sim, s1]
+
+
+func test_three_pole_fuse_blows_only_the_poles_with_fault_current() -> void:
+	var fuse: ThreePoleFuse = ThreePoleFuse.new("F1")
+	var setup: Array = _protected_short(fuse, false)
+	var sim: Simulator = setup[1]
+	(setup[2] as LatchingSwitch).set_switched_on(true)
+	var r: StepResult = sim.step()
+	assert_eq(fuse.blown, PackedByteArray([1, 1, 0]), "L1 and L2 blow, L3 stays")
+	assert_false(r.short_circuit, "the short is cleared")
+	fuse.reset()
+	assert_false(fuse.any_blown())
+
+
+func test_motor_breaker_trips_all_poles() -> void:
+	var breaker: MotorBreaker = MotorBreaker.new("Q1")
+	var setup: Array = _protected_short(breaker, true)
+	var sim: Simulator = setup[1]
+	(setup[2] as LatchingSwitch).set_switched_on(true)
+	var r: StepResult = sim.step()
+	assert_true(breaker.tripped)
+	for pole: int in 3:
+		assert_false(breaker.is_path_closed(pole))
+	assert_false(r.short_circuit)
+	(setup[2] as LatchingSwitch).set_switched_on(false)
+	breaker.toggle()
+	assert_true(breaker.is_path_closed(0), "switching on resets the trip")
+
+
+# --- Schematic and editor -------------------------------------------------------
+
+func test_supply_designations_follow_the_conductor() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L")
+	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L2), "L2")
+	doc.add(PowerSupply.new("L2", PowerSupply.Conductor.L2), Vector2i(0, 0))
+	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L1", "L1 next to L2")
+	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L2), "L2.2")
+	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L3), "L3")
+	assert_eq(PowerSupply.new("L1.2", PowerSupply.Conductor.L).conductor_name(), "L1")
+
+
+func test_examples_have_no_check_errors() -> void:
+	for index: int in range(7, ExampleCircuits.count()):
+		var doc: SchematicDocument = ExampleCircuits.build(index)
+		assert_eq(CircuitCheck.run(doc), [] as Array[Dictionary], doc.title)
+		assert_eq(doc.circuit.get_wires().size(), doc.get_wire_count())
+
+
+func test_three_phase_round_trip() -> void:
+	for index: int in range(7, ExampleCircuits.count()):
+		var doc: SchematicDocument = ExampleCircuits.build(index)
+		var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+		assert_not_null(copy, doc.title)
+		assert_eq(DocumentSerializer.to_dict(copy), DocumentSerializer.to_dict(doc), doc.title)
