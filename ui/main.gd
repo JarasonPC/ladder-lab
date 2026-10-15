@@ -54,6 +54,7 @@ var _undo_button: Button
 var _redo_button: Button
 var _rotate_button: Button
 var _mirror_button: Button
+var _flip_button: Button
 var _delete_button: Button
 var _check_button: Button
 var _number_button: Button
@@ -127,6 +128,7 @@ func _ready() -> void:
 	_properties.changed.connect(_on_properties_changed)
 	_properties.rotate_requested.connect(func() -> void: editor.rotate_selection())
 	_properties.mirror_requested.connect(func() -> void: editor.mirror_selection())
+	_properties.flip_requested.connect(func() -> void: editor.flip_selection())
 	_properties.type_changed.connect(_on_type_changed)
 	_palette.template_chosen.connect(func(t: Dictionary) -> void: editor.begin_place(t))
 	_check_panel.issue_selected.connect(_on_issue_selected)
@@ -140,6 +142,7 @@ func _process(_delta: float) -> void:
 	var has_selection: bool = not editor.selected_components.is_empty()
 	_rotate_button.disabled = not has_selection and editor.tool != SchematicEditor.Tool.PLACE
 	_mirror_button.disabled = _rotate_button.disabled
+	_flip_button.disabled = _rotate_button.disabled
 	_delete_button.disabled = not has_selection and editor.selected_wires.is_empty()
 
 
@@ -251,6 +254,7 @@ func _build_ui() -> void:
 	_edit_tools.add_child(_spacer(8))
 	_rotate_button = _tool(_edit_tools, func() -> void: editor.rotate_selection(), "rotate")
 	_mirror_button = _tool(_edit_tools, func() -> void: editor.mirror_selection(), "mirror")
+	_flip_button = _tool(_edit_tools, func() -> void: editor.flip_selection(), "flip")
 	_delete_button = _tool(_edit_tools, func() -> void: editor.delete_selection(), "delete")
 	_edit_tools.add_child(_spacer(8))
 	_number_button = _tool(_edit_tools, func() -> void: editor.number_wires(), "hash")
@@ -433,7 +437,8 @@ func _retranslate() -> void:
 	_undo_button.tooltip_text = tr("Undo") + "  (Ctrl+Z)"
 	_redo_button.tooltip_text = tr("Redo") + "  (Ctrl+Y)"
 	_rotate_button.tooltip_text = tr("Rotate by 90°") + "  (R)"
-	_mirror_button.tooltip_text = tr("Mirror across the symbol axis") + "  (F)"
+	_mirror_button.tooltip_text = tr("Mirror left-right, across the symbol axis") + "  (F)"
+	_flip_button.tooltip_text = tr("Mirror top-bottom: the upper and lower terminals swap") + "  (Shift+F)"
 	_delete_button.tooltip_text = tr("Delete") + "  (Del)"
 	_numbers_toggle.tooltip_text = tr("Show wire numbers (drag a number to move it)")
 	_number_button.tooltip_text = tr("Number the wires: every net gets its own number, all wire ends of a net the same")

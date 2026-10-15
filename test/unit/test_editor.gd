@@ -172,11 +172,11 @@ func test_change_switch_to_contacts_follows_coils() -> void:
 
 func test_type_options_and_matching() -> void:
 	var options: Array[Dictionary] = SchematicEditor.type_options(PushButton.new("S1", SwitchingElement.ContactType.NC))
-	assert_eq(options.size(), 8, "buttons, switches, contacts, delayed contacts")
+	assert_eq(options.size(), 6, "buttons, switches, contacts (delayed is a property)")
 	assert_eq(SchematicEditor.type_options(Lamp.new("H1")).size(), 2)
 	assert_eq(SchematicEditor.type_options(Junction.new("J1")).size(), 0)
 	assert_true(SchematicEditor.matches_template(Contact.new("K1", SwitchingElement.ContactType.NO), {"type": "contact", "contact": "NO"}))
-	assert_false(SchematicEditor.matches_template(Contact.new("K1", SwitchingElement.ContactType.NO, 1, true), {"type": "contact", "contact": "NO"}))
+	assert_true(SchematicEditor.matches_template(Contact.new("K1", SwitchingElement.ContactType.NO, 1, true), {"type": "contact", "contact": "NO"}), "a delayed contact is a contact")
 
 
 func test_copy_paste_at_mouse_and_select_all() -> void:
@@ -230,7 +230,9 @@ func test_changeover_contact_follows_coil_and_changes_type() -> void:
 	_place({"type": "changeover", "delayed": true}, Vector2i(10, 2))
 	var doc: SchematicDocument = editor.document()
 	assert_not_null(doc.circuit.get_component("KT1:15-16-18"))
-	assert_eq(editor.change_type("KT1:15-16-18", {"type": "changeover"}), "")
+	var instant: Dictionary = DocumentSerializer.component_to_dict(editor.document().circuit.get_component("KT1:15-16-18"))
+	instant["delayed"] = false
+	assert_eq(editor.apply_properties("KT1:15-16-18", instant), "", "unticking Delayed keeps it on the timer")
 	assert_not_null(doc.circuit.get_component("KT1:11-12-14"), "instantaneous changeover of the same timer")
 
 
@@ -327,3 +329,23 @@ func test_markings_are_edited_in_place() -> void:
 	editor.undo()
 	editor.undo()
 	assert_eq((editor.document().circuit.get_component("H1") as Lamp).purpose, "", "undoable")
+
+
+func test_contacts_of_a_time_relay_are_delayed() -> void:
+	_place({"type": "timer", "mode": "on_delay", "delay": 3.0}, Vector2i(5, 8))
+	# Placed while the time relay is selected: its delayed contact.
+	_place({"type": "contact", "contact": "NO"}, Vector2i(10, 2))
+	var doc: SchematicDocument = editor.document()
+	assert_true(doc.circuit.has_component_id("KT1:17-18"), "a contact of KT1 is delayed by default")
+	_place({"type": "coil"}, Vector2i(15, 8))
+	_place({"type": "contact", "contact": "NC"}, Vector2i(20, 2))
+	assert_true(doc.circuit.has_component_id("KM1:11-12"))
+	editor._inline_target = {"component": "KM1:11-12", "kind": "designation", "index": -1}
+	editor._commit_inline("KT1")
+	assert_true(editor.document().circuit.has_component_id("KT1:15-16"), "designated to KT1, it becomes delayed")
+	var timer: TimerRelay = editor.document().circuit.get_coil("KT1") as TimerRelay
+	var data: Dictionary = DocumentSerializer.component_to_dict(timer)
+	data["control_input"] = true
+	assert_eq(editor.apply_properties(timer.id, data), "")
+	var titles: Array = SchematicEditor.type_options(editor.document().circuit.get_coil("KT1")).map(func(e: Dictionary) -> String: return e["title"])
+	assert_eq(titles.size(), 2, "with S the type can still be changed")

@@ -11,7 +11,8 @@
   the designation; 3~ motors have a PE terminal (last terminal, below left, ignored by the solver).
   Every contact (NO, NC, changeover, main contacts, breakers, fuse holders) pivots at its
   second/bottom terminal (changeover: common at the bottom); NO blades stand off to the actuator
-  side, NC blades rest against a stop on the other side. Breakers carry the cross plus thermal and
+  side, NC blades rest against a stop on the other side. Every delayed (time relay) contact
+  carries the delay mark: on-delay, or off-delay for off-delay and pulse functions F1/F3/F5. Breakers carry the cross plus thermal and
   magnetic releases. Fuses can be fuse holders (holder = true: can be opened by clicking). No dot
   grid by default; while placing, guide lines run through the new part's terminals.
   Voltage colour goes on leads and conductors only; symbol bodies stay black, except coils.
@@ -23,7 +24,8 @@
   terminal box (standard motors with star/delta bridges, drawing only)
 - One palette part per family: fuse/fuse holder, breaker and main contacts have 1-4 poles, the
   overload relay none or 3 (set in the properties); a contact designated like an overload relay
-  becomes its OverloadContact. Markings (designations, terminal names, lamp and terminal labels,
+  becomes its OverloadContact; a contact of a time relay KT is delayed by default (no separate
+  delayed contacts in the palette). Markings (designations, terminal names, lamp and terminal labels,
   wire numbers) are edited by double-clicking them on the drawing, not in the properties panel
 - Terminals (TerminalBlock, "X1", free label) sit on wires; wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
@@ -52,7 +54,8 @@
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
-  ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated/mirrored, so
+  ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F)
+  or top-bottom (Shift+F, flip_component: mirrored + half turn, ends swap in place), so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
 - UI look: `ui/app_theme.gd` (AppTheme) builds the whole Godot theme in code from colour tokens

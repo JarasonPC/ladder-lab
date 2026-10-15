@@ -7,7 +7,7 @@ extends SchematicSymbol
 ## NC blade rests against the stop on its fixed contact on the other side. Shown
 ## with the push-button (S00253) or turn-switch (S00254) actuator, the thermal
 ## actuator of overload relay contacts, and the delay "parachute"
-## (S00243-S00246) for delayed timer contacts.
+## (S00243-S00246) on every delayed (time relay) contact.
 ## The arc is drawn so the movement toward its centre is the delayed one.
 
 const FIXED_END := Vector2(0, 20)
@@ -67,17 +67,20 @@ func _draw_shape(color: Color, _width: float) -> void:
 		_draw_turn_actuator(middle, (component as LatchingSwitch).switched_on, color)
 	elif component is OverloadContact:
 		_draw_thermal_actuator(middle, color)
-	elif component is Contact:
-		var contact: Contact = component as Contact
-		var timing_mode: int = (contact.linked_coil as TimerRelay).mode if contact.linked_coil is TimerRelay else -1
-		# The delay arc shows on-/off-delay; output contacts of the other
-		# functions are drawn as plain contacts.
-		if contact.delayed and (timing_mode == TimerRelay.Mode.ON_DELAY or timing_mode == TimerRelay.Mode.OFF_DELAY):
-			var on_delay: bool = (contact.linked_coil as TimerRelay).mode == TimerRelay.Mode.ON_DELAY
-			# Operated, both blades move right: an NO blade to close, an NC
-			# blade away from its stop to open. On-delay delays that move.
-			var delayed_move_right: bool = on_delay
-			_draw_parachute(middle, delayed_move_right, color)
+	elif component is Contact and (component as Contact).delayed:
+		# Operated, both blades move right: an NO blade to close, an NC
+		# blade away from its stop to open. On-delay delays that move.
+		_draw_parachute(middle, delays_operation((component as Contact).linked_coil), color)
+
+
+## True when the delayed contacts of [param coil] (a time relay, or null)
+## get the on-delay mark (the switching is delayed), false for the off-delay
+## mark (they switch at once and return after the time): off-delay and the
+## pulse functions F1, F3, F5.
+static func delays_operation(coil: Coil) -> bool:
+	if not (coil is TimerRelay):
+		return true
+	return not ((coil as TimerRelay).mode in [TimerRelay.Mode.OFF_DELAY, TimerRelay.Mode.PULSE_ON_POWER, TimerRelay.Mode.PULSE_ON_PRESS, TimerRelay.Mode.PULSE_AFTER_RELEASE])
 
 
 ## Stem from the blade to the button head (a bracket open toward the blade),

@@ -210,16 +210,7 @@ msgstr ""
 msgid "Contact NC"
 msgstr ""
 
-msgid "Delayed contact NO"
-msgstr ""
-
-msgid "Delayed contact NC"
-msgstr ""
-
 msgid "Changeover contact"
-msgstr ""
-
-msgid "Delayed changeover contact"
 msgstr ""
 
 msgid "Coil (contactor KM / relay KA)"
@@ -369,7 +360,13 @@ msgstr ""
 msgid "Mirror"
 msgstr ""
 
-msgid "Mirror across the symbol axis"
+msgid "Mirror left-right, across the symbol axis"
+msgstr ""
+
+msgid "Flip"
+msgstr ""
+
+msgid "Mirror top-bottom: the upper and lower terminals swap"
 msgstr ""
 
 msgid "Show all functions with their diagrams"
@@ -421,6 +418,12 @@ msgstr ""
 msgid "Change to"
 msgstr ""
 
+msgid "Mirror left-right"
+msgstr ""
+
+msgid "Mirror top-bottom"
+msgstr ""
+
 msgid "Cut"
 msgstr ""
 
@@ -439,13 +442,13 @@ msgstr ""
 msgid "A1 and A2 of a time relay do not change."
 msgstr ""
 
-msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
+msgid "Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."
 msgstr ""
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
 msgstr ""
 
-msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F mirrors, Del deletes."
+msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F / Shift+F mirror, Del deletes."
 msgstr ""
 
 msgid "Time relay functions"

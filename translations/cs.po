@@ -213,17 +213,8 @@ msgstr "Kontakt spínací"
 msgid "Contact NC"
 msgstr "Kontakt rozpínací"
 
-msgid "Delayed contact NO"
-msgstr "Zpožděný kontakt spínací"
-
-msgid "Delayed contact NC"
-msgstr "Zpožděný kontakt rozpínací"
-
 msgid "Changeover contact"
 msgstr "Přepínací kontakt"
-
-msgid "Delayed changeover contact"
-msgstr "Zpožděný přepínací kontakt"
 
 msgid "Coil (contactor KM / relay KA)"
 msgstr "Cívka (stykač KM / relé KA)"
@@ -372,8 +363,14 @@ msgstr "Otočit o 90°"
 msgid "Mirror"
 msgstr "Zrcadlit"
 
-msgid "Mirror across the symbol axis"
-msgstr "Zrcadlit podle osy značky"
+msgid "Mirror left-right, across the symbol axis"
+msgstr "Zrcadlit zleva doprava, podle osy značky"
+
+msgid "Flip"
+msgstr "Převrátit"
+
+msgid "Mirror top-bottom: the upper and lower terminals swap"
+msgstr "Zrcadlit shora dolů: horní a dolní svorky se prohodí"
 
 msgid "Show all functions with their diagrams"
 msgstr "Zobrazit všechny funkce s diagramy"
@@ -424,6 +421,12 @@ msgstr "Označení %s je v tomto obvodu již použito."
 msgid "Change to"
 msgstr "Změnit na"
 
+msgid "Mirror left-right"
+msgstr "Zrcadlit zleva doprava"
+
+msgid "Mirror top-bottom"
+msgstr "Zrcadlit shora dolů"
+
 msgid "Cut"
 msgstr "Vyjmout"
 
@@ -442,14 +445,14 @@ msgstr "Vybrat vše"
 msgid "A1 and A2 of a time relay do not change."
 msgstr "A1 a A2 časového relé se nemění."
 
-msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
-msgstr "Kliknutím prvek umístíte. R otočí, F zrcadlí. Pravým tlačítkem myši nebo Esc vkládání ukončíte."
+msgid "Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."
+msgstr "Kliknutím umístíte. R otočí, F zrcadlí zleva doprava, Shift+F shora dolů. Pravé tlačítko nebo Esc ukončí vkládání."
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
 msgstr "Kliknutím do prázdných polí přidáte lomy, kreslení ukončíte na svorce nebo vodiči. Backspace odebere lom, Esc zruší."
 
-msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F mirrors, Del deletes."
-msgstr "Kliknutím na svorku nakreslíte vodič. Přetažením posunete součástky, vodiče nebo čísla vodičů. Dvojklikem upravíte označení. Pravé tlačítko nabídne víc. R otočí, F zrcadlí, Del smaže."
+msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F / Shift+F mirror, Del deletes."
+msgstr "Kliknutím na svorku nakreslíte vodič. Přetažením posunete součástky, vodiče nebo čísla vodičů. Dvojklikem upravíte označení. Pravé tlačítko nabídne víc. R otočí, F / Shift+F zrcadlí, Del smaže."
 
 msgid "Time relay functions"
 msgstr "Funkce časového relé"
