@@ -510,9 +510,9 @@ static func star_delta_3() -> SchematicDocument:
 	_straight(doc, "F2", "M1", ["U1", "V1", "W1"])
 	# Delta: U1-W2, V1-U2, W1-V2.
 	_from_below(doc, "KM2", ["W2", "U2", "V2"], 28)
-	doc.connect_terminals("M1:U2", "KM3:1")
-	doc.connect_terminals("M1:V2", "KM3:3")
-	doc.connect_terminals("M1:W2", "KM3:5")
+	doc.connect_terminals("M1:W2", "KM3:1")
+	doc.connect_terminals("M1:U2", "KM3:3")
+	doc.connect_terminals("M1:V2", "KM3:5")
 	_star_bridge(doc, "KM3")
 
 	var x: int = 25

@@ -1,7 +1,7 @@
 class_name MainContacts
 extends PoleDevice
-## Three main (power) contacts of a contactor with the same designation,
-## 1-2, 3-4, 5-6. They make with the NO contacts, at the end of the armature
+## Main (power) contacts of a contactor with the same designation (1-4 poles,
+## three unless set otherwise): 1-2, 3-4, 5-6, 7-8. They make with the NO contacts, at the end of the armature
 ## travel (see [Armature]).
 
 ## Injected fault: WELDED stays closed, OPEN never closes.

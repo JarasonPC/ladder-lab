@@ -55,6 +55,21 @@ var _dragging: bool = false
 var _drag_origin: Vector2i = Vector2i.ZERO
 var _drag_applied: Vector2i = Vector2i.ZERO
 var _drag_recorded: bool = false
+## Dragging one segment of a wire sideways (tidying the route).
+var _wire_drag: int = -1
+var _wire_drag_segment: int = -1
+var _wire_drag_points: Array[Vector2i] = []
+var _wire_drag_origin: Vector2i = Vector2i.ZERO
+var _wire_drag_recorded: bool = false
+## Dragging a wire number: Vector2i(wire, end), or (-1, -1).
+var _number_drag: Vector2i = Vector2i(-1, -1)
+var _number_drag_offset: Vector2 = Vector2.ZERO
+var _number_drag_origin: Vector2 = Vector2.ZERO
+var _number_drag_recorded: bool = false
+## Editing a marking in place (double click): the field and what it edits,
+## {"component": id, "kind": ..., "index": ...} or {"wire": index}.
+var _inline: LineEdit = null
+var _inline_target: Dictionary = {}
 # Selection box.
 var _boxing: bool = false
 var _box_origin: Vector2 = Vector2.ZERO
@@ -84,7 +99,8 @@ func _ready() -> void:
 ## Palette entries of the same family as [param c] (switching elements,
 ## coils, loads or supplies) with as many terminals; empty for junctions.
 static func type_options(c: CircuitComponent) -> Array[Dictionary]:
-	var family: String = _family(DocumentSerializer.component_to_dict(c)["type"])
+	var current: Dictionary = DocumentSerializer.component_to_dict(c)
+	var family: String = _family(current["type"])
 	var result: Array[Dictionary] = []
 	if family.is_empty():
 		return result
@@ -94,6 +110,8 @@ static func type_options(c: CircuitComponent) -> Array[Dictionary]:
 			continue
 		var data: Dictionary = entry["template"].duplicate()
 		data["designation"] = str(data.get("conductor", "X1"))
+		if current.has("poles") and not data.has("poles"):
+			data["poles"] = current["poles"]
 		var trial: CircuitComponent = DocumentSerializer.component_from_dict(data)
 		if trial != null and trial.get_terminal_names().size() == terminals:
 			result.append(entry)
@@ -103,12 +121,11 @@ static func type_options(c: CircuitComponent) -> Array[Dictionary]:
 ## True if [param c] is what [param template] would create.
 static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 	var d: Dictionary = DocumentSerializer.component_to_dict(c)
-	var multifunction: bool = template.get("control_input", false)
-	if d.get("control_input", false) != multifunction:
-		return false
+	if template["type"] == "timer":
+		# One multifunction time relay, whatever its function and inputs.
+		return c is TimerRelay
 	for key: String in template:
-		# A multifunction timer is one type, whatever function it is set to.
-		if key == "delay" or (key == "mode" and multifunction):
+		if key == "delay":
 			continue
 		if d.get(key, false) != template[key]:
 			return false
@@ -131,8 +148,6 @@ static func _family(kind: String) -> String:
 			return "load"
 		"fuse", "breaker":
 			return "protection"
-		"fuse3", "breaker3":
-			return "protection3"
 		"motor3":
 			return "motor3"
 		"overload_contact":
@@ -248,6 +263,7 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 					shared = true
 			if not shared:
 				data["designation"] = doc.next_designation(new_prefix)
+	_follow_overload_relay(data)
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if replacement == null:
 		return tr("Terminal names must all be different, without spaces or colons.")
@@ -272,6 +288,9 @@ func change_type(component_id: String, template: Dictionary) -> String:
 	if old == null or matches_template(old, template):
 		return ""
 	var data: Dictionary = template.duplicate()
+	var old_data: Dictionary = DocumentSerializer.component_to_dict(old)
+	if old_data.has("poles") and not data.has("poles"):
+		data["poles"] = old_data["poles"]
 	match _family(template["type"]):
 		"switching":
 			var element: SwitchingElement = old as SwitchingElement
@@ -368,6 +387,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			# in the properties panel that kept the focus.
 			get_viewport().gui_release_focus()
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed and mb.double_click and (tool == Tool.SELECT or (tool == Tool.WIRE and _wire_points.size() <= 1)):
+				if edit_marking_at(_mouse_point):
+					get_viewport().set_input_as_handled()
+					return
 			if mb.pressed:
 				_on_left_pressed(mb.shift_pressed)
 			else:
@@ -491,6 +514,10 @@ func _on_mouse_moved() -> void:
 		Tool.SELECT:
 			if _dragging:
 				_drag_to(_mouse_cell - _drag_origin)
+			elif _wire_drag >= 0:
+				_drag_wire_to(_mouse_cell - _wire_drag_origin)
+			elif _number_drag.x >= 0:
+				_drag_number_to(_mouse_point - _number_drag_origin)
 	queue_redraw()
 
 
@@ -513,6 +540,14 @@ func _on_left_pressed(shift: bool) -> void:
 				if preview[i] != _wire_points[_wire_points.size() - 1]:
 					_wire_points.append(preview[i])
 		Tool.SELECT:
+			var label: Vector2i = view.wire_number_at(_mouse_point)
+			if label.x >= 0 and not shift:
+				# Wire numbers can be dragged to a tidier place.
+				_number_drag = label
+				_number_drag_offset = doc.get_route(label.x).number_offsets[label.y]
+				_number_drag_origin = _mouse_point
+				_number_drag_recorded = false
+				return
 			var key: String = doc.terminal_at(_mouse_point, 0.3)
 			var hit: CircuitComponent = doc.component_at(_mouse_point)
 			if not key.is_empty() and not shift:
@@ -540,10 +575,16 @@ func _on_left_pressed(shift: bool) -> void:
 			if w >= 0:
 				if not shift:
 					_clear_selection()
-				if selected_wires.has(w):
+				if selected_wires.has(w) and shift:
 					selected_wires.erase(w)
 				else:
 					selected_wires[w] = true
+					# Dragging the segment under the mouse moves it sideways.
+					_wire_drag = w
+					_wire_drag_segment = doc.wire_segment_at(w, _mouse_point)
+					_wire_drag_points = doc.wire_points(w)
+					_wire_drag_origin = _mouse_cell
+					_wire_drag_recorded = false
 				_selection_updated()
 				return
 			if not shift:
@@ -554,6 +595,14 @@ func _on_left_pressed(shift: bool) -> void:
 
 
 func _on_left_released(shift: bool) -> void:
+	if _number_drag.x >= 0:
+		_number_drag = Vector2i(-1, -1)
+		if _number_drag_recorded:
+			_changed()
+	if _wire_drag >= 0:
+		_wire_drag = -1
+		if _wire_drag_recorded:
+			_changed()
 	if _dragging:
 		_dragging = false
 		if _drag_recorded:
@@ -576,16 +625,40 @@ func _place_at(cell: Vector2i) -> void:
 	data["designation"] = _new_designation(data)
 	if ["contact", "changeover", "push_button", "latching_switch"].has(data["type"]):
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
+	if data["type"] == "terminal" and str(data.get("label", "")).is_empty():
+		data["label"] = str(data["designation"]).trim_prefix("X")
+	_follow_overload_relay(data)
 	var c: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if not _can_add(c):
 		hint_changed.emit(tr("%s is already used in this circuit.") % c.id)
 		return
 	_record()
-	doc.add(c, cell, _ghost_rotation, _ghost_mirrored)
+	var on_wire: int = doc.wire_at(Vector2(cell)) if c is TerminalBlock else -1
+	if on_wire >= 0:
+		# A terminal placed on a wire is inserted into it.
+		doc.split_wire(on_wire, cell, c)
+	else:
+		doc.add(c, cell, _ghost_rotation, _ghost_mirrored)
 	_clear_selection()
 	selected_components[c.id] = true
 	_changed()
 	_rebuild_ghost()
+
+
+## A contact designated like an overload relay (e.g. "F2") becomes its
+## overload contact (95-96 / 97-98, drawn with the thermal actuator); an
+## overload contact designated otherwise becomes a plain contact again.
+func _follow_overload_relay(data: Dictionary) -> void:
+	var doc: SchematicDocument = document()
+	var relay: OverloadRelay = doc.circuit.get_overload_relay(str(data.get("designation", "")))
+	if data["type"] == "contact" and relay != null and not data.get("delayed", false):
+		data["type"] = "overload_contact"
+		data.erase("sequence")
+		data.erase("terminals")
+	elif data["type"] == "overload_contact" and relay == null:
+		data["type"] = "contact"
+		data["sequence"] = doc.next_contact_sequence(str(data["designation"]))
+		data.erase("terminals")
 
 
 func _new_designation(data: Dictionary) -> String:
@@ -595,9 +668,9 @@ func _new_designation(data: Dictionary) -> String:
 			return doc.next_supply_designation(_conductor(data))
 		"push_button", "latching_switch":
 			return doc.next_designation("S")
-		"fuse", "breaker", "overload_relay", "fuse3":
+		"fuse", "overload_relay":
 			return doc.next_designation("F")
-		"breaker3":
+		"breaker":
 			return doc.next_designation("Q")
 		"main_contacts":
 			# Belongs to the selected contactor, else to the first one.
@@ -619,8 +692,13 @@ func _new_designation(data: Dictionary) -> String:
 					return c.designation
 			return "F1"
 		"contact", "changeover":
-			# Belongs to the selected coil, else to the first coil of the right kind.
+			# Belongs to the selected coil (or overload relay), else to the
+			# first coil of the right kind.
 			var want_timer: bool = data.get("delayed", false)
+			for id: String in selected_components:
+				var relay: CircuitComponent = doc.circuit.get_component(id)
+				if relay is OverloadRelay and data["type"] == "contact" and not want_timer:
+					return relay.designation
 			for id: String in selected_components:
 				var selected: CircuitComponent = doc.circuit.get_component(id)
 				if selected is Coil and (selected is TimerRelay) == want_timer:
@@ -638,6 +716,8 @@ func _new_designation(data: Dictionary) -> String:
 			return doc.next_designation("H")
 		"motor", "motor3":
 			return doc.next_designation("M")
+		"terminal":
+			return doc.next_designation("X")
 	return doc.next_designation("X")
 
 
@@ -717,6 +797,168 @@ func _drag_to(delta: Vector2i) -> void:
 	document().move_components(PackedStringArray(selected_components.keys()), delta - _drag_applied)
 	_drag_applied = delta
 	view.rebuild()
+
+
+## Numbers the net of wire [param index] (undoable).
+func set_wire_number(index: int, number: String) -> void:
+	_record()
+	document().set_wire_number(index, number)
+	_changed()
+
+
+## Numbers all nets automatically (undoable).
+func number_wires() -> void:
+	_record()
+	document().number_wires()
+	_changed()
+
+
+func _drag_wire_to(offset: Vector2i) -> void:
+	if _wire_drag_segment < 0:
+		return
+	if not _wire_drag_recorded:
+		if offset == Vector2i.ZERO:
+			return
+		_record()
+		_wire_drag_recorded = true
+	document().drag_wire_segment(_wire_drag, _wire_drag_points, _wire_drag_segment, offset)
+	view.refresh_layout()
+	queue_redraw()
+
+
+## Opens a field over the marking at grid point [param point] to edit it in
+## place: a wire number, a designation, a terminal name, a lamp label or a
+## terminal label. On a part without a marking there, its designation (lamp:
+## its label, terminal: its label); on a wire, its number. Returns false when
+## there is nothing to edit.
+func edit_marking_at(point: Vector2) -> bool:
+	var doc: SchematicDocument = document()
+	var pixel: Vector2 = point * G
+	var number: Vector2i = view.wire_number_at(point)
+	if number.x >= 0:
+		return _open_inline({"wire": number.x}, doc.get_route(number.x).number, pixel)
+	for c: CircuitComponent in doc.circuit.get_components():
+		var symbol: SchematicSymbol = view.get_symbol(c.id)
+		if symbol == null:
+			continue
+		for m: Array in symbol.marking_rects:
+			var rect: Rect2 = (m[2] as Rect2).grow(2.0)
+			if rect.has_point(pixel - symbol.position):
+				return _edit_marking(c, m[0], m[1])
+	var hit: CircuitComponent = doc.component_at(point)
+	if hit != null:
+		var kind: String = "designation"
+		if hit is Lamp:
+			kind = "purpose"
+		elif hit is TerminalBlock:
+			kind = "label"
+		return _edit_marking(hit, kind, -1)
+	var w: int = doc.wire_at(point)
+	if w >= 0:
+		return _open_inline({"wire": w}, doc.get_route(w).number, pixel)
+	return false
+
+
+func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
+	if c is Junction or c is PowerSupply:
+		return false
+	if kind == "terminal" and c is TimerRelay and index < 2:
+		# A1-A2 of a time relay are fixed; only its control input is renamed.
+		hint_changed.emit(tr("A1 and A2 of a time relay do not change."))
+		return false
+	var text: String = c.designation
+	match kind:
+		"terminal":
+			text = c.get_terminal_names()[index]
+		"purpose":
+			text = (c as Lamp).purpose
+		"label":
+			text = (c as TerminalBlock).label
+	var symbol: SchematicSymbol = view.get_symbol(c.id)
+	var rect: Rect2 = symbol.marking_rect(kind, index)
+	var at: Vector2 = symbol.position + (rect.position if rect.has_area() else Vector2.ZERO)
+	if not rect.has_area() and kind == "purpose":
+		at = symbol.position + symbol.marking_rect("designation").position - Vector2(0, 18)
+	return _open_inline({"component": c.id, "kind": kind, "index": index}, text, at)
+
+
+func _open_inline(target: Dictionary, text: String, at: Vector2) -> bool:
+	_close_inline()
+	if tool != Tool.SELECT:
+		_cancel_tool()
+	_inline_target = target
+	_inline = LineEdit.new()
+	_inline.text = text
+	_inline.select_all_on_focus = true
+	_inline.position = at - Vector2(4, 4)
+	_inline.custom_minimum_size = Vector2(maxf(60.0, 10.0 * (text.length() + 3)), 0)
+	_inline.add_theme_font_size_override("font_size", 13)
+	add_child(_inline)
+	_inline.text_submitted.connect(func(value: String) -> void: _commit_inline(value))
+	_inline.focus_exited.connect(func() -> void:
+		if _inline != null:
+			_commit_inline(_inline.text))
+	_inline.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventKey and (event as InputEventKey).pressed and (event as InputEventKey).keycode == KEY_ESCAPE:
+			_close_inline()
+			get_viewport().set_input_as_handled())
+	_inline.grab_focus()
+	_inline.select_all()
+	return true
+
+
+func _close_inline() -> void:
+	if _inline == null:
+		return
+	var field: LineEdit = _inline
+	_inline = null
+	_inline_target = {}
+	field.queue_free()
+
+
+func _commit_inline(value: String) -> void:
+	var target: Dictionary = _inline_target
+	_close_inline()
+	value = value.strip_edges()
+	if target.has("wire"):
+		if target["wire"] < document().get_wire_count() and value != document().get_route(target["wire"]).number:
+			set_wire_number(target["wire"], value)
+		return
+	var c: CircuitComponent = document().circuit.get_component(target.get("component", ""))
+	if c == null:
+		return
+	var data: Dictionary = DocumentSerializer.component_to_dict(c)
+	match target["kind"]:
+		"designation":
+			value = value.trim_prefix("-")
+			if value == c.designation:
+				return
+			data["designation"] = value
+		"terminal":
+			var names: Array = Array(c.get_terminal_names())
+			if value == names[target["index"]]:
+				return
+			names[target["index"]] = value
+			data["terminals"] = names
+		"purpose":
+			data["purpose"] = value
+		"label":
+			data["label"] = value
+	var error: String = apply_properties(c.id, data)
+	if not error.is_empty():
+		hint_changed.emit(error)
+
+
+## Moves the dragged wire number, in steps of a tenth of a cell.
+func _drag_number_to(delta: Vector2) -> void:
+	if not _number_drag_recorded:
+		if delta.length() < 0.1:
+			return
+		_record()
+		_number_drag_recorded = true
+	var offset: Vector2 = ((_number_drag_offset + delta) * 10.0).round() / 10.0
+	document().set_wire_number_offset(_number_drag.x, _number_drag.y, offset)
+	view.refresh_layout()
 
 
 func _select_in_box(box: Rect2) -> void:
@@ -829,15 +1071,35 @@ func _emit_hint() -> void:
 		Tool.WIRE:
 			hint_changed.emit(tr("Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."))
 		_:
-			hint_changed.emit(tr("Click a terminal to draw a wire. Drag to move. Right click for more. R rotates, F mirrors, Del deletes."))
+			hint_changed.emit(tr("Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F mirrors, Del deletes."))
 
 
 # --- Drawing --------------------------------------------------------------------
+
+## Guide lines across the view through every terminal of the part being
+## placed, to line it up with the parts and wires already drawn.
+func _draw_placement_guides() -> void:
+	var visible: Rect2 = get_canvas_transform().affine_inverse() * get_viewport_rect()
+	var placement: Placement = Placement.new(_mouse_cell, _ghost_rotation, _ghost_mirrored)
+	var color: Color = Color(SchematicTheme.LINE, 0.13)
+	var xs: Dictionary[int, bool] = {}
+	var ys: Dictionary[int, bool] = {}
+	for cell: Vector2i in SymbolGeometry.local_terminals(_ghost.component).values():
+		var at: Vector2i = _mouse_cell + SymbolGeometry.transform_cell(cell, placement)
+		xs[at.x] = true
+		ys[at.y] = true
+	for x: int in xs:
+		draw_line(Vector2(x * G, visible.position.y), Vector2(x * G, visible.end.y), color, 3.0)
+	for y: int in ys:
+		draw_line(Vector2(visible.position.x, y * G), Vector2(visible.end.x, y * G), color, 3.0)
+
 
 func _draw() -> void:
 	if not active or view.document == null:
 		return
 	var doc: SchematicDocument = document()
+	if tool == Tool.PLACE and _ghost != null:
+		_draw_placement_guides()
 	# Unconnected terminals.
 	var connected: Dictionary[String, bool] = {}
 	for wire: PackedStringArray in doc.circuit.get_wires():

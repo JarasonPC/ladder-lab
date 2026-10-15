@@ -39,6 +39,8 @@ static var PATH_TEXT: Color
 static var TERMINAL_DEAD: Color
 ## Protective earth (green-yellow conductor).
 static var PE: Color
+## Wire numbers at the wire ends.
+static var WIRE_NUMBER: Color
 
 const LINE_WIDTH: float = 2.0
 const LIVE_WIDTH: float = 2.6
@@ -76,6 +78,7 @@ static func use(dark_paper: bool) -> void:
 		PATH_TEXT = Color("8a9099")
 		TERMINAL_DEAD = Color("1d1d1d")
 		PE = Color("3c9a3c")
+		WIRE_NUMBER = Color("d0342c")
 	else:
 		BACKGROUND = Color("15181d")
 		GRID_DOT = Color("2a2f38")
@@ -96,6 +99,7 @@ static func use(dark_paper: bool) -> void:
 		PATH_TEXT = Color("7d8590")
 		TERMINAL_DEAD = Color("c3c9d2")
 		PE = Color("6cc56c")
+		WIRE_NUMBER = Color("ff7b72")
 
 
 ## Highlight colour for a reach code (see [StepResult]); LINE for none.

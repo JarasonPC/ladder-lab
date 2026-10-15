@@ -204,3 +204,97 @@ func test_rotated_symbol_wires_do_not_cross_own_terminals() -> void:
 				for s: int in range(1, points.size()):
 					assert_false(SchematicDocument._on_segment(other, points[s - 1], points[s]),
 						"turn %d: wire %s runs over %s" % [turn, wire, other])
+
+
+func test_drag_wire_segment_sideways() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(6, 0))
+	# H1:X2 (0,3) -> (0,5) -> (6,5) -> H2:X2 (6,3)
+	doc.connect_terminals("H1:X2", "H2:X2", [Vector2i(0, 5), Vector2i(6, 5)] as Array[Vector2i])
+	var points: Array[Vector2i] = doc.wire_points(0)
+	assert_eq(doc.wire_segment_at(0, Vector2(3.0, 5.1)), 1, "the bottom segment")
+	doc.drag_wire_segment(0, points, 1, Vector2i(2, 3))
+	assert_eq(doc.get_route(0).corners, [Vector2i(0, 8), Vector2i(6, 8)] as Array[Vector2i], "moved down 3, sideways part ignored")
+	doc.drag_wire_segment(0, points, 1, Vector2i(0, -2))
+	assert_eq(doc.wire_points(0), [Vector2i(0, 3), Vector2i(6, 3)] as Array[Vector2i], "back in line with the terminals: corners merge")
+	# A straight wire dragged sideways gets two new corners next to its ends.
+	var straight: Array[Vector2i] = doc.wire_points(0)
+	doc.drag_wire_segment(0, straight, 0, Vector2i(0, 2))
+	assert_eq(doc.get_route(0).corners, [Vector2i(0, 5), Vector2i(6, 5)] as Array[Vector2i])
+
+
+func test_terminal_block_on_a_wire() -> void:
+	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var w: int = -1
+	for i: int in doc.circuit.get_wires().size():
+		if doc.circuit.get_wires()[i] == PackedStringArray(["KM1:A2", "N"]):
+			w = i
+	var block: TerminalBlock = TerminalBlock.new("X1")
+	block.label = "10"
+	var cell: Vector2i = doc.wire_points(w)[1]
+	cell.y -= 1
+	assert_eq(doc.split_wire(w, cell, block), "X1")
+	assert_true(doc.circuit.has_component_id("X1"))
+	var sim: Simulator = Simulator.new(doc.circuit)
+	(doc.circuit.get_component("S1") as PushButton).press()
+	sim.step()
+	assert_true(doc.circuit.get_coil("KM1").energized, "the terminal passes the circuit on")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq((copy.circuit.get_component("X1") as TerminalBlock).label, "10")
+
+
+func _wire_of(doc: SchematicDocument, a: String, b: String) -> int:
+	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
+	for i: int in wires.size():
+		if wires[i] == PackedStringArray([a, b]):
+			return i
+	return -1
+
+
+func test_wire_numbers_follow_the_net() -> void:
+	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	doc.number_wires()
+	var hold: int = _wire_of(doc, "S1:14", "KM1:14")
+	var coil: int = _wire_of(doc, "S1:14", "KM1:A1")
+	assert_ne(doc.get_route(hold).number, "")
+	assert_eq(doc.get_route(hold).number, doc.get_route(coil).number, "one net, one number")
+	assert_ne(doc.get_route(_wire_of(doc, "S0:12", "S1:13")).number, doc.get_route(hold).number, "another net")
+	assert_eq(doc.get_route(_wire_of(doc, "L", "F1:1")).number, "", "supply nets stay unnumbered")
+	assert_eq(doc.get_route(_wire_of(doc, "KM1:A2", "N")).number, "")
+	doc.set_wire_number(coil, "208")
+	assert_eq(doc.get_route(hold).number, "208", "renaming one wire renames its net")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(copy.get_route(hold).number, "208")
+	# Splitting a wire keeps the number on both halves.
+	doc.split_wire(coil, doc.wire_points(coil)[0] + Vector2i(0, 1))
+	assert_eq(doc.get_route(doc.get_wire_count() - 1).number, "208")
+
+
+func test_wire_number_places_and_offsets() -> void:
+	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	doc.number_wires()
+	var ends: Array[Vector2i] = doc.wire_number_ends()
+	var seen: Dictionary[String, bool] = {}
+	for e: Vector2i in ends:
+		var key: String = doc.circuit.get_wires()[e.x][e.y]
+		assert_false(seen.has(key), "one number per terminal: " + key)
+		seen[key] = true
+		assert_false(doc.circuit.get_terminal_owner(key) is Junction, "no numbers at junctions")
+	var w: int = ends[0].x
+	var end: int = ends[0].y
+	var before: Vector2 = doc.wire_number_point(w, end)
+	doc.set_wire_number_offset(w, end, Vector2(1.5, -0.5))
+	assert_eq(doc.wire_number_point(w, end), before + Vector2(1.5, -0.5), "a dragged number moves")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(copy.get_route(w).number_offsets[end], Vector2(1.5, -0.5), "the offset is saved")
+
+
+func test_short_wire_shows_its_number_once() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Fuse.new("F1"), Vector2i(2, 2))
+	doc.add(PushButton.new("S1", SwitchingElement.ContactType.NC), Vector2i(2, 6))
+	doc.connect_terminals("F1:2", "S1:11")
+	doc.set_wire_number(0, "1")
+	assert_eq(doc.wire_number_ends().size(), 1, "a one-cell wire is numbered once")
+	assert_eq(doc.wire_number_point(0, doc.wire_number_ends()[0].y), Vector2(2, 5.5), "in its middle")

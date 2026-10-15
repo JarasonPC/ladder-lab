@@ -1,10 +1,10 @@
 class_name ContactSymbol
 extends SchematicSymbol
 ## NO / NC contact (IEC 60617 S00227 / S00229) drawn in its current position.
-## As in the guide, every contact pivots at its first terminal (top, or left
-## in horizontal paths) and its blade runs toward the fixed contact: an NO
-## blade stands off to the actuator side, an NC blade rests under the stop
-## that hangs from its fixed contact on the other side. Shown
+## As the guide's main contacts and breakers, every contact pivots at its
+## second terminal (bottom, or right in horizontal paths) and its blade runs up
+## toward the fixed contact: an NO blade stands off to the actuator side, an
+## NC blade rests against the stop on its fixed contact on the other side. Shown
 ## with the push-button (S00253) or turn-switch (S00254) actuator, the thermal
 ## actuator of overload relay contacts, and the delay "parachute"
 ## (S00243-S00246) for delayed timer contacts.
@@ -36,21 +36,16 @@ func _draw_shape(color: Color, _width: float) -> void:
 	var element: SwitchingElement = component as SwitchingElement
 	var is_nc: bool = element.contact_type == SwitchingElement.ContactType.NC
 	var closed: bool = element.is_closed()
-	# The geometry constants describe the IEC drawing with the pivot at the
-	# bottom; it is drawn upside down, so the pivot is at terminal 0 (top).
-	var flip: Callable = func(v: Vector2) -> Vector2:
-		return Vector2(v.x, 3 * G - v.y)
-	var fixed_terminal: int = 1
-	var pivot_terminal: int = 1 - fixed_terminal
-	var fixed_color: Color = lead_color(fixed_terminal)
-	var fixed_width: float = lead_width(fixed_terminal)
-	var pivot_color: Color = lead_color(pivot_terminal)
-	var pivot_width: float = lead_width(pivot_terminal)
-	var pivot: Vector2 = flip.call(PIVOT)
-	draw_line(flip.call(Vector2(0, 0)), flip.call(FIXED_END), fixed_color, fixed_width)
-	draw_line(flip.call(Vector2(0, 3 * G)), pivot, pivot_color, pivot_width)
+	# Fixed contact at terminal 0 (top), pivot at terminal 1 (bottom).
+	var fixed_color: Color = lead_color(0)
+	var fixed_width: float = lead_width(0)
+	var pivot_color: Color = lead_color(1)
+	var pivot_width: float = lead_width(1)
+	var pivot: Vector2 = PIVOT
+	draw_line(Vector2(0, 0), FIXED_END, fixed_color, fixed_width)
+	draw_line(Vector2(0, 3 * G), pivot, pivot_color, pivot_width)
 	if is_nc:
-		draw_line(flip.call(FIXED_END), flip.call(HOOK_END), fixed_color, fixed_width)
+		draw_line(FIXED_END, HOOK_END, fixed_color, fixed_width)
 	var tip: Vector2 = NC_OPEN_TIP if is_nc else OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
@@ -61,7 +56,6 @@ func _draw_shape(color: Color, _width: float) -> void:
 			tip = NC_CLOSED_TIP.lerp(NC_OPEN_TIP, clampf((travel - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.15, 1.0))
 		else:
 			tip = OPEN_TIP.lerp(NO_CLOSED_TIP, minf(travel, 0.85))
-	tip = flip.call(tip)
 	draw_line(pivot, tip, pivot_color, pivot_width)
 	var middle: Vector2 = pivot.lerp(tip, 0.5)
 	# The actuator is insulated from the contact: never live.

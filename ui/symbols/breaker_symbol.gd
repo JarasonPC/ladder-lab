@@ -1,13 +1,27 @@
 class_name BreakerSymbol
 extends SchematicSymbol
-## Circuit breaker (IEC 60617 S00287): switch with a cross at the fixed
-## contact and a manual actuator. Click to switch it; a trip shows in the
-## warning colour until it is switched on again.
+## Circuit breaker (IEC 60617 S00287) with thermal (bimetal) and magnetic
+## releases, 1-4 poles, drawn as in the guide: each blade pivots at the lower
+## terminal (2, 4, 6, 8) and stands off to the left of the fixed contact with
+## the cross below the upper terminal (1, 3, 5, 7); several poles are joined
+## by a dashed link. Click to switch it; a trip shows in the warning colour
+## until it is switched on again.
 
-## Pivot at the top terminal, fixed contact with the cross below (as the
-## contacts are drawn).
-const PIVOT := Vector2(0, 20)
-const FIXED_END := Vector2(0, 40)
+## Fixed contact (with the cross) below the upper terminal.
+const FIXED_END := Vector2(0, 18)
+## Blade pivot above the lower terminal.
+const PIVOT := Vector2(0, 42)
+const OPEN_TIP := Vector2(-10, 18)
+const CLOSED_TIP := Vector2(-2, 18)
+const CROSS: float = 3.5
+## Height of the dashed link.
+const LINK_Y: float = 30.0
+## Thermal release: a step on the left of the blade, joined to it at [constant THERMAL_Y].
+const THERMAL_Y: float = 26.5
+const THERMAL: PackedVector2Array = [Vector2(-9, 26.5), Vector2(-9, 23), Vector2(-14.5, 23), Vector2(-14.5, 27.5), Vector2(-19, 27.5)]
+## Magnetic release: a triangle pointing left, joined to the blade at [constant MAGNETIC_Y].
+const MAGNETIC_Y: float = 34.8
+const MAGNETIC: PackedVector2Array = [Vector2(-19.5, 37), Vector2(-8.5, 32.5), Vector2(-8.5, 37), Vector2(-19.5, 37)]
 
 
 func is_interactive() -> bool:
@@ -15,22 +29,54 @@ func is_interactive() -> bool:
 
 
 func _designation_anchor() -> Vector2:
-	return Vector2(-1.9 * G, 1.5 * G)
+	return Vector2(-1.4 * G, 1.5 * G)
 
 
 func _draw_shape(_color: Color, _width: float) -> void:
-	var breaker: CircuitBreaker = component as CircuitBreaker
-	var closed: bool = breaker.is_closed()
-	draw_line(Vector2(0, 0), PIVOT, lead_color(0), lead_width(0))
-	draw_line(Vector2(0, 3 * G), FIXED_END, lead_color(1), lead_width(1))
-	var x_size: float = 4.0
-	var cross: Color = lead_color(1)
-	draw_line(FIXED_END + Vector2(-x_size, -x_size), FIXED_END + Vector2(x_size, x_size), cross, SchematicTheme.LINE_WIDTH)
-	draw_line(FIXED_END + Vector2(-x_size, x_size), FIXED_END + Vector2(x_size, -x_size), cross, SchematicTheme.LINE_WIDTH)
-	var tip: Vector2 = Vector2(-3, 40) if closed else Vector2(-13, 42)
-	var blade: Color = SchematicTheme.WARNING if breaker.tripped else lead_color(0)
-	draw_line(PIVOT, tip, blade, lead_width(0))
-	var middle: Vector2 = PIVOT.lerp(tip, 0.5)
-	var head_x: float = -26.0
-	draw_dashed_line(Vector2(head_x, middle.y), Vector2(middle.x - 1.0, middle.y), SchematicTheme.LINE, 1.5, 3.0)
-	draw_line(Vector2(head_x, middle.y - 6), Vector2(head_x, middle.y + 6), SchematicTheme.LINE, SchematicTheme.LINE_WIDTH)
+	var closed: bool
+	var tripped: bool
+	if component is MotorBreaker:
+		closed = (component as MotorBreaker).is_path_closed(0)
+		tripped = (component as MotorBreaker).tripped
+	else:
+		closed = (component as CircuitBreaker).is_closed()
+		tripped = (component as CircuitBreaker).tripped
+	var poles: int = component.get_terminal_names().size() / 2
+	var tip: Vector2 = CLOSED_TIP if closed else OPEN_TIP
+	# The releases and the link are insulated from the poles: never live.
+	var mark: Color = SchematicTheme.WARNING if warning or tripped else SchematicTheme.LINE
+	var thin: float = SchematicTheme.LINE_WIDTH * 0.8
+	for pole: int in poles:
+		var x: Vector2 = Vector2(pole_x(pole), 0)
+		var top: int = pole * 2
+		var bottom: int = top + 1
+		draw_line(x, x + FIXED_END, lead_color(top), lead_width(top))
+		var f: Vector2 = x + FIXED_END
+		draw_line(f + Vector2(-CROSS, -CROSS), f + Vector2(CROSS, CROSS), lead_color(top), SchematicTheme.LINE_WIDTH)
+		draw_line(f + Vector2(-CROSS, CROSS), f + Vector2(CROSS, -CROSS), lead_color(top), SchematicTheme.LINE_WIDTH)
+		draw_line(x + Vector2(0, 3 * G), x + PIVOT, lead_color(bottom), lead_width(bottom))
+		var blade: Color = SchematicTheme.WARNING if tripped else lead_color(bottom)
+		draw_line(x + PIVOT, x + tip, blade, lead_width(bottom))
+		var thermal: PackedVector2Array = PackedVector2Array([x + Vector2(_blade_x(tip, THERMAL_Y), THERMAL_Y)])
+		for p: Vector2 in THERMAL:
+			thermal.append(x + p)
+		draw_polyline(thermal, mark, thin)
+		var magnetic: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in MAGNETIC:
+			magnetic.append(x + p)
+		draw_polyline(magnetic, mark, thin)
+		draw_line(x + Vector2(MAGNETIC[1].x, MAGNETIC_Y), x + Vector2(_blade_x(tip, MAGNETIC_Y), MAGNETIC_Y), mark, thin)
+	if poles > 1:
+		var from: Vector2 = Vector2(_blade_x(tip, LINK_Y), LINK_Y)
+		var to: Vector2 = Vector2(pole_x(poles - 1) + _blade_x(tip, LINK_Y) - 1.0, LINK_Y)
+		draw_dashed_line(from, to, mark, 1.5, 3.0)
+
+
+func _draw_labels() -> void:
+	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	_draw_pole_labels()
+
+
+## X of the blade at height [param y] for a blade ending at [param tip].
+static func _blade_x(tip: Vector2, y: float) -> float:
+	return PIVOT.x + (tip.x - PIVOT.x) * (PIVOT.y - y) / (PIVOT.y - tip.y)

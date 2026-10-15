@@ -204,9 +204,9 @@ func test_changeover_contact() -> void:
 	doc.add(Lamp.new("H1"), Vector2i(8, 8))
 	doc.add(Lamp.new("H2"), Vector2i(12, 8))
 	assert_eq(changeover.id, "KT1:15-16-18")
-	assert_eq(doc.terminal_cell("KT1:15"), Vector2i(8, 2), "common on top")
-	assert_eq(doc.terminal_cell("KT1:18"), Vector2i(8, 5), "NO below it")
-	assert_eq(doc.terminal_cell("KT1:16"), Vector2i(9, 5), "NC one cell right")
+	assert_eq(doc.terminal_cell("KT1:15"), Vector2i(8, 5), "common at the bottom")
+	assert_eq(doc.terminal_cell("KT1:18"), Vector2i(8, 2), "NO above it")
+	assert_eq(doc.terminal_cell("KT1:16"), Vector2i(9, 2), "NC one cell right")
 	for pair: Array in [["L", "S1:13"], ["S1:14", "KT1:A1"], ["KT1:A2", "N"], ["L", "KT1:15"], ["KT1:18", "H1:X1"], ["H1:X2", "N"], ["KT1:16", "H2:X1"], ["H2:X2", "N"]]:
 		doc.connect_terminals(pair[0], pair[1])
 	sim = Simulator.new(doc.circuit)

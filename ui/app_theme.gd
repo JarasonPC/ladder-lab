@@ -70,6 +70,9 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"chevron_down": '<path d="m6 9 6 6 6-6"/>',
 	"chevron_right": '<path d="m9 18 6-6-6-6"/>',
 	"menu": '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+	"list": '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+	"wire_numbers": '<path d="M2 19h20"/><path d="M5 7l2-2v10"/><path d="M12 7a2.5 2.5 0 1 1 4.5 1.5L12 15h5"/>',
+	"hash": '<path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="m16 3-2 18"/>',
 }
 
 
@@ -412,6 +415,10 @@ static func build() -> Theme:
 	t.set_stylebox("panel", "RightSection", section)
 	t.set_type_variation("Card", "PanelContainer")
 	t.set_stylebox("panel", "Card", box(chart_bg, RADIUS + 2, 1.0, 1.0, border, 1))
+	t.set_type_variation("FunctionCard", "PanelContainer")
+	t.set_stylebox("panel", "FunctionCard", box(bg2, RADIUS + 2, 10.0, 8.0, border, 1))
+	t.set_type_variation("FunctionCardActive", "PanelContainer")
+	t.set_stylebox("panel", "FunctionCardActive", box(bg2, RADIUS + 2, 10.0, 8.0, accent, 2))
 	t.set_stylebox("panel", "ScrollContainer", none)
 
 	# Separators.

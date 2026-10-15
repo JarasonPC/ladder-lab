@@ -210,6 +210,199 @@ func remove_wire(index: int) -> void:
 	_routes.remove_at(index)
 
 
+## Index of the segment of wire [param index] under [param point] (segment k
+## runs from wire_points()[k] to [k + 1]), or -1.
+func wire_segment_at(index: int, point: Vector2, tolerance: float = 0.35) -> int:
+	var points: Array[Vector2i] = wire_points(index)
+	for k: int in range(points.size() - 1):
+		var a: Vector2 = Vector2(points[k])
+		var b: Vector2 = Vector2(points[k + 1])
+		if Geometry2D.get_closest_point_to_segment(point, a, b).distance_to(point) <= tolerance:
+			return k
+	return -1
+
+
+## Moves segment [param segment] of wire [param index] sideways by
+## [param offset] cells, starting from the route [param points] the wire had
+## when the drag began (so a drag can be updated as the mouse moves). The
+## terminal ends stay where they are: new corners are added next to them, and
+## corners that end up in a straight line are merged.
+func drag_wire_segment(index: int, points: Array[Vector2i], segment: int, offset: Vector2i) -> void:
+	if segment < 0 or segment + 1 >= points.size():
+		return
+	var a: Vector2i = points[segment]
+	var b: Vector2i = points[segment + 1]
+	var shift: Vector2i = Vector2i(0, offset.y) if a.y == b.y else Vector2i(offset.x, 0)
+	var moved: Array[Vector2i] = points.duplicate()
+	var last: int = points.size() - 1
+	if segment + 1 == last:
+		moved.insert(last, b + shift)
+	else:
+		moved[segment + 1] = b + shift
+	if segment == 0:
+		moved.insert(1, a + shift)
+	else:
+		moved[segment] = a + shift
+	var simple: Array[Vector2i] = _simplify_path(moved)
+	_routes[index].corners = simple.slice(1, simple.size() - 1)
+
+
+## Drops repeated points and points in the middle of a straight run.
+static func _simplify_path(points: Array[Vector2i]) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for p: Vector2i in points:
+		if result.is_empty() or result[result.size() - 1] != p:
+			result.append(p)
+	var i: int = 1
+	while i < result.size() - 1:
+		var prev: Vector2i = result[i - 1]
+		var next: Vector2i = result[i + 1]
+		if (prev.x == result[i].x and next.x == result[i].x) or (prev.y == result[i].y and next.y == result[i].y):
+			result.remove_at(i)
+		else:
+			i += 1
+	return result
+
+
+## Wires of the net of wire [param index]: all wires joined to it through
+## shared terminals (junctions, terminal blocks, component terminals).
+func wire_net(index: int) -> PackedInt32Array:
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	var by_key: Dictionary[String, PackedInt32Array] = {}
+	for i: int in wires.size():
+		for key: String in wires[i]:
+			if not by_key.has(key):
+				by_key[key] = PackedInt32Array()
+			by_key[key].append(i)
+	var seen: Dictionary[int, bool] = {index: true}
+	var queue: PackedInt32Array = PackedInt32Array([index])
+	while not queue.is_empty():
+		var w: int = queue[queue.size() - 1]
+		queue.remove_at(queue.size() - 1)
+		for key: String in wires[w]:
+			for other: int in by_key[key]:
+				if not seen.has(other):
+					seen[other] = true
+					queue.append(other)
+	var result: PackedInt32Array = PackedInt32Array(seen.keys())
+	result.sort()
+	return result
+
+
+## Gives the whole net of wire [param index] the number [param number].
+func set_wire_number(index: int, number: String) -> void:
+	for w: int in wire_net(index):
+		_routes[w].number = number.strip_edges()
+
+
+## Wires up to this long (in cells) show their number only once, in the middle.
+const SHORT_WIRE: float = 2.0
+
+
+## Wire ends that show their wire number, as Vector2i(wire, end): ends on
+## components and terminal blocks (not junctions), one per terminal; a short
+## wire shows its number once.
+func wire_number_ends() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var written: Dictionary[String, bool] = {}
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for w: int in wires.size():
+		if _routes[w].number.is_empty() or _path_length(w) == 0.0:
+			continue
+		var ends: Array[int] = []
+		for end: int in 2:
+			var key: String = wires[w][end]
+			if not (circuit.get_terminal_owner(key) is Junction) and not written.has(key):
+				written[key] = true
+				ends.append(end)
+		if ends.size() == 2 and _path_length(w) <= SHORT_WIRE:
+			ends.resize(1)
+		for end: int in ends:
+			result.append(Vector2i(w, end))
+	return result
+
+
+## Grid point the number of wire end [param end] is written at: 0.8 cell along
+## the wire from its terminal (the middle of a short wire), plus the offset
+## the user dragged it by.
+func wire_number_point(index: int, end: int) -> Vector2:
+	var points: Array[Vector2i] = wire_points(index)
+	var length: float = _path_length(index)
+	var along: float = length * 0.5 if length <= SHORT_WIRE else 0.8
+	if end == 1:
+		points.reverse()
+	var p: Vector2 = Vector2(points[0])
+	for i: int in range(1, points.size()):
+		var step: float = Vector2(points[i] - points[i - 1]).length()
+		if along <= step or i == points.size() - 1:
+			p = Vector2(points[i - 1]) + Vector2(points[i] - points[i - 1]).normalized() * minf(along, step)
+			break
+		along -= step
+	return p + _routes[index].number_offsets[end]
+
+
+## True when the wire leaves end [param end] vertically (the number is
+## written beside it), false when horizontally (written above it).
+func wire_number_vertical(index: int, end: int) -> bool:
+	var points: Array[Vector2i] = wire_points(index)
+	if end == 1:
+		points.reverse()
+	for i: int in range(1, points.size()):
+		if points[i] != points[0]:
+			return points[i].x == points[0].x
+	return true
+
+
+## Moves the number at wire end [param end] by [param offset] cells from its
+## standard place.
+func set_wire_number_offset(index: int, end: int, offset: Vector2) -> void:
+	_routes[index].number_offsets[end] = offset
+
+
+func _path_length(index: int) -> float:
+	var points: Array[Vector2i] = wire_points(index)
+	var length: float = 0.0
+	for i: int in range(1, points.size()):
+		length += Vector2(points[i] - points[i - 1]).length()
+	return length
+
+
+## Numbers every net from [param first] on, in drawing order (current path by
+## current path); nets fed straight from a supply (L, N, ...) stay unnumbered.
+func number_wires(first: int = 1) -> void:
+	var done: Dictionary[int, bool] = {}
+	var nets: Array[PackedInt32Array] = []
+	for i: int in circuit.get_wires().size():
+		if not done.has(i):
+			var net: PackedInt32Array = wire_net(i)
+			for w: int in net:
+				done[w] = true
+			nets.append(net)
+	var order: Callable = func(net: PackedInt32Array) -> Vector2i:
+		var best: Vector2i = Vector2i(2147483647, 2147483647)
+		for w: int in net:
+			for p: Vector2i in wire_points(w):
+				var k: Vector2i = Vector2i(p.y, p.x) if horizontal else p
+				if k.x < best.x or (k.x == best.x and k.y < best.y):
+					best = k
+		return best
+	nets.sort_custom(func(a: PackedInt32Array, b: PackedInt32Array) -> bool:
+		var ka: Vector2i = order.call(a)
+		var kb: Vector2i = order.call(b)
+		return ka.x < kb.x or (ka.x == kb.x and ka.y < kb.y))
+	var n: int = first
+	for net: PackedInt32Array in nets:
+		var supplied: bool = false
+		for w: int in net:
+			for key: String in circuit.get_wires()[w]:
+				if circuit.get_terminal_owner(key) is PowerSupply:
+					supplied = true
+		for w: int in net:
+			_routes[w].number = "" if supplied else str(n)
+		if not supplied:
+			n += 1
+
+
 ## Removes a component together with its wires.
 func remove_component(component_id: String) -> void:
 	var c: CircuitComponent = circuit.get_component(component_id)
@@ -286,7 +479,7 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 ## Inserts a [Junction] at [param cell] on wire [param index], splitting the
 ## wire in two. Returns the junction terminal key ("" if the cell is not on
 ## the wire). At an end of the wire the existing terminal key is returned.
-func split_wire(index: int, cell: Vector2i) -> String:
+func split_wire(index: int, cell: Vector2i, point: CircuitComponent = null) -> String:
 	var points: Array[Vector2i] = wire_points(index)
 	var wire: PackedStringArray = circuit.get_wires()[index]
 	if cell == points[0]:
@@ -300,7 +493,8 @@ func split_wire(index: int, cell: Vector2i) -> String:
 			break
 	if segment < 0:
 		return ""
-	var junction: Junction = Junction.new(next_designation("J"))
+	# A new junction, or the given single-terminal component (a terminal block).
+	var junction: CircuitComponent = point if point != null else Junction.new(next_designation("J"))
 	add(junction, cell)
 	var corners_a: Array[Vector2i] = points.slice(1, segment)
 	var corners_b: Array[Vector2i] = points.slice(segment, points.size() - 1)
@@ -310,9 +504,12 @@ func split_wire(index: int, cell: Vector2i) -> String:
 		corners_b.remove_at(0)
 	var key_a: String = wire[0]
 	var key_b: String = wire[1]
+	var number: String = _routes[index].number
 	remove_wire(index)
 	connect_terminals(key_a, junction.designation, corners_a)
 	connect_terminals(junction.designation, key_b, corners_b)
+	_routes[_routes.size() - 1].number = number
+	_routes[_routes.size() - 2].number = number
 	return junction.designation
 
 

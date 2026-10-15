@@ -10,7 +10,7 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 	elif component is ThreePoleFuse:
 		symbol = ThreePoleFuseSymbol.new()
 	elif component is MotorBreaker:
-		symbol = MotorBreakerSymbol.new()
+		symbol = BreakerSymbol.new()
 	elif component is ThreePhaseMotor:
 		symbol = ThreePhaseMotorSymbol.new()
 	elif component is Fuse:
@@ -31,6 +31,8 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = MotorSymbol.new()
 	elif component is PowerSupply:
 		symbol = SupplySymbol.new()
+	elif component is TerminalBlock:
+		symbol = TerminalBlockSymbol.new()
 	elif component is Junction:
 		symbol = JunctionSymbol.new()
 	else:

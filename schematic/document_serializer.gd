@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3"]
 
@@ -28,7 +28,13 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		var corners: Array = []
 		for corner: Vector2i in doc.get_route(i).corners:
 			corners.append([corner.x, corner.y])
-		wires.append({"a": circuit_wires[i][0], "b": circuit_wires[i][1], "corners": corners})
+		var wd: Dictionary = {"a": circuit_wires[i][0], "b": circuit_wires[i][1], "corners": corners}
+		if not doc.get_route(i).number.is_empty():
+			wd["number"] = doc.get_route(i).number
+			var offsets: Array[Vector2] = doc.get_route(i).number_offsets
+			if offsets[0] != Vector2.ZERO or offsets[1] != Vector2.ZERO:
+				wd["number_offsets"] = [[offsets[0].x, offsets[0].y], [offsets[1].x, offsets[1].y]]
+		wires.append(wd)
 	return {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "components": components, "wires": wires}
 
 
@@ -66,7 +72,22 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 				return null
 			corners.append(cell)
 		doc.connect_terminals(a, b, corners)
+		var route: WireRoute = doc.get_route(doc.get_wire_count() - 1)
+		route.number = str(wd.get("number", ""))
+		var raw_offsets: Variant = wd.get("number_offsets", [])
+		if raw_offsets is Array and (raw_offsets as Array).size() == 2:
+			for end: int in 2:
+				var o: Variant = raw_offsets[end]
+				if o is Array and (o as Array).size() == 2 and (o[0] is float or o[0] is int) and (o[1] is float or o[1] is int):
+					route.number_offsets[end] = Vector2(float(o[0]), float(o[1]))
 	return doc
+
+
+## Pole count "poles" (1-4) of a device, [param fallback] when missing or invalid.
+static func _poles(d: Dictionary, lowest: int, fallback: int) -> int:
+	var raw: Variant = d.get("poles", fallback)
+	var n: int = int(raw) if (raw is int or raw is float) else fallback
+	return n if n >= lowest and n <= 4 else fallback
 
 
 static func component_to_dict(c: CircuitComponent) -> Dictionary:
@@ -76,6 +97,9 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["conductor"] = CONDUCTORS[(c as PowerSupply).conductor]
 	elif c is Junction:
 		d["type"] = "junction"
+	elif c is TerminalBlock:
+		d["type"] = "terminal"
+		d["label"] = (c as TerminalBlock).label
 	elif c is Fuse:
 		d["type"] = "fuse"
 		if (c as Fuse).holder:
@@ -96,18 +120,21 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["poles"] = (c as OverloadRelay).poles
 	elif c is MainContacts:
 		d["type"] = "main_contacts"
+		d["poles"] = (c as MainContacts).poles
 	elif c is ThreePoleFuse:
-		d["type"] = "fuse3"
+		d["type"] = "fuse"
+		d["poles"] = (c as ThreePoleFuse).poles
 		if (c as ThreePoleFuse).holder:
 			d["holder"] = true
 	elif c is MotorBreaker:
-		d["type"] = "breaker3"
+		d["type"] = "breaker"
+		d["poles"] = (c as MotorBreaker).poles
 	elif c is ThreePhaseMotor:
 		d["type"] = "motor3"
 		var motor: ThreePhaseMotor = c as ThreePhaseMotor
 		d["motor_kind"] = MOTOR_KINDS[motor.kind]
+		d["terminal_box"] = motor.terminal_box
 		if motor.kind == ThreePhaseMotor.Kind.STANDARD:
-			d["terminal_box"] = motor.terminal_box
 			d["connection"] = "delta" if motor.delta_bridges else "star"
 	elif c is SwitchingElement:
 		var s: SwitchingElement = c as SwitchingElement
@@ -179,6 +206,10 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			return PowerSupply.new(designation, conductor as PowerSupply.Conductor)
 		"junction":
 			return Junction.new(designation)
+		"terminal":
+			var block: TerminalBlock = TerminalBlock.new(designation)
+			block.label = str(d.get("label", "")).strip_edges()
+			return block
 		"push_button":
 			return PushButton.new(designation, contact, sequence)
 		"latching_switch":
@@ -188,21 +219,35 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"changeover":
 			return ChangeoverContact.new(designation, sequence, bool(d.get("delayed", false)))
 		"fuse":
+			if _poles(d, 1, 1) > 1:
+				var multi_fuse: ThreePoleFuse = ThreePoleFuse.new(designation)
+				multi_fuse.poles = _poles(d, 1, 1)
+				multi_fuse.holder = bool(d.get("holder", false))
+				return multi_fuse
 			var fuse: Fuse = Fuse.new(designation)
 			fuse.holder = bool(d.get("holder", false))
 			return fuse
 		"breaker":
+			if _poles(d, 1, 1) > 1:
+				var multi_breaker: MotorBreaker = MotorBreaker.new(designation)
+				multi_breaker.poles = _poles(d, 1, 1)
+				return multi_breaker
 			return CircuitBreaker.new(designation)
 		"overload_relay":
 			return OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0), 3 if int(d.get("poles", 0)) == 3 else 0)
 		"main_contacts":
-			return MainContacts.new(designation)
+			var contacts: MainContacts = MainContacts.new(designation)
+			contacts.poles = _poles(d, 1, 3)
+			return contacts
 		"fuse3":
+			# Files before version 9.
 			var fuse3: ThreePoleFuse = ThreePoleFuse.new(designation)
 			fuse3.holder = bool(d.get("holder", false))
 			return fuse3
 		"breaker3":
-			return MotorBreaker.new(designation)
+			# Files before version 9.
+			var breaker3: MotorBreaker = MotorBreaker.new(designation)
+			return breaker3
 		"motor3":
 			var motor_kind: int = maxi(MOTOR_KINDS.find(str(d.get("motor_kind", "standard"))), 0)
 			var motor3: ThreePhaseMotor = ThreePhaseMotor.new(designation, motor_kind as ThreePhaseMotor.Kind)

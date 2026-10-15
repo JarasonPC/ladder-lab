@@ -30,6 +30,7 @@ var sim_time: float:
 
 var _wire_layer: WireLayer
 var _grid_visible: bool = false
+var _numbers_visible: bool = true
 var _symbols: Dictionary[String, SchematicSymbol] = {}
 var _held: PushButton = null
 var _hovered: SchematicSymbol = null
@@ -71,6 +72,7 @@ func rebuild() -> void:
 	_held = null
 	_wire_layer = WireLayer.new()
 	_wire_layer.show_grid = _grid_visible
+	_wire_layer.show_numbers = _numbers_visible
 	add_child(_wire_layer)
 	_wire_layer.set_document(document)
 	for c: CircuitComponent in document.circuit.get_components():
@@ -84,7 +86,14 @@ func get_symbol(component_id: String) -> SchematicSymbol:
 	return _symbols.get(component_id, null)
 
 
-## Call after placements changed (e.g. the document was transposed).
+## Shows or hides the wire numbers.
+func set_wire_numbers_visible(on: bool) -> void:
+	_numbers_visible = on
+	if _wire_layer != null:
+		_wire_layer.show_numbers = on
+		_wire_layer.queue_redraw()
+
+
 ## Shows or hides the dot grid behind the drawing.
 func set_grid_visible(on: bool) -> void:
 	_grid_visible = on
@@ -93,6 +102,13 @@ func set_grid_visible(on: bool) -> void:
 		_wire_layer.queue_redraw()
 
 
+## Wire end whose number is written at grid point [param point], as
+## Vector2i(wire, end), or Vector2i(-1, -1).
+func wire_number_at(point: Vector2) -> Vector2i:
+	return _wire_layer.wire_number_at(point) if _wire_layer != null else Vector2i(-1, -1)
+
+
+## Call after placements changed (e.g. the document was transposed).
 func refresh_layout() -> void:
 	for id: String in _symbols:
 		_symbols[id].update_position()

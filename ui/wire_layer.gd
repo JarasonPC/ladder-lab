@@ -14,8 +14,12 @@ var fault_wires: Dictionary[int, bool] = {}
 var blink_on: bool = true
 ## Dot grid behind the drawing (off unless chosen for editing).
 var show_grid: bool = false
+## Wire numbers at the wire ends.
+var show_numbers: bool = true
 
 var _junctions: Array[Vector2i] = []
+## [Vector2i(wire, end), Rect2 in cells] of the numbers drawn last.
+var _number_rects: Array = []
 
 
 func set_document(doc: SchematicDocument) -> void:
@@ -52,7 +56,41 @@ func _draw() -> void:
 		_draw_break(w)
 	for cell: Vector2i in _junctions:
 		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell)))
+	if show_numbers:
+		_draw_wire_numbers()
 	_draw_path_numbers()
+
+
+## Writes the wire numbers at the wire ends listed by
+## [method SchematicDocument.wire_number_ends]: beside a vertical wire, above
+## a horizontal one, moved by the offset the user dragged them by.
+func _draw_wire_numbers() -> void:
+	_number_rects.clear()
+	var font: Font = AppTheme.schematic_font()
+	var size: int = 10
+	for e: Vector2i in document.wire_number_ends():
+		var number: String = document.get_route(e.x).number
+		var at: Vector2 = document.wire_number_point(e.x, e.y) * G
+		var text_size: Vector2 = font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
+		var pos: Vector2
+		if document.wire_number_vertical(e.x, e.y):
+			pos = at + Vector2(-text_size.x - 4.0, font.get_ascent(size) * 0.5)
+		else:
+			pos = at + Vector2(-text_size.x * 0.5, -4.0)
+		draw_string(font, pos, number, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.WIRE_NUMBER)
+		var rect: Rect2 = Rect2(pos - Vector2(0.0, font.get_ascent(size)), text_size).grow(2.0)
+		_number_rects.append([e, Rect2(rect.position / G, rect.size / G)])
+
+
+## Wire end whose number is written at grid point [param point], as
+## Vector2i(wire, end), or Vector2i(-1, -1).
+func wire_number_at(point: Vector2) -> Vector2i:
+	if not show_numbers:
+		return Vector2i(-1, -1)
+	for i: int in range(_number_rects.size() - 1, -1, -1):
+		if (_number_rects[i][1] as Rect2).has_point(point):
+			return _number_rects[i][0]
+	return Vector2i(-1, -1)
 
 
 ## Numbers the current paths: above the columns of a vertical drawing, left of
