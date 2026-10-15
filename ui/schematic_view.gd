@@ -108,6 +108,11 @@ func wire_number_at(point: Vector2) -> Vector2i:
 	return _wire_layer.wire_number_at(point) if _wire_layer != null else Vector2i(-1, -1)
 
 
+## Box (in cells) around the drawn number of wire end [param end].
+func wire_number_rect(end: Vector2i) -> Rect2:
+	return _wire_layer.wire_number_rect(end) if _wire_layer != null else Rect2()
+
+
 ## Call after placements changed (e.g. the document was transposed).
 func refresh_layout() -> void:
 	for id: String in _symbols:

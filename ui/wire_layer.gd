@@ -82,6 +82,15 @@ func _draw_wire_numbers() -> void:
 		_number_rects.append([e, Rect2(rect.position / G, rect.size / G)])
 
 
+## Box (in cells) around the number of wire end [param end] as last drawn,
+## or an empty Rect2.
+func wire_number_rect(end: Vector2i) -> Rect2:
+	for entry: Array in _number_rects:
+		if entry[0] == end:
+			return entry[1]
+	return Rect2()
+
+
 ## Wire end whose number is written at grid point [param point], as
 ## Vector2i(wire, end), or Vector2i(-1, -1).
 func wire_number_at(point: Vector2) -> Vector2i:
