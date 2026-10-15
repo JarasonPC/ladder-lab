@@ -25,25 +25,8 @@ const MAGNETIC_Y: float = 35.5
 const MAGNETIC: PackedVector2Array = [Vector2(-11, 31.5), Vector2(-19, 35.5), Vector2(-11, 39.5), Vector2(-11, 31.5)]
 
 
-## Seconds the blade takes to swing on the drawing.
-const SWING_TIME: float = 0.18
-
-## Shown opening of the blade, 0 closed .. 1 open, following the state
-## smoothly; -1 until set.
-var _shown: float = -1.0
-
-
 func flips_when_horizontal() -> bool:
 	return true
-
-
-func _process(delta: float) -> void:
-	var target: float = 0.0 if _closed() else 1.0
-	if _shown < 0.0:
-		_shown = target
-	elif _shown != target:
-		_shown = move_toward(_shown, target, delta / SWING_TIME)
-		queue_redraw()
 
 
 func _closed() -> bool:
@@ -63,7 +46,7 @@ func _designation_anchor() -> Vector2:
 func _draw_shape(_color: Color, _width: float) -> void:
 	var tripped: bool = (component as MotorBreaker).tripped if component is MotorBreaker else (component as CircuitBreaker).tripped
 	var poles: int = component.get_terminal_names().size() / 2
-	var opening: float = _shown if _shown >= 0.0 else (0.0 if _closed() else 1.0)
+	var opening: float = shown("blade", 0.0 if _closed() else 1.0)
 	var tip: Vector2 = CLOSED_TIP.lerp(OPEN_TIP, opening)
 	# The releases are fixed to the blade: drawn for the closed blade and
 	# turned with it about the pivot.

@@ -9,6 +9,7 @@ var _angle: float = 0.0
 
 
 func _process(delta: float) -> void:
+	super(delta)
 	if (component as Load).energized:
 		_angle = fmod(_angle + delta * TAU, TAU)
 
