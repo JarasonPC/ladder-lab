@@ -21,8 +21,8 @@
   any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
   are drawn mirrored along their axis so the blade pivots on the left. Every moving part (blades,
   buttons, holders) moves smoothly (SchematicSymbol.shown); marks fixed to a blade (breaker
-  releases, delay marks, overload hooks) turn with it, button and switch heads stay upright; the
-  push-button stem is dashed. Breakers and fuse holders start switched off (open).
+  releases, delay marks, limit-switch triangles) turn with it; button and switch heads and the
+  overload contact's bimetal step stay straight on a dashed stem. Breakers and fuse holders start switched off (open).
 - Time relays (TimerRelay) are multifunction relays: functions F1-F12 (TimerRelay.Mode, codes as in
   real relays; F10-F12 use two times t1 = delay, t2 = delay2) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
   active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram
