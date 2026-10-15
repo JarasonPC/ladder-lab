@@ -156,6 +156,27 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
+msgid "Supplies"
+msgstr ""
+
+msgid "Buttons and switches"
+msgstr ""
+
+msgid "Contacts"
+msgstr ""
+
+msgid "Coils"
+msgstr ""
+
+msgid "Loads"
+msgstr ""
+
+msgid "Protection"
+msgstr ""
+
+msgid "Power circuit"
+msgstr ""
+
 msgid "L supply"
 msgstr ""
 
@@ -385,16 +406,19 @@ msgstr ""
 msgid "File"
 msgstr ""
 
+msgid "View"
+msgstr ""
+
 msgid "Edit"
 msgstr ""
 
 msgid "Simulate"
 msgstr ""
 
-msgid "Example:"
+msgid "Example circuit"
 msgstr ""
 
-msgid "Layout:"
+msgid "Direction of the current paths"
 msgstr ""
 
 msgid "Vertical"
@@ -409,25 +433,13 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-msgid "Rotate (R)"
-msgstr ""
-
 msgid "Rotate by 90°"
-msgstr ""
-
-msgid "Mirror (F)"
 msgstr ""
 
 msgid "Mirror across the symbol axis"
 msgstr ""
 
-msgid "Delete (Del)"
-msgstr ""
-
 msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
-msgstr ""
-
-msgid "Switching:"
 msgstr ""
 
 msgid "Realistic"
@@ -439,13 +451,7 @@ msgstr ""
 msgid "Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly."
 msgstr ""
 
-msgid "Timing chart"
-msgstr ""
-
 msgid "Show or hide the timing chart"
-msgstr ""
-
-msgid "Event log"
 msgstr ""
 
 msgid "Show or hide the event log"
@@ -457,16 +463,16 @@ msgstr ""
 msgid "Advance the simulation by 0.1 s times the speed"
 msgstr ""
 
-msgid "Speed:"
+msgid "Simulation speed"
+msgstr ""
+
+msgid "Simulation time"
 msgstr ""
 
 msgid "Reset"
 msgstr ""
 
 msgid "Restart the simulation from the initial state"
-msgstr ""
-
-msgid "Fullscreen"
 msgstr ""
 
 msgid "Unsaved changes"
@@ -500,6 +506,27 @@ msgid "Export PNG…"
 msgstr ""
 
 msgid "Quit"
+msgstr ""
+
+msgid "Fullscreen"
+msgstr ""
+
+msgid "Theme"
+msgstr ""
+
+msgid "Dark"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Interface size"
+msgstr ""
+
+msgid "Automatic"
 msgstr ""
 
 msgid "Pause"
@@ -560,10 +587,6 @@ msgid "Right or middle drag pans, wheel zooms."
 msgstr ""
 
 msgid "Click buttons and switches to operate them. Right or middle drag pans, wheel zooms."
-msgstr ""
-
-#, c-format
-msgid "Time: %.3f s"
 msgstr ""
 
 #, c-format
@@ -665,6 +688,9 @@ msgstr ""
 
 #, c-format
 msgid "speed %d"
+msgstr ""
+
+msgid "Event log"
 msgstr ""
 
 msgid "Clear"

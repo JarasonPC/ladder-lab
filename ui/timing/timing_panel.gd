@@ -15,8 +15,10 @@ var _hint: Label
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(0, 210)
+	custom_minimum_size = Vector2(0, 220)
+	theme_type_variation = "BottomPanel"
 	var split: HBoxContainer = HBoxContainer.new()
+	split.add_theme_constant_override("separation", 14)
 	add_child(split)
 	var left: VBoxContainer = VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -25,6 +27,7 @@ func _ready() -> void:
 	var tools: HBoxContainer = HBoxContainer.new()
 	left.add_child(tools)
 	_window_label = Label.new()
+	_window_label.theme_type_variation = "MutedLabel"
 	_window_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	tools.add_child(_window_label)
 	_window_select = OptionButton.new()
@@ -35,6 +38,7 @@ func _ready() -> void:
 	_window_select.item_selected.connect(func(i: int) -> void: chart.window = WINDOWS[i])
 	tools.add_child(_window_select)
 	_live = Button.new()
+	_live.icon = AppTheme.icon("follow", 16)
 	_live.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_live.focus_mode = Control.FOCUS_NONE
 	_live.pressed.connect(func() -> void:
@@ -43,18 +47,24 @@ func _ready() -> void:
 	tools.add_child(_live)
 	_hint = Label.new()
 	_hint.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
+	_hint.theme_type_variation = "MutedLabel"
 	tools.add_child(_hint)
+	# The chart sits in a rounded card.
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "Card"
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	left.add_child(card)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	left.add_child(scroll)
+	card.add_child(scroll)
 	chart = TimingChart.new()
 	chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chart.window_changed.connect(_on_window_changed)
 	scroll.add_child(chart)
 	event_log = EventLog.new()
-	event_log.custom_minimum_size = Vector2(330, 0)
+	event_log.custom_minimum_size = Vector2(340, 0)
 	split.add_child(event_log)
 	_window_select.select(WINDOWS.find(0.1))
 	chart.window = 0.1

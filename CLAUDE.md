@@ -29,6 +29,10 @@
   ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated/mirrored, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
+- UI look: `ui/app_theme.gd` (AppTheme) builds the whole Godot theme in code from colour tokens
+  (dark/light), system fonts (MSDF font for schematic text), line icons as inline SVG via
+  DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
+  per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes

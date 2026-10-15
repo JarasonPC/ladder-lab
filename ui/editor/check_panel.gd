@@ -12,6 +12,7 @@ var _issues: Array[Dictionary] = []
 
 
 func _ready() -> void:
+	theme_type_variation = "RightSection"
 	var box: VBoxContainer = VBoxContainer.new()
 	add_child(box)
 	var header: HBoxContainer = HBoxContainer.new()
@@ -19,10 +20,11 @@ func _ready() -> void:
 	_title = Label.new()
 	_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title.add_theme_font_size_override("font_size", 16)
+	_title.theme_type_variation = "TitleLabel"
 	header.add_child(_title)
 	_close = Button.new()
-	_close.text = "×"
+	_close.theme_type_variation = "ToolButton"
+	_close.icon = AppTheme.icon("close", 16)
 	_close.focus_mode = Control.FOCUS_NONE
 	_close.pressed.connect(hide)
 	header.add_child(_close)
@@ -56,7 +58,7 @@ func _add_row(text: String, ids: PackedStringArray) -> void:
 	var row: Button = Button.new()
 	row.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	row.text = text
-	row.flat = true
+	row.theme_type_variation = "ListButton"
 	row.focus_mode = Control.FOCUS_NONE
 	row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

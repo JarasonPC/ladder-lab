@@ -15,10 +15,13 @@ func _ready() -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	add_child(header)
 	_title = Label.new()
+	_title.theme_type_variation = "MutedLabel"
 	_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_title)
 	_clear = Button.new()
+	_clear.theme_type_variation = "ToolButton"
+	_clear.add_theme_font_size_override("font_size", AppTheme.SMALL_FONT_SIZE)
 	_clear.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_clear.focus_mode = Control.FOCUS_NONE
 	_clear.pressed.connect(clear)
@@ -57,4 +60,4 @@ func retranslate() -> void:
 
 
 func _format(e: Dictionary) -> String:
-	return "%9.4f s   %s" % [e["time"], tr(e["text"]) % e["args"]]
+	return "%8.4f s  %s" % [e["time"], tr(e["text"]) % e["args"]]

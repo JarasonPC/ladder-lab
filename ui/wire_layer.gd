@@ -59,7 +59,7 @@ func _draw_path_numbers() -> void:
 	if paths.is_empty():
 		return
 	var b: Rect2 = document.bounds()
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = AppTheme.schematic_font()
 	var size: int = SchematicTheme.LABEL_SIZE
 	var box: Vector2 = Vector2(1.4, 1.0) * G
 	for i: int in paths.size():
