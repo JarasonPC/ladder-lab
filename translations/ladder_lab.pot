@@ -204,6 +204,12 @@ msgstr ""
 msgid "Switch NC"
 msgstr ""
 
+msgid "Limit switch NO"
+msgstr ""
+
+msgid "Limit switch NC"
+msgstr ""
+
 msgid "Contact NO"
 msgstr ""
 

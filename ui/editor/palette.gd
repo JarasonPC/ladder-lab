@@ -16,6 +16,8 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Push button NC", "template": {"type": "push_button", "contact": "NC"}},
 	{"title": "Switch NO", "template": {"type": "latching_switch", "contact": "NO"}},
 	{"title": "Switch NC", "template": {"type": "latching_switch", "contact": "NC"}},
+	{"title": "Limit switch NO", "template": {"type": "limit_switch", "contact": "NO"}},
+	{"title": "Limit switch NC", "template": {"type": "limit_switch", "contact": "NC"}},
 	{"title": "Contact NO", "template": {"type": "contact", "contact": "NO"}},
 	{"title": "Contact NC", "template": {"type": "contact", "contact": "NC"}},
 	{"title": "Changeover contact", "template": {"type": "changeover"}},
@@ -53,7 +55,7 @@ static func group_of(template: Dictionary) -> String:
 	match template["type"]:
 		"supply", "terminal":
 			return "supplies"
-		"push_button", "latching_switch":
+		"push_button", "latching_switch", "limit_switch":
 			return "buttons"
 		"contact", "changeover":
 			return "contacts"

@@ -46,7 +46,7 @@ func test_place_wire_and_simulate() -> void:
 	_place({"type": "latching_switch", "contact": "NO"}, Vector2i(5, 2))
 	_place({"type": "lamp"}, Vector2i(5, 7))
 	var doc: SchematicDocument = editor.document()
-	assert_not_null(doc.circuit.get_component("S1"))
+	assert_not_null(doc.circuit.get_component("RB1"))
 	assert_not_null(doc.circuit.get_component("H1"))
 	assert_eq(view.get_symbol("H1").position, Vector2(5, 7) * SymbolGeometry.GRID)
 	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 2)])
@@ -54,7 +54,7 @@ func test_place_wire_and_simulate() -> void:
 	_wire([Vector2(5, 10), Vector2(5, 12), Vector2(2, 12)])
 	assert_eq(doc.get_wire_count(), 3)
 	assert_eq(doc.get_route(0).corners, [Vector2i(5, 1)] as Array[Vector2i])
-	(doc.circuit.get_component("S1") as LatchingSwitch).set_switched_on(true)
+	(doc.circuit.get_component("RB1") as LatchingSwitch).set_switched_on(true)
 	Simulator.new(doc.circuit).step()
 	assert_true((doc.circuit.get_component("H1") as Lamp).energized)
 
@@ -99,19 +99,19 @@ func test_undo_redo_and_delete() -> void:
 func test_properties_change_and_conflict() -> void:
 	_place({"type": "push_button", "contact": "NO"}, Vector2i(5, 2))
 	_place({"type": "push_button", "contact": "NO"}, Vector2i(9, 2))
-	var data: Dictionary = DocumentSerializer.component_to_dict(editor.document().circuit.get_component("S2"))
+	var data: Dictionary = DocumentSerializer.component_to_dict(editor.document().circuit.get_component("SB2"))
 	data["contact"] = "NC"
-	assert_eq(editor.apply_properties("S2", data), "")
-	assert_true(editor.document().circuit.has_terminal("S2:11"))
+	assert_eq(editor.apply_properties("SB2", data), "")
+	assert_true(editor.document().circuit.has_terminal("SB2:11"))
 	data["contact"] = "NO"
-	data["designation"] = "S1"
-	assert_ne(editor.apply_properties("S2", data), "", "S1 13-14 is taken")
-	assert_not_null(editor.document().circuit.get_component("S2"))
+	data["designation"] = "SB1"
+	assert_ne(editor.apply_properties("SB2", data), "", "SB1 13-14 is taken")
+	assert_not_null(editor.document().circuit.get_component("SB2"))
 	data["contact"] = "NC"
 	data["sequence"] = 2
-	assert_eq(editor.apply_properties("S2", data), "", "S1 21-22 is a second block of S1")
-	assert_eq((editor.document().circuit.get_component("S1:21-22") as PushButton).actuator,
-		(editor.document().circuit.get_component("S1:13-14") as PushButton).actuator, "blocks share the button")
+	assert_eq(editor.apply_properties("SB2", data), "", "SB1 21-22 is a second block of S1")
+	assert_eq((editor.document().circuit.get_component("SB1:21-22") as PushButton).actuator,
+		(editor.document().circuit.get_component("SB1:13-14") as PushButton).actuator, "blocks share the button")
 
 
 func test_rotate_selection_turns_component() -> void:
@@ -146,13 +146,14 @@ func test_change_switch_type_keeps_wires() -> void:
 	_place({"type": "latching_switch", "contact": "NO"}, Vector2i(5, 2))
 	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 2)])
 	var doc: SchematicDocument = editor.document()
-	assert_eq(editor.change_type("S1", {"type": "latching_switch", "contact": "NC"}), "")
-	assert_true(doc.circuit.get_component("S1") is LatchingSwitch)
-	assert_eq(doc.circuit.get_wires()[0][1], "S1:11", "wire moved to the NC terminal")
-	assert_eq(editor.change_type("S1", {"type": "push_button", "contact": "NO"}), "")
-	assert_true(doc.circuit.get_component("S1") is PushButton, "button keeps the S designation")
+	assert_eq(editor.change_type("RB1", {"type": "latching_switch", "contact": "NC"}), "")
+	assert_true(doc.circuit.get_component("RB1") is LatchingSwitch)
+	assert_eq(doc.circuit.get_wires()[0][1], "RB1:11", "wire moved to the NC terminal")
+	assert_eq(editor.change_type("RB1", {"type": "push_button", "contact": "NO"}), "")
+	assert_true(doc.circuit.get_component("SB1") is PushButton, "a push button is SB")
+	assert_eq(doc.circuit.get_wires()[0][1], "SB1:13", "keeping its wire")
 	editor.undo()
-	assert_true(editor.document().circuit.get_component("S1") is LatchingSwitch, "undoable")
+	assert_true(editor.document().circuit.get_component("RB1") is LatchingSwitch, "undoable")
 
 
 func test_change_switch_to_contacts_follows_coils() -> void:
@@ -160,19 +161,19 @@ func test_change_switch_to_contacts_follows_coils() -> void:
 	_place({"type": "timer", "mode": "on_delay", "delay": 3.0}, Vector2i(13, 6))
 	_place({"type": "push_button", "contact": "NO"}, Vector2i(5, 2))
 	var doc: SchematicDocument = editor.document()
-	assert_eq(editor.change_type("S1", {"type": "contact", "contact": "NO"}), "")
+	assert_eq(editor.change_type("SB1", {"type": "contact", "contact": "NO"}), "")
 	assert_not_null(doc.circuit.get_component("KM1:13-14"), "a contact belongs to the coil")
 	assert_eq(editor.change_type("KM1:13-14", {"type": "contact", "contact": "NC", "delayed": true}), "")
 	var timer_contact: Contact = doc.circuit.get_component("KT1:15-16") as Contact
 	assert_not_null(timer_contact, "a delayed contact moves to the timer")
 	assert_true(timer_contact.linked_coil is TimerRelay)
 	assert_eq(editor.change_type("KT1:15-16", {"type": "latching_switch", "contact": "NO"}), "")
-	assert_not_null(doc.circuit.get_component("S1"), "back to a switch with a new S designation")
+	assert_not_null(doc.circuit.get_component("RB1"), "back to a switch with a new RB designation")
 
 
 func test_type_options_and_matching() -> void:
 	var options: Array[Dictionary] = SchematicEditor.type_options(PushButton.new("S1", SwitchingElement.ContactType.NC))
-	assert_eq(options.size(), 6, "buttons, switches, contacts (delayed is a property)")
+	assert_eq(options.size(), 8, "buttons, switches, limit switches, contacts (delayed is a property)")
 	assert_eq(SchematicEditor.type_options(Lamp.new("H1")).size(), 2)
 	assert_eq(SchematicEditor.type_options(Junction.new("J1")).size(), 0)
 	assert_true(SchematicEditor.matches_template(Contact.new("K1", SwitchingElement.ContactType.NO), {"type": "contact", "contact": "NO"}))
@@ -203,14 +204,14 @@ func test_rename_and_swap_terminals_in_properties() -> void:
 	assert_eq(editor.apply_properties("KA1", data), "")
 	assert_eq(doc.circuit.get_wires()[0][1], "KA1:A2", "the wire at the top now ends on A2")
 	_place({"type": "push_button", "contact": "NO"}, Vector2i(10, 4))
-	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("S1"))
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("SB1"))
 	data["terminals"] = ["5", "6"]
-	assert_eq(editor.apply_properties("S1:13-14", data), "")
-	assert_not_null(doc.circuit.get_component("S1:5-6"))
+	assert_eq(editor.apply_properties("SB1:13-14", data), "")
+	assert_not_null(doc.circuit.get_component("SB1:5-6"))
 	data["terminals"] = ["5", "5"]
-	assert_ne(editor.apply_properties("S1:5-6", data), "", "duplicate names are refused")
+	assert_ne(editor.apply_properties("SB1:5-6", data), "", "duplicate names are refused")
 	editor.undo()
-	assert_not_null(editor.document().circuit.get_component("S1:13-14"), "undoable")
+	assert_not_null(editor.document().circuit.get_component("SB1:13-14"), "undoable")
 
 
 func test_protection_parts_get_f_designations() -> void:
@@ -218,11 +219,11 @@ func test_protection_parts_get_f_designations() -> void:
 	_place({"type": "overload_relay", "trip_delay": 5.0}, Vector2i(10, 4))
 	_place({"type": "overload_contact", "contact": "NC"}, Vector2i(15, 4))
 	var doc: SchematicDocument = editor.document()
-	assert_true(doc.circuit.get_component("F1") is Fuse)
-	assert_true(doc.circuit.get_component("F2") is OverloadRelay)
-	assert_not_null(doc.circuit.get_component("F2:95-96"), "the contact belongs to the overload relay")
-	assert_eq(editor.change_type("F1", {"type": "breaker"}), "")
-	assert_true(doc.circuit.get_component("F1") is CircuitBreaker)
+	assert_true(doc.circuit.get_component("FU1") is Fuse, "a fuse is FU")
+	assert_true(doc.circuit.get_component("F1") is OverloadRelay, "an overload relay is F")
+	assert_not_null(doc.circuit.get_component("F1:95-96"), "the contact belongs to the overload relay")
+	assert_eq(editor.change_type("FU1", {"type": "breaker"}), "")
+	assert_true(doc.circuit.get_component("FA1") is CircuitBreaker, "a circuit breaker is FA")
 
 
 func test_changeover_contact_follows_coil_and_changes_type() -> void:
@@ -247,11 +248,11 @@ func test_three_phase_parts_from_the_palette() -> void:
 		x += 8
 	var doc: SchematicDocument = editor.document()
 	# One part per family; the poles are set in the properties.
-	for id: String in ["F1", "Q1", "F2"]:
+	for id: String in ["FU1", "FA1", "F1"]:
 		var poles: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component(id))
 		poles["poles"] = 3
 		assert_eq(editor.apply_properties(id, poles), "", id + " gets three poles")
-	for id: String in ["L2", "L1", "L3", "KM1:1-2-3-4-5-6", "F1:1-2-3-4-5-6", "Q1:1-2-3-4-5-6", "F2:1-2-3-4-5-6", "M1", "M2", "M3", "M4", "M5"]:
+	for id: String in ["L2", "L1", "L3", "KM1:1-2-3-4-5-6", "FU1:1-2-3-4-5-6", "FA1:1-2-3-4-5-6", "F1:1-2-3-4-5-6", "M1", "M2", "M3", "M4", "M5"]:
 		assert_true(doc.circuit.has_component_id(id), id + " placed")
 	assert_eq((doc.circuit.get_component("L1") as PowerSupply).conductor, PowerSupply.Conductor.L, "L next to L2 is called L1")
 	assert_eq((doc.circuit.get_component("M2") as ThreePhaseMotor).kind, ThreePhaseMotor.Kind.STAR_DELTA)
@@ -261,8 +262,8 @@ func test_three_phase_parts_from_the_palette() -> void:
 	assert_eq(titles, ["Motor 3~ star/delta", "Motor 3~ Dahlander", "Motor 3~ two windings"])
 	assert_eq(editor.change_type("M2", {"type": "motor3", "motor_kind": "dahlander"}), "")
 	assert_eq((doc.circuit.get_component("M2") as ThreePhaseMotor).kind, ThreePhaseMotor.Kind.DAHLANDER)
-	assert_eq(editor.change_type("F1:1-2-3-4-5-6", {"type": "breaker"}), "")
-	assert_true(doc.circuit.get_component("F1:1-2-3-4-5-6") is MotorBreaker, "a three-pole fuse becomes a three-pole breaker")
+	assert_eq(editor.change_type("FU1:1-2-3-4-5-6", {"type": "breaker"}), "")
+	assert_true(doc.circuit.get_component("FA2:1-2-3-4-5-6") is MotorBreaker, "a three-pole fuse becomes a three-pole breaker FA")
 	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("L2"))
 	data["conductor"] = "L3"
 	assert_eq(editor.apply_properties("L2", data), "")
@@ -432,3 +433,24 @@ func test_terminal_on_a_lead() -> void:
 	editor.delete_selection()
 	assert_true(editor.document().circuit.has_component_id("H1"), "Delete removes the terminal, not the lamp")
 	assert_true(editor.document().get_placement("H1").strips.is_empty())
+
+
+func test_designation_prefixes_and_limit_switch() -> void:
+	_place({"type": "push_button", "contact": "NO"}, Vector2i(4, 2))
+	_place({"type": "latching_switch", "contact": "NO"}, Vector2i(8, 2))
+	_place({"type": "limit_switch", "contact": "NC"}, Vector2i(12, 2))
+	_place({"type": "fuse"}, Vector2i(16, 2))
+	_place({"type": "breaker"}, Vector2i(20, 2))
+	var doc: SchematicDocument = editor.document()
+	assert_true(doc.circuit.get_component("SB1") is PushButton, "push button SB")
+	assert_true(doc.circuit.get_component("RB1") is LatchingSwitch, "rotary switch RB")
+	assert_true(doc.circuit.get_component("SQ1") is LimitSwitch, "limit switch SQ")
+	assert_true(doc.circuit.get_component("FU1") is Fuse, "fuse FU")
+	assert_true(doc.circuit.get_component("FA1") is CircuitBreaker, "circuit breaker FA")
+	var limit: LimitSwitch = doc.circuit.get_component("SQ1") as LimitSwitch
+	assert_true(limit.is_closed(), "an NC limit switch is closed at rest")
+	limit.toggle()
+	limit.actuator.snap(limit.actuator.target)
+	assert_false(limit.is_closed(), "operated it opens")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_true(copy.circuit.get_component("SQ1") is LimitSwitch, "saved as a limit switch")

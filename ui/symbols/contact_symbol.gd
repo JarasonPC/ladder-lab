@@ -76,9 +76,10 @@ func _draw_shape(color: Color, _width: float) -> void:
 	else:
 		tip = OPEN_TIP.lerp(NO_CLOSED_TIP, s)
 	draw_blade(pivot, tip, pivot_color, pivot_width)
-	var middle: Vector2 = pivot.lerp(tip, 0.5)
 	# Marks fixed to the blade turn with it; the button and switch heads stay
-	# upright and only follow the blade's middle.
+	# straight at one height, their stem reaching the blade there.
+	var rest_y: float = pivot.lerp(NC_CLOSED_TIP if is_nc else OPEN_TIP, 0.5).y
+	var middle: Vector2 = Vector2(pivot.x + (tip.x - pivot.x) * (pivot.y - rest_y) / (pivot.y - tip.y), rest_y)
 	var turn: float = (tip - pivot).angle() - (rest_tip - pivot).angle()
 	var rest_middle: Vector2 = pivot.lerp(rest_tip, 0.5)
 	# The actuator is insulated from the contact: never live.
@@ -86,6 +87,8 @@ func _draw_shape(color: Color, _width: float) -> void:
 
 	if component is PushButton:
 		_draw_push_actuator(middle, s, color)
+	elif component is LimitSwitch:
+		_draw_position_actuator(rest_middle, color, pivot, turn)
 	elif component is LatchingSwitch:
 		_draw_turn_actuator(middle, (component as LatchingSwitch).switched_on, color)
 	elif component is OverloadContact:
@@ -103,6 +106,16 @@ func _draw_push_actuator(middle: Vector2, pressed: float, color: Color) -> void:
 	aa_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
 	aa_line(Vector2(head_x, y - 7), Vector2(head_x + 5, y - 7), color, 1.8)
 	aa_line(Vector2(head_x, y + 7), Vector2(head_x + 5, y + 7), color, 1.8)
+
+
+## Limit switch actuator (IEC 60617 S00259/S00260): a small triangle on the
+## blade, its apex touching it; fixed to the blade and turned with it.
+func _draw_position_actuator(middle: Vector2, color: Color, pivot: Vector2, turn: float) -> void:
+	var on_blade: Callable = func(p: Vector2) -> Vector2:
+		return pivot + (p - pivot).rotated(turn)
+	var y: float = middle.y
+	var apex: Vector2 = Vector2(middle.x - 1.0, y)
+	aa_polyline(PackedVector2Array([on_blade.call(apex), on_blade.call(Vector2(apex.x - 9.0, y - 5.0)), on_blade.call(Vector2(apex.x - 9.0, y + 5.0)), on_blade.call(apex)]), color, 1.6)
 
 
 ## Stem from the blade to the hook of the thermal release, as in the guide;
