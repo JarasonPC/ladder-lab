@@ -102,6 +102,14 @@ func lead_width(terminal_index: int) -> float:
 	return SchematicTheme.LIVE_WIDTH if warning or reach(terminal_index) != REACH_NONE else SchematicTheme.LINE_WIDTH
 
 
+## Contact blade: a line with round ends, so slanted blades meet their
+## leads cleanly.
+func draw_blade(from: Vector2, to: Vector2, color: Color, width: float) -> void:
+	draw_line(from, to, color, width)
+	draw_circle(from, width * 0.5, color)
+	draw_circle(to, width * 0.5, color)
+
+
 ## Draws the symbol in local coordinates. Override.
 func _draw_shape(_color: Color, _width: float) -> void:
 	pass
@@ -172,7 +180,7 @@ func _draw_fault_marker(at: Vector2) -> void:
 	for i: int in bolt.size():
 		bolt[i] += at
 	draw_colored_polygon(bolt, SchematicTheme.FAULT)
-	draw_polyline(bolt, SchematicTheme.LIVE, 1.0, true)
+	draw_polyline(bolt, SchematicTheme.LIVE, 1.0)
 
 
 ## Local point next to which the designation is written.

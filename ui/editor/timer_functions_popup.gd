@@ -17,6 +17,9 @@ const WINDOW_SHARE: float = 0.9
 ## Fills the list: [param titles] in [enum TimerRelay.Mode] order, the current
 ## function [param current] highlighted, the control input named [param input_name].
 func setup(titles: Array, current: TimerRelay.Mode, input_name: String) -> void:
+	# Rounded corners and shadow of the panel style, nothing square behind.
+	transparent = true
+	transparent_bg = true
 	var window: Vector2 = Vector2(get_tree().root.get_visible_rect().size) if is_inside_tree() else Vector2(1280, 800)
 	var width: float = maxf(window.x * WINDOW_SHARE, MIN_CARD_WIDTH + 40.0)
 	var columns: int = clampi(int((width - 40.0) / MIN_CARD_WIDTH), 1, MAX_COLUMNS)

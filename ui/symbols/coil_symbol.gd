@@ -12,8 +12,8 @@ const TIMER_BOX := Rect2(-28, 20, 14, 20)
 
 func _draw_shape(color: Color, width: float) -> void:
 	var coil: Coil = component as Coil
-	draw_line(Vector2(0, 0), Vector2(0, BOX.position.y), lead_color(0), lead_width(0), true)
-	draw_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), lead_color(1), lead_width(1), true)
+	draw_line(Vector2(0, 0), Vector2(0, BOX.position.y), lead_color(0), lead_width(0))
+	draw_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), lead_color(1), lead_width(1))
 	if coil.energized:
 		draw_rect(BOX, SchematicTheme.COIL_ON)
 	draw_rect(BOX, color, false, width)
@@ -24,14 +24,14 @@ func _draw_shape(color: Color, width: float) -> void:
 		draw_rect(TIMER_BOX, color, false, width)
 		match timer.mode:
 			TimerRelay.Mode.ON_DELAY:
-				draw_line(TIMER_BOX.position, TIMER_BOX.end, color, SchematicTheme.LINE_WIDTH * 0.75, true)
-				draw_line(Vector2(TIMER_BOX.position.x, TIMER_BOX.end.y), Vector2(TIMER_BOX.end.x, TIMER_BOX.position.y), color, SchematicTheme.LINE_WIDTH * 0.75, true)
+				draw_line(TIMER_BOX.position, TIMER_BOX.end, color, SchematicTheme.LINE_WIDTH * 0.75)
+				draw_line(Vector2(TIMER_BOX.position.x, TIMER_BOX.end.y), Vector2(TIMER_BOX.end.x, TIMER_BOX.position.y), color, SchematicTheme.LINE_WIDTH * 0.75)
 			TimerRelay.Mode.OFF_DELAY:
 				draw_rect(TIMER_BOX.grow(-3.0), color)
 		if timer.control_input and component.get_terminal_names().size() > 2:
 			# Control input S: from its terminal down into the coil box.
 			var s: Vector2 = Vector2(G, 0)
-			draw_polyline(PackedVector2Array([s, Vector2(G, 10), Vector2(8, 10), Vector2(8, BOX.position.y)]), lead_color(2), lead_width(2), true)
+			draw_polyline(PackedVector2Array([s, Vector2(G, 10), Vector2(8, 10), Vector2(8, BOX.position.y)]), lead_color(2), lead_width(2))
 
 
 func _draw_labels() -> void:

@@ -441,9 +441,29 @@ func rotate_component(component_id: String, clockwise: bool = true) -> void:
 	_reroute_component(component_id)
 
 
-## Mirrors a component across its own axis (e.g. actuator to the other side).
+## Mirrors a component left to right as seen on the drawing. A vertical
+## symbol is mirrored across its own axis (actuator to the other side, the
+## terminals stay); a horizontal one swaps its ends in place.
 func mirror_component(component_id: String) -> void:
 	component_id = _id(component_id)
+	if _placements[component_id].rotation % 2 == 0:
+		_mirror_across_axis(component_id)
+	else:
+		_swap_ends(component_id)
+
+
+## Mirrors a component top to bottom as seen on the drawing: a vertical
+## symbol swaps its upper and lower terminals in place, a horizontal one is
+## mirrored across its own axis.
+func flip_component(component_id: String) -> void:
+	component_id = _id(component_id)
+	if _placements[component_id].rotation % 2 == 0:
+		_swap_ends(component_id)
+	else:
+		_mirror_across_axis(component_id)
+
+
+func _mirror_across_axis(component_id: String) -> void:
 	var p: Placement = _placements[component_id]
 	# The mirror flips local x before rotation, so the symbol axis (local y)
 	# and both terminals stay where they are; only the side marks swap.
@@ -451,10 +471,9 @@ func mirror_component(component_id: String) -> void:
 	_reroute_component(component_id)
 
 
-## Mirrors a component top to bottom, across the horizontal axis through its
-## middle: it stays in place and its upper and lower terminals swap.
-func flip_component(component_id: String) -> void:
-	component_id = _id(component_id)
+## Mirrors local y about the symbol's middle, so its first and last
+## terminals swap places.
+func _swap_ends(component_id: String) -> void:
 	var p: Placement = _placements[component_id]
 	var height: int = 0
 	for cell: Vector2i in SymbolGeometry.local_terminals(circuit.get_component(component_id)).values():

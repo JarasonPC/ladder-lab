@@ -310,9 +310,12 @@ func test_flip_swaps_the_ends_in_place() -> void:
 	assert_eq(doc.terminal_cell("KM1:13"), Vector2i(4, 2), "flipped twice: as before")
 	var p: Placement = doc.get_placement("KM1:13-14")
 	assert_eq([p.rotation, p.mirrored], [0, false])
-	# Turned into a horizontal path, the ends still swap.
+	# Turned into a horizontal path, mirroring left-right swaps the ends and
+	# mirroring top-bottom keeps them (as seen on the drawing).
 	doc.rotate_component("KM1:13-14")
 	var a: Vector2i = doc.terminal_cell("KM1:13")
 	var b: Vector2i = doc.terminal_cell("KM1:14")
-	doc.flip_component("KM1:13-14")
+	doc.mirror_component("KM1:13-14")
 	assert_eq([doc.terminal_cell("KM1:13"), doc.terminal_cell("KM1:14")], [b, a])
+	doc.flip_component("KM1:13-14")
+	assert_eq([doc.terminal_cell("KM1:13"), doc.terminal_cell("KM1:14")], [b, a], "top-bottom keeps the ends")
