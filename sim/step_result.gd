@@ -26,6 +26,19 @@ var short_circuit_path: PackedStringArray = PackedStringArray()
 var live_terminals: PackedStringArray = PackedStringArray()
 ## Indices into [method Circuit.get_wires] of the wires at L potential.
 var live_wires: PackedInt32Array = PackedInt32Array()
+## Reach codes: what a terminal or wire is joined to.
+const REACH_NONE: int = 0
+const REACH_L1: int = 1
+const REACH_L2: int = 2
+const REACH_L3: int = 3
+const REACH_N: int = 4
+## Several supplies (a short circuit).
+const REACH_SEVERAL: int = 5
+
+## Reach code of every terminal reached by a supply (see REACH_*).
+var terminal_reach: Dictionary[String, int] = {}
+## Reach code per wire, in the order of [method Circuit.get_wires].
+var wire_reach: PackedByteArray = PackedByteArray()
 ## Terminal keys joined to an N supply (and not to L): N reach.
 var neutral_terminals: PackedStringArray = PackedStringArray()
 ## Indices into [method Circuit.get_wires] of the wires joined to N (and not to L).
@@ -33,8 +46,26 @@ var neutral_wires: PackedInt32Array = PackedInt32Array()
 ## Indices into [method Circuit.get_wires] of the wires that carry current.
 ## During a short these are the wires carrying the fault current.
 var current_wires: PackedInt32Array = PackedInt32Array()
+## Switching path indices (internal to the simulator) that carry current.
+var current_switch_paths: PackedInt32Array = PackedInt32Array()
 ## Ids of closed switching elements and energized loads that carry current.
 var current_components: PackedStringArray = PackedStringArray()
+
+
+## Reach code for a mask of supply bits (see [PowerSupply]).
+static func reach_code(mask: int) -> int:
+	match mask:
+		0:
+			return REACH_NONE
+		PowerSupply.BIT_L1:
+			return REACH_L1
+		PowerSupply.BIT_L2:
+			return REACH_L2
+		PowerSupply.BIT_L3:
+			return REACH_L3
+		PowerSupply.BIT_N:
+			return REACH_N
+	return REACH_SEVERAL
 
 
 func is_oscillating() -> bool:

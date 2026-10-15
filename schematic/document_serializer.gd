@@ -8,7 +8,9 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3"]
+const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
+const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3"]
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -71,7 +73,7 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	var d: Dictionary = {"designation": c.designation}
 	if c is PowerSupply:
 		d["type"] = "supply"
-		d["conductor"] = "L" if (c as PowerSupply).conductor == PowerSupply.Conductor.L else "N"
+		d["conductor"] = CONDUCTORS[(c as PowerSupply).conductor]
 	elif c is Junction:
 		d["type"] = "junction"
 	elif c is Fuse:
@@ -89,6 +91,16 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	elif c is OverloadRelay:
 		d["type"] = "overload_relay"
 		d["trip_delay"] = (c as OverloadRelay).trip_delay
+		d["poles"] = (c as OverloadRelay).poles
+	elif c is MainContacts:
+		d["type"] = "main_contacts"
+	elif c is ThreePoleFuse:
+		d["type"] = "fuse3"
+	elif c is MotorBreaker:
+		d["type"] = "breaker3"
+	elif c is ThreePhaseMotor:
+		d["type"] = "motor3"
+		d["motor_kind"] = MOTOR_KINDS[(c as ThreePhaseMotor).kind]
 	elif c is SwitchingElement:
 		var s: SwitchingElement = c as SwitchingElement
 		d["contact"] = "NO" if s.contact_type == NO else "NC"
@@ -148,8 +160,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 	var sequence: int = clampi(int(d.get("sequence", 1)), 0, 9)
 	match kind:
 		"supply":
-			var conductor: PowerSupply.Conductor = PowerSupply.Conductor.N if d.get("conductor", "L") == "N" else PowerSupply.Conductor.L
-			return PowerSupply.new(designation, conductor)
+			var conductor: int = maxi(CONDUCTORS.find(str(d.get("conductor", "L"))), 0)
+			return PowerSupply.new(designation, conductor as PowerSupply.Conductor)
 		"junction":
 			return Junction.new(designation)
 		"push_button":
@@ -165,7 +177,16 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"breaker":
 			return CircuitBreaker.new(designation)
 		"overload_relay":
-			return OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0))
+			return OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0), 3 if int(d.get("poles", 0)) == 3 else 0)
+		"main_contacts":
+			return MainContacts.new(designation)
+		"fuse3":
+			return ThreePoleFuse.new(designation)
+		"breaker3":
+			return MotorBreaker.new(designation)
+		"motor3":
+			var motor_kind: int = maxi(MOTOR_KINDS.find(str(d.get("motor_kind", "standard"))), 0)
+			return ThreePhaseMotor.new(designation, motor_kind as ThreePhaseMotor.Kind)
 		"overload_contact":
 			return OverloadContact.new(designation, contact)
 		"coil":

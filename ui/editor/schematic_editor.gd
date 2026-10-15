@@ -82,14 +82,20 @@ func _ready() -> void:
 
 
 ## Palette entries of the same family as [param c] (switching elements,
-## coils, loads or supplies); empty for junctions.
+## coils, loads or supplies) with as many terminals; empty for junctions.
 static func type_options(c: CircuitComponent) -> Array[Dictionary]:
 	var family: String = _family(DocumentSerializer.component_to_dict(c)["type"])
 	var result: Array[Dictionary] = []
 	if family.is_empty():
 		return result
+	var terminals: int = c.get_terminal_names().size()
 	for entry: Dictionary in Palette.ENTRIES:
-		if _family(entry["template"]["type"]) == family:
+		if _family(entry["template"]["type"]) != family:
+			continue
+		var data: Dictionary = entry["template"].duplicate()
+		data["designation"] = str(data.get("conductor", "X1"))
+		var trial: CircuitComponent = DocumentSerializer.component_from_dict(data)
+		if trial != null and trial.get_terminal_names().size() == terminals:
 			result.append(entry)
 	return result
 
@@ -119,6 +125,10 @@ static func _family(kind: String) -> String:
 			return "load"
 		"fuse", "breaker":
 			return "protection"
+		"fuse3", "breaker3":
+			return "protection3"
+		"motor3":
+			return "motor3"
 		"overload_contact":
 			return "overload_contact"
 		"supply":
@@ -208,7 +218,7 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 	if old == null:
 		return ""
 	if data["type"] == "supply":
-		var conductor: PowerSupply.Conductor = PowerSupply.Conductor.N if data["conductor"] == "N" else PowerSupply.Conductor.L
+		var conductor: PowerSupply.Conductor = _conductor(data)
 		if conductor != (old as PowerSupply).conductor:
 			data["designation"] = doc.next_supply_designation(conductor)
 	if String(data.get("designation", "x")).is_empty():
@@ -565,11 +575,23 @@ func _new_designation(data: Dictionary) -> String:
 	var doc: SchematicDocument = document()
 	match data["type"]:
 		"supply":
-			return doc.next_supply_designation(PowerSupply.Conductor.N if data.get("conductor", "L") == "N" else PowerSupply.Conductor.L)
+			return doc.next_supply_designation(_conductor(data))
 		"push_button", "latching_switch":
 			return doc.next_designation("S")
-		"fuse", "breaker", "overload_relay":
+		"fuse", "breaker", "overload_relay", "fuse3":
 			return doc.next_designation("F")
+		"breaker3":
+			return doc.next_designation("Q")
+		"main_contacts":
+			# Belongs to the selected contactor, else to the first one.
+			for id: String in selected_components:
+				var picked: CircuitComponent = doc.circuit.get_component(id)
+				if picked is Coil and not (picked is TimerRelay):
+					return picked.designation
+			for c: CircuitComponent in doc.circuit.get_components():
+				if c is Coil and not (c is TimerRelay):
+					return c.designation
+			return "K1"
 		"overload_contact":
 			for id: String in selected_components:
 				var chosen: CircuitComponent = doc.circuit.get_component(id)
@@ -596,9 +618,13 @@ func _new_designation(data: Dictionary) -> String:
 			return doc.next_designation("KT")
 		"lamp":
 			return doc.next_designation("H")
-		"motor":
+		"motor", "motor3":
 			return doc.next_designation("M")
 	return doc.next_designation("X")
+
+
+static func _conductor(data: Dictionary) -> PowerSupply.Conductor:
+	return maxi(DocumentSerializer.CONDUCTORS.find(str(data.get("conductor", "L"))), 0) as PowerSupply.Conductor
 
 
 func _start_wire(key: String) -> void:

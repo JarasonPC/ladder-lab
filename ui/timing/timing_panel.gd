@@ -1,12 +1,13 @@
 class_name TimingPanel
 extends PanelContainer
 ## Bottom panel in Simulate mode: timing chart with its zoom choice next to
-## the event log.
+## the event log. Either part can be shown or hidden ([method show_parts]).
 
 const WINDOWS: Array[float] = [0.02, 0.1, 0.5, 2.0, 10.0]
 
 var chart: TimingChart
 var event_log: EventLog
+var _chart_part: VBoxContainer
 var _window_label: Label
 var _window_select: OptionButton
 var _live: Button
@@ -20,6 +21,7 @@ func _ready() -> void:
 	var left: VBoxContainer = VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(left)
+	_chart_part = left
 	var tools: HBoxContainer = HBoxContainer.new()
 	left.add_child(tools)
 	_window_label = Label.new()
@@ -57,6 +59,15 @@ func _ready() -> void:
 	_window_select.select(WINDOWS.find(0.1))
 	chart.window = 0.1
 	retranslate()
+
+
+## Shows the timing chart and/or the event log; the event log takes the full
+## width when it is shown alone.
+func show_parts(show_chart: bool, show_log: bool) -> void:
+	_chart_part.visible = show_chart
+	event_log.visible = show_log
+	event_log.size_flags_horizontal = Control.SIZE_FILL if show_chart else Control.SIZE_EXPAND_FILL
+	visible = show_chart or show_log
 
 
 func retranslate() -> void:

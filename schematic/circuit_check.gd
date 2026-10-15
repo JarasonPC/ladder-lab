@@ -16,7 +16,7 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 		connected[wire[1]] = true
 	var contact_designations: Dictionary[String, bool] = {}
 	for c: CircuitComponent in circuit.get_components():
-		if c is Contact or c is ChangeoverContact:
+		if c is Contact or c is ChangeoverContact or c is MainContacts:
 			contact_designations[c.designation] = true
 
 	for c: CircuitComponent in circuit.get_components():
@@ -37,6 +37,8 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 				issues.append(_issue("Contact %s has no coil %s.", [c.id, c.designation], [c.id]))
 			elif changeover.delayed and not (changeover.linked_coil is TimerRelay):
 				issues.append(_issue("Delayed contact %s belongs to %s, which is not a timer.", [c.id, c.designation], [c.id]))
+		if c is MainContacts and (c as MainContacts).linked_coil == null:
+			issues.append(_issue("Contact %s has no coil %s.", [c.id, c.designation], [c.id]))
 		if c is OverloadContact and (c as OverloadContact).linked_relay == null:
 			issues.append(_issue("Overload contact %s has no overload relay %s.", [c.id, c.designation], [c.id]))
 		if c is Coil and not contact_designations.has(c.designation):

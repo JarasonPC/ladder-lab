@@ -59,6 +59,33 @@ func _update_id() -> void:
 	pass
 
 
+## Switching paths as pairs of terminal indices, e.g. [(0, 1)] for a contact
+## or three pairs for a three-pole device. Empty for parts that do not switch.
+func switch_paths() -> Array[Vector2i]:
+	return []
+
+
+## Whether switching path [param _path] (see [method switch_paths]) conducts.
+func is_path_closed(_path: int) -> bool:
+	return false
+
+
+## A short circuit's fault current flows through path [param _path]: fuses and
+## breakers react. Returns true if the part changed state.
+func trip_path(_path: int) -> bool:
+	return false
+
+
+## Protection state for loop detection (-1: not a protective part).
+func protection_state() -> int:
+	return -1
+
+
+## Log text when [method trip_path] reacted, e.g. "%s blown".
+func trip_message() -> String:
+	return "%s tripped"
+
+
 ## Full terminal addresses used for wiring, e.g. ["K1:A1", "K1:A2"].
 func get_terminal_keys() -> PackedStringArray:
 	var keys: PackedStringArray = PackedStringArray()

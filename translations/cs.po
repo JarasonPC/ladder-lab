@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: LadderLab\n"
@@ -54,6 +55,21 @@ msgstr "Rozběh hvězda/trojúhelník"
 msgid "Forward/reverse with button interlock"
 msgstr "Reverzace s tlačítkovým blokováním"
 
+msgid "Direct-on-line start 3~"
+msgstr "Přímý rozběh 3~"
+
+msgid "Forward/reverse 3~"
+msgstr "Reverzace 3~"
+
+msgid "Star/delta start 3~"
+msgstr "Rozběh hvězda/trojúhelník 3~"
+
+msgid "Dahlander two-speed motor"
+msgstr "Dvourychlostní motor Dahlander"
+
+msgid "Two-speed motor, separate windings"
+msgstr "Dvourychlostní motor s oddělenými vinutími"
+
 #, c-format
 msgid "Could not open %s."
 msgstr "Soubor %s nelze otevřít."
@@ -69,6 +85,34 @@ msgstr "Soubor %s byl uložen novější verzí programu LadderLab."
 #, c-format
 msgid "%s is damaged and cannot be opened."
 msgstr "Soubor %s je poškozený a nelze jej otevřít."
+
+#, c-format
+msgid "%s: phase loss"
+msgstr "%s: výpadek fáze"
+
+#, c-format
+msgid "%s: windings wrongly connected"
+msgstr "%s: vinutí chybně zapojena"
+
+#, c-format
+msgid "%s stopped"
+msgstr "%s se zastavil"
+
+#, c-format
+msgid "%s runs in star"
+msgstr "%s běží do hvězdy"
+
+#, c-format
+msgid "%s runs in delta"
+msgstr "%s běží do trojúhelníku"
+
+#, c-format
+msgid "%s runs at speed %d"
+msgstr "%s běží na %d. stupeň otáček"
+
+#, c-format
+msgid "%s runs"
+msgstr "%s běží"
 
 #, c-format
 msgid "Short circuit: %s"
@@ -99,14 +143,6 @@ msgid "%s tripped (overload)"
 msgstr "%s vybavilo (přetížení)"
 
 #, c-format
-msgid "%s blown"
-msgstr "%s přepálena"
-
-#, c-format
-msgid "%s tripped"
-msgstr "%s vybavil"
-
-#, c-format
 msgid "%s is chattering"
 msgstr "%s kmitá"
 
@@ -128,6 +164,12 @@ msgstr "Přívod L"
 
 msgid "N supply"
 msgstr "Přívod N"
+
+msgid "L2 supply"
+msgstr "Přívod L2"
+
+msgid "L3 supply"
+msgstr "Přívod L3"
 
 msgid "Push button NO"
 msgstr "Tlačítko spínací"
@@ -191,6 +233,33 @@ msgstr "Kontakt nadproudového relé rozpínací"
 
 msgid "Overload contact NO"
 msgstr "Kontakt nadproudového relé spínací"
+
+msgid "Main contacts"
+msgstr "Hlavní kontakty"
+
+msgid "Fuse 3-pole"
+msgstr "Pojistka trojpólová"
+
+msgid "Motor breaker 3-pole"
+msgstr "Motorový spouštěč trojpólový"
+
+msgid "Overload relay 3-pole"
+msgstr "Tepelné nadproudové relé trojpólové"
+
+msgid "Motor 3~"
+msgstr "Motor 3~"
+
+msgid "Motor 3~ star/delta"
+msgstr "Motor 3~ hvězda/trojúhelník"
+
+msgid "Motor 3~ Dahlander"
+msgstr "Motor 3~ Dahlander"
+
+msgid "Motor 3~ two windings"
+msgstr "Motor 3~ se dvěma vinutími"
+
+msgid "Motor 3~ three windings"
+msgstr "Motor 3~ se třemi vinutími"
 
 msgid "Properties"
 msgstr "Vlastnosti"
@@ -376,6 +445,15 @@ msgstr "Reálné: relé potřebují svou dobu přítahu a odpadu, rozpínací ko
 msgid "Timing chart"
 msgstr "Časový diagram"
 
+msgid "Show or hide the timing chart"
+msgstr "Zobrazit nebo skrýt časový diagram"
+
+msgid "Event log"
+msgstr "Záznam událostí"
+
+msgid "Show or hide the event log"
+msgstr "Zobrazit nebo skrýt záznam událostí"
+
 msgid "Step"
 msgstr "Krok"
 
@@ -474,6 +552,10 @@ msgstr "%s vybavil – kliknutím jej znovu zapnete"
 msgid "%s tripped by overload – click it to reset"
 msgstr "%s vybavilo při přetížení – kliknutím jej resetujete"
 
+#, c-format
+msgid "%s: phase loss – the motor hums and overheats"
+msgstr "%s: výpadek fáze – motor bručí a přehřívá se"
+
 msgid "NO FUSE and SHORT CIRCUIT!"
 msgstr "ZKRAT BEZ POJISTKY!"
 
@@ -519,6 +601,9 @@ msgstr "Zaseknutá kotva"
 
 msgid "Overload"
 msgstr "Přetížení"
+
+msgid "Motor overloaded"
+msgstr "Přetížený motor"
 
 msgid "Broken wire"
 msgstr "Přerušený vodič"
@@ -575,8 +660,15 @@ msgstr "Porucha odstraněna"
 msgid "All faults removed"
 msgstr "Všechny poruchy odstraněny"
 
-msgid "Event log"
-msgstr "Záznam událostí"
+msgid "phase loss"
+msgstr "výpadek fáze"
+
+msgid "miswired"
+msgstr "chybné zapojení"
+
+#, c-format
+msgid "speed %d"
+msgstr "%d. stupeň"
 
 msgid "Clear"
 msgstr "Vymazat"

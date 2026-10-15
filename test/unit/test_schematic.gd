@@ -109,3 +109,13 @@ func test_mixed_horizontal_and_vertical_symbols() -> void:
 	assert_true(k1.energized)
 	assert_eq(r.current_wires, PackedInt32Array([0, 1, 2]))
 	assert_eq(doc.junction_cells(), [] as Array[Vector2i])
+
+
+func test_crossing_wires_get_no_dot() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	for name: String in ["H1", "H2", "H3", "H4"]:
+		doc.add(Lamp.new(name), Vector2i(0, 0) if name == "H1" else (Vector2i(10, 0) if name == "H2" else (Vector2i(4, -6) if name == "H3" else Vector2i(4, 6))))
+	# H1:X2 (0,3) -> H2:X1 (10,0) along y = 3; H3:X2 (4,-3) -> H4:X1 (4,6) along x = 4.
+	doc.connect_terminals("H1:X2", "H2:X1", [Vector2i(10, 3)] as Array[Vector2i])
+	doc.connect_terminals("H3:X2", "H4:X1")
+	assert_does_not_have(doc.junction_cells(), Vector2i(4, 3), "a crossing is not a junction")

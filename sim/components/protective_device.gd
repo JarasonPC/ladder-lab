@@ -19,6 +19,17 @@ func trip() -> void:
 	tripped = true
 
 
+func trip_path(_path: int) -> bool:
+	if tripped or not is_closed():
+		return false
+	trip()
+	return true
+
+
+func protection_state() -> int:
+	return 1 if tripped else 0
+
+
 func reset() -> void:
 	tripped = false
 

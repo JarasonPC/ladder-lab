@@ -33,6 +33,10 @@ func default_terminal_names() -> PackedStringArray:
 	return PackedStringArray([prefix + "1", prefix + "2", prefix + "4"])
 
 
+func switch_paths() -> Array[Vector2i]:
+	return [Vector2i(0, 1), Vector2i(0, 2)]
+
+
 func get_armature() -> Armature:
 	return linked_coil.get_armature(delayed) if linked_coil != null else null
 

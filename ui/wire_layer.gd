@@ -1,14 +1,14 @@
 class_name WireLayer
 extends Node2D
 ## Draws the grid, all wires and junction dots of a [SchematicDocument].
-## Wires reached by L are drawn in the live colour, wires reached by N in the
-## neutral colour; during a short the fault-current path blinks on top.
+## Wires reached by a phase are drawn in that phase's colour, wires reached by
+## N in the neutral colour; during a short the fault-current path blinks on top.
 
 const G: float = float(SymbolGeometry.GRID)
 
 var document: SchematicDocument
-var live_wires: Dictionary[int, bool] = {}
-var neutral_wires: Dictionary[int, bool] = {}
+## Reach code per wire (see [StepResult]); empty or 0 for wires without voltage.
+var wire_reach: PackedByteArray = PackedByteArray()
 ## Wires carrying the short-circuit current (empty when there is no short).
 var fault_wires: Dictionary[int, bool] = {}
 var blink_on: bool = true
@@ -35,26 +35,20 @@ func _draw() -> void:
 		for y: int in range(floori(area.position.y), ceili(area.end.y) + 1):
 			draw_rect(Rect2(Vector2(x, y) * G - Vector2.ONE, Vector2(2, 2)), SchematicTheme.GRID_DOT)
 
-	for w: int in document.get_wire_count():
-		if not live_wires.has(w) and not neutral_wires.has(w):
-			draw_polyline(_pixels(w), SchematicTheme.LINE, SchematicTheme.LINE_WIDTH)
-	for w: int in neutral_wires:
-		draw_polyline(_pixels(w), SchematicTheme.NEUTRAL, SchematicTheme.LIVE_WIDTH)
-	for w: int in document.get_wire_count():
-		if live_wires.has(w):
-			draw_polyline(_pixels(w), SchematicTheme.LIVE, SchematicTheme.LIVE_WIDTH)
+	# Dead wires first, then N, then the phases on top.
+	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_SEVERAL]]:
+		for w: int in document.get_wire_count():
+			var code: int = _reach(w)
+			if pass_codes.has(code):
+				var width: float = SchematicTheme.LINE_WIDTH if code == StepResult.REACH_NONE else SchematicTheme.LIVE_WIDTH
+				draw_polyline(_pixels(w), SchematicTheme.reach_color(code), width)
 	if blink_on:
 		for w: int in fault_wires:
 			draw_polyline(_pixels(w), SchematicTheme.FAULT, SchematicTheme.LIVE_WIDTH)
 	for w: int in document.circuit.broken_wires:
 		_draw_break(w)
 	for cell: Vector2i in _junctions:
-		var color: Color = SchematicTheme.LINE
-		if _on_any(live_wires, cell):
-			color = SchematicTheme.LIVE
-		elif _on_any(neutral_wires, cell):
-			color = SchematicTheme.NEUTRAL
-		draw_circle(Vector2(cell) * G, 4.0, color)
+		draw_circle(Vector2(cell) * G, 4.0, SchematicTheme.reach_color(_reach_at(cell)))
 	_draw_path_numbers()
 
 
@@ -82,13 +76,20 @@ func _draw_path_numbers() -> void:
 		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.TERMINAL_TEXT)
 
 
-func _on_any(wires: Dictionary[int, bool], cell: Vector2i) -> bool:
-	for w: int in wires:
+func _reach(wire_index: int) -> int:
+	return wire_reach[wire_index] if wire_index < wire_reach.size() else StepResult.REACH_NONE
+
+
+## Reach code of the wires through a junction cell (they all share one net).
+func _reach_at(cell: Vector2i) -> int:
+	for w: int in document.get_wire_count():
+		if _reach(w) == StepResult.REACH_NONE:
+			continue
 		var points: Array[Vector2i] = document.wire_points(w)
 		for s: int in range(1, points.size()):
 			if SchematicDocument._on_segment(cell, points[s - 1], points[s]):
-				return true
-	return false
+				return _reach(w)
+	return StepResult.REACH_NONE
 
 
 ## Marks a broken wire: a gap with a red cross in the middle of its longest segment.
