@@ -42,6 +42,9 @@ msgstr ""
 msgid "Short circuit"
 msgstr ""
 
+msgid "Star/delta start"
+msgstr ""
+
 #, c-format
 msgid "Could not open %s."
 msgstr ""
@@ -56,6 +59,34 @@ msgstr ""
 
 #, c-format
 msgid "%s is damaged and cannot be opened."
+msgstr ""
+
+#, c-format
+msgid "Short circuit: %s"
+msgstr ""
+
+#, c-format
+msgid "Short circuit ended after %.1f ms"
+msgstr ""
+
+#, c-format
+msgid "%s pulled in"
+msgstr ""
+
+#, c-format
+msgid "%s released"
+msgstr ""
+
+#, c-format
+msgid "%s timed output on"
+msgstr ""
+
+#, c-format
+msgid "%s timed output off"
+msgstr ""
+
+#, c-format
+msgid "%s is chattering"
 msgstr ""
 
 msgid "Check"
@@ -161,6 +192,12 @@ msgstr ""
 msgid "Relay"
 msgstr ""
 
+msgid "Pick-up time (ms)"
+msgstr ""
+
+msgid "Drop-out time (ms)"
+msgstr ""
+
 msgid "Function"
 msgstr ""
 
@@ -262,10 +299,25 @@ msgstr ""
 msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
 msgstr ""
 
+msgid "Switching:"
+msgstr ""
+
+msgid "Realistic"
+msgstr ""
+
+msgid "Ideal"
+msgstr ""
+
+msgid "Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly."
+msgstr ""
+
+msgid "Timing chart"
+msgstr ""
+
 msgid "Step"
 msgstr ""
 
-msgid "Advance the simulation by 0.1 s"
+msgid "Advance the simulation by 0.1 s times the speed"
 msgstr ""
 
 msgid "Speed:"
@@ -355,11 +407,11 @@ msgid "Click buttons and switches to operate them. Right or middle drag pans, wh
 msgstr ""
 
 #, c-format
-msgid "Time: %.1f s"
+msgid "Time: %.3f s"
 msgstr ""
 
 #, c-format
-msgid "Short circuit: %s"
+msgid "%s is chattering (about %d Hz)"
 msgstr ""
 
 #, c-format
@@ -370,4 +422,22 @@ msgid "Running"
 msgstr ""
 
 msgid "Paused"
+msgstr ""
+
+msgid "Event log"
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Double click: follow"
+msgstr ""
+
+msgid "Time span:"
+msgstr ""
+
+msgid "Follow"
+msgstr ""
+
+msgid "Drag to look back, wheel zooms"
 msgstr ""

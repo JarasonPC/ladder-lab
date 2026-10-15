@@ -8,7 +8,9 @@ enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, QUIT }
 enum DialogPurpose { OPEN, SAVE, EXPORT }
 
-const SPEEDS: Array[float] = [0.5, 1.0, 2.0, 5.0]
+const SPEEDS: Array[float] = [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]
+## Simulated seconds per press of Step at speed x1.
+const STEP_SECONDS: float = 0.1
 const LOCALES: PackedStringArray = ["en", "cs"]
 ## Language names are shown in their own language, never translated.
 const LOCALE_NAMES: PackedStringArray = ["English", "Čeština"]
@@ -50,6 +52,10 @@ var _mirror_button: Button
 var _delete_button: Button
 var _check_button: Button
 var _sim_tools: HBoxContainer
+var _switching_label: Label
+var _switching_select: OptionButton
+var _chart_button: Button
+var _timing_panel: TimingPanel
 var _run_button: Button
 var _step_button: Button
 var _speed_label: Label
@@ -148,6 +154,7 @@ func _build_ui() -> void:
 	var root: VBoxContainer = VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.theme = _panel_theme()
 	layer.add_child(root)
 
 	var top: PanelContainer = PanelContainer.new()
@@ -204,8 +211,13 @@ func _build_ui() -> void:
 
 	_sim_tools = HBoxContainer.new()
 	bar.add_child(_sim_tools)
+	_switching_label = _label(_sim_tools)
+	_switching_select = _option(_sim_tools)
+	_switching_select.add_item("")
+	_switching_select.add_item("")
+	_switching_select.item_selected.connect(_on_switching_selected)
 	_run_button = _button(_sim_tools, _on_run_pressed)
-	_step_button = _button(_sim_tools, func() -> void: view.step_once())
+	_step_button = _button(_sim_tools, func() -> void: view.step_once(STEP_SECONDS * view.speed))
 	_speed_label = _label(_sim_tools)
 	_speed_select = _option(_sim_tools)
 	for s: float in SPEEDS:
@@ -213,6 +225,11 @@ func _build_ui() -> void:
 	_speed_select.select(SPEEDS.find(1.0))
 	_speed_select.item_selected.connect(func(i: int) -> void: view.speed = SPEEDS[i])
 	_reset_button = _button(_sim_tools, _start_simulation)
+	_chart_button = _button(_sim_tools, func() -> void:
+		_timing_panel.visible = _chart_button.button_pressed
+		_fit_camera_later())
+	_chart_button.toggle_mode = true
+	_chart_button.button_pressed = true
 
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -244,6 +261,9 @@ func _build_ui() -> void:
 	_check_panel.custom_minimum_size = Vector2(220, 0)
 	_side.add_child(_check_panel)
 
+	_timing_panel = TimingPanel.new()
+	root.add_child(_timing_panel)
+
 	var bottom: PanelContainer = PanelContainer.new()
 	root.add_child(bottom)
 	var status: HBoxContainer = HBoxContainer.new()
@@ -274,6 +294,20 @@ func _build_dialogs() -> void:
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
 	_retranslate_dialogs()
+
+
+## Opaque panels: the default ones are see-through, so the schematic would
+## show behind the toolbar and the timing chart.
+func _panel_theme() -> Theme:
+	var panel: StyleBoxFlat = StyleBoxFlat.new()
+	panel.bg_color = Color("2b2d31")
+	panel.content_margin_left = 4.0
+	panel.content_margin_right = 4.0
+	panel.content_margin_top = 3.0
+	panel.content_margin_bottom = 3.0
+	var t: Theme = Theme.new()
+	t.set_stylebox("panel", "PanelContainer", panel)
+	return t
 
 
 func _label(parent: Control) -> Label:
@@ -323,14 +357,20 @@ func _retranslate() -> void:
 	_delete_button.text = tr("Delete (Del)")
 	_check_button.text = tr("Check")
 	_check_button.tooltip_text = tr("Look for unconnected terminals, contacts without a coil and other mistakes")
+	_switching_label.text = tr("Switching:")
+	_switching_select.set_item_text(0, tr("Realistic"))
+	_switching_select.set_item_text(1, tr("Ideal"))
+	_switching_select.tooltip_text = tr("Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly.")
+	_chart_button.text = tr("Timing chart")
 	_step_button.text = tr("Step")
-	_step_button.tooltip_text = tr("Advance the simulation by 0.1 s")
+	_step_button.tooltip_text = tr("Advance the simulation by 0.1 s times the speed")
 	_speed_label.text = tr("Speed:")
 	_reset_button.text = tr("Reset")
 	_reset_button.tooltip_text = tr("Restart the simulation from the initial state")
 	_fullscreen_button.text = tr("Fullscreen")
 	_fullscreen_button.tooltip_text = "F11"
 	_palette.retranslate()
+	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
 		_check_panel.run(edit_doc)
@@ -376,6 +416,7 @@ func _update_mode_ui() -> void:
 	_side.visible = editing
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
+	_timing_panel.visible = not editing and _chart_button.button_pressed
 	_update_run_button()
 	_on_stepped(view.last_result)
 
@@ -400,13 +441,33 @@ func _set_mode(new_mode: Mode) -> void:
 	else:
 		view.load_document(edit_doc, false)
 	_update_mode_ui()
+	_fit_camera_later()
+
+
+## Fits the view once the panels have their new sizes (after this frame).
+func _fit_camera_later() -> void:
+	await get_tree().process_frame
+	_fit_camera()
 
 
 ## (Re)starts the simulation on a fresh copy of the edited schematic.
 func _start_simulation() -> void:
 	view.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
+	_timing_panel.chart.set_document(view.document, view.trace)
+	_timing_panel.event_log.clear()
 	_update_run_button()
+
+
+func _on_switching_selected(index: int) -> void:
+	var realistic: bool = index == 0
+	if edit_doc.realistic_timing == realistic:
+		return
+	editor.history.record(DocumentSerializer.to_dict(edit_doc))
+	edit_doc.realistic_timing = realistic
+	if view.document != edit_doc:
+		view.set_realistic_timing(realistic)
+	_mark_dirty()
 
 
 func _show_document(doc: SchematicDocument, fit: bool) -> void:
@@ -416,6 +477,7 @@ func _show_document(doc: SchematicDocument, fit: bool) -> void:
 	else:
 		view.load_document(edit_doc, false)
 	_layout_select.select(1 if doc.horizontal else 0)
+	_switching_select.select(0 if doc.realistic_timing else 1)
 	_check_panel.hide()
 	if fit:
 		_fit_camera()
@@ -721,10 +783,18 @@ func _on_stepped(result: StepResult) -> void:
 		_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
 		return
 	_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.")
-	_time_label.text = tr("Time: %.1f s") % view.sim_time
+	_time_label.text = tr("Time: %.3f s") % view.sim_time
+	_timing_panel.chart.set_time(view.sim_time)
+	_timing_panel.event_log.add_events(result.events)
 	if result.short_circuit:
 		_status_label.text = tr("Short circuit: %s") % " → ".join(result.short_circuit_path)
 		_status_label.add_theme_color_override("font_color", SchematicTheme.FAULT)
+	elif not result.chatter_hz.is_empty():
+		var parts: PackedStringArray = PackedStringArray()
+		for designation: String in result.chatter_hz:
+			parts.append(tr("%s is chattering (about %d Hz)") % [designation, roundi(result.chatter_hz[designation])])
+		_status_label.text = ", ".join(parts)
+		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
 	elif result.is_oscillating():
 		_status_label.text = tr("Oscillation: %s keeps switching on and off") % ", ".join(result.oscillating_tags)
 		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)

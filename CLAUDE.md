@@ -18,11 +18,15 @@
 
 ## Layout
 
-- `sim/` solver (Circuit, Simulator, StepResult, UnionFind, components/) - no nodes
+- `sim/` solver (Circuit, Simulator, StepResult, UnionFind, Armature, TraceRecorder, components/) - no nodes
+- Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
+  pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
+  documents default to realistic)
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
   ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated/mirrored, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
+- `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document

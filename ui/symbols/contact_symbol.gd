@@ -46,6 +46,13 @@ func _draw_shape(color: Color, _width: float) -> void:
 	var tip: Vector2 = OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
+	if component is Contact and (component as Contact).linked_coil != null and not closed:
+		# Relay contacts are drawn where the armature is, so they visibly move.
+		var travel: float = (component as Contact).get_travel()
+		if is_nc:
+			tip = NC_CLOSED_TIP.lerp(OPEN_TIP, clampf((travel - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.15, 1.0))
+		else:
+			tip = OPEN_TIP.lerp(NO_CLOSED_TIP, minf(travel, 0.85))
 	tip = flip.call(tip)
 	draw_line(pivot, tip, pivot_color, pivot_width)
 	var middle: Vector2 = pivot.lerp(tip, 0.5)

@@ -15,9 +15,13 @@ var simulating: bool = true
 var running: bool = true
 ## Simulation time multiplier.
 var speed: float = 1.0
-## Simulated seconds since the document was loaded.
-var sim_time: float = 0.0
 var last_result: StepResult = StepResult.new()
+## History of coil power, armature positions and loads for the timing chart.
+var trace: TraceRecorder = TraceRecorder.new()
+## Simulated seconds since the document was loaded.
+var sim_time: float:
+	get:
+		return simulator.time if simulator != null else 0.0
 
 var _wire_layer: WireLayer
 var _symbols: Dictionary[String, SchematicSymbol] = {}
@@ -30,7 +34,9 @@ func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 	document = doc
 	simulating = simulate
 	simulator = Simulator.new(doc.circuit)
-	sim_time = 0.0
+	simulator.mode = Simulator.Mode.REALISTIC if doc.realistic_timing else Simulator.Mode.IDEAL
+	trace = TraceRecorder.new()
+	simulator.trace = trace
 	rebuild()
 	if simulating:
 		_apply(simulator.step())
@@ -69,8 +75,22 @@ func refresh_layout() -> void:
 
 ## Advances the simulation by [param dt] seconds (used while paused).
 func step_once(dt: float = 0.1) -> void:
-	sim_time += dt
 	_apply(simulator.step(dt))
+
+
+## Switches between realistic and instant relays without restarting.
+func set_realistic_timing(on: bool) -> void:
+	document.realistic_timing = on
+	if simulator == null:
+		return
+	simulator.mode = Simulator.Mode.REALISTIC if on else Simulator.Mode.IDEAL
+	if not on:
+		# Instant switching: finish every movement in progress.
+		for c: CircuitComponent in document.circuit.get_components():
+			if c is Coil:
+				(c as Coil).snap()
+	if simulating:
+		_apply(simulator.step())
 
 
 func _process(delta: float) -> void:
@@ -78,7 +98,6 @@ func _process(delta: float) -> void:
 		return
 	_blink_time = fmod(_blink_time + delta, BLINK_PERIOD)
 	if simulating and running:
-		sim_time += delta * speed
 		_apply(simulator.step(delta * speed))
 	else:
 		_update_visuals()
