@@ -92,11 +92,11 @@ func test_breaker_trips_resets_and_switches() -> void:
 func test_overload_relay_trips_after_delay_and_resets() -> void:
 	doc = ExampleCircuits.star_delta()
 	sim = Simulator.new(doc.circuit)
-	var relay: OverloadRelay = doc.circuit.get_overload_relay("F3")
+	var relay: OverloadRelay = doc.circuit.get_overload_relay("F1")
 	assert_not_null(relay)
-	(doc.circuit.get_component("S2") as PushButton).press()
+	(doc.circuit.get_component("SB2") as PushButton).press()
 	sim.step(0.1)
-	(doc.circuit.get_component("S2") as PushButton).release()
+	(doc.circuit.get_component("SB2") as PushButton).release()
 	sim.step(0.1)
 	assert_true(doc.circuit.get_coil("KM1").energized)
 	relay.overloaded = true
@@ -121,15 +121,15 @@ func test_contact_faults() -> void:
 	sim.step()
 	assert_true(doc.circuit.get_coil("KM1").energized, "a welded hold contact starts KM1 by itself")
 	hold.fault = SwitchingElement.Fault.OPEN
-	(doc.circuit.get_component("S1") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
 	sim.step()
-	(doc.circuit.get_component("S1") as PushButton).release()
+	(doc.circuit.get_component("SB1") as PushButton).release()
 	sim.step()
 	assert_false(doc.circuit.get_coil("KM1").energized, "a burnt hold contact does not hold")
 	hold.fault = SwitchingElement.Fault.NONE
-	(doc.circuit.get_component("S1") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
 	sim.step()
-	(doc.circuit.get_component("S1") as PushButton).release()
+	(doc.circuit.get_component("SB1") as PushButton).release()
 	sim.step()
 	assert_true(doc.circuit.get_coil("KM1").energized, "cleared fault: holds again")
 
@@ -139,7 +139,7 @@ func test_coil_faults() -> void:
 	sim = Simulator.new(doc.circuit)
 	var k1: Coil = doc.circuit.get_coil("KM1")
 	k1.fault = Coil.Fault.OPEN
-	(doc.circuit.get_component("S1") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
 	var r: StepResult = sim.step()
 	assert_false(k1.energized, "open coil does not pull in")
 	assert_has(r.live_terminals, "KM1:A1", "although voltage reaches it")
@@ -147,8 +147,8 @@ func test_coil_faults() -> void:
 	sim.step()
 	assert_true(k1.energized)
 	k1.fault = Coil.Fault.STUCK
-	(doc.circuit.get_component("S1") as PushButton).release()
-	(doc.circuit.get_component("S0") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).release()
+	(doc.circuit.get_component("SB0") as PushButton).press()
 	sim.step()
 	assert_true(k1.armature.no_closed, "a stuck armature does not release")
 	assert_true(_lamp("H1"), "so H1 stays on")
@@ -163,7 +163,7 @@ func test_broken_wire() -> void:
 		if wires[i][0] == "KM1:24":
 			lamp_wire = i
 	doc.circuit.set_wire_broken(lamp_wire, true)
-	(doc.circuit.get_component("S1") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
 	sim.step()
 	assert_true(doc.circuit.get_coil("KM1").energized)
 	assert_false(_lamp("H1"), "the broken wire feeds no more")
@@ -231,17 +231,17 @@ func test_custom_terminals_rename_and_swap_keep_wires() -> void:
 	assert_eq(doc.circuit.get_component("KM1").get_terminal_names(), PackedStringArray(["A2", "A1"]))
 	assert_eq(doc.terminal_cell("KM1:A2"), Vector2i(5, 17), "A2 now at the top")
 	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
-	assert_true(wires.any(func(w: PackedStringArray) -> bool: return w[0] == "S1:14" and w[1] == "KM1:A2"), "the top wire stays at the top")
-	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("S1:13-14"))
+	assert_true(wires.any(func(w: PackedStringArray) -> bool: return w[0] == "SB1:14" and w[1] == "KM1:A2"), "the top wire stays at the top")
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("SB1:13-14"))
 	data["terminals"] = ["5", "6"]
-	assert_true(doc.replace_component("S1:13-14", DocumentSerializer.component_from_dict(data)))
-	assert_not_null(doc.circuit.get_component("S1:5-6"))
+	assert_true(doc.replace_component("SB1:13-14", DocumentSerializer.component_from_dict(data)))
+	assert_not_null(doc.circuit.get_component("SB1:5-6"))
 	var sim2: Simulator = Simulator.new(doc.circuit)
-	(doc.circuit.get_component("S1") as PushButton).press()
+	(doc.circuit.get_component("SB1") as PushButton).press()
 	sim2.step()
 	assert_true(doc.circuit.get_coil("KM1").energized, "renamed parts still work")
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
-	assert_not_null(copy.circuit.get_component("S1:5-6"), "custom names are saved")
+	assert_not_null(copy.circuit.get_component("SB1:5-6"), "custom names are saved")
 
 
 func test_invalid_custom_terminals_are_refused() -> void:
@@ -262,8 +262,8 @@ func _reversing(realistic: bool) -> void:
 	doc = ExampleCircuits.forward_reverse_buttons()
 	sim = Simulator.new(doc.circuit)
 	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
-	var fwd: PushButton = doc.circuit.get_component("S1") as PushButton
-	var rev: PushButton = doc.circuit.get_component("S2") as PushButton
+	var fwd: PushButton = doc.circuit.get_component("SB1") as PushButton
+	var rev: PushButton = doc.circuit.get_component("SB2") as PushButton
 	var k1: Coil = doc.circuit.get_coil("KM1")
 	var k2: Coil = doc.circuit.get_coil("KM2")
 	var run: Callable = func(seconds: float) -> void:
