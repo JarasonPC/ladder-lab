@@ -92,7 +92,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 	elif component is LatchingSwitch:
 		_draw_turn_actuator(middle, (component as LatchingSwitch).switched_on, color)
 	elif component is OverloadContact:
-		_draw_thermal_actuator(rest_middle, color, pivot, turn)
+		_draw_thermal_actuator(middle, color)
 	elif component is Contact and (component as Contact).delayed:
 		draw_delay_mark(self, rest_middle, color, pivot, turn)
 
@@ -118,16 +118,14 @@ func _draw_position_actuator(middle: Vector2, color: Color, pivot: Vector2, turn
 	aa_polyline(PackedVector2Array([on_blade.call(apex), on_blade.call(Vector2(apex.x - 9.0, y - 5.0)), on_blade.call(Vector2(apex.x - 9.0, y + 5.0)), on_blade.call(apex)]), color, 1.6)
 
 
-## Stem from the blade to the hook of the thermal release, as in the guide;
-## drawn for the blade at rest ([param middle]) and turned by [param turn]
-## about [param pivot] with the blade.
-func _draw_thermal_actuator(middle: Vector2, color: Color, pivot: Vector2, turn: float) -> void:
+## Overload relay contact: dashed stem (mechanical link) from the blade to the
+## thermal (bimetal) step on its top, which stays straight like a button head:
+## a short step to one side, back along the stem and across it.
+func _draw_thermal_actuator(middle: Vector2, color: Color) -> void:
 	var y: float = middle.y
-	var x: float = -28.0
-	var on_blade: Callable = func(p: Vector2) -> Vector2:
-		return pivot + (p - pivot).rotated(turn)
-	aa_line(on_blade.call(Vector2(x, y)), on_blade.call(Vector2(middle.x - 1.0, y)), color, 1.4)
-	aa_polyline(PackedVector2Array([on_blade.call(Vector2(x, y)), on_blade.call(Vector2(x, y - 8)), on_blade.call(Vector2(x + 6, y - 8))]), color, 1.8)
+	var x: float = -22.0
+	aa_dashed_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4, 2.5)
+	aa_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 5), Vector2(x - 6, y - 5), Vector2(x - 6, y + 8)]), color, 1.8)
 
 
 func _draw_turn_actuator(middle: Vector2, switched_on: bool, color: Color) -> void:
