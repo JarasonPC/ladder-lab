@@ -269,7 +269,7 @@ func test_motor_breaker_trips_all_poles() -> void:
 
 func test_supply_designations_follow_the_conductor() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
-	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L")
+	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L1", "a new phase supply is L1")
 	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L2), "L2")
 	doc.add(PowerSupply.new("L2", PowerSupply.Conductor.L2), Vector2i(0, 0))
 	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L1", "L1 next to L2")
