@@ -254,3 +254,41 @@ func test_check_reports_overload_contact_without_relay() -> void:
 	for issue: Dictionary in CircuitCheck.run(doc):
 		texts.append(issue["text"] % issue["args"])
 	assert_has(texts, "Overload contact F9:95-96 has no overload relay F9.")
+
+
+func _reversing(realistic: bool) -> void:
+	doc = ExampleCircuits.forward_reverse_buttons()
+	sim = Simulator.new(doc.circuit)
+	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
+	var fwd: PushButton = doc.circuit.get_component("S1") as PushButton
+	var rev: PushButton = doc.circuit.get_component("S2") as PushButton
+	var k1: Coil = doc.circuit.get_coil("K1")
+	var k2: Coil = doc.circuit.get_coil("K2")
+	var run: Callable = func(seconds: float) -> void:
+		var t: float = 0.0
+		while t < seconds:
+			sim.step(0.0005)
+			t += 0.0005
+			if k1.armature.no_closed and k2.armature.no_closed:
+				fail_test("K1 and K2 closed together")
+				return
+	sim.step()
+	fwd.press()
+	run.call(0.1)
+	fwd.release()
+	run.call(0.1)
+	assert_true(k1.energized and not k2.energized, "forward")
+	rev.press()
+	run.call(0.1)
+	rev.release()
+	run.call(0.1)
+	assert_true(k2.energized and not k1.energized, "reverse straight from forward, without STOP")
+	assert_true((doc.circuit.get_component("M1") as Motor).energized)
+
+
+func test_button_interlock_reverses_without_stop_ideal() -> void:
+	_reversing(false)
+
+
+func test_button_interlock_reverses_without_stop_realistic() -> void:
+	_reversing(true)

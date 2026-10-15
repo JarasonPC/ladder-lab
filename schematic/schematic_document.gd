@@ -561,6 +561,8 @@ func next_contact_sequence(designation: String) -> int:
 	for c: CircuitComponent in circuit.get_components():
 		if c is SwitchingElement and c.designation == designation:
 			used[(c as SwitchingElement).sequence] = true
+		elif c is ChangeoverContact and c.designation == designation:
+			used[(c as ChangeoverContact).sequence] = true
 	for n: int in range(1, 10):
 		if not used.has(n):
 			return n

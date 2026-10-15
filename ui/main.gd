@@ -94,6 +94,9 @@ func _ready() -> void:
 	_build_ui()
 	_build_dialogs()
 	view.stepped.connect(_on_stepped)
+	view.event_logged.connect(func(text: String, args: Array) -> void:
+		var entries: Array[Dictionary] = [{"time": view.sim_time, "text": text, "args": args}]
+		_timing_panel.event_log.add_events(entries))
 	editor.document_replaced.connect(_on_document_replaced)
 	editor.selection_changed.connect(func(c: CircuitComponent) -> void: _properties.show_component(c))
 	editor.hint_changed.connect(_on_editor_hint)
@@ -768,6 +771,20 @@ func _save_settings() -> void:
 
 # --- Status -----------------------------------------------------------------------
 
+## Status text for the first blown fuse, tripped breaker or overload relay.
+func _tripped_protection() -> String:
+	if view.document == null:
+		return ""
+	for c: CircuitComponent in view.document.circuit.get_components():
+		if c is Fuse and (c as Fuse).tripped:
+			return tr("%s blown – click it to replace the fuse") % c.designation
+		if c is CircuitBreaker and (c as CircuitBreaker).tripped:
+			return tr("%s tripped – click it to switch it on again") % c.designation
+		if c is OverloadRelay and (c as OverloadRelay).tripped:
+			return tr("%s tripped by overload – click it to reset") % c.designation
+	return ""
+
+
 func _on_editor_hint(text: String) -> void:
 	_editor_hint = text
 	if mode == Mode.EDIT and _status_label != null:
@@ -786,9 +803,13 @@ func _on_stepped(result: StepResult) -> void:
 	_time_label.text = tr("Time: %.3f s") % view.sim_time
 	_timing_panel.chart.set_time(view.sim_time)
 	_timing_panel.event_log.add_events(result.events)
+	var tripped: String = _tripped_protection()
 	if result.short_circuit:
-		_status_label.text = tr("Short circuit: %s") % " → ".join(result.short_circuit_path)
+		_status_label.text = tr("NO FUSE and SHORT CIRCUIT! %s") % " → ".join(result.short_circuit_path)
 		_status_label.add_theme_color_override("font_color", SchematicTheme.FAULT)
+	elif not tripped.is_empty():
+		_status_label.text = tripped
+		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
 	elif not result.chatter_hz.is_empty():
 		var parts: PackedStringArray = PackedStringArray()
 		for designation: String in result.chatter_hz:

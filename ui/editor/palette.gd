@@ -17,12 +17,19 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Contact NC", "template": {"type": "contact", "contact": "NC"}},
 	{"title": "Delayed contact NO", "template": {"type": "contact", "contact": "NO", "delayed": true}},
 	{"title": "Delayed contact NC", "template": {"type": "contact", "contact": "NC", "delayed": true}},
+	{"title": "Changeover contact", "template": {"type": "changeover"}},
+	{"title": "Delayed changeover contact", "template": {"type": "changeover", "delayed": true}},
 	{"title": "Contactor coil", "template": {"type": "coil", "kind": "contactor"}},
 	{"title": "Relay coil", "template": {"type": "coil", "kind": "relay"}},
 	{"title": "On-delay timer", "template": {"type": "timer", "mode": "on_delay", "delay": 3.0}},
 	{"title": "Off-delay timer", "template": {"type": "timer", "mode": "off_delay", "delay": 3.0}},
 	{"title": "Lamp", "template": {"type": "lamp"}},
 	{"title": "Motor", "template": {"type": "motor"}},
+	{"title": "Fuse", "template": {"type": "fuse"}},
+	{"title": "Circuit breaker", "template": {"type": "breaker"}},
+	{"title": "Overload relay", "template": {"type": "overload_relay", "trip_delay": 5.0}},
+	{"title": "Overload contact NC", "template": {"type": "overload_contact", "contact": "NC"}},
+	{"title": "Overload contact NO", "template": {"type": "overload_contact", "contact": "NO"}},
 ]
 
 const ICON_SCALE: float = 0.7

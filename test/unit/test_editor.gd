@@ -192,3 +192,43 @@ func test_copy_paste_at_mouse_and_select_all() -> void:
 	assert_null(doc.circuit.get_component("H2"))
 	editor.select_all()
 	assert_eq(editor.selected_components.size(), 3, "L, N and H1")
+
+
+func test_rename_and_swap_terminals_in_properties() -> void:
+	_place({"type": "coil", "kind": "relay"}, Vector2i(5, 4))
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])
+	var doc: SchematicDocument = editor.document()
+	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("K1"))
+	data["terminals"] = ["A2", "A1"]
+	assert_eq(editor.apply_properties("K1", data), "")
+	assert_eq(doc.circuit.get_wires()[0][1], "K1:A2", "the wire at the top now ends on A2")
+	_place({"type": "push_button", "contact": "NO"}, Vector2i(10, 4))
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("S1"))
+	data["terminals"] = ["5", "6"]
+	assert_eq(editor.apply_properties("S1:13-14", data), "")
+	assert_not_null(doc.circuit.get_component("S1:5-6"))
+	data["terminals"] = ["5", "5"]
+	assert_ne(editor.apply_properties("S1:5-6", data), "", "duplicate names are refused")
+	editor.undo()
+	assert_not_null(editor.document().circuit.get_component("S1:13-14"), "undoable")
+
+
+func test_protection_parts_get_f_designations() -> void:
+	_place({"type": "fuse"}, Vector2i(5, 4))
+	_place({"type": "overload_relay", "trip_delay": 5.0}, Vector2i(10, 4))
+	_place({"type": "overload_contact", "contact": "NC"}, Vector2i(15, 4))
+	var doc: SchematicDocument = editor.document()
+	assert_true(doc.circuit.get_component("F1") is Fuse)
+	assert_true(doc.circuit.get_component("F2") is OverloadRelay)
+	assert_not_null(doc.circuit.get_component("F2:95-96"), "the contact belongs to the overload relay")
+	assert_eq(editor.change_type("F1", {"type": "breaker"}), "")
+	assert_true(doc.circuit.get_component("F1") is CircuitBreaker)
+
+
+func test_changeover_contact_follows_coil_and_changes_type() -> void:
+	_place({"type": "timer", "mode": "on_delay", "delay": 3.0}, Vector2i(5, 8))
+	_place({"type": "changeover", "delayed": true}, Vector2i(10, 2))
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_component("KT1:15-16-18"))
+	assert_eq(editor.change_type("KT1:15-16-18", {"type": "changeover"}), "")
+	assert_not_null(doc.circuit.get_component("KT1:11-12-14"), "instantaneous changeover of the same timer")

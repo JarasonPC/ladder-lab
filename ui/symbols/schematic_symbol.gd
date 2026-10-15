@@ -49,6 +49,8 @@ func _draw() -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	if show_labels:
 		_draw_labels()
+	if has_fault():
+		_draw_fault_marker(to_upright(Vector2(0.9 * G, 0.9 * G)))
 
 
 func reach(terminal_index: int) -> int:
@@ -100,6 +102,28 @@ func _draw_labels() -> void:
 	if names.size() == 2:
 		draw_label(names[0], Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+
+
+## True when a fault is injected into this component (simulation only).
+func has_fault() -> bool:
+	if component is SwitchingElement:
+		return (component as SwitchingElement).fault != SwitchingElement.Fault.NONE
+	if component is ChangeoverContact:
+		return (component as ChangeoverContact).fault != SwitchingElement.Fault.NONE
+	if component is Coil:
+		return (component as Coil).fault != Coil.Fault.NONE
+	if component is OverloadRelay:
+		return (component as OverloadRelay).overloaded
+	return false
+
+
+## Small lightning bolt marking an injected fault.
+func _draw_fault_marker(at: Vector2) -> void:
+	var bolt: PackedVector2Array = PackedVector2Array([Vector2(2, -9), Vector2(-3, 0), Vector2(1, 0), Vector2(-2, 9), Vector2(4, -2), Vector2(0, -2), Vector2(2, -9)])
+	for i: int in bolt.size():
+		bolt[i] += at
+	draw_colored_polygon(bolt, SchematicTheme.FAULT)
+	draw_polyline(bolt, SchematicTheme.LIVE, 1.0)
 
 
 ## Local point next to which the designation is written.

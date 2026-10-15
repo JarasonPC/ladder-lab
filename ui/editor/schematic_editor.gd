@@ -102,7 +102,7 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 			continue
 		if d.get(key, false) != template[key]:
 			return false
-	if template["type"] == "contact" and d.get("delayed", false) != template.get("delayed", false):
+	if (template["type"] == "contact" or template["type"] == "changeover") and d.get("delayed", false) != template.get("delayed", false):
 		return false
 	return true
 
@@ -113,8 +113,14 @@ static func _family(kind: String) -> String:
 			return "switching"
 		"coil", "timer":
 			return "coil"
+		"changeover":
+			return "changeover"
 		"lamp", "motor":
 			return "load"
+		"fuse", "breaker":
+			return "protection"
+		"overload_contact":
+			return "overload_contact"
 		"supply":
 			return "supply"
 	return ""
@@ -216,6 +222,8 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 			data.erase("pick_up")
 			data.erase("drop_out")
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
+	if replacement == null:
+		return tr("Terminal names must be different from each other, without spaces or \":\".")
 	var snapshot: Dictionary = DocumentSerializer.to_dict(doc)
 	if not _can_replace(old, replacement):
 		return tr("%s is already used in this circuit.") % replacement.id
@@ -252,6 +260,18 @@ func change_type(component_id: String, template: Dictionary) -> String:
 			var trial: CircuitComponent = DocumentSerializer.component_from_dict(data)
 			if not _can_replace(old, trial):
 				data["sequence"] = doc.next_contact_sequence(designation)
+		"changeover":
+			var changeover: ChangeoverContact = old as ChangeoverContact
+			var target: String = old.designation
+			if template.get("delayed", false) and not (doc.circuit.get_coil(target) is TimerRelay):
+				for c: CircuitComponent in doc.circuit.get_components():
+					if c is TimerRelay:
+						target = c.designation
+						break
+			data["designation"] = target
+			data["sequence"] = changeover.sequence
+			if not _can_replace(old, DocumentSerializer.component_from_dict(data)):
+				data["sequence"] = doc.next_contact_sequence(target)
 		"coil":
 			data["designation"] = old.designation
 			if old is TimerRelay and template["type"] == "timer":
@@ -527,7 +547,7 @@ func _place_at(cell: Vector2i) -> void:
 	var doc: SchematicDocument = document()
 	var data: Dictionary = _template.duplicate()
 	data["designation"] = _new_designation(data)
-	if data["type"] == "contact" or data["type"] == "push_button" or data["type"] == "latching_switch":
+	if ["contact", "changeover", "push_button", "latching_switch"].has(data["type"]):
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
 	var c: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if not _can_add(c):
@@ -548,7 +568,18 @@ func _new_designation(data: Dictionary) -> String:
 			return doc.next_supply_designation(PowerSupply.Conductor.N if data.get("conductor", "L") == "N" else PowerSupply.Conductor.L)
 		"push_button", "latching_switch":
 			return doc.next_designation("S")
-		"contact":
+		"fuse", "breaker", "overload_relay":
+			return doc.next_designation("F")
+		"overload_contact":
+			for id: String in selected_components:
+				var chosen: CircuitComponent = doc.circuit.get_component(id)
+				if chosen is OverloadRelay:
+					return chosen.designation
+			for c: CircuitComponent in doc.circuit.get_components():
+				if c is OverloadRelay:
+					return c.designation
+			return "F1"
+		"contact", "changeover":
 			# Belongs to the selected coil, else to the first coil of the right kind.
 			var want_timer: bool = data.get("delayed", false)
 			for id: String in selected_components:

@@ -5,6 +5,11 @@ extends Node2D
 ## Otherwise the schematic is shown at rest for editing.
 
 signal stepped(result: StepResult)
+## Something was operated or a fault changed outside the simulation step
+## (English text with %s placeholders, see [member StepResult.events]).
+signal event_logged(text: String, args: Array)
+
+enum FaultId { WELDED, CONTACT_OPEN, COIL_OPEN, COIL_STUCK, OVERLOAD, WIRE_BROKEN, CLEAR, CLEAR_ALL }
 
 const G: float = float(SymbolGeometry.GRID)
 const BLINK_PERIOD: float = 0.5
@@ -28,6 +33,17 @@ var _symbols: Dictionary[String, SchematicSymbol] = {}
 var _held: PushButton = null
 var _hovered: SchematicSymbol = null
 var _blink_time: float = 0.0
+var _fault_menu: PopupMenu
+var _fault_target: CircuitComponent = null
+var _fault_wire: int = -1
+var _right_press: Vector2 = Vector2.ZERO
+
+
+func _ready() -> void:
+	_fault_menu = PopupMenu.new()
+	_fault_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_fault_menu.id_pressed.connect(_on_fault_menu)
+	add_child(_fault_menu)
 
 
 func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
@@ -48,7 +64,8 @@ func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 func rebuild() -> void:
 	_set_hovered(null)
 	for child: Node in get_children():
-		child.free()
+		if child != _fault_menu:
+			child.free()
 	_symbols.clear()
 	_held = null
 	_wire_layer = WireLayer.new()
@@ -143,11 +160,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion:
 		_update_hover()
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
+		var rb: InputEventMouseButton = event as InputEventMouseButton
+		if rb.pressed:
+			_right_press = rb.position
+		elif rb.position.distance_to(_right_press) < 6.0:
+			_open_fault_menu()
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed:
 			var c: CircuitComponent = _component_under_mouse()
-			if c is PushButton:
+			if c is Fuse or c is CircuitBreaker or c is OverloadRelay or c is OverloadContact:
+				if _operate_protection(c):
+					_apply(simulator.step())
+					get_viewport().set_input_as_handled()
+			elif c is PushButton:
 				_held = c as PushButton
 				_held.press()
 				_apply(simulator.step())
@@ -161,6 +188,110 @@ func _unhandled_input(event: InputEvent) -> void:
 			_held = null
 			_apply(simulator.step())
 			get_viewport().set_input_as_handled()
+
+
+## Replaces a blown fuse, switches a breaker, resets a tripped overload relay.
+## Returns false if nothing happened.
+func _operate_protection(c: CircuitComponent) -> bool:
+	if c is Fuse:
+		if not (c as Fuse).tripped:
+			return false
+		(c as Fuse).reset()
+		event_logged.emit("%s replaced", [c.designation])
+	elif c is CircuitBreaker:
+		var breaker: CircuitBreaker = c as CircuitBreaker
+		var was_tripped: bool = breaker.tripped
+		breaker.toggle()
+		event_logged.emit("%s reset" if was_tripped else ("%s switched on" if breaker.switched_on else "%s switched off"), [c.designation])
+	else:
+		var relay: OverloadRelay = document.circuit.get_overload_relay(c.designation)
+		if relay == null or not relay.tripped:
+			return false
+		relay.reset()
+		event_logged.emit("%s reset", [c.designation])
+	return true
+
+
+func _open_fault_menu() -> void:
+	var point: Vector2 = get_local_mouse_position() / G
+	_fault_target = document.component_at(point)
+	_fault_wire = document.wire_at(point) if _fault_target == null else -1
+	_fault_menu.clear()
+	if _fault_target is SwitchingElement and not (_fault_target is ProtectiveDevice) or _fault_target is ChangeoverContact:
+		_fault_menu.add_item(tr("Contact welded (stays closed)"), FaultId.WELDED)
+		_fault_menu.add_item(tr("Contact burnt (does not close)"), FaultId.CONTACT_OPEN)
+	elif _fault_target is Coil:
+		_fault_menu.add_item(tr("Coil broken (no pull-in)"), FaultId.COIL_OPEN)
+		_fault_menu.add_item(tr("Armature stuck"), FaultId.COIL_STUCK)
+	elif _fault_target is OverloadRelay:
+		_fault_menu.add_item(tr("Overload"), FaultId.OVERLOAD)
+	elif _fault_wire >= 0:
+		_fault_menu.add_item(tr("Broken wire"), FaultId.WIRE_BROKEN)
+	if _fault_menu.item_count > 0:
+		if _has_fault(_fault_target) or document.circuit.broken_wires.has(_fault_wire):
+			_fault_menu.add_item(tr("Remove fault"), FaultId.CLEAR)
+		_fault_menu.add_separator()
+	_fault_menu.add_item(tr("Remove all faults"), FaultId.CLEAR_ALL)
+	_fault_menu.reset_size()
+	_fault_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+
+
+func _on_fault_menu(id: int) -> void:
+	var c: CircuitComponent = _fault_target
+	match id:
+		FaultId.WELDED, FaultId.CONTACT_OPEN:
+			var fault: SwitchingElement.Fault = SwitchingElement.Fault.WELDED if id == FaultId.WELDED else SwitchingElement.Fault.OPEN
+			if c is ChangeoverContact:
+				(c as ChangeoverContact).fault = fault
+			else:
+				(c as SwitchingElement).fault = fault
+			event_logged.emit("Fault: %s welded" if id == FaultId.WELDED else "Fault: %s burnt", [c.id])
+		FaultId.COIL_OPEN, FaultId.COIL_STUCK:
+			(c as Coil).fault = Coil.Fault.OPEN if id == FaultId.COIL_OPEN else Coil.Fault.STUCK
+			event_logged.emit("Fault: coil %s broken" if id == FaultId.COIL_OPEN else "Fault: %s armature stuck", [c.designation])
+		FaultId.OVERLOAD:
+			(c as OverloadRelay).overloaded = true
+			event_logged.emit("Fault: overload on %s", [c.designation])
+		FaultId.WIRE_BROKEN:
+			document.circuit.set_wire_broken(_fault_wire, true)
+			_wire_layer.queue_redraw()
+			event_logged.emit("Fault: broken wire %s", [" – ".join(document.circuit.get_wires()[_fault_wire])])
+		FaultId.CLEAR:
+			if c != null:
+				_clear_fault(c)
+			elif _fault_wire >= 0:
+				document.circuit.set_wire_broken(_fault_wire, false)
+			event_logged.emit("Fault removed", [])
+		FaultId.CLEAR_ALL:
+			for component: CircuitComponent in document.circuit.get_components():
+				_clear_fault(component)
+			for w: int in document.circuit.broken_wires.keys():
+				document.circuit.set_wire_broken(w, false)
+			event_logged.emit("All faults removed", [])
+	_apply(simulator.step())
+
+
+static func _has_fault(c: CircuitComponent) -> bool:
+	if c is SwitchingElement:
+		return (c as SwitchingElement).fault != SwitchingElement.Fault.NONE
+	if c is ChangeoverContact:
+		return (c as ChangeoverContact).fault != SwitchingElement.Fault.NONE
+	if c is Coil:
+		return (c as Coil).fault != Coil.Fault.NONE
+	if c is OverloadRelay:
+		return (c as OverloadRelay).overloaded
+	return false
+
+
+static func _clear_fault(c: CircuitComponent) -> void:
+	if c is SwitchingElement:
+		(c as SwitchingElement).fault = SwitchingElement.Fault.NONE
+	elif c is ChangeoverContact:
+		(c as ChangeoverContact).fault = SwitchingElement.Fault.NONE
+	elif c is Coil:
+		(c as Coil).fault = Coil.Fault.NONE
+	elif c is OverloadRelay:
+		(c as OverloadRelay).overloaded = false
 
 
 func _component_under_mouse() -> CircuitComponent:

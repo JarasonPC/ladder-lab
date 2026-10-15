@@ -2,8 +2,9 @@ class_name ContactSymbol
 extends SchematicSymbol
 ## NO / NC contact (IEC 60617 S00227 / S00229) drawn in its current position
 ## (NO opens upward, NC is drawn pivoting from the top and opens downward),
-## with the push-button (S00253) or turn-switch (S00254) actuator, and the
-## delay "parachute" (S00243-S00246) for delayed timer contacts.
+## with the push-button (S00253) or turn-switch (S00254) actuator, the thermal
+## actuator of overload relay contacts, and the delay "parachute"
+## (S00243-S00246) for delayed timer contacts.
 ## The arc is drawn so the movement toward its centre is the delayed one.
 
 const FIXED_END := Vector2(0, 20)
@@ -15,11 +16,14 @@ const HOOK_END := Vector2(9, 20)
 
 
 func is_interactive() -> bool:
+	if component is OverloadContact:
+		var relay: OverloadRelay = (component as OverloadContact).linked_relay
+		return relay != null and relay.tripped
 	return component is PushButton or component is LatchingSwitch
 
 
 func _designation_anchor() -> Vector2:
-	var has_mark: bool = is_interactive() or (component is Contact and (component as Contact).delayed)
+	var has_mark: bool = component is PushButton or component is LatchingSwitch or component is OverloadContact or (component is Contact and (component as Contact).delayed)
 	return Vector2(-1.9 * G if has_mark else -1.3 * G, 1.5 * G)
 
 
@@ -46,9 +50,9 @@ func _draw_shape(color: Color, _width: float) -> void:
 	var tip: Vector2 = OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
-	if component is Contact and (component as Contact).linked_coil != null and not closed:
-		# Relay contacts are drawn where the armature is, so they visibly move.
-		var travel: float = (component as Contact).get_travel()
+	if element.get_armature() != null and not closed:
+		# Contacts are drawn where their armature or actuator is, so they visibly move.
+		var travel: float = element.get_travel()
 		if is_nc:
 			tip = NC_CLOSED_TIP.lerp(OPEN_TIP, clampf((travel - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.15, 1.0))
 		else:
@@ -63,6 +67,8 @@ func _draw_shape(color: Color, _width: float) -> void:
 		_draw_push_actuator(middle, (component as PushButton).pressed, color)
 	elif component is LatchingSwitch:
 		_draw_turn_actuator(middle, (component as LatchingSwitch).switched_on, color)
+	elif component is OverloadContact:
+		_draw_thermal_actuator(middle, color)
 	elif component is Contact:
 		var contact: Contact = component as Contact
 		if contact.delayed and contact.linked_coil is TimerRelay:
@@ -79,6 +85,15 @@ func _draw_push_actuator(middle: Vector2, pressed: bool, color: Color) -> void:
 	draw_line(Vector2(head_x, y - 6), Vector2(head_x, y + 6), color, SchematicTheme.LINE_WIDTH)
 	draw_line(Vector2(head_x, y - 6), Vector2(head_x + 4, y - 6), color, SchematicTheme.LINE_WIDTH)
 	draw_line(Vector2(head_x, y + 6), Vector2(head_x + 4, y + 6), color, SchematicTheme.LINE_WIDTH)
+
+
+## Dashed line to the thermal-effect mark (a small square wave).
+func _draw_thermal_actuator(middle: Vector2, color: Color) -> void:
+	var y: float = middle.y
+	var x: float = -30.0
+	draw_dashed_line(Vector2(x + 8.0, y), Vector2(middle.x - 1.0, y), color, 1.5, 3.0)
+	var w: float = SchematicTheme.LINE_WIDTH * 0.75
+	draw_polyline(PackedVector2Array([Vector2(x, y + 4), Vector2(x, y - 4), Vector2(x + 4, y - 4), Vector2(x + 4, y + 4), Vector2(x + 8, y + 4), Vector2(x + 8, y)]), color, w)
 
 
 func _draw_turn_actuator(middle: Vector2, switched_on: bool, color: Color) -> void:

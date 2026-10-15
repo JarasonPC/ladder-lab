@@ -69,9 +69,22 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Delay (s)"), "delay", 0.1, 3600.0, 0.1)
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
+		"changeover":
+			_text(tr("Designation"), "designation")
+			_number(tr("Contact number"), "sequence", 1, 9, 1)
+			_check(tr("Delayed (timer contact)"), "delayed")
+		"fuse", "breaker":
+			_text(tr("Designation"), "designation")
+		"overload_relay":
+			_text(tr("Designation"), "designation")
+			_number(tr("Trip delay (s)"), "trip_delay", 0.0, 3600.0, 0.5)
+		"overload_contact":
+			_text(tr("Designation"), "designation")
+			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO 97-98"), tr("NC 95-96")])
 		"lamp", "motor":
 			_text(tr("Designation"), "designation")
-	_label(tr("Terminals: %s") % ", ".join(component.get_terminal_names()))
+	if component.supports_custom_terminals():
+		_terminals(component)
 	_message = _label("")
 	_message.add_theme_color_override("font_color", SchematicTheme.FAULT)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -141,6 +154,37 @@ func _milliseconds(caption: String, key: String) -> void:
 	spin.value = float(_data[key]) * 1000.0
 	spin.value_changed.connect(func(value: float) -> void: _emit(key, value / 1000.0))
 	_box.add_child(spin)
+
+
+## Terminal names as "13-14" (or "15-16-18"), editable, plus a button that
+## swaps the two terminals of a two-terminal part (A1-A2 -> A2-A1).
+func _terminals(component: CircuitComponent) -> void:
+	_label(tr("Terminals"))
+	var row: HBoxContainer = HBoxContainer.new()
+	_box.add_child(row)
+	var names: PackedStringArray = component.get_terminal_names()
+	var edit: LineEdit = LineEdit.new()
+	edit.text = "-".join(names)
+	edit.tooltip_text = tr("Rename the terminals, e.g. 13-14 to 53-54. Empty restores the standard marking.")
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var submit: Callable = func(text: String) -> void:
+		var parts: Array = []
+		for p: String in text.split("-"):
+			parts.append(p.strip_edges())
+		if text.strip_edges().is_empty():
+			parts = Array(component.default_terminal_names())
+		if PackedStringArray(parts) != names:
+			_emit("terminals", parts)
+	edit.text_submitted.connect(submit)
+	edit.focus_exited.connect(func() -> void: submit.call(edit.text))
+	row.add_child(edit)
+	if names.size() == 2:
+		var swap: Button = Button.new()
+		swap.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		swap.text = tr("Swap")
+		swap.tooltip_text = tr("Swap the terminal names, e.g. A1-A2 to A2-A1")
+		swap.pressed.connect(func() -> void: _emit("terminals", [names[1], names[0]]))
+		row.add_child(swap)
 
 
 func _check(caption: String, key: String) -> void:

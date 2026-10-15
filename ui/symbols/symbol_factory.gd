@@ -5,8 +5,16 @@ extends RefCounted
 
 static func create(component: CircuitComponent, placement: Placement) -> SchematicSymbol:
 	var symbol: SchematicSymbol
-	if component is SwitchingElement:
+	if component is Fuse:
+		symbol = FuseSymbol.new()
+	elif component is CircuitBreaker:
+		symbol = BreakerSymbol.new()
+	elif component is SwitchingElement:
 		symbol = ContactSymbol.new()
+	elif component is ChangeoverContact:
+		symbol = ChangeoverSymbol.new()
+	elif component is OverloadRelay:
+		symbol = OverloadRelaySymbol.new()
 	elif component is Coil:
 		symbol = CoilSymbol.new()
 	elif component is Lamp:

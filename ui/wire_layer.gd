@@ -46,6 +46,8 @@ func _draw() -> void:
 	if blink_on:
 		for w: int in fault_wires:
 			draw_polyline(_pixels(w), SchematicTheme.FAULT, SchematicTheme.LIVE_WIDTH)
+	for w: int in document.circuit.broken_wires:
+		_draw_break(w)
 	for cell: Vector2i in _junctions:
 		var color: Color = SchematicTheme.LINE
 		if _on_any(live_wires, cell):
@@ -87,6 +89,19 @@ func _on_any(wires: Dictionary[int, bool], cell: Vector2i) -> bool:
 			if SchematicDocument._on_segment(cell, points[s - 1], points[s]):
 				return true
 	return false
+
+
+## Marks a broken wire: a gap with a red cross in the middle of its longest segment.
+func _draw_break(wire_index: int) -> void:
+	var points: Array[Vector2i] = document.wire_points(wire_index)
+	var best: int = 1
+	for s: int in range(1, points.size()):
+		if Vector2(points[s] - points[s - 1]).length() > Vector2(points[best] - points[best - 1]).length():
+			best = s
+	var middle: Vector2 = (Vector2(points[best - 1]) + Vector2(points[best])) * 0.5 * G
+	draw_circle(middle, 7.0, SchematicTheme.BACKGROUND)
+	draw_line(middle + Vector2(-5, -5), middle + Vector2(5, 5), SchematicTheme.FAULT, 2.5)
+	draw_line(middle + Vector2(-5, 5), middle + Vector2(5, -5), SchematicTheme.FAULT, 2.5)
 
 
 func _pixels(wire_index: int) -> PackedVector2Array:
