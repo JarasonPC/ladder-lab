@@ -357,6 +357,18 @@ func _draw_lamp(center: Vector2, radius: float, color: Color, lit: bool) -> void
 	draw_arc(center, lens_r, 0.0, TAU, 48, rim.darkened(0.25), 1.0, true)
 	if lit:
 		draw_circle(center, lens_r * 0.6, Color(1, 1, 1, 0.22), true, -1.0, true)
+	# Slight diagonal lines across the lens, like the ribs of a moulded lens.
+	var spacing: float = maxf(lens_r / 3.5, 2.5)
+	var along: Vector2 = Vector2(1.0, -1.0).normalized()
+	var across: Vector2 = Vector2(1.0, 1.0).normalized()
+	var line_color: Color = Color(1, 1, 1, 0.1) if lit else Color(0, 0, 0, 0.14)
+	var offset: float = -floorf(lens_r / spacing) * spacing
+	while offset < lens_r:
+		var half: float = sqrt(lens_r * lens_r - offset * offset) - 0.8
+		if half > 0.5:
+			var middle: Vector2 = center + across * offset
+			draw_line(middle - along * half, middle + along * half, line_color, 1.0, true)
+		offset += spacing
 	# Some gloss: a soft sheen and a reflection on the rim, upper left.
 	draw_circle(center + Vector2(-0.3, -0.3) * lens_r, lens_r * 0.42, Color(1, 1, 1, 0.12), true, -1.0, true)
 	draw_circle(center + Vector2(-0.38, -0.38) * lens_r, lens_r * 0.15, Color(1, 1, 1, 0.45 if lit else 0.3), true, -1.0, true)
