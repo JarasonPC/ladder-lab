@@ -66,10 +66,14 @@ func _draw_shape(_color: Color, _width: float) -> void:
 			magnetic.append(x + p)
 		draw_polyline(magnetic, mark, thin)
 		draw_line(x + Vector2(MAGNETIC[1].x, MAGNETIC_Y), x + Vector2(_blade_x(tip, MAGNETIC_Y), MAGNETIC_Y), mark, thin)
-	if poles > 1:
-		var from: Vector2 = Vector2(_blade_x(tip, LINK_Y), LINK_Y)
-		var to: Vector2 = Vector2(pole_x(poles - 1) + _blade_x(tip, LINK_Y) - 1.0, LINK_Y)
-		draw_dashed_line(from, to, mark, 1.5, 3.0)
+	# The link runs from each blade to the releases of the next pole, never
+	# across them.
+	var release_left: float = minf(THERMAL[THERMAL.size() - 1].x, MAGNETIC[0].x) - 2.0
+	for pole: int in range(poles - 1):
+		var from: Vector2 = Vector2(pole_x(pole) + _blade_x(tip, LINK_Y) + 1.0, LINK_Y)
+		var to: Vector2 = Vector2(pole_x(pole + 1) + release_left, LINK_Y)
+		if to.x > from.x:
+			draw_dashed_line(from, to, mark, 1.5, 3.0)
 
 
 func _draw_labels() -> void:

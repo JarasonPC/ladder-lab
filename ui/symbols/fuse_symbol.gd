@@ -7,6 +7,13 @@ extends SchematicSymbol
 ## close it.
 
 const BOX := Rect2(-6, 14, 12, 32)
+## Fuse holder: blade from the pivot (above the lower terminal) to the fixed
+## contact (below the upper terminal); the fuse body sits in its middle.
+const HOLDER_PIVOT := Vector2(0, 46)
+const HOLDER_FIXED := Vector2(0, 14)
+const HOLDER_OPEN_TIP := Vector2(-15, 16)
+const HOLDER_HALF_LENGTH: float = 9.0
+const HOLDER_HALF_WIDTH: float = 4.5
 
 
 func is_interactive() -> bool:
@@ -39,24 +46,34 @@ func _draw_labels() -> void:
 	draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 
 
+## Half the width of a fuse holder's body, measured horizontally through its
+## middle (wider when the blade is open and tilted).
+static func holder_half_extent(closed: bool) -> float:
+	var along: Vector2 = ((HOLDER_FIXED if closed else HOLDER_OPEN_TIP) - HOLDER_PIVOT).normalized()
+	var extent: float = HOLDER_HALF_WIDTH / absf(along.y)
+	if absf(along.x) > 0.001:
+		extent = minf(extent, HOLDER_HALF_LENGTH / absf(along.x))
+	return extent
+
+
 ## Fuse holder pole at [param x]: the blade carries the fuse body. Shared with
 ## [ThreePoleFuseSymbol]. Returns the middle of the fuse body.
 static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: int, closed: bool, blown: bool, color: Color, width: float) -> Vector2:
 	var g: float = SymbolGeometry.GRID
-	var pivot: Vector2 = x + Vector2(0, 46)
-	var fixed_end: Vector2 = x + Vector2(0, 14)
+	var pivot: Vector2 = x + HOLDER_PIVOT
+	var fixed_end: Vector2 = x + HOLDER_FIXED
 	symbol.draw_line(x, fixed_end, symbol.lead_color(top), symbol.lead_width(top))
 	symbol.draw_line(x + Vector2(0, 3 * g), pivot, symbol.lead_color(bottom), symbol.lead_width(bottom))
 	# Closed, the blade runs straight on to the fixed contact.
-	var tip: Vector2 = fixed_end if closed else x + Vector2(-15, 16)
+	var tip: Vector2 = fixed_end if closed else x + HOLDER_OPEN_TIP
 	var blade: Color = symbol.lead_color(bottom) if symbol.reach(bottom) != SchematicSymbol.REACH_NONE else color
 	symbol.draw_line(pivot, tip, blade, symbol.lead_width(bottom))
 	# The fuse body sits on the blade.
 	var along: Vector2 = (tip - pivot).normalized()
 	var across: Vector2 = Vector2(-along.y, along.x)
 	var middle: Vector2 = pivot.lerp(tip, 0.5)
-	var half_l: float = 9.0
-	var half_w: float = 4.5
+	var half_l: float = HOLDER_HALF_LENGTH
+	var half_w: float = HOLDER_HALF_WIDTH
 	var corners: PackedVector2Array = PackedVector2Array([
 		middle - along * half_l - across * half_w, middle + along * half_l - across * half_w,
 		middle + along * half_l + across * half_w, middle - along * half_l + across * half_w,
