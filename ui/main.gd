@@ -6,7 +6,7 @@ extends Node
 
 enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, QUIT }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, LANGUAGE = 10, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT }
 
 const SPEEDS: Array[float] = [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]
@@ -20,6 +20,9 @@ const UI_SCALES: Array[float] = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0]
 const SETTINGS_PATH: String = "user://settings.cfg"
 const MAX_RECENT: int = 8
 const EXPORT_MARGIN: float = 40.0
+## Width range of the palette (resized with the grip beside it).
+const PALETTE_MIN_WIDTH: float = 180.0
+const PALETTE_MAX_WIDTH: float = 560.0
 
 var mode: Mode = Mode.EDIT
 ## The schematic being designed (the simulation runs on a copy).
@@ -53,6 +56,8 @@ var _rotate_button: Button
 var _mirror_button: Button
 var _delete_button: Button
 var _check_button: Button
+var _number_button: Button
+var _numbers_toggle: Button
 var _sim_tools: HBoxContainer
 var _switching_select: OptionButton
 var _chart_button: Button
@@ -64,6 +69,9 @@ var _speed_select: OptionButton
 var _reset_button: Button
 var _time_label: Label
 var _palette: Palette
+## Drag handle on the right edge of the palette that resizes it.
+var _palette_grip: Control
+var _palette_width: float = 250.0
 var _side: VBoxContainer
 ## Part of the window where the schematic is visible (between the panels).
 var _canvas_area: Control
@@ -82,6 +90,7 @@ var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
 var _white_paper: bool = false
 ## Dot grid while editing (never while simulating).
 var _edit_grid: bool = false
+var _wire_numbers: bool = true
 ## Chosen interface size (see UI_SCALES), 0 = automatic.
 var _ui_scale: float = 0.0
 var _locale_index: int = 0
@@ -112,10 +121,12 @@ func _ready() -> void:
 		var entries: Array[Dictionary] = [{"time": view.sim_time, "text": text, "args": args}]
 		_timing_panel.event_log.add_events(entries))
 	editor.document_replaced.connect(_on_document_replaced)
-	editor.selection_changed.connect(func(c: CircuitComponent) -> void: _properties.show_component(c))
+	editor.selection_changed.connect(_on_selection_changed)
 	editor.hint_changed.connect(_on_editor_hint)
 	editor.edited.connect(_mark_dirty)
 	_properties.changed.connect(_on_properties_changed)
+	_properties.rotate_requested.connect(func() -> void: editor.rotate_selection())
+	_properties.mirror_requested.connect(func() -> void: editor.mirror_selection())
 	_properties.type_changed.connect(_on_type_changed)
 	_palette.template_chosen.connect(func(t: Dictionary) -> void: editor.begin_place(t))
 	_check_panel.issue_selected.connect(_on_issue_selected)
@@ -227,6 +238,9 @@ func _build_ui() -> void:
 	_layout_select.add_item("")
 	_layout_select.add_item("")
 	_layout_select.item_selected.connect(_on_layout_selected)
+	_numbers_toggle = _tool(bar, func() -> void: _set_wire_numbers(_numbers_toggle.button_pressed), "wire_numbers")
+	_numbers_toggle.toggle_mode = true
+	_numbers_toggle.button_pressed = _wire_numbers
 	bar.add_child(VSeparator.new())
 
 	_edit_tools = HBoxContainer.new()
@@ -239,6 +253,7 @@ func _build_ui() -> void:
 	_mirror_button = _tool(_edit_tools, func() -> void: editor.mirror_selection(), "mirror")
 	_delete_button = _tool(_edit_tools, func() -> void: editor.delete_selection(), "delete")
 	_edit_tools.add_child(_spacer(8))
+	_number_button = _tool(_edit_tools, func() -> void: editor.number_wires(), "hash")
 	_check_button = _button(_edit_tools, func() -> void: _check_panel.run(edit_doc), "check")
 
 	_sim_tools = HBoxContainer.new()
@@ -276,7 +291,13 @@ func _build_ui() -> void:
 	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(middle)
 	_palette = Palette.new()
+	_palette.custom_minimum_size.x = _palette_width
 	middle.add_child(_palette)
+	_palette_grip = Control.new()
+	_palette_grip.custom_minimum_size = Vector2(6, 0)
+	_palette_grip.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+	_palette_grip.gui_input.connect(_on_palette_grip_input)
+	middle.add_child(_palette_grip)
 	_canvas_area = Control.new()
 	_canvas_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_canvas_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -414,6 +435,8 @@ func _retranslate() -> void:
 	_rotate_button.tooltip_text = tr("Rotate by 90°") + "  (R)"
 	_mirror_button.tooltip_text = tr("Mirror across the symbol axis") + "  (F)"
 	_delete_button.tooltip_text = tr("Delete") + "  (Del)"
+	_numbers_toggle.tooltip_text = tr("Show wire numbers (drag a number to move it)")
+	_number_button.tooltip_text = tr("Number the wires: every net gets its own number, all wire ends of a net the same")
 	_check_button.text = tr("Check")
 	_check_button.tooltip_text = tr("Look for unconnected terminals, contacts without a coil and other mistakes")
 	_switching_select.set_item_text(0, tr("Realistic"))
@@ -480,6 +503,8 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_checked(popup.item_count - 1, _white_paper or _theme_variant == AppTheme.Variant.LIGHT)
 	popup.set_item_disabled(popup.item_count - 1, _theme_variant == AppTheme.Variant.LIGHT)
 	popup.set_item_tooltip(popup.item_count - 1, tr("Draw the schematic on white paper in the dark theme, as in the guide"))
+	popup.add_check_item(tr("Wire numbers"), ViewMenuId.WIRE_NUMBERS)
+	popup.set_item_checked(popup.item_count - 1, _wire_numbers)
 	popup.add_check_item(tr("Grid while editing"), ViewMenuId.GRID)
 	popup.set_item_checked(popup.item_count - 1, _edit_grid)
 	popup.add_separator(tr("Language"))
@@ -500,6 +525,8 @@ func _on_view_menu(id: int) -> void:
 		_theme_variant = AppTheme.Variant.DARK if id == ViewMenuId.THEME_DARK else AppTheme.Variant.LIGHT
 		_apply_theme()
 		_save_settings()
+	elif id == ViewMenuId.WIRE_NUMBERS:
+		_set_wire_numbers(not _wire_numbers)
 	elif id == ViewMenuId.GRID:
 		_edit_grid = not _edit_grid
 		_update_mode_ui()
@@ -547,11 +574,29 @@ func _apply_ui_scale() -> void:
 	get_window().content_scale_factor = factor
 
 
+## Dragging the grip beside the palette makes it wider or narrower.
+func _on_palette_grip_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and ((event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+		_palette_width = clampf(_palette_width + (event as InputEventMouseMotion).relative.x, PALETTE_MIN_WIDTH, PALETTE_MAX_WIDTH)
+		_palette.custom_minimum_size.x = _palette_width
+	elif event is InputEventMouseButton and not (event as InputEventMouseButton).pressed:
+		_save_settings()
+
+
+func _set_wire_numbers(on: bool) -> void:
+	_wire_numbers = on
+	_numbers_toggle.set_pressed_no_signal(on)
+	view.set_wire_numbers_visible(on)
+	_save_settings()
+
+
 func _update_mode_ui() -> void:
 	var editing: bool = mode == Mode.EDIT
 	view.set_grid_visible(editing and _edit_grid)
+	view.set_wire_numbers_visible(_wire_numbers)
 	_edit_tools.visible = editing
 	_palette.visible = editing
+	_palette_grip.visible = editing
 	_side.visible = editing
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
@@ -718,6 +763,15 @@ func _on_issue_selected(ids: PackedStringArray) -> void:
 	if not ids.is_empty():
 		var body: Rect2 = edit_doc.component_body(edit_doc.circuit.get_component(ids[0]))
 		camera.look_at_world(body.get_center() * SymbolGeometry.GRID, _canvas_area.get_global_rect())
+
+
+## Properties of the one selected component, or the number of the one
+## selected wire.
+func _on_selection_changed(c: CircuitComponent) -> void:
+	if c == null and editor.selected_components.is_empty() and editor.selected_wires.size() == 1:
+		_properties.show_wire()
+	else:
+		_properties.show_component(c)
 
 
 func _single_selected() -> CircuitComponent:
@@ -918,6 +972,8 @@ func _load_settings() -> void:
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
 		_white_paper = bool(config.get_value("view", "white_paper", false))
 		_edit_grid = bool(config.get_value("view", "grid", false))
+		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
+		_palette_width = clampf(float(config.get_value("view", "palette_width", 250.0)), PALETTE_MIN_WIDTH, PALETTE_MAX_WIDTH)
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 
@@ -932,6 +988,8 @@ func _save_settings() -> void:
 	config.set_value("view", "ui_scale", _ui_scale)
 	config.set_value("view", "white_paper", _white_paper)
 	config.set_value("view", "grid", _edit_grid)
+	config.set_value("view", "wire_numbers", _wire_numbers)
+	config.set_value("view", "palette_width", _palette_width)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.save(SETTINGS_PATH)
 

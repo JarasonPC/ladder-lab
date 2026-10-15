@@ -11,6 +11,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "L2 supply", "template": {"type": "supply", "conductor": "L2"}},
 	{"title": "L3 supply", "template": {"type": "supply", "conductor": "L3"}},
 	{"title": "N supply", "template": {"type": "supply", "conductor": "N"}},
+	{"title": "Terminal (strip terminal X)", "template": {"type": "terminal"}},
 	{"title": "Push button NO", "template": {"type": "push_button", "contact": "NO"}},
 	{"title": "Push button NC", "template": {"type": "push_button", "contact": "NC"}},
 	{"title": "Switch NO", "template": {"type": "latching_switch", "contact": "NO"}},
@@ -22,22 +23,14 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Changeover contact", "template": {"type": "changeover"}},
 	{"title": "Delayed changeover contact", "template": {"type": "changeover", "delayed": true}},
 	{"title": "Coil (contactor KM / relay KA)", "template": {"type": "coil"}},
-	{"title": "On-delay timer", "template": {"type": "timer", "mode": "on_delay", "delay": 3.0}},
-	{"title": "Off-delay timer", "template": {"type": "timer", "mode": "off_delay", "delay": 3.0}},
-	{"title": "Multifunction timer (A1-S-A2)", "template": {"type": "timer", "mode": "pulse_on_press", "delay": 3.0, "control_input": true}},
+	{"title": "Time relay (multifunction)", "template": {"type": "timer", "mode": "on_delay", "delay": 3.0}},
 	{"title": "Lamp", "template": {"type": "lamp"}},
 	{"title": "Motor", "template": {"type": "motor"}},
 	{"title": "Fuse", "template": {"type": "fuse"}},
 	{"title": "Fuse holder", "template": {"type": "fuse", "holder": true}},
 	{"title": "Circuit breaker", "template": {"type": "breaker"}},
 	{"title": "Overload relay", "template": {"type": "overload_relay", "trip_delay": 5.0}},
-	{"title": "Overload contact NC", "template": {"type": "overload_contact", "contact": "NC"}},
-	{"title": "Overload contact NO", "template": {"type": "overload_contact", "contact": "NO"}},
 	{"title": "Main contacts", "template": {"type": "main_contacts"}},
-	{"title": "Fuse 3-pole", "template": {"type": "fuse3"}},
-	{"title": "Fuse holder 3-pole", "template": {"type": "fuse3", "holder": true}},
-	{"title": "Motor breaker 3-pole", "template": {"type": "breaker3"}},
-	{"title": "Overload relay 3-pole", "template": {"type": "overload_relay", "trip_delay": 5.0, "poles": 3}},
 	{"title": "Motor 3~", "template": {"type": "motor3", "motor_kind": "standard"}},
 	{"title": "Motor 3~ star/delta", "template": {"type": "motor3", "motor_kind": "star_delta"}},
 	{"title": "Motor 3~ Dahlander", "template": {"type": "motor3", "motor_kind": "dahlander"}},
@@ -61,7 +54,7 @@ var _header_titles: PackedStringArray = []
 ## Palette section of a template.
 static func group_of(template: Dictionary) -> String:
 	match template["type"]:
-		"supply":
+		"supply", "terminal":
 			return "supplies"
 		"push_button", "latching_switch":
 			return "buttons"
@@ -71,17 +64,15 @@ static func group_of(template: Dictionary) -> String:
 			return "coils"
 		"lamp", "motor":
 			return "loads"
-		"fuse", "breaker", "overload_contact":
+		"fuse", "breaker", "overload_relay", "overload_contact":
 			return "protection"
-		"overload_relay":
-			return "power" if int(template.get("poles", 0)) == 3 else "protection"
 	return "power"
 
 
 func _group_title(group: String) -> String:
 	match group:
 		"supplies":
-			return tr("Supplies")
+			return tr("Supplies and terminals")
 		"buttons":
 			return tr("Buttons and switches")
 		"contacts":
@@ -121,7 +112,8 @@ func _ready() -> void:
 		button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		button.theme_type_variation = "ListButton"
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(236, TILE.size.y + 2.0 * TILE.position.y)
+		button.custom_minimum_size = Vector2(0, TILE.size.y + 2.0 * TILE.position.y)
+		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		button.focus_mode = Control.FOCUS_NONE
 		# An empty icon keeps the room for the symbol tile.
 		var room: PlaceholderTexture2D = PlaceholderTexture2D.new()

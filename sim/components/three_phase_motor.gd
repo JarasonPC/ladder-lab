@@ -1,7 +1,8 @@
 class_name ThreePhaseMotor
 extends CircuitComponent
 ## Three-phase motor (designation "M1"). [member kind] sets its terminals:
-## STANDARD U1-V1-W1; STAR_DELTA also U2-V2-W2 (windings U1-U2, V1-V2, W1-W2);
+## STANDARD U1-V1-W1; STAR_DELTA also U2-V2-W2 (windings U1-U2, V1-V2, W1-W2;
+## drawn as on the terminal board: U1 V1 W1 above W2 U2 V2);
 ## DAHLANDER 1U-1V-1W (low speed, delta) and 2U-2V-2W (high speed, double star
 ## with 1U, 1V, 1W joined); TWO_WINDINGS and THREE_WINDINGS have a separate
 ## star-connected winding per speed (1U-1V-1W, 2U-2V-2W, 3U-3V-3W).
@@ -23,8 +24,8 @@ var direction: Direction = Direction.NONE
 var speed: int = 0
 ## Injected fault: the motor is overloaded (heats its overload relay).
 var overloaded: bool = false
-## Drawing only, standard motors: show the terminal board (U1 V1 W1 / W2 U2 V2)
-## instead of the motor circle, with star or delta bridges.
+## Drawing only: show the terminal board instead of the motor circle (a
+## standard motor with star or delta bridges between U1 V1 W1 / W2 U2 V2).
 var terminal_box: bool = false
 ## Bridges on the terminal board: delta (true) or star (false); drawing only.
 var delta_bridges: bool = false

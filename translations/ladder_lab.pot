@@ -156,7 +156,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-msgid "Supplies"
+msgid "Supplies and terminals"
 msgstr ""
 
 msgid "Buttons and switches"
@@ -187,6 +187,9 @@ msgid "L3 supply"
 msgstr ""
 
 msgid "N supply"
+msgstr ""
+
+msgid "Terminal (strip terminal X)"
 msgstr ""
 
 msgid "Push button NO"
@@ -222,13 +225,7 @@ msgstr ""
 msgid "Coil (contactor KM / relay KA)"
 msgstr ""
 
-msgid "On-delay timer"
-msgstr ""
-
-msgid "Off-delay timer"
-msgstr ""
-
-msgid "Multifunction timer (A1-S-A2)"
+msgid "Time relay (multifunction)"
 msgstr ""
 
 msgid "Lamp"
@@ -249,25 +246,7 @@ msgstr ""
 msgid "Overload relay"
 msgstr ""
 
-msgid "Overload contact NC"
-msgstr ""
-
-msgid "Overload contact NO"
-msgstr ""
-
 msgid "Main contacts"
-msgstr ""
-
-msgid "Fuse 3-pole"
-msgstr ""
-
-msgid "Fuse holder 3-pole"
-msgstr ""
-
-msgid "Motor breaker 3-pole"
-msgstr ""
-
-msgid "Overload relay 3-pole"
 msgstr ""
 
 msgid "Motor 3~"
@@ -298,9 +277,6 @@ msgid "Conductor"
 msgstr ""
 
 msgid "Wire junction"
-msgstr ""
-
-msgid "Designation"
 msgstr ""
 
 msgid "Contact"
@@ -342,6 +318,15 @@ msgstr ""
 msgid "Control input S (A1-S-A2)"
 msgstr ""
 
+msgid "Poles"
+msgstr ""
+
+msgid "None (contacts only)"
+msgstr ""
+
+msgid "3 (heaters in the power circuit)"
+msgstr ""
+
 msgid "Trip delay (s)"
 msgstr ""
 
@@ -349,12 +334,6 @@ msgid "NO 97-98"
 msgstr ""
 
 msgid "NC 95-96"
-msgstr ""
-
-msgid "Label above the lamp"
-msgstr ""
-
-msgid "e.g. Running, Fault"
 msgstr ""
 
 msgid "Draw as terminal box"
@@ -369,16 +348,31 @@ msgstr ""
 msgid "Delta (Δ)"
 msgstr ""
 
-msgid "Terminals"
+msgid "Double-click a marking on the drawing (designation, terminal number, label) to edit it."
 msgstr ""
 
-msgid "Rename the terminals, e.g. 13-14 to 53-54. Empty restores the standard marking."
+msgid "Wire"
 msgstr ""
 
-msgid "Swap"
+msgid "Double-click the wire or its number to number it. All wires joined to this one get the same number."
 msgstr ""
 
-msgid "Swap the terminal names, e.g. A1-A2 to A2-A1"
+msgid "Orientation"
+msgstr ""
+
+msgid "Rotate"
+msgstr ""
+
+msgid "Rotate by 90°"
+msgstr ""
+
+msgid "Mirror"
+msgstr ""
+
+msgid "Mirror across the symbol axis"
+msgstr ""
+
+msgid "Show all functions with their diagrams"
 msgstr ""
 
 msgid "F2 – On-delay"
@@ -427,12 +421,6 @@ msgstr ""
 msgid "Change to"
 msgstr ""
 
-msgid "Rotate"
-msgstr ""
-
-msgid "Mirror"
-msgstr ""
-
 msgid "Cut"
 msgstr ""
 
@@ -448,13 +436,26 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
+msgid "A1 and A2 of a time relay do not change."
+msgstr ""
+
 msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
 msgstr ""
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
 msgstr ""
 
-msgid "Click a terminal to draw a wire. Drag to move. Right click for more. R rotates, F mirrors, Del deletes."
+msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F mirrors, Del deletes."
+msgstr ""
+
+msgid "Time relay functions"
+msgstr ""
+
+#, c-format
+msgid "U supply A1-A2, %s control input, R output (delayed contacts), t the set time. Click a function to use it."
+msgstr ""
+
+msgid "Use this function"
 msgstr ""
 
 msgid "File"
@@ -487,10 +488,10 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-msgid "Rotate by 90°"
+msgid "Show wire numbers (drag a number to move it)"
 msgstr ""
 
-msgid "Mirror across the symbol axis"
+msgid "Number the wires: every net gets its own number, all wire ends of a net the same"
 msgstr ""
 
 msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
@@ -578,6 +579,9 @@ msgid "White schematic paper"
 msgstr ""
 
 msgid "Draw the schematic on white paper in the dark theme, as in the guide"
+msgstr ""
+
+msgid "Wire numbers"
 msgstr ""
 
 msgid "Grid while editing"

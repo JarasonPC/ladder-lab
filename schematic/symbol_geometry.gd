@@ -9,7 +9,7 @@ extends RefCounted
 const GRID: int = 20
 ## Distance in cells between the two terminals of a two-terminal symbol.
 const SPAN: int = 3
-## Distance in cells between the poles of three-pole symbols and motor terminals.
+## Distance in cells between the poles of multi-pole symbols and motor terminals.
 const POLE_SPACING: int = 2
 ## Distance in cells between the upper and lower terminals of a motor.
 const MOTOR_HEIGHT: int = 4
@@ -35,7 +35,7 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 	if c is ThreePhaseMotor:
 		var windings: int = (c as ThreePhaseMotor).winding_terminal_count()
 		for i: int in names.size():
-			result[names[i]] = motor_terminal_cell(i) if i < windings else MOTOR_PE_CELL
+			result[names[i]] = motor_terminal_cell(i, (c as ThreePhaseMotor).kind) if i < windings else MOTOR_PE_CELL
 		return result
 	if c is TimerRelay and names.size() == 3:
 		# Time relay with control input: A1 on top, A2 below, S beside A1.
@@ -49,10 +49,11 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		result[names[0]] = Vector2i.ZERO
 		result[names[1]] = Vector2i(0, SPAN)
 	elif names.size() == 3:
-		# Changeover contact: common on top, NO below it, NC one cell to the right.
-		result[names[0]] = Vector2i.ZERO
-		result[names[1]] = Vector2i(1, SPAN)
-		result[names[2]] = Vector2i(0, SPAN)
+		# Changeover contact: common at the bottom, NO above it, NC one cell
+		# to the right.
+		result[names[0]] = Vector2i(0, SPAN)
+		result[names[1]] = Vector2i(1, 0)
+		result[names[2]] = Vector2i.ZERO
 	return result
 
 
@@ -70,7 +71,7 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 	if c is TimerRelay and names.size() == 3:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if names.size() == 3:
-		return DIR_DOWN if terminal_name == names[0] else DIR_UP
+		return DIR_UP if terminal_name == names[0] else DIR_DOWN
 	if names.size() != 2:
 		return 0
 	return DIR_DOWN if terminal_name == names[0] else DIR_UP
@@ -82,10 +83,13 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.6, -1.4, 1.2, 1.8)
 	if c is Junction:
 		return Rect2(-0.3, -0.3, 0.6, 0.6)
+	if c is TerminalBlock:
+		return Rect2(-0.45, -0.45, 0.9, 0.9)
 	if c is ChangeoverContact:
 		return Rect2(-1.0, 0.5, 2.6, 2.0)
 	if _is_three_pole(c):
-		return Rect2(-1.0, 0.5, 2.0 * POLE_SPACING + 2.0, 2.0)
+		var poles: int = c.get_terminal_names().size() / 2
+		return Rect2(-1.0, 0.5, (poles - 1) * POLE_SPACING + 2.0, 2.0)
 	if c is ThreePhaseMotor:
 		var wide: bool = (c as ThreePhaseMotor).kind == ThreePhaseMotor.Kind.THREE_WINDINGS
 		return Rect2(-0.4, 0.5, 6.0 if wide else 4.8, 3.0)
@@ -95,12 +99,16 @@ static func local_body(c: CircuitComponent) -> Rect2:
 
 
 ## Cell of motor terminal [param index]: U-V-W of the first set on top, the
-## second set below, the third on the right.
-static func motor_terminal_cell(index: int) -> Vector2i:
+## second set below, the third on the right. A star-delta motor has its ends
+## below as on its terminal board: W2 U2 V2 under U1 V1 W1.
+static func motor_terminal_cell(index: int, kind: ThreePhaseMotor.Kind = ThreePhaseMotor.Kind.STANDARD) -> Vector2i:
 	if index < 3:
 		return Vector2i(index * POLE_SPACING, 0)
 	if index < 6:
-		return Vector2i((index - 3) * POLE_SPACING, MOTOR_HEIGHT)
+		var column: int = index - 3
+		if kind == ThreePhaseMotor.Kind.STAR_DELTA:
+			column = (column + 1) % 3
+		return Vector2i(column * POLE_SPACING, MOTOR_HEIGHT)
 	return Vector2i(3 * POLE_SPACING, index - 5)
 
 

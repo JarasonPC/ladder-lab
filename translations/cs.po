@@ -159,8 +159,8 @@ msgstr[0] "Kontrola: %d problém"
 msgstr[1] "Kontrola: %d problémy"
 msgstr[2] "Kontrola: %d problémů"
 
-msgid "Supplies"
-msgstr "Napájení"
+msgid "Supplies and terminals"
+msgstr "Napájení a svorky"
 
 msgid "Buttons and switches"
 msgstr "Tlačítka a spínače"
@@ -191,6 +191,9 @@ msgstr "Přívod L3"
 
 msgid "N supply"
 msgstr "Přívod N"
+
+msgid "Terminal (strip terminal X)"
+msgstr "Svorka (svorkovnice X)"
 
 msgid "Push button NO"
 msgstr "Tlačítko spínací"
@@ -225,14 +228,8 @@ msgstr "Zpožděný přepínací kontakt"
 msgid "Coil (contactor KM / relay KA)"
 msgstr "Cívka (stykač KM / relé KA)"
 
-msgid "On-delay timer"
-msgstr "Časové relé (přítah)"
-
-msgid "Off-delay timer"
-msgstr "Časové relé (odpad)"
-
-msgid "Multifunction timer (A1-S-A2)"
-msgstr "Multifunkční časové relé (A1-S-A2)"
+msgid "Time relay (multifunction)"
+msgstr "Časové relé (multifunkční)"
 
 msgid "Lamp"
 msgstr "Signálka"
@@ -252,26 +249,8 @@ msgstr "Jistič"
 msgid "Overload relay"
 msgstr "Tepelné nadproudové relé"
 
-msgid "Overload contact NC"
-msgstr "Kontakt nadproudového relé rozpínací"
-
-msgid "Overload contact NO"
-msgstr "Kontakt nadproudového relé spínací"
-
 msgid "Main contacts"
 msgstr "Hlavní kontakty"
-
-msgid "Fuse 3-pole"
-msgstr "Pojistka trojpólová"
-
-msgid "Fuse holder 3-pole"
-msgstr "Pojistkový odpojovač trojpólový"
-
-msgid "Motor breaker 3-pole"
-msgstr "Motorový spouštěč trojpólový"
-
-msgid "Overload relay 3-pole"
-msgstr "Tepelné nadproudové relé trojpólové"
 
 msgid "Motor 3~"
 msgstr "Motor 3~"
@@ -302,9 +281,6 @@ msgstr "Vodič"
 
 msgid "Wire junction"
 msgstr "Uzel vodičů"
-
-msgid "Designation"
-msgstr "Označení"
 
 msgid "Contact"
 msgstr "Kontakt"
@@ -345,6 +321,15 @@ msgstr "Čas t (s)"
 msgid "Control input S (A1-S-A2)"
 msgstr "Řídicí vstup S (A1-S-A2)"
 
+msgid "Poles"
+msgstr "Póly"
+
+msgid "None (contacts only)"
+msgstr "Žádné (jen kontakty)"
+
+msgid "3 (heaters in the power circuit)"
+msgstr "3 (články v silovém obvodu)"
+
 msgid "Trip delay (s)"
 msgstr "Zpoždění vybavení (s)"
 
@@ -353,12 +338,6 @@ msgstr "NO 97-98 (spínací)"
 
 msgid "NC 95-96"
 msgstr "NC 95-96 (rozpínací)"
-
-msgid "Label above the lamp"
-msgstr "Popisek nad kontrolkou"
-
-msgid "e.g. Running, Fault"
-msgstr "např. Chod, Porucha"
 
 msgid "Draw as terminal box"
 msgstr "Kreslit jako svorkovnici"
@@ -372,17 +351,32 @@ msgstr "Hvězda (Y)"
 msgid "Delta (Δ)"
 msgstr "Trojúhelník (Δ)"
 
-msgid "Terminals"
-msgstr "Svorky"
+msgid "Double-click a marking on the drawing (designation, terminal number, label) to edit it."
+msgstr "Označení na výkresu (značku přístroje, číslo svorky, popis) upravíte dvojklikem."
 
-msgid "Rename the terminals, e.g. 13-14 to 53-54. Empty restores the standard marking."
-msgstr "Přejmenování svorek, např. 13-14 na 53-54. Prázdné pole obnoví normalizované značení."
+msgid "Wire"
+msgstr "Vodič"
 
-msgid "Swap"
-msgstr "Prohodit"
+msgid "Double-click the wire or its number to number it. All wires joined to this one get the same number."
+msgstr "Dvojklikem na vodič nebo jeho číslo ho očíslujete. Všechny vodiče spojené s tímto dostanou stejné číslo."
 
-msgid "Swap the terminal names, e.g. A1-A2 to A2-A1"
-msgstr "Prohodit označení svorek, např. A1-A2 na A2-A1"
+msgid "Orientation"
+msgstr "Orientace"
+
+msgid "Rotate"
+msgstr "Otočit"
+
+msgid "Rotate by 90°"
+msgstr "Otočit o 90°"
+
+msgid "Mirror"
+msgstr "Zrcadlit"
+
+msgid "Mirror across the symbol axis"
+msgstr "Zrcadlit podle osy značky"
+
+msgid "Show all functions with their diagrams"
+msgstr "Zobrazit všechny funkce s diagramy"
 
 msgid "F2 – On-delay"
 msgstr "F2 – Zpožděný přítah"
@@ -430,12 +424,6 @@ msgstr "Označení %s je v tomto obvodu již použito."
 msgid "Change to"
 msgstr "Změnit na"
 
-msgid "Rotate"
-msgstr "Otočit"
-
-msgid "Mirror"
-msgstr "Zrcadlit"
-
 msgid "Cut"
 msgstr "Vyjmout"
 
@@ -451,14 +439,27 @@ msgstr "Smazat"
 msgid "Select all"
 msgstr "Vybrat vše"
 
+msgid "A1 and A2 of a time relay do not change."
+msgstr "A1 a A2 časového relé se nemění."
+
 msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
 msgstr "Kliknutím prvek umístíte. R otočí, F zrcadlí. Pravým tlačítkem myši nebo Esc vkládání ukončíte."
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
 msgstr "Kliknutím do prázdných polí přidáte lomy, kreslení ukončíte na svorce nebo vodiči. Backspace odebere lom, Esc zruší."
 
-msgid "Click a terminal to draw a wire. Drag to move. Right click for more. R rotates, F mirrors, Del deletes."
-msgstr "Kliknutím na svorku nakreslíte vodič. Tažením přesunete. Pravým tlačítkem myši zobrazíte další možnosti. R otočí, F zrcadlí, Del smaže."
+msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F mirrors, Del deletes."
+msgstr "Kliknutím na svorku nakreslíte vodič. Přetažením posunete součástky, vodiče nebo čísla vodičů. Dvojklikem upravíte označení. Pravé tlačítko nabídne víc. R otočí, F zrcadlí, Del smaže."
+
+msgid "Time relay functions"
+msgstr "Funkce časového relé"
+
+#, c-format
+msgid "U supply A1-A2, %s control input, R output (delayed contacts), t the set time. Click a function to use it."
+msgstr "U napájení A1-A2, %s řídicí vstup, R výstup (zpožděné kontakty), t nastavený čas. Kliknutím funkci použijete."
+
+msgid "Use this function"
+msgstr "Použít tuto funkci"
 
 msgid "File"
 msgstr "Soubor"
@@ -490,11 +491,11 @@ msgstr "Zpět"
 msgid "Redo"
 msgstr "Znovu"
 
-msgid "Rotate by 90°"
-msgstr "Otočit o 90°"
+msgid "Show wire numbers (drag a number to move it)"
+msgstr "Zobrazit čísla vodičů (číslo lze přetáhnout)"
 
-msgid "Mirror across the symbol axis"
-msgstr "Zrcadlit podle osy značky"
+msgid "Number the wires: every net gets its own number, all wire ends of a net the same"
+msgstr "Očíslovat vodiče: každý potenciál dostane své číslo, všechny konce vodičů jednoho potenciálu stejné"
 
 msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
 msgstr "Vyhledat nepřipojené svorky, kontakty bez cívky a další chyby"
@@ -582,6 +583,9 @@ msgstr "Bílý papír schématu"
 
 msgid "Draw the schematic on white paper in the dark theme, as in the guide"
 msgstr "V tmavém motivu kreslit schéma na bílý papír, jako ve skriptech"
+
+msgid "Wire numbers"
+msgstr "Čísla vodičů"
 
 msgid "Grid while editing"
 msgstr "Mřížka při úpravách"

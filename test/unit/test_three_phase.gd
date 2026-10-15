@@ -355,4 +355,41 @@ func test_terminal_box_view_is_saved() -> void:
 	assert_eq([d["terminal_box"], d["connection"]], [true, "delta"])
 	var copy: ThreePhaseMotor = DocumentSerializer.component_from_dict(d) as ThreePhaseMotor
 	assert_true(copy.terminal_box and copy.delta_bridges)
-	assert_false(DocumentSerializer.component_to_dict(ThreePhaseMotor.new("M2", K.DAHLANDER)).has("terminal_box"), "standard motors only")
+	var dahlander: ThreePhaseMotor = ThreePhaseMotor.new("M2", K.DAHLANDER)
+	dahlander.terminal_box = true
+	var dd: Dictionary = DocumentSerializer.component_to_dict(dahlander)
+	assert_true(dd["terminal_box"], "every motor can be drawn as its terminal box")
+	assert_false(dd.has("connection"), "bridges only on standard motors")
+	assert_true((DocumentSerializer.component_from_dict(dd) as ThreePhaseMotor).terminal_box)
+
+
+func test_poles_are_a_property() -> void:
+	for n: int in [1, 2, 3, 4]:
+		var f: Dictionary = {"type": "fuse", "designation": "F1", "poles": n}
+		var fuse: CircuitComponent = DocumentSerializer.component_from_dict(f)
+		assert_eq(fuse.get_terminal_names().size(), 2 * n, "fuse with %d poles" % n)
+		assert_eq(fuse.switch_paths().size(), n)
+		var b: CircuitComponent = DocumentSerializer.component_from_dict({"type": "breaker", "designation": "Q1", "poles": n})
+		if n == 1:
+			assert_true(b is CircuitBreaker)
+		else:
+			assert_true(b is MotorBreaker)
+		assert_eq(b.get_terminal_names().size(), 2 * n)
+		var m: MainContacts = DocumentSerializer.component_from_dict({"type": "main_contacts", "designation": "KM1", "poles": n}) as MainContacts
+		assert_eq(m.switch_paths().size(), n)
+		assert_eq(int(DocumentSerializer.component_to_dict(m)["poles"]), n)
+	var four: ThreePoleFuse = DocumentSerializer.component_from_dict({"type": "fuse", "designation": "F1", "poles": 4}) as ThreePoleFuse
+	assert_eq(four.blown.size(), 4)
+	assert_eq(four.get_terminal_names(), PackedStringArray(["1", "2", "3", "4", "5", "6", "7", "8"]))
+	assert_eq(DocumentSerializer.component_to_dict(four)["type"], "fuse")
+	# Files before version 9.
+	assert_eq((DocumentSerializer.component_from_dict({"type": "fuse3", "designation": "F1"}) as ThreePoleFuse).poles, 3)
+	assert_eq((DocumentSerializer.component_from_dict({"type": "breaker3", "designation": "Q1"}) as MotorBreaker).poles, 3)
+
+
+func test_star_delta_ends_as_on_the_terminal_board() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(ThreePhaseMotor.new("M1", K.STAR_DELTA), Vector2i(0, 0))
+	assert_eq(doc.terminal_cell("M1:W2"), Vector2i(0, 4), "W2 under U1")
+	assert_eq(doc.terminal_cell("M1:U2"), Vector2i(2, 4), "U2 under V1")
+	assert_eq(doc.terminal_cell("M1:V2"), Vector2i(4, 4), "V2 under W1")

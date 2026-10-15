@@ -3,7 +3,8 @@ extends SchematicSymbol
 ## Fuse (IEC 60617 S00362): rectangle with the conductor running through.
 ## A blown fuse shows the conductor broken with a cross. A fuse holder (fuse
 ## disconnector, as in the guide) is drawn as a switch blade carrying the fuse,
-## pivoting at the top terminal; click it to open or close it.
+## pivoting at the bottom terminal like the contacts; click it to open or
+## close it.
 
 const BOX := Rect2(-6, 14, 12, 32)
 
@@ -42,14 +43,14 @@ func _draw_labels() -> void:
 ## [ThreePoleFuseSymbol]. Returns the middle of the fuse body.
 static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: int, closed: bool, blown: bool, color: Color, width: float) -> Vector2:
 	var g: float = SymbolGeometry.GRID
-	var pivot: Vector2 = x + Vector2(0, 14)
-	var fixed_end: Vector2 = x + Vector2(0, 46)
-	symbol.draw_line(x, pivot, symbol.lead_color(top), symbol.lead_width(top))
-	symbol.draw_line(x + Vector2(0, 3 * g), fixed_end, symbol.lead_color(bottom), symbol.lead_width(bottom))
+	var pivot: Vector2 = x + Vector2(0, 46)
+	var fixed_end: Vector2 = x + Vector2(0, 14)
+	symbol.draw_line(x, fixed_end, symbol.lead_color(top), symbol.lead_width(top))
+	symbol.draw_line(x + Vector2(0, 3 * g), pivot, symbol.lead_color(bottom), symbol.lead_width(bottom))
 	# Closed, the blade still leans a little, as the symbol is drawn in the guide.
-	var tip: Vector2 = fixed_end + Vector2(-4, 0) if closed else x + Vector2(-15, 44)
-	var blade: Color = symbol.lead_color(top) if symbol.reach(top) != SchematicSymbol.REACH_NONE else color
-	symbol.draw_line(pivot, tip, blade, symbol.lead_width(top))
+	var tip: Vector2 = fixed_end + Vector2(-4, 0) if closed else x + Vector2(-15, 16)
+	var blade: Color = symbol.lead_color(bottom) if symbol.reach(bottom) != SchematicSymbol.REACH_NONE else color
+	symbol.draw_line(pivot, tip, blade, symbol.lead_width(bottom))
 	# The fuse body sits on the blade.
 	var along: Vector2 = (tip - pivot).normalized()
 	var across: Vector2 = Vector2(-along.y, along.x)

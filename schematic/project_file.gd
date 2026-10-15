@@ -13,8 +13,11 @@ const FORMAT: String = "ladder-lab"
 ## overload relays, three-phase motors. 5: purpose text of lamps, PE terminal
 ## of three-phase motors (version 4 custom motor terminal names get "PE" added).
 ## 6: fuse holders (fuses that can be opened). 7: multifunction time relays
-## (functions F1-F9, optional control input S).
-const VERSION: int = 7
+## (functions F1-F9, optional control input S). 8: terminals of terminal
+## strips (svorky) with free labels. 9: wire numbers (with dragged offsets);
+## fuses and breakers of 1-4 poles saved as "fuse" / "breaker" with "poles"
+## (older "fuse3" / "breaker3" still load), main contacts with "poles".
+const VERSION: int = 9
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

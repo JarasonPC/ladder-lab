@@ -237,13 +237,18 @@ func test_changeover_contact_follows_coil_and_changes_type() -> void:
 func test_three_phase_parts_from_the_palette() -> void:
 	_place({"type": "coil", "kind": "contactor"}, Vector2i(20, 4))
 	var x: int = 5
-	var wanted: PackedStringArray = ["L2 supply", "L1 supply", "L3 supply", "Main contacts", "Fuse 3-pole", "Motor breaker 3-pole", "Overload relay 3-pole", "Motor 3~", "Motor 3~ star/delta", "Motor 3~ Dahlander", "Motor 3~ two windings", "Motor 3~ three windings"]
+	var wanted: PackedStringArray = ["L2 supply", "L1 supply", "L3 supply", "Main contacts", "Fuse", "Circuit breaker", "Overload relay", "Motor 3~", "Motor 3~ star/delta", "Motor 3~ Dahlander", "Motor 3~ two windings", "Motor 3~ three windings"]
 	for title: String in wanted:
 		for entry: Dictionary in Palette.ENTRIES:
 			if entry["title"] == title:
 				_place(entry["template"], Vector2i(x, 20))
 		x += 8
 	var doc: SchematicDocument = editor.document()
+	# One part per family; the poles are set in the properties.
+	for id: String in ["F1", "Q1", "F2"]:
+		var poles: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component(id))
+		poles["poles"] = 3
+		assert_eq(editor.apply_properties(id, poles), "", id + " gets three poles")
 	for id: String in ["L2", "L1", "L3", "KM1:1-2-3-4-5-6", "F1:1-2-3-4-5-6", "Q1:1-2-3-4-5-6", "F2:1-2-3-4-5-6", "M1", "M2", "M3", "M4", "M5"]:
 		assert_true(doc.circuit.has_component_id(id), id + " placed")
 	assert_eq((doc.circuit.get_component("L1") as PowerSupply).conductor, PowerSupply.Conductor.L, "L next to L2 is called L1")
@@ -254,8 +259,8 @@ func test_three_phase_parts_from_the_palette() -> void:
 	assert_eq(titles, ["Motor 3~ star/delta", "Motor 3~ Dahlander", "Motor 3~ two windings"])
 	assert_eq(editor.change_type("M2", {"type": "motor3", "motor_kind": "dahlander"}), "")
 	assert_eq((doc.circuit.get_component("M2") as ThreePhaseMotor).kind, ThreePhaseMotor.Kind.DAHLANDER)
-	assert_eq(editor.change_type("F1:1-2-3-4-5-6", {"type": "breaker3"}), "")
-	assert_true(doc.circuit.get_component("F1:1-2-3-4-5-6") is MotorBreaker)
+	assert_eq(editor.change_type("F1:1-2-3-4-5-6", {"type": "breaker"}), "")
+	assert_true(doc.circuit.get_component("F1:1-2-3-4-5-6") is MotorBreaker, "a three-pole fuse becomes a three-pole breaker")
 	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("L2"))
 	data["conductor"] = "L3"
 	assert_eq(editor.apply_properties("L2", data), "")
@@ -276,3 +281,49 @@ func test_one_coil_entry_named_by_kind() -> void:
 	data["kind"] = "contactor"
 	assert_eq(editor.apply_properties("KA1", data), "")
 	assert_not_null(doc.circuit.get_coil("KA1"), "with a contact on it the name stays")
+
+
+func test_contact_of_an_overload_relay() -> void:
+	_place({"type": "overload_relay", "trip_delay": 5.0}, Vector2i(10, 3))
+	# Placed while the relay is selected, a contact is its overload contact.
+	_place({"type": "contact", "contact": "NO"}, Vector2i(18, 3))
+	assert_true(editor.document().circuit.get_component("F1:97-98") is OverloadContact)
+	editor._clear_selection()
+	_place({"type": "contact", "contact": "NC"}, Vector2i(14, 3))
+	var doc: SchematicDocument = editor.document()
+	var contact: CircuitComponent = null
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is Contact and not (c is OverloadContact):
+			contact = c
+	var data: Dictionary = DocumentSerializer.component_to_dict(contact)
+	data["designation"] = "F1"
+	assert_eq(editor.apply_properties(contact.id, data), "")
+	assert_true(doc.circuit.get_component("F1:95-96") is OverloadContact, "a contact designated like the overload relay becomes its 95-96")
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("F1:95-96"))
+	data["designation"] = "KA1"
+	assert_eq(editor.apply_properties("F1:95-96", data), "")
+	assert_true(doc.circuit.get_component("KA1:11-12") is Contact, "and back to a plain contact")
+
+
+func test_markings_are_edited_in_place() -> void:
+	_place({"type": "coil"}, Vector2i(10, 3))
+	_place({"type": "lamp"}, Vector2i(14, 3))
+	var doc: SchematicDocument = editor.document()
+	editor._inline_target = {"component": "KM1", "kind": "designation", "index": -1}
+	editor._commit_inline("-KM5")
+	assert_true(doc.circuit.has_component_id("KM5"), "designation edited, the dash is the prefix")
+	editor._inline_target = {"component": "KM5", "kind": "terminal", "index": 1}
+	editor._commit_inline("A3")
+	assert_eq(doc.circuit.get_component("KM5").get_terminal_names(), PackedStringArray(["A1", "A3"]))
+	editor._inline_target = {"component": "H1", "kind": "purpose", "index": -1}
+	editor._commit_inline("Running")
+	assert_eq((doc.circuit.get_component("H1") as Lamp).purpose, "Running")
+	_place({"type": "timer", "mode": "on_delay", "delay": 1.0}, Vector2i(18, 3))
+	var timer_id: String = ""
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is TimerRelay:
+			timer_id = c.id
+	assert_false(editor._edit_marking(doc.circuit.get_component(timer_id), "terminal", 0), "A1 of a time relay is fixed")
+	editor.undo()
+	editor.undo()
+	assert_eq((editor.document().circuit.get_component("H1") as Lamp).purpose, "", "undoable")

@@ -1,10 +1,11 @@
 class_name ThreePoleFuse
 extends PoleDevice
-## Three fuses in one (1-2, 3-4, 5-6). Each pole blows on its own when fault
-## current flows through it; [method reset] replaces the blown ones. In a
-## three-pole fuse holder ([member holder]) all poles are opened and closed
-## together by hand.
+## Multi-pole fuse, 2-4 fuses in one (1-2, 3-4, 5-6, 7-8; three unless set
+## otherwise). Each pole blows on its own when fault current flows through it;
+## [method reset] replaces the blown ones. In a multi-pole fuse holder
+## ([member holder]) all poles are opened and closed together by hand.
 
+## 1 for each blown pole.
 var blown: PackedByteArray = PackedByteArray([0, 0, 0])
 ## Mounted in a fuse holder that can be opened (design data).
 var holder: bool = false
@@ -39,11 +40,19 @@ func any_blown() -> bool:
 
 
 func reset() -> void:
-	blown = PackedByteArray([0, 0, 0])
+	blown = PackedByteArray()
+	blown.resize(poles)
 
 
 func protection_state() -> int:
-	return blown[0] | (blown[1] << 1) | (blown[2] << 2) | (8 if switched_on else 0)
+	var state: int = 16 if switched_on else 0
+	for p: int in blown.size():
+		state |= blown[p] << p
+	return state
+
+
+func _poles_changed() -> void:
+	reset()
 
 
 func trip_message() -> String:

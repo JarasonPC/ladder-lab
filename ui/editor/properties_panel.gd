@@ -6,6 +6,9 @@ extends PanelContainer
 signal changed(component_id: String, data: Dictionary)
 ## Another type of the same family was chosen (see [method SchematicEditor.change_type]).
 signal type_changed(component_id: String, template: Dictionary)
+## The Rotate / Mirror buttons were pressed.
+signal rotate_requested
+signal mirror_requested
 
 var _component_id: String = ""
 var _data: Dictionary = {}
@@ -57,52 +60,55 @@ func show_component(component: CircuitComponent) -> void:
 		"junction":
 			_note(tr("Wire junction"), "MutedLabel")
 		"push_button", "latching_switch", "contact":
-			_text(tr("Designation"), "designation")
 			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO (make)"), tr("NC (break)")])
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			if kind == "contact":
 				_check(tr("Delayed (timer contact)"), "delayed")
 		"coil":
-			_text(tr("Designation"), "designation")
 			_choice(tr("Kind"), "kind", ["contactor", "relay"], [tr("Contactor"), tr("Relay")])
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"timer":
-			_text(tr("Designation"), "designation")
 			_choice(tr("Function"), "mode", Array(TimerRelay.MODE_NAMES), _timer_function_titles())
+			_all_functions_button(component as TimerRelay)
 			_number(tr("Time t (s)"), "delay", 0.1, 3600.0, 0.1)
 			_check(tr("Control input S (A1-S-A2)"), "control_input")
 			_timer_diagram(component as TimerRelay)
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"changeover":
-			_text(tr("Designation"), "designation")
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")
-		"fuse", "breaker", "fuse3", "breaker3", "main_contacts":
-			_text(tr("Designation"), "designation")
+		"fuse", "breaker", "main_contacts":
+			_choice(tr("Poles"), "poles", [1, 2, 3, 4], ["1", "2", "3", "4"])
 		"overload_relay":
-			_text(tr("Designation"), "designation")
+			_choice(tr("Poles"), "poles", [0, 3], [tr("None (contacts only)"), tr("3 (heaters in the power circuit)")])
 			_number(tr("Trip delay (s)"), "trip_delay", 0.0, 3600.0, 0.5)
 		"overload_contact":
-			_text(tr("Designation"), "designation")
 			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO 97-98"), tr("NC 95-96")])
-		"lamp":
-			_text(tr("Designation"), "designation")
-			_text(tr("Label above the lamp"), "purpose", tr("e.g. Running, Fault"))
-		"motor":
-			_text(tr("Designation"), "designation")
 		"motor3":
-			_text(tr("Designation"), "designation")
-			if _data.has("terminal_box"):
-				_check(tr("Draw as terminal box"), "terminal_box")
+			_check(tr("Draw as terminal box"), "terminal_box")
+			if _data.has("connection"):
 				_choice(tr("Bridges"), "connection", ["star", "delta"], [tr("Star (Y)"), tr("Delta (Δ)")])
-	if component.supports_custom_terminals():
-		_terminals(component)
+	if not (component is Junction):
+		_orientation()
 	_group = null
+	_note(tr("Double-click a marking on the drawing (designation, terminal number, label) to edit it."), "MutedLabel")
 	_message = _note("", "MutedLabel")
 	_message.add_theme_color_override("font_color", SchematicTheme.FAULT)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+## Shows the selected wire: its number is edited on the drawing.
+func show_wire() -> void:
+	show_component(null)
+	for child: Node in _box.get_children():
+		if child != _title:
+			_box.remove_child(child)
+			child.queue_free()
+	_group = null
+	_title.text = tr("Wire")
+	_note(tr("Double-click the wire or its number to number it. All wires joined to this one get the same number."), "MutedLabel")
 
 
 ## Shows why the last change was refused.
@@ -146,19 +152,6 @@ func _emit(key: String, value: Variant) -> void:
 	changed.emit(_component_id, data)
 
 
-func _text(caption: String, key: String, placeholder: String = "") -> void:
-	_label(caption)
-	var edit: LineEdit = LineEdit.new()
-	var current: String = str(_data.get(key, ""))
-	edit.text = current
-	edit.placeholder_text = placeholder
-	edit.text_submitted.connect(func(value: String) -> void: _emit(key, value.strip_edges()))
-	edit.focus_exited.connect(func() -> void:
-		if edit.text.strip_edges() != current:
-			_emit(key, edit.text.strip_edges()))
-	_add(edit)
-
-
 func _choice(caption: String, key: String, values: Array, titles: Array) -> void:
 	_label(caption)
 	var option: OptionButton = OptionButton.new()
@@ -193,35 +186,51 @@ func _milliseconds(caption: String, key: String) -> void:
 	_add(spin)
 
 
-## Terminal names as "13-14" (or "15-16-18"), editable, plus a button that
-## swaps the two terminals of a two-terminal part (A1-A2 -> A2-A1).
-func _terminals(component: CircuitComponent) -> void:
-	_label(tr("Terminals"))
+## Rotate and Mirror buttons for the selected part.
+func _orientation() -> void:
+	_label(tr("Orientation"))
 	var row: HBoxContainer = HBoxContainer.new()
+	var rotate: Button = Button.new()
+	rotate.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	rotate.text = tr("Rotate")
+	rotate.icon = AppTheme.icon("rotate")
+	rotate.tooltip_text = tr("Rotate by 90°") + "  (R)"
+	rotate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rotate.pressed.connect(func() -> void: rotate_requested.emit())
+	row.add_child(rotate)
+	var mirror: Button = Button.new()
+	mirror.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	mirror.text = tr("Mirror")
+	mirror.icon = AppTheme.icon("mirror")
+	mirror.tooltip_text = tr("Mirror across the symbol axis") + "  (F)"
+	mirror.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mirror.pressed.connect(func() -> void: mirror_requested.emit())
+	row.add_child(mirror)
 	_add(row)
-	var names: PackedStringArray = component.get_terminal_names()
-	var edit: LineEdit = LineEdit.new()
-	edit.text = "-".join(names)
-	edit.tooltip_text = tr("Rename the terminals, e.g. 13-14 to 53-54. Empty restores the standard marking.")
-	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var submit: Callable = func(text: String) -> void:
-		var parts: Array = []
-		for p: String in text.split("-"):
-			parts.append(p.strip_edges())
-		if text.strip_edges().is_empty():
-			parts = Array(component.default_terminal_names())
-		if PackedStringArray(parts) != names:
-			_emit("terminals", parts)
-	edit.text_submitted.connect(submit)
-	edit.focus_exited.connect(func() -> void: submit.call(edit.text))
-	row.add_child(edit)
-	if names.size() == 2:
-		var swap: Button = Button.new()
-		swap.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		swap.text = tr("Swap")
-		swap.tooltip_text = tr("Swap the terminal names, e.g. A1-A2 to A2-A1")
-		swap.pressed.connect(func() -> void: _emit("terminals", [names[1], names[0]]))
-		row.add_child(swap)
+
+
+## Button with a list icon beside the function choice that shows every
+## function with its diagram at once.
+func _all_functions_button(timer: TimerRelay) -> void:
+	var option: Control = _group.get_child(_group.get_child_count() - 1)
+	_group.remove_child(option)
+	var row: HBoxContainer = HBoxContainer.new()
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(option)
+	var button: Button = Button.new()
+	button.theme_type_variation = "ToolButton"
+	button.icon = AppTheme.icon("list")
+	button.tooltip_text = tr("Show all functions with their diagrams")
+	button.pressed.connect(func() -> void:
+		var popup: TimerFunctionsPopup = TimerFunctionsPopup.new()
+		popup.popup_hide.connect(popup.queue_free)
+		add_child(popup)
+		var names: PackedStringArray = timer.get_terminal_names()
+		popup.setup(_timer_function_titles(), timer.mode, names[2] if names.size() > 2 else "S")
+		popup.function_chosen.connect(func(mode_name: String) -> void: _emit("mode", mode_name))
+		popup.popup_centered(popup.size))
+	row.add_child(button)
+	_group.add_child(row)
 
 
 func _check(caption: String, key: String) -> void:

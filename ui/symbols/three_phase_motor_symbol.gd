@@ -25,8 +25,7 @@ func _designation_anchor() -> Vector2:
 
 
 func _terminal_box() -> bool:
-	var motor: ThreePhaseMotor = component as ThreePhaseMotor
-	return motor.terminal_box and motor.kind == ThreePhaseMotor.Kind.STANDARD
+	return (component as ThreePhaseMotor).terminal_box
 
 
 func _draw_shape(color: Color, width: float) -> void:
@@ -41,14 +40,15 @@ func _draw_shape(color: Color, width: float) -> void:
 	var frame: Vector2 = CENTER + Vector2.from_angle(PI * 0.88) * RADIUS
 	draw_polyline(PackedVector2Array([frame, Vector2(pe_cell.x, frame.y), pe_cell]), lead_color(windings), lead_width(windings))
 	for i: int in windings:
-		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i)) * G
+		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
+		var column: float = cell.x / (SymbolGeometry.POLE_SPACING * G)
 		var angle: float
 		var bend: Vector2
 		if i < 3:
-			angle = -PI * 0.5 + (i - 1) * PI * 0.25
+			angle = -PI * 0.5 + (column - 1) * PI * 0.25
 			bend = cell + Vector2(0, 0.4 * G)
 		elif i < 6:
-			angle = PI * 0.5 - (i - 4) * PI * 0.25
+			angle = PI * 0.5 - (column - 1) * PI * 0.25
 			bend = cell - Vector2(0, 0.4 * G)
 		else:
 			angle = (i - 7) * PI * 0.2
@@ -86,16 +86,28 @@ const FEED_ROW: float = 26.0
 const END_ROW: float = 58.0
 
 
-## The motor drawn as its terminal board (as in the guide): U1 V1 W1 fed from
-## above, W2 U2 V2 below them, joined by star (one bar along W2-U2-V2) or
-## delta bridges (U1-W2, V1-U2, W1-V2).
+## The motor drawn as its terminal board (as in the guide). A standard motor:
+## U1 V1 W1 fed from above, W2 U2 V2 below them, joined by star (one bar along
+## W2-U2-V2) or delta bridges (U1-W2, V1-U2, W1-V2). The other kinds show a
+## stud for each of their terminals, the bridges being made by contactors.
 func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 	var fill: Color = SchematicTheme.COIL_ON if motor.is_running() else SchematicTheme.BACKGROUND
 	if motor.state == ThreePhaseMotor.State.PHASE_LOSS or motor.state == ThreePhaseMotor.State.MISWIRED:
 		fill = Color(SchematicTheme.FAULT, 0.25)
-	draw_rect(BOARD, fill)
+	var board: Rect2 = _board(motor)
+	draw_rect(board, fill)
 	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-	draw_rect(BOARD, color, false, SchematicTheme.LINE_WIDTH)
+	draw_rect(board, color, false, SchematicTheme.LINE_WIDTH)
+	if motor.kind != ThreePhaseMotor.Kind.STANDARD:
+		for i: int in motor.winding_terminal_count():
+			var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
+			var stud: Vector2 = _stud(motor, i)
+			var toward: Vector2 = (cell - stud).normalized()
+			draw_line(cell, stud + toward * 3.5, lead_color(i), lead_width(i))
+			draw_circle(stud, 3.5, SchematicTheme.BACKGROUND)
+			draw_arc(stud, 3.5, 0.0, TAU, 12, lead_color(i) if reach(i) != REACH_NONE else color, 1.5)
+		_draw_box_pe(motor, board)
+		return
 	for i: int in 3:
 		var x: float = i * SymbolGeometry.POLE_SPACING * G
 		draw_line(Vector2(x, 0), Vector2(x, FEED_ROW - 4.0), lead_color(i), lead_width(i))
@@ -111,10 +123,32 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 		for y: float in [FEED_ROW, END_ROW]:
 			draw_circle(Vector2(x, y), 3.5, SchematicTheme.BACKGROUND)
 			draw_arc(Vector2(x, y), 3.5, 0.0, TAU, 12, lead_color(i) if y == FEED_ROW and reach(i) != REACH_NONE else color, 1.5)
-	# PE: from the frame of the box to its terminal.
+	_draw_box_pe(motor, board)
+
+
+## PE: from the frame of the box to its terminal.
+func _draw_box_pe(motor: ThreePhaseMotor, board: Rect2) -> void:
 	var windings: int = motor.winding_terminal_count()
 	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G
-	draw_polyline(PackedVector2Array([Vector2(BOARD.position.x, 3.0 * G), Vector2(pe_cell.x, 3.0 * G), pe_cell]), lead_color(windings), lead_width(windings))
+	draw_polyline(PackedVector2Array([Vector2(board.position.x, 3.0 * G), Vector2(pe_cell.x, 3.0 * G), pe_cell]), lead_color(windings), lead_width(windings))
+
+
+## Box of the terminal board, wider for a motor with a third winding.
+func _board(motor: ThreePhaseMotor) -> Rect2:
+	if motor.kind == ThreePhaseMotor.Kind.THREE_WINDINGS:
+		return Rect2(BOARD.position, BOARD.size + Vector2(20, 0))
+	return BOARD
+
+
+## Stud of winding terminal [param i] on the terminal board: the first set on
+## the upper row, the second on the lower row, the third in a column at the right.
+func _stud(motor: ThreePhaseMotor, i: int) -> Vector2:
+	var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
+	if i < 3:
+		return Vector2(cell.x, FEED_ROW)
+	if i < 6:
+		return Vector2(cell.x, END_ROW)
+	return Vector2(cell.x - 20.0, cell.y)
 
 
 ## Bridge: a rounded bar around two studs.
@@ -132,6 +166,14 @@ func _draw_bar(a: Vector2, b: Vector2, color: Color, w: float) -> void:
 func _draw_labels() -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	if _terminal_box() and motor.kind != ThreePhaseMotor.Kind.STANDARD:
+		var box_names: PackedStringArray = motor.get_terminal_names()
+		for i: int in motor.winding_terminal_count():
+			var stud: Vector2 = _stud(motor, i)
+			var anchor: Vector2 = stud + (Vector2(7.0, -8.0) if i < 3 else (Vector2(7.0, 10.0) if i < 6 else Vector2(6.0, -7.0)))
+			draw_label(box_names[i], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label(box_names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		return
 	if _terminal_box():
 		var names: PackedStringArray = motor.get_terminal_names()
 		var ends: PackedStringArray = ["W2", "U2", "V2"]
@@ -146,7 +188,7 @@ func _draw_labels() -> void:
 	var windings: int = motor.winding_terminal_count()
 	draw_label(names[windings], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	for i: int in windings:
-		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i)) * G
+		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
 		var offset: Vector2 = Vector2(0.3 * G, 0.4 * G)
 		if i >= 3 and i < 6:
 			offset = Vector2(0.3 * G, -0.4 * G)

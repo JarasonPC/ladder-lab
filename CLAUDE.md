@@ -9,15 +9,25 @@
   colours live in SchematicTheme, which also has a dark paper (dark theme, unless View > White
   schematic paper); PNG export always uses white paper. Lamps may carry a purpose text drawn above
   the designation; 3~ motors have a PE terminal (last terminal, below left, ignored by the solver).
-  Every contact (NO, NC, changeover, main contacts, breakers) pivots at its first/top terminal;
-  NO blades stand off to the actuator side, NC blades rest under a stop on the other side.
-  Fuses can be fuse holders (holder = true: can be opened by clicking). No dot grid by default.
+  Every contact (NO, NC, changeover, main contacts, breakers, fuse holders) pivots at its
+  second/bottom terminal (changeover: common at the bottom); NO blades stand off to the actuator
+  side, NC blades rest against a stop on the other side. Breakers carry the cross plus thermal and
+  magnetic releases. Fuses can be fuse holders (holder = true: can be opened by clicking). No dot
+  grid by default; while placing, guide lines run through the new part's terminals.
   Voltage colour goes on leads and conductors only; symbol bodies stay black, except coils.
 - Time relays (TimerRelay) are multifunction relays: functions F1-F9 (TimerRelay.Mode, codes as in
   real relays) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
-  active with voltage against A2); the properties panel shows a timing diagram (TimerDiagram)
-  computed by running TimerRelay itself. Standard 3~ motors can be drawn as a terminal box
-  (star/delta bridges, drawing only)
+  active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram
+  (TimerDiagram, computed by running TimerRelay itself) and a list of all functions
+  (TimerFunctionsPopup). The palette has one time relay. Any 3~ motor can be drawn as its
+  terminal box (standard motors with star/delta bridges, drawing only)
+- One palette part per family: fuse/fuse holder, breaker and main contacts have 1-4 poles, the
+  overload relay none or 3 (set in the properties); a contact designated like an overload relay
+  becomes its OverloadContact. Markings (designations, terminal names, lamp and terminal labels,
+  wire numbers) are edited by double-clicking them on the drawing, not in the properties panel
+- Terminals (TerminalBlock, "X1", free label) sit on wires; wire segments can be dragged; wire
+  numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
+  numbering tool or double click; the palette panel is resizable
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
@@ -26,12 +36,13 @@
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
 - Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, S = push button/switch,
-  H = lamp, M = motor, F = fuse/overload relay, Q = motor breaker, supplies L (= L1), L2, L3 and N
+  H = lamp, M = motor, F = fuse/overload relay, Q = circuit/motor breaker, X = terminal, supplies L (= L1), L2, L3 and N
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2
-- Power circuit: three-pole devices (main contacts, fuses, motor breaker, overload relay)
-  1-2/3-4/5-6; 3~ motors U1-V1-W1 (+U2-V2-W2 star/delta), Dahlander and separate windings
+- Power circuit: multi-pole devices (main contacts, fuses, breakers, overload relay)
+  1-2/3-4/5-6/7-8; 3~ motors U1-V1-W1 (+U2-V2-W2 star/delta, drawn W2-U2-V2 under U1-V1-W1 as on
+  the terminal board), Dahlander and separate windings
   1U-1V-1W/2U-2V-2W(/3U-3V-3W); phase order L1-L2-L3 on U-V-W = clockwise
 
 ## Layout

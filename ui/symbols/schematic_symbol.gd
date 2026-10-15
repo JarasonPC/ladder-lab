@@ -21,6 +21,10 @@ var warning: bool = false
 var hovered: bool = false
 ## False for palette previews.
 var show_labels: bool = true
+## Markings written at the last draw, for editing them in place:
+## [kind, index, Rect2 in node coordinates]; kind is "designation",
+## "terminal" (index = terminal index), "purpose" (lamp) or "label" (terminal block).
+var marking_rects: Array = []
 
 
 func setup(p_component: CircuitComponent, p_placement: Placement) -> void:
@@ -48,6 +52,7 @@ func _draw() -> void:
 	if show_labels:
 		_draw_terminals()
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+	marking_rects.clear()
 	if show_labels:
 		_draw_labels()
 	if has_fault():
@@ -109,7 +114,7 @@ func designation_text() -> String:
 
 ## Square at every terminal, filled with what reaches it (black when nothing).
 func _draw_terminals() -> void:
-	if component is Junction:
+	if component is Junction or component is TerminalBlock:
 		return
 	var s: float = SchematicTheme.TERMINAL_SQUARE
 	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
@@ -147,7 +152,7 @@ func has_fault() -> bool:
 	return false
 
 
-## Terminal numbers of a three-pole symbol: 1, 3, 5 on top, 2, 4, 6 below.
+## Terminal numbers of a multi-pole symbol: 1, 3, 5, 7 on top, 2, 4, 6, 8 below.
 func _draw_pole_labels() -> void:
 	var names: PackedStringArray = component.get_terminal_names()
 	for i: int in names.size():
@@ -156,7 +161,7 @@ func _draw_pole_labels() -> void:
 		draw_label(names[i], Vector2(x, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 
 
-## Local x of pole [param pole] (0-2) of a three-pole symbol.
+## Local x of pole [param pole] (0-3) of a multi-pole symbol.
 static func pole_x(pole: int) -> float:
 	return pole * SymbolGeometry.POLE_SPACING * G
 
@@ -198,6 +203,31 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 		var direction: float = -1.0 if absf(away.x) < absf(away.y) and away.y < 0.0 else 1.0
 		pos.y += direction * line * line_height
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	var marking: Array = _marking_of(text)
+	if not marking.is_empty():
+		marking_rects.append([marking[0], marking[1], Rect2(Vector2(pos.x, pos.y - ascent), size)])
+
+
+## What a written [param text] marks: [kind, index] (see [member
+## marking_rects]), or [] for other text (times, states).
+func _marking_of(text: String) -> Array:
+	if text == designation_text():
+		return ["designation", -1]
+	if component is Lamp and text == (component as Lamp).purpose:
+		return ["purpose", -1]
+	if component is TerminalBlock:
+		return ["label", -1]
+	var i: int = component.get_terminal_names().find(text)
+	return ["terminal", i] if i >= 0 else []
+
+
+## Rectangle of the marking [param kind] (and [param index]) as last drawn,
+## or an empty Rect2.
+func marking_rect(kind: String, index: int = -1) -> Rect2:
+	for m: Array in marking_rects:
+		if m[0] == kind and m[1] == index:
+			return m[2]
+	return Rect2()
 
 
 ## True when a label at [param local_anchor] is written beside the symbol
