@@ -23,6 +23,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		d["mirrored"] = p.mirrored
 		if not p.labels.is_empty():
 			d["labels"] = p.labels_to_data()
+		if not p.strips.is_empty():
+			d["strips"] = p.strips_to_data()
 		components.append(d)
 	var wires: Array[Dictionary] = []
 	var circuit_wires: Array[PackedStringArray] = doc.circuit.get_wires()
@@ -60,6 +62,7 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			return null
 		doc.add(c, cell, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
 		doc.get_placement(c.id).labels_from_data(cd.get("labels", {}))
+		doc.get_placement(c.id).strips_from_data(cd.get("strips", {}))
 	for wd: Variant in wires:
 		if not (wd is Dictionary):
 			return null

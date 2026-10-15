@@ -25,8 +25,31 @@ const MAGNETIC_Y: float = 35.5
 const MAGNETIC: PackedVector2Array = [Vector2(-11, 31.5), Vector2(-19, 35.5), Vector2(-11, 39.5), Vector2(-11, 31.5)]
 
 
+## Seconds the blade takes to swing on the drawing.
+const SWING_TIME: float = 0.18
+
+## Shown opening of the blade, 0 closed .. 1 open, following the state
+## smoothly; -1 until set.
+var _shown: float = -1.0
+
+
 func flips_when_horizontal() -> bool:
 	return true
+
+
+func _process(delta: float) -> void:
+	var target: float = 0.0 if _closed() else 1.0
+	if _shown < 0.0:
+		_shown = target
+	elif _shown != target:
+		_shown = move_toward(_shown, target, delta / SWING_TIME)
+		queue_redraw()
+
+
+func _closed() -> bool:
+	if component is MotorBreaker:
+		return (component as MotorBreaker).is_path_closed(0)
+	return (component as CircuitBreaker).is_closed()
 
 
 func is_interactive() -> bool:
@@ -38,16 +61,26 @@ func _designation_anchor() -> Vector2:
 
 
 func _draw_shape(_color: Color, _width: float) -> void:
-	var closed: bool
-	var tripped: bool
-	if component is MotorBreaker:
-		closed = (component as MotorBreaker).is_path_closed(0)
-		tripped = (component as MotorBreaker).tripped
-	else:
-		closed = (component as CircuitBreaker).is_closed()
-		tripped = (component as CircuitBreaker).tripped
+	var tripped: bool = (component as MotorBreaker).tripped if component is MotorBreaker else (component as CircuitBreaker).tripped
 	var poles: int = component.get_terminal_names().size() / 2
-	var tip: Vector2 = CLOSED_TIP if closed else OPEN_TIP
+	var opening: float = _shown if _shown >= 0.0 else (0.0 if _closed() else 1.0)
+	var tip: Vector2 = CLOSED_TIP.lerp(OPEN_TIP, opening)
+	# The releases are fixed to the blade: drawn for the closed blade and
+	# turned with it about the pivot.
+	var turn: float = (tip - PIVOT).angle() - (CLOSED_TIP - PIVOT).angle()
+	var on_blade: Callable = func(p: Vector2) -> Vector2:
+		return PIVOT + (p - PIVOT).rotated(turn)
+	var thermal_local: PackedVector2Array = PackedVector2Array([on_blade.call(Vector2(_blade_x(CLOSED_TIP, THERMAL_Y), THERMAL_Y))])
+	for p: Vector2 in THERMAL:
+		thermal_local.append(on_blade.call(p))
+	var magnetic_local: PackedVector2Array = PackedVector2Array()
+	for p: Vector2 in MAGNETIC:
+		magnetic_local.append(on_blade.call(p))
+	var stub_from: Vector2 = on_blade.call(Vector2(MAGNETIC[0].x, MAGNETIC_Y))
+	var stub_to: Vector2 = on_blade.call(Vector2(_blade_x(CLOSED_TIP, MAGNETIC_Y), MAGNETIC_Y))
+	var release_left: float = INF
+	for p: Vector2 in thermal_local + magnetic_local:
+		release_left = minf(release_left, p.x)
 	# The releases and the link are insulated from the poles: never live.
 	var mark: Color = SchematicTheme.WARNING if warning or tripped else SchematicTheme.LINE
 	var thin: float = SchematicTheme.LINE_WIDTH * 0.8
@@ -62,18 +95,18 @@ func _draw_shape(_color: Color, _width: float) -> void:
 		aa_line(x + Vector2(0, 3 * G), x + PIVOT, lead_color(bottom), lead_width(bottom))
 		var blade: Color = SchematicTheme.WARNING if tripped else lead_color(bottom)
 		draw_blade(x + PIVOT, x + tip, blade, lead_width(bottom))
-		var thermal: PackedVector2Array = PackedVector2Array([x + Vector2(_blade_x(tip, THERMAL_Y), THERMAL_Y)])
-		for p: Vector2 in THERMAL:
+		var thermal: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in thermal_local:
 			thermal.append(x + p)
 		aa_polyline(thermal, mark, thin)
 		var magnetic: PackedVector2Array = PackedVector2Array()
-		for p: Vector2 in MAGNETIC:
+		for p: Vector2 in magnetic_local:
 			magnetic.append(x + p)
 		aa_polyline(magnetic, mark, thin)
-		aa_line(x + Vector2(MAGNETIC[0].x, MAGNETIC_Y), x + Vector2(_blade_x(tip, MAGNETIC_Y), MAGNETIC_Y), mark, thin)
+		aa_line(x + stub_from, x + stub_to, mark, thin)
 	# The link runs from each blade to the releases of the next pole, never
 	# across them.
-	var release_left: float = minf(THERMAL[THERMAL.size() - 1].x, MAGNETIC[1].x) - 2.0
+	release_left -= 2.0
 	for pole: int in range(poles - 1):
 		var from: Vector2 = Vector2(pole_x(pole) + _blade_x(tip, LINK_Y) + 1.0, LINK_Y)
 		var to: Vector2 = Vector2(pole_x(pole + 1) + release_left, LINK_Y)

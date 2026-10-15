@@ -11,6 +11,9 @@ var mirrored: bool
 ## Markings moved by the user: marking key ("designation", "terminal:1",
 ## "purpose", "label") -> offset in cells on the drawing (upright).
 var labels: Dictionary[String, Vector2] = {}
+## Leads that end in a terminal of a terminal strip (drawn instead of the
+## plain terminal square): terminal index -> its label, e.g. "4".
+var strips: Dictionary[int, String] = {}
 
 
 func _init(p_cell: Vector2i = Vector2i.ZERO, p_rotation: int = 0, p_mirrored: bool = false) -> void:
@@ -25,6 +28,24 @@ func labels_to_data() -> Dictionary:
 	for key: String in labels:
 		data[key] = [labels[key].x, labels[key].y]
 	return data
+
+
+## [member strips] as saved data: {"<index>": label}.
+func strips_to_data() -> Dictionary:
+	var data: Dictionary = {}
+	for index: int in strips:
+		data[str(index)] = strips[index]
+	return data
+
+
+## Reads [member strips] from [method strips_to_data] data; ignores anything malformed.
+func strips_from_data(data: Variant) -> void:
+	strips.clear()
+	if not (data is Dictionary):
+		return
+	for key: Variant in data:
+		if key is String and (key as String).is_valid_int() and int(key) >= 0 and data[key] is String:
+			strips[int(key)] = data[key]
 
 
 ## Reads [member labels] from [method labels_to_data] data; ignores anything malformed.
