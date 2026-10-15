@@ -1,13 +1,14 @@
 class_name WireLayer
 extends Node2D
 ## Draws the grid, all wires and junction dots of a [SchematicDocument].
-## Wires at L potential (voltage reach) are drawn on top in the live colour;
-## during a short the fault-current path blinks on top of that.
+## Wires reached by L are drawn in the live colour, wires reached by N in the
+## neutral colour; during a short the fault-current path blinks on top.
 
 const G: float = float(SymbolGeometry.GRID)
 
 var document: SchematicDocument
 var live_wires: Dictionary[int, bool] = {}
+var neutral_wires: Dictionary[int, bool] = {}
 ## Wires carrying the short-circuit current (empty when there is no short).
 var fault_wires: Dictionary[int, bool] = {}
 var blink_on: bool = true
@@ -35,8 +36,10 @@ func _draw() -> void:
 			draw_rect(Rect2(Vector2(x, y) * G - Vector2.ONE, Vector2(2, 2)), SchematicTheme.GRID_DOT)
 
 	for w: int in document.get_wire_count():
-		if not live_wires.has(w):
+		if not live_wires.has(w) and not neutral_wires.has(w):
 			draw_polyline(_pixels(w), SchematicTheme.LINE, SchematicTheme.LINE_WIDTH)
+	for w: int in neutral_wires:
+		draw_polyline(_pixels(w), SchematicTheme.NEUTRAL, SchematicTheme.LIVE_WIDTH)
 	for w: int in document.get_wire_count():
 		if live_wires.has(w):
 			draw_polyline(_pixels(w), SchematicTheme.LIVE, SchematicTheme.LIVE_WIDTH)
@@ -44,7 +47,12 @@ func _draw() -> void:
 		for w: int in fault_wires:
 			draw_polyline(_pixels(w), SchematicTheme.FAULT, SchematicTheme.LIVE_WIDTH)
 	for cell: Vector2i in _junctions:
-		draw_circle(Vector2(cell) * G, 4.0, SchematicTheme.LIVE if _on_live_wire(cell) else SchematicTheme.LINE)
+		var color: Color = SchematicTheme.LINE
+		if _on_any(live_wires, cell):
+			color = SchematicTheme.LIVE
+		elif _on_any(neutral_wires, cell):
+			color = SchematicTheme.NEUTRAL
+		draw_circle(Vector2(cell) * G, 4.0, color)
 	_draw_path_numbers()
 
 
@@ -72,8 +80,8 @@ func _draw_path_numbers() -> void:
 		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.TERMINAL_TEXT)
 
 
-func _on_live_wire(cell: Vector2i) -> bool:
-	for w: int in live_wires:
+func _on_any(wires: Dictionary[int, bool], cell: Vector2i) -> bool:
+	for w: int in wires:
 		var points: Array[Vector2i] = document.wire_points(w)
 		for s: int in range(1, points.size()):
 			if SchematicDocument._on_segment(cell, points[s - 1], points[s]):

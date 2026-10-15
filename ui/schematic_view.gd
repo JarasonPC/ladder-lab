@@ -92,12 +92,17 @@ func _apply(result: StepResult) -> void:
 
 func _update_visuals() -> void:
 	var blink_on: bool = _blink_time < BLINK_PERIOD * 0.5
-	var live_keys: Dictionary[String, bool] = {}
+	var reach_of: Dictionary[String, int] = {}
 	for key: String in last_result.live_terminals:
-		live_keys[key] = true
+		reach_of[key] = SchematicSymbol.REACH_L
+	for key: String in last_result.neutral_terminals:
+		reach_of[key] = SchematicSymbol.REACH_N
 	_wire_layer.live_wires.clear()
 	for w: int in last_result.live_wires:
 		_wire_layer.live_wires[w] = true
+	_wire_layer.neutral_wires.clear()
+	for w: int in last_result.neutral_wires:
+		_wire_layer.neutral_wires[w] = true
 	_wire_layer.fault_wires.clear()
 	if last_result.short_circuit:
 		for w: int in last_result.current_wires:
@@ -109,7 +114,7 @@ func _update_visuals() -> void:
 		var keys: PackedStringArray = symbol.component.get_terminal_keys()
 		symbol.live.resize(keys.size())
 		for k: int in keys.size():
-			symbol.live[k] = 1 if live_keys.has(keys[k]) else 0
+			symbol.live[k] = reach_of.get(keys[k], SchematicSymbol.REACH_NONE)
 		symbol.warning = blink_on and last_result.oscillating_tags.has(symbol.component.designation) and not (symbol.component is PowerSupply)
 		symbol.queue_redraw()
 

@@ -281,9 +281,10 @@ func _find_short_path() -> PackedStringArray:
 	return PackedStringArray()
 
 
-## Fills [member StepResult.live_terminals] and [member StepResult.live_wires]:
-## everything joined to an L supply by wires and closed switching elements,
-## whether or not current flows there. Loads do not pass the voltage on.
+## Fills the L and N reach of [StepResult]: everything joined to an L (or N)
+## supply by wires and closed switching elements, whether or not current
+## flows there. Loads do not pass L or N on. During a short a part reached by
+## both counts as L.
 func _find_live_parts(result: StepResult) -> void:
 	var uf: UnionFind = UnionFind.new(_net_count)
 	for i: int in _switches.size():
@@ -292,15 +293,22 @@ func _find_live_parts(result: StepResult) -> void:
 	var l_roots: Dictionary[int, bool] = {}
 	for supply: PowerSupply in _l_supplies:
 		l_roots[uf.find(_net_of_key[supply.designation])] = true
-	if l_roots.is_empty():
-		return
+	var n_roots: Dictionary[int, bool] = {}
+	for supply: PowerSupply in _n_supplies:
+		n_roots[uf.find(_net_of_key[supply.designation])] = true
 	for key: String in _net_of_key:
-		if l_roots.has(uf.find(_net_of_key[key])):
+		var root: int = uf.find(_net_of_key[key])
+		if l_roots.has(root):
 			result.live_terminals.append(key)
+		elif n_roots.has(root):
+			result.neutral_terminals.append(key)
 	var wires: Array[PackedStringArray] = circuit.get_wires()
 	for i: int in wires.size():
-		if l_roots.has(uf.find(_net_of_key[wires[i][0]])):
+		var root: int = uf.find(_net_of_key[wires[i][0]])
+		if l_roots.has(root):
 			result.live_wires.append(i)
+		elif n_roots.has(root):
+			result.neutral_wires.append(i)
 
 
 ## Fills [member StepResult.current_wires] and [member StepResult.current_components].

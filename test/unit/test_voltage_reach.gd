@@ -48,3 +48,35 @@ func test_stop_cuts_voltage_reach() -> void:
 	assert_has(r.live_terminals, "S0:11")
 	assert_does_not_have(r.live_terminals, "S0:12")
 	assert_does_not_have(r.live_wires, _wire("S0:12", "S1:13"))
+
+
+func test_n_reach_up_to_loads_and_open_contacts() -> void:
+	var r: StepResult = sim.step()
+	for key: String in ["N", "K1:A2", "H1:X2"]:
+		assert_has(r.neutral_terminals, key)
+	for key: String in ["K1:A1", "S1:14", "L", "S0:11"]:
+		assert_does_not_have(r.neutral_terminals, key)
+	assert_has(r.neutral_wires, _wire("K1:A2", "N"))
+	assert_does_not_have(r.neutral_wires, _wire("S1:14", "K1:A1"))
+
+
+func test_n_reach_through_closed_contact() -> void:
+	# An NC contact on the N side passes N on until it opens.
+	var d: SchematicDocument = SchematicDocument.new()
+	d.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(0, 0))
+	var s1: PushButton = d.add(PushButton.new("S1", NC), Vector2i(3, 0)) as PushButton
+	d.connect_terminals("N", "S1:12")
+	var s: Simulator = Simulator.new(d.circuit)
+	assert_has(s.step().neutral_terminals, "S1:11")
+	s1.press()
+	assert_does_not_have(s.step().neutral_terminals, "S1:11")
+
+
+func test_short_counts_as_l() -> void:
+	var d: SchematicDocument = ExampleCircuits.short_circuit()
+	var s: Simulator = Simulator.new(d.circuit)
+	(d.circuit.get_component("S1") as PushButton).press()
+	(d.circuit.get_component("S2") as PushButton).press()
+	var r: StepResult = s.step()
+	assert_has(r.live_terminals, "N")
+	assert_eq(r.neutral_terminals, PackedStringArray())

@@ -7,6 +7,8 @@ const GRID_DOT := Color("d6d1c4")
 const LINE := Color("1f2328")
 ## Parts at L potential (voltage reach).
 const LIVE := Color("d7263d")
+## Parts joined to N (N reach), Czech light blue for the neutral conductor.
+const NEUTRAL := Color("1e88e5")
 const FAULT := Color("ff7a00")
 const WARNING := Color("e8871e")
 const HOVER := Color(0.18, 0.5, 0.98, 0.14)

@@ -20,6 +20,10 @@ var short_circuit_path: PackedStringArray = PackedStringArray()
 var live_terminals: PackedStringArray = PackedStringArray()
 ## Indices into [method Circuit.get_wires] of the wires at L potential.
 var live_wires: PackedInt32Array = PackedInt32Array()
+## Terminal keys joined to an N supply (and not to L): N reach.
+var neutral_terminals: PackedStringArray = PackedStringArray()
+## Indices into [method Circuit.get_wires] of the wires joined to N (and not to L).
+var neutral_wires: PackedInt32Array = PackedInt32Array()
 ## Indices into [method Circuit.get_wires] of the wires that carry current.
 ## During a short these are the wires carrying the fault current.
 var current_wires: PackedInt32Array = PackedInt32Array()
