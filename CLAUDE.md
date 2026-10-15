@@ -44,7 +44,7 @@
   numbering tool or double click; the palette panel is resizable
 - Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
-  coloured push buttons, 0/I selector switches, signal lamps, optional lamp under a button or switch);
+  coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
   renames; edited in the sidebar in Edit mode (undoable), operate the simulation in Simulate mode
 - Keep the simulation logic (solver) separate from scenes and UI:

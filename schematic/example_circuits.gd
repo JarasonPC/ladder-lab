@@ -76,7 +76,7 @@ static func _lamp(designation: String, purpose: String) -> Lamp:
 	return lamp
 
 
-## Push button on a control box, optionally with a green signal lamp under it.
+## Push button on a control box, optionally illuminated by signal lamp [param lamp].
 static func _panel_button(designation: String, color: String, label: String, lamp: String = "") -> ControlBoxItem:
 	var item: ControlBoxItem = ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, designation, color)
 	item.label = label
@@ -163,9 +163,9 @@ static func forward_reverse() -> SchematicDocument:
 	doc.connect_terminals("H1:X2", "N", _c([Vector2i(21, 27)]))
 	doc.connect_terminals("KM2:34", "H2:X1")
 	doc.connect_terminals("H2:X2", "N", _c([Vector2i(28, 27)]))
-	# Control box: each start button with its signal lamp under it, stop below.
+	# Control box: illuminated start buttons (their lamps inside), stop below.
 	var box: ControlBox = doc.add_control_box()
-	box.items = [_panel_button("SB1", "green", "Forward", "H1"), _panel_button("SB2", "black", "Reverse", "H2"), _panel_button("SB0", "red", "Stop")]
+	box.items = [_panel_button("SB1", "green", "Forward", "H1"), _panel_button("SB2", "white", "Reverse", "H2"), _panel_button("SB0", "red", "Stop")]
 	return doc
 
 

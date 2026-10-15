@@ -910,10 +910,7 @@ msgstr ""
 msgid "Blue"
 msgstr ""
 
-msgid "Signal lamp under it"
-msgstr ""
-
-msgid "Lamp colour"
+msgid "Signal lamp inside (illuminated)"
 msgstr ""
 
 msgid "Move it one place back"
