@@ -384,6 +384,14 @@ func change_type(component_id: String, template: Dictionary) -> String:
 	return apply_properties(component_id, data)
 
 
+## Applies [param change] (called with the document) to the control panel as
+## one undoable edit.
+func edit_control_panel(change: Callable) -> void:
+	_record()
+	change.call(document())
+	edited.emit()
+
+
 func copy_selection() -> void:
 	if selected_components.is_empty():
 		return

@@ -42,6 +42,11 @@
   mark removes it); wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
   numbering tool or double click; the palette panel is resizable
+- Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
+  ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
+  coloured push buttons, 0/I selector switches, signal lamps, optional lamp under a button or switch);
+  items name devices by designation (buttons, switches without limit switches, lamps) and follow
+  renames; edited in the sidebar in Edit mode (undoable), operate the simulation in Simulate mode
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
@@ -76,6 +81,7 @@
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
   per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
+- `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows

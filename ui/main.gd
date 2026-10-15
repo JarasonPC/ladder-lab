@@ -79,6 +79,10 @@ var _canvas_area: Control
 ## Big red warning over the schematic during an unprotected short circuit.
 var _short_banner: Label
 var _properties: PropertiesPanel
+## Control boxes with the buttons, switches and lamps (both modes).
+var _control_panel: ControlPanel
+var _panel_toggle: Button
+var _show_control_panel: bool = true
 var _check_panel: CheckPanel
 var _status_label: Label
 var _hint_label: Label
@@ -132,6 +136,11 @@ func _ready() -> void:
 	_properties.type_changed.connect(_on_type_changed)
 	_palette.template_chosen.connect(func(t: Dictionary) -> void: editor.begin_place(t))
 	_check_panel.issue_selected.connect(_on_issue_selected)
+	view.loaded.connect(func() -> void: _control_panel.set_document(view.document, mode == Mode.EDIT))
+	editor.edited.connect(_control_panel.refresh)
+	_control_panel.edit_requested.connect(editor.edit_control_panel)
+	_control_panel.button_held.connect(view.hold_button)
+	_control_panel.switch_toggled.connect(view.toggle_switch)
 	editor.active = true
 	_load_example()
 
@@ -244,6 +253,9 @@ func _build_ui() -> void:
 	_numbers_toggle = _tool(bar, func() -> void: _set_wire_numbers(_numbers_toggle.button_pressed), "wire_numbers")
 	_numbers_toggle.toggle_mode = true
 	_numbers_toggle.button_pressed = _wire_numbers
+	_panel_toggle = _tool(bar, func() -> void: _set_control_panel(_panel_toggle.button_pressed), "panel")
+	_panel_toggle.toggle_mode = true
+	_panel_toggle.button_pressed = _show_control_panel
 	bar.add_child(VSeparator.new())
 
 	_edit_tools = HBoxContainer.new()
@@ -332,6 +344,8 @@ func _build_ui() -> void:
 	_check_panel = CheckPanel.new()
 	_check_panel.custom_minimum_size = Vector2(250, 0)
 	_side.add_child(_check_panel)
+	_control_panel = ControlPanel.new()
+	middle.add_child(_control_panel)
 
 	_timing_panel = TimingPanel.new()
 	root.add_child(_timing_panel)
@@ -441,6 +455,7 @@ func _retranslate() -> void:
 	_flip_button.tooltip_text = tr("Mirror top-bottom: the upper and lower terminals swap") + "  (Shift+F)"
 	_delete_button.tooltip_text = tr("Delete") + "  (Del)"
 	_numbers_toggle.tooltip_text = tr("Show wire numbers (drag a number to move it)")
+	_panel_toggle.tooltip_text = tr("Show the control panel: boxes with the push buttons, switches and signal lamps")
 	_number_button.tooltip_text = tr("Number the wires: every net gets its own number, all wire ends of a net the same")
 	_check_button.text = tr("Check")
 	_check_button.tooltip_text = tr("Look for unconnected terminals, contacts without a coil and other mistakes")
@@ -455,6 +470,7 @@ func _retranslate() -> void:
 	_time_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	_reset_button.tooltip_text = tr("Reset") + " – " + tr("Restart the simulation from the initial state")
 	_palette.retranslate()
+	_control_panel.retranslate()
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
@@ -588,6 +604,14 @@ func _on_palette_grip_input(event: InputEvent) -> void:
 		_save_settings()
 
 
+func _set_control_panel(on: bool) -> void:
+	_show_control_panel = on
+	_panel_toggle.set_pressed_no_signal(on)
+	_control_panel.visible = on
+	_save_settings()
+	_fit_camera_later()
+
+
 func _set_wire_numbers(on: bool) -> void:
 	_wire_numbers = on
 	_numbers_toggle.set_pressed_no_signal(on)
@@ -603,6 +627,7 @@ func _update_mode_ui() -> void:
 	_palette.visible = editing
 	_palette_grip.visible = editing
 	_side.visible = editing
+	_control_panel.visible = _show_control_panel
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
@@ -978,6 +1003,7 @@ func _load_settings() -> void:
 		_white_paper = bool(config.get_value("view", "white_paper", false))
 		_edit_grid = bool(config.get_value("view", "grid", false))
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
+		_show_control_panel = bool(config.get_value("view", "control_panel", true))
 		_palette_width = clampf(float(config.get_value("view", "palette_width", 250.0)), PALETTE_MIN_WIDTH, PALETTE_MAX_WIDTH)
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
@@ -994,6 +1020,7 @@ func _save_settings() -> void:
 	config.set_value("view", "white_paper", _white_paper)
 	config.set_value("view", "grid", _edit_grid)
 	config.set_value("view", "wire_numbers", _wire_numbers)
+	config.set_value("view", "control_panel", _show_control_panel)
 	config.set_value("view", "palette_width", _palette_width)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.save(SETTINGS_PATH)

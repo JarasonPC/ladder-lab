@@ -812,3 +812,118 @@ msgstr "Sledovat"
 
 msgid "Drag to look back, wheel zooms"
 msgstr "Tažením se vrátíte zpět, kolečkem přiblížíte"
+
+msgid "Show the control panel: boxes with the push buttons, switches and signal lamps"
+msgstr "Zobrazit ovládací panel: skříňky s tlačítky, přepínači a signálkami"
+
+msgid "Control panel"
+msgstr "Ovládací panel"
+
+msgid "No control boxes yet. Add a box and put the push buttons, switches and signal lamps of the schematic on it."
+msgstr "Zatím žádné ovládací skříňky. Přidejte skříňku a umístěte na ni tlačítka, přepínače a signálky ze schématu."
+
+msgid "No control boxes yet. Add them in Edit mode."
+msgstr "Zatím žádné ovládací skříňky. Přidejte je v režimu Úpravy."
+
+msgid "Add box"
+msgstr "Přidat skříňku"
+
+msgid "Add an empty control box"
+msgstr "Přidat prázdnou ovládací skříňku"
+
+msgid "Box with all devices"
+msgstr "Skříňka se všemi prvky"
+
+msgid "Add a control box with every push button, switch and signal lamp that is not on the panel yet"
+msgstr "Přidat ovládací skříňku se všemi tlačítky, přepínači a signálkami, které ještě nejsou na panelu"
+
+msgid "Text on the box"
+msgstr "Nápis na skříňce"
+
+msgid "Items in a row"
+msgstr "Prvků v řadě"
+
+msgid "Move the box up"
+msgstr "Posunout skříňku nahoru"
+
+msgid "Delete the box"
+msgstr "Smazat skříňku"
+
+msgid "Button"
+msgstr "Tlačítko"
+
+msgid "Switch"
+msgstr "Přepínač"
+
+msgid "Add a push button"
+msgstr "Přidat tlačítko"
+
+msgid "Add a switch"
+msgstr "Přidat přepínač"
+
+msgid "Add a signal lamp"
+msgstr "Přidat signálku"
+
+msgid "Push button"
+msgstr "Tlačítko"
+
+msgid "Signal lamp"
+msgstr "Signálka"
+
+msgid "Device"
+msgstr "Prvek"
+
+msgid "None"
+msgstr "Žádný"
+
+#, c-format
+msgid "%s (not in the schematic)"
+msgstr "%s (není ve schématu)"
+
+msgid "no device chosen"
+msgstr "není vybrán prvek"
+
+msgid "not in the schematic"
+msgstr "není ve schématu"
+
+msgid "Empty"
+msgstr "Prázdná"
+
+msgid "Text on the plate"
+msgstr "Text na štítku"
+
+msgid "Colour"
+msgstr "Barva"
+
+msgid "Green"
+msgstr "Zelená"
+
+msgid "Red"
+msgstr "Červená"
+
+msgid "Black"
+msgstr "Černá"
+
+msgid "White"
+msgstr "Bílá"
+
+msgid "Yellow"
+msgstr "Žlutá"
+
+msgid "Blue"
+msgstr "Modrá"
+
+msgid "Signal lamp under it"
+msgstr "Signálka pod ním"
+
+msgid "Lamp colour"
+msgstr "Barva signálky"
+
+msgid "Move it one place back"
+msgstr "Posunout o místo zpět"
+
+msgid "Move it one place on"
+msgstr "Posunout o místo dál"
+
+msgid "Remove"
+msgstr "Odebrat"

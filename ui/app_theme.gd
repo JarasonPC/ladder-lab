@@ -74,6 +74,13 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"list": '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
 	"wire_numbers": '<path d="M2 19h20"/><path d="M5 7l2-2v10"/><path d="M12 7a2.5 2.5 0 1 1 4.5 1.5L12 15h5"/>',
 	"hash": '<path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="m16 3-2 18"/>',
+	"panel": '<rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="7" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="17" r="2"/>',
+	"columns": '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>',
+	"plus": '<path d="M12 5v14"/><path d="M5 12h14"/>',
+	"arrow_left": '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+	"arrow_right": '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+	"arrow_up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+	"arrow_down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
 }
 
 
