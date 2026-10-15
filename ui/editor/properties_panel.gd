@@ -21,7 +21,6 @@ var _group: VBoxContainer
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(250, 0)
 	theme_type_variation = "RightPanel"
 	_box = VBoxContainer.new()
 	_box.add_theme_constant_override("separation", 14)

@@ -41,7 +41,9 @@
   (Placement.strips: terminal index -> label, drawn instead of the square; Delete on the selected
   mark removes it); wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
-  numbering tool or double click; the palette panel is resizable
+  numbering tool or double click; side panels (palette, properties + check, control panel) are
+  SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
+  so text stays sharp); widths and zooms are saved in the settings
 - Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);

@@ -953,3 +953,6 @@ msgstr ""
 
 msgid "DC brake"
 msgstr ""
+
+msgid "Drag to resize. Ctrl+wheel over the panel zooms it, Ctrl+0 resets the zoom."
+msgstr ""

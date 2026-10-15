@@ -20,9 +20,6 @@ const UI_SCALES: Array[float] = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0]
 const SETTINGS_PATH: String = "user://settings.cfg"
 const MAX_RECENT: int = 8
 const EXPORT_MARGIN: float = 40.0
-## Width range of the palette (resized with the grip beside it).
-const PALETTE_MIN_WIDTH: float = 180.0
-const PALETTE_MAX_WIDTH: float = 560.0
 
 var mode: Mode = Mode.EDIT
 ## The schematic being designed (the simulation runs on a copy).
@@ -70,10 +67,14 @@ var _speed_select: OptionButton
 var _reset_button: Button
 var _time_label: Label
 var _palette: Palette
-## Drag handle on the right edge of the palette that resizes it.
-var _palette_grip: Control
-var _palette_width: float = 250.0
 var _side: VBoxContainer
+## Resizable and zoomable side panels: palette (left), properties with the
+## check results and the control panel (right).
+var _palette_bar: SideBar
+var _side_bar: SideBar
+var _control_bar: SideBar
+## Width and zoom of each side panel by its settings name, as loaded.
+var _bar_settings: Dictionary[String, Vector2] = {}
 ## Part of the window where the schematic is visible (between the panels).
 var _canvas_area: Control
 ## Big red warning over the schematic during an unprotected short circuit.
@@ -307,13 +308,7 @@ func _build_ui() -> void:
 	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(middle)
 	_palette = Palette.new()
-	_palette.custom_minimum_size.x = _palette_width
-	middle.add_child(_palette)
-	_palette_grip = Control.new()
-	_palette_grip.custom_minimum_size = Vector2(6, 0)
-	_palette_grip.mouse_default_cursor_shape = Control.CURSOR_HSIZE
-	_palette_grip.gui_input.connect(_on_palette_grip_input)
-	middle.add_child(_palette_grip)
+	_palette_bar = _side_panel(middle, _palette, "palette", false)
 	_canvas_area = Control.new()
 	_canvas_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_canvas_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -337,15 +332,14 @@ func _build_ui() -> void:
 	_canvas_area.add_child(_short_banner)
 	_side = VBoxContainer.new()
 	_side.add_theme_constant_override("separation", 0)
-	middle.add_child(_side)
 	_properties = PropertiesPanel.new()
 	_properties.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_side.add_child(_properties)
 	_check_panel = CheckPanel.new()
-	_check_panel.custom_minimum_size = Vector2(250, 0)
 	_side.add_child(_check_panel)
+	_side_bar = _side_panel(middle, _side, "properties", true)
 	_control_panel = ControlPanel.new()
-	middle.add_child(_control_panel)
+	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
 
 	_timing_panel = TimingPanel.new()
 	root.add_child(_timing_panel)
@@ -470,6 +464,8 @@ func _retranslate() -> void:
 	_time_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	_reset_button.tooltip_text = tr("Reset") + " – " + tr("Restart the simulation from the initial state")
 	_palette.retranslate()
+	for bar: SideBar in [_palette_bar, _side_bar, _control_bar]:
+		bar.retranslate()
 	_control_panel.retranslate()
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
@@ -595,19 +591,23 @@ func _apply_ui_scale() -> void:
 	get_window().content_scale_factor = factor
 
 
-## Dragging the grip beside the palette makes it wider or narrower.
-func _on_palette_grip_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and ((event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-		_palette_width = clampf(_palette_width + (event as InputEventMouseMotion).relative.x, PALETTE_MIN_WIDTH, PALETTE_MAX_WIDTH)
-		_palette.custom_minimum_size.x = _palette_width
-	elif event is InputEventMouseButton and not (event as InputEventMouseButton).pressed:
-		_save_settings()
+## Puts [param content] into a resizable, zoomable [SideBar] added to
+## [param parent], with the width and zoom remembered as [param key].
+func _side_panel(parent: Control, content: Control, key: String, grip_left: bool) -> SideBar:
+	var bar: SideBar = SideBar.new(content, grip_left)
+	bar.name = key
+	var saved: Vector2 = _bar_settings.get(key, Vector2(250.0, 1.0))
+	bar.width = saved.x
+	bar.zoom = saved.y
+	bar.changed.connect(_save_settings)
+	parent.add_child(bar)
+	return bar
 
 
 func _set_control_panel(on: bool) -> void:
 	_show_control_panel = on
 	_panel_toggle.set_pressed_no_signal(on)
-	_control_panel.visible = on
+	_control_bar.visible = on
 	_save_settings()
 	_fit_camera_later()
 
@@ -624,10 +624,9 @@ func _update_mode_ui() -> void:
 	view.set_grid_visible(editing and _edit_grid)
 	view.set_wire_numbers_visible(_wire_numbers)
 	_edit_tools.visible = editing
-	_palette.visible = editing
-	_palette_grip.visible = editing
-	_side.visible = editing
-	_control_panel.visible = _show_control_panel
+	_palette_bar.visible = editing
+	_side_bar.visible = editing
+	_control_bar.visible = _show_control_panel
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
@@ -1004,7 +1003,8 @@ func _load_settings() -> void:
 		_edit_grid = bool(config.get_value("view", "grid", false))
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
 		_show_control_panel = bool(config.get_value("view", "control_panel", true))
-		_palette_width = clampf(float(config.get_value("view", "palette_width", 250.0)), PALETTE_MIN_WIDTH, PALETTE_MAX_WIDTH)
+		for key: String in ["palette", "properties", "control_panel"]:
+			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", 250.0)), float(config.get_value("view", key + "_zoom", 1.0)))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 
@@ -1021,7 +1021,10 @@ func _save_settings() -> void:
 	config.set_value("view", "grid", _edit_grid)
 	config.set_value("view", "wire_numbers", _wire_numbers)
 	config.set_value("view", "control_panel", _show_control_panel)
-	config.set_value("view", "palette_width", _palette_width)
+	for bar: SideBar in [_palette_bar, _side_bar, _control_bar]:
+		if bar != null:
+			config.set_value("view", bar.name + "_width", bar.width)
+			config.set_value("view", bar.name + "_zoom", bar.zoom)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.save(SETTINGS_PATH)
 
