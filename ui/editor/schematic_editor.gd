@@ -8,8 +8,13 @@ extends Node2D
 ## a terminal or on a wire (a junction is inserted there).
 ## Place: choose a palette entry, click to place (repeatable), R/F turn the
 ## symbol before placing. Right click or Esc ends the current tool.
-## Keys: R rotate, F mirror, Delete remove, Ctrl+Z undo, Ctrl+Y redo.
+## Right click opens a menu with "Change to" (switch a contact, coil or load
+## to another type, keeping its wires), rotate, mirror, cut/copy/paste, delete.
+## Keys: R rotate, F mirror, Delete remove, Ctrl+Z undo, Ctrl+Y redo,
+## Ctrl+X/C/V cut/copy/paste, Ctrl+A select all.
 
+## The document content changed (for unsaved-changes tracking).
+signal edited
 signal document_replaced(doc: SchematicDocument)
 signal selection_changed(component: CircuitComponent)
 signal hint_changed(text: String)
@@ -17,6 +22,9 @@ signal hint_changed(text: String)
 enum Tool { SELECT, PLACE, WIRE }
 
 const G: float = float(SymbolGeometry.GRID)
+const CLICK_SLOP: float = 6.0
+
+enum MenuId { ROTATE, MIRROR, CUT, COPY, PASTE, DELETE, SELECT_ALL }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 
@@ -50,6 +58,66 @@ var _drag_recorded: bool = false
 # Selection box.
 var _boxing: bool = false
 var _box_origin: Vector2 = Vector2.ZERO
+# Clipboard: data from SchematicDocument.extract and its top-left cell.
+var _clipboard: Dictionary = {}
+var _clipboard_origin: Vector2i = Vector2i.ZERO
+# Context menu.
+var _right_press: Vector2 = Vector2.ZERO
+var _menu: PopupMenu
+var _change_menu: PopupMenu
+var _change_options: Array[Dictionary] = []
+
+
+func _ready() -> void:
+	_menu = PopupMenu.new()
+	_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	add_child(_menu)
+	_change_menu = PopupMenu.new()
+	_change_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_menu.add_child(_change_menu)
+	_menu.id_pressed.connect(_on_menu_id)
+	_change_menu.id_pressed.connect(func(i: int) -> void:
+		if selected_components.size() == 1:
+			change_type(selected_components.keys()[0], _change_options[i]["template"]))
+
+
+## Palette entries of the same family as [param c] (switching elements,
+## coils, loads or supplies); empty for junctions.
+static func type_options(c: CircuitComponent) -> Array[Dictionary]:
+	var family: String = _family(DocumentSerializer.component_to_dict(c)["type"])
+	var result: Array[Dictionary] = []
+	if family.is_empty():
+		return result
+	for entry: Dictionary in Palette.ENTRIES:
+		if _family(entry["template"]["type"]) == family:
+			result.append(entry)
+	return result
+
+
+## True if [param c] is what [param template] would create.
+static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
+	var d: Dictionary = DocumentSerializer.component_to_dict(c)
+	for key: String in template:
+		if key == "delay":
+			continue
+		if d.get(key, false) != template[key]:
+			return false
+	if template["type"] == "contact" and d.get("delayed", false) != template.get("delayed", false):
+		return false
+	return true
+
+
+static func _family(kind: String) -> String:
+	match kind:
+		"push_button", "latching_switch", "contact":
+			return "switching"
+		"coil", "timer":
+			return "coil"
+		"lamp", "motor":
+			return "load"
+		"supply":
+			return "supply"
+	return ""
 
 
 func document() -> SchematicDocument:
@@ -151,6 +219,84 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 	return ""
 
 
+## Turns a component into another type of the same family (e.g. a switch NO
+## into a delayed contact NC), keeping its place and wires. Designations
+## follow the new type: a contact belongs to a coil, a button gets an S name.
+## Returns an error text, or "" on success.
+func change_type(component_id: String, template: Dictionary) -> String:
+	var doc: SchematicDocument = document()
+	var old: CircuitComponent = doc.circuit.get_component(component_id)
+	if old == null or matches_template(old, template):
+		return ""
+	var data: Dictionary = template.duplicate()
+	match _family(template["type"]):
+		"switching":
+			var element: SwitchingElement = old as SwitchingElement
+			var to_contact: bool = template["type"] == "contact"
+			var designation: String = old.designation if (old is Contact) == to_contact else _new_designation(template)
+			if to_contact and template.get("delayed", false) and not (doc.circuit.get_coil(designation) is TimerRelay):
+				for c: CircuitComponent in doc.circuit.get_components():
+					if c is TimerRelay:
+						designation = c.designation
+						break
+			data["designation"] = designation
+			data["sequence"] = element.sequence
+			var trial: CircuitComponent = DocumentSerializer.component_from_dict(data)
+			if not _can_replace(old, trial):
+				data["sequence"] = doc.next_contact_sequence(designation)
+		"coil":
+			data["designation"] = old.designation
+			if old is TimerRelay and template["type"] == "timer":
+				data["delay"] = (old as TimerRelay).delay
+		"load":
+			data["designation"] = _new_designation(template)
+		_:
+			data["designation"] = old.designation
+	return apply_properties(component_id, data)
+
+
+func copy_selection() -> void:
+	if selected_components.is_empty():
+		return
+	var ids: PackedStringArray = PackedStringArray(selected_components.keys())
+	_clipboard = document().extract(ids)
+	var first: bool = true
+	for id: String in ids:
+		var cell: Vector2i = document().get_placement(id).cell
+		_clipboard_origin = cell if first else Vector2i(mini(_clipboard_origin.x, cell.x), mini(_clipboard_origin.y, cell.y))
+		first = false
+
+
+func cut_selection() -> void:
+	copy_selection()
+	delete_selection()
+
+
+## Pastes the clipboard with its top-left corner at the mouse cell.
+func paste() -> void:
+	if _clipboard.is_empty():
+		return
+	_record()
+	var ids: PackedStringArray = document().insert(_clipboard, _mouse_cell - _clipboard_origin)
+	_clear_selection()
+	for id: String in ids:
+		selected_components[id] = true
+	_changed()
+
+
+func select_all() -> void:
+	_cancel_tool()
+	for c: CircuitComponent in document().circuit.get_components():
+		selected_components[c.id] = true
+	for w: int in document().get_wire_count():
+		selected_wires[w] = true
+	_selection_updated()
+
+
+func has_clipboard() -> bool:
+	return not _clipboard.is_empty()
+
+
 # --- Input ----------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -172,8 +318,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				_on_left_released(mb.shift_pressed)
 			get_viewport().set_input_as_handled()
-		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed and tool != Tool.SELECT:
-			_cancel_tool()
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			if mb.pressed:
+				_right_press = mb.position
+				if tool != Tool.SELECT:
+					_cancel_tool()
+			elif tool == Tool.SELECT and mb.position.distance_to(_right_press) < CLICK_SLOP:
+				_open_context_menu()
 	elif event is InputEventKey and (event as InputEventKey).pressed:
 		_on_key(event as InputEventKey)
 
@@ -188,6 +339,14 @@ func _on_key(key: InputEventKey) -> void:
 			undo()
 		KEY_Y when ctrl:
 			redo()
+		KEY_C when ctrl:
+			copy_selection()
+		KEY_X when ctrl:
+			cut_selection()
+		KEY_V when ctrl:
+			paste()
+		KEY_A when ctrl:
+			select_all()
 		KEY_R:
 			rotate_selection()
 		KEY_F, KEY_M:
@@ -209,6 +368,59 @@ func _on_key(key: InputEventKey) -> void:
 			handled = false
 	if handled:
 		get_viewport().set_input_as_handled()
+
+
+func _open_context_menu() -> void:
+	var doc: SchematicDocument = document()
+	var hit: CircuitComponent = doc.component_at(_mouse_point)
+	if hit != null and not selected_components.has(hit.id):
+		_clear_selection()
+		selected_components[hit.id] = true
+		_selection_updated()
+	var has_selection: bool = not selected_components.is_empty() or not selected_wires.is_empty()
+	_menu.clear()
+	_change_menu.clear()
+	_change_options.clear()
+	if hit != null and selected_components.size() == 1:
+		_change_options = type_options(hit)
+		if _change_options.size() > 1:
+			for i: int in _change_options.size():
+				_change_menu.add_radio_check_item(tr(_change_options[i]["title"]), i)
+				_change_menu.set_item_checked(i, matches_template(hit, _change_options[i]["template"]))
+			_menu.add_submenu_node_item(tr("Change to"), _change_menu)
+			_menu.add_separator()
+	if not selected_components.is_empty():
+		_menu.add_item(tr("Rotate"), MenuId.ROTATE, KEY_R)
+		_menu.add_item(tr("Mirror"), MenuId.MIRROR, KEY_F)
+		_menu.add_separator()
+		_menu.add_item(tr("Cut"), MenuId.CUT, KEY_MASK_CTRL | KEY_X)
+		_menu.add_item(tr("Copy"), MenuId.COPY, KEY_MASK_CTRL | KEY_C)
+	_menu.add_item(tr("Paste"), MenuId.PASTE, KEY_MASK_CTRL | KEY_V)
+	_menu.set_item_disabled(_menu.get_item_index(MenuId.PASTE), _clipboard.is_empty())
+	if has_selection:
+		_menu.add_item(tr("Delete"), MenuId.DELETE, KEY_DELETE)
+	_menu.add_separator()
+	_menu.add_item(tr("Select all"), MenuId.SELECT_ALL, KEY_MASK_CTRL | KEY_A)
+	_menu.reset_size()
+	_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+
+
+func _on_menu_id(id: int) -> void:
+	match id:
+		MenuId.ROTATE:
+			rotate_selection()
+		MenuId.MIRROR:
+			mirror_selection()
+		MenuId.CUT:
+			cut_selection()
+		MenuId.COPY:
+			copy_selection()
+		MenuId.PASTE:
+			paste()
+		MenuId.DELETE:
+			delete_selection()
+		MenuId.SELECT_ALL:
+			select_all()
 
 
 func _update_mouse() -> void:
@@ -474,6 +686,7 @@ func _record() -> void:
 func _restore(snapshot: Dictionary) -> void:
 	_clear_selection()
 	document_replaced.emit(DocumentSerializer.from_dict(snapshot))
+	edited.emit()
 	queue_redraw()
 
 
@@ -488,6 +701,7 @@ func _changed() -> void:
 			selected_components.erase(id)
 	view.rebuild()
 	_selection_updated()
+	edited.emit()
 
 
 func _clear_selection() -> void:
@@ -532,7 +746,7 @@ func _emit_hint() -> void:
 		Tool.WIRE:
 			hint_changed.emit(tr("Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."))
 		_:
-			hint_changed.emit(tr("Click a terminal to draw a wire. Drag to move. R rotates, F mirrors, Del deletes, Ctrl+Z undoes."))
+			hint_changed.emit(tr("Click a terminal to draw a wire. Drag to move. Right click for more. R rotates, F mirrors, Del deletes."))
 
 
 # --- Drawing --------------------------------------------------------------------

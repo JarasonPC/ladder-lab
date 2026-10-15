@@ -4,6 +4,8 @@ extends PanelContainer
 ## component data; the editor applies it and reports failures back.
 
 signal changed(component_id: String, data: Dictionary)
+## Another type of the same family was chosen (see [method SchematicEditor.change_type]).
+signal type_changed(component_id: String, template: Dictionary)
 
 var _component_id: String = ""
 var _data: Dictionary = {}
@@ -33,6 +35,18 @@ func show_component(component: CircuitComponent) -> void:
 	_component_id = component.id
 	_data = DocumentSerializer.component_to_dict(component)
 	var kind: String = _data["type"]
+	var options: Array[Dictionary] = SchematicEditor.type_options(component)
+	if options.size() > 1:
+		_label(tr("Type"))
+		var type_select: OptionButton = OptionButton.new()
+		type_select.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		for i: int in options.size():
+			type_select.add_item(tr(options[i]["title"]))
+			if SchematicEditor.matches_template(component, options[i]["template"]):
+				type_select.select(i)
+		var id: String = component.id
+		type_select.item_selected.connect(func(i: int) -> void: type_changed.emit(id, options[i]["template"]))
+		_box.add_child(type_select)
 	match kind:
 		"supply":
 			_choice(tr("Conductor"), "conductor", ["L", "N"], ["L", "N"])

@@ -26,5 +26,10 @@
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
+- Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION on
+  format changes and keep older versions loading
+- Translations: English source text in tr()/tr_n(); regenerate `translations/ladder_lab.pot`
+  when UI text changes and update `cs.po` (keep reviewed translations)
+- Merge the working branch into main after each finished phase
 - `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech
 - `test/unit/` GUT tests; headless Godot is not preinstalled in cloud sessions

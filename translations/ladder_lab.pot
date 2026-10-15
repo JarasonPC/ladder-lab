@@ -5,6 +5,28 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8-bit\n"
 
+#, c-format
+msgid "Contact %s has no coil %s."
+msgstr ""
+
+#, c-format
+msgid "Delayed contact %s belongs to %s, which is not a timer."
+msgstr ""
+
+#, c-format
+msgid "Coil %s has no contacts."
+msgstr ""
+
+#, c-format
+msgid "Terminal %s is not connected."
+msgstr ""
+
+msgid "The circuit has no L supply."
+msgstr ""
+
+msgid "The circuit has no N supply."
+msgstr ""
+
 msgid "Self-holding start/stop"
 msgstr ""
 
@@ -19,6 +41,35 @@ msgstr ""
 
 msgid "Short circuit"
 msgstr ""
+
+#, c-format
+msgid "Could not open %s."
+msgstr ""
+
+#, c-format
+msgid "%s is not a LadderLab file."
+msgstr ""
+
+#, c-format
+msgid "%s was saved by a newer version of LadderLab."
+msgstr ""
+
+#, c-format
+msgid "%s is damaged and cannot be opened."
+msgstr ""
+
+msgid "Check"
+msgstr ""
+
+msgid "No problems found."
+msgstr ""
+
+#, c-format
+msgid "Check: %d problem"
+msgid_plural "Check: %d problems"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
 
 msgid "L supply"
 msgstr ""
@@ -72,6 +123,9 @@ msgid "Properties"
 msgstr ""
 
 msgid "Select one component to edit it."
+msgstr ""
+
+msgid "Type"
 msgstr ""
 
 msgid "Conductor"
@@ -130,13 +184,40 @@ msgstr ""
 msgid "%s is already used in this circuit."
 msgstr ""
 
+msgid "Change to"
+msgstr ""
+
+msgid "Rotate"
+msgstr ""
+
+msgid "Mirror"
+msgstr ""
+
+msgid "Cut"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Paste"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Select all"
+msgstr ""
+
 msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
 msgstr ""
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
 msgstr ""
 
-msgid "Click a terminal to draw a wire. Drag to move. R rotates, F mirrors, Del deletes, Ctrl+Z undoes."
+msgid "Click a terminal to draw a wire. Drag to move. Right click for more. R rotates, F mirrors, Del deletes."
+msgstr ""
+
+msgid "File"
 msgstr ""
 
 msgid "Edit"
@@ -145,13 +226,7 @@ msgstr ""
 msgid "Simulate"
 msgstr ""
 
-msgid "Circuit:"
-msgstr ""
-
-msgid "New"
-msgstr ""
-
-msgid "Start an empty schematic with L and N supplies"
+msgid "Example:"
 msgstr ""
 
 msgid "Layout:"
@@ -169,19 +244,22 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-msgid "Rotate"
+msgid "Rotate (R)"
 msgstr ""
 
-msgid "Rotate by 90° (R)"
+msgid "Rotate by 90°"
 msgstr ""
 
-msgid "Mirror"
+msgid "Mirror (F)"
 msgstr ""
 
-msgid "Mirror across the symbol axis (F)"
+msgid "Mirror across the symbol axis"
 msgstr ""
 
-msgid "Delete"
+msgid "Delete (Del)"
+msgstr ""
+
+msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
 msgstr ""
 
 msgid "Step"
@@ -199,13 +277,75 @@ msgstr ""
 msgid "Restart the simulation from the initial state"
 msgstr ""
 
+msgid "Fullscreen"
+msgstr ""
+
+msgid "Unsaved changes"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Don't save"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "Open…"
+msgstr ""
+
+msgid "Open recent"
+msgstr ""
+
+msgid "Save as…"
+msgstr ""
+
+msgid "Export PNG…"
+msgstr ""
+
+msgid "Quit"
+msgstr ""
+
 msgid "Pause"
 msgstr ""
 
 msgid "Run"
 msgstr ""
 
+msgid "Untitled"
+msgstr ""
+
 msgid "New schematic"
+msgstr ""
+
+#, c-format
+msgid "Save changes to %s?"
+msgstr ""
+
+msgid "Open schematic"
+msgstr ""
+
+msgid "LadderLab schematic"
+msgstr ""
+
+msgid "Save schematic"
+msgstr ""
+
+msgid "schematic"
+msgstr ""
+
+msgid "Export PNG"
+msgstr ""
+
+#, c-format
+msgid "Could not save %s."
 msgstr ""
 
 msgid "Right or middle drag pans, wheel zooms."

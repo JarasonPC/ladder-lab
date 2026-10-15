@@ -134,3 +134,55 @@ func test_r_and_delete_keys_act_on_clicked_component() -> void:
 	assert_eq(editor.document().get_placement("H1").rotation, 1, "R rotates")
 	_press_key(KEY_DELETE)
 	assert_null(editor.document().circuit.get_component("H1"), "Delete removes")
+
+
+func test_change_switch_type_keeps_wires() -> void:
+	_place({"type": "latching_switch", "contact": "NO"}, Vector2i(5, 2))
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 2)])
+	var doc: SchematicDocument = editor.document()
+	assert_eq(editor.change_type("S1", {"type": "latching_switch", "contact": "NC"}), "")
+	assert_true(doc.circuit.get_component("S1") is LatchingSwitch)
+	assert_eq(doc.circuit.get_wires()[0][1], "S1:11", "wire moved to the NC terminal")
+	assert_eq(editor.change_type("S1", {"type": "push_button", "contact": "NO"}), "")
+	assert_true(doc.circuit.get_component("S1") is PushButton, "button keeps the S designation")
+	editor.undo()
+	assert_true(editor.document().circuit.get_component("S1") is LatchingSwitch, "undoable")
+
+
+func test_change_switch_to_contacts_follows_coils() -> void:
+	_place({"type": "coil", "kind": "contactor"}, Vector2i(9, 6))
+	_place({"type": "timer", "mode": "on_delay", "delay": 3.0}, Vector2i(13, 6))
+	_place({"type": "push_button", "contact": "NO"}, Vector2i(5, 2))
+	var doc: SchematicDocument = editor.document()
+	assert_eq(editor.change_type("S1", {"type": "contact", "contact": "NO"}), "")
+	assert_not_null(doc.circuit.get_component("K1:13-14"), "a contact belongs to the coil")
+	assert_eq(editor.change_type("K1:13-14", {"type": "contact", "contact": "NC", "delayed": true}), "")
+	var timer_contact: Contact = doc.circuit.get_component("KT1:15-16") as Contact
+	assert_not_null(timer_contact, "a delayed contact moves to the timer")
+	assert_true(timer_contact.linked_coil is TimerRelay)
+	assert_eq(editor.change_type("KT1:15-16", {"type": "latching_switch", "contact": "NO"}), "")
+	assert_not_null(doc.circuit.get_component("S1"), "back to a switch with a new S designation")
+
+
+func test_type_options_and_matching() -> void:
+	var options: Array[Dictionary] = SchematicEditor.type_options(PushButton.new("S1", SwitchingElement.ContactType.NC))
+	assert_eq(options.size(), 8, "buttons, switches, contacts, delayed contacts")
+	assert_eq(SchematicEditor.type_options(Lamp.new("H1")).size(), 2)
+	assert_eq(SchematicEditor.type_options(Junction.new("J1")).size(), 0)
+	assert_true(SchematicEditor.matches_template(Contact.new("K1", SwitchingElement.ContactType.NO), {"type": "contact", "contact": "NO"}))
+	assert_false(SchematicEditor.matches_template(Contact.new("K1", SwitchingElement.ContactType.NO, 1, true), {"type": "contact", "contact": "NO"}))
+
+
+func test_copy_paste_at_mouse_and_select_all() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	editor.selected_components["H1"] = true
+	editor.copy_selection()
+	_at(Vector2(12, 4))
+	editor.paste()
+	var doc: SchematicDocument = editor.document()
+	assert_eq(doc.get_placement("H2").cell, Vector2i(12, 4))
+	assert_eq(editor.selected_components.keys(), ["H2"], "pasted part is selected")
+	editor.cut_selection()
+	assert_null(doc.circuit.get_component("H2"))
+	editor.select_all()
+	assert_eq(editor.selected_components.size(), 3, "L, N and H1")

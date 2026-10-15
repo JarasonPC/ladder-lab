@@ -98,7 +98,7 @@ func bounds() -> Rect2:
 ## drawing is vertical, y of each row when it is horizontal. Every two-terminal
 ## symbol marks the midpoint between its terminals; positions closer than
 ## [param merge] cells count as one path.
-func current_paths(merge: float = 1.0) -> PackedFloat32Array:
+func current_paths(merge: float = 2.0) -> PackedFloat32Array:
 	var coordinates: Array[float] = []
 	for c: CircuitComponent in circuit.get_components():
 		var keys: PackedStringArray = c.get_terminal_keys()
@@ -308,34 +308,149 @@ func cleanup_junctions() -> void:
 			break
 
 
-## Re-routes a wire so all segments are horizontal or vertical, leaving and
-## entering symbols along their axis, without redundant corners.
+## Re-routes a wire so all segments are horizontal or vertical. Each end that
+## belongs to a symbol first leaves one cell straight out along the symbol
+## axis. If that route would cross one of the two symbols (e.g. after turning
+## a symbol by 180 degrees) or run over another of their terminals, the
+## shortest route around them is used instead.
 func normalize_route(index: int) -> void:
 	var wire: PackedStringArray = circuit.get_wires()[index]
-	var points: Array[Vector2i] = orthogonalize(wire_points(index), terminal_axis(wire[0]), terminal_axis(wire[1]))
-	_routes[index].corners = points.slice(1, points.size() - 1)
+	var points: Array[Vector2i] = wire_points(index)
+	var start: Vector2i = points[0]
+	var end: Vector2i = points[points.size() - 1]
+	var out_a: Vector2i = terminal_outward(wire[0])
+	var out_b: Vector2i = terminal_outward(wire[1])
+	var path: Array[Vector2i] = [start]
+	if out_a != Vector2i.ZERO:
+		path.append(start + out_a)
+	path.append_array(points.slice(1, points.size() - 1))
+	if out_b != Vector2i.ZERO:
+		path.append(end + out_b)
+	path.append(end)
+	var best: Array[Vector2i] = orthogonalize(path, terminal_axis(wire[0]), terminal_axis(wire[1]))
+
+	var bodies: Array[Rect2] = []
+	var cells: Array[Vector2i] = []
+	for key: String in [wire[0], wire[1]]:
+		var owner: CircuitComponent = circuit.get_terminal_owner(key)
+		if owner.get_terminal_keys().size() == 2:
+			bodies.append(component_body(owner))
+		for other: String in owner.get_terminal_keys():
+			if other != wire[0] and other != wire[1]:
+				cells.append(terminal_cell(other))
+	if not _route_clear(best, bodies, cells):
+		var best_length: int = 1 << 30
+		for candidate: Array[Vector2i] in _detours(start, end, out_a, out_b, bodies):
+			var clean: Array[Vector2i] = orthogonalize(candidate)
+			var length: int = _route_length(clean)
+			if length < best_length and _route_clear(clean, bodies, cells):
+				best = clean
+				best_length = length
+	_routes[index].corners = best.slice(1, best.size() - 1)
+
+
+## Candidate routes around [param bodies]: via one or two corners of each body
+## grown by a cell, with and without the straight lead-out at each end.
+func _detours(start: Vector2i, end: Vector2i, out_a: Vector2i, out_b: Vector2i, bodies: Array[Rect2]) -> Array:
+	var vias: Array = []
+	for body: Rect2 in bodies:
+		var left: int = floori(body.position.x) - 1
+		var right: int = ceili(body.end.x) + 1
+		var top: int = floori(body.position.y) - 1
+		var bottom: int = ceili(body.end.y) + 1
+		var corners: Array[Vector2i] = [Vector2i(left, top), Vector2i(right, top), Vector2i(right, bottom), Vector2i(left, bottom)]
+		for i: int in 4:
+			vias.append([corners[i]])
+			vias.append([corners[i], corners[(i + 1) % 4]])
+			vias.append([corners[(i + 1) % 4], corners[i]])
+	var heads: Array = [[start]]
+	if out_a != Vector2i.ZERO:
+		heads.append([start, start + out_a])
+	var tails: Array = [[end]]
+	if out_b != Vector2i.ZERO:
+		tails.append([end + out_b, end])
+	var result: Array = []
+	for head: Array in heads:
+		for tail: Array in tails:
+			for via: Array in vias:
+				var path: Array[Vector2i] = []
+				for p: Vector2i in head + via + tail:
+					path.append(p)
+				result.append(path)
+	return result
+
+
+## True if no segment crosses the inside of [param bodies] or runs over one
+## of [param cells].
+static func _route_clear(points: Array[Vector2i], bodies: Array[Rect2], cells: Array[Vector2i]) -> bool:
+	for s: int in range(1, points.size()):
+		var a: Vector2i = points[s - 1]
+		var b: Vector2i = points[s]
+		for cell: Vector2i in cells:
+			if _on_segment(cell, a, b):
+				return false
+		for body: Rect2 in bodies:
+			if a.x == b.x:
+				if float(a.x) > body.position.x and float(a.x) < body.end.x and float(maxi(a.y, b.y)) > body.position.y and float(mini(a.y, b.y)) < body.end.y:
+					return false
+			elif float(a.y) > body.position.y and float(a.y) < body.end.y and float(maxi(a.x, b.x)) > body.position.x and float(mini(a.x, b.x)) < body.end.x:
+				return false
+	return true
+
+
+static func _route_length(points: Array[Vector2i]) -> int:
+	var length: int = 0
+	for s: int in range(1, points.size()):
+		var d: Vector2i = (points[s] - points[s - 1]).abs()
+		length += d.x + d.y
+	# Each corner costs a little, so straighter routes win ties.
+	return length * 4 + points.size()
 
 
 ## Axis along which wires should leave a terminal, or AXIS_NONE.
 func terminal_axis(key: String) -> int:
+	var out: Vector2i = terminal_outward(key)
+	if out == Vector2i.ZERO:
+		return AXIS_NONE
+	return AXIS_VERTICAL if out.x == 0 else AXIS_HORIZONTAL
+
+
+## Unit step pointing away from the symbol at a terminal, or zero for
+## supplies and junctions.
+func terminal_outward(key: String) -> Vector2i:
 	var owner: CircuitComponent = circuit.get_terminal_owner(key)
 	var lead: int = SymbolGeometry.local_lead_direction(owner, _terminal_name(owner, key))
 	if lead == 0:
-		return AXIS_NONE
-	var direction: int = SymbolGeometry.transform_direction(lead, _placements[owner.id])
-	return AXIS_VERTICAL if direction == SymbolGeometry.DIR_UP or direction == SymbolGeometry.DIR_DOWN else AXIS_HORIZONTAL
+		return Vector2i.ZERO
+	match SymbolGeometry.transform_direction(lead, _placements[owner.id]):
+		SymbolGeometry.DIR_UP:
+			return Vector2i.DOWN
+		SymbolGeometry.DIR_DOWN:
+			return Vector2i.UP
+		SymbolGeometry.DIR_LEFT:
+			return Vector2i.RIGHT
+	return Vector2i.LEFT
 
 
 ## Makes a polyline orthogonal by inserting elbows and drops duplicate and
-## collinear points. The first and last point are kept.
+## collinear points. The first and last point are kept. An elbow keeps going
+## the way the previous segment went unless that would turn back; at the start
+## (no previous segment) [param start_axis] decides, at the end [param end_axis].
 static func orthogonalize(points: Array[Vector2i], start_axis: int = AXIS_NONE, end_axis: int = AXIS_NONE) -> Array[Vector2i]:
 	var out: Array[Vector2i] = [points[0]]
 	for s: int in range(1, points.size()):
 		var p: Vector2i = out[out.size() - 1]
 		var q: Vector2i = points[s]
 		if p.x != q.x and p.y != q.y:
+			var previous: Vector2i = Vector2i.ZERO
+			if out.size() >= 2:
+				previous = (p - out[out.size() - 2]).sign()
 			var vertical_first: bool = false
-			if s == 1 and start_axis != AXIS_NONE:
+			if previous.y != 0:
+				vertical_first = signi(q.y - p.y) == previous.y
+			elif previous.x != 0:
+				vertical_first = signi(q.x - p.x) != previous.x
+			elif s == 1 and start_axis != AXIS_NONE:
 				vertical_first = start_axis == AXIS_VERTICAL
 			elif s == points.size() - 1 and end_axis != AXIS_NONE:
 				vertical_first = end_axis == AXIS_HORIZONTAL

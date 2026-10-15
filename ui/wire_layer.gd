@@ -44,6 +44,31 @@ func _draw() -> void:
 			draw_polyline(_pixels(w), color, SchematicTheme.CURRENT_WIDTH)
 	for cell: Vector2i in _junctions:
 		draw_circle(Vector2(cell) * G, 4.0, SchematicTheme.LINE)
+	_draw_path_numbers()
+
+
+## Numbers the current paths: above the columns of a vertical drawing, left of
+## the rows of a horizontal one.
+func _draw_path_numbers() -> void:
+	var paths: PackedFloat32Array = document.current_paths()
+	if paths.is_empty():
+		return
+	var b: Rect2 = document.bounds()
+	var font: Font = ThemeDB.fallback_font
+	var size: int = SchematicTheme.LABEL_SIZE
+	var box: Vector2 = Vector2(1.4, 1.0) * G
+	for i: int in paths.size():
+		var center: Vector2
+		if document.horizontal:
+			center = Vector2(b.position.x - 2.0, paths[i]) * G
+		else:
+			center = Vector2(paths[i], b.position.y - 1.5) * G
+		var rect: Rect2 = Rect2(center - box * 0.5, box)
+		draw_rect(rect, SchematicTheme.BACKGROUND)
+		draw_rect(rect, SchematicTheme.TERMINAL_TEXT, false, 1.0)
+		var text: String = str(i + 1)
+		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.TERMINAL_TEXT)
 
 
 func _pixels(wire_index: int) -> PackedVector2Array:
