@@ -349,3 +349,69 @@ func test_contacts_of_a_time_relay_are_delayed() -> void:
 	assert_eq(editor.apply_properties(timer.id, data), "")
 	var titles: Array = SchematicEditor.type_options(editor.document().circuit.get_coil("KT1")).map(func(e: Dictionary) -> String: return e["title"])
 	assert_eq(titles.size(), 2, "with S the type can still be changed")
+
+
+func test_markings_are_selected_and_dragged() -> void:
+	_place({"type": "lamp"}, Vector2i(10, 3))
+	await wait_frames(2)
+	var symbol: SchematicSymbol = view.get_symbol("H1")
+	var r: Rect2 = symbol.marking_rect("designation")
+	assert_true(r.has_area(), "the designation was drawn")
+	var at: Vector2 = (symbol.position + r.get_center()) / SymbolGeometry.GRID
+	editor._clear_selection()
+	_at(at)
+	editor._on_left_pressed(false)
+	assert_eq(editor.selected_marking.get("kind", ""), "designation", "a click highlights the marking")
+	assert_true(editor.selected_components.has("H1"), "and selects its part")
+	_at(at + Vector2(-1.5, 0.5))
+	editor._on_mouse_moved()
+	editor._on_left_released(false)
+	var p: Placement = editor.document().get_placement("H1")
+	assert_eq(p.labels.get("designation", Vector2.ZERO), Vector2(-1.5, 0.5), "dragged")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(editor.document()))
+	assert_eq(copy.get_placement("H1").labels.get("designation", Vector2.ZERO), Vector2(-1.5, 0.5), "saved")
+	editor.undo()
+	assert_true(editor.document().get_placement("H1").labels.is_empty(), "undoable")
+
+
+## Bad names typed into markings are refused with a message and change nothing.
+func test_bad_markings_are_refused() -> void:
+	_place({"type": "coil"}, Vector2i(10, 3))
+	_place({"type": "coil"}, Vector2i(14, 3))
+	_place({"type": "lamp"}, Vector2i(18, 3))
+	var doc: SchematicDocument = editor.document()
+	var hints: Array[String] = []
+	editor.hint_changed.connect(func(text: String) -> void: hints.append(text))
+	var before: Dictionary = DocumentSerializer.to_dict(doc)
+	for bad: String in ["", "-", "   ", "KM:1", "K M1", "KM2", "L", "N", "H1"]:
+		hints.clear()
+		editor._inline_target = {"component": "KM1", "kind": "designation", "index": -1}
+		editor._commit_inline(bad)
+		assert_true(editor.document().circuit.has_component_id("KM1"), "'%s' refused" % bad)
+		assert_false(hints.is_empty(), "'%s' explained" % bad)
+	for bad: String in ["", "A2", "A 1", "A:1"]:
+		hints.clear()
+		editor._inline_target = {"component": "KM1", "kind": "terminal", "index": 0}
+		editor._commit_inline(bad)
+		assert_eq(editor.document().circuit.get_component("KM1").get_terminal_names(), PackedStringArray(["A1", "A2"]), "terminal '%s' refused" % bad)
+	assert_eq(DocumentSerializer.to_dict(editor.document()), before, "nothing changed")
+	# Fine names, including Czech letters, are taken.
+	editor._inline_target = {"component": "H1", "kind": "designation", "index": -1}
+	editor._commit_inline("  -HŘ2 ")
+	assert_true(editor.document().circuit.has_component_id("HŘ2"), "trimmed, dash dropped")
+	editor._inline_target = {"component": "HŘ2", "kind": "purpose", "index": -1}
+	editor._commit_inline("  Chod  ")
+	assert_eq((editor.document().circuit.get_component("HŘ2") as Lamp).purpose, "Chod")
+
+
+func test_renaming_a_coil_takes_its_contacts_along() -> void:
+	_place({"type": "coil"}, Vector2i(10, 6))
+	_place({"type": "contact", "contact": "NO"}, Vector2i(14, 2))
+	_place({"type": "main_contacts"}, Vector2i(20, 2))
+	editor._inline_target = {"component": "KM1", "kind": "designation", "index": -1}
+	editor._commit_inline("KM7")
+	var doc: SchematicDocument = editor.document()
+	assert_true(doc.circuit.has_component_id("KM7:13-14"), "the contact follows its coil")
+	assert_true(doc.circuit.has_component_id("KM7:1-2-3-4-5-6"), "and the main contacts")
+	editor.undo()
+	assert_true(editor.document().circuit.has_component_id("KM1:13-14"), "one undo step")

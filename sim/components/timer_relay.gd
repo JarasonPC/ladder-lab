@@ -8,7 +8,7 @@ extends Coil
 ## [member output] through their own [member output_armature]; instantaneous
 ## contacts follow the coil power through [member armature].
 ##
-## Functions ([member mode]), t = [member delay]:
+## Functions ([member mode]), t = t1 = [member delay], t2 = [member delay2]:
 ## - F1 PULSE_ON_POWER: R on for t after power on.
 ## - F2 ON_DELAY: R on t after power on.
 ## - F3 PULSE_ON_PRESS: S pressed -> R on for t (not retriggered).
@@ -18,23 +18,31 @@ extends Coil
 ## - F7 PULSE_GENERATOR: R off for t, on for 0.5 s, repeated.
 ## - F8 SHIFTED_PULSE: S pressed -> after t, R on for t.
 ## - F9 TEST: R on while powered.
+## - F10 CYCLE_PAUSE_FIRST: off for t2, on for t1, repeated (asymmetric
+##   cycler starting with the pause).
+## - F11 CYCLE_PULSE_FIRST: on for t1, off for t2, repeated (starting with
+##   the pulse).
+## - F12 ON_OFF_DELAY: S pressed -> R on after t1; S released -> R off
+##   after t2.
 ## - OFF_DELAY (true off-delay, no F code): R on with power, off t after
 ##   power is removed.
 ## Losing power resets every function except OFF_DELAY.
 
-enum Mode { ON_DELAY, OFF_DELAY, PULSE_ON_POWER, PULSE_ON_PRESS, DELAY_AFTER_RELEASE, PULSE_AFTER_RELEASE, TOGGLE, PULSE_GENERATOR, SHIFTED_PULSE, TEST }
+enum Mode { ON_DELAY, OFF_DELAY, PULSE_ON_POWER, PULSE_ON_PRESS, DELAY_AFTER_RELEASE, PULSE_AFTER_RELEASE, TOGGLE, PULSE_GENERATOR, SHIFTED_PULSE, TEST, CYCLE_PAUSE_FIRST, CYCLE_PULSE_FIRST, ON_OFF_DELAY }
 
 ## Saved names of the functions, in [enum Mode] order.
-const MODE_NAMES: PackedStringArray = ["on_delay", "off_delay", "pulse_on_power", "pulse_on_press", "delay_after_release", "pulse_after_release", "toggle", "pulse_generator", "shifted_pulse", "test"]
+const MODE_NAMES: PackedStringArray = ["on_delay", "off_delay", "pulse_on_power", "pulse_on_press", "delay_after_release", "pulse_after_release", "toggle", "pulse_generator", "shifted_pulse", "test", "cycle_pause_first", "cycle_pulse_first", "on_off_delay"]
 ## Function codes of real multifunction relays, in [enum Mode] order.
-const MODE_CODES: PackedStringArray = ["F2", "", "F1", "F3", "F4", "F5", "F6", "F7", "F8", "F9"]
+const MODE_CODES: PackedStringArray = ["F2", "", "F1", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
 ## On time of the pulse generator (F7).
 const GENERATOR_PULSE: float = 0.5
 const _EPSILON: float = 1e-9
 
 var mode: Mode
-## Delay in seconds.
+## Delay in seconds (t, or t1 of the functions with two times).
 var delay: float
+## Second time t2 in seconds (functions with two times only).
+var delay2: float = 1.0
 ## Has the control input S (terminals A1-A2-S); design data.
 var control_input: bool = false:
 	set(value):
@@ -73,7 +81,12 @@ static func code_of(m: Mode) -> String:
 
 ## True for functions started by the control input S.
 static func uses_control(m: Mode) -> bool:
-	return m in [Mode.PULSE_ON_PRESS, Mode.DELAY_AFTER_RELEASE, Mode.PULSE_AFTER_RELEASE, Mode.TOGGLE, Mode.SHIFTED_PULSE]
+	return m in [Mode.PULSE_ON_PRESS, Mode.DELAY_AFTER_RELEASE, Mode.PULSE_AFTER_RELEASE, Mode.TOGGLE, Mode.SHIFTED_PULSE, Mode.ON_OFF_DELAY]
+
+
+## True for functions with two set times t1 and t2.
+static func uses_two_times(m: Mode) -> bool:
+	return m in [Mode.CYCLE_PAUSE_FIRST, Mode.CYCLE_PULSE_FIRST, Mode.ON_OFF_DELAY]
 
 
 func set_energized(value: bool) -> void:
@@ -164,6 +177,11 @@ func _power_on() -> void:
 		Mode.PULSE_ON_POWER:
 			output = true
 			_start(delay)
+		Mode.CYCLE_PAUSE_FIRST:
+			_start(delay2)
+		Mode.CYCLE_PULSE_FIRST:
+			output = true
+			_start(delay)
 	if control:
 		_press()
 
@@ -191,10 +209,22 @@ func _press() -> void:
 			if _left < 0.0 and not output:
 				_stage = 1
 				_start(delay)
+		Mode.ON_OFF_DELAY:
+			# On after t1; a running off-delay is cancelled.
+			if output:
+				_cancel()
+			else:
+				_start(delay)
 
 
 func _release() -> void:
 	match mode:
+		Mode.ON_OFF_DELAY:
+			# Off after t2; a running on-delay is cancelled.
+			if output:
+				_start(delay2)
+			else:
+				_cancel()
 		Mode.DELAY_AFTER_RELEASE:
 			if not output:
 				_start(delay)
@@ -213,6 +243,12 @@ func _timeout() -> void:
 		Mode.PULSE_GENERATOR:
 			output = not output
 			_start(GENERATOR_PULSE if output else delay)
+		Mode.CYCLE_PAUSE_FIRST, Mode.CYCLE_PULSE_FIRST:
+			# t1 on, t2 off.
+			output = not output
+			_start(delay if output else delay2)
+		Mode.ON_OFF_DELAY:
+			output = control
 		Mode.SHIFTED_PULSE:
 			if _stage == 1:
 				output = true

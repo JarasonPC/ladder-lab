@@ -306,6 +306,12 @@ msgstr "Doba odpadu (ms)"
 msgid "Function"
 msgstr "Funkce"
 
+msgid "Time t1 (s)"
+msgstr "Čas t1 (s)"
+
+msgid "Time t2 (s)"
+msgstr "Čas t2 (s)"
+
 msgid "Time t (s)"
 msgstr "Čas t (s)"
 
@@ -384,14 +390,17 @@ msgstr "Zpožděný odpad (po odpojení napájení)"
 msgid "F1 – Pulse after power on"
 msgstr "F1 – Impulz po zapnutí"
 
-msgid "F3 – Pulse when S is pressed"
-msgstr "F3 – Impulz po stisku tlačítka"
+#, c-format
+msgid "F3 – Pulse when %s is pressed"
+msgstr "F3 – Impuls po stisku %s"
 
-msgid "F4 – On-delay after S is released"
-msgstr "F4 – Zpožděný přítah po uvolnění tlačítka"
+#, c-format
+msgid "F4 – On-delay after %s is released"
+msgstr "F4 – Zpožděný přítah po uvolnění %s"
 
-msgid "F5 – Pulse after S is released"
-msgstr "F5 – Impulz po uvolnění tlačítka"
+#, c-format
+msgid "F5 – Pulse after %s is released"
+msgstr "F5 – Impuls po uvolnění %s"
 
 msgid "F6 – Impulse relay (no memory)"
 msgstr "F6 – Impulzní relé (bez paměti)"
@@ -405,11 +414,24 @@ msgstr "F8 – Posunutý impulz"
 msgid "F9 – Test (always on)"
 msgstr "F9 – Test (trvale sepnuto)"
 
+msgid "F10 – Cycler starting with the pause (t2 off, t1 on)"
+msgstr "F10 – Cyklovač začínající mezerou (t2 vypnuto, t1 zapnuto)"
+
+msgid "F11 – Cycler starting with the pulse (t1 on, t2 off)"
+msgstr "F11 – Cyklovač začínající impulsem (t1 zapnuto, t2 vypnuto)"
+
+#, c-format
+msgid "F12 – On-delay t1 and off-delay t2 with %s"
+msgstr "F12 – Zpožděný přítah t1 a odpad t2 vstupem %s"
+
 msgid "Function diagram"
 msgstr "Diagram funkce"
 
 msgid "The designation must not be empty."
 msgstr "Označení nesmí být prázdné."
+
+msgid "A designation must not contain spaces or colons."
+msgstr "Označení nesmí obsahovat mezery ani dvojtečky."
 
 msgid "Terminal names must all be different, without spaces or colons."
 msgstr "Označení svorek se musí navzájem lišit a nesmí obsahovat mezery ani dvojtečky."
@@ -417,6 +439,10 @@ msgstr "Označení svorek se musí navzájem lišit a nesmí obsahovat mezery an
 #, c-format
 msgid "%s is already used in this circuit."
 msgstr "Označení %s je v tomto obvodu již použito."
+
+#, c-format
+msgid "%s is already the designation of another device."
+msgstr "%s už je označení jiného přístroje."
 
 msgid "Change to"
 msgstr "Změnit na"
@@ -458,8 +484,8 @@ msgid "Time relay functions"
 msgstr "Funkce časového relé"
 
 #, c-format
-msgid "U supply A1-A2, %s control input, R output (delayed contacts), t the set time. Click a function to use it."
-msgstr "U napájení A1-A2, %s řídicí vstup, R výstup (zpožděné kontakty), t nastavený čas. Kliknutím funkci použijete."
+msgid "U supply A1-A2, %s control input, R output (delayed contacts), t the set time (t1, t2 where there are two). Click a function to use it."
+msgstr "U napájení A1-A2, %s řídicí vstup, R výstup (zpožděné kontakty), t nastavený čas (t1, t2 kde jsou dva). Kliknutím funkci použijete."
 
 msgid "Use this function"
 msgstr "Použít tuto funkci"

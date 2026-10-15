@@ -16,6 +16,10 @@ const HOLDER_HALF_LENGTH: float = 9.0
 const HOLDER_HALF_WIDTH: float = 4.5
 
 
+func flips_when_horizontal() -> bool:
+	return true
+
+
 func is_interactive() -> bool:
 	return (component as Fuse).tripped or (component as Fuse).holder
 
@@ -25,18 +29,18 @@ func _draw_shape(color: Color, width: float) -> void:
 	if fuse.holder:
 		_draw_holder(self, Vector2.ZERO, 0, 1, fuse.switched_on, fuse.tripped, color, width)
 		return
-	draw_line(Vector2(0, 0), Vector2(0, BOX.position.y), lead_color(0), lead_width(0))
-	draw_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), lead_color(1), lead_width(1))
-	draw_rect(BOX, color, false, SchematicTheme.LINE_WIDTH)
+	aa_line(Vector2(0, 0), Vector2(0, BOX.position.y), lead_color(0), lead_width(0))
+	aa_line(Vector2(0, BOX.end.y), Vector2(0, 3 * G), lead_color(1), lead_width(1))
+	aa_rect(BOX, color, false, SchematicTheme.LINE_WIDTH)
 	if fuse.tripped:
-		draw_line(Vector2(0, BOX.position.y), Vector2(0, 24), lead_color(0), SchematicTheme.LINE_WIDTH)
-		draw_line(Vector2(0, 36), Vector2(0, BOX.end.y), lead_color(1), SchematicTheme.LINE_WIDTH)
-		draw_line(Vector2(-5, 25), Vector2(5, 35), SchematicTheme.FAULT, 2.5)
-		draw_line(Vector2(-5, 35), Vector2(5, 25), SchematicTheme.FAULT, 2.5)
+		aa_line(Vector2(0, BOX.position.y), Vector2(0, 24), lead_color(0), SchematicTheme.LINE_WIDTH)
+		aa_line(Vector2(0, 36), Vector2(0, BOX.end.y), lead_color(1), SchematicTheme.LINE_WIDTH)
+		aa_line(Vector2(-5, 25), Vector2(5, 35), SchematicTheme.FAULT, 2.5)
+		aa_line(Vector2(-5, 35), Vector2(5, 25), SchematicTheme.FAULT, 2.5)
 	else:
 		# The fuse element is a conductor: it shows the voltage like a lead.
 		var element: Color = lead_color(0) if reach(0) != REACH_NONE else color
-		draw_line(Vector2(0, BOX.position.y), Vector2(0, BOX.end.y), element, lead_width(0))
+		aa_line(Vector2(0, BOX.position.y), Vector2(0, BOX.end.y), element, lead_width(0))
 
 
 func _draw_labels() -> void:
@@ -62,8 +66,8 @@ static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: 
 	var g: float = SymbolGeometry.GRID
 	var pivot: Vector2 = x + HOLDER_PIVOT
 	var fixed_end: Vector2 = x + HOLDER_FIXED
-	symbol.draw_line(x, fixed_end, symbol.lead_color(top), symbol.lead_width(top))
-	symbol.draw_line(x + Vector2(0, 3 * g), pivot, symbol.lead_color(bottom), symbol.lead_width(bottom))
+	symbol.aa_line(x, fixed_end, symbol.lead_color(top), symbol.lead_width(top))
+	symbol.aa_line(x + Vector2(0, 3 * g), pivot, symbol.lead_color(bottom), symbol.lead_width(bottom))
 	# Closed, the blade runs straight on to the fixed contact.
 	var tip: Vector2 = fixed_end if closed else x + HOLDER_OPEN_TIP
 	var blade: Color = symbol.lead_color(bottom) if symbol.reach(bottom) != SchematicSymbol.REACH_NONE else color
@@ -78,11 +82,11 @@ static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: 
 		middle - along * half_l - across * half_w, middle + along * half_l - across * half_w,
 		middle + along * half_l + across * half_w, middle - along * half_l + across * half_w,
 		middle - along * half_l - across * half_w])
-	symbol.draw_colored_polygon(corners.slice(0, 4), SchematicTheme.BACKGROUND)
-	symbol.draw_polyline(corners, color, SchematicTheme.LINE_WIDTH * 0.8)
+	symbol.aa_polygon(corners.slice(0, 4), SchematicTheme.BACKGROUND)
+	symbol.aa_polyline(corners, color, SchematicTheme.LINE_WIDTH * 0.8)
 	if blown:
-		symbol.draw_line(middle - Vector2(5, 5), middle + Vector2(5, 5), SchematicTheme.FAULT, 2.5)
-		symbol.draw_line(middle - Vector2(5, -5), middle + Vector2(5, -5), SchematicTheme.FAULT, 2.5)
+		symbol.aa_line(middle - Vector2(5, 5), middle + Vector2(5, 5), SchematicTheme.FAULT, 2.5)
+		symbol.aa_line(middle - Vector2(5, -5), middle + Vector2(5, -5), SchematicTheme.FAULT, 2.5)
 	else:
-		symbol.draw_line(middle - along * half_l, middle + along * half_l, blade, width)
+		symbol.aa_line(middle - along * half_l, middle + along * half_l, blade, width)
 	return middle

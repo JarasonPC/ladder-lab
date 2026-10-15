@@ -17,6 +17,40 @@ const NC_CLOSED_TIP := Vector2(10, 18)
 ## An open NC blade swings further away from its stop, on the same side.
 const NC_OPEN_TIP := Vector2(18, 24)
 const HOOK_END := Vector2(9, 20)
+## Seconds a button or switch takes to move on the drawing.
+const ACTUATOR_TIME: float = 0.12
+
+## Shown position of a button or switch: 0 at rest, 1 operated. It follows
+## the state smoothly, so pressing is seen as a movement; -1 until set.
+var _shown: float = -1.0
+
+
+func flips_when_horizontal() -> bool:
+	return true
+
+
+func _process(delta: float) -> void:
+	if not _is_manual():
+		set_process(false)
+		return
+	var target: float = 1.0 if _actuated() else 0.0
+	if _shown < 0.0:
+		_shown = target
+	elif _shown != target:
+		_shown = move_toward(_shown, target, delta / ACTUATOR_TIME)
+		queue_redraw()
+
+
+func _is_manual() -> bool:
+	return component is PushButton or component is LatchingSwitch
+
+
+func _actuated() -> bool:
+	if component is PushButton:
+		return (component as PushButton).pressed
+	if component is LatchingSwitch:
+		return (component as LatchingSwitch).switched_on
+	return false
 
 
 func is_interactive() -> bool:
@@ -41,14 +75,18 @@ func _draw_shape(color: Color, _width: float) -> void:
 	var pivot_color: Color = lead_color(1)
 	var pivot_width: float = lead_width(1)
 	var pivot: Vector2 = PIVOT
-	draw_line(Vector2(0, 0), FIXED_END, fixed_color, fixed_width)
-	draw_line(Vector2(0, 3 * G), pivot, pivot_color, pivot_width)
+	aa_line(Vector2(0, 0), FIXED_END, fixed_color, fixed_width)
+	aa_line(Vector2(0, 3 * G), pivot, pivot_color, pivot_width)
 	if is_nc:
-		draw_line(FIXED_END, HOOK_END, fixed_color, fixed_width)
+		aa_line(FIXED_END, HOOK_END, fixed_color, fixed_width)
 	var tip: Vector2 = NC_OPEN_TIP if is_nc else OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
-	if element.get_armature() != null and not closed:
+	if _is_manual():
+		# Buttons and switches move smoothly between rest and operated.
+		var s: float = _shown if _shown >= 0.0 else (1.0 if _actuated() else 0.0)
+		tip = NC_CLOSED_TIP.lerp(NC_OPEN_TIP, s) if is_nc else OPEN_TIP.lerp(NO_CLOSED_TIP, s)
+	elif element.get_armature() != null and not closed:
 		# Contacts are drawn where their armature or actuator is, so they visibly move.
 		var travel: float = element.get_travel()
 		if is_nc:
@@ -61,7 +99,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
 
 	if component is PushButton:
-		_draw_push_actuator(middle, (component as PushButton).pressed, color)
+		_draw_push_actuator(middle, _shown if _shown >= 0.0 else (1.0 if _actuated() else 0.0), color)
 	elif component is LatchingSwitch:
 		_draw_turn_actuator(middle, (component as LatchingSwitch).switched_on, color)
 	elif component is OverloadContact:
@@ -70,33 +108,33 @@ func _draw_shape(color: Color, _width: float) -> void:
 		draw_delay_mark(self, middle, color)
 
 
-## Stem from the blade to the button head (a bracket open toward the blade),
-## drawn solid as in the guide.
-func _draw_push_actuator(middle: Vector2, pressed: bool, color: Color) -> void:
-	var head_x: float = -22.0 if pressed else -28.0
+## Dashed stem (mechanical link) from the blade to the button head, a
+## bracket open toward the blade; [param pressed] 0..1 moves the head in.
+func _draw_push_actuator(middle: Vector2, pressed: float, color: Color) -> void:
+	var head_x: float = lerpf(-28.0, -22.0, pressed)
 	var y: float = middle.y
-	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x + 5, y - 7), color, 1.8)
-	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5, y + 7), color, 1.8)
+	aa_dashed_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4, 2.5)
+	aa_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
+	aa_line(Vector2(head_x, y - 7), Vector2(head_x + 5, y - 7), color, 1.8)
+	aa_line(Vector2(head_x, y + 7), Vector2(head_x + 5, y + 7), color, 1.8)
 
 
 ## Stem from the blade to the hook of the thermal release, as in the guide.
 func _draw_thermal_actuator(middle: Vector2, color: Color) -> void:
 	var y: float = middle.y
 	var x: float = -28.0
-	draw_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4)
-	draw_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 8), Vector2(x + 6, y - 8)]), color, 1.8)
+	aa_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4)
+	aa_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 8), Vector2(x + 6, y - 8)]), color, 1.8)
 
 
 func _draw_turn_actuator(middle: Vector2, switched_on: bool, color: Color) -> void:
 	var head_x: float = -26.0
 	var y: float = middle.y
 	var flip: float = -1.0 if switched_on else 1.0
-	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x - 5 * flip, y - 7), color, 1.8)
-	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5 * flip, y + 7), color, 1.8)
+	aa_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4)
+	aa_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
+	aa_line(Vector2(head_x, y - 7), Vector2(head_x - 5 * flip, y - 7), color, 1.8)
+	aa_line(Vector2(head_x, y + 7), Vector2(head_x + 5 * flip, y + 7), color, 1.8)
 
 
 ## Time relay contact mark (the "parachute"): a half circle ")" on the left
@@ -107,6 +145,6 @@ static func draw_delay_mark(symbol: SchematicSymbol, middle: Vector2, color: Col
 	var y: float = middle.y
 	var w: float = SchematicTheme.LINE_WIDTH * 0.75
 	var c: Vector2 = Vector2(-20.0, y)
-	symbol.draw_arc(c, radius, -PI * 0.5, PI * 0.5, 12, color, w)
-	symbol.draw_line(Vector2(c.x + radius, y - 2.5), Vector2(middle.x - 1.0, y - 2.5), color, w)
-	symbol.draw_line(Vector2(c.x + radius, y + 2.5), Vector2(middle.x - 1.0, y + 2.5), color, w)
+	symbol.aa_arc(c, radius, -PI * 0.5, PI * 0.5, 12, color, w)
+	symbol.aa_line(Vector2(c.x + radius, y - 2.5), Vector2(middle.x - 1.0, y - 2.5), color, w)
+	symbol.aa_line(Vector2(c.x + radius, y + 2.5), Vector2(middle.x - 1.0, y + 2.5), color, w)

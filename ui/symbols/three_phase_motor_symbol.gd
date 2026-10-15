@@ -38,7 +38,7 @@ func _draw_shape(color: Color, width: float) -> void:
 	# PE: from the frame to the left, then down to its terminal.
 	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G
 	var frame: Vector2 = CENTER + Vector2.from_angle(PI * 0.88) * RADIUS
-	draw_polyline(PackedVector2Array([frame, Vector2(pe_cell.x, frame.y), pe_cell]), lead_color(windings), lead_width(windings))
+	aa_polyline(PackedVector2Array([frame, Vector2(pe_cell.x, frame.y), pe_cell]), lead_color(windings), lead_width(windings))
 	for i: int in windings:
 		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
 		var column: float = cell.x / (SymbolGeometry.POLE_SPACING * G)
@@ -54,14 +54,14 @@ func _draw_shape(color: Color, width: float) -> void:
 			angle = (i - 7) * PI * 0.2
 			bend = cell - Vector2(0.6 * G, 0)
 		var edge: Vector2 = CENTER + Vector2.from_angle(angle) * RADIUS
-		draw_polyline(PackedVector2Array([cell, bend, edge]), lead_color(i), lead_width(i))
+		aa_polyline(PackedVector2Array([cell, bend, edge]), lead_color(i), lead_width(i))
 	var fill: Color = SchematicTheme.COIL_ON if motor.is_running() else SchematicTheme.BACKGROUND
 	if motor.state == ThreePhaseMotor.State.PHASE_LOSS or motor.state == ThreePhaseMotor.State.MISWIRED:
 		fill = Color(SchematicTheme.FAULT, 0.25)
-	draw_circle(CENTER, RADIUS, fill)
+	aa_circle(CENTER, RADIUS, fill)
 	# The housing is drawn plain; the leads show the phases.
 	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-	draw_arc(CENTER, RADIUS, 0.0, TAU, 40, color, SchematicTheme.LINE_WIDTH if not motor.is_running() else width)
+	aa_arc(CENTER, RADIUS, 0.0, TAU, 40, color, SchematicTheme.LINE_WIDTH if not motor.is_running() else width)
 	if motor.is_running():
 		var r: float = RADIUS + 6.0
 		var arc: float = PI * 0.6
@@ -71,12 +71,12 @@ func _draw_shape(color: Color, width: float) -> void:
 			# Drawn mirrored: mirror the angle too, so the arrow turns the same way on screen.
 			start = PI - _angle
 			turn = -turn
-		draw_arc(CENTER, r, start, start + turn * arc, 12, SchematicTheme.LINE, 2.0)
+		aa_arc(CENTER, r, start, start + turn * arc, 12, SchematicTheme.LINE, 2.0)
 		var end_angle: float = start + turn * arc
 		var tip: Vector2 = CENTER + Vector2.from_angle(end_angle) * r
 		var forward: Vector2 = Vector2.from_angle(end_angle + turn * PI * 0.5)
 		var side: Vector2 = Vector2.from_angle(end_angle)
-		draw_colored_polygon(PackedVector2Array([tip + forward * 7.0, tip - side * 4.5, tip + side * 4.5]), SchematicTheme.LINE)
+		aa_polygon(PackedVector2Array([tip + forward * 7.0, tip - side * 4.5, tip + side * 4.5]), SchematicTheme.LINE)
 
 
 ## Box of the terminal board.
@@ -95,22 +95,22 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 	if motor.state == ThreePhaseMotor.State.PHASE_LOSS or motor.state == ThreePhaseMotor.State.MISWIRED:
 		fill = Color(SchematicTheme.FAULT, 0.25)
 	var board: Rect2 = _board(motor)
-	draw_rect(board, fill)
+	aa_rect(board, fill)
 	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-	draw_rect(board, color, false, SchematicTheme.LINE_WIDTH)
+	aa_rect(board, color, false, SchematicTheme.LINE_WIDTH)
 	if motor.kind != ThreePhaseMotor.Kind.STANDARD:
 		for i: int in motor.winding_terminal_count():
 			var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
 			var stud: Vector2 = _stud(motor, i)
 			var toward: Vector2 = (cell - stud).normalized()
-			draw_line(cell, stud + toward * 3.5, lead_color(i), lead_width(i))
-			draw_circle(stud, 3.5, SchematicTheme.BACKGROUND)
-			draw_arc(stud, 3.5, 0.0, TAU, 12, lead_color(i) if reach(i) != REACH_NONE else color, 1.5)
+			aa_line(cell, stud + toward * 3.5, lead_color(i), lead_width(i))
+			aa_circle(stud, 3.5, SchematicTheme.BACKGROUND)
+			aa_arc(stud, 3.5, 0.0, TAU, 12, lead_color(i) if reach(i) != REACH_NONE else color, 1.5)
 		_draw_box_pe(motor, board)
 		return
 	for i: int in 3:
 		var x: float = i * SymbolGeometry.POLE_SPACING * G
-		draw_line(Vector2(x, 0), Vector2(x, FEED_ROW - 4.0), lead_color(i), lead_width(i))
+		aa_line(Vector2(x, 0), Vector2(x, FEED_ROW - 4.0), lead_color(i), lead_width(i))
 	var bridge_width: float = 1.8
 	if motor.delta_bridges:
 		for i: int in 3:
@@ -121,8 +121,8 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 	for i: int in 3:
 		var x: float = i * SymbolGeometry.POLE_SPACING * G
 		for y: float in [FEED_ROW, END_ROW]:
-			draw_circle(Vector2(x, y), 3.5, SchematicTheme.BACKGROUND)
-			draw_arc(Vector2(x, y), 3.5, 0.0, TAU, 12, lead_color(i) if y == FEED_ROW and reach(i) != REACH_NONE else color, 1.5)
+			aa_circle(Vector2(x, y), 3.5, SchematicTheme.BACKGROUND)
+			aa_arc(Vector2(x, y), 3.5, 0.0, TAU, 12, lead_color(i) if y == FEED_ROW and reach(i) != REACH_NONE else color, 1.5)
 	_draw_box_pe(motor, board)
 
 
@@ -130,7 +130,7 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 func _draw_box_pe(motor: ThreePhaseMotor, board: Rect2) -> void:
 	var windings: int = motor.winding_terminal_count()
 	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G
-	draw_polyline(PackedVector2Array([Vector2(board.position.x, 3.0 * G), Vector2(pe_cell.x, 3.0 * G), pe_cell]), lead_color(windings), lead_width(windings))
+	aa_polyline(PackedVector2Array([Vector2(board.position.x, 3.0 * G), Vector2(pe_cell.x, 3.0 * G), pe_cell]), lead_color(windings), lead_width(windings))
 
 
 ## Box of the terminal board, wider for a motor with a third winding.
@@ -156,11 +156,11 @@ func _draw_bar(a: Vector2, b: Vector2, color: Color, w: float) -> void:
 	var r: float = 7.0
 	var along: Vector2 = (b - a).normalized()
 	var across: Vector2 = Vector2(-along.y, along.x) * r
-	draw_line(a + across, b + across, color, w)
-	draw_line(a - across, b - across, color, w)
+	aa_line(a + across, b + across, color, w)
+	aa_line(a - across, b - across, color, w)
 	var start: float = across.angle()
-	draw_arc(a, r, start, start + PI, 10, color, w)
-	draw_arc(b, r, start + PI, start + TAU, 10, color, w)
+	aa_arc(a, r, start, start + PI, 10, color, w)
+	aa_arc(b, r, start + PI, start + TAU, 10, color, w)
 
 
 func _draw_labels() -> void:

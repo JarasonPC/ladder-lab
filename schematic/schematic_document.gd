@@ -441,6 +441,16 @@ func rotate_component(component_id: String, clockwise: bool = true) -> void:
 	_reroute_component(component_id)
 
 
+## Moves a marking of a component (see [member Placement.labels]) by
+## [param offset] cells from its standard place.
+func set_label_offset(component_id: String, key: String, offset: Vector2) -> void:
+	var p: Placement = _placements[_id(component_id)]
+	if offset == Vector2.ZERO:
+		p.labels.erase(key)
+	else:
+		p.labels[key] = offset
+
+
 ## Mirrors a component left to right as seen on the drawing. A vertical
 ## symbol is mirrored across its own axis (actuator to the other side, the
 ## terminals stay); a horizontal one swaps its ends in place.
@@ -849,6 +859,8 @@ func extract(ids: PackedStringArray) -> Dictionary:
 		d["cell"] = [p.cell.x, p.cell.y]
 		d["rotation"] = p.rotation
 		d["mirrored"] = p.mirrored
+		if not p.labels.is_empty():
+			d["labels"] = p.labels_to_data()
 		components.append(d)
 		for key: String in c.get_terminal_keys():
 			keys[key] = true
@@ -913,6 +925,7 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 			key_map[old_keys[k]] = new_keys[k]
 		var cell: Array = cd["cell"]
 		add(c, Vector2i(int(cell[0]), int(cell[1])) + offset, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
+		_placements[c.id].labels_from_data(cd.get("labels", {}))
 		new_ids.append(c.id)
 	for wd: Dictionary in data.get("wires", []):
 		if not key_map.has(wd["a"]) or not key_map.has(wd["b"]):

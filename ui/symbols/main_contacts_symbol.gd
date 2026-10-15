@@ -18,6 +18,10 @@ const CLOSED_TIP := Vector2(-3.5, 18)
 const LINK_Y: float = 30.0
 
 
+func flips_when_horizontal() -> bool:
+	return true
+
+
 func _designation_anchor() -> Vector2:
 	return Vector2(-1.3 * G, 1.5 * G)
 
@@ -32,9 +36,9 @@ func _draw_shape(_color: Color, _width: float) -> void:
 		var closed: bool = contacts.is_path_closed(pole)
 		var top: int = pole * 2
 		var bottom: int = top + 1
-		draw_line(x, x + FIXED_END, lead_color(top), lead_width(top))
-		draw_arc(x + ARC_CENTER, ARC_RADIUS, PI * 0.5, PI * 1.5, 10, lead_color(top), SchematicTheme.LINE_WIDTH * 0.8)
-		draw_line(x + Vector2(0, 3 * G), x + PIVOT, lead_color(bottom), lead_width(bottom))
+		aa_line(x, x + FIXED_END, lead_color(top), lead_width(top))
+		aa_arc(x + ARC_CENTER, ARC_RADIUS, PI * 0.5, PI * 1.5, 10, lead_color(top), SchematicTheme.LINE_WIDTH * 0.8)
+		aa_line(x + Vector2(0, 3 * G), x + PIVOT, lead_color(bottom), lead_width(bottom))
 		var tip: Vector2 = CLOSED_TIP if closed else OPEN_TIP.lerp(CLOSED_TIP, minf(travel, 0.85))
 		if contacts.fault == SwitchingElement.Fault.OPEN:
 			tip = OPEN_TIP
@@ -43,7 +47,7 @@ func _draw_shape(_color: Color, _width: float) -> void:
 	if poles > 1:
 		# The link is insulated from the contacts: never live.
 		var link: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-		draw_dashed_line(Vector2(link_x[0], LINK_Y), Vector2(link_x[poles - 1] - 1.0, LINK_Y), link, 1.5, 3.0)
+		aa_dashed_line(Vector2(link_x[0], LINK_Y), Vector2(link_x[poles - 1] - 1.0, LINK_Y), link, 1.5, 3.0)
 
 
 func _draw_labels() -> void:

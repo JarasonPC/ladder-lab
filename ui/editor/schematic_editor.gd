@@ -71,6 +71,13 @@ var _number_drag_recorded: bool = false
 var _inline: LineEdit = null
 var _inline_target: Dictionary = {}
 var _inline_layer: CanvasLayer = null
+## The marking clicked last, highlighted: {"component": id, "kind": ..., "index": ...}.
+var selected_marking: Dictionary = {}
+## Dragging the selected marking.
+var _marking_drag: bool = false
+var _marking_drag_origin: Vector2 = Vector2.ZERO
+var _marking_drag_offset: Vector2 = Vector2.ZERO
+var _marking_drag_recorded: bool = false
 # Selection box.
 var _boxing: bool = false
 var _box_origin: Vector2 = Vector2.ZERO
@@ -262,8 +269,11 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 		var conductor: PowerSupply.Conductor = _conductor(data)
 		if conductor != (old as PowerSupply).conductor:
 			data["designation"] = doc.next_supply_designation(conductor)
-	if String(data.get("designation", "x")).is_empty():
+	data["designation"] = String(data.get("designation", "x")).strip_edges()
+	if String(data["designation"]).is_empty():
 		return tr("The designation must not be empty.")
+	if String(data["designation"]).contains(":") or String(data["designation"]).contains(" "):
+		return tr("A designation must not contain spaces or colons.")
 	if old is Coil and data.get("kind", "") != "":
 		# A contactor turned into a relay (or back) takes the new kind's
 		# default times, unless its times had been set by hand.
@@ -290,8 +300,20 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 	var snapshot: Dictionary = DocumentSerializer.to_dict(doc)
 	if not _can_replace(old, replacement):
 		return tr("%s is already used in this circuit.") % replacement.id
+	if not _designation_free(old, replacement):
+		return tr("%s is already the designation of another device.") % replacement.designation
 	history.record(snapshot)
 	doc.replace_component(component_id, replacement)
+	if replacement.designation != old.designation and (old is Coil or old is OverloadRelay):
+		# The device was renamed: its contacts go along with it.
+		for part: CircuitComponent in doc.circuit.get_components():
+			if part.designation != old.designation or _designation_group(part) != _designation_group(old):
+				continue
+			var part_data: Dictionary = DocumentSerializer.component_to_dict(part)
+			part_data["designation"] = replacement.designation
+			var renamed: CircuitComponent = DocumentSerializer.component_from_dict(part_data)
+			if renamed != null and _can_replace(part, renamed):
+				doc.replace_component(part.id, renamed)
 	selected_components.clear()
 	selected_components[replacement.id] = true
 	_changed()
@@ -543,6 +565,8 @@ func _on_mouse_moved() -> void:
 				_drag_wire_to(_mouse_cell - _wire_drag_origin)
 			elif _number_drag.x >= 0:
 				_drag_number_to(_mouse_point - _number_drag_origin)
+			elif _marking_drag:
+				_drag_marking_to(_mouse_point - _marking_drag_origin)
 	queue_redraw()
 
 
@@ -573,12 +597,27 @@ func _on_left_pressed(shift: bool) -> void:
 				_number_drag_origin = _mouse_point
 				_number_drag_recorded = false
 				return
+			var marking: Dictionary = _marking_at(_mouse_point)
+			if not marking.is_empty() and not shift:
+				# A click highlights the marking (and selects its part); a
+				# drag moves it, a double click edits it.
+				_clear_selection()
+				selected_components[marking["component"]] = true
+				selected_marking = marking
+				var key_name: String = SchematicSymbol.marking_key(marking["kind"], marking["index"])
+				_marking_drag = true
+				_marking_drag_origin = _mouse_point
+				_marking_drag_offset = doc.get_placement(marking["component"]).labels.get(key_name, Vector2.ZERO)
+				_marking_drag_recorded = false
+				_selection_updated()
+				return
 			var key: String = doc.terminal_at(_mouse_point, 0.3)
 			var hit: CircuitComponent = doc.component_at(_mouse_point)
 			if not key.is_empty() and not shift:
 				_start_wire(key)
 				return
 			if hit != null:
+				selected_marking = {}
 				if shift:
 					if selected_components.has(hit.id):
 						selected_components.erase(hit.id)
@@ -620,6 +659,10 @@ func _on_left_pressed(shift: bool) -> void:
 
 
 func _on_left_released(shift: bool) -> void:
+	if _marking_drag:
+		_marking_drag = false
+		if _marking_drag_recorded:
+			_changed()
 	if _number_drag.x >= 0:
 		_number_drag = Vector2i(-1, -1)
 		if _number_drag_recorded:
@@ -668,6 +711,36 @@ func _place_at(cell: Vector2i) -> void:
 	selected_components[c.id] = true
 	_changed()
 	_rebuild_ghost()
+
+
+## Which parts may share a designation: a relay or contactor with its
+## contacts, an overload relay with its contacts, buttons or switches of one
+## actuator. Other parts have a designation of their own.
+static func _designation_group(c: CircuitComponent) -> String:
+	if c is OverloadRelay or c is OverloadContact:
+		return "overload"
+	if c is Coil or c is Contact or c is ChangeoverContact or c is MainContacts:
+		return "relay"
+	if c is PushButton:
+		return "push_button"
+	if c is LatchingSwitch:
+		return "switch"
+	return ""
+
+
+## True when [param replacement] (replacing [param old]) may carry its
+## designation: no other device has it, only parts of the same device (one
+## coil, one overload relay).
+func _designation_free(old: CircuitComponent, replacement: CircuitComponent) -> bool:
+	var group: String = _designation_group(replacement)
+	for c: CircuitComponent in document().circuit.get_components():
+		if c == old or c.designation != replacement.designation:
+			continue
+		if group.is_empty() or _designation_group(c) != group:
+			return false
+		if (c is Coil and replacement is Coil) or (c is OverloadRelay and replacement is OverloadRelay):
+			return false
+	return true
 
 
 ## A contact follows the device it is designated to: a contact (or
@@ -868,14 +941,9 @@ func edit_marking_at(point: Vector2) -> bool:
 	var number: Vector2i = view.wire_number_at(point)
 	if number.x >= 0:
 		return _open_inline({"wire": number.x}, doc.get_route(number.x).number, pixel)
-	for c: CircuitComponent in doc.circuit.get_components():
-		var symbol: SchematicSymbol = view.get_symbol(c.id)
-		if symbol == null:
-			continue
-		for m: Array in symbol.marking_rects:
-			var rect: Rect2 = (m[2] as Rect2).grow(2.0)
-			if rect.has_point(pixel - symbol.position):
-				return _edit_marking(c, m[0], m[1])
+	var marking: Dictionary = _marking_at(point)
+	if not marking.is_empty():
+		return _edit_marking(doc.circuit.get_component(marking["component"]), marking["kind"], marking["index"])
 	var hit: CircuitComponent = doc.component_at(point)
 	if hit != null:
 		var kind: String = "designation"
@@ -888,6 +956,21 @@ func edit_marking_at(point: Vector2) -> bool:
 	if w >= 0:
 		return _open_inline({"wire": w}, doc.get_route(w).number, pixel)
 	return false
+
+
+## The marking written at grid point [param point]:
+## {"component": id, "kind": ..., "index": ...}, or {}.
+func _marking_at(point: Vector2) -> Dictionary:
+	var pixel: Vector2 = point * G
+	for c: CircuitComponent in document().circuit.get_components():
+		var symbol: SchematicSymbol = view.get_symbol(c.id)
+		if symbol == null:
+			continue
+		for m: Array in symbol.marking_rects:
+			var rect: Rect2 = (m[2] as Rect2).grow(2.0)
+			if rect.has_point(pixel - symbol.position):
+				return {"component": c.id, "kind": m[0], "index": m[1]}
+	return {}
 
 
 func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
@@ -989,6 +1072,22 @@ func _commit_inline(value: String) -> void:
 		hint_changed.emit(error)
 
 
+## Moves the selected marking, in steps of a tenth of a cell.
+func _drag_marking_to(delta: Vector2) -> void:
+	if not _marking_drag_recorded:
+		if delta.length() < 0.1:
+			return
+		_record()
+		_marking_drag_recorded = true
+	var offset: Vector2 = ((_marking_drag_offset + delta) * 10.0).round() / 10.0
+	var id: String = selected_marking["component"]
+	document().set_label_offset(id, SchematicSymbol.marking_key(selected_marking["kind"], selected_marking["index"]), offset)
+	var symbol: SchematicSymbol = view.get_symbol(id)
+	if symbol != null:
+		symbol.queue_redraw()
+	queue_redraw()
+
+
 ## Moves the dragged wire number, in steps of a tenth of a cell.
 func _drag_number_to(delta: Vector2) -> void:
 	if not _number_drag_recorded:
@@ -1064,12 +1163,15 @@ func _changed() -> void:
 	for id: String in selected_components.keys():
 		if not document().circuit.has_component_id(id):
 			selected_components.erase(id)
+	if not selected_marking.is_empty() and not document().circuit.has_component_id(selected_marking["component"]):
+		selected_marking = {}
 	view.rebuild()
 	_selection_updated()
 	edited.emit()
 
 
 func _clear_selection() -> void:
+	selected_marking = {}
 	selected_components.clear()
 	selected_wires.clear()
 	_selection_updated()
@@ -1183,6 +1285,15 @@ func _draw() -> void:
 			if w == _wire_drag and _wire_drag_recorded:
 				draw_polyline(_pixels(doc.wire_points(w)), Color(SELECTION_COLOR, 0.3), 10.0)
 			draw_polyline(_pixels(doc.wire_points(w)), SELECTION_COLOR, 4.0)
+	# The selected marking.
+	if not selected_marking.is_empty():
+		var symbol: SchematicSymbol = view.get_symbol(selected_marking["component"])
+		if symbol != null:
+			var r: Rect2 = symbol.marking_rect(selected_marking["kind"], selected_marking["index"])
+			if r.has_area():
+				var box: Rect2 = Rect2(symbol.position + r.position, r.size).grow(2.0)
+				draw_rect(box, Color(SELECTION_COLOR, 0.25 if _marking_drag_recorded else 0.15))
+				draw_rect(box, SELECTION_COLOR, false, 2.0 if _marking_drag_recorded else 1.5)
 	# Wire number being dragged, or under the mouse (it can be dragged).
 	var number: Vector2i = _number_drag if _number_drag.x >= 0 else (view.wire_number_at(_mouse_point) if tool == Tool.SELECT and not _dragging and _wire_drag < 0 else Vector2i(-1, -1))
 	if number.x >= 0:
