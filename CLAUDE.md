@@ -18,8 +18,8 @@
   Voltage colour goes on leads and conductors only; symbol bodies stay black, except coils.
   Symbols draw shapes through SchematicSymbol.aa_* helpers (antialiased with a one-pixel edge at
   any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
-  are drawn mirrored along their axis so the blade pivots on the left. Buttons and switches move
-  smoothly (ContactSymbol._shown); the push-button stem is dashed.
+  are drawn mirrored along their axis so the blade pivots on the left. Buttons, switches and breakers
+  move smoothly (_shown); the push-button stem is dashed; breaker releases turn with the blade.
 - Time relays (TimerRelay) are multifunction relays: functions F1-F12 (TimerRelay.Mode, codes as in
   real relays; F10-F12 use two times t1 = delay, t2 = delay2) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
   active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram
@@ -34,7 +34,9 @@
   a click highlights a marking, dragging moves it (Placement.labels, saved). Designations: no
   spaces or colons; only parts of one device share one (coil with its contacts, overload relay
   with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts
-- Terminals (TerminalBlock, "X1", free label) sit on wires; wire segments can be dragged; wire
+- Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead
+  (Placement.strips: terminal index -> label, drawn instead of the square; Delete on the selected
+  mark removes it); wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
   numbering tool or double click; the palette panel is resizable
 - Keep the simulation logic (solver) separate from scenes and UI:

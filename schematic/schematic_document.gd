@@ -441,6 +441,30 @@ func rotate_component(component_id: String, clockwise: bool = true) -> void:
 	_reroute_component(component_id)
 
 
+## Makes lead [param index] of a component end in a strip terminal labelled
+## [param label] (drawn instead of the terminal square); "" removes it.
+func set_strip_terminal(component_id: String, index: int, label: String) -> void:
+	var p: Placement = _placements[_id(component_id)]
+	if label.strip_edges().is_empty():
+		p.strips.erase(index)
+		p.labels.erase("strip:%d" % index)
+	else:
+		p.strips[index] = label.strip_edges()
+
+
+## Next free number for a strip terminal: one more than the highest number
+## among the terminals on wires and on leads.
+func next_strip_label() -> String:
+	var highest: int = 0
+	for c: CircuitComponent in circuit.get_components():
+		if c is TerminalBlock and (c as TerminalBlock).label.is_valid_int():
+			highest = maxi(highest, int((c as TerminalBlock).label))
+		for label: String in _placements[c.id].strips.values():
+			if label.is_valid_int():
+				highest = maxi(highest, int(label))
+	return str(highest + 1)
+
+
 ## Moves a marking of a component (see [member Placement.labels]) by
 ## [param offset] cells from its standard place.
 func set_label_offset(component_id: String, key: String, offset: Vector2) -> void:
@@ -861,6 +885,8 @@ func extract(ids: PackedStringArray) -> Dictionary:
 		d["mirrored"] = p.mirrored
 		if not p.labels.is_empty():
 			d["labels"] = p.labels_to_data()
+		if not p.strips.is_empty():
+			d["strips"] = p.strips_to_data()
 		components.append(d)
 		for key: String in c.get_terminal_keys():
 			keys[key] = true
@@ -926,6 +952,7 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 		var cell: Array = cd["cell"]
 		add(c, Vector2i(int(cell[0]), int(cell[1])) + offset, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
 		_placements[c.id].labels_from_data(cd.get("labels", {}))
+		_placements[c.id].strips_from_data(cd.get("strips", {}))
 		new_ids.append(c.id)
 	for wd: Dictionary in data.get("wires", []):
 		if not key_map.has(wd["a"]) or not key_map.has(wd["b"]):

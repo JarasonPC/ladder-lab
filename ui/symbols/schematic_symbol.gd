@@ -77,6 +77,7 @@ func _draw() -> void:
 	marking_rects.clear()
 	if show_labels:
 		_draw_labels()
+		_draw_strip_labels()
 	if has_fault():
 		draw_set_transform_matrix(unscale)
 		_draw_fault_marker(to_upright(Vector2(0.9 * G, 0.9 * G)))
@@ -215,7 +216,25 @@ func _draw_terminals() -> void:
 		var at: Vector2 = Vector2(cells[names[i]]) * G
 		var code: int = reach(i)
 		var fill: Color = SchematicTheme.TERMINAL_DEAD if code == REACH_NONE else SchematicTheme.reach_color(code)
-		aa_rect(Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), fill)
+		if placement.strips.has(i):
+			# A terminal of a terminal strip: a circle with a slash.
+			var line: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
+			aa_circle(at, TerminalBlockSymbol.RADIUS, SchematicTheme.BACKGROUND)
+			aa_arc(at, TerminalBlockSymbol.RADIUS, 0.0, TAU, 20, line, 1.6)
+			var d: float = TerminalBlockSymbol.RADIUS * 1.25
+			aa_line(at + Vector2(-d, d), at + Vector2(d, -d), line, 1.6)
+		else:
+			aa_rect(Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), fill)
+
+
+## Labels of the strip terminals on the leads, left of the lead.
+func _draw_strip_labels() -> void:
+	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
+	var names: PackedStringArray = component.get_terminal_names()
+	for i: int in placement.strips:
+		if i < names.size():
+			var at: Vector2 = Vector2(cells[names[i]]) * G
+			draw_label(placement.strips[i], at + Vector2(-0.55 * G, 0.0), SchematicTheme.TERMINAL_SIZE + 2, SchematicTheme.DESIGNATION, 0, ["strip", i])
 
 
 ## Draws designation and terminal numbers. Override to add more.
@@ -276,7 +295,9 @@ func _designation_anchor() -> Vector2:
 ## axis: left/right of it when the anchor is to the side, above/below otherwise.
 ## [param line] > 0 writes a further line: below the first one when the text is
 ## beside the symbol, further away from the symbol when it is above or below.
-func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Color, line: int = 0) -> void:
+## [param marking]: what the text marks ([kind, index]); found from the text
+## when not given.
+func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Color, line: int = 0, marking: Array = []) -> void:
 	var font: Font = AppTheme.schematic_font()
 	var anchor: Vector2 = SymbolGeometry.draw_transform(placement) * local_anchor
 	var axis_point: Vector2 = SymbolGeometry.draw_transform(placement) * Vector2(0.0, local_anchor.y)
@@ -296,7 +317,8 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 		pos.y += direction * line * line_height
 	# Markings the user dragged elsewhere; texts written with the
 	# designation (times, states, a lamp's label) move along with it.
-	var marking: Array = _marking_of(text)
+	if marking.is_empty():
+		marking = _marking_of(text)
 	if not marking.is_empty() and marking[0] == "designation":
 		_designation_anchor_drawn = local_anchor
 	if marking.is_empty() or marking[0] == "purpose":
@@ -312,9 +334,11 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 
 
 ## Key of a marking in [member Placement.labels]: "designation",
-## "terminal:<index>", "purpose" or "label".
+## "terminal:<index>", "strip:<index>", "purpose" or "label".
 static func marking_key(kind: String, index: int) -> String:
-	return "terminal:%d" % index if kind == "terminal" else kind
+	if kind == "terminal" or kind == "strip":
+		return "%s:%d" % [kind, index]
+	return kind
 
 
 ## What a written [param text] marks: [kind, index] (see [member

@@ -197,6 +197,13 @@ func redo() -> void:
 
 
 func delete_selection() -> void:
+	if not selected_marking.is_empty() and selected_marking["kind"] == "strip":
+		# Delete on a strip terminal removes just that terminal mark.
+		_record()
+		document().set_strip_terminal(selected_marking["component"], selected_marking["index"], "")
+		selected_marking = {}
+		_changed()
+		return
 	if selected_components.is_empty() and selected_wires.is_empty():
 		return
 	_record()
@@ -689,6 +696,17 @@ func _on_left_released(shift: bool) -> void:
 
 func _place_at(cell: Vector2i) -> void:
 	var doc: SchematicDocument = document()
+	if _template["type"] == "terminal":
+		# On a component's lead the terminal takes the place of its square.
+		var key: String = doc.terminal_at(Vector2(cell), 0.3)
+		var owner: CircuitComponent = doc.circuit.get_terminal_owner(key) if not key.is_empty() else null
+		if owner != null and not (owner is Junction or owner is TerminalBlock or owner is PowerSupply):
+			var index: int = Array(owner.get_terminal_keys()).find(key)
+			if not doc.get_placement(owner.id).strips.has(index):
+				_record()
+				doc.set_strip_terminal(owner.id, index, doc.next_strip_label())
+				_changed()
+			return
 	var data: Dictionary = _template.duplicate()
 	data["designation"] = _new_designation(data)
 	if ["contact", "changeover", "push_button", "latching_switch"].has(data["type"]):
@@ -984,6 +1002,8 @@ func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
 	match kind:
 		"terminal":
 			text = c.get_terminal_names()[index]
+		"strip":
+			text = document().get_placement(c.id).strips.get(index, "")
 		"purpose":
 			text = (c as Lamp).purpose
 		"label":
@@ -1049,6 +1069,12 @@ func _commit_inline(value: String) -> void:
 		return
 	var c: CircuitComponent = document().circuit.get_component(target.get("component", ""))
 	if c == null:
+		return
+	if target["kind"] == "strip":
+		if value != document().get_placement(c.id).strips.get(target["index"], "") and not value.is_empty():
+			_record()
+			document().set_strip_terminal(c.id, target["index"], value)
+			_changed()
 		return
 	var data: Dictionary = DocumentSerializer.component_to_dict(c)
 	match target["kind"]:

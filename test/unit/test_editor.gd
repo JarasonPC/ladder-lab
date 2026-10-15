@@ -415,3 +415,20 @@ func test_renaming_a_coil_takes_its_contacts_along() -> void:
 	assert_true(doc.circuit.has_component_id("KM7:1-2-3-4-5-6"), "and the main contacts")
 	editor.undo()
 	assert_true(editor.document().circuit.has_component_id("KM1:13-14"), "one undo step")
+
+
+func test_terminal_on_a_lead() -> void:
+	_place({"type": "lamp"}, Vector2i(10, 3))
+	_place({"type": "terminal"}, Vector2i(10, 6))
+	var doc: SchematicDocument = editor.document()
+	assert_eq(doc.get_placement("H1").strips, {1: "1"} as Dictionary[int, String], "X2 of the lamp ends in strip terminal 1")
+	assert_false(doc.circuit.get_components().any(func(c: CircuitComponent) -> bool: return c is TerminalBlock), "no separate terminal")
+	editor._inline_target = {"component": "H1", "kind": "strip", "index": 1}
+	editor._commit_inline("X3:7")
+	assert_eq(editor.document().get_placement("H1").strips[1], "X3:7", "renamed in place")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(editor.document()))
+	assert_eq(copy.get_placement("H1").strips[1], "X3:7", "saved")
+	editor.selected_marking = {"component": "H1", "kind": "strip", "index": 1}
+	editor.delete_selection()
+	assert_true(editor.document().circuit.has_component_id("H1"), "Delete removes the terminal, not the lamp")
+	assert_true(editor.document().get_placement("H1").strips.is_empty())
