@@ -27,11 +27,12 @@ func _draw_shape(color: Color, width: float) -> void:
 
 
 func _draw_labels() -> void:
-	draw_label(component.designation, Vector2(-1.8 * G, 1.5 * G), SchematicTheme.LABEL_SIZE, SchematicTheme.TEXT)
+	var anchor: Vector2 = Vector2(-1.8 * G, 1.5 * G)
+	draw_label(component.designation, anchor, SchematicTheme.LABEL_SIZE, SchematicTheme.TEXT)
 	draw_label("A1", Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label("A2", Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	if component is TimerRelay:
 		var timer: TimerRelay = component as TimerRelay
 		var remaining: float = timer.get_remaining()
 		var text: String = "%.1f / %.1f s" % [remaining, timer.delay] if remaining > 0.0 else "%.1f s" % timer.delay
-		draw_label(text, Vector2(-1.8 * G, 2.25 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT)
+		draw_label(text, anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)

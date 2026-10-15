@@ -76,7 +76,9 @@ func _designation_anchor() -> Vector2:
 
 ## Draws upright text at a local anchor. Text extends away from the symbol
 ## axis: left/right of it when the anchor is to the side, above/below otherwise.
-func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Color) -> void:
+## [param line] > 0 writes a further line: below the first one when the text is
+## beside the symbol, further away from the symbol when it is above or below.
+func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Color, line: int = 0) -> void:
 	var font: Font = ThemeDB.fallback_font
 	var anchor: Vector2 = SymbolGeometry.draw_transform(placement) * local_anchor
 	var axis_point: Vector2 = SymbolGeometry.draw_transform(placement) * Vector2(0.0, local_anchor.y)
@@ -89,6 +91,10 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 	else:
 		var top: float = anchor.y - size.y if away.y < 0.0 else anchor.y
 		pos = Vector2(anchor.x - size.x * 0.5, top + ascent)
+	if line > 0:
+		var line_height: float = font.get_height(font_size)
+		var direction: float = -1.0 if absf(away.x) < absf(away.y) and away.y < 0.0 else 1.0
+		pos.y += direction * line * line_height
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 

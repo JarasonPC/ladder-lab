@@ -88,8 +88,10 @@ func _build_ui() -> void:
 
 	var top: PanelContainer = PanelContainer.new()
 	root.add_child(top)
-	var bar: HBoxContainer = HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 6)
+	# Wraps onto a second row when the window (or a translation) is too narrow.
+	var bar: HFlowContainer = HFlowContainer.new()
+	bar.add_theme_constant_override("h_separation", 6)
+	bar.add_theme_constant_override("v_separation", 4)
 	top.add_child(bar)
 
 	var mode_group: ButtonGroup = ButtonGroup.new()
