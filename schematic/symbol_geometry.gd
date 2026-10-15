@@ -85,16 +85,44 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.3, -0.3, 0.6, 0.6)
 	if c is TerminalBlock:
 		return Rect2(-0.45, -0.45, 0.9, 0.9)
+	# The others fit what their symbol draws (with a little margin), so
+	# selection and drag highlights match the symbol.
 	if c is ChangeoverContact:
-		return Rect2(-1.0, 0.5, 2.6, 2.0)
+		var changeover_left: float = -1.55 if (c as ChangeoverContact).delayed else -0.85
+		return Rect2(changeover_left, 0.75, 1.2 - changeover_left, 1.4)
 	if _is_three_pole(c):
 		var poles: int = c.get_terminal_names().size() / 2
-		return Rect2(-1.0, 0.5, (poles - 1) * POLE_SPACING + 2.0, 2.0)
+		var span: float = (poles - 1) * POLE_SPACING
+		if c is MotorBreaker:
+			return Rect2(-1.15, 0.7, span + 1.45, 1.6)
+		if c is MainContacts:
+			return Rect2(-0.75, 0.75, span + 1.0, 1.4)
+		if c is ThreePoleFuse:
+			var fuse_left: float = -0.95 if (c as ThreePoleFuse).holder else -0.45
+			return Rect2(fuse_left, 0.55, span + 0.45 - fuse_left, 1.9)
+		return Rect2(-1.0, 0.5, span + 2.0, 2.0)
 	if c is ThreePhaseMotor:
 		var wide: bool = (c as ThreePhaseMotor).kind == ThreePhaseMotor.Kind.THREE_WINDINGS
 		return Rect2(-0.4, 0.5, 6.0 if wide else 4.8, 3.0)
+	if c is CircuitBreaker:
+		return Rect2(-1.15, 0.7, 1.45, 1.6)
+	if c is Fuse:
+		var left: float = -0.95 if (c as Fuse).holder else -0.45
+		return Rect2(left, 0.55, 0.45 - left, 1.9)
 	if c is SwitchingElement:
-		return Rect2(-1.6, 0.5, 2.4, 2.0)
+		var marked: bool = c is PushButton or c is LatchingSwitch or c is OverloadContact or (c is Contact and (c as Contact).delayed)
+		var contact_left: float = -1.55 if marked else -0.85
+		return Rect2(contact_left, 0.75, 1.05 - contact_left, 1.4)
+	if c is TimerRelay:
+		return Rect2(-1.55, 0.85, 2.4, 1.3)
+	if c is Coil:
+		return Rect2(-0.85, 0.85, 1.7, 1.3)
+	if c is Lamp:
+		return Rect2(-0.75, 0.75, 1.5, 1.5)
+	if c is Motor:
+		return Rect2(-0.85, 0.65, 1.7, 1.7)
+	if c is OverloadRelay:
+		return Rect2(-0.95, 0.55, 1.9, 1.9)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
 
 
