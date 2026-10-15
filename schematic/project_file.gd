@@ -18,7 +18,9 @@ const FORMAT: String = "ladder-lab"
 ## fuses and breakers of 1-4 poles saved as "fuse" / "breaker" with "poles"
 ## (older "fuse3" / "breaker3" still load), main contacts with "poles".
 ## 10: control boxes of the operator panel (missing before: no boxes).
-const VERSION: int = 10
+## 11: DC supply points + / - (conductor "+" / "-"), run-down and DC
+## braking times of three-phase motors (missing before: defaults).
+const VERSION: int = 11
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

@@ -21,7 +21,8 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 
 	for c: CircuitComponent in circuit.get_components():
 		if c is PowerSupply:
-			if (c as PowerSupply).conductor == PowerSupply.Conductor.L:
+			var conductor: PowerSupply.Conductor = (c as PowerSupply).conductor
+			if conductor == PowerSupply.Conductor.L or conductor == PowerSupply.Conductor.DC_PLUS:
 				has_l = true
 			else:
 				has_n = true

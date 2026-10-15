@@ -34,14 +34,17 @@ const REACH_L3: int = 3
 const REACH_N: int = 4
 ## Several supplies (a short circuit).
 const REACH_SEVERAL: int = 5
+## Poles of the DC source.
+const REACH_DC_PLUS: int = 6
+const REACH_DC_MINUS: int = 7
 
 ## Reach code of every terminal reached by a supply (see REACH_*).
 var terminal_reach: Dictionary[String, int] = {}
 ## Reach code per wire, in the order of [method Circuit.get_wires].
 var wire_reach: PackedByteArray = PackedByteArray()
-## Terminal keys joined to an N supply (and not to L): N reach.
+## Terminal keys joined to an N or DC - supply (and not to L): return conductor reach.
 var neutral_terminals: PackedStringArray = PackedStringArray()
-## Indices into [method Circuit.get_wires] of the wires joined to N (and not to L).
+## Indices into [method Circuit.get_wires] of the wires joined to N or DC - (and not to L).
 var neutral_wires: PackedInt32Array = PackedInt32Array()
 ## Indices into [method Circuit.get_wires] of the wires that carry current.
 ## During a short these are the wires carrying the fault current.
@@ -65,7 +68,16 @@ static func reach_code(mask: int) -> int:
 			return REACH_L3
 		PowerSupply.BIT_N:
 			return REACH_N
+		PowerSupply.BIT_DC_PLUS:
+			return REACH_DC_PLUS
+		PowerSupply.BIT_DC_MINUS:
+			return REACH_DC_MINUS
 	return REACH_SEVERAL
+
+
+## True for the return conductors N and -: drawn like N, never "live".
+static func is_return(code: int) -> bool:
+	return code == REACH_N or code == REACH_DC_MINUS
 
 
 func is_oscillating() -> bool:

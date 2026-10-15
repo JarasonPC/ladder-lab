@@ -924,3 +924,35 @@ msgstr ""
 
 msgid "Remove"
 msgstr ""
+
+msgid "DC braking 3~"
+msgstr ""
+
+#, c-format
+msgid "%s: DC braking"
+msgstr ""
+
+#, c-format
+msgid "%s switched off, runs down"
+msgstr ""
+
+msgid "+ supply (DC)"
+msgstr ""
+
+msgid "- supply (DC)"
+msgstr ""
+
+msgid "+ (DC)"
+msgstr ""
+
+msgid "- (DC)"
+msgstr ""
+
+msgid "Run-down time (s)"
+msgstr ""
+
+msgid "DC braking time (s)"
+msgstr ""
+
+msgid "DC brake"
+msgstr ""

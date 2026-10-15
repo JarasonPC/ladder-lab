@@ -57,7 +57,7 @@ func show_component(component: CircuitComponent) -> void:
 		_add(type_select)
 	match kind:
 		"supply":
-			_choice(tr("Conductor"), "conductor", ["L", "L2", "L3", "N"], ["L / L1", "L2", "L3", "N"])
+			_choice(tr("Conductor"), "conductor", Array(DocumentSerializer.CONDUCTORS), ["L / L1", "N", "L2", "L3", tr("+ (DC)"), tr("- (DC)")])
 		"junction":
 			_note(tr("Wire junction"), "MutedLabel")
 		"push_button", "latching_switch", "limit_switch", "contact":
@@ -95,6 +95,8 @@ func show_component(component: CircuitComponent) -> void:
 			_check(tr("Draw as terminal box"), "terminal_box")
 			if _data.has("connection"):
 				_choice(tr("Bridges"), "connection", ["star", "delta"], [tr("Star (Y)"), tr("Delta (Δ)")])
+			_number(tr("Run-down time (s)"), "coast_time", 0.0, 3600.0, 0.1)
+			_number(tr("DC braking time (s)"), "brake_time", 0.0, 3600.0, 0.1)
 	if not (component is Junction):
 		_orientation()
 	_group = null

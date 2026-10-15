@@ -10,7 +10,7 @@ const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
 const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
-const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3"]
+const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-"]
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -155,6 +155,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["terminal_box"] = motor.terminal_box
 		if motor.kind == ThreePhaseMotor.Kind.STANDARD:
 			d["connection"] = "delta" if motor.delta_bridges else "star"
+		d["coast_time"] = motor.coast_time
+		d["brake_time"] = motor.brake_time
 	elif c is SwitchingElement:
 		var s: SwitchingElement = c as SwitchingElement
 		d["contact"] = "NO" if s.contact_type == NO else "NC"
@@ -278,6 +280,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			var motor3: ThreePhaseMotor = ThreePhaseMotor.new(designation, motor_kind as ThreePhaseMotor.Kind)
 			motor3.terminal_box = bool(d.get("terminal_box", false))
 			motor3.delta_bridges = d.get("connection", "star") == "delta"
+			motor3.coast_time = _seconds_or(d, "coast_time", ThreePhaseMotor.DEFAULT_COAST_TIME, 3600.0)
+			motor3.brake_time = _seconds_or(d, "brake_time", ThreePhaseMotor.DEFAULT_BRAKE_TIME, 3600.0)
 			return motor3
 		"overload_contact":
 			return OverloadContact.new(designation, contact)

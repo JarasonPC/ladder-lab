@@ -56,7 +56,9 @@
 
 - Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
-  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N
+  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N,
+  DC supplies + and - (a separate source: loads work between two conductors of the same source;
+  AC joined to DC is a short; the - pole is drawn like N)
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2
@@ -68,6 +70,10 @@
 ## Layout
 
 - `sim/` solver (Circuit, Simulator, StepResult, UnionFind, Armature, TraceRecorder, components/) - no nodes
+- 3~ motors: + and - across a winding = DC_BRAKING (with a phase = MISWIRED); the shaft
+  (ThreePhaseMotor.shaft, simulation state) runs down in coast_time when switched off, in brake_time
+  with DC braking; braking force follows the rotor field (rotor_flux, decays with ROTOR_TIME_CONSTANT
+  after the AC cut), so DC applied at once brakes best
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)

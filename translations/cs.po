@@ -927,3 +927,35 @@ msgstr "Posunout o místo dál"
 
 msgid "Remove"
 msgstr "Odebrat"
+
+msgid "DC braking 3~"
+msgstr "Brzdění stejnosměrným proudem 3~"
+
+#, c-format
+msgid "%s: DC braking"
+msgstr "%s: brzdění stejnosměrným proudem"
+
+#, c-format
+msgid "%s switched off, runs down"
+msgstr "%s vypnut, dobíhá"
+
+msgid "+ supply (DC)"
+msgstr "Přívod + (DC)"
+
+msgid "- supply (DC)"
+msgstr "Přívod - (DC)"
+
+msgid "+ (DC)"
+msgstr "+ (DC)"
+
+msgid "- (DC)"
+msgstr "- (DC)"
+
+msgid "Run-down time (s)"
+msgstr "Doba doběhu (s)"
+
+msgid "DC braking time (s)"
+msgstr "Doba brzdění DC (s)"
+
+msgid "DC brake"
+msgstr "brzdí DC"

@@ -1,11 +1,13 @@
 class_name Simulator
 extends RefCounted
 ## Solves a [Circuit]: which loads have power and which contacts are operated.
-## Each supply is a phase (L or L1, L2, L3) or N. Wires and closed switching
-## paths join nets into groups; a group reached by two different supplies is a
-## short circuit. A two-terminal load has power when its terminals are reached
-## by two different supplies (phase and N, or two phases). A
-## [ThreePhaseMotor] runs when its windings get all three phases.
+## Each supply is a phase (L or L1, L2, L3), N, or a pole of the DC source (+,
+## -). Wires and closed switching paths join nets into groups; a group reached
+## by two different supplies is a short circuit. A two-terminal load has power
+## when its terminals are reached by two different supplies of the same source
+## (phase and N, two phases, or + and -). A [ThreePhaseMotor] runs when its
+## windings get all three phases and is braked when DC flows through them;
+## switched off, its shaft runs down over time.
 ##
 ## [enum Mode] IDEAL: relays switch instantly. Each [method step] advances the
 ## timers, then settles: the coils that should change are found and the first
@@ -113,6 +115,7 @@ func step(delta: float = 0.0) -> StepResult:
 				coil.advance(delta)
 				coil.snap()
 			_advance_overloads(delta, result)
+			_advance_motors(delta, result)
 		time += maxf(delta, 0.0)
 		last_result = _settle(result)
 		_record_trace()
@@ -265,13 +268,14 @@ func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
 		var new_state: ThreePhaseMotor.State = _motor_states[m] as ThreePhaseMotor.State
+		var was_running: bool = motor.is_running()
 		if new_state != motor.state:
 			if new_state == ThreePhaseMotor.State.PHASE_LOSS:
 				_log(result, "%s: phase loss", [motor.designation])
 			elif new_state == ThreePhaseMotor.State.MISWIRED:
 				_log(result, "%s: windings wrongly connected", [motor.designation])
-			elif motor.is_running() and new_state == ThreePhaseMotor.State.STOPPED:
-				_log(result, "%s stopped", [motor.designation])
+			elif new_state == ThreePhaseMotor.State.DC_BRAKING:
+				_log(result, "%s: DC braking", [motor.designation])
 			elif new_state == ThreePhaseMotor.State.STAR:
 				_log(result, "%s runs in star", [motor.designation])
 			elif new_state == ThreePhaseMotor.State.DELTA:
@@ -286,6 +290,12 @@ func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
 		motor.state = new_state
 		motor.direction = _motor_directions[m] as ThreePhaseMotor.Direction
 		motor.speed = _motor_speeds[m]
+		# Running: the shaft is at full speed; switched off it runs down (at
+		# once when its run-down time is 0).
+		if motor.advance_shaft(0.0):
+			_log(result, "%s stopped", [motor.designation])
+		elif was_running and new_state == ThreePhaseMotor.State.STOPPED and motor.is_turning():
+			_log(result, "%s switched off, runs down", [motor.designation])
 	for r: int in _overload_relays.size():
 		_overload_relays[r].motor_overcurrent = _relay_overcurrent[r] == 1
 
@@ -359,6 +369,8 @@ func _step_realistic(delta: float) -> StepResult:
 			dt = minf(dt, actuator.time_to_next_event())
 		for relay: OverloadRelay in _overload_relays:
 			dt = minf(dt, relay.time_to_trip())
+		for motor: ThreePhaseMotor in _motors:
+			dt = minf(dt, motor.time_to_standstill())
 		dt = maxf(dt, 0.0)
 		_advance_armatures(dt, result)
 		time += dt
@@ -405,6 +417,7 @@ func _advance_armatures(dt: float, result: StepResult) -> void:
 	for actuator: Armature in _actuators:
 		actuator.advance(dt)
 	_advance_overloads(dt, result)
+	_advance_motors(dt, result)
 	for i: int in _coil_indices:
 		var coil: Coil = _loads[i] as Coil
 		var was_in: bool = coil.armature.position >= 1.0
@@ -425,6 +438,14 @@ func _advance_overloads(dt: float, result: StepResult) -> void:
 	for relay: OverloadRelay in _overload_relays:
 		if relay.advance(dt):
 			_log(result, "%s tripped (overload)", [relay.designation], time + dt)
+
+
+## Lets the shafts of switched-off motors run down for [param dt] seconds.
+func _advance_motors(dt: float, result: StepResult) -> void:
+	for motor: ThreePhaseMotor in _motors:
+		var stops_in: float = motor.time_to_standstill()
+		if motor.advance_shaft(dt):
+			_log(result, "%s stopped", [motor.designation], time + minf(stops_in, dt))
 
 
 ## [method _evaluate], but first lets every fuse or breaker that carries the
@@ -492,10 +513,12 @@ func _record_trace() -> void:
 				trace.record(load.designation + "/output", time, (load as TimerRelay).output_armature.position, true)
 	for motor: ThreePhaseMotor in _motors:
 		trace.record(motor.designation, time, 1.0 if motor.is_running() else 0.0)
+		trace.record(motor.designation + "/shaft", time, motor.shaft, true)
 
 
 ## Returns, per load, 1 if its terminals are reached by two different supplies
-## (phase and N, or two phases) through closed switching paths, and works out
+## of the same source (phase and N, two phases, or + and -) through closed
+## switching paths, and works out
 ## the motors and overload relays (applied by [method _apply_outputs]). Sets
 ## [member _short]; during a short everything is without power.
 func _evaluate() -> PackedByteArray:
@@ -519,7 +542,7 @@ func _evaluate() -> PackedByteArray:
 	for i: int in _loads.size():
 		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
 		var b: int = masks.get(uf.find(_load_nets[2 * i + 1]), 0)
-		if _is_single_source(a) and _is_single_source(b) and a != b:
+		if _powers(a, b):
 			result[i] = 1
 		if _loads[i] is Coil and (_loads[i] as Coil).fault == Coil.Fault.OPEN:
 			# A broken winding has voltage but draws no current.
@@ -527,10 +550,19 @@ func _evaluate() -> PackedByteArray:
 		if _control_nets.has(i):
 			# Control input S: pressed when it has voltage against A2 (bit 1).
 			var s: int = masks.get(uf.find(_control_nets[i]), 0)
-			if _is_single_source(s) and _is_single_source(b) and s != b:
+			if _powers(s, b):
 				result[i] |= 2
 	_evaluate_motors(uf, masks)
 	return result
+
+
+## True when supply masks [param a] and [param b] give voltage: one supply
+## each, different, of the same source (AC or DC).
+static func _powers(a: int, b: int) -> bool:
+	if not (_is_single_source(a) and _is_single_source(b)) or a == b:
+		return false
+	var ac: int = PowerSupply.AC_BITS
+	return ((a & ac) != 0) == ((b & ac) != 0)
 
 
 func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
@@ -541,16 +573,28 @@ func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 		var motor: ThreePhaseMotor = _motors[m]
 		var phases: PackedInt32Array = PackedInt32Array()
 		var roots: PackedInt32Array = PackedInt32Array()
+		# DC on each winding terminal: 1 for the + pole, -1 for the - pole.
+		var polarity: PackedInt32Array = PackedInt32Array()
+		var any_phase: bool = false
+		var any_dc: bool = false
 		for t: int in MOTOR_TERMINALS:
 			var net: int = _motor_nets[MOTOR_TERMINALS * m + t]
 			roots.append(uf.find(net) if net >= 0 else -1)
-			phases.append(_phase_of(masks.get(roots[t], 0)) if net >= 0 else 0)
+			var mask: int = masks.get(roots[t], 0) if net >= 0 else 0
+			phases.append(_phase_of(mask))
+			polarity.append(1 if mask == PowerSupply.BIT_DC_PLUS else (-1 if mask == PowerSupply.BIT_DC_MINUS else 0))
+			any_phase = any_phase or phases[t] != 0
+			any_dc = any_dc or polarity[t] != 0
 		# For each group of three terminals: joined in a point with no phase on it?
 		var star_points: Array[bool] = []
 		for g: int in 3:
 			var root: int = roots[3 * g]
 			star_points.append(root >= 0 and root == roots[3 * g + 1] and root == roots[3 * g + 2] and (masks.get(root, 0) & PHASE_BITS) == 0)
 		var outcome: Array = ThreePhaseMotor.evaluate(motor.kind, phases, star_points)
+		if any_dc and any_phase:
+			outcome = [ThreePhaseMotor.State.MISWIRED, ThreePhaseMotor.Direction.NONE, 0]
+		elif any_dc and ThreePhaseMotor.carries_dc(motor.kind, polarity, roots):
+			outcome = [ThreePhaseMotor.State.DC_BRAKING, ThreePhaseMotor.Direction.NONE, 0]
 		_motor_states[m] = outcome[0]
 		_motor_directions[m] = outcome[1]
 		_motor_speeds[m] = outcome[2]
@@ -688,7 +732,7 @@ func _find_live_parts(result: StepResult) -> void:
 		if code == 0:
 			continue
 		result.terminal_reach[key] = code
-		if code == StepResult.REACH_N:
+		if StepResult.is_return(code):
 			result.neutral_terminals.append(key)
 		else:
 			result.live_terminals.append(key)
@@ -698,9 +742,9 @@ func _find_live_parts(result: StepResult) -> void:
 	for i: int in wires.size():
 		var code_a: int = code_of_root.get(uf.find(_net_of_key[wires[i][0]]), 0)
 		var code_b: int = code_of_root.get(uf.find(_net_of_key[wires[i][1]]), 0)
-		var code: int = code_a if code_a != 0 and code_a != StepResult.REACH_N else (code_b if code_b != 0 else code_a)
+		var code: int = code_a if code_a != 0 and not StepResult.is_return(code_a) else (code_b if code_b != 0 else code_a)
 		result.wire_reach[i] = code
-		if code == StepResult.REACH_N:
+		if StepResult.is_return(code):
 			result.neutral_wires.append(i)
 		elif code != 0:
 			result.live_wires.append(i)

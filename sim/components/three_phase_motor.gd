@@ -12,10 +12,30 @@ extends CircuitComponent
 ## loss (hums, overheats); feeding two speeds at once or a wrong connection is
 ## MISWIRED (overheats too). The last terminal is PE (protective earth of the
 ## frame); it takes no part in the evaluation.
+##
+## DC braking: + and - of the DC source on two terminals joined by a
+## winding (inside the motor or through the outer wiring) make it DC_BRAKING;
+## DC together with a phase is MISWIRED. The shaft does not stop at once when
+## the motor is switched off: it runs down in [member coast_time] from full
+## speed, or in [member brake_time] while it is braked.
+##
+## Braking needs the rotor field: [member rotor_flux] is full while the motor
+## runs and dies away with [constant ROTOR_TIME_CONSTANT] once it is switched
+## off. DC applied at once meets the remaining field and brakes fully; applied
+## later, the braking force builds up again only with the same time constant,
+## so the motor stops later.
 
 enum Kind { STANDARD, STAR_DELTA, DAHLANDER, TWO_WINDINGS, THREE_WINDINGS }
-enum State { STOPPED, RUNNING, STAR, DELTA, PHASE_LOSS, MISWIRED }
+enum State { STOPPED, RUNNING, STAR, DELTA, PHASE_LOSS, MISWIRED, DC_BRAKING }
 enum Direction { NONE, CLOCKWISE, COUNTERCLOCKWISE }
+
+const DEFAULT_COAST_TIME: float = 5.0
+const DEFAULT_BRAKE_TIME: float = 1.0
+## Below this shaft speed the motor counts as stopped.
+const STANDSTILL: float = 1e-6
+## Seconds in which the rotor field falls to 37 % after switching off (and
+## builds up again under DC braking); 100-500 ms in common motors.
+const ROTOR_TIME_CONSTANT: float = 0.2
 
 var kind: Kind
 var state: State = State.STOPPED
@@ -29,6 +49,17 @@ var overloaded: bool = false
 var terminal_box: bool = false
 ## Bridges on the terminal board: delta (true) or star (false); drawing only.
 var delta_bridges: bool = false
+## Seconds the shaft takes to run down from full speed when switched off.
+var coast_time: float = DEFAULT_COAST_TIME
+## Seconds the shaft takes to stop from full speed with DC braking.
+var brake_time: float = DEFAULT_BRAKE_TIME
+## Shaft speed as a fraction of the running speed, 0 at standstill
+## (simulation state, never saved).
+var shaft: float = 0.0
+## Direction the shaft turns in while it runs down.
+var shaft_direction: Direction = Direction.NONE
+## Rotor field, 1 while running (simulation state, never saved).
+var rotor_flux: float = 0.0
 
 
 func _init(p_designation: String, p_kind: Kind = Kind.STANDARD) -> void:
@@ -68,6 +99,74 @@ func speed_count() -> int:
 
 func is_running() -> bool:
 	return state == State.RUNNING or state == State.STAR or state == State.DELTA
+
+
+## The shaft turns: the motor runs or has not run down yet.
+func is_turning() -> bool:
+	return shaft > 0.0
+
+
+## Seconds until the shaft stands still while it runs down (switched off or
+## braked); INF while it is driven or stands still.
+func time_to_standstill() -> float:
+	if is_running() or shaft <= 0.0:
+		return INF
+	if _stops_at_once():
+		return 0.0
+	if state != State.DC_BRAKING:
+		return shaft * coast_time
+	# The slowdown grows with time; find where it reaches the shaft speed
+	# (the upper end, so advancing by the result surely stops the shaft).
+	var low: float = 0.0
+	var high: float = (shaft + _extra_braking() * (1.0 - rotor_flux) * ROTOR_TIME_CONSTANT) * brake_time
+	for i: int in 60:
+		var mid: float = (low + high) * 0.5
+		if _slowdown(mid) >= shaft:
+			high = mid
+		else:
+			low = mid
+	return high
+
+
+## Moves the shaft on by [param dt] seconds in the present state: full speed
+## while running, else slowing down. Returns true when it came to a standstill.
+func advance_shaft(dt: float) -> bool:
+	if is_running():
+		shaft = 1.0
+		shaft_direction = direction
+		rotor_flux = 1.0
+		return false
+	var turning: bool = shaft > 0.0
+	if turning:
+		shaft = 0.0 if _stops_at_once() else shaft - _slowdown(dt)
+	# The rotor field dies away, or builds up again under DC.
+	var fade: float = exp(-dt / ROTOR_TIME_CONSTANT)
+	rotor_flux = 1.0 - (1.0 - rotor_flux) * fade if state == State.DC_BRAKING else rotor_flux * fade
+	if turning and shaft <= STANDSTILL:
+		shaft = 0.0
+		shaft_direction = Direction.NONE
+		return true
+	return false
+
+
+func _stops_at_once() -> bool:
+	return coast_time <= 0.0 or (state == State.DC_BRAKING and brake_time <= 0.0)
+
+
+## Braking beyond running down freely, per second at full rotor field.
+func _extra_braking() -> float:
+	return maxf(1.0 / brake_time - 1.0 / coast_time, 0.0)
+
+
+## Drop of the shaft speed over the next [param dt] seconds: running down
+## freely, plus braking in proportion to the rotor field while DC flows.
+func _slowdown(dt: float) -> float:
+	var drop: float = dt / coast_time
+	if state == State.DC_BRAKING:
+		# Integral of the rotor field 1 - (1 - flux) * e^(-t / T) over dt.
+		var field: float = dt - (1.0 - rotor_flux) * ROTOR_TIME_CONSTANT * (1.0 - exp(-dt / ROTOR_TIME_CONSTANT))
+		drop += _extra_braking() * field
+	return drop
 
 
 ## Draws more current than it should: overloaded, missing a phase or miswired.
@@ -159,6 +258,44 @@ static func _evaluate_windings(phases: PackedInt32Array, windings: int) -> Array
 	if lost:
 		return [State.MISWIRED if running == 1 else State.PHASE_LOSS, Direction.NONE, 0]
 	return result
+
+
+## True when DC flows through the windings: a terminal on + ([param polarity]
+## 1) and one on - (-1) are joined by a winding or a chain of them, the
+## terminals with the same [param roots] (group of nets) being joined outside.
+static func carries_dc(motor_kind: Kind, polarity: PackedInt32Array, roots: PackedInt32Array) -> bool:
+	var count: int = polarity.size()
+	var uf: UnionFind = UnionFind.new(count)
+	for group: PackedInt32Array in winding_groups(motor_kind):
+		for i: int in range(1, group.size()):
+			if group[i] < count:
+				uf.union(group[0], group[i])
+	for i: int in count:
+		for j: int in range(i + 1, count):
+			if roots[i] >= 0 and roots[i] == roots[j]:
+				uf.union(i, j)
+	for i: int in count:
+		for j: int in count:
+			if polarity[i] == 1 and polarity[j] == -1 and uf.find(i) == uf.find(j):
+				return true
+	return false
+
+
+## Winding terminals joined inside the motor, as groups of terminal indices:
+## the star or delta of a standard motor and of each separate winding, the
+## three windings U1-U2, V1-V2, W1-W2 of a star/delta motor, all six
+## terminals of a Dahlander motor.
+static func winding_groups(motor_kind: Kind) -> Array[PackedInt32Array]:
+	match motor_kind:
+		Kind.STAR_DELTA:
+			return [PackedInt32Array([0, 3]), PackedInt32Array([1, 4]), PackedInt32Array([2, 5])]
+		Kind.DAHLANDER:
+			return [PackedInt32Array([0, 1, 2, 3, 4, 5])]
+		Kind.TWO_WINDINGS:
+			return [PackedInt32Array([0, 1, 2]), PackedInt32Array([3, 4, 5])]
+		Kind.THREE_WINDINGS:
+			return [PackedInt32Array([0, 1, 2]), PackedInt32Array([3, 4, 5]), PackedInt32Array([6, 7, 8])]
+	return [PackedInt32Array([0, 1, 2])]
 
 
 static func _distinct(group: PackedInt32Array) -> int:
