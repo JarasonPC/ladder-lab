@@ -383,19 +383,19 @@ static func _control_head(doc: SchematicDocument, x: int, fuse: String, overload
 ## [param button_interlock] each start button also has an NC block 11-12 in
 ## the other branch (as in the guide). [param feed] is the terminal feeding STOP.
 static func _two_way_control(doc: SchematicDocument, x: int, top: int, feed: String, a: String, b: String, n_row: int, stop: String, start_a: String, start_b: String, button_interlock: bool) -> void:
-	var xb: int = x + 7
+	var xb: int = x + 8
 	doc.add(PushButton.new(stop, NC), Vector2i(x, top))
 	doc.connect_terminals(feed, stop + ":11")
 	var row: int = top + 5
 	doc.add(PushButton.new(start_a, NO), Vector2i(x, row))
-	doc.add(Contact.new(a, NO, 1), Vector2i(x + 3, row))
+	doc.add(Contact.new(a, NO, 1), Vector2i(x + 4, row))
 	doc.add(PushButton.new(start_b, NO), Vector2i(xb, row))
-	doc.add(Contact.new(b, NO, 1), Vector2i(xb + 3, row))
+	doc.add(Contact.new(b, NO, 1), Vector2i(xb + 4, row))
 	var node: String = stop + ":12"
 	doc.connect_terminals(node, start_a + ":13")
-	doc.connect_terminals(node, a + ":13", _c([Vector2i(x, row - 1), Vector2i(x + 3, row - 1)]))
+	doc.connect_terminals(node, a + ":13", _c([Vector2i(x, row - 1), Vector2i(x + 4, row - 1)]))
 	doc.connect_terminals(node, start_b + ":13", _c([Vector2i(x, row - 1), Vector2i(xb, row - 1)]))
-	doc.connect_terminals(node, b + ":13", _c([Vector2i(x, row - 1), Vector2i(xb + 3, row - 1)]))
+	doc.connect_terminals(node, b + ":13", _c([Vector2i(x, row - 1), Vector2i(xb + 4, row - 1)]))
 	doc.connect_terminals(start_a + ":14", a + ":14")
 	doc.connect_terminals(start_b + ":14", b + ":14")
 	var below_a: String = start_a + ":14"
@@ -442,12 +442,12 @@ static func direct_on_line() -> SchematicDocument:
 	var feed: String = _control_head(doc, x, "F3", ["F2"])
 	doc.add(PushButton.new("S0", NC), Vector2i(x, 12))
 	doc.add(PushButton.new("S1", NO), Vector2i(x, 17))
-	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 3, 17))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 4, 17))
 	doc.add(Coil.new("KM1"), Vector2i(x, 22))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(x - 3, 27))
 	doc.connect_terminals(feed, "S0:11")
 	doc.connect_terminals("S0:12", "S1:13")
-	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(x, 16), Vector2i(x + 3, 16)]))
+	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(x, 16), Vector2i(x + 4, 16)]))
 	doc.connect_terminals("S1:14", "KM1:14")
 	doc.connect_terminals("S1:14", "KM1:A1")
 	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(x, 27)]))
@@ -578,25 +578,25 @@ static func dahlander() -> SchematicDocument:
 	_star_bridge(doc, "KM3")
 
 	var x: int = 32
-	var xb: int = x + 7
+	var xb: int = x + 8
 	var feed: String = _control_head(doc, x, "F4", ["F2", "F3"])
 	doc.add(PushButton.new("S0", NC), Vector2i(x, 17))
 	doc.add(PushButton.new("S1", NO), Vector2i(x, 22))
-	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 3, 22))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 4, 22))
 	doc.add(Contact.new("KM3", NC, 2), Vector2i(x, 27))
 	doc.add(Coil.new("KM1"), Vector2i(x, 32))
 	doc.add(PushButton.new("S2", NO), Vector2i(xb, 22))
-	doc.add(Contact.new("KM2", NO, 1), Vector2i(xb + 3, 22))
+	doc.add(Contact.new("KM2", NO, 1), Vector2i(xb + 4, 22))
 	doc.add(Contact.new("KM1", NC, 2), Vector2i(xb, 27))
 	doc.add(Coil.new("KM3"), Vector2i(xb, 32))
-	doc.add(Contact.new("KM3", NO, 1), Vector2i(xb + 7, 27))
-	doc.add(Coil.new("KM2"), Vector2i(xb + 7, 32))
+	doc.add(Contact.new("KM3", NO, 1), Vector2i(xb + 8, 27))
+	doc.add(Coil.new("KM2"), Vector2i(xb + 8, 32))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(x - 3, 38))
 	doc.connect_terminals(feed, "S0:11")
 	doc.connect_terminals("S0:12", "S1:13")
-	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(x, 21), Vector2i(x + 3, 21)]))
+	doc.connect_terminals("S0:12", "KM1:13", _c([Vector2i(x, 21), Vector2i(x + 4, 21)]))
 	doc.connect_terminals("S0:12", "S2:13", _c([Vector2i(x, 21), Vector2i(xb, 21)]))
-	doc.connect_terminals("S0:12", "KM2:13", _c([Vector2i(x, 21), Vector2i(xb + 3, 21)]))
+	doc.connect_terminals("S0:12", "KM2:13", _c([Vector2i(x, 21), Vector2i(xb + 4, 21)]))
 	doc.connect_terminals("S1:14", "KM1:14")
 	doc.connect_terminals("S1:14", "KM3:21")
 	doc.connect_terminals("KM3:22", "KM1:A1")
@@ -605,9 +605,9 @@ static func dahlander() -> SchematicDocument:
 	doc.connect_terminals("S2:14", "KM1:21")
 	doc.connect_terminals("KM1:22", "KM3:A1")
 	doc.connect_terminals("KM3:A2", "N", _c([Vector2i(xb, 38), Vector2i(x, 38)]))
-	doc.connect_terminals("KM2:14", "KM3:13", _c([Vector2i(xb + 3, 26), Vector2i(xb + 7, 26)]))
+	doc.connect_terminals("KM2:14", "KM3:13", _c([Vector2i(xb + 4, 26), Vector2i(xb + 8, 26)]))
 	doc.connect_terminals("KM3:14", "KM2:A1")
-	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(xb + 7, 38), Vector2i(x, 38)]))
+	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(xb + 8, 38), Vector2i(x, 38)]))
 	return doc
 
 
