@@ -7,6 +7,28 @@ msgstr ""
 "Content-Transfer-Encoding: 8-bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
 
+#, c-format
+msgid "Contact %s has no coil %s."
+msgstr "Kontakt %s nemá cívku %s."
+
+#, c-format
+msgid "Delayed contact %s belongs to %s, which is not a timer."
+msgstr "Zpožděný kontakt %s patří k %s, což není časové relé."
+
+#, c-format
+msgid "Coil %s has no contacts."
+msgstr "Cívka %s nemá žádné kontakty."
+
+#, c-format
+msgid "Terminal %s is not connected."
+msgstr "Svorka %s není připojena."
+
+msgid "The circuit has no L supply."
+msgstr "Obvod nemá přívod L."
+
+msgid "The circuit has no N supply."
+msgstr "Obvod nemá přívod N."
+
 msgid "Self-holding start/stop"
 msgstr "Samodržení start/stop"
 
@@ -21,6 +43,35 @@ msgstr "Samovypínání (kmitání)"
 
 msgid "Short circuit"
 msgstr "Zkrat"
+
+#, c-format
+msgid "Could not open %s."
+msgstr "Soubor %s nelze otevřít."
+
+#, c-format
+msgid "%s is not a LadderLab file."
+msgstr "%s není soubor LadderLab."
+
+#, c-format
+msgid "%s was saved by a newer version of LadderLab."
+msgstr "Soubor %s byl uložen novější verzí programu LadderLab."
+
+#, c-format
+msgid "%s is damaged and cannot be opened."
+msgstr "Soubor %s je poškozený a nelze jej otevřít."
+
+msgid "Check"
+msgstr "Kontrola"
+
+msgid "No problems found."
+msgstr "Nebyly nalezeny žádné problémy."
+
+#, c-format
+msgid "Check: %d problem"
+msgid_plural "Check: %d problems"
+msgstr[0] "Kontrola: %d problém"
+msgstr[1] "Kontrola: %d problémy"
+msgstr[2] "Kontrola: %d problémů"
 
 msgid "L supply"
 msgstr "Přívod L"
@@ -75,6 +126,9 @@ msgstr "Vlastnosti"
 
 msgid "Select one component to edit it."
 msgstr "Pro úpravu vyberte jeden prvek."
+
+msgid "Type"
+msgstr "Typ"
 
 msgid "Conductor"
 msgstr "Vodič"
@@ -132,14 +186,41 @@ msgstr "Označení nesmí být prázdné."
 msgid "%s is already used in this circuit."
 msgstr "Označení %s je v tomto obvodu již použito."
 
+msgid "Change to"
+msgstr "Změnit na"
+
+msgid "Rotate"
+msgstr "Otočit"
+
+msgid "Mirror"
+msgstr "Zrcadlit"
+
+msgid "Cut"
+msgstr "Vyjmout"
+
+msgid "Copy"
+msgstr "Kopírovat"
+
+msgid "Paste"
+msgstr "Vložit"
+
+msgid "Delete"
+msgstr "Smazat"
+
+msgid "Select all"
+msgstr "Vybrat vše"
+
 msgid "Click to place. R rotates, F mirrors. Right click or Esc stops placing."
 msgstr "Kliknutím prvek umístíte. R otočí, F zrcadlí. Pravým tlačítkem myši nebo Esc vkládání ukončíte."
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
 msgstr "Kliknutím do prázdných polí přidáte lomy, kreslení ukončíte na svorce nebo vodiči. Backspace odebere lom, Esc zruší."
 
-msgid "Click a terminal to draw a wire. Drag to move. R rotates, F mirrors, Del deletes, Ctrl+Z undoes."
-msgstr "Kliknutím na svorku nakreslíte vodič. Tažením přesunete. R otočí, F zrcadlí, Del smaže, Ctrl+Z vrátí zpět."
+msgid "Click a terminal to draw a wire. Drag to move. Right click for more. R rotates, F mirrors, Del deletes."
+msgstr "Kliknutím na svorku nakreslíte vodič. Tažením přesunete. Pravým tlačítkem myši zobrazíte další možnosti. R otočí, F zrcadlí, Del smaže."
+
+msgid "File"
+msgstr "Soubor"
 
 msgid "Edit"
 msgstr "Úpravy"
@@ -147,14 +228,8 @@ msgstr "Úpravy"
 msgid "Simulate"
 msgstr "Simulace"
 
-msgid "Circuit:"
-msgstr "Obvod:"
-
-msgid "New"
-msgstr "Nový"
-
-msgid "Start an empty schematic with L and N supplies"
-msgstr "Založit prázdné schéma s přívody L a N"
+msgid "Example:"
+msgstr "Příklad:"
 
 msgid "Layout:"
 msgstr "Rozvržení:"
@@ -171,20 +246,23 @@ msgstr "Zpět"
 msgid "Redo"
 msgstr "Znovu"
 
-msgid "Rotate"
-msgstr "Otočit"
+msgid "Rotate (R)"
+msgstr "Otočit (R)"
 
-msgid "Rotate by 90° (R)"
-msgstr "Otočit o 90° (R)"
+msgid "Rotate by 90°"
+msgstr "Otočit o 90°"
 
-msgid "Mirror"
-msgstr "Zrcadlit"
+msgid "Mirror (F)"
+msgstr "Zrcadlit (F)"
 
-msgid "Mirror across the symbol axis (F)"
-msgstr "Zrcadlit podle osy značky (F)"
+msgid "Mirror across the symbol axis"
+msgstr "Zrcadlit podle osy značky"
 
-msgid "Delete"
-msgstr "Smazat"
+msgid "Delete (Del)"
+msgstr "Smazat (Del)"
+
+msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
+msgstr "Vyhledat nepřipojené svorky, kontakty bez cívky a další chyby"
 
 msgid "Step"
 msgstr "Krok"
@@ -201,14 +279,76 @@ msgstr "Reset"
 msgid "Restart the simulation from the initial state"
 msgstr "Spustit simulaci znovu od výchozího stavu"
 
+msgid "Fullscreen"
+msgstr "Celá obrazovka"
+
+msgid "Unsaved changes"
+msgstr "Neuložené změny"
+
+msgid "Save"
+msgstr "Uložit"
+
+msgid "Cancel"
+msgstr "Zrušit"
+
+msgid "Don't save"
+msgstr "Neukládat"
+
+msgid "Error"
+msgstr "Chyba"
+
+msgid "New"
+msgstr "Nový"
+
+msgid "Open…"
+msgstr "Otevřít…"
+
+msgid "Open recent"
+msgstr "Otevřít nedávné"
+
+msgid "Save as…"
+msgstr "Uložit jako…"
+
+msgid "Export PNG…"
+msgstr "Exportovat PNG…"
+
+msgid "Quit"
+msgstr "Ukončit"
+
 msgid "Pause"
 msgstr "Pozastavit"
 
 msgid "Run"
 msgstr "Spustit"
 
+msgid "Untitled"
+msgstr "Bez názvu"
+
 msgid "New schematic"
 msgstr "Nové schéma"
+
+#, c-format
+msgid "Save changes to %s?"
+msgstr "Uložit změny ve schématu %s?"
+
+msgid "Open schematic"
+msgstr "Otevřít schéma"
+
+msgid "LadderLab schematic"
+msgstr "Schéma LadderLab"
+
+msgid "Save schematic"
+msgstr "Uložit schéma"
+
+msgid "schematic"
+msgstr "schéma"
+
+msgid "Export PNG"
+msgstr "Exportovat PNG"
+
+#, c-format
+msgid "Could not save %s."
+msgstr "Soubor %s nelze uložit."
 
 msgid "Right or middle drag pans, wheel zooms."
 msgstr "Tažením pravým nebo prostředním tlačítkem myši posunete pohled, kolečkem přiblížíte."
