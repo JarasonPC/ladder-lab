@@ -913,11 +913,8 @@ msgstr "Žlutá"
 msgid "Blue"
 msgstr "Modrá"
 
-msgid "Signal lamp under it"
-msgstr "Signálka pod ním"
-
-msgid "Lamp colour"
-msgstr "Barva signálky"
+msgid "Signal lamp inside (illuminated)"
+msgstr "Signálka uvnitř (prosvětlené)"
 
 msgid "Move it one place back"
 msgstr "Posunout o místo zpět"
