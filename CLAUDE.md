@@ -12,7 +12,7 @@
   Every contact (NO, NC, changeover, main contacts, breakers, fuse holders) pivots at its
   second/bottom terminal (changeover: common at the bottom); NO blades stand off to the actuator
   side, NC blades rest against a stop on the other side. Every delayed (time relay) contact
-  carries the delay mark: on-delay, or off-delay for off-delay and pulse functions F1/F3/F5. Breakers carry the cross plus thermal and
+  carries the same time relay mark ")=" whatever the function. Breakers carry the cross plus thermal and
   magnetic releases. Fuses can be fuse holders (holder = true: can be opened by clicking). No dot
   grid by default; while placing, guide lines run through the new part's terminals.
   Voltage colour goes on leads and conductors only; symbol bodies stay black, except coils.
