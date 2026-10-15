@@ -9,9 +9,9 @@ const RADIUS: float = 10.0
 
 func _draw_shape(color: Color, width: float) -> void:
 	var c: Color = color if reach(0) != REACH_NONE else SchematicTheme.LINE
-	draw_line(CIRCLE + Vector2(0, RADIUS), Vector2.ZERO, lead_color(0), lead_width(0))
-	draw_circle(CIRCLE, RADIUS, SchematicTheme.BACKGROUND)
-	draw_arc(CIRCLE, RADIUS, 0.0, TAU, 28, c, minf(width, 2.0))
+	draw_line(CIRCLE + Vector2(0, RADIUS), Vector2.ZERO, lead_color(0), lead_width(0), true)
+	draw_circle(CIRCLE, RADIUS, SchematicTheme.BACKGROUND, true, -1.0, true)
+	draw_arc(CIRCLE, RADIUS, 0.0, TAU, 28, c, minf(width, 2.0), true)
 
 
 func _draw_labels() -> void:

@@ -41,10 +41,10 @@ func _draw_shape(color: Color, _width: float) -> void:
 	var pivot_color: Color = lead_color(1)
 	var pivot_width: float = lead_width(1)
 	var pivot: Vector2 = PIVOT
-	draw_line(Vector2(0, 0), FIXED_END, fixed_color, fixed_width)
-	draw_line(Vector2(0, 3 * G), pivot, pivot_color, pivot_width)
+	draw_line(Vector2(0, 0), FIXED_END, fixed_color, fixed_width, true)
+	draw_line(Vector2(0, 3 * G), pivot, pivot_color, pivot_width, true)
 	if is_nc:
-		draw_line(FIXED_END, HOOK_END, fixed_color, fixed_width)
+		draw_line(FIXED_END, HOOK_END, fixed_color, fixed_width, true)
 	var tip: Vector2 = NC_OPEN_TIP if is_nc else OPEN_TIP
 	if closed:
 		tip = NC_CLOSED_TIP if is_nc else NO_CLOSED_TIP
@@ -55,7 +55,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 			tip = NC_CLOSED_TIP.lerp(NC_OPEN_TIP, clampf((travel - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.15, 1.0))
 		else:
 			tip = OPEN_TIP.lerp(NO_CLOSED_TIP, minf(travel, 0.85))
-	draw_line(pivot, tip, pivot_color, pivot_width)
+	draw_line(pivot, tip, pivot_color, pivot_width, true)
 	var middle: Vector2 = pivot.lerp(tip, 0.5)
 	# The actuator is insulated from the contact: never live.
 	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
@@ -75,28 +75,28 @@ func _draw_shape(color: Color, _width: float) -> void:
 func _draw_push_actuator(middle: Vector2, pressed: bool, color: Color) -> void:
 	var head_x: float = -22.0 if pressed else -28.0
 	var y: float = middle.y
-	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x + 5, y - 7), color, 1.8)
-	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5, y + 7), color, 1.8)
+	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4, true)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8, true)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x + 5, y - 7), color, 1.8, true)
+	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5, y + 7), color, 1.8, true)
 
 
 ## Stem from the blade to the hook of the thermal release, as in the guide.
 func _draw_thermal_actuator(middle: Vector2, color: Color) -> void:
 	var y: float = middle.y
 	var x: float = -28.0
-	draw_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4)
-	draw_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 8), Vector2(x + 6, y - 8)]), color, 1.8)
+	draw_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4, true)
+	draw_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 8), Vector2(x + 6, y - 8)]), color, 1.8, true)
 
 
 func _draw_turn_actuator(middle: Vector2, switched_on: bool, color: Color) -> void:
 	var head_x: float = -26.0
 	var y: float = middle.y
 	var flip: float = -1.0 if switched_on else 1.0
-	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
-	draw_line(Vector2(head_x, y - 7), Vector2(head_x - 5 * flip, y - 7), color, 1.8)
-	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5 * flip, y + 7), color, 1.8)
+	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4, true)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8, true)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x - 5 * flip, y - 7), color, 1.8, true)
+	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5 * flip, y + 7), color, 1.8, true)
 
 
 ## Time relay contact mark (the "parachute"): a half circle ")" on the left
@@ -107,6 +107,6 @@ static func draw_delay_mark(symbol: SchematicSymbol, middle: Vector2, color: Col
 	var y: float = middle.y
 	var w: float = SchematicTheme.LINE_WIDTH * 0.75
 	var c: Vector2 = Vector2(-20.0, y)
-	symbol.draw_arc(c, radius, -PI * 0.5, PI * 0.5, 12, color, w)
-	symbol.draw_line(Vector2(c.x + radius, y - 2.5), Vector2(middle.x - 1.0, y - 2.5), color, w)
-	symbol.draw_line(Vector2(c.x + radius, y + 2.5), Vector2(middle.x - 1.0, y + 2.5), color, w)
+	symbol.draw_arc(c, radius, -PI * 0.5, PI * 0.5, 12, color, w, true)
+	symbol.draw_line(Vector2(c.x + radius, y - 2.5), Vector2(middle.x - 1.0, y - 2.5), color, w, true)
+	symbol.draw_line(Vector2(c.x + radius, y + 2.5), Vector2(middle.x - 1.0, y + 2.5), color, w, true)

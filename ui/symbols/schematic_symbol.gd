@@ -172,7 +172,7 @@ func _draw_fault_marker(at: Vector2) -> void:
 	for i: int in bolt.size():
 		bolt[i] += at
 	draw_colored_polygon(bolt, SchematicTheme.FAULT)
-	draw_polyline(bolt, SchematicTheme.LIVE, 1.0)
+	draw_polyline(bolt, SchematicTheme.LIVE, 1.0, true)
 
 
 ## Local point next to which the designation is written.
