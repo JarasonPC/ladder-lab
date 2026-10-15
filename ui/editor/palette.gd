@@ -13,6 +13,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "N supply", "template": {"type": "supply", "conductor": "N"}},
 	{"title": "+ supply (DC)", "template": {"type": "supply", "conductor": "+"}},
 	{"title": "- supply (DC)", "template": {"type": "supply", "conductor": "-"}},
+	{"title": "Bridge rectifier", "template": {"type": "rectifier"}},
 	{"title": "Terminal (strip terminal X)", "template": {"type": "terminal"}},
 	{"title": "Push button NO", "template": {"type": "push_button", "contact": "NO"}},
 	{"title": "Push button NC", "template": {"type": "push_button", "contact": "NC"}},
@@ -55,7 +56,7 @@ var _header_titles: PackedStringArray = []
 ## Palette section of a template.
 static func group_of(template: Dictionary) -> String:
 	match template["type"]:
-		"supply", "terminal":
+		"supply", "terminal", "rectifier":
 			return "supplies"
 		"push_button", "latching_switch", "limit_switch":
 			return "buttons"

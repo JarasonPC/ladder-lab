@@ -25,6 +25,8 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = OverloadRelaySymbol.new()
 	elif component is Coil:
 		symbol = CoilSymbol.new()
+	elif component is Rectifier:
+		symbol = RectifierSymbol.new()
 	elif component is Lamp:
 		symbol = LampSymbol.new()
 	elif component is Motor:

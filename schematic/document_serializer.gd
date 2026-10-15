@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-"]
 
@@ -186,6 +186,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["kind"] = "relay" if (c as Coil).kind == Coil.Kind.RELAY else "contactor"
 		d["pick_up"] = (c as Coil).pick_up_time
 		d["drop_out"] = (c as Coil).drop_out_time
+	elif c is Rectifier:
+		d["type"] = "rectifier"
 	elif c is Lamp:
 		d["type"] = "lamp"
 		if not (c as Lamp).purpose.is_empty():
@@ -294,6 +296,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			timer.control_input = bool(d.get("control_input", false))
 			timer.delay2 = _seconds_or(d, "delay2", 1.0, 360000.0)
 			return timer
+		"rectifier":
+			return Rectifier.new(designation)
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)
 			lamp.purpose = str(d.get("purpose", "")).strip_edges()

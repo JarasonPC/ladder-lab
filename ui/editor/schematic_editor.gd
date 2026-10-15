@@ -858,6 +858,8 @@ func _new_designation(data: Dictionary) -> String:
 			return doc.next_designation("KT")
 		"lamp":
 			return doc.next_designation("H")
+		"rectifier":
+			return doc.next_designation("TB")
 		"motor", "motor3":
 			return doc.next_designation("M")
 		"terminal":

@@ -58,7 +58,9 @@
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N,
   DC supplies + and - (a separate source: loads work between two conductors of the same source;
-  AC joined to DC is a short; the - pole is drawn like N)
+  AC joined to DC is a short; the - pole is drawn like N), TB = bridge rectifier (Rectifier, a Load
+  with terminals ~1 ~2 + -: while its input has voltage its + and - are DC poles, output taken as
+  isolated; its input carries current only while its output does)
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2
