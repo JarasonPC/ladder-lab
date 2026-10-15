@@ -50,6 +50,8 @@ const LARGE_ICON_SCALE: float = 0.38
 const TILE := Rect2(6, 4, 54, 34)
 
 var _buttons: Array[Button] = []
+var _tiles: Array[Panel] = []
+var _symbols: Array[SchematicSymbol] = []
 var _headers: Array[Label] = []
 var _header_titles: PackedStringArray = []
 
@@ -135,6 +137,19 @@ func _ready() -> void:
 	retranslate()
 
 
+## Repaints the symbol tiles after the schematic paper changed (dark / white).
+func refresh_paper() -> void:
+	for tile: Panel in _tiles:
+		_style_tile(tile)
+	for symbol: SchematicSymbol in _symbols:
+		symbol.queue_redraw()
+
+
+func _style_tile(tile: Panel) -> void:
+	var edge: Color = Color(1, 1, 1, 0.1) if SchematicTheme.dark else Color(0, 0, 0, 0.08)
+	tile.add_theme_stylebox_override("panel", AppTheme.box(SchematicTheme.BACKGROUND, 5, 0.0, 0.0, edge, 1))
+
+
 func retranslate() -> void:
 	for i: int in _buttons.size():
 		_buttons[i].text = tr(ENTRIES[i]["title"])
@@ -154,7 +169,9 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	symbol.scale = Vector2.ONE * (LARGE_ICON_SCALE if large else ICON_SCALE)
 	# Symbols are drawn for the light schematic paper, so give them a tile of it.
 	var paper: Panel = Panel.new()
-	paper.add_theme_stylebox_override("panel", AppTheme.box(SchematicTheme.BACKGROUND, 5, 0.0, 0.0, Color(0, 0, 0, 0.08), 1))
+	_tiles.append(paper)
+	_symbols.append(symbol)
+	_style_tile(paper)
 	paper.position = TILE.position
 	paper.size = TILE.size
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE

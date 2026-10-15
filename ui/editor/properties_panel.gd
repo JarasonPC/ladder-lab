@@ -85,7 +85,10 @@ func show_component(component: CircuitComponent) -> void:
 		"overload_contact":
 			_text(tr("Designation"), "designation")
 			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO 97-98"), tr("NC 95-96")])
-		"lamp", "motor":
+		"lamp":
+			_text(tr("Designation"), "designation")
+			_text(tr("Label above the lamp"), "purpose", tr("e.g. Running, Fault"))
+		"motor":
 			_text(tr("Designation"), "designation")
 	if component.supports_custom_terminals():
 		_terminals(component)
@@ -136,13 +139,15 @@ func _emit(key: String, value: Variant) -> void:
 	changed.emit(_component_id, data)
 
 
-func _text(caption: String, key: String) -> void:
+func _text(caption: String, key: String, placeholder: String = "") -> void:
 	_label(caption)
 	var edit: LineEdit = LineEdit.new()
-	edit.text = _data[key]
+	var current: String = str(_data.get(key, ""))
+	edit.text = current
+	edit.placeholder_text = placeholder
 	edit.text_submitted.connect(func(value: String) -> void: _emit(key, value.strip_edges()))
 	edit.focus_exited.connect(func() -> void:
-		if edit.text.strip_edges() != _data[key]:
+		if edit.text.strip_edges() != current:
 			_emit(key, edit.text.strip_edges()))
 	_add(edit)
 

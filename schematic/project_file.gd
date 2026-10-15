@@ -10,8 +10,9 @@ const FORMAT: String = "ladder-lab"
 ## (missing in version 1, so defaults are used). 3: fuses, breakers, overload
 ## relays and contacts, changeover contacts, custom terminal names.
 ## 4: three-phase supplies, main contacts, three-pole fuses, breakers and
-## overload relays, three-phase motors.
-const VERSION: int = 4
+## overload relays, three-phase motors. 5: purpose text of lamps, PE terminal
+## of three-phase motors (version 4 custom motor terminal names get "PE" added).
+const VERSION: int = 5
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

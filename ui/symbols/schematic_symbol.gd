@@ -187,12 +187,21 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 	else:
 		var top: float = anchor.y - size.y if away.y < 0.0 else anchor.y
 		pos = Vector2(anchor.x - size.x * 0.5, top + ascent)
-	if line > 0:
+	if line != 0:
 		# Further lines sit beside the designation, which uses the larger size.
 		var line_height: float = font.get_height(maxi(font_size, SchematicTheme.LABEL_SIZE))
 		var direction: float = -1.0 if absf(away.x) < absf(away.y) and away.y < 0.0 else 1.0
 		pos.y += direction * line * line_height
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+
+## True when a label at [param local_anchor] is written beside the symbol
+## (left or right of it) rather than above or below it.
+func is_side_label(local_anchor: Vector2) -> bool:
+	var anchor: Vector2 = SymbolGeometry.draw_transform(placement) * local_anchor
+	var axis_point: Vector2 = SymbolGeometry.draw_transform(placement) * Vector2(0.0, local_anchor.y)
+	var away: Vector2 = anchor - axis_point
+	return absf(away.x) >= absf(away.y)
 
 
 ## Point of the unturned symbol mapped to upright node coordinates.

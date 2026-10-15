@@ -348,6 +348,12 @@ msgstr ""
 msgid "NC 95-96"
 msgstr ""
 
+msgid "Label above the lamp"
+msgstr ""
+
+msgid "e.g. Running, Fault"
+msgstr ""
+
 msgid "Terminals"
 msgstr ""
 
@@ -518,6 +524,12 @@ msgid "Dark"
 msgstr ""
 
 msgid "Light"
+msgstr ""
+
+msgid "White schematic paper"
+msgstr ""
+
+msgid "Draw the schematic on white paper in the dark theme, as in the guide"
 msgstr ""
 
 msgid "Language"

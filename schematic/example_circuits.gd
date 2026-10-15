@@ -64,6 +64,13 @@ static func _supplies(doc: SchematicDocument, n_row: int) -> void:
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, n_row))
 
 
+## Signal lamp with its purpose written above it.
+static func _lamp(designation: String, purpose: String) -> Lamp:
+	var lamp: Lamp = Lamp.new(designation)
+	lamp.purpose = purpose
+	return lamp
+
+
 static func _c(points: Array) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for p: Vector2i in points:
@@ -80,7 +87,7 @@ static func self_holding() -> SchematicDocument:
 	doc.add(Contact.new("K1", NO, 1), Vector2i(8, 8))
 	doc.add(Coil.new("K1"), Vector2i(5, 13))
 	doc.add(Contact.new("K1", NO, 2), Vector2i(12, 8))
-	doc.add(Lamp.new("H1"), Vector2i(12, 13))
+	doc.add(_lamp("H1", "Running"), Vector2i(12, 13))
 
 	doc.connect_terminals("L", "S0:11", _c([Vector2i(5, 1)]))
 	doc.connect_terminals("S0:12", "S1:13")
@@ -144,11 +151,11 @@ static func time_relays() -> SchematicDocument:
 	doc.add(LatchingSwitch.new("S1", NO), Vector2i(5, 3))
 	doc.add(TimerRelay.new("KT1", TimerRelay.Mode.ON_DELAY, 3.0), Vector2i(5, 8))
 	doc.add(Contact.new("KT1", NO, 1, true), Vector2i(10, 3))
-	doc.add(Lamp.new("H1"), Vector2i(10, 8))
+	doc.add(_lamp("H1", "On-delay"), Vector2i(10, 8))
 	doc.add(LatchingSwitch.new("S2", NO), Vector2i(16, 3))
 	doc.add(TimerRelay.new("KT2", TimerRelay.Mode.OFF_DELAY, 3.0), Vector2i(16, 8))
 	doc.add(Contact.new("KT2", NO, 1, true), Vector2i(21, 3))
-	doc.add(Lamp.new("H2"), Vector2i(21, 8))
+	doc.add(_lamp("H2", "Off-delay"), Vector2i(21, 8))
 
 	doc.connect_terminals("L", "S1:13", _c([Vector2i(5, 1)]))
 	doc.connect_terminals("S1:14", "KT1:A1")

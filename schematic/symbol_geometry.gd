@@ -13,6 +13,8 @@ const SPAN: int = 3
 const POLE_SPACING: int = 2
 ## Distance in cells between the upper and lower terminals of a motor.
 const MOTOR_HEIGHT: int = 4
+## PE terminal of a three-phase motor: below left of the motor circle.
+const MOTOR_PE_CELL := Vector2i(-1, 4)
 
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
@@ -31,8 +33,9 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 			result[names[i]] = Vector2i((i / 2) * POLE_SPACING, 0 if i % 2 == 0 else SPAN)
 		return result
 	if c is ThreePhaseMotor:
+		var windings: int = (c as ThreePhaseMotor).winding_terminal_count()
 		for i: int in names.size():
-			result[names[i]] = motor_terminal_cell(i)
+			result[names[i]] = motor_terminal_cell(i) if i < windings else MOTOR_PE_CELL
 		return result
 	if names.size() == 1:
 		result[names[0]] = Vector2i.ZERO
@@ -55,6 +58,8 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		return DIR_DOWN if names.find(terminal_name) % 2 == 0 else DIR_UP
 	if c is ThreePhaseMotor:
 		var i: int = names.find(terminal_name)
+		if i >= (c as ThreePhaseMotor).winding_terminal_count():
+			return DIR_UP
 		return DIR_DOWN if i < 3 else (DIR_UP if i < 6 else DIR_LEFT)
 	if names.size() == 3:
 		return DIR_UP if terminal_name == names[0] else DIR_DOWN

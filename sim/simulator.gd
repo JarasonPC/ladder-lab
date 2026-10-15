@@ -187,8 +187,9 @@ func _build() -> void:
 			continue
 		if c is ThreePhaseMotor:
 			_motors.append(c as ThreePhaseMotor)
+			var windings: int = (c as ThreePhaseMotor).winding_terminal_count()
 			for t: int in MOTOR_TERMINALS:
-				_motor_nets.append(_net_of_key[keys[t]] if t < keys.size() else -1)
+				_motor_nets.append(_net_of_key[keys[t]] if t < windings else -1)
 		elif c is Load:
 			if c is Coil:
 				_coil_indices.append(_loads.size())

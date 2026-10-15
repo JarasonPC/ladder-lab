@@ -6,7 +6,7 @@ extends Node
 
 enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, QUIT }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, LANGUAGE = 10, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT }
 
 const SPEEDS: Array[float] = [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]
@@ -78,6 +78,8 @@ var _editor_hint: String = ""
 var _show_chart: bool = true
 var _show_log: bool = true
 var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
+## Keep the schematic on white paper in the dark theme.
+var _white_paper: bool = false
 ## Chosen interface size (see UI_SCALES), 0 = automatic.
 var _ui_scale: float = 0.0
 var _locale_index: int = 0
@@ -89,7 +91,6 @@ var _error_dialog: AcceptDialog
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
-	RenderingServer.set_default_clear_color(SchematicTheme.BACKGROUND)
 	view = SchematicView.new()
 	add_child(view)
 	editor = SchematicEditor.new()
@@ -473,6 +474,10 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_checked(popup.item_count - 1, _theme_variant == AppTheme.Variant.DARK)
 	popup.add_radio_check_item(tr("Light"), ViewMenuId.THEME_LIGHT)
 	popup.set_item_checked(popup.item_count - 1, _theme_variant == AppTheme.Variant.LIGHT)
+	popup.add_check_item(tr("White schematic paper"), ViewMenuId.WHITE_PAPER)
+	popup.set_item_checked(popup.item_count - 1, _white_paper or _theme_variant == AppTheme.Variant.LIGHT)
+	popup.set_item_disabled(popup.item_count - 1, _theme_variant == AppTheme.Variant.LIGHT)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Draw the schematic on white paper in the dark theme, as in the guide"))
 	popup.add_separator(tr("Language"))
 	for i: int in LOCALE_NAMES.size():
 		popup.add_radio_check_item(LOCALE_NAMES[i], ViewMenuId.LANGUAGE + i)
@@ -489,6 +494,10 @@ func _on_view_menu(id: int) -> void:
 		_toggle_fullscreen()
 	elif id == ViewMenuId.THEME_DARK or id == ViewMenuId.THEME_LIGHT:
 		_theme_variant = AppTheme.Variant.DARK if id == ViewMenuId.THEME_DARK else AppTheme.Variant.LIGHT
+		_apply_theme()
+		_save_settings()
+	elif id == ViewMenuId.WHITE_PAPER:
+		_white_paper = not _white_paper
 		_apply_theme()
 		_save_settings()
 	elif id >= ViewMenuId.SCALE:
@@ -510,6 +519,11 @@ func _apply_theme() -> void:
 	base.default_font = AppTheme.ui_font()
 	base.default_font_size = AppTheme.FONT_SIZE
 	get_tree().root.propagate_notification(Control.NOTIFICATION_THEME_CHANGED)
+	# The schematic: dark paper in the dark theme unless white paper is chosen.
+	SchematicTheme.use(_theme_variant == AppTheme.Variant.DARK and not _white_paper)
+	RenderingServer.set_default_clear_color(SchematicTheme.BACKGROUND)
+	if _palette != null:
+		_palette.refresh_paper()
 
 
 ## Interface size: the chosen one, or the screen's scale (HiDPI and Windows
@@ -843,8 +857,11 @@ func open_file(path: String) -> bool:
 	return true
 
 
-## Renders the edited schematic at rest (100 % scale) and saves it as PNG.
+## Renders the edited schematic at rest (100 % scale) on white paper and
+## saves it as PNG.
 func export_png(path: String) -> void:
+	var dark_paper: bool = SchematicTheme.dark
+	SchematicTheme.use(false)
 	var b: Rect2 = edit_doc.bounds()
 	var origin: Vector2 = b.position * SymbolGeometry.GRID - Vector2(EXPORT_MARGIN, EXPORT_MARGIN * 2.0)
 	var size: Vector2 = b.size * SymbolGeometry.GRID + Vector2(EXPORT_MARGIN * 2.0, EXPORT_MARGIN * 3.0)
@@ -864,6 +881,7 @@ func export_png(path: String) -> void:
 	await RenderingServer.frame_post_draw
 	var image: Image = viewport.get_texture().get_image()
 	viewport.queue_free()
+	SchematicTheme.use(dark_paper)
 	if image == null or image.save_png(path) != OK:
 		_show_error(tr("Could not save %s.") % path.get_file())
 
@@ -889,6 +907,7 @@ func _load_settings() -> void:
 		_show_chart = config.get_value("view", "timing_chart", true)
 		_show_log = config.get_value("view", "event_log", true)
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
+		_white_paper = bool(config.get_value("view", "white_paper", false))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 
@@ -901,6 +920,7 @@ func _save_settings() -> void:
 	config.set_value("view", "event_log", _show_log)
 	config.set_value("view", "theme", "light" if _theme_variant == AppTheme.Variant.LIGHT else "dark")
 	config.set_value("view", "ui_scale", _ui_scale)
+	config.set_value("view", "white_paper", _white_paper)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.save(SETTINGS_PATH)
 

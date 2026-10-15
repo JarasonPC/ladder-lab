@@ -45,7 +45,11 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 			issues.append(_issue("Coil %s has no contacts.", [c.designation], [c.id]))
 		if c is Junction:
 			continue
-		for key: String in c.get_terminal_keys():
+		var keys: PackedStringArray = c.get_terminal_keys()
+		if c is ThreePhaseMotor:
+			# The PE terminal of the frame may stay open on the drawing.
+			keys = keys.slice(0, (c as ThreePhaseMotor).winding_terminal_count())
+		for key: String in keys:
 			if not connected.has(key):
 				issues.append(_issue("Terminal %s is not connected.", [key], [c.id]))
 	if not has_l:
