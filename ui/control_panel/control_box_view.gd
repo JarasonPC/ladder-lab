@@ -15,8 +15,6 @@ signal item_clicked(item_index: int)
 
 const CELL_W: float = 136.0
 const ROW_H: float = 60.0
-## Extra height of a row with a signal lamp under a button or switch.
-const LAMP_ROW_H: float = 34.0
 const PAD_X: float = 20.0
 ## Room above the items for the cable gland and the screws.
 const PAD_TOP: float = 30.0
@@ -25,7 +23,6 @@ const TITLE_H: float = 16.0
 const PLATE := Vector2(64.0, 34.0)
 const BEZEL_R: float = 21.0
 const CAP_R: float = 15.5
-const SMALL_LAMP_R: float = 11.0
 const PLATE_FONT_SIZE: int = 12
 const MIN_PLATE_FONT_SIZE: int = 9
 
@@ -90,7 +87,7 @@ func _get_minimum_size() -> Vector2:
 
 
 ## Cell of every item, in item order: rows of [member ControlBox.columns]
-## items; a row is taller when one of its items has a lamp under it.
+## items.
 func _cells() -> Array[Rect2]:
 	var cells: Array[Rect2] = []
 	var b: ControlBox = box()
@@ -100,18 +97,15 @@ func _cells() -> Array[Rect2]:
 	var row_start: int = 0
 	while row_start < b.items.size():
 		var row_end: int = mini(row_start + b.columns, b.items.size())
-		var height: float = ROW_H
 		for i: int in range(row_start, row_end):
-			if _has_lamp_under(b.items[i]):
-				height = ROW_H + LAMP_ROW_H
-		for i: int in range(row_start, row_end):
-			cells.append(Rect2(PAD_X + (i - row_start) * CELL_W, y, CELL_W, height))
-		y += height
+			cells.append(Rect2(PAD_X + (i - row_start) * CELL_W, y, CELL_W, ROW_H))
+		y += ROW_H
 		row_start = row_end
 	return cells
 
 
-static func _has_lamp_under(item: ControlBoxItem) -> bool:
+## True for a button or switch with a signal lamp inside it.
+static func _illuminated(item: ControlBoxItem) -> bool:
 	return item.kind != ControlBoxItem.Kind.LAMP and not item.lamp.is_empty()
 
 
@@ -200,7 +194,7 @@ func _get_tooltip(at_position: Vector2) -> String:
 		text += " -" + item.designation
 		if not _assigned(item):
 			text += " – " + tr("not in the schematic")
-	if _has_lamp_under(item):
+	if _illuminated(item):
 		text += "\n" + tr("Signal lamp") + " -" + item.lamp
 	return text
 
@@ -247,43 +241,38 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 	var cy: float = cell.position.y + ROW_H * 0.5
 	var plate: Rect2 = Rect2(cell.position.x + 6.0, cy - PLATE.y * 0.5, PLATE.x, PLATE.y)
 	_rounded(plate, PLATE_COLOR, 3)
-	_plate_text(plate, item.label, item.designation)
+	var marks: PackedStringArray = PackedStringArray()
+	for designation: String in [item.designation, item.lamp if _illuminated(item) else ""]:
+		if not designation.is_empty():
+			marks.append("-" + designation)
+	_plate_text(plate, item.label, " ".join(marks))
 	var center: Vector2 = Vector2(plate.end.x + 14.0 + BEZEL_R, cy)
 	var color: Color = COLORS.get(item.color, COLORS["green"])
+	# -1: no lamp inside, 0: its lamp is off, 1: lit.
+	var light: int = (1 if _lit(item.lamp) else 0) if _illuminated(item) else -1
 	match item.kind:
 		ControlBoxItem.Kind.BUTTON:
-			_draw_button(center, color, _travel(item.designation))
+			_draw_button(center, color, _travel(item.designation), light)
 		ControlBoxItem.Kind.SWITCH:
-			_draw_switch(center, color, _travel(item.designation))
+			_draw_switch(center, color, _travel(item.designation), light)
 		ControlBoxItem.Kind.LAMP:
 			_draw_lamp(center, BEZEL_R - 1.0, color, _lit(item.designation))
-	if _has_lamp_under(item):
-		var lamp_center: Vector2 = Vector2(center.x, cell.position.y + ROW_H + 12.0)
-		_draw_lamp(lamp_center, SMALL_LAMP_R, COLORS.get(item.lamp_color, COLORS["green"]), _lit(item.lamp))
-		# A small black tag with the lamp's designation beside it.
-		var font: Font = AppTheme.bold_font()
-		var tag_text: String = "-" + item.lamp
-		var tag_width: float = font.get_string_size(tag_text, HORIZONTAL_ALIGNMENT_LEFT, -1, DESIGNATION_FONT_SIZE).x + 10.0
-		var tag: Rect2 = Rect2(lamp_center.x - SMALL_LAMP_R - 6.0 - tag_width, lamp_center.y - 8.0, tag_width, 16.0)
-		_rounded(tag, PLATE_COLOR, 3)
-		_line_text(tag, tag_text, DESIGNATION_FONT_SIZE, PLATE_DESIGNATION, tag.get_center().y + _middle(font, DESIGNATION_FONT_SIZE))
 	if not _assigned(item):
 		# Not connected to the schematic: faded.
 		draw_rect(cell.grow(-1.0), Color(COVER, 0.55))
 
 
-## Label plate: the text in white with the designation in teal under it; only
-## the designation (bigger) when there is no text.
-func _plate_text(plate: Rect2, label: String, designation: String) -> void:
+## Label plate: the text in white with the designations in teal under it;
+## only the designations (bigger) when there is no text.
+func _plate_text(plate: Rect2, label: String, marks: String) -> void:
 	var font: Font = AppTheme.bold_font()
-	var mark: String = "-" + designation if not designation.is_empty() else ""
-	if label.is_empty() or mark.is_empty():
-		var only: String = label if not label.is_empty() else (mark if not mark.is_empty() else "?")
-		_line_text(plate, only, PLATE_FONT_SIZE, PLATE_TEXT if mark.is_empty() else PLATE_DESIGNATION, plate.get_center().y + _middle(font, PLATE_FONT_SIZE))
+	if label.is_empty() or marks.is_empty():
+		var only: String = label if not label.is_empty() else (marks if not marks.is_empty() else "?")
+		_line_text(plate, only, PLATE_FONT_SIZE, PLATE_TEXT if marks.is_empty() else PLATE_DESIGNATION, plate.get_center().y + _middle(font, PLATE_FONT_SIZE))
 		return
 	var top: float = plate.position.y + 4.0 + font.get_ascent(PLATE_FONT_SIZE)
 	_line_text(plate, label, PLATE_FONT_SIZE, PLATE_TEXT, top)
-	_line_text(plate, mark, DESIGNATION_FONT_SIZE, PLATE_DESIGNATION, top + 2.0 + font.get_ascent(DESIGNATION_FONT_SIZE))
+	_line_text(plate, marks, DESIGNATION_FONT_SIZE, PLATE_DESIGNATION, top + 2.0 + font.get_ascent(DESIGNATION_FONT_SIZE))
 
 
 ## Offset from the middle of a line to its baseline.
@@ -306,19 +295,44 @@ func _line_text(rect: Rect2, text: String, font_size: int, color: Color, baselin
 
 
 ## Push button: a matte black bezel and a flat matte cap that sinks in while
-## pressed (no gloss).
-func _draw_button(center: Vector2, color: Color, travel: float) -> void:
+## pressed (no gloss). [param light]: -1 plain cap, 0 illuminated cap with its
+## lamp off, 1 lit.
+func _draw_button(center: Vector2, color: Color, travel: float, light: int = -1) -> void:
+	_glow(center, color, light)
 	draw_circle(center, BEZEL_R, BEZEL, true, -1.0, true)
 	draw_arc(center, BEZEL_R - 0.8, 0.0, TAU, 48, Color(1, 1, 1, 0.08), 1.2, true)
 	draw_circle(center, BEZEL_R - 3.5, BEZEL_INNER.darkened(0.3), true, -1.0, true)
 	var radius: float = CAP_R - 1.5 * travel
-	var cap: Color = color.darkened(0.15 * travel)
-	draw_circle(center, radius, cap.darkened(0.18), true, -1.0, true)
+	var cap: Color = _lit_color(color, light).darkened(0.15 * travel)
+	draw_circle(center, radius, cap.darkened(0.18) if light != 1 else cap.lightened(0.25), true, -1.0, true)
 	draw_circle(center, radius - 1.6, cap, true, -1.0, true)
+	if light == 1:
+		# The lamp shines through the middle of the translucent cap.
+		draw_circle(center, radius * 0.55, Color(1, 1, 1, 0.22), true, -1.0, true)
 
 
-## Selector switch with positions 0 (turned left) and I (turned right).
-func _draw_switch(center: Vector2, color: Color, travel: float) -> void:
+## Colour of a cap or grip: as it is, or as a translucent part with a lamp
+## behind it (dull while the lamp is off, bright while it is lit).
+static func _lit_color(color: Color, light: int) -> Color:
+	match light:
+		0:
+			return Color.from_hsv(color.h, color.s * 0.75, color.v * 0.7)
+		1:
+			return color.lightened(0.3)
+	return color
+
+
+## Halo around an illuminated button or switch whose lamp is lit.
+func _glow(center: Vector2, color: Color, light: int) -> void:
+	if light == 1:
+		for k: int in 3:
+			draw_circle(center, BEZEL_R + 1.0 + 3.0 * k, Color(color, 0.2 - 0.06 * k), true, -1.0, true)
+
+
+## Selector switch with positions 0 (turned left) and I (turned right); an
+## illuminated one ([param light] as for [method _draw_button]) has a lit grip.
+func _draw_switch(center: Vector2, color: Color, travel: float, light: int = -1) -> void:
+	_glow(center, color, light)
 	var font: Font = AppTheme.bold_font()
 	for mark: int in 2:
 		var text: String = "0" if mark == 0 else "I"
@@ -330,7 +344,7 @@ func _draw_switch(center: Vector2, color: Color, travel: float) -> void:
 	var angle: float = lerpf(-PI * 0.25, PI * 0.25, travel)
 	var along: Vector2 = Vector2(sin(angle), -cos(angle))
 	var across: Vector2 = Vector2(-along.y, along.x)
-	var grip: Color = color if color.get_luminance() > 0.1 else Color("45484c")
+	var grip: Color = _lit_color(color if color.get_luminance() > 0.1 else Color("45484c"), light)
 	var points: PackedVector2Array = PackedVector2Array([
 		center + along * 15.0 + across * 4.5, center + along * 15.0 - across * 4.5,
 		center - along * 15.0 - across * 4.5, center - along * 15.0 + across * 4.5,

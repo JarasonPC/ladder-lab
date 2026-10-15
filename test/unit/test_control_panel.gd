@@ -62,10 +62,9 @@ func test_move_remove_and_set_items() -> void:
 	data["label"] = "Stop"
 	data["color"] = "red"
 	data["lamp"] = "H1"
-	data["lamp_color"] = "yellow"
 	assert_true(doc.set_control_item(0, 1, data))
 	var item: ControlBoxItem = doc.control_boxes[0].items[1]
-	assert_eq([item.label, item.color, item.lamp, item.lamp_color], ["Stop", "red", "H1", "yellow"])
+	assert_eq([item.label, item.color, item.lamp], ["Stop", "red", "H1"])
 	assert_false(doc.set_control_item(0, 1, {"kind": "rocket"}), "malformed data is refused")
 	doc.remove_control_item(0, 0)
 	assert_eq(doc.control_boxes[0].items.size(), 1)
@@ -82,6 +81,7 @@ func test_lamp_items_have_no_lamp_under_them_or_black_lens() -> void:
 	var item: ControlBoxItem = ControlBoxItem.from_data({"kind": "lamp", "designation": "H1", "color": "black", "lamp": "H2"})
 	assert_eq(item.color, "green")
 	assert_eq(item.lamp, "")
+	assert_eq(ControlBoxItem.from_data({"kind": "button", "color": "black", "lamp": "H1"}).color, "white", "a lit cap is never black")
 	assert_null(ControlBoxItem.from_data("nope"))
 	assert_eq(ControlBoxItem.from_data({"kind": "button", "designation": "S:1"}).designation, "", "unusable designation")
 
@@ -92,13 +92,12 @@ func test_saved_and_loaded() -> void:
 	doc.add_control_item(0, ControlBoxItem.Kind.BUTTON)
 	box.items[0].label = "Start"
 	box.items[0].lamp = "H1"
-	box.items[0].lamp_color = "white"
 	doc.add_control_item(0, ControlBoxItem.Kind.SWITCH)
 	var data: Dictionary = DocumentSerializer.to_dict(doc)
 	var copy: SchematicDocument = DocumentSerializer.from_dict(data)
 	assert_eq(DocumentSerializer.to_dict(copy), data)
 	assert_eq(copy.control_boxes[0].title, "Machine 1")
-	assert_eq(copy.control_boxes[0].items[0].lamp_color, "white")
+	assert_eq(copy.control_boxes[0].items[0].lamp, "H1")
 	var text: String = JSON.stringify({"format": ProjectFile.FORMAT, "version": ProjectFile.VERSION, "document": data})
 	var loaded: SchematicDocument = ProjectFile.parse(text)["document"]
 	assert_eq(DocumentSerializer.to_dict(loaded), data, "the same after a save as JSON")
