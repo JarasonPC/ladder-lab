@@ -7,8 +7,7 @@ extends SchematicSymbol
 ## NC blade rests against the stop on its fixed contact on the other side. Shown
 ## with the push-button (S00253) or turn-switch (S00254) actuator, the thermal
 ## actuator of overload relay contacts, and the delay "parachute"
-## (S00243-S00246) on every delayed (time relay) contact.
-## The arc is drawn so the movement toward its centre is the delayed one.
+## on every delayed (time relay) contact, whatever the relay's function.
 
 const FIXED_END := Vector2(0, 20)
 const PIVOT := Vector2(0, 40)
@@ -68,19 +67,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 	elif component is OverloadContact:
 		_draw_thermal_actuator(middle, color)
 	elif component is Contact and (component as Contact).delayed:
-		# Operated, both blades move right: an NO blade to close, an NC
-		# blade away from its stop to open. On-delay delays that move.
-		_draw_parachute(middle, delays_operation((component as Contact).linked_coil), color)
-
-
-## True when the delayed contacts of [param coil] (a time relay, or null)
-## get the on-delay mark (the switching is delayed), false for the off-delay
-## mark (they switch at once and return after the time): off-delay and the
-## pulse functions F1, F3, F5.
-static func delays_operation(coil: Coil) -> bool:
-	if not (coil is TimerRelay):
-		return true
-	return not ((coil as TimerRelay).mode in [TimerRelay.Mode.OFF_DELAY, TimerRelay.Mode.PULSE_ON_POWER, TimerRelay.Mode.PULSE_ON_PRESS, TimerRelay.Mode.PULSE_AFTER_RELEASE])
+		draw_delay_mark(self, middle, color)
 
 
 ## Stem from the blade to the button head (a bracket open toward the blade),
@@ -112,21 +99,14 @@ func _draw_turn_actuator(middle: Vector2, switched_on: bool, color: Color) -> vo
 	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5 * flip, y + 7), color, 1.8)
 
 
-## Two short lines from the blade to a half circle on its left.
-## [param delayed_move_right]: the arc centre lies to the right of the arc.
-func _draw_parachute(middle: Vector2, delayed_move_right: bool, color: Color) -> void:
+## Time relay contact mark (the "parachute"): a half circle ")" on the left
+## of the blade at [param middle], its apex joined to the blade by two short
+## lines. Shared with [ChangeoverSymbol].
+static func draw_delay_mark(symbol: SchematicSymbol, middle: Vector2, color: Color) -> void:
 	var radius: float = 6.0
 	var y: float = middle.y
 	var w: float = SchematicTheme.LINE_WIDTH * 0.75
-	if delayed_move_right:
-		# "(" : centre to the right, arc ends joined to the blade.
-		var c: Vector2 = Vector2(-12.0, y)
-		draw_arc(c, radius, PI * 0.5, PI * 1.5, 12, color, w)
-		draw_line(Vector2(c.x, y - radius), Vector2(middle.x - 1.0, y - radius), color, w)
-		draw_line(Vector2(c.x, y + radius), Vector2(middle.x - 1.0, y + radius), color, w)
-	else:
-		# ")" : centre to the left, arc apex joined to the blade.
-		var c2: Vector2 = Vector2(-20.0, y)
-		draw_arc(c2, radius, -PI * 0.5, PI * 0.5, 12, color, w)
-		draw_line(Vector2(c2.x + radius, y - 2.5), Vector2(middle.x - 1.0, y - 2.5), color, w)
-		draw_line(Vector2(c2.x + radius, y + 2.5), Vector2(middle.x - 1.0, y + 2.5), color, w)
+	var c: Vector2 = Vector2(-20.0, y)
+	symbol.draw_arc(c, radius, -PI * 0.5, PI * 0.5, 12, color, w)
+	symbol.draw_line(Vector2(c.x + radius, y - 2.5), Vector2(middle.x - 1.0, y - 2.5), color, w)
+	symbol.draw_line(Vector2(c.x + radius, y + 2.5), Vector2(middle.x - 1.0, y + 2.5), color, w)

@@ -35,20 +35,8 @@ func _draw_shape(color: Color, _width: float) -> void:
 		tip = NC_TIP.lerp(OPEN_TIP, t)
 	draw_line(PIVOT, tip, lead_color(0), lead_width(0))
 	if contact.delayed:
-		var on_delay: bool = ContactSymbol.delays_operation(contact.linked_coil)
-		var middle: Vector2 = PIVOT.lerp(tip, 0.5)
-		var c: Vector2 = Vector2(-12.0, middle.y)
-		var w: float = SchematicTheme.LINE_WIDTH * 0.75
 		var mark: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-		if on_delay:
-			draw_arc(c, 6.0, PI * 0.5, PI * 1.5, 12, mark, w)
-			draw_line(Vector2(c.x, middle.y - 6), Vector2(middle.x - 1, middle.y - 6), mark, w)
-			draw_line(Vector2(c.x, middle.y + 6), Vector2(middle.x - 1, middle.y + 6), mark, w)
-		else:
-			var c2: Vector2 = Vector2(-20.0, middle.y)
-			draw_arc(c2, 6.0, -PI * 0.5, PI * 0.5, 12, mark, w)
-			draw_line(Vector2(c2.x + 6, middle.y - 2.5), Vector2(middle.x - 1, middle.y - 2.5), mark, w)
-			draw_line(Vector2(c2.x + 6, middle.y + 2.5), Vector2(middle.x - 1, middle.y + 2.5), mark, w)
+		ContactSymbol.draw_delay_mark(self, PIVOT.lerp(tip, 0.5), mark)
 
 
 func _draw_labels() -> void:
