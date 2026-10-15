@@ -150,12 +150,12 @@ func test_control_box_operates_the_simulation() -> void:
 	var h1: Lamp = doc.circuit.get_component("H1") as Lamp
 	view.set_realistic_timing(false)
 	assert_false(h1.energized)
-	view.hold_button("S1", true)
-	view.hold_button("S1", false)
+	view.hold_button("SB1", true)
+	view.hold_button("SB1", false)
 	assert_true(h1.energized, "forward runs and holds itself, its lamp is lit")
-	view.hold_button("S0", true)
+	view.hold_button("SB0", true)
 	assert_false(h1.energized, "stop")
-	view.hold_button("S0", false)
+	view.hold_button("SB0", false)
 	view.hold_button("KM1", true)
 	assert_false(h1.energized, "only push buttons are held")
 
@@ -165,8 +165,8 @@ func test_control_box_switch_toggles() -> void:
 	var view: SchematicView = SchematicView.new()
 	add_child_autofree(view)
 	view.load_document(doc, true)
-	var s1: LatchingSwitch = doc.circuit.get_component("S1") as LatchingSwitch
-	view.toggle_switch("S1")
-	assert_true(s1.switched_on)
-	view.toggle_switch("S1")
-	assert_false(s1.switched_on)
+	var rb1: LatchingSwitch = doc.circuit.get_component("RB1") as LatchingSwitch
+	view.toggle_switch("RB1")
+	assert_true(rb1.switched_on)
+	view.toggle_switch("RB1")
+	assert_false(rb1.switched_on)

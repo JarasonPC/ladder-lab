@@ -162,7 +162,7 @@ static func forward_reverse() -> SchematicDocument:
 	doc.connect_terminals("H2:X2", "N", _c([Vector2i(28, 27)]))
 	# Control box: each start button with its signal lamp under it, stop below.
 	var box: ControlBox = doc.add_control_box()
-	box.items = [_panel_button("S1", "green", "Forward", "H1"), _panel_button("S2", "black", "Reverse", "H2"), _panel_button("S0", "red", "Stop")]
+	box.items = [_panel_button("SB1", "green", "Forward", "H1"), _panel_button("SB2", "black", "Reverse", "H2"), _panel_button("SB0", "red", "Stop")]
 	return doc
 
 
