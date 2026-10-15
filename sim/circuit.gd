@@ -24,19 +24,92 @@ func add(component: CircuitComponent) -> CircuitComponent:
 			push_error("Circuit: terminal '%s' already exists" % key)
 			return null
 	_components.append(component)
-	_by_id[component.id] = component
-	for key: String in keys:
-		_terminal_owner[key] = component
-	if component is Coil:
-		var coil: Coil = component as Coil
-		_coils[coil.designation] = coil
-		for c: CircuitComponent in _components:
-			if c is Contact and c.designation == coil.designation:
-				(c as Contact).linked_coil = coil
-	elif component is Contact:
-		(component as Contact).linked_coil = _coils.get(component.designation, null)
+	_register(component)
 	topology_version += 1
 	return component
+
+
+## Removes a component. Returns the indices of the wires that were attached to
+## it and removed with it, highest first.
+func remove(component: CircuitComponent) -> PackedInt32Array:
+	var removed: PackedInt32Array = wires_of(component)
+	for i: int in removed:
+		_wires.remove_at(i)
+	_components.erase(component)
+	_unregister(component)
+	topology_version += 1
+	return removed
+
+
+## Puts [param new_component] in place of [param old], keeping its position in
+## the component order. Wires move to the new terminals by terminal index, so
+## e.g. an NO contact 13-14 replaced by an NC contact 11-12 keeps its wiring.
+## Fails if the terminal count differs or an id or terminal is taken.
+func replace(old: CircuitComponent, new_component: CircuitComponent) -> bool:
+	var index: int = _components.find(old)
+	var old_keys: PackedStringArray = old.get_terminal_keys()
+	var new_keys: PackedStringArray = new_component.get_terminal_keys()
+	if index < 0 or old_keys.size() != new_keys.size():
+		push_error("Circuit: cannot replace '%s' with '%s'" % [old.id, new_component.id])
+		return false
+	if new_component.id != old.id and _by_id.has(new_component.id):
+		push_error("Circuit: duplicate component id '%s'" % new_component.id)
+		return false
+	for key: String in new_keys:
+		if _terminal_owner.has(key) and _terminal_owner[key] != old:
+			push_error("Circuit: terminal '%s' already exists" % key)
+			return false
+	_unregister(old)
+	_components[index] = new_component
+	_register(new_component)
+	for i: int in _wires.size():
+		var wire: PackedStringArray = _wires[i]
+		for end: int in 2:
+			var k: int = old_keys.find(wire[end])
+			if k >= 0:
+				wire[end] = new_keys[k]
+		_wires[i] = wire
+	topology_version += 1
+	return true
+
+
+func remove_wire(index: int) -> void:
+	_wires.remove_at(index)
+	topology_version += 1
+
+
+## Indices of the wires attached to a component, highest first.
+func wires_of(component: CircuitComponent) -> PackedInt32Array:
+	var keys: PackedStringArray = component.get_terminal_keys()
+	var result: PackedInt32Array = PackedInt32Array()
+	for i: int in range(_wires.size() - 1, -1, -1):
+		if keys.has(_wires[i][0]) or keys.has(_wires[i][1]):
+			result.append(i)
+	return result
+
+
+func _register(component: CircuitComponent) -> void:
+	_by_id[component.id] = component
+	for key: String in component.get_terminal_keys():
+		_terminal_owner[key] = component
+	if component is Coil:
+		_coils[component.designation] = component as Coil
+	_relink_contacts()
+
+
+func _unregister(component: CircuitComponent) -> void:
+	_by_id.erase(component.id)
+	for key: String in component.get_terminal_keys():
+		_terminal_owner.erase(key)
+	if component is Coil and _coils.get(component.designation, null) == component:
+		_coils.erase(component.designation)
+	_relink_contacts()
+
+
+func _relink_contacts() -> void:
+	for c: CircuitComponent in _components:
+		if c is Contact:
+			(c as Contact).linked_coil = _coils.get(c.designation, null)
 
 
 ## Connects two terminals, e.g. connect_terminals("S1:14", "K1:A1").
