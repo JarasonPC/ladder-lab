@@ -49,7 +49,9 @@ func is_interactive() -> bool:
 
 
 func _designation_anchor() -> Vector2:
-	var has_mark: bool = component is PushButton or component is LatchingSwitch or component is OverloadContact or (component is Contact and (component as Contact).delayed)
+	if component is OverloadContact:
+		return Vector2(-2.2 * G, 1.5 * G)
+	var has_mark: bool = component is PushButton or component is LatchingSwitch or (component is Contact and (component as Contact).delayed)
 	return Vector2(-1.9 * G if has_mark else -1.3 * G, 1.5 * G)
 
 
@@ -118,14 +120,14 @@ func _draw_position_actuator(middle: Vector2, color: Color, pivot: Vector2, turn
 	aa_polyline(PackedVector2Array([on_blade.call(apex), on_blade.call(Vector2(apex.x - 9.0, y - 5.0)), on_blade.call(Vector2(apex.x - 9.0, y + 5.0)), on_blade.call(apex)]), color, 1.6)
 
 
-## Overload relay contact: dashed stem (mechanical link) from the blade to the
-## thermal (bimetal) step on its top, which stays straight like a button head:
-## a short step to one side, back along the stem and across it.
+## Overload relay contact: a stem from the blade to the thermal (bimetal)
+## step on its top, straight like a button head. Lying horizontally it reads
+## as in the guide: up the stem, right, up, left just past the stem, up.
 func _draw_thermal_actuator(middle: Vector2, color: Color) -> void:
 	var y: float = middle.y
-	var x: float = -22.0
-	aa_dashed_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4, 2.5)
-	aa_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 5), Vector2(x - 6, y - 5), Vector2(x - 6, y + 8)]), color, 1.8)
+	var x: float = -20.0
+	aa_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4)
+	aa_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 7.5), Vector2(x - 9.0, y - 7.5), Vector2(x - 9.0, y + 1.5), Vector2(x - 16.5, y + 1.5)]), color, 1.6)
 
 
 func _draw_turn_actuator(middle: Vector2, switched_on: bool, color: Color) -> void:
