@@ -13,8 +13,9 @@ const FIXED_END := Vector2(0, 21.5)
 const ARC_CENTER := Vector2(0, 18)
 const ARC_RADIUS: float = 3.5
 const PIVOT := Vector2(0, 42)
+## Both tips as far from the pivot: the blade keeps its length.
 const OPEN_TIP := Vector2(-10, 18)
-const CLOSED_TIP := Vector2(-3.5, 18)
+const CLOSED_TIP := Vector2(-3.5, 16.2)
 const LINK_Y: float = 30.0
 
 
@@ -32,7 +33,7 @@ func _draw_shape(_color: Color, _width: float) -> void:
 	var target: float = 1.0 if contacts.is_path_closed(0) else minf(contacts.get_travel(), 0.85)
 	if contacts.fault == SwitchingElement.Fault.OPEN:
 		target = 0.0
-	var tip: Vector2 = OPEN_TIP.lerp(CLOSED_TIP, shown("blade", target))
+	var tip: Vector2 = blade_tip(PIVOT, OPEN_TIP, CLOSED_TIP, shown("blade", target))
 	var poles: int = component.get_terminal_names().size() / 2
 	var link_x: PackedFloat32Array = PackedFloat32Array()
 	for pole: int in poles:

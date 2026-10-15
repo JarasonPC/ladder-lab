@@ -225,6 +225,17 @@ func draw_blade(from: Vector2, to: Vector2, color: Color, width: float) -> void:
 	aa_circle(to, width * 0.5, color)
 
 
+## Tip of a blade turning about [param pivot] from [param from_tip] to
+## [param to_tip], [param t] 0..1: the blade turns instead of sliding its tip
+## along a straight line, so it keeps its length when both tips are as far
+## from the pivot.
+static func blade_tip(pivot: Vector2, from_tip: Vector2, to_tip: Vector2, t: float) -> Vector2:
+	var from_arm: Vector2 = from_tip - pivot
+	var to_arm: Vector2 = to_tip - pivot
+	var angle: float = from_arm.angle() + angle_difference(from_arm.angle(), to_arm.angle()) * t
+	return pivot + Vector2.from_angle(angle) * lerpf(from_arm.length(), to_arm.length(), t)
+
+
 ## Draws the symbol in local coordinates. Override.
 func _draw_shape(_color: Color, _width: float) -> void:
 	pass
