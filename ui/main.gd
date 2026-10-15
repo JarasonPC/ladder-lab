@@ -55,6 +55,7 @@ var _sim_tools: HBoxContainer
 var _switching_label: Label
 var _switching_select: OptionButton
 var _chart_button: Button
+var _log_button: Button
 var _timing_panel: TimingPanel
 var _run_button: Button
 var _step_button: Button
@@ -75,6 +76,9 @@ var _check_panel: CheckPanel
 var _status_label: Label
 var _hint_label: Label
 var _editor_hint: String = ""
+## Timing chart and event log shown in Simulate mode (remembered).
+var _show_chart: bool = true
+var _show_log: bool = true
 var _file_dialog: FileDialog
 var _unsaved_dialog: ConfirmationDialog
 var _discard_button: Button
@@ -230,11 +234,12 @@ func _build_ui() -> void:
 	_speed_select.select(SPEEDS.find(1.0))
 	_speed_select.item_selected.connect(func(i: int) -> void: view.speed = SPEEDS[i])
 	_reset_button = _button(_sim_tools, _start_simulation)
-	_chart_button = _button(_sim_tools, func() -> void:
-		_timing_panel.visible = _chart_button.button_pressed
-		_fit_camera_later())
+	_chart_button = _button(_sim_tools, _on_timing_parts_toggled)
 	_chart_button.toggle_mode = true
-	_chart_button.button_pressed = true
+	_chart_button.button_pressed = _show_chart
+	_log_button = _button(_sim_tools, _on_timing_parts_toggled)
+	_log_button.toggle_mode = true
+	_log_button.button_pressed = _show_log
 
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -383,6 +388,9 @@ func _retranslate() -> void:
 	_switching_select.set_item_text(1, tr("Ideal"))
 	_switching_select.tooltip_text = tr("Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly.")
 	_chart_button.text = tr("Timing chart")
+	_chart_button.tooltip_text = tr("Show or hide the timing chart")
+	_log_button.text = tr("Event log")
+	_log_button.tooltip_text = tr("Show or hide the event log")
 	_step_button.text = tr("Step")
 	_step_button.tooltip_text = tr("Advance the simulation by 0.1 s times the speed")
 	_speed_label.text = tr("Speed:")
@@ -437,7 +445,9 @@ func _update_mode_ui() -> void:
 	_side.visible = editing
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
-	_timing_panel.visible = not editing and _chart_button.button_pressed
+	_timing_panel.show_parts(_show_chart, _show_log)
+	if editing:
+		_timing_panel.visible = false
 	_update_run_button()
 	_on_stepped(view.last_result)
 
@@ -472,6 +482,14 @@ func _fit_camera_later() -> void:
 
 
 ## (Re)starts the simulation on a fresh copy of the edited schematic.
+func _on_timing_parts_toggled() -> void:
+	_show_chart = _chart_button.button_pressed
+	_show_log = _log_button.button_pressed
+	_update_mode_ui()
+	_save_settings()
+	_fit_camera_later()
+
+
 func _start_simulation() -> void:
 	view.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
@@ -778,12 +796,16 @@ func _load_settings() -> void:
 	var config: ConfigFile = ConfigFile.new()
 	if config.load(SETTINGS_PATH) == OK:
 		_recent = config.get_value("files", "recent", PackedStringArray())
+		_show_chart = config.get_value("view", "timing_chart", true)
+		_show_log = config.get_value("view", "event_log", true)
 
 
 func _save_settings() -> void:
 	var config: ConfigFile = ConfigFile.new()
 	config.load(SETTINGS_PATH)
 	config.set_value("files", "recent", _recent)
+	config.set_value("view", "timing_chart", _show_chart)
+	config.set_value("view", "event_log", _show_log)
 	config.save(SETTINGS_PATH)
 
 
