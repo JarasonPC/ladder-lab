@@ -75,6 +75,8 @@ var _side_bar: SideBar
 var _control_bar: SideBar
 ## Width and zoom of each side panel by its settings name, as loaded.
 var _bar_settings: Dictionary[String, Vector2] = {}
+## Event log width and timing panel height, as loaded.
+var _timing_size: Vector2 = Vector2(340.0, 220.0)
 ## Part of the window where the schematic is visible (between the panels).
 var _canvas_area: Control
 ## Big red warning over the schematic during an unprotected short circuit.
@@ -342,6 +344,9 @@ func _build_ui() -> void:
 	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
 
 	_timing_panel = TimingPanel.new()
+	_timing_panel.panel_height = _timing_size.y
+	_timing_panel.log_width = _timing_size.x
+	_timing_panel.resized_by_user.connect(_save_settings)
 	root.add_child(_timing_panel)
 
 	var bottom: PanelContainer = PanelContainer.new()
@@ -1003,6 +1008,7 @@ func _load_settings() -> void:
 		_edit_grid = bool(config.get_value("view", "grid", false))
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
 		_show_control_panel = bool(config.get_value("view", "control_panel", true))
+		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
 		for key: String in ["palette", "properties", "control_panel"]:
 			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", 250.0)), float(config.get_value("view", key + "_zoom", 1.0)))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
@@ -1021,6 +1027,9 @@ func _save_settings() -> void:
 	config.set_value("view", "grid", _edit_grid)
 	config.set_value("view", "wire_numbers", _wire_numbers)
 	config.set_value("view", "control_panel", _show_control_panel)
+	if _timing_panel != null:
+		config.set_value("view", "timing_height", _timing_panel.panel_height)
+		config.set_value("view", "event_log_width", _timing_panel.log_width)
 	for bar: SideBar in [_palette_bar, _side_bar, _control_bar]:
 		if bar != null:
 			config.set_value("view", bar.name + "_width", bar.width)
