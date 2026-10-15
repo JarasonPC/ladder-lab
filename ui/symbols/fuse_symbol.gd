@@ -47,8 +47,8 @@ static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: 
 	var fixed_end: Vector2 = x + Vector2(0, 14)
 	symbol.draw_line(x, fixed_end, symbol.lead_color(top), symbol.lead_width(top))
 	symbol.draw_line(x + Vector2(0, 3 * g), pivot, symbol.lead_color(bottom), symbol.lead_width(bottom))
-	# Closed, the blade still leans a little, as the symbol is drawn in the guide.
-	var tip: Vector2 = fixed_end + Vector2(-4, 0) if closed else x + Vector2(-15, 16)
+	# Closed, the blade runs straight on to the fixed contact.
+	var tip: Vector2 = fixed_end if closed else x + Vector2(-15, 16)
 	var blade: Color = symbol.lead_color(bottom) if symbol.reach(bottom) != SchematicSymbol.REACH_NONE else color
 	symbol.draw_line(pivot, tip, blade, symbol.lead_width(bottom))
 	# The fuse body sits on the blade.

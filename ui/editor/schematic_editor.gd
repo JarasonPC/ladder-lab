@@ -70,6 +70,7 @@ var _number_drag_recorded: bool = false
 ## {"component": id, "kind": ..., "index": ...} or {"wire": index}.
 var _inline: LineEdit = null
 var _inline_target: Dictionary = {}
+var _inline_layer: CanvasLayer = null
 # Selection box.
 var _boxing: bool = false
 var _box_origin: Vector2 = Vector2.ZERO
@@ -916,10 +917,19 @@ func _open_inline(target: Dictionary, text: String, at: Vector2) -> bool:
 	_inline = LineEdit.new()
 	_inline.text = text
 	_inline.select_all_on_focus = true
-	_inline.position = at - Vector2(4, 4)
-	_inline.custom_minimum_size = Vector2(maxf(60.0, 10.0 * (text.length() + 3)), 0)
-	_inline.add_theme_font_size_override("font_size", 13)
-	add_child(_inline)
+	# On a screen layer with its font sized to the zoom, so the text stays
+	# sharp (scaled with the drawing it would be blurred).
+	if _inline_layer == null:
+		_inline_layer = CanvasLayer.new()
+		_inline_layer.layer = 5
+		add_child(_inline_layer)
+	var to_screen: Transform2D = get_global_transform_with_canvas()
+	var zoom: float = to_screen.get_scale().x
+	var font_size: int = int(clampf(13.0 * zoom, 11.0, 48.0))
+	_inline.position = to_screen * (at - Vector2(4, 4))
+	_inline.custom_minimum_size = Vector2(maxf(60.0, 0.75 * font_size * (text.length() + 3)), 0)
+	_inline.add_theme_font_size_override("font_size", font_size)
+	_inline_layer.add_child(_inline)
 	_inline.text_submitted.connect(func(value: String) -> void: _commit_inline(value))
 	_inline.focus_exited.connect(func() -> void:
 		if _inline != null:
@@ -1105,13 +1115,20 @@ func _emit_hint() -> void:
 ## Guide lines across the view through every terminal of the part being
 ## placed, to line it up with the parts and wires already drawn.
 func _draw_placement_guides() -> void:
-	var visible: Rect2 = get_canvas_transform().affine_inverse() * get_viewport_rect()
 	var placement: Placement = Placement.new(_mouse_cell, _ghost_rotation, _ghost_mirrored)
+	var cells: Array[Vector2i] = []
+	for cell: Vector2i in SymbolGeometry.local_terminals(_ghost.component).values():
+		cells.append(_mouse_cell + SymbolGeometry.transform_cell(cell, placement))
+	_draw_guides(cells)
+
+
+## Lines across the view through the rows and columns of [param cells].
+func _draw_guides(cells: Array[Vector2i]) -> void:
+	var visible: Rect2 = get_canvas_transform().affine_inverse() * get_viewport_rect()
 	var color: Color = Color(SchematicTheme.LINE, 0.13)
 	var xs: Dictionary[int, bool] = {}
 	var ys: Dictionary[int, bool] = {}
-	for cell: Vector2i in SymbolGeometry.local_terminals(_ghost.component).values():
-		var at: Vector2i = _mouse_cell + SymbolGeometry.transform_cell(cell, placement)
+	for at: Vector2i in cells:
 		xs[at.x] = true
 		ys[at.y] = true
 	for x: int in xs:
@@ -1126,6 +1143,15 @@ func _draw() -> void:
 	var doc: SchematicDocument = document()
 	if tool == Tool.PLACE and _ghost != null:
 		_draw_placement_guides()
+	elif _dragging and _drag_recorded:
+		# Guide lines through the terminals of the parts being moved.
+		var cells: Array[Vector2i] = []
+		for id: String in selected_components:
+			var moved: CircuitComponent = doc.circuit.get_component(id)
+			if moved != null:
+				for key: String in moved.get_terminal_keys():
+					cells.append(doc.terminal_cell(key))
+		_draw_guides(cells)
 	# Unconnected terminals.
 	var connected: Dictionary[String, bool] = {}
 	for wire: PackedStringArray in doc.circuit.get_wires():
@@ -1141,11 +1167,26 @@ func _draw() -> void:
 	for id: String in selected_components:
 		var c: CircuitComponent = doc.circuit.get_component(id)
 		if c != null:
-			var body: Rect2 = doc.component_body(c)
-			draw_rect(Rect2(body.position * G, body.size * G).grow(3.0), SELECTION_COLOR, false, 1.5)
+			var body: Rect2 = Rect2(doc.component_body(c).position * G, doc.component_body(c).size * G).grow(3.0)
+			if _dragging and _drag_recorded:
+				# Highlight what is being dragged.
+				draw_rect(body, Color(SELECTION_COLOR, 0.15))
+				draw_rect(body, SELECTION_COLOR, false, 2.5)
+			else:
+				draw_rect(body, SELECTION_COLOR, false, 1.5)
 	for w: int in selected_wires:
 		if w < doc.get_wire_count():
+			if w == _wire_drag and _wire_drag_recorded:
+				draw_polyline(_pixels(doc.wire_points(w)), Color(SELECTION_COLOR, 0.3), 10.0)
 			draw_polyline(_pixels(doc.wire_points(w)), SELECTION_COLOR, 4.0)
+	# Wire number being dragged, or under the mouse (it can be dragged).
+	var number: Vector2i = _number_drag if _number_drag.x >= 0 else (view.wire_number_at(_mouse_point) if tool == Tool.SELECT and not _dragging and _wire_drag < 0 else Vector2i(-1, -1))
+	if number.x >= 0:
+		var r: Rect2 = view.wire_number_rect(number)
+		if r.has_area():
+			var box: Rect2 = Rect2(r.position * G, r.size * G).grow(2.0)
+			draw_rect(box, Color(SELECTION_COLOR, 0.25 if _number_drag.x >= 0 else 0.12))
+			draw_rect(box, SELECTION_COLOR, false, 2.0 if _number_drag.x >= 0 else 1.0)
 	# Hovered terminal.
 	if tool != Tool.PLACE and not _dragging:
 		var key: String = doc.terminal_at(_mouse_point, 0.3 if tool == Tool.SELECT else 0.4)
