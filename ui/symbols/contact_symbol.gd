@@ -11,11 +11,13 @@ extends SchematicSymbol
 
 const FIXED_END := Vector2(0, 20)
 const PIVOT := Vector2(0, 40)
+## The blade keeps its length: both tips of a blade are as far from the pivot.
 const OPEN_TIP := Vector2(-13, 18)
-const NO_CLOSED_TIP := Vector2(-3, 20)
+## Closed, the NO blade lies along the fixed contact.
+const NO_CLOSED_TIP := Vector2(-1, 14.5)
 const NC_CLOSED_TIP := Vector2(10, 18)
 ## An open NC blade swings further away from its stop, on the same side.
-const NC_OPEN_TIP := Vector2(18, 24)
+const NC_OPEN_TIP := Vector2(18, 23.9)
 const HOOK_END := Vector2(9, 20)
 
 
@@ -74,9 +76,9 @@ func _draw_shape(color: Color, _width: float) -> void:
 	var rest_tip: Vector2 = NC_CLOSED_TIP if is_nc else OPEN_TIP
 	var tip: Vector2
 	if is_nc:
-		tip = NC_CLOSED_TIP.lerp(NC_OPEN_TIP, clampf((s - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.0, 1.0) if element.get_armature() != null else s)
+		tip = blade_tip(pivot, NC_CLOSED_TIP, NC_OPEN_TIP, clampf((s - Armature.NC_REMAKE) / (1.0 - Armature.NC_REMAKE), 0.0, 1.0) if element.get_armature() != null else s)
 	else:
-		tip = OPEN_TIP.lerp(NO_CLOSED_TIP, s)
+		tip = blade_tip(pivot, OPEN_TIP, NO_CLOSED_TIP, s)
 	draw_blade(pivot, tip, pivot_color, pivot_width)
 	# Marks fixed to the blade turn with it; the button and switch heads stay
 	# straight at one height, their stem reaching the blade there.
