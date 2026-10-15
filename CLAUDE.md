@@ -7,3 +7,16 @@
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
 - Don't add features beyond what the current phase asks for
+
+## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
+
+- Device designations: K = relay/contactor, KT = time relay, S = push button/switch,
+  H = lamp, M = motor, rails L and N
+- Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; rails are just "L" / "N"
+- Contact terminals: first digit = sequence, second = function
+  (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2
+
+## Layout
+
+- `sim/` solver (Circuit, Simulator, StepResult, UnionFind, components/)
+- `test/unit/` GUT tests; headless Godot is not preinstalled in cloud sessions
