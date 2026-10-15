@@ -1,10 +1,11 @@
 class_name ThreePhaseMotorSymbol
 extends SchematicSymbol
 ## Three-phase motor (IEC 60617 S00819 style): circle with "M 3~" and a lead
-## per terminal. While it runs an arrow turns around it in its direction of
-## rotation, faster at higher speeds; Y / Δ or the speed step is written
-## beside it, a phase loss or wrong connection in the fault colour. The PE
-## terminal of the frame is below left, as in the guide.
+## per terminal. While the shaft turns an arrow turns around it in its
+## direction of rotation, faster at higher speeds and slowing down as the
+## motor runs down; Y / Δ, the speed step or DC braking is written beside it,
+## a phase loss or wrong connection in the fault colour. The PE terminal of
+## the frame is below left, as in the guide.
 
 const CENTER := Vector2(2.0 * G, 2.0 * G)
 const RADIUS: float = 26.0
@@ -15,9 +16,9 @@ var _angle: float = 0.0
 func _process(delta: float) -> void:
 	super(delta)
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
-	if motor.is_running():
-		var turn: float = 1.0 if motor.direction == ThreePhaseMotor.Direction.CLOCKWISE else -1.0
-		_angle = fmod(_angle + turn * delta * TAU * maxf(motor.speed, 1), TAU)
+	if motor.is_turning():
+		var turn: float = 1.0 if motor.shaft_direction == ThreePhaseMotor.Direction.CLOCKWISE else -1.0
+		_angle = fmod(_angle + turn * delta * TAU * maxf(motor.speed, 1) * motor.shaft, TAU)
 		queue_redraw()
 
 
@@ -56,17 +57,17 @@ func _draw_shape(color: Color, width: float) -> void:
 			bend = cell - Vector2(0.6 * G, 0)
 		var edge: Vector2 = CENTER + Vector2.from_angle(angle) * RADIUS
 		aa_polyline(PackedVector2Array([cell, bend, edge]), lead_color(i), lead_width(i))
-	var fill: Color = SchematicTheme.COIL_ON if motor.is_running() else SchematicTheme.BACKGROUND
+	var fill: Color = SchematicTheme.COIL_ON if _powered(motor) else SchematicTheme.BACKGROUND
 	if motor.state == ThreePhaseMotor.State.PHASE_LOSS or motor.state == ThreePhaseMotor.State.MISWIRED:
 		fill = Color(SchematicTheme.FAULT, 0.25)
 	aa_circle(CENTER, RADIUS, fill)
 	# The housing is drawn plain; the leads show the phases.
 	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-	aa_arc(CENTER, RADIUS, 0.0, TAU, 40, color, SchematicTheme.LINE_WIDTH if not motor.is_running() else width)
-	if motor.is_running():
+	aa_arc(CENTER, RADIUS, 0.0, TAU, 40, color, SchematicTheme.LINE_WIDTH if not _powered(motor) else width)
+	if motor.is_turning():
 		var r: float = RADIUS + 6.0
 		var arc: float = PI * 0.6
-		var turn: float = 1.0 if motor.direction == ThreePhaseMotor.Direction.CLOCKWISE else -1.0
+		var turn: float = 1.0 if motor.shaft_direction == ThreePhaseMotor.Direction.CLOCKWISE else -1.0
 		var start: float = _angle
 		if placement.mirrored:
 			# Drawn mirrored: mirror the angle too, so the arrow turns the same way on screen.
@@ -92,7 +93,7 @@ const END_ROW: float = 58.0
 ## W2-U2-V2) or delta bridges (U1-W2, V1-U2, W1-V2). The other kinds show a
 ## stud for each of their terminals, the bridges being made by contactors.
 func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
-	var fill: Color = SchematicTheme.COIL_ON if motor.is_running() else SchematicTheme.BACKGROUND
+	var fill: Color = SchematicTheme.COIL_ON if _powered(motor) else SchematicTheme.BACKGROUND
 	if motor.state == ThreePhaseMotor.State.PHASE_LOSS or motor.state == ThreePhaseMotor.State.MISWIRED:
 		fill = Color(SchematicTheme.FAULT, 0.25)
 	var board: Rect2 = _board(motor)
@@ -125,6 +126,11 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 			aa_circle(Vector2(x, y), 3.5, SchematicTheme.BACKGROUND)
 			aa_arc(Vector2(x, y), 3.5, 0.0, TAU, 12, lead_color(i) if y == FEED_ROW and reach(i) != REACH_NONE else color, 1.5)
 	_draw_box_pe(motor, board)
+
+
+## Current flows in the windings: running or DC braking.
+func _powered(motor: ThreePhaseMotor) -> bool:
+	return motor.is_running() or motor.state == ThreePhaseMotor.State.DC_BRAKING
 
 
 ## PE: from the frame of the box to its terminal.
@@ -217,6 +223,8 @@ func _draw_labels() -> void:
 		ThreePhaseMotor.State.MISWIRED:
 			status = tr("miswired")
 			status_color = SchematicTheme.FAULT
+		ThreePhaseMotor.State.DC_BRAKING:
+			status = tr("DC brake")
 		ThreePhaseMotor.State.RUNNING:
 			if motor.speed > 0:
 				status = tr("speed %d") % motor.speed

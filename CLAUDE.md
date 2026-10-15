@@ -41,15 +41,18 @@
   (Placement.strips: terminal index -> label, drawn instead of the square; Delete on the selected
   mark removes it); wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
-  numbering tool or double click; the palette panel is resizable
+  numbering tool or double click; side panels (palette, properties + check, control panel) are
+  SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
+  so text stays sharp); the timing panel is resized by its top edge and the grip before the
+  event log; widths, heights and zooms are saved in the settings
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
   junction_cells, wire_number_ends) look at the current page; new parts go on it; a wire joins
   terminals of one page. Page tabs above the drawing (add from presets, double-click renames,
   drag reorders, right click: move/delete; page edits undoable via SchematicEditor.edit_pages)
-- Page connectors (PageConnector, internal designation "PC1", drawn as an arrow pointing away from
-  the wire, label in the wire-number colour, cross reference "/page.path" below): all connectors
+- Page connectors (PageConnector, internal designation "PC1", drawn as a tag: point on the wire, flat
+  end away from it; label in the wire-number colour, cross reference "/page.path" below): all connectors
   with the same label are joined (Circuit.get_links, used by the solver and by wire_net); numbering
   runs over the pages and connectors take their net's wire number as label; right click (Edit) or
   click (Simulate) jumps to the partner page
@@ -58,7 +61,7 @@
   (SheetFrame), rendered by SheetRenderer at 200 dpi; PdfWriter writes one Flate image per page
 - Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
-  coloured push buttons, 0/I selector switches, signal lamps, optional lamp under a button or switch);
+  coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
   renames; edited in the sidebar in Edit mode (undoable), operate the simulation in Simulate mode
 - Keep the simulation logic (solver) separate from scenes and UI:
@@ -70,7 +73,9 @@
 
 - Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
-  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N
+  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N,
+  DC supplies + and - (a separate source: loads work between two conductors of the same source;
+  AC joined to DC is a short; the - pole is drawn like N)
   (supply points of one conductor are the same potential on every page)
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
@@ -83,6 +88,10 @@
 ## Layout
 
 - `sim/` solver (Circuit, Simulator, StepResult, UnionFind, Armature, TraceRecorder, components/) - no nodes
+- 3~ motors: + and - across a winding = DC_BRAKING (with a phase = MISWIRED); the shaft
+  (ThreePhaseMotor.shaft, simulation state) runs down in coast_time when switched off, in brake_time
+  with DC braking; braking force follows the rotor field (rotor_flux, decays with ROTOR_TIME_CONSTANT
+  after the AC cut), so DC applied at once brakes best
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)

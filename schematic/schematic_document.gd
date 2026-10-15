@@ -1065,6 +1065,10 @@ func next_supply_designation(conductor: PowerSupply.Conductor) -> String:
 			base = "L2"
 		PowerSupply.Conductor.L3:
 			base = "L3"
+		PowerSupply.Conductor.DC_PLUS:
+			base = "+"
+		PowerSupply.Conductor.DC_MINUS:
+			base = "-"
 	if not circuit.has_component_id(base):
 		return base
 	var n: int = 2

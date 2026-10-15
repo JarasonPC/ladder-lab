@@ -1,8 +1,8 @@
 class_name ControlBoxItem
 extends RefCounted
 ## One place of a [ControlBox]: a push button, a switch or a signal lamp with
-## a label plate beside it. A button or switch can have a signal lamp under
-## it. The item names a device of the circuit by its designation ("SB1",
+## a label plate beside it. A button or switch can be illuminated: a signal
+## lamp of the circuit inside it lights its cap or grip. The item names a device of the circuit by its designation ("SB1",
 ## "H1"); "" or a designation the circuit no longer has leaves it unassigned.
 
 enum Kind { BUTTON, SWITCH, LAMP }
@@ -23,10 +23,9 @@ var designation: String = ""
 var label: String = ""
 ## Colour of the button cap, switch grip or lamp lens, one of [constant COLORS].
 var color: String = "green"
-## Designation of a signal lamp under a button or switch, "" for none.
+## Designation of the signal lamp inside an illuminated button or switch,
+## "" for none. Its light has the colour of the cap (never black).
 var lamp: String = ""
-## Lens colour of [member lamp].
-var lamp_color: String = "green"
 
 
 func _init(p_kind: Kind = Kind.BUTTON, p_designation: String = "", p_color: String = "") -> void:
@@ -58,7 +57,6 @@ func to_data() -> Dictionary:
 		d["label"] = label
 	if kind != Kind.LAMP and not lamp.is_empty():
 		d["lamp"] = lamp
-		d["lamp_color"] = lamp_color
 	return d
 
 
@@ -76,8 +74,9 @@ static func from_data(data: Variant) -> ControlBoxItem:
 	item.label = str(d.get("label", "")).strip_edges()
 	if item.kind != Kind.LAMP:
 		item.lamp = _designation(d.get("lamp", ""))
-		var raw_color: String = str(d.get("lamp_color", ""))
-		item.lamp_color = raw_color if LAMP_COLORS.has(raw_color) else default_color(Kind.LAMP)
+		if not item.lamp.is_empty() and not LAMP_COLORS.has(item.color):
+			# A lit cap is translucent: a black one becomes white.
+			item.color = "white"
 	return item
 
 

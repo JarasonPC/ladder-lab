@@ -19,6 +19,7 @@ const TITLES: PackedStringArray = [
 	"Star/delta start 3~",
 	"Dahlander two-speed motor",
 	"Two-speed motor, separate windings",
+	"DC braking 3~",
 	"Direct-on-line start 3~ on three pages",
 ]
 
@@ -56,6 +57,8 @@ static func build(index: int, horizontal: bool = false) -> SchematicDocument:
 		11:
 			doc = two_windings()
 		12:
+			doc = dc_braking()
+		13:
 			doc = direct_on_line_pages()
 	if doc != null and doc.control_boxes.is_empty():
 		doc.add_control_box_for_all()
@@ -76,7 +79,7 @@ static func _lamp(designation: String, purpose: String) -> Lamp:
 	return lamp
 
 
-## Push button on a control box, optionally with a green signal lamp under it.
+## Push button on a control box, optionally illuminated by signal lamp [param lamp].
 static func _panel_button(designation: String, color: String, label: String, lamp: String = "") -> ControlBoxItem:
 	var item: ControlBoxItem = ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, designation, color)
 	item.label = label
@@ -163,9 +166,9 @@ static func forward_reverse() -> SchematicDocument:
 	doc.connect_terminals("H1:X2", "N", _c([Vector2i(21, 27)]))
 	doc.connect_terminals("KM2:34", "H2:X1")
 	doc.connect_terminals("H2:X2", "N", _c([Vector2i(28, 27)]))
-	# Control box: each start button with its signal lamp under it, stop below.
+	# Control box: illuminated start buttons (their lamps inside), stop below.
 	var box: ControlBox = doc.add_control_box()
-	box.items = [_panel_button("SB1", "green", "Forward", "H1"), _panel_button("SB2", "black", "Reverse", "H2"), _panel_button("SB0", "red", "Stop")]
+	box.items = [_panel_button("SB1", "green", "Forward", "H1"), _panel_button("SB2", "white", "Reverse", "H2"), _panel_button("SB0", "red", "Stop")]
 	return doc
 
 
@@ -642,6 +645,78 @@ static func two_windings() -> SchematicDocument:
 	_two_speed_power(doc, ThreePhaseMotor.Kind.TWO_WINDINGS)
 	var feed: String = _control_head(doc, 24, "FU2", ["F1", "F2"], true)
 	_two_way_control(doc, 24, 17, feed, "KM1", "KM2", 42, "SB1", "SB2", "SB3", true)
+	return doc
+
+
+## DC braking: KM1 runs the motor (direct-on-line start). SB0 stops it with its
+## 11-12 and starts braking with its 23-24: as soon as KM1 has released (its
+## 31-32), KM2 feeds + and - of the DC source into U1 and V1, held by its
+## 13-14, until time relay KT1 opens its delayed 55-56. KM1 and KM2 are
+## interlocked by each other's NC contacts. Braking starts right after the
+## AC is cut, while the rotor field is still there; without it the motor would
+## run down in its run-down time.
+static func dc_braking() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new(TITLES[12])
+	doc.add(ThreePoleFuse.new("FU1"), Vector2i(5, 2))
+	_phases(doc, 5)
+	doc.add(MainContacts.new("KM1"), Vector2i(5, 10))
+	var brake: MainContacts = MainContacts.new("KM2")
+	brake.poles = 2
+	doc.add(brake, Vector2i(13, 10))
+	doc.add(OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 18))
+	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M1")
+	motor.coast_time = 6.0
+	motor.brake_time = 1.5
+	doc.add(motor, Vector2i(5, 24))
+	doc.add(PowerSupply.new("+", PowerSupply.Conductor.DC_PLUS), Vector2i(13, 0))
+	doc.add(PowerSupply.new("-", PowerSupply.Conductor.DC_MINUS), Vector2i(15, 0))
+	_straight(doc, "FU1", "KM1", POLES)
+	_straight(doc, "KM1", "F1", POLES)
+	_straight(doc, "F1", "M1", ["U1", "V1", "W1"])
+	doc.connect_terminals("+", "KM2:1")
+	doc.connect_terminals("-", "KM2:3")
+	# DC into U1 and V1 (through the heaters of F1).
+	doc.connect_terminals("KM2:2", "F1:1", _c([Vector2i(13, 15), Vector2i(5, 15)]))
+	doc.connect_terminals("KM2:4", "F1:3", _c([Vector2i(15, 16), Vector2i(7, 16)]))
+
+	var x: int = 24
+	var xb: int = x + 8
+	var n_row: int = 32
+	var feed: String = _control_head(doc, x, "FU2", ["F1"])
+	# Run: SB0 11-12, SB1 (or KM1 holding), KM2's NC interlock, KM1.
+	doc.add(PushButton.new("SB0", NC), Vector2i(x, 12))
+	doc.add(PushButton.new("SB1", NO), Vector2i(x, 17))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(x + 4, 17))
+	doc.add(Contact.new("KM2", NC, 2), Vector2i(x, 22))
+	doc.add(Coil.new("KM1"), Vector2i(x, 27))
+	# Brake: SB0 23-24 (or KM2 holding), KT1's delayed 55-56, KM1's NC
+	# interlock, KM2; KT1 is fed before its own contact, so it does not restart
+	# while SB0 is still held.
+	doc.add(PushButton.new("SB0", NO, 2), Vector2i(xb, 12))
+	doc.add(Contact.new("KM2", NO, 1), Vector2i(xb + 6, 12))
+	doc.add(Contact.new("KT1", NC, 5, true), Vector2i(xb, 17))
+	doc.add(Contact.new("KM1", NC, 3), Vector2i(xb, 22))
+	doc.add(Coil.new("KM2"), Vector2i(xb, 27))
+	doc.add(TimerRelay.new("KT1", TimerRelay.Mode.ON_DELAY, 2.0), Vector2i(xb + 6, 27))
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(x - 3, n_row))
+	doc.connect_terminals(feed, "SB0:11")
+	doc.connect_terminals("SB0:12", "SB1:13")
+	doc.connect_terminals("SB0:12", "KM1:13", _c([Vector2i(x, 16), Vector2i(x + 4, 16)]))
+	doc.connect_terminals("SB1:14", "KM1:14")
+	doc.connect_terminals("SB1:14", "KM2:21")
+	doc.connect_terminals("KM2:22", "KM1:A1")
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(x, n_row)]))
+	doc.connect_terminals(feed, "SB0:23", _c([Vector2i(x, 11), Vector2i(xb, 11)]))
+	doc.connect_terminals(feed, "KM2:13", _c([Vector2i(x, 11), Vector2i(xb + 6, 11)]))
+	doc.connect_terminals("SB0:24", "KM2:14")
+	doc.connect_terminals("SB0:24", "KT1:55")
+	doc.connect_terminals("KM2:14", "KT1:A1")
+	doc.connect_terminals("KT1:56", "KM1:31")
+	doc.connect_terminals("KM1:32", "KM2:A1")
+	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(xb, n_row)]))
+	doc.connect_terminals("KT1:A2", "N", _c([Vector2i(xb + 6, n_row)]))
+	var box: ControlBox = doc.add_control_box()
+	box.items = [_panel_button("SB1", "green", "Start"), _panel_button("SB0", "red", "Stop")]
 	return doc
 
 

@@ -4,7 +4,7 @@ extends PanelContainer
 ## ([ControlBox]) with their push buttons, switches and signal lamps. While
 ## simulating they operate the circuit and show its lamps. While editing,
 ## boxes are added and filled here: click an item to choose its device,
-## colour, plate text and a signal lamp under it. Every change is emitted as
+## colour, plate text and a signal lamp inside it (illuminated button). Every change is emitted as
 ## one undoable edit of the document (see [method SchematicEditor.edit_control_panel]).
 
 ## A push button was pressed (true) or let go (false) on a control box.
@@ -30,7 +30,6 @@ var _swatches: Dictionary[String, Texture2D] = {}
 
 func _ready() -> void:
 	theme_type_variation = "RightPanel"
-	custom_minimum_size = Vector2(250, 0)
 	var outer: VBoxContainer = VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 10)
 	add_child(outer)
@@ -192,7 +191,7 @@ func _add_buttons(b: int) -> void:
 	_list.add_child(row)
 
 
-## Fields of the selected item: kind, device, plate text, colour, lamp under it.
+## Fields of the selected item: kind, device, plate text, colour, lamp inside it.
 func _item_editor(b: int, i: int) -> void:
 	var item: ControlBoxItem = _document.control_boxes[b].items[i]
 	var data: Dictionary = item.to_data()
@@ -245,14 +244,15 @@ func _item_editor(b: int, i: int) -> void:
 		apply.call(changed)))
 
 	_caption(fields, tr("Colour"))
-	var palette: PackedStringArray = ControlBoxItem.LAMP_COLORS if item.kind == ControlBoxItem.Kind.LAMP else ControlBoxItem.COLORS
+	# Lamps and lit caps are never black.
+	var palette: PackedStringArray = ControlBoxItem.LAMP_COLORS if item.kind == ControlBoxItem.Kind.LAMP or not item.lamp.is_empty() else ControlBoxItem.COLORS
 	fields.add_child(_color_choice(palette, item.color, func(color: String) -> void:
 		var changed: Dictionary = data.duplicate()
 		changed["color"] = color
 		apply.call(changed)))
 
 	if item.kind != ControlBoxItem.Kind.LAMP:
-		_caption(fields, tr("Signal lamp under it"))
+		_caption(fields, tr("Signal lamp inside (illuminated)"))
 		var lamps: PackedStringArray = PackedStringArray([""])
 		lamps.append_array(_document.control_devices(ControlBoxItem.Kind.LAMP))
 		if not item.lamp.is_empty() and not lamps.has(item.lamp):
@@ -264,14 +264,7 @@ func _item_editor(b: int, i: int) -> void:
 		lamp.item_selected.connect(func(k: int) -> void:
 			var changed: Dictionary = data.duplicate()
 			changed["lamp"] = lamps[k]
-			changed["lamp_color"] = item.lamp_color
 			apply.call(changed))
-		if not item.lamp.is_empty():
-			_caption(fields, tr("Lamp colour"))
-			fields.add_child(_color_choice(ControlBoxItem.LAMP_COLORS, item.lamp_color, func(color: String) -> void:
-				var changed: Dictionary = data.duplicate()
-				changed["lamp_color"] = color
-				apply.call(changed)))
 
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 2)

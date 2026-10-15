@@ -907,10 +907,7 @@ msgstr ""
 msgid "Blue"
 msgstr ""
 
-msgid "Signal lamp under it"
-msgstr ""
-
-msgid "Lamp colour"
+msgid "Signal lamp inside (illuminated)"
 msgstr ""
 
 msgid "Move it one place back"
@@ -921,6 +918,43 @@ msgstr ""
 
 msgid "Remove"
 msgstr ""
+
+msgid "DC braking 3~"
+msgstr ""
+
+#, c-format
+msgid "%s: DC braking"
+msgstr ""
+
+#, c-format
+msgid "%s switched off, runs down"
+msgstr ""
+
+msgid "+ supply (DC)"
+msgstr ""
+
+msgid "- supply (DC)"
+msgstr ""
+
+msgid "+ (DC)"
+msgstr ""
+
+msgid "- (DC)"
+msgstr ""
+
+msgid "Run-down time (s)"
+msgstr ""
+
+msgid "DC braking time (s)"
+msgstr ""
+
+msgid "DC brake"
+msgstr ""
+
+msgid "Drag to resize. Ctrl+wheel over the panel zooms it, Ctrl+0 resets the zoom."
+msgstr ""
+
+msgid "Drag to share the width between the chart and the event log"
 
 msgid "Direct-on-line start 3~ on three pages"
 msgstr ""

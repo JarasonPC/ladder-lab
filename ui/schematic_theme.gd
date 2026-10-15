@@ -2,7 +2,8 @@ class_name SchematicTheme
 extends RefCounted
 ## Colors and sizes used to draw schematics, in the style of the course guide:
 ## thin lines, square terminals, teal designations and terminal numbers;
-## voltage reach in orange (L / L1), slate (L2), lavender (L3) and blue (N).
+## voltage reach in orange (L / L1), slate (L2), lavender (L3) and blue (N);
+## the DC poles in magenta (+) and dark blue (-).
 ## Two papers: white (as in the guide) and dark ([method use]).
 
 static var dark: bool = false
@@ -17,6 +18,9 @@ static var LIVE_L2: Color
 static var LIVE_L3: Color
 ## Parts joined to N (N reach), Czech light blue for the neutral conductor.
 static var NEUTRAL: Color
+## Parts at the potential of the DC poles + and -.
+static var DC_PLUS: Color
+static var DC_MINUS: Color
 ## Short-circuit current, blown fuses, injected faults.
 static var FAULT: Color
 ## Chattering, tripped protection.
@@ -66,6 +70,8 @@ static func use(dark_paper: bool) -> void:
 		LIVE_L2 = Color("5c6a99")
 		LIVE_L3 = Color("a597e0")
 		NEUTRAL = Color("1f9be6")
+		DC_PLUS = Color("b0479a")
+		DC_MINUS = Color("2a44a8")
 		FAULT = Color("e0245e")
 		WARNING = Color("c99700")
 		COIL_ON = Color("f6cbb8")
@@ -87,6 +93,8 @@ static func use(dark_paper: bool) -> void:
 		LIVE_L2 = Color("8f9de0")
 		LIVE_L3 = Color("c2b2ff")
 		NEUTRAL = Color("46b4ff")
+		DC_PLUS = Color("e27cca")
+		DC_MINUS = Color("7d93ff")
 		FAULT = Color("ff4f7b")
 		WARNING = Color("f2c200")
 		COIL_ON = Color("6b3a24")
@@ -113,6 +121,10 @@ static func reach_color(code: int) -> Color:
 			return LIVE_L3
 		StepResult.REACH_N:
 			return NEUTRAL
+		StepResult.REACH_DC_PLUS:
+			return DC_PLUS
+		StepResult.REACH_DC_MINUS:
+			return DC_MINUS
 		StepResult.REACH_SEVERAL:
 			return FAULT
 	return LINE

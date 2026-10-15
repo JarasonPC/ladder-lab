@@ -11,8 +11,9 @@ extends SchematicSymbol
 const FIXED_END := Vector2(0, 18)
 ## Blade pivot above the lower terminal.
 const PIVOT := Vector2(0, 42)
+## Both tips as far from the pivot: the blade keeps its length.
 const OPEN_TIP := Vector2(-10, 18)
-const CLOSED_TIP := Vector2(-2, 18)
+const CLOSED_TIP := Vector2(-2, 16.1)
 const CROSS: float = 3.5
 ## Height of the dashed link.
 const LINK_Y: float = 30.0
@@ -47,7 +48,7 @@ func _draw_shape(_color: Color, _width: float) -> void:
 	var tripped: bool = (component as MotorBreaker).tripped if component is MotorBreaker else (component as CircuitBreaker).tripped
 	var poles: int = component.get_terminal_names().size() / 2
 	var opening: float = shown("blade", 0.0 if _closed() else 1.0)
-	var tip: Vector2 = CLOSED_TIP.lerp(OPEN_TIP, opening)
+	var tip: Vector2 = blade_tip(PIVOT, CLOSED_TIP, OPEN_TIP, opening)
 	# The releases are fixed to the blade: drawn for the closed blade and
 	# turned with it about the pivot.
 	var turn: float = (tip - PIVOT).angle() - (CLOSED_TIP - PIVOT).angle()

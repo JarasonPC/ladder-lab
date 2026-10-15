@@ -43,9 +43,9 @@ func _draw() -> void:
 			for y: int in range(floori(area.position.y), ceili(area.end.y) + 1):
 				draw_rect(Rect2(Vector2(x, y) * G - Vector2.ONE, Vector2(2, 2)), SchematicTheme.GRID_DOT)
 
-	# Dead wires first, then N, then the phases on top.
+	# Dead wires first, then N and DC -, then the phases and DC + on top.
 	var wires: PackedInt32Array = document.wires_on_page()
-	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_SEVERAL]]:
+	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N, StepResult.REACH_DC_MINUS], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_DC_PLUS, StepResult.REACH_SEVERAL]]:
 		for w: int in wires:
 			var code: int = _reach(w)
 			if pass_codes.has(code):

@@ -11,7 +11,8 @@ const BOX := Rect2(-6, 14, 12, 32)
 ## contact (below the upper terminal); the fuse body sits in its middle.
 const HOLDER_PIVOT := Vector2(0, 46)
 const HOLDER_FIXED := Vector2(0, 14)
-const HOLDER_OPEN_TIP := Vector2(-15, 16)
+## As far from the pivot as the fixed contact: the blade keeps its length.
+const HOLDER_OPEN_TIP := Vector2(-14.3, 17.4)
 const HOLDER_HALF_LENGTH: float = 9.0
 const HOLDER_HALF_WIDTH: float = 4.5
 
@@ -53,7 +54,7 @@ func _draw_labels() -> void:
 ## Half the width of a fuse holder's body, measured horizontally through its
 ## middle (wider when the blade is open and tilted).
 static func holder_half_extent(closed: float) -> float:
-	var along: Vector2 = (HOLDER_OPEN_TIP.lerp(HOLDER_FIXED, closed) - HOLDER_PIVOT).normalized()
+	var along: Vector2 = (blade_tip(HOLDER_PIVOT, HOLDER_OPEN_TIP, HOLDER_FIXED, closed) - HOLDER_PIVOT).normalized()
 	var extent: float = HOLDER_HALF_WIDTH / absf(along.y)
 	if absf(along.x) > 0.001:
 		extent = minf(extent, HOLDER_HALF_LENGTH / absf(along.x))
@@ -70,7 +71,7 @@ static func _draw_holder(symbol: SchematicSymbol, x: Vector2, top: int, bottom: 
 	symbol.aa_line(x, fixed_end, symbol.lead_color(top), symbol.lead_width(top))
 	symbol.aa_line(x + Vector2(0, 3 * g), pivot, symbol.lead_color(bottom), symbol.lead_width(bottom))
 	# Closed, the blade runs straight on to the fixed contact.
-	var tip: Vector2 = (x + HOLDER_OPEN_TIP).lerp(fixed_end, closed)
+	var tip: Vector2 = SchematicSymbol.blade_tip(pivot, x + HOLDER_OPEN_TIP, fixed_end, closed)
 	var blade: Color = symbol.lead_color(bottom) if symbol.reach(bottom) != SchematicSymbol.REACH_NONE else color
 	symbol.draw_blade(pivot, tip, blade, symbol.lead_width(bottom))
 	# The fuse body sits on the blade.

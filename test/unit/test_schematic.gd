@@ -120,3 +120,22 @@ func test_crossing_wires_get_no_dot() -> void:
 	doc.connect_terminals("H1:X2", "H2:X1", [Vector2i(10, 3)] as Array[Vector2i])
 	doc.connect_terminals("H3:X2", "H4:X1")
 	assert_does_not_have(doc.junction_cells(), Vector2i(4, 3), "a crossing is not a junction")
+
+
+func test_blades_keep_their_length_while_moving() -> void:
+	var blades: Array[Array] = [
+		[ContactSymbol.PIVOT, ContactSymbol.OPEN_TIP, ContactSymbol.NO_CLOSED_TIP],
+		[ContactSymbol.PIVOT, ContactSymbol.NC_CLOSED_TIP, ContactSymbol.NC_OPEN_TIP],
+		[ChangeoverSymbol.PIVOT, ChangeoverSymbol.NC_TIP, ChangeoverSymbol.NO_TIP],
+		[BreakerSymbol.PIVOT, BreakerSymbol.CLOSED_TIP, BreakerSymbol.OPEN_TIP],
+		[MainContactsSymbol.PIVOT, MainContactsSymbol.OPEN_TIP, MainContactsSymbol.CLOSED_TIP],
+		[FuseSymbol.HOLDER_PIVOT, FuseSymbol.HOLDER_OPEN_TIP, FuseSymbol.HOLDER_FIXED],
+	]
+	for blade: Array in blades:
+		var pivot: Vector2 = blade[0]
+		var length: float = pivot.distance_to(blade[1])
+		assert_almost_eq(pivot.distance_to(blade[2]), length, 0.1, "both ends as long")
+		for step: int in 11:
+			var tip: Vector2 = SchematicSymbol.blade_tip(pivot, blade[1], blade[2], step / 10.0)
+			assert_almost_eq(pivot.distance_to(tip), length, 0.1, "the blade turns, never shrinks")
+		assert_almost_eq(SchematicSymbol.blade_tip(pivot, blade[1], blade[2], 1.0), blade[2], Vector2(0.01, 0.01))

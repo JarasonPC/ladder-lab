@@ -176,32 +176,35 @@ func _span() -> int:
 	return span
 
 
-## True when a phase (or several supplies) reaches any terminal.
+## True when a phase, + (or several supplies) reaches any terminal.
 func any_live() -> bool:
 	for code: int in live:
-		if code != REACH_NONE and code != REACH_N:
+		if code != REACH_NONE and not StepResult.is_return(code):
 			return true
 	return false
 
 
 ## Colour of the symbol body. Voltage reach shows on the wires only; a coil
-## is the exception and takes the colour of the first phase that reaches it
-## (else N when N does).
+## is the exception and takes the colour of the first phase (or +) that
+## reaches it (else N or the DC - pole when one does).
 func stroke_color() -> Color:
 	if warning:
 		return SchematicTheme.WARNING
 	if not (component is Coil):
 		return SchematicTheme.LINE
 	for code: int in live:
-		if code != REACH_NONE and code != REACH_N:
+		if code != REACH_NONE and not StepResult.is_return(code):
 			return SchematicTheme.reach_color(code)
-	return SchematicTheme.NEUTRAL if live.has(REACH_N) else SchematicTheme.LINE
+	for code: int in live:
+		if StepResult.is_return(code):
+			return SchematicTheme.reach_color(code)
+	return SchematicTheme.LINE
 
 
 func stroke_width() -> float:
 	if not (component is Coil):
 		return SchematicTheme.LINE_WIDTH
-	return SchematicTheme.LIVE_WIDTH if warning or any_live() or live.has(REACH_N) else SchematicTheme.LINE_WIDTH
+	return SchematicTheme.LIVE_WIDTH if warning or any_live() or live.has(REACH_N) or live.has(StepResult.REACH_DC_MINUS) else SchematicTheme.LINE_WIDTH
 
 
 ## Colour of the lead and contact parts on the side of one terminal. The
@@ -221,6 +224,17 @@ func draw_blade(from: Vector2, to: Vector2, color: Color, width: float) -> void:
 	aa_line(from, to, color, width)
 	aa_circle(from, width * 0.5, color)
 	aa_circle(to, width * 0.5, color)
+
+
+## Tip of a blade turning about [param pivot] from [param from_tip] to
+## [param to_tip], [param t] 0..1: the blade turns instead of sliding its tip
+## along a straight line, so it keeps its length when both tips are as far
+## from the pivot.
+static func blade_tip(pivot: Vector2, from_tip: Vector2, to_tip: Vector2, t: float) -> Vector2:
+	var from_arm: Vector2 = from_tip - pivot
+	var to_arm: Vector2 = to_tip - pivot
+	var angle: float = from_arm.angle() + angle_difference(from_arm.angle(), to_arm.angle()) * t
+	return pivot + Vector2.from_angle(angle) * lerpf(from_arm.length(), to_arm.length(), t)
 
 
 ## Draws the symbol in local coordinates. Override.

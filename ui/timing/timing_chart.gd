@@ -2,7 +2,8 @@ class_name TimingChart
 extends Control
 ## Oscilloscope-like view of a [TraceRecorder]: one row per coil (power as a
 ## shaded band, armature position as a line from released to pulled in), per
-## timer output and per lamp or motor. Follows the simulation time; drag to
+## timer output and per lamp or motor (with the shaft speed of three-phase
+## motors). Follows the simulation time; drag to
 ## look back, mouse wheel to zoom, double click to follow again.
 
 signal window_changed(seconds: float)
@@ -51,7 +52,10 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 			_rows.append({"label": c.designation, "band": c.designation, "line": c.designation + "/armature", "step": ""})
 			if c is TimerRelay:
 				_rows.append({"label": c.designation + " ◷", "band": "", "line": c.designation + "/output", "step": ""})
-		elif c is Lamp or c is Motor or c is ThreePhaseMotor:
+		elif c is ThreePhaseMotor:
+			# Running as a step line, the shaft speed (run-down, braking) as a line.
+			_rows.append({"label": c.designation, "band": "", "line": c.designation + "/shaft", "step": c.designation})
+		elif c is Lamp or c is Motor:
 			_rows.append({"label": c.designation, "band": "", "line": "", "step": c.designation})
 	custom_minimum_size = Vector2(200, HEADER_HEIGHT + ROW_HEIGHT * maxi(_rows.size(), 1) + 4)
 	follow = true
