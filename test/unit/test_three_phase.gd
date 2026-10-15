@@ -52,18 +52,18 @@ func test_coil_between_two_phases_pulls_in() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
 	_three_supplies(doc)
 	doc.add(PowerSupply.new("L1.2", PowerSupply.Conductor.L), Vector2i(8, 0))
-	doc.add(Coil.new("K1"), Vector2i(0, 4))
-	doc.add(Coil.new("K2"), Vector2i(8, 4))
-	doc.connect_terminals("L1", "K1:A1")
-	doc.connect_terminals("L2", "K1:A2", [Vector2i(2, 7)] as Array[Vector2i])
-	doc.connect_terminals("L1.2", "K2:A1")
-	doc.connect_terminals("L1", "K2:A2", [Vector2i(0, 2), Vector2i(10, 2), Vector2i(10, 7), Vector2i(8, 7)] as Array[Vector2i])
+	doc.add(Coil.new("KM1"), Vector2i(0, 4))
+	doc.add(Coil.new("KM2"), Vector2i(8, 4))
+	doc.connect_terminals("L1", "KM1:A1")
+	doc.connect_terminals("L2", "KM1:A2", [Vector2i(2, 7)] as Array[Vector2i])
+	doc.connect_terminals("L1.2", "KM2:A1")
+	doc.connect_terminals("L1", "KM2:A2", [Vector2i(0, 2), Vector2i(10, 2), Vector2i(10, 7), Vector2i(8, 7)] as Array[Vector2i])
 	var r: StepResult = _sim(doc).last_result
-	assert_true(doc.circuit.get_coil("K1").energized, "400 V between L1 and L2")
-	assert_false(doc.circuit.get_coil("K2").energized, "L1 on both ends: no voltage")
+	assert_true(doc.circuit.get_coil("KM1").energized, "400 V between L1 and L2")
+	assert_false(doc.circuit.get_coil("KM2").energized, "L1 on both ends: no voltage")
 	assert_false(r.short_circuit)
-	assert_eq(r.terminal_reach["K1:A1"], StepResult.REACH_L1)
-	assert_eq(r.terminal_reach["K1:A2"], StepResult.REACH_L2)
+	assert_eq(r.terminal_reach["KM1:A1"], StepResult.REACH_L1)
+	assert_eq(r.terminal_reach["KM1:A2"], StepResult.REACH_L2)
 
 
 func test_phase_to_phase_short_is_found() -> void:
@@ -127,14 +127,14 @@ func test_forward_reverse_turns_both_ways() -> void:
 	var doc: SchematicDocument = ExampleCircuits.forward_reverse_3()
 	var sim: Simulator = _sim(doc, true)
 	_press(doc, sim, "S1")
-	assert_eq(_motor(doc).direction, CW, "K1 forward")
+	assert_eq(_motor(doc).direction, CW, "KM1 forward")
 	var texts: PackedStringArray = _press(doc, sim, "S2")
-	assert_eq(_motor(doc).direction, CW, "K1 interlocks K2")
+	assert_eq(_motor(doc).direction, CW, "KM1 interlocks KM2")
 	assert_false(texts.has("Short circuit: %s"))
 	_press(doc, sim, "S0")
 	_press(doc, sim, "S2")
 	assert_true(_motor(doc).is_running())
-	assert_eq(_motor(doc).direction, CCW, "K2 swaps L1 and L3")
+	assert_eq(_motor(doc).direction, CCW, "KM2 swaps L1 and L3")
 
 
 func test_phase_loss_trips_the_overload_relay() -> void:
@@ -149,7 +149,7 @@ func test_phase_loss_trips_the_overload_relay() -> void:
 	assert_false(relay.tripped, "not before the trip delay")
 	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY * 0.2)
 	assert_true(relay.tripped)
-	assert_false(doc.circuit.get_coil("K1").energized, "95-96 dropped K1")
+	assert_false(doc.circuit.get_coil("KM1").energized, "95-96 dropped KM1")
 	assert_eq(_motor(doc).state, ST.STOPPED)
 
 
@@ -186,18 +186,18 @@ func test_dahlander_speeds() -> void:
 	var texts: PackedStringArray = _press(doc, sim, "S1")
 	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "low speed")
 	texts.append_array(_press(doc, sim, "S2"))
-	assert_eq(_motor(doc).speed, 1, "K1 21-22 keeps high speed off")
+	assert_eq(_motor(doc).speed, 1, "KM1 21-22 keeps high speed off")
 	_press(doc, sim, "S0")
 	texts.append_array(_press(doc, sim, "S2"))
 	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2], "high speed")
-	assert_true(doc.circuit.get_coil("K3").energized, "star point closed")
+	assert_true(doc.circuit.get_coil("KM3").energized, "star point closed")
 	assert_false(texts.has("Short circuit: %s"))
 
 
 func test_dahlander_both_speeds_is_miswired() -> void:
 	var doc: SchematicDocument = ExampleCircuits.dahlander()
 	var sim: Simulator = _sim(doc)
-	(doc.circuit.get_component("K2:1-2-3-4-5-6") as MainContacts).fault = SwitchingElement.Fault.WELDED
+	(doc.circuit.get_component("KM2:1-2-3-4-5-6") as MainContacts).fault = SwitchingElement.Fault.WELDED
 	_press(doc, sim, "S1")
 	assert_eq(_motor(doc).state, ST.MISWIRED)
 	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY + 0.1)
@@ -212,7 +212,7 @@ func test_two_windings_speeds() -> void:
 	texts.append_array(_press(doc, sim, "S3", 0.2))
 	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 2], "S3 switches to high speed without STOP (button interlock)")
 	assert_false(texts.has("Short circuit: %s"))
-	assert_false(doc.circuit.get_coil("K1").energized)
+	assert_false(doc.circuit.get_coil("KM1").energized)
 	_press(doc, sim, "S1")
 	assert_eq(_motor(doc).state, ST.STOPPED, "S1 stops")
 

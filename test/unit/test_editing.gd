@@ -39,9 +39,9 @@ func test_remove_component_removes_its_wires() -> void:
 
 func test_replace_no_with_nc_keeps_wiring() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_true(doc.replace_component("K1:23-24", Contact.new("K1", NC, 2)))
-	assert_true(doc.circuit.has_terminal("K1:21"))
-	assert_false(doc.circuit.has_terminal("K1:23"))
+	assert_true(doc.replace_component("KM1:23-24", Contact.new("KM1", NC, 2)))
+	assert_true(doc.circuit.has_terminal("KM1:21"))
+	assert_false(doc.circuit.has_terminal("KM1:23"))
 	var r: StepResult = Simulator.new(doc.circuit).step()
 	assert_true(r.stable)
 	assert_true((doc.circuit.get_component("H1") as Lamp).energized, "NC contact now lights H1 at rest")
@@ -50,9 +50,9 @@ func test_replace_no_with_nc_keeps_wiring() -> void:
 
 func test_renaming_coil_relinks_contacts() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_true(doc.replace_component("K1", Coil.new("K5")))
-	assert_null((doc.circuit.get_component("K1:13-14") as Contact).linked_coil)
-	assert_true(doc.replace_component("K1:13-14", Contact.new("K5", NO, 1)))
+	assert_true(doc.replace_component("KM1", Coil.new("K5")))
+	assert_null((doc.circuit.get_component("KM1:13-14") as Contact).linked_coil)
+	assert_true(doc.replace_component("KM1:13-14", Contact.new("K5", NO, 1)))
 	assert_eq((doc.circuit.get_component("K5:13-14") as Contact).linked_coil, doc.circuit.get_coil("K5"))
 
 
@@ -154,9 +154,9 @@ func test_hit_queries() -> void:
 func test_designation_helpers() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
 	assert_eq(doc.next_designation("S"), "S2")
-	assert_eq(doc.next_designation("K"), "K2")
+	assert_eq(doc.next_designation("KM"), "KM2")
 	assert_eq(doc.next_designation("KT"), "KT1")
-	assert_eq(doc.next_contact_sequence("K1"), 3)
+	assert_eq(doc.next_contact_sequence("KM1"), 3)
 	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L.2")
 
 
@@ -173,7 +173,7 @@ func test_serializer_round_trip() -> void:
 	sim.step()
 	(restored.circuit.get_component("S1") as PushButton).release()
 	sim.step()
-	assert_true((restored.circuit.get_component("K1") as Coil).energized, "restored copy still self-holds")
+	assert_true((restored.circuit.get_component("KM1") as Coil).energized, "restored copy still self-holds")
 
 
 func test_undo_history() -> void:
