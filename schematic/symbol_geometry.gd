@@ -9,6 +9,10 @@ extends RefCounted
 const GRID: int = 20
 ## Distance in cells between the two terminals of a two-terminal symbol.
 const SPAN: int = 3
+## Distance in cells between the poles of three-pole symbols and motor terminals.
+const POLE_SPACING: int = 2
+## Distance in cells between the upper and lower terminals of a motor.
+const MOTOR_HEIGHT: int = 4
 
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
@@ -21,6 +25,15 @@ const DIR_LEFT: int = 8
 static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]:
 	var names: PackedStringArray = c.get_terminal_names()
 	var result: Dictionary[String, Vector2i] = {}
+	if _is_three_pole(c):
+		# Poles side by side, POLE_SPACING apart: 1, 3, 5 on top, 2, 4, 6 below.
+		for i: int in names.size():
+			result[names[i]] = Vector2i((i / 2) * POLE_SPACING, 0 if i % 2 == 0 else SPAN)
+		return result
+	if c is ThreePhaseMotor:
+		for i: int in names.size():
+			result[names[i]] = motor_terminal_cell(i)
+		return result
 	if names.size() == 1:
 		result[names[0]] = Vector2i.ZERO
 	elif names.size() == 2:
@@ -38,6 +51,11 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 ## (0 for supplies, whose symbol has no lead).
 static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> int:
 	var names: PackedStringArray = c.get_terminal_names()
+	if _is_three_pole(c):
+		return DIR_DOWN if names.find(terminal_name) % 2 == 0 else DIR_UP
+	if c is ThreePhaseMotor:
+		var i: int = names.find(terminal_name)
+		return DIR_DOWN if i < 3 else (DIR_UP if i < 6 else DIR_LEFT)
 	if names.size() == 3:
 		return DIR_UP if terminal_name == names[0] else DIR_DOWN
 	if names.size() != 2:
@@ -53,9 +71,28 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.3, -0.3, 0.6, 0.6)
 	if c is ChangeoverContact:
 		return Rect2(-1.0, 0.5, 2.6, 2.0)
+	if _is_three_pole(c):
+		return Rect2(-1.0, 0.5, 2.0 * POLE_SPACING + 2.0, 2.0)
+	if c is ThreePhaseMotor:
+		var wide: bool = (c as ThreePhaseMotor).kind == ThreePhaseMotor.Kind.THREE_WINDINGS
+		return Rect2(-0.4, 0.5, 6.0 if wide else 4.8, 3.0)
 	if c is SwitchingElement:
 		return Rect2(-1.6, 0.5, 2.4, 2.0)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
+
+
+## Cell of motor terminal [param index]: U-V-W of the first set on top, the
+## second set below, the third on the right.
+static func motor_terminal_cell(index: int) -> Vector2i:
+	if index < 3:
+		return Vector2i(index * POLE_SPACING, 0)
+	if index < 6:
+		return Vector2i((index - 3) * POLE_SPACING, MOTOR_HEIGHT)
+	return Vector2i(3 * POLE_SPACING, index - 5)
+
+
+static func _is_three_pole(c: CircuitComponent) -> bool:
+	return c is PoleDevice or (c is OverloadRelay and (c as OverloadRelay).poles == 3)
 
 
 ## Local cell offset -> offset from the placement cell.

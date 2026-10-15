@@ -42,6 +42,14 @@ func _update_id() -> void:
 	id = "%s:%s" % [designation, "-".join(get_terminal_names())]
 
 
+func switch_paths() -> Array[Vector2i]:
+	return [Vector2i(0, 1)]
+
+
+func is_path_closed(_path: int) -> bool:
+	return is_closed()
+
+
 ## Moving part that operates this block, or null.
 func get_armature() -> Armature:
 	return null

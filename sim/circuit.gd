@@ -138,6 +138,8 @@ func _relink_contacts() -> void:
 			(c as Contact).linked_coil = _coils.get(c.designation, null)
 		elif c is ChangeoverContact:
 			(c as ChangeoverContact).linked_coil = _coils.get(c.designation, null)
+		elif c is MainContacts:
+			(c as MainContacts).linked_coil = _coils.get(c.designation, null)
 		elif c is OverloadContact:
 			(c as OverloadContact).linked_relay = _overload_relays.get(c.designation, null)
 		elif c is PushButton:

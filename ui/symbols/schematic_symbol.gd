@@ -9,13 +9,12 @@ const G: float = float(SymbolGeometry.GRID)
 
 var component: CircuitComponent
 var placement: Placement
-const REACH_NONE: int = 0
-const REACH_L: int = 1
-const REACH_N: int = 2
+const REACH_NONE: int = StepResult.REACH_NONE
+const REACH_N: int = StepResult.REACH_N
 
 ## Per terminal (in [method CircuitComponent.get_terminal_names] order): what
-## reaches it, REACH_L, REACH_N or REACH_NONE. Set by the view from the last
-## [StepResult].
+## reaches it, a [StepResult] reach code (REACH_NONE, a phase, N or several).
+## Set by the view from the last [StepResult].
 var live: PackedByteArray = PackedByteArray()
 ## Blinking warning (oscillation), already gated by the blink phase.
 var warning: bool = false
@@ -57,16 +56,22 @@ func reach(terminal_index: int) -> int:
 	return live[terminal_index] if terminal_index < live.size() else REACH_NONE
 
 
+## True when a phase (or several supplies) reaches any terminal.
 func any_live() -> bool:
-	return live.has(REACH_L)
+	for code: int in live:
+		if code != REACH_NONE and code != REACH_N:
+			return true
+	return false
 
 
-## Colour of the symbol body: L when L reaches any terminal, else N when N does.
+## Colour of the symbol body: the first phase that reaches a terminal, else N
+## when N does.
 func stroke_color() -> Color:
 	if warning:
 		return SchematicTheme.WARNING
-	if any_live():
-		return SchematicTheme.LIVE
+	for code: int in live:
+		if code != REACH_NONE and code != REACH_N:
+			return SchematicTheme.reach_color(code)
 	return SchematicTheme.NEUTRAL if live.has(REACH_N) else SchematicTheme.LINE
 
 
@@ -78,12 +83,7 @@ func stroke_width() -> float:
 func lead_color(terminal_index: int) -> Color:
 	if warning:
 		return SchematicTheme.WARNING
-	match reach(terminal_index):
-		REACH_L:
-			return SchematicTheme.LIVE
-		REACH_N:
-			return SchematicTheme.NEUTRAL
-	return SchematicTheme.LINE
+	return SchematicTheme.reach_color(reach(terminal_index))
 
 
 func lead_width(terminal_index: int) -> float:

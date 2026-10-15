@@ -1,8 +1,11 @@
 class_name Simulator
 extends RefCounted
 ## Solves a [Circuit]: which loads have power and which contacts are operated.
-## Power is traced from L through closed switching elements; a load has power
-## when L reaches one terminal and N the other.
+## Each supply is a phase (L or L1, L2, L3) or N. Wires and closed switching
+## paths join nets into groups; a group reached by two different supplies is a
+## short circuit. A two-terminal load has power when its terminals are reached
+## by two different supplies (phase and N, or two phases). A
+## [ThreePhaseMotor] runs when its windings get all three phases.
 ##
 ## [enum Mode] IDEAL: relays switch instantly. Each [method step] advances the
 ## timers, then settles: the coils that should change are found and the first
@@ -30,6 +33,8 @@ extends RefCounted
 enum Mode { IDEAL, REALISTIC }
 
 const DEFAULT_MAX_ITERATIONS: int = 1000
+## Terminal slots per motor (the largest motor has nine).
+const MOTOR_TERMINALS: int = 9
 const DEFAULT_MAX_EVENTS: int = 20000
 ## A coil that switched at least this often within [constant CHATTER_WINDOW]
 ## seconds is reported as chattering.
@@ -66,9 +71,17 @@ var _coil_indices: PackedInt32Array = PackedInt32Array()
 ## Actuators of push buttons and switches (one per device).
 var _actuators: Array[Armature] = []
 var _overload_relays: Array[OverloadRelay] = []
-var _protective: Array[ProtectiveDevice] = []
-var _l_supplies: Array[PowerSupply] = []
-var _n_supplies: Array[PowerSupply] = []
+## Parts with a protection state (fuses, breakers, overload relays).
+var _protective: Array[CircuitComponent] = []
+var _supplies: Array[PowerSupply] = []
+var _motors: Array[ThreePhaseMotor] = []
+## Nine nets per motor (-1 where it has no such terminal).
+var _motor_nets: PackedInt32Array = PackedInt32Array()
+## Last evaluation: motor state and direction, overcurrent per overload relay.
+var _motor_states: PackedInt32Array = PackedInt32Array()
+var _motor_directions: PackedInt32Array = PackedInt32Array()
+var _motor_speeds: PackedInt32Array = PackedInt32Array()
+var _relay_overcurrent: PackedByteArray = PackedByteArray()
 var _short: bool = false
 ## Terminal index (into the current-flow graph) of every terminal key.
 var _terminal_index: Dictionary[String, int] = {}
@@ -151,27 +164,31 @@ func _build() -> void:
 	_loads.clear()
 	_load_nets.clear()
 	_coil_indices.clear()
-	_l_supplies.clear()
-	_n_supplies.clear()
+	_supplies.clear()
 	_actuators.clear()
 	_overload_relays.clear()
 	_protective.clear()
+	_motors.clear()
+	_motor_nets.clear()
 	for c: CircuitComponent in circuit.get_components():
 		var keys: PackedStringArray = c.get_terminal_keys()
 		if c is PushButton or c is LatchingSwitch:
 			var actuator: Armature = (c as SwitchingElement).get_armature()
 			if not _actuators.has(actuator):
 				_actuators.append(actuator)
-		elif c is ProtectiveDevice:
-			_protective.append(c as ProtectiveDevice)
-		elif c is OverloadRelay:
+		if c.protection_state() >= 0:
+			_protective.append(c)
+		if c is OverloadRelay:
 			_overload_relays.append(c as OverloadRelay)
+		var paths: Array[Vector2i] = c.switch_paths()
+		for p: int in paths.size():
+			_add_switch_path(c, p, keys[paths[p].x], keys[paths[p].y])
+		if not paths.is_empty():
 			continue
-		if c is SwitchingElement:
-			_add_switch_path(c, 0, keys[0], keys[1])
-		elif c is ChangeoverContact:
-			_add_switch_path(c, ChangeoverContact.PATH_NC, keys[0], keys[1])
-			_add_switch_path(c, ChangeoverContact.PATH_NO, keys[0], keys[2])
+		if c is ThreePhaseMotor:
+			_motors.append(c as ThreePhaseMotor)
+			for t: int in MOTOR_TERMINALS:
+				_motor_nets.append(_net_of_key[keys[t]] if t < keys.size() else -1)
 		elif c is Load:
 			if c is Coil:
 				_coil_indices.append(_loads.size())
@@ -179,11 +196,11 @@ func _build() -> void:
 			_load_nets.append(_net_of_key[keys[0]])
 			_load_nets.append(_net_of_key[keys[1]])
 		elif c is PowerSupply:
-			var supply: PowerSupply = c as PowerSupply
-			if supply.conductor == PowerSupply.Conductor.L:
-				_l_supplies.append(supply)
-			else:
-				_n_supplies.append(supply)
+			_supplies.append(c as PowerSupply)
+	_motor_states.resize(_motors.size())
+	_motor_directions.resize(_motors.size())
+	_motor_speeds.resize(_motors.size())
+	_relay_overcurrent.resize(_overload_relays.size())
 
 
 func _add_switch_path(c: CircuitComponent, path: int, key_a: String, key_b: String) -> void:
@@ -196,10 +213,75 @@ func _add_switch_path(c: CircuitComponent, path: int, key_a: String, key_b: Stri
 
 
 func _switch_closed(i: int) -> bool:
-	var c: CircuitComponent = _switches[i]
-	if c is SwitchingElement:
-		return (c as SwitchingElement).is_closed()
-	return (c as ChangeoverContact).is_path_closed(_switch_paths[i])
+	return _switches[i].is_path_closed(_switch_paths[i])
+
+
+## Union-find over the nets joined by closed switching paths.
+func _union_closed() -> UnionFind:
+	var uf: UnionFind = UnionFind.new(_net_count)
+	for i: int in _switches.size():
+		if _switch_closed(i):
+			uf.union(_switch_nets[2 * i], _switch_nets[2 * i + 1])
+	return uf
+
+
+## Supply bits reaching each group root.
+func _root_masks(uf: UnionFind) -> Dictionary[int, int]:
+	var masks: Dictionary[int, int] = {}
+	for supply: PowerSupply in _supplies:
+		var root: int = uf.find(_net_of_key[supply.designation])
+		masks[root] = masks.get(root, 0) | supply.source_bit()
+	return masks
+
+
+static func _is_single_source(mask: int) -> bool:
+	return mask != 0 and (mask & (mask - 1)) == 0
+
+
+## 1-3 for a single phase L1-L3, 0 for none, N or several.
+static func _phase_of(mask: int) -> int:
+	match mask:
+		PowerSupply.BIT_L1:
+			return 1
+		PowerSupply.BIT_L2:
+			return 2
+		PowerSupply.BIT_L3:
+			return 3
+	return 0
+
+
+## Applies what the last evaluation found to lamps, motors and the heating of
+## overload relays (coils are switched by the caller).
+func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
+	for i: int in _loads.size():
+		if not (_loads[i] is Coil):
+			_loads[i].energized = desired[i] == 1
+	for m: int in _motors.size():
+		var motor: ThreePhaseMotor = _motors[m]
+		var new_state: ThreePhaseMotor.State = _motor_states[m] as ThreePhaseMotor.State
+		if new_state != motor.state:
+			if new_state == ThreePhaseMotor.State.PHASE_LOSS:
+				_log(result, "%s: phase loss", [motor.designation])
+			elif new_state == ThreePhaseMotor.State.MISWIRED:
+				_log(result, "%s: windings wrongly connected", [motor.designation])
+			elif motor.is_running() and new_state == ThreePhaseMotor.State.STOPPED:
+				_log(result, "%s stopped", [motor.designation])
+			elif new_state == ThreePhaseMotor.State.STAR:
+				_log(result, "%s runs in star", [motor.designation])
+			elif new_state == ThreePhaseMotor.State.DELTA:
+				_log(result, "%s runs in delta", [motor.designation])
+			elif new_state == ThreePhaseMotor.State.RUNNING:
+				if _motor_speeds[m] > 0:
+					_log(result, "%s runs at speed %d", [motor.designation, _motor_speeds[m]])
+				else:
+					_log(result, "%s runs", [motor.designation])
+		elif motor.is_running() and _motor_speeds[m] != motor.speed and _motor_speeds[m] > 0:
+			_log(result, "%s runs at speed %d", [motor.designation, _motor_speeds[m]])
+		motor.state = new_state
+		motor.direction = _motor_directions[m] as ThreePhaseMotor.Direction
+		motor.speed = _motor_speeds[m]
+	for r: int in _overload_relays.size():
+		_overload_relays[r].motor_overcurrent = _relay_overcurrent[r] == 1
 
 
 func _settle(result: StepResult) -> StepResult:
@@ -238,9 +320,7 @@ func _settle(result: StepResult) -> StepResult:
 		desired = _evaluate_protected(result)
 
 	result.stable = settled
-	for i: int in _loads.size():
-		if not (_loads[i] is Coil):
-			_loads[i].energized = desired[i] == 1
+	_apply_outputs(desired, result)
 	_finish(result)
 	return result
 
@@ -292,16 +372,13 @@ func _step_realistic(delta: float) -> StepResult:
 ## (their armatures start moving), lamps and motors follow at once.
 func _apply_power(result: StepResult) -> void:
 	var desired: PackedByteArray = _evaluate_protected(result)
-	for i: int in _loads.size():
+	for i: int in _coil_indices:
+		var coil: Coil = _loads[i] as Coil
 		var want: bool = desired[i] == 1
-		var load: Load = _loads[i]
-		if load.energized == want:
-			continue
-		if load is Coil:
-			(load as Coil).set_energized(want)
-			_note_toggle(load.designation)
-		else:
-			load.energized = want
+		if coil.energized != want:
+			coil.set_energized(want)
+			_note_toggle(coil.designation)
+	_apply_outputs(desired, result)
 	if _short and _short_since < 0.0:
 		_short_since = time
 		_log(result, "Short circuit: %s", [" → ".join(_find_short_path())])
@@ -345,11 +422,11 @@ func _evaluate_protected(result: StepResult) -> PackedByteArray:
 		var probe: StepResult = StepResult.new()
 		_find_current_paths(probe, false)
 		var tripped: bool = false
-		for device: ProtectiveDevice in _protective:
-			if not device.tripped and device.is_closed() and probe.current_components.has(device.id):
-				device.trip()
+		for i: int in probe.current_switch_paths:
+			var c: CircuitComponent = _switches[i]
+			if c.trip_path(_switch_paths[i]):
 				tripped = true
-				_log(result, "%s blown" if device is Fuse else "%s tripped", [device.designation])
+				_log(result, c.trip_message(), [c.designation])
 		if not tripped:
 			break
 		desired = _evaluate()
@@ -400,44 +477,81 @@ func _record_trace() -> void:
 			trace.record(load.designation + "/armature", time, (load as Coil).armature.position, true)
 			if load is TimerRelay:
 				trace.record(load.designation + "/output", time, (load as TimerRelay).output_armature.position, true)
+	for motor: ThreePhaseMotor in _motors:
+		trace.record(motor.designation, time, 1.0 if motor.is_running() else 0.0)
 
 
-## Returns, per load, 1 if it has L on one terminal and N on the other through
-## closed switching elements. Sets [member _short]; during a short every load
-## is without power.
+## Returns, per load, 1 if its terminals are reached by two different supplies
+## (phase and N, or two phases) through closed switching paths, and works out
+## the motors and overload relays (applied by [method _apply_outputs]). Sets
+## [member _short]; during a short everything is without power.
 func _evaluate() -> PackedByteArray:
-	var uf: UnionFind = UnionFind.new(_net_count)
-	for i: int in _switches.size():
-		if _switch_closed(i):
-			uf.union(_switch_nets[2 * i], _switch_nets[2 * i + 1])
-
-	var l_roots: Dictionary[int, bool] = {}
-	for supply: PowerSupply in _l_supplies:
-		l_roots[uf.find(_net_of_key[supply.designation])] = true
-	var n_roots: Dictionary[int, bool] = {}
-	for supply: PowerSupply in _n_supplies:
-		n_roots[uf.find(_net_of_key[supply.designation])] = true
-
+	var uf: UnionFind = _union_closed()
+	var masks: Dictionary[int, int] = _root_masks(uf)
 	_short = false
-	for root: int in n_roots:
-		if l_roots.has(root):
+	for root: int in masks:
+		if not _is_single_source(masks[root]):
 			_short = true
 			break
 
 	var result: PackedByteArray = PackedByteArray()
 	result.resize(_loads.size())
 	result.fill(0)
+	_motor_states.fill(ThreePhaseMotor.State.STOPPED)
+	_motor_directions.fill(ThreePhaseMotor.Direction.NONE)
+	_motor_speeds.fill(0)
+	_relay_overcurrent.fill(0)
 	if _short:
 		return result
 	for i: int in _loads.size():
-		var a: int = uf.find(_load_nets[2 * i])
-		var b: int = uf.find(_load_nets[2 * i + 1])
-		if (l_roots.has(a) and n_roots.has(b)) or (l_roots.has(b) and n_roots.has(a)):
+		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
+		var b: int = masks.get(uf.find(_load_nets[2 * i + 1]), 0)
+		if _is_single_source(a) and _is_single_source(b) and a != b:
 			result[i] = 1
 		if _loads[i] is Coil and (_loads[i] as Coil).fault == Coil.Fault.OPEN:
 			# A broken winding has voltage but draws no current.
 			result[i] = 0
+	_evaluate_motors(uf, masks)
 	return result
+
+
+func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
+	const PHASE_BITS: int = PowerSupply.BIT_L1 | PowerSupply.BIT_L2 | PowerSupply.BIT_L3
+	# Group roots of the terminals of motors drawing overcurrent.
+	var hot_roots: Dictionary[int, bool] = {}
+	for m: int in _motors.size():
+		var motor: ThreePhaseMotor = _motors[m]
+		var phases: PackedInt32Array = PackedInt32Array()
+		var roots: PackedInt32Array = PackedInt32Array()
+		for t: int in MOTOR_TERMINALS:
+			var net: int = _motor_nets[MOTOR_TERMINALS * m + t]
+			roots.append(uf.find(net) if net >= 0 else -1)
+			phases.append(_phase_of(masks.get(roots[t], 0)) if net >= 0 else 0)
+		# For each group of three terminals: joined in a point with no phase on it?
+		var star_points: Array[bool] = []
+		for g: int in 3:
+			var root: int = roots[3 * g]
+			star_points.append(root >= 0 and root == roots[3 * g + 1] and root == roots[3 * g + 2] and (masks.get(root, 0) & PHASE_BITS) == 0)
+		var outcome: Array = ThreePhaseMotor.evaluate(motor.kind, phases, star_points)
+		_motor_states[m] = outcome[0]
+		_motor_directions[m] = outcome[1]
+		_motor_speeds[m] = outcome[2]
+		var state: ThreePhaseMotor.State = outcome[0]
+		var running: bool = state == ThreePhaseMotor.State.RUNNING or state == ThreePhaseMotor.State.STAR or state == ThreePhaseMotor.State.DELTA
+		if state == ThreePhaseMotor.State.PHASE_LOSS or state == ThreePhaseMotor.State.MISWIRED or (motor.overloaded and running):
+			for root: int in roots:
+				if root >= 0:
+					hot_roots[root] = true
+	# An overload relay heats when one of its heaters carries such a motor's current.
+	for r: int in _overload_relays.size():
+		var relay: OverloadRelay = _overload_relays[r]
+		if relay.poles != 3:
+			continue
+		var keys: PackedStringArray = relay.get_terminal_keys()
+		for k: String in keys:
+			if hot_roots.has(uf.find(_net_of_key[k])):
+				_relay_overcurrent[r] = 1
+				break
 
 
 ## One byte per coil (bit 0 coil power, bit 1 timed output), then one per
@@ -450,8 +564,8 @@ func _signature() -> PackedByteArray:
 		if coil is TimerRelay and (coil as TimerRelay).output:
 			b |= 2
 		sig.append(b)
-	for device: ProtectiveDevice in _protective:
-		sig.append(1 if device.tripped else 0)
+	for device: CircuitComponent in _protective:
+		sig.append(device.protection_state())
 	return sig
 
 
@@ -468,8 +582,8 @@ func _changing_tags(states: Array[PackedByteArray]) -> PackedStringArray:
 	return tags
 
 
-## Shortest chain of closed switching elements from an L supply to an N supply:
-## [L designation, element ids..., N designation].
+## Shortest chain of closed switching paths between two supplies of different
+## conductors: [supply, element ids..., supply].
 func _find_short_path() -> PackedStringArray:
 	var adjacency: Array[PackedInt32Array] = []
 	adjacency.resize(_net_count)
@@ -481,11 +595,23 @@ func _find_short_path() -> PackedStringArray:
 			var b: int = _switch_nets[2 * i + 1]
 			adjacency[a].append_array(PackedInt32Array([i, b]))
 			adjacency[b].append_array(PackedInt32Array([i, a]))
+	var bits: Array[int] = []
+	for supply: PowerSupply in _supplies:
+		if not bits.has(supply.source_bit()):
+			bits.append(supply.source_bit())
+	bits.sort()
+	for bit: int in bits:
+		var path: PackedStringArray = _short_path_from(bit, adjacency)
+		if not path.is_empty():
+			return path
+	return PackedStringArray()
 
-	var n_supply_of_net: Dictionary[int, PowerSupply] = {}
-	for supply: PowerSupply in _n_supplies:
-		n_supply_of_net[_net_of_key[supply.designation]] = supply
 
+func _short_path_from(bit: int, adjacency: Array[PackedInt32Array]) -> PackedStringArray:
+	var target_of_net: Dictionary[int, PowerSupply] = {}
+	for supply: PowerSupply in _supplies:
+		if supply.source_bit() != bit:
+			target_of_net[_net_of_key[supply.designation]] = supply
 	var prev_net: PackedInt32Array = PackedInt32Array()
 	var prev_switch: PackedInt32Array = PackedInt32Array()
 	prev_net.resize(_net_count)
@@ -494,18 +620,19 @@ func _find_short_path() -> PackedStringArray:
 	prev_switch.fill(-1)
 	var start_supply: Dictionary[int, PowerSupply] = {}
 	var queue: PackedInt32Array = PackedInt32Array()
-	for supply: PowerSupply in _l_supplies:
+	for supply: PowerSupply in _supplies:
+		if supply.source_bit() != bit:
+			continue
 		var net: int = _net_of_key[supply.designation]
 		if prev_net[net] == -2:
 			prev_net[net] = -1
 			start_supply[net] = supply
 			queue.append(net)
-
 	var head: int = 0
 	while head < queue.size():
 		var net: int = queue[head]
 		head += 1
-		if n_supply_of_net.has(net):
+		if target_of_net.has(net):
 			var middle: PackedStringArray = PackedStringArray()
 			var cursor: int = net
 			while prev_net[cursor] != -1:
@@ -514,7 +641,7 @@ func _find_short_path() -> PackedStringArray:
 			middle.reverse()
 			var path: PackedStringArray = PackedStringArray([start_supply[cursor].designation])
 			path.append_array(middle)
-			path.append(n_supply_of_net[net].designation)
+			path.append(target_of_net[net].designation)
 			return path
 		var edges: PackedInt32Array = adjacency[net]
 		for e: int in range(0, edges.size(), 2):
@@ -526,56 +653,60 @@ func _find_short_path() -> PackedStringArray:
 	return PackedStringArray()
 
 
-## Fills the L and N reach of [StepResult]: everything joined to an L (or N)
-## supply by wires and closed switching elements, whether or not current
-## flows there. Loads do not pass L or N on. During a short a part reached by
-## both counts as L.
+## Fills the reach of the supplies in [StepResult]: what each terminal and
+## wire is joined to by wires and closed switching paths, whether or not
+## current flows there (1-3 phase L1-L3, 4 N, 5 several = short). Loads do not
+## pass a supply on.
 func _find_live_parts(result: StepResult) -> void:
-	var uf: UnionFind = UnionFind.new(_net_count)
-	for i: int in _switches.size():
-		if _switch_closed(i):
-			uf.union(_switch_nets[2 * i], _switch_nets[2 * i + 1])
-	var l_roots: Dictionary[int, bool] = {}
-	for supply: PowerSupply in _l_supplies:
-		l_roots[uf.find(_net_of_key[supply.designation])] = true
-	var n_roots: Dictionary[int, bool] = {}
-	for supply: PowerSupply in _n_supplies:
-		n_roots[uf.find(_net_of_key[supply.designation])] = true
+	var uf: UnionFind = _union_closed()
+	var masks: Dictionary[int, int] = _root_masks(uf)
+	var code_of_root: Dictionary[int, int] = {}
+	for root: int in masks:
+		code_of_root[root] = StepResult.reach_code(masks[root])
 	for key: String in _net_of_key:
-		var root: int = uf.find(_net_of_key[key])
-		if l_roots.has(root):
-			result.live_terminals.append(key)
-		elif n_roots.has(root):
+		var code: int = code_of_root.get(uf.find(_net_of_key[key]), 0)
+		if code == 0:
+			continue
+		result.terminal_reach[key] = code
+		if code == StepResult.REACH_N:
 			result.neutral_terminals.append(key)
+		else:
+			result.live_terminals.append(key)
 	var wires: Array[PackedStringArray] = circuit.get_wires()
+	result.wire_reach.resize(wires.size())
+	result.wire_reach.fill(0)
 	for i: int in wires.size():
-		var root_a: int = uf.find(_net_of_key[wires[i][0]])
-		var root_b: int = uf.find(_net_of_key[wires[i][1]])
-		if l_roots.has(root_a) or l_roots.has(root_b):
-			result.live_wires.append(i)
-		elif n_roots.has(root_a) or n_roots.has(root_b):
+		var code_a: int = code_of_root.get(uf.find(_net_of_key[wires[i][0]]), 0)
+		var code_b: int = code_of_root.get(uf.find(_net_of_key[wires[i][1]]), 0)
+		var code: int = code_a if code_a != 0 and code_a != StepResult.REACH_N else (code_b if code_b != 0 else code_a)
+		result.wire_reach[i] = code
+		if code == StepResult.REACH_N:
 			result.neutral_wires.append(i)
+		elif code != 0:
+			result.live_wires.append(i)
 
 
 ## Fills [member StepResult.current_wires] and [member StepResult.current_components].
 ## [param include_loads] false leaves energized loads out (fault current only).
 ##
-## Graph: terminals are vertices; wires, closed switching elements and energized
-## loads are edges. A virtual source edge joins all L supplies to all N supplies.
-## A wire or element carries current exactly when it lies on a simple cycle
-## through the source edge, i.e. in the same biconnected component. Dead-end
-## branches and loops hanging off a single point stay dark. During a short the
-## loads are off, so the result is the fault-current path.
+## Graph: terminals are vertices; wires, closed switching paths and energized
+## loads are edges. Every supply is joined to a virtual node of its conductor,
+## and those nodes to a hub. A wire or element carries current exactly when it
+## lies on a simple cycle through the hub (from one conductor to another), i.e.
+## in a biconnected component with a hub edge. Dead-end branches and loops
+## hanging off a single point stay dark. During a short the loads are off, so
+## the result is the fault-current path.
 func _find_current_paths(result: StepResult, include_loads: bool = true) -> void:
-	if _l_supplies.is_empty() or _n_supplies.is_empty():
+	if _supplies.is_empty():
 		return
 	const WIRE := 0
 	const SWITCH := 1
 	const LOAD := 2
 	const VIRTUAL := 3
 	var terminal_count: int = _terminal_index.size()
-	var v_l: int = terminal_count
-	var v_n: int = terminal_count + 1
+	# Virtual vertices: hub, then one per conductor bit (1, 2, 4, 8).
+	var hub: int = terminal_count
+	var conductor_vertex: Dictionary[int, int] = {}
 	# Edges as parallel arrays indexed by edge id.
 	var edge_a: PackedInt32Array = PackedInt32Array()
 	var edge_b: PackedInt32Array = PackedInt32Array()
@@ -603,19 +734,25 @@ func _find_current_paths(result: StepResult, include_loads: bool = true) -> void
 			edge_b.append(_terminal_index[keys[1]])
 			edge_kind.append(LOAD)
 			edge_ref.append(i)
-	for supply: PowerSupply in _l_supplies + _n_supplies:
-		edge_a.append(v_l if supply.conductor == PowerSupply.Conductor.L else v_n)
+	var hub_edges: PackedInt32Array = PackedInt32Array()
+	for supply: PowerSupply in _supplies:
+		var bit: int = supply.source_bit()
+		if not conductor_vertex.has(bit):
+			conductor_vertex[bit] = terminal_count + 1 + conductor_vertex.size()
+			hub_edges.append(edge_a.size())
+			edge_a.append(hub)
+			edge_b.append(conductor_vertex[bit])
+			edge_kind.append(VIRTUAL)
+			edge_ref.append(-1)
+		edge_a.append(conductor_vertex[bit])
 		edge_b.append(_terminal_index[supply.designation])
 		edge_kind.append(VIRTUAL)
 		edge_ref.append(-1)
-	var source_edge: int = edge_a.size()
-	edge_a.append(v_l)
-	edge_b.append(v_n)
-	edge_kind.append(VIRTUAL)
-	edge_ref.append(-1)
+	if hub_edges.size() < 2:
+		return
 
 	var adjacency: Array[PackedInt32Array] = []
-	adjacency.resize(terminal_count + 2)
+	adjacency.resize(terminal_count + 1 + conductor_vertex.size())
 	for i: int in adjacency.size():
 		adjacency[i] = PackedInt32Array()
 	for e: int in edge_a.size():
@@ -623,13 +760,20 @@ func _find_current_paths(result: StepResult, include_loads: bool = true) -> void
 			adjacency[edge_a[e]].append_array(PackedInt32Array([edge_b[e], e]))
 			adjacency[edge_b[e]].append_array(PackedInt32Array([edge_a[e], e]))
 
-	var block: PackedInt32Array = _biconnected_block(adjacency, v_l, source_edge)
+	var in_block: Dictionary[int, bool] = {}
+	for hub_edge: int in hub_edges:
+		if in_block.has(hub_edge):
+			continue
+		for e: int in _biconnected_block(adjacency, hub, hub_edge):
+			in_block[e] = true
+	var block: PackedInt32Array = PackedInt32Array(in_block.keys())
 	block.sort()
 	for e: int in block:
 		match edge_kind[e]:
 			WIRE:
 				result.current_wires.append(edge_ref[e])
 			SWITCH:
+				result.current_switch_paths.append(edge_ref[e])
 				if not result.current_components.has(_switches[edge_ref[e]].id):
 					result.current_components.append(_switches[edge_ref[e]].id)
 			LOAD:

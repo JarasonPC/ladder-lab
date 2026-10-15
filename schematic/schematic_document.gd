@@ -135,11 +135,17 @@ func current_paths(merge: float = 2.0) -> PackedFloat32Array:
 	return paths
 
 
-## Cells where three or more wire or lead directions meet, drawn as dots.
+## Cells where three or more wire or lead directions meet at a wire's end or
+## corner, drawn as dots (a plain crossing is not a connection).
 func junction_cells() -> Array[Vector2i]:
 	var directions: Dictionary[Vector2i, int] = {}
+	# Cells where a wire starts, ends or turns: only there do wires connect.
+	# Two wires merely crossing each other get no dot.
+	var vertices: Dictionary[Vector2i, bool] = {}
 	for i: int in _routes.size():
 		var points: Array[Vector2i] = wire_points(i)
+		for p: Vector2i in points:
+			vertices[p] = true
 		for s: int in range(1, points.size()):
 			var a: Vector2i = points[s - 1]
 			var b: Vector2i = points[s]
@@ -172,7 +178,7 @@ func junction_cells() -> Array[Vector2i]:
 	for cell: Vector2i in directions:
 		var bits: int = directions[cell]
 		var count: int = (bits & 1) + ((bits >> 1) & 1) + ((bits >> 2) & 1) + ((bits >> 3) & 1)
-		if count >= 3:
+		if count >= 3 and vertices.has(cell):
 			result.append(cell)
 	return result
 
@@ -546,7 +552,18 @@ func next_designation(prefix: String, reserved: Dictionary[String, bool] = {}) -
 
 ## Designation for another supply point: "L", then "L.2", "L.3", ...
 func next_supply_designation(conductor: PowerSupply.Conductor) -> String:
-	var base: String = "L" if conductor == PowerSupply.Conductor.L else "N"
+	var base: String = "N"
+	match conductor:
+		PowerSupply.Conductor.L:
+			# Next to L2 and L3 the first phase is called L1.
+			base = "L"
+			for c: CircuitComponent in circuit.get_components():
+				if c is PowerSupply and (c as PowerSupply).conductor in [PowerSupply.Conductor.L2, PowerSupply.Conductor.L3]:
+					base = "L1"
+		PowerSupply.Conductor.L2:
+			base = "L2"
+		PowerSupply.Conductor.L3:
+			base = "L3"
 	if not circuit.has_component_id(base):
 		return base
 	var n: int = 2
@@ -630,7 +647,8 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 		var d: Dictionary = cd.duplicate()
 		match d["type"]:
 			"supply":
-				d["designation"] = next_supply_designation(PowerSupply.Conductor.N if d.get("conductor", "L") == "N" else PowerSupply.Conductor.L)
+				var conductor: int = maxi(DocumentSerializer.CONDUCTORS.find(str(d.get("conductor", "L"))), 0)
+				d["designation"] = next_supply_designation(conductor as PowerSupply.Conductor)
 			"junction":
 				d["designation"] = next_designation("J")
 			_:

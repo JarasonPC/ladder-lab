@@ -128,17 +128,8 @@ func _apply(result: StepResult) -> void:
 
 func _update_visuals() -> void:
 	var blink_on: bool = _blink_time < BLINK_PERIOD * 0.5
-	var reach_of: Dictionary[String, int] = {}
-	for key: String in last_result.live_terminals:
-		reach_of[key] = SchematicSymbol.REACH_L
-	for key: String in last_result.neutral_terminals:
-		reach_of[key] = SchematicSymbol.REACH_N
-	_wire_layer.live_wires.clear()
-	for w: int in last_result.live_wires:
-		_wire_layer.live_wires[w] = true
-	_wire_layer.neutral_wires.clear()
-	for w: int in last_result.neutral_wires:
-		_wire_layer.neutral_wires[w] = true
+	var reach_of: Dictionary[String, int] = last_result.terminal_reach
+	_wire_layer.wire_reach = last_result.wire_reach
 	_wire_layer.fault_wires.clear()
 	if last_result.short_circuit:
 		for w: int in last_result.current_wires:
