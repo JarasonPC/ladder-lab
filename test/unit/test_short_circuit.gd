@@ -36,7 +36,7 @@ func test_short_reports_closing_line() -> void:
 	s2.press()
 	var r: StepResult = sim.step()
 	assert_true(r.short_circuit)
-	assert_eq(r.short_circuit_path, PackedStringArray(["L", "S1", "S2", "N"]))
+	assert_eq(r.short_circuit_path, PackedStringArray(["L", "S1:13-14", "S2:13-14", "N"]))
 	assert_false(h1.energized, "supply is down during a short")
 
 

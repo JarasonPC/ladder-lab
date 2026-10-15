@@ -153,7 +153,7 @@ static func _cell(value: Variant) -> Vector2i:
 
 ## True if [param c] can be added without clashing ids or terminals.
 static func _fits(circuit: Circuit, c: CircuitComponent) -> bool:
-	if circuit.get_component(c.id) != null:
+	if circuit.has_component_id(c.id):
 		return false
 	for key: String in c.get_terminal_keys():
 		if circuit.has_terminal(key):

@@ -41,7 +41,7 @@ func test_rotated_body_hit() -> void:
 
 func test_component_at() -> void:
 	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_eq(doc.component_at(Vector2(5.0, 9.5)).id, "S1")
+	assert_eq(doc.component_at(Vector2(5.0, 9.5)).id, "S1:13-14")
 	assert_eq(doc.component_at(Vector2(8.0, 9.5)).id, "K1:13-14")
 	assert_eq(doc.component_at(Vector2(5.0, 14.5)).id, "K1")
 	assert_null(doc.component_at(Vector2(0.0, 0.0)))

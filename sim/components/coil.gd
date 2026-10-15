@@ -9,6 +9,9 @@ extends Load
 ## forever (one of them wins, always the same one).
 
 enum Kind { RELAY, CONTACTOR }
+## Injected faults: OPEN (broken winding, never pulls in), STUCK (armature
+## jammed where it is).
+enum Fault { NONE, OPEN, STUCK }
 
 ## Default (pick-up, drop-out) seconds per kind.
 const DEFAULT_PICK_UP: Dictionary[Kind, float] = {Kind.RELAY: 0.010, Kind.CONTACTOR: 0.020}
@@ -20,6 +23,10 @@ var kind: Kind
 var pick_up_time: float
 var drop_out_time: float
 var armature: Armature
+var fault: Fault = Fault.NONE:
+	set(value):
+		fault = value
+		_apply_fault()
 
 
 func _init(p_designation: String, p_kind: Kind = Kind.CONTACTOR, p_pick_up: float = -1.0, p_drop_out: float = -1.0) -> void:
@@ -75,3 +82,7 @@ func _new_armature() -> Armature:
 
 func _sync_targets() -> void:
 	armature.target = energized
+
+
+func _apply_fault() -> void:
+	armature.stuck = fault == Fault.STUCK

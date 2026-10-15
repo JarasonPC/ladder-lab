@@ -65,7 +65,7 @@ func test_parallel_paths_both_carry_current() -> void:
 	start.press()
 	var r: StepResult = sim.step()
 	_assert_wires(r, ["L S0:11", "S0:12 S1:13", "S0:12 K1:13", "S1:14 K1:14", "S1:14 K1:A1", "K1:A2 N", "L K1:23", "K1:24 H1:X1", "H1:X2 N"], [])
-	for id: String in ["S0", "S1", "K1:13-14", "K1", "K1:23-24", "H1"]:
+	for id: String in ["S0:11-12", "S1:13-14", "K1:13-14", "K1", "K1:23-24", "H1"]:
 		assert_has(r.current_components, id)
 
 
@@ -76,7 +76,7 @@ func test_open_branch_is_dark_after_release() -> void:
 	start.release()
 	var r: StepResult = sim.step()
 	_assert_wires(r, ["L S0:11", "S0:12 K1:13", "S1:14 K1:14", "S1:14 K1:A1", "K1:A2 N"], ["S0:12 S1:13"])
-	assert_does_not_have(r.current_components, "S1")
+	assert_does_not_have(r.current_components, "S1:13-14")
 	assert_has(r.current_components, "K1:13-14")
 
 
@@ -100,7 +100,7 @@ func test_dead_end_and_dangling_loop_are_dark() -> void:
 	var r: StepResult = sim.step()
 	assert_true((circuit.get_component("H1") as Lamp).energized)
 	_assert_wires(r, ["L S1:13", "S1:14 H1:X1", "H1:X2 N"], ["S1:14 S2:13", "S1:14 S3:13", "S3:14 S4:13", "S4:14 S1:14"])
-	assert_eq(r.current_components, PackedStringArray(["S1", "H1"]))
+	assert_eq(r.current_components, PackedStringArray(["S1:13-14", "H1"]))
 
 
 func test_short_circuit_shows_fault_current() -> void:
@@ -119,4 +119,4 @@ func test_short_circuit_shows_fault_current() -> void:
 	var r: StepResult = sim.step()
 	assert_true(r.short_circuit)
 	_assert_wires(r, ["L S1:13", "S1:14 S2:13", "S2:14 N"], ["L H1:X1", "H1:X2 N"])
-	assert_eq(r.current_components, PackedStringArray(["S1", "S2"]))
+	assert_eq(r.current_components, PackedStringArray(["S1:13-14", "S2:13-14"]))

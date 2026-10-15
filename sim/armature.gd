@@ -31,6 +31,8 @@ var drop_out_time: float = 0.015
 var no_closed: bool = false
 ## State of the NC contacts (true = opened).
 var nc_open: bool = false
+## Injected fault: the armature is jammed and does not move at all.
+var stuck: bool = false
 
 
 func _init(p_pick_up: float = 0.02, p_drop_out: float = 0.015) -> void:
@@ -41,6 +43,8 @@ func _init(p_pick_up: float = 0.02, p_drop_out: float = 0.015) -> void:
 ## Jumps to the end position (instant switching).
 func snap(on: bool) -> void:
 	target = on
+	if stuck:
+		return
 	position = 1.0 if on else 0.0
 	_update_contacts()
 
@@ -51,6 +55,8 @@ func is_moving() -> bool:
 
 ## Travel per second: positive while pulling in, negative while releasing.
 func speed() -> float:
+	if stuck:
+		return 0.0
 	if target and position < 1.0:
 		return 1.0 / pick_up_time
 	if not target and position > 0.0:

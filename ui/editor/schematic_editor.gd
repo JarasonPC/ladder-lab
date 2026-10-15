@@ -705,7 +705,7 @@ func _changed() -> void:
 		if w >= document().get_wire_count():
 			selected_wires.erase(w)
 	for id: String in selected_components.keys():
-		if document().circuit.get_component(id) == null:
+		if not document().circuit.has_component_id(id):
 			selected_components.erase(id)
 	view.rebuild()
 	_selection_updated()
@@ -728,7 +728,7 @@ func _selection_updated() -> void:
 
 func _can_add(c: CircuitComponent) -> bool:
 	var circuit: Circuit = document().circuit
-	if circuit.get_component(c.id) != null:
+	if circuit.has_component_id(c.id):
 		return false
 	for key: String in c.get_terminal_keys():
 		if circuit.has_terminal(key):
@@ -738,7 +738,7 @@ func _can_add(c: CircuitComponent) -> bool:
 
 func _can_replace(old: CircuitComponent, replacement: CircuitComponent) -> bool:
 	var circuit: Circuit = document().circuit
-	if replacement.id != old.id and circuit.get_component(replacement.id) != null:
+	if replacement.id != old.id and circuit.has_component_id(replacement.id):
 		return false
 	for key: String in replacement.get_terminal_keys():
 		var owner: CircuitComponent = circuit.get_terminal_owner(key)

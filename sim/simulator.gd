@@ -18,6 +18,14 @@ extends RefCounted
 ## event (a contact switching, an armature reaching an end, a timer expiring)
 ## and re-traces power after each one. A coil switching on and off fast is
 ## reported as chattering; [member max_events] caps the work per step.
+##
+## Protection: when a short circuit's fault current flows through a fuse or
+## circuit breaker, it trips and the circuit is traced again. A short that no
+## protective device interrupts makes the supply drop out while it lasts and
+## is reported in [member StepResult.short_circuit].
+## Push buttons and switches move through their own actuators the same way
+## (instantly in IDEAL mode). Injected faults (welded or open contacts, open
+## or stuck coils, broken wires, overload) are taken into account.
 
 enum Mode { IDEAL, REALISTIC }
 
@@ -51,6 +59,10 @@ var _loads: Array[Load] = []
 var _load_nets: PackedInt32Array = PackedInt32Array()
 ## Indices into [member _loads] of the coils, in the order they were added.
 var _coil_indices: PackedInt32Array = PackedInt32Array()
+## Actuators of push buttons and switches (one per device).
+var _actuators: Array[Armature] = []
+var _overload_relays: Array[OverloadRelay] = []
+var _protective: Array[ProtectiveDevice] = []
 var _l_supplies: Array[PowerSupply] = []
 var _n_supplies: Array[PowerSupply] = []
 var _short: bool = false
@@ -73,13 +85,17 @@ func step(delta: float = 0.0) -> StepResult:
 	if mode == Mode.REALISTIC:
 		last_result = _step_realistic(maxf(delta, 0.0))
 	else:
+		var result: StepResult = StepResult.new()
+		for actuator: Armature in _actuators:
+			actuator.snap(actuator.target)
 		if delta > 0.0:
 			for i: int in _coil_indices:
 				var coil: Coil = _loads[i] as Coil
 				coil.advance(delta)
 				coil.snap()
+			_advance_overloads(delta, result)
 		time += maxf(delta, 0.0)
-		last_result = _settle()
+		last_result = _settle(result)
 		_record_trace()
 	return last_result
 
@@ -110,8 +126,10 @@ func _build() -> void:
 	_terminal_index = index
 
 	var uf: UnionFind = UnionFind.new(index.size())
-	for wire: PackedStringArray in circuit.get_wires():
-		uf.union(index[wire[0]], index[wire[1]])
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for w: int in wires.size():
+		if not circuit.broken_wires.has(w):
+			uf.union(index[wires[w][0]], index[wires[w][1]])
 
 	var net_of_root: Dictionary[int, int] = {}
 	_net_of_key.clear()
@@ -129,8 +147,20 @@ func _build() -> void:
 	_coil_indices.clear()
 	_l_supplies.clear()
 	_n_supplies.clear()
+	_actuators.clear()
+	_overload_relays.clear()
+	_protective.clear()
 	for c: CircuitComponent in circuit.get_components():
 		var keys: PackedStringArray = c.get_terminal_keys()
+		if c is PushButton or c is LatchingSwitch:
+			var actuator: Armature = (c as SwitchingElement).get_armature()
+			if not _actuators.has(actuator):
+				_actuators.append(actuator)
+		elif c is ProtectiveDevice:
+			_protective.append(c as ProtectiveDevice)
+		elif c is OverloadRelay:
+			_overload_relays.append(c as OverloadRelay)
+			continue
 		if c is SwitchingElement:
 			_switches.append(c as SwitchingElement)
 			_switch_nets.append(_net_of_key[keys[0]])
@@ -149,15 +179,14 @@ func _build() -> void:
 				_n_supplies.append(supply)
 
 
-func _settle() -> StepResult:
-	var result: StepResult = StepResult.new()
+func _settle(result: StepResult) -> StepResult:
 	var seen: Dictionary[String, int] = {}
 	var history: Array[PackedByteArray] = []
 	var desired: PackedByteArray = PackedByteArray()
 	var settled: bool = false
 
 	while result.iterations < max_iterations:
-		desired = _evaluate()
+		desired = _evaluate_protected(result)
 		result.iterations += 1
 		var signature: PackedByteArray = _signature()
 		var key: String = signature.hex_encode()
@@ -183,7 +212,7 @@ func _settle() -> StepResult:
 	if not settled and result.oscillating_tags.is_empty():
 		# Iteration cap reached without a repeated state.
 		result.oscillating_tags = _changing_tags(history)
-		desired = _evaluate()
+		desired = _evaluate_protected(result)
 
 	result.stable = settled
 	for i: int in _loads.size():
@@ -212,6 +241,10 @@ func _step_realistic(delta: float) -> StepResult:
 		var dt: float = remaining
 		for i: int in _coil_indices:
 			dt = minf(dt, (_loads[i] as Coil).time_to_next_event())
+		for actuator: Armature in _actuators:
+			dt = minf(dt, actuator.time_to_next_event())
+		for relay: OverloadRelay in _overload_relays:
+			dt = minf(dt, relay.time_to_trip())
 		dt = maxf(dt, 0.0)
 		_advance_armatures(dt, result)
 		time += dt
@@ -235,7 +268,7 @@ func _step_realistic(delta: float) -> StepResult:
 ## Traces power for the present contact positions: coils get or lose power
 ## (their armatures start moving), lamps and motors follow at once.
 func _apply_power(result: StepResult) -> void:
-	var desired: PackedByteArray = _evaluate()
+	var desired: PackedByteArray = _evaluate_protected(result)
 	for i: int in _loads.size():
 		var want: bool = desired[i] == 1
 		var load: Load = _loads[i]
@@ -256,6 +289,9 @@ func _apply_power(result: StepResult) -> void:
 
 
 func _advance_armatures(dt: float, result: StepResult) -> void:
+	for actuator: Armature in _actuators:
+		actuator.advance(dt)
+	_advance_overloads(dt, result)
 	for i: int in _coil_indices:
 		var coil: Coil = _loads[i] as Coil
 		var was_in: bool = coil.armature.position >= 1.0
@@ -270,6 +306,31 @@ func _advance_armatures(dt: float, result: StepResult) -> void:
 			_log(result, "%s released", [coil.designation], time + dt)
 		if timer != null and timer.output != output_before:
 			_log(result, "%s timed output on" if timer.output else "%s timed output off", [coil.designation], time + dt)
+
+
+func _advance_overloads(dt: float, result: StepResult) -> void:
+	for relay: OverloadRelay in _overload_relays:
+		if relay.advance(dt):
+			_log(result, "%s tripped (overload)", [relay.designation], time + dt)
+
+
+## [method _evaluate], but first lets every fuse or breaker that carries the
+## fault current of a short circuit trip.
+func _evaluate_protected(result: StepResult) -> PackedByteArray:
+	var desired: PackedByteArray = _evaluate()
+	while _short:
+		var probe: StepResult = StepResult.new()
+		_find_current_paths(probe, false)
+		var tripped: bool = false
+		for device: ProtectiveDevice in _protective:
+			if not device.tripped and device.is_closed() and probe.current_components.has(device.id):
+				device.trip()
+				tripped = true
+				_log(result, "%s blown" if device is Fuse else "%s tripped", [device.designation])
+		if not tripped:
+			break
+		desired = _evaluate()
+	return desired
 
 
 func _note_toggle(designation: String) -> void:
@@ -350,10 +411,14 @@ func _evaluate() -> PackedByteArray:
 		var b: int = uf.find(_load_nets[2 * i + 1])
 		if (l_roots.has(a) and n_roots.has(b)) or (l_roots.has(b) and n_roots.has(a)):
 			result[i] = 1
+		if _loads[i] is Coil and (_loads[i] as Coil).fault == Coil.Fault.OPEN:
+			# A broken winding has voltage but draws no current.
+			result[i] = 0
 	return result
 
 
-## One byte per coil: bit 0 coil power, bit 1 timed output.
+## One byte per coil (bit 0 coil power, bit 1 timed output), then one per
+## protective device (tripped), so a trip is never mistaken for a repeat.
 func _signature() -> PackedByteArray:
 	var sig: PackedByteArray = PackedByteArray()
 	for i: int in _coil_indices:
@@ -362,6 +427,8 @@ func _signature() -> PackedByteArray:
 		if coil is TimerRelay and (coil as TimerRelay).output:
 			b |= 2
 		sig.append(b)
+	for device: ProtectiveDevice in _protective:
+		sig.append(1 if device.tripped else 0)
 	return sig
 
 
@@ -459,14 +526,16 @@ func _find_live_parts(result: StepResult) -> void:
 			result.neutral_terminals.append(key)
 	var wires: Array[PackedStringArray] = circuit.get_wires()
 	for i: int in wires.size():
-		var root: int = uf.find(_net_of_key[wires[i][0]])
-		if l_roots.has(root):
+		var root_a: int = uf.find(_net_of_key[wires[i][0]])
+		var root_b: int = uf.find(_net_of_key[wires[i][1]])
+		if l_roots.has(root_a) or l_roots.has(root_b):
 			result.live_wires.append(i)
-		elif n_roots.has(root):
+		elif n_roots.has(root_a) or n_roots.has(root_b):
 			result.neutral_wires.append(i)
 
 
 ## Fills [member StepResult.current_wires] and [member StepResult.current_components].
+## [param include_loads] false leaves energized loads out (fault current only).
 ##
 ## Graph: terminals are vertices; wires, closed switching elements and energized
 ## loads are edges. A virtual source edge joins all L supplies to all N supplies.
@@ -474,7 +543,7 @@ func _find_live_parts(result: StepResult) -> void:
 ## through the source edge, i.e. in the same biconnected component. Dead-end
 ## branches and loops hanging off a single point stay dark. During a short the
 ## loads are off, so the result is the fault-current path.
-func _find_current_paths(result: StepResult) -> void:
+func _find_current_paths(result: StepResult, include_loads: bool = true) -> void:
 	if _l_supplies.is_empty() or _n_supplies.is_empty():
 		return
 	const WIRE := 0
@@ -492,6 +561,8 @@ func _find_current_paths(result: StepResult) -> void:
 
 	var wires: Array[PackedStringArray] = circuit.get_wires()
 	for i: int in wires.size():
+		if circuit.broken_wires.has(i):
+			continue
 		edge_a.append(_terminal_index[wires[i][0]])
 		edge_b.append(_terminal_index[wires[i][1]])
 		edge_kind.append(WIRE)
@@ -504,7 +575,7 @@ func _find_current_paths(result: StepResult) -> void:
 			edge_kind.append(SWITCH)
 			edge_ref.append(i)
 	for i: int in _loads.size():
-		if _loads[i].energized:
+		if include_loads and _loads[i].energized:
 			var keys: PackedStringArray = _loads[i].get_terminal_keys()
 			edge_a.append(_terminal_index[keys[0]])
 			edge_b.append(_terminal_index[keys[1]])

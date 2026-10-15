@@ -38,7 +38,14 @@ func connect_terminals(key_a: String, key_b: String, corners: Array[Vector2i] = 
 
 
 func get_placement(component_id: String) -> Placement:
-	return _placements.get(component_id, null)
+	return _placements.get(_id(component_id), null)
+
+
+## Exact id for an id or a designation ("S1" -> "S1:13-14"), see
+## [method Circuit.get_component].
+func _id(component_id: String) -> String:
+	var c: CircuitComponent = circuit.get_component(component_id)
+	return c.id if c != null else component_id
 
 
 func get_route(wire_index: int) -> WireRoute:
@@ -204,14 +211,15 @@ func remove_component(component_id: String) -> void:
 		return
 	for i: int in circuit.remove(c):
 		_routes.remove_at(i)
-	_placements.erase(component_id)
+	_placements.erase(c.id)
 
 
 ## Moves components by [param delta] cells. Wires between two moved
 ## components move along; wires with one moved end are re-routed.
 func move_components(ids: PackedStringArray, delta: Vector2i) -> void:
 	var moved_keys: Dictionary[String, bool] = {}
-	for id: String in ids:
+	for given: String in ids:
+		var id: String = _id(given)
 		_placements[id].cell += delta
 		for key: String in circuit.get_component(id).get_terminal_keys():
 			moved_keys[key] = true
@@ -228,6 +236,7 @@ func move_components(ids: PackedStringArray, delta: Vector2i) -> void:
 
 ## Turns a component a quarter turn clockwise (or counterclockwise).
 func rotate_component(component_id: String, clockwise: bool = true) -> void:
+	component_id = _id(component_id)
 	var p: Placement = _placements[component_id]
 	p.rotation = posmod(p.rotation + (1 if clockwise else -1), 4)
 	_reroute_component(component_id)
@@ -235,6 +244,7 @@ func rotate_component(component_id: String, clockwise: bool = true) -> void:
 
 ## Mirrors a component across its own axis (e.g. actuator to the other side).
 func mirror_component(component_id: String) -> void:
+	component_id = _id(component_id)
 	var p: Placement = _placements[component_id]
 	# The mirror flips local x before rotation, so the symbol axis (local y)
 	# and both terminals stay where they are; only the side marks swap.
@@ -248,6 +258,7 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 	var old: CircuitComponent = circuit.get_component(old_id)
 	if old == null:
 		return false
+	old_id = old.id
 	var p: Placement = _placements[old_id]
 	if not circuit.replace(old, new_component):
 		return false
@@ -536,10 +547,10 @@ func next_designation(prefix: String, reserved: Dictionary[String, bool] = {}) -
 ## Designation for another supply point: "L", then "L.2", "L.3", ...
 func next_supply_designation(conductor: PowerSupply.Conductor) -> String:
 	var base: String = "L" if conductor == PowerSupply.Conductor.L else "N"
-	if circuit.get_component(base) == null:
+	if not circuit.has_component_id(base):
 		return base
 	var n: int = 2
-	while circuit.get_component("%s.%d" % [base, n]) != null:
+	while circuit.has_component_id("%s.%d" % [base, n]):
 		n += 1
 	return "%s.%d" % [base, n]
 

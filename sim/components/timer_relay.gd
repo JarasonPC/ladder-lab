@@ -86,3 +86,8 @@ func _sync_targets() -> void:
 	armature.target = energized
 	if output_armature != null:
 		output_armature.target = output
+
+
+func _apply_fault() -> void:
+	armature.stuck = fault == Fault.STUCK
+	output_armature.stuck = fault == Fault.STUCK

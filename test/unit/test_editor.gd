@@ -103,9 +103,15 @@ func test_properties_change_and_conflict() -> void:
 	data["contact"] = "NC"
 	assert_eq(editor.apply_properties("S2", data), "")
 	assert_true(editor.document().circuit.has_terminal("S2:11"))
+	data["contact"] = "NO"
 	data["designation"] = "S1"
-	assert_ne(editor.apply_properties("S2", data), "", "S1 is taken")
+	assert_ne(editor.apply_properties("S2", data), "", "S1 13-14 is taken")
 	assert_not_null(editor.document().circuit.get_component("S2"))
+	data["contact"] = "NC"
+	data["sequence"] = 2
+	assert_eq(editor.apply_properties("S2", data), "", "S1 21-22 is a second block of S1")
+	assert_eq((editor.document().circuit.get_component("S1:21-22") as PushButton).actuator,
+		(editor.document().circuit.get_component("S1:13-14") as PushButton).actuator, "blocks share the button")
 
 
 func test_rotate_selection_turns_component() -> void:
