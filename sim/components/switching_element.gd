@@ -31,11 +31,15 @@ func _init(p_designation: String, p_type: ContactType, p_sequence: int = 1, p_de
 		first += 4
 	var prefix: String = "" if p_sequence == 0 else str(p_sequence)
 	_terminals = PackedStringArray([prefix + str(first), prefix + str(first + 1)])
-	id = "%s:%s-%s" % [designation, _terminals[0], _terminals[1]]
+	_update_id()
 
 
-func get_terminal_names() -> PackedStringArray:
+func default_terminal_names() -> PackedStringArray:
 	return _terminals
+
+
+func _update_id() -> void:
+	id = "%s:%s" % [designation, "-".join(get_terminal_names())]
 
 
 ## Moving part that operates this block, or null.

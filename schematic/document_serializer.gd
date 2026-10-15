@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "coil", "timer", "lamp", "motor"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact"]
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -74,6 +74,21 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["conductor"] = "L" if (c as PowerSupply).conductor == PowerSupply.Conductor.L else "N"
 	elif c is Junction:
 		d["type"] = "junction"
+	elif c is Fuse:
+		d["type"] = "fuse"
+	elif c is CircuitBreaker:
+		d["type"] = "breaker"
+	elif c is OverloadContact:
+		d["type"] = "overload_contact"
+		d["contact"] = "NO" if (c as OverloadContact).contact_type == NO else "NC"
+	elif c is ChangeoverContact:
+		var changeover: ChangeoverContact = c as ChangeoverContact
+		d["type"] = "changeover"
+		d["sequence"] = changeover.sequence
+		d["delayed"] = changeover.delayed
+	elif c is OverloadRelay:
+		d["type"] = "overload_relay"
+		d["trip_delay"] = (c as OverloadRelay).trip_delay
 	elif c is SwitchingElement:
 		var s: SwitchingElement = c as SwitchingElement
 		d["contact"] = "NO" if s.contact_type == NO else "NC"
@@ -101,11 +116,30 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "lamp"
 	elif c is Motor:
 		d["type"] = "motor"
+	if not c.custom_terminals.is_empty():
+		d["terminals"] = Array(c.custom_terminals)
 	return d
 
 
 ## Builds a component, or returns null for unknown or invalid data.
 static func component_from_dict(d: Dictionary) -> CircuitComponent:
+	var c: CircuitComponent = _component_from_dict(d)
+	if c == null or not d.has("terminals"):
+		return c
+	var raw: Variant = d["terminals"]
+	if not (raw is Array):
+		return null
+	var names: PackedStringArray = PackedStringArray()
+	for n: Variant in raw:
+		names.append(str(n))
+	if not c.supports_custom_terminals() or names.size() != c.default_terminal_names().size() or not CircuitComponent.valid_terminal_names(names):
+		return null
+	if names != c.default_terminal_names():
+		c.custom_terminals = names
+	return c
+
+
+static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 	var designation: String = str(d.get("designation", ""))
 	var kind: String = str(d.get("type", ""))
 	if designation.is_empty() or designation.contains(":") or not TYPES.has(kind):
@@ -124,6 +158,16 @@ static func component_from_dict(d: Dictionary) -> CircuitComponent:
 			return LatchingSwitch.new(designation, contact, sequence)
 		"contact":
 			return Contact.new(designation, contact, sequence, bool(d.get("delayed", false)))
+		"changeover":
+			return ChangeoverContact.new(designation, sequence, bool(d.get("delayed", false)))
+		"fuse":
+			return Fuse.new(designation)
+		"breaker":
+			return CircuitBreaker.new(designation)
+		"overload_relay":
+			return OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0))
+		"overload_contact":
+			return OverloadContact.new(designation, contact)
 		"coil":
 			var coil_kind: Coil.Kind = Coil.Kind.RELAY if d.get("kind", "contactor") == "relay" else Coil.Kind.CONTACTOR
 			return Coil.new(designation, coil_kind, _seconds(d, "pick_up"), _seconds(d, "drop_out"))
@@ -143,6 +187,13 @@ static func _seconds(d: Dictionary, key: String) -> float:
 	if (value is float or value is int) and float(value) >= 0.0 and float(value) <= 10.0:
 		return float(value)
 	return -1.0
+
+
+static func _seconds_or(d: Dictionary, key: String, fallback: float, maximum: float) -> float:
+	var value: Variant = d.get(key, null)
+	if (value is float or value is int) and float(value) >= 0.0 and float(value) <= maximum:
+		return float(value)
+	return fallback
 
 
 static func _cell(value: Variant) -> Vector2i:

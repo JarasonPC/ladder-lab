@@ -11,7 +11,7 @@ var linked_relay: OverloadRelay = null
 func _init(p_designation: String, p_type: ContactType) -> void:
 	super(p_designation, p_type, 9)
 	_terminals = PackedStringArray(["95", "96"] if p_type == ContactType.NC else ["97", "98"])
-	id = "%s:%s-%s" % [designation, _terminals[0], _terminals[1]]
+	_update_id()
 
 
 func is_actuated() -> bool:

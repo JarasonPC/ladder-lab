@@ -12,5 +12,5 @@ func _init(p_designation: String, terminal_a: String, terminal_b: String) -> voi
 	_terminals = PackedStringArray([terminal_a, terminal_b])
 
 
-func get_terminal_names() -> PackedStringArray:
+func default_terminal_names() -> PackedStringArray:
 	return _terminals

@@ -25,7 +25,7 @@ func _init(p_designation: String, p_trip_delay: float = DEFAULT_TRIP_DELAY) -> v
 	trip_delay = maxf(p_trip_delay, 0.0)
 
 
-func get_terminal_names() -> PackedStringArray:
+func default_terminal_names() -> PackedStringArray:
 	return PackedStringArray()
 
 

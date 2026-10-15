@@ -112,7 +112,7 @@ func current_paths(merge: float = 2.0) -> PackedFloat32Array:
 	var coordinates: Array[float] = []
 	for c: CircuitComponent in circuit.get_components():
 		var keys: PackedStringArray = c.get_terminal_keys()
-		if keys.size() != 2:
+		if keys.size() < 2:
 			continue
 		var center: Vector2 = (Vector2(terminal_cell(keys[0])) + Vector2(terminal_cell(keys[1]))) * 0.5
 		coordinates.append(center.y if horizontal else center.x)

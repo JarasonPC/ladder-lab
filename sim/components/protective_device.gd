@@ -9,6 +9,9 @@ var tripped: bool = false
 
 func _init(p_designation: String) -> void:
 	super(p_designation, ContactType.NC, 0)
+
+
+func _update_id() -> void:
 	id = designation
 
 

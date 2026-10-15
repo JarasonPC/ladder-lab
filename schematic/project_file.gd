@@ -7,8 +7,9 @@ const EXTENSION: String = "ladder"
 const FORMAT: String = "ladder-lab"
 ## Raise when the file layout changes; older files must keep loading.
 ## 1: first format. 2: switching times per coil and the switching mode
-## (missing in version 1, so defaults are used).
-const VERSION: int = 2
+## (missing in version 1, so defaults are used). 3: fuses, breakers, overload
+## relays and contacts, changeover contacts, custom terminal names.
+const VERSION: int = 3
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

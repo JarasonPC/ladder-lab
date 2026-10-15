@@ -136,6 +136,8 @@ func _relink_contacts() -> void:
 	for c: CircuitComponent in _components:
 		if c is Contact:
 			(c as Contact).linked_coil = _coils.get(c.designation, null)
+		elif c is ChangeoverContact:
+			(c as ChangeoverContact).linked_coil = _coils.get(c.designation, null)
 		elif c is OverloadContact:
 			(c as OverloadContact).linked_relay = _overload_relays.get(c.designation, null)
 		elif c is PushButton:

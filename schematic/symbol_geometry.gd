@@ -26,6 +26,11 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 	elif names.size() == 2:
 		result[names[0]] = Vector2i.ZERO
 		result[names[1]] = Vector2i(0, SPAN)
+	elif names.size() == 3:
+		# Changeover contact: common below, NO above it, NC one cell to the right.
+		result[names[0]] = Vector2i(0, SPAN)
+		result[names[1]] = Vector2i(1, 0)
+		result[names[2]] = Vector2i.ZERO
 	return result
 
 
@@ -33,6 +38,8 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 ## (0 for supplies, whose symbol has no lead).
 static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> int:
 	var names: PackedStringArray = c.get_terminal_names()
+	if names.size() == 3:
+		return DIR_UP if terminal_name == names[0] else DIR_DOWN
 	if names.size() != 2:
 		return 0
 	return DIR_DOWN if terminal_name == names[0] else DIR_UP
@@ -44,6 +51,8 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.6, -1.4, 1.2, 1.8)
 	if c is Junction:
 		return Rect2(-0.3, -0.3, 0.6, 0.6)
+	if c is ChangeoverContact:
+		return Rect2(-1.0, 0.5, 2.6, 2.0)
 	if c is SwitchingElement:
 		return Rect2(-1.6, 0.5, 2.4, 2.0)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)

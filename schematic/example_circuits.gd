@@ -178,39 +178,44 @@ static func short_circuit() -> SchematicDocument:
 	return doc
 
 
-## Star/delta start while START is held: S2 starts the star contactor KM3
-## (through the delta contactor's NC KM2 11-12); KM3 13-14 brings in the main
-## contactor KM1, which holds itself through KM1 13-14. Letting go of S2 drops
-## KM3, and its NC 11-12 brings in the delta contactor KM2, whose NC keeps
-## KM3 from starting again. S1 stops everything.
-## (Fuse and overload contact of the supply are not modelled yet.)
+## Star/delta start while START is held: fuse F2 and the overload relay's
+## NC 95-96 (F3) feed STOP S1. S2 starts the star contactor KM3 (through the
+## delta contactor's NC KM2 11-12); KM3 13-14 brings in the main contactor
+## KM1, which holds itself through KM1 13-14. Letting go of S2 drops KM3, and
+## its NC 11-12 brings in the delta contactor KM2, whose NC keeps KM3 from
+## starting again. S1 stops everything; an overload trips F3 after its delay.
 static func star_delta() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[5])
-	_supplies(doc, 26)
-	doc.add(PushButton.new("S1", NC), Vector2i(5, 3))
-	doc.add(PushButton.new("S2", NO), Vector2i(5, 10))
-	doc.add(Contact.new("KM2", NC, 1), Vector2i(5, 15))
-	doc.add(Coil.new("KM3"), Vector2i(5, 20))
-	doc.add(Contact.new("KM3", NO, 1), Vector2i(10, 10))
-	doc.add(Coil.new("KM1"), Vector2i(10, 20))
-	doc.add(Contact.new("KM1", NO, 1), Vector2i(15, 10))
-	doc.add(Contact.new("KM3", NC, 1), Vector2i(15, 15))
-	doc.add(Coil.new("KM2"), Vector2i(15, 20))
+	_supplies(doc, 35)
+	doc.add(Fuse.new("F2"), Vector2i(5, 2))
+	doc.add(OverloadContact.new("F3", NC), Vector2i(5, 7))
+	doc.add(OverloadRelay.new("F3"), Vector2i(10, 7))
+	doc.add(PushButton.new("S1", NC), Vector2i(5, 12))
+	doc.add(PushButton.new("S2", NO), Vector2i(5, 19))
+	doc.add(Contact.new("KM2", NC, 1), Vector2i(5, 24))
+	doc.add(Coil.new("KM3"), Vector2i(5, 29))
+	doc.add(Contact.new("KM3", NO, 1), Vector2i(10, 19))
+	doc.add(Coil.new("KM1"), Vector2i(10, 29))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(15, 19))
+	doc.add(Contact.new("KM3", NC, 1), Vector2i(15, 24))
+	doc.add(Coil.new("KM2"), Vector2i(15, 29))
 
-	doc.connect_terminals("L", "S1:11", _c([Vector2i(5, 1)]))
+	doc.connect_terminals("L", "F2:1", _c([Vector2i(5, 1)]))
+	doc.connect_terminals("F2:2", "F3:95")
+	doc.connect_terminals("F3:96", "S1:11")
 	doc.connect_terminals("S1:12", "S2:13")
-	doc.connect_terminals("S1:12", "KM3:13", _c([Vector2i(5, 8), Vector2i(10, 8)]))
-	doc.connect_terminals("S1:12", "KM1:13", _c([Vector2i(5, 8), Vector2i(15, 8)]))
+	doc.connect_terminals("S1:12", "KM3:13", _c([Vector2i(5, 17), Vector2i(10, 17)]))
+	doc.connect_terminals("S1:12", "KM1:13", _c([Vector2i(5, 17), Vector2i(15, 17)]))
 	# Star.
 	doc.connect_terminals("S2:14", "KM2:11")
 	doc.connect_terminals("KM2:12", "KM3:A1")
-	doc.connect_terminals("KM3:A2", "N", _c([Vector2i(5, 26)]))
+	doc.connect_terminals("KM3:A2", "N", _c([Vector2i(5, 35)]))
 	# Main contactor, fed by KM3 13-14 or its own KM1 13-14.
 	doc.connect_terminals("KM3:14", "KM1:A1")
-	doc.connect_terminals("KM3:14", "KM1:14", _c([Vector2i(10, 14), Vector2i(15, 14)]))
-	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(10, 26)]))
+	doc.connect_terminals("KM3:14", "KM1:14", _c([Vector2i(10, 23), Vector2i(15, 23)]))
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(10, 35)]))
 	# Delta, through the star contactor's NC.
 	doc.connect_terminals("KM1:14", "KM3:11")
 	doc.connect_terminals("KM3:12", "KM2:A1")
-	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(15, 26)]))
+	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(15, 35)]))
 	return doc

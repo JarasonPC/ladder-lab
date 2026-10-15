@@ -51,9 +51,13 @@ var trace: TraceRecorder = null
 var _built_version: int = -1
 var _net_count: int = 0
 var _net_of_key: Dictionary[String, int] = {}
-var _switches: Array[SwitchingElement] = []
-## Two nets per switching element, in the order of [member _switches].
+## Switching paths: a switching element has one, a changeover contact two
+## ([member _switch_paths] tells which).
+var _switches: Array[CircuitComponent] = []
+var _switch_paths: PackedInt32Array = PackedInt32Array()
+## Two nets and two terminal indices per switching path.
 var _switch_nets: PackedInt32Array = PackedInt32Array()
+var _switch_terms: PackedInt32Array = PackedInt32Array()
 var _loads: Array[Load] = []
 ## Two nets per load, in the order of [member _loads].
 var _load_nets: PackedInt32Array = PackedInt32Array()
@@ -141,7 +145,9 @@ func _build() -> void:
 	_net_count = net_of_root.size()
 
 	_switches.clear()
+	_switch_paths.clear()
 	_switch_nets.clear()
+	_switch_terms.clear()
 	_loads.clear()
 	_load_nets.clear()
 	_coil_indices.clear()
@@ -162,9 +168,10 @@ func _build() -> void:
 			_overload_relays.append(c as OverloadRelay)
 			continue
 		if c is SwitchingElement:
-			_switches.append(c as SwitchingElement)
-			_switch_nets.append(_net_of_key[keys[0]])
-			_switch_nets.append(_net_of_key[keys[1]])
+			_add_switch_path(c, 0, keys[0], keys[1])
+		elif c is ChangeoverContact:
+			_add_switch_path(c, ChangeoverContact.PATH_NC, keys[0], keys[1])
+			_add_switch_path(c, ChangeoverContact.PATH_NO, keys[0], keys[2])
 		elif c is Load:
 			if c is Coil:
 				_coil_indices.append(_loads.size())
@@ -177,6 +184,22 @@ func _build() -> void:
 				_l_supplies.append(supply)
 			else:
 				_n_supplies.append(supply)
+
+
+func _add_switch_path(c: CircuitComponent, path: int, key_a: String, key_b: String) -> void:
+	_switches.append(c)
+	_switch_paths.append(path)
+	_switch_nets.append(_net_of_key[key_a])
+	_switch_nets.append(_net_of_key[key_b])
+	_switch_terms.append(_terminal_index[key_a])
+	_switch_terms.append(_terminal_index[key_b])
+
+
+func _switch_closed(i: int) -> bool:
+	var c: CircuitComponent = _switches[i]
+	if c is SwitchingElement:
+		return (c as SwitchingElement).is_closed()
+	return (c as ChangeoverContact).is_path_closed(_switch_paths[i])
 
 
 func _settle(result: StepResult) -> StepResult:
@@ -385,7 +408,7 @@ func _record_trace() -> void:
 func _evaluate() -> PackedByteArray:
 	var uf: UnionFind = UnionFind.new(_net_count)
 	for i: int in _switches.size():
-		if _switches[i].is_closed():
+		if _switch_closed(i):
 			uf.union(_switch_nets[2 * i], _switch_nets[2 * i + 1])
 
 	var l_roots: Dictionary[int, bool] = {}
@@ -453,7 +476,7 @@ func _find_short_path() -> PackedStringArray:
 	for n: int in _net_count:
 		adjacency[n] = PackedInt32Array()
 	for i: int in _switches.size():
-		if _switches[i].is_closed():
+		if _switch_closed(i):
 			var a: int = _switch_nets[2 * i]
 			var b: int = _switch_nets[2 * i + 1]
 			adjacency[a].append_array(PackedInt32Array([i, b]))
@@ -510,7 +533,7 @@ func _find_short_path() -> PackedStringArray:
 func _find_live_parts(result: StepResult) -> void:
 	var uf: UnionFind = UnionFind.new(_net_count)
 	for i: int in _switches.size():
-		if _switches[i].is_closed():
+		if _switch_closed(i):
 			uf.union(_switch_nets[2 * i], _switch_nets[2 * i + 1])
 	var l_roots: Dictionary[int, bool] = {}
 	for supply: PowerSupply in _l_supplies:
@@ -568,10 +591,9 @@ func _find_current_paths(result: StepResult, include_loads: bool = true) -> void
 		edge_kind.append(WIRE)
 		edge_ref.append(i)
 	for i: int in _switches.size():
-		if _switches[i].is_closed():
-			var keys: PackedStringArray = _switches[i].get_terminal_keys()
-			edge_a.append(_terminal_index[keys[0]])
-			edge_b.append(_terminal_index[keys[1]])
+		if _switch_closed(i):
+			edge_a.append(_switch_terms[2 * i])
+			edge_b.append(_switch_terms[2 * i + 1])
 			edge_kind.append(SWITCH)
 			edge_ref.append(i)
 	for i: int in _loads.size():
@@ -608,7 +630,8 @@ func _find_current_paths(result: StepResult, include_loads: bool = true) -> void
 			WIRE:
 				result.current_wires.append(edge_ref[e])
 			SWITCH:
-				result.current_components.append(_switches[edge_ref[e]].id)
+				if not result.current_components.has(_switches[edge_ref[e]].id):
+					result.current_components.append(_switches[edge_ref[e]].id)
 			LOAD:
 				result.current_components.append(_loads[edge_ref[e]].id)
 
