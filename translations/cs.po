@@ -44,6 +44,9 @@ msgstr "Samovypínání (kmitání)"
 msgid "Short circuit"
 msgstr "Zkrat"
 
+msgid "Star/delta start"
+msgstr "Rozběh hvězda/trojúhelník"
+
 #, c-format
 msgid "Could not open %s."
 msgstr "Soubor %s nelze otevřít."
@@ -59,6 +62,34 @@ msgstr "Soubor %s byl uložen novější verzí programu LadderLab."
 #, c-format
 msgid "%s is damaged and cannot be opened."
 msgstr "Soubor %s je poškozený a nelze jej otevřít."
+
+#, c-format
+msgid "Short circuit: %s"
+msgstr "Zkrat: %s"
+
+#, c-format
+msgid "Short circuit ended after %.1f ms"
+msgstr "Zkrat skončil po %.1f ms"
+
+#, c-format
+msgid "%s pulled in"
+msgstr "%s přitáhl"
+
+#, c-format
+msgid "%s released"
+msgstr "%s odpadl"
+
+#, c-format
+msgid "%s timed output on"
+msgstr "%s: časový výstup zapnut"
+
+#, c-format
+msgid "%s timed output off"
+msgstr "%s: časový výstup vypnut"
+
+#, c-format
+msgid "%s is chattering"
+msgstr "%s kmitá"
 
 msgid "Check"
 msgstr "Kontrola"
@@ -163,6 +194,12 @@ msgstr "Stykač"
 msgid "Relay"
 msgstr "Relé"
 
+msgid "Pick-up time (ms)"
+msgstr "Doba přítahu (ms)"
+
+msgid "Drop-out time (ms)"
+msgstr "Doba odpadu (ms)"
+
 msgid "Function"
 msgstr "Funkce"
 
@@ -264,11 +301,26 @@ msgstr "Smazat (Del)"
 msgid "Look for unconnected terminals, contacts without a coil and other mistakes"
 msgstr "Vyhledat nepřipojené svorky, kontakty bez cívky a další chyby"
 
+msgid "Switching:"
+msgstr "Spínání:"
+
+msgid "Realistic"
+msgstr "Reálné"
+
+msgid "Ideal"
+msgstr "Ideální"
+
+msgid "Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly."
+msgstr "Reálné: relé potřebují svou dobu přítahu a odpadu, rozpínací kontakty rozepnou dříve, než spínací sepnou. Ideální: relé spínají okamžitě."
+
+msgid "Timing chart"
+msgstr "Časový diagram"
+
 msgid "Step"
 msgstr "Krok"
 
-msgid "Advance the simulation by 0.1 s"
-msgstr "Posunout simulaci o 0,1 s"
+msgid "Advance the simulation by 0.1 s times the speed"
+msgstr "Posunout simulaci o 0,1 s (násobeno rychlostí)"
 
 msgid "Speed:"
 msgstr "Rychlost:"
@@ -357,12 +409,12 @@ msgid "Click buttons and switches to operate them. Right or middle drag pans, wh
 msgstr "Tlačítka a spínače ovládáte kliknutím. Tažením pravým nebo prostředním tlačítkem myši posunete pohled, kolečkem přiblížíte."
 
 #, c-format
-msgid "Time: %.1f s"
-msgstr "Čas: %.1f s"
+msgid "Time: %.3f s"
+msgstr "Čas: %.3f s"
 
 #, c-format
-msgid "Short circuit: %s"
-msgstr "Zkrat: %s"
+msgid "%s is chattering (about %d Hz)"
+msgstr "%s kmitá (přibližně %d Hz)"
 
 #, c-format
 msgid "Oscillation: %s keeps switching on and off"
@@ -373,3 +425,21 @@ msgstr "Běží"
 
 msgid "Paused"
 msgstr "Pozastaveno"
+
+msgid "Event log"
+msgstr "Záznam událostí"
+
+msgid "Clear"
+msgstr "Vymazat"
+
+msgid "Double click: follow"
+msgstr "Dvojklik: sledovat"
+
+msgid "Time span:"
+msgstr "Časový úsek:"
+
+msgid "Follow"
+msgstr "Sledovat"
+
+msgid "Drag to look back, wheel zooms"
+msgstr "Tažením se vrátíte zpět, kolečkem přiblížíte"
