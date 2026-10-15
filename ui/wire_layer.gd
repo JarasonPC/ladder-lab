@@ -48,7 +48,7 @@ func _draw() -> void:
 	for w: int in document.circuit.broken_wires:
 		_draw_break(w)
 	for cell: Vector2i in _junctions:
-		draw_circle(Vector2(cell) * G, 4.0, SchematicTheme.reach_color(_reach_at(cell)))
+		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell)))
 	_draw_path_numbers()
 
 
@@ -70,10 +70,10 @@ func _draw_path_numbers() -> void:
 			center = Vector2(paths[i], b.position.y - 1.5) * G
 		var rect: Rect2 = Rect2(center - box * 0.5, box)
 		draw_rect(rect, SchematicTheme.BACKGROUND)
-		draw_rect(rect, SchematicTheme.TERMINAL_TEXT, false, 1.0)
+		draw_rect(rect, SchematicTheme.PATH_TEXT, false, 1.0)
 		var text: String = str(i + 1)
 		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.TERMINAL_TEXT)
+		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.PATH_TEXT)
 
 
 func _reach(wire_index: int) -> int:

@@ -45,6 +45,8 @@ func _draw() -> void:
 		var body: Rect2 = SymbolGeometry.local_body(component)
 		draw_rect(Rect2(body.position * G, body.size * G), SchematicTheme.HOVER)
 	_draw_shape(stroke_color(), stroke_width())
+	if show_labels:
+		_draw_terminals()
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	if show_labels:
 		_draw_labels()
@@ -95,9 +97,28 @@ func _draw_shape(_color: Color, _width: float) -> void:
 	pass
 
 
+## Designation as written on the drawing: "-KM1" (ČSN EN 81346 prefix).
+func designation_text() -> String:
+	return "-" + component.designation
+
+
+## Square at every terminal, filled with what reaches it (black when nothing).
+func _draw_terminals() -> void:
+	if component is Junction:
+		return
+	var s: float = SchematicTheme.TERMINAL_SQUARE
+	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
+	var names: PackedStringArray = component.get_terminal_names()
+	for i: int in names.size():
+		var at: Vector2 = Vector2(cells[names[i]]) * G
+		var code: int = reach(i)
+		var fill: Color = SchematicTheme.TERMINAL_DEAD if code == REACH_NONE else SchematicTheme.reach_color(code)
+		draw_rect(Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), fill)
+
+
 ## Draws designation and terminal numbers. Override to add more.
 func _draw_labels() -> void:
-	draw_label(component.designation, _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.TEXT)
+	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	var names: PackedStringArray = component.get_terminal_names()
 	if names.size() == 2:
 		draw_label(names[0], Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
@@ -167,7 +188,8 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 		var top: float = anchor.y - size.y if away.y < 0.0 else anchor.y
 		pos = Vector2(anchor.x - size.x * 0.5, top + ascent)
 	if line > 0:
-		var line_height: float = font.get_height(font_size)
+		# Further lines sit beside the designation, which uses the larger size.
+		var line_height: float = font.get_height(maxi(font_size, SchematicTheme.LABEL_SIZE))
 		var direction: float = -1.0 if absf(away.x) < absf(away.y) and away.y < 0.0 else 1.0
 		pos.y += direction * line * line_height
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)

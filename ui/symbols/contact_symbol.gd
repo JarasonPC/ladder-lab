@@ -78,32 +78,33 @@ func _draw_shape(color: Color, _width: float) -> void:
 			_draw_parachute(middle, delayed_move_right, color)
 
 
+## Stem from the blade to the button head (a bracket open toward the blade),
+## drawn solid as in the guide.
 func _draw_push_actuator(middle: Vector2, pressed: bool, color: Color) -> void:
 	var head_x: float = -22.0 if pressed else -28.0
 	var y: float = middle.y
-	draw_dashed_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.5, 3.0)
-	draw_line(Vector2(head_x, y - 6), Vector2(head_x, y + 6), color, SchematicTheme.LINE_WIDTH)
-	draw_line(Vector2(head_x, y - 6), Vector2(head_x + 4, y - 6), color, SchematicTheme.LINE_WIDTH)
-	draw_line(Vector2(head_x, y + 6), Vector2(head_x + 4, y + 6), color, SchematicTheme.LINE_WIDTH)
+	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x + 5, y - 7), color, 1.8)
+	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5, y + 7), color, 1.8)
 
 
-## Dashed line to the thermal-effect mark (a small square wave).
+## Stem from the blade to the hook of the thermal release, as in the guide.
 func _draw_thermal_actuator(middle: Vector2, color: Color) -> void:
 	var y: float = middle.y
-	var x: float = -30.0
-	draw_dashed_line(Vector2(x + 8.0, y), Vector2(middle.x - 1.0, y), color, 1.5, 3.0)
-	var w: float = SchematicTheme.LINE_WIDTH * 0.75
-	draw_polyline(PackedVector2Array([Vector2(x, y + 4), Vector2(x, y - 4), Vector2(x + 4, y - 4), Vector2(x + 4, y + 4), Vector2(x + 8, y + 4), Vector2(x + 8, y)]), color, w)
+	var x: float = -28.0
+	draw_line(Vector2(x, y), Vector2(middle.x - 1.0, y), color, 1.4)
+	draw_polyline(PackedVector2Array([Vector2(x, y), Vector2(x, y - 8), Vector2(x + 6, y - 8)]), color, 1.8)
 
 
 func _draw_turn_actuator(middle: Vector2, switched_on: bool, color: Color) -> void:
 	var head_x: float = -26.0
 	var y: float = middle.y
 	var flip: float = -1.0 if switched_on else 1.0
-	draw_dashed_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.5, 3.0)
-	draw_line(Vector2(head_x, y - 6), Vector2(head_x, y + 6), color, SchematicTheme.LINE_WIDTH)
-	draw_line(Vector2(head_x, y - 6), Vector2(head_x - 4 * flip, y - 6), color, SchematicTheme.LINE_WIDTH)
-	draw_line(Vector2(head_x, y + 6), Vector2(head_x + 4 * flip, y + 6), color, SchematicTheme.LINE_WIDTH)
+	draw_line(Vector2(head_x, y), Vector2(middle.x - 1.0, y), color, 1.4)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x, y + 7), color, 1.8)
+	draw_line(Vector2(head_x, y - 7), Vector2(head_x - 5 * flip, y - 7), color, 1.8)
+	draw_line(Vector2(head_x, y + 7), Vector2(head_x + 5 * flip, y + 7), color, 1.8)
 
 
 ## Two short lines from the blade to a half circle on its left.
