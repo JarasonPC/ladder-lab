@@ -24,7 +24,7 @@ func _draw_shape(color: Color, width: float) -> void:
 	draw_rect(BOX, color, false, width)
 	var y0: float = 36.0
 	var y1: float = 24.0
-	draw_polyline(PackedVector2Array([Vector2(-10, y0), Vector2(-4, y0), Vector2(-4, y1), Vector2(4, y1), Vector2(4, y0), Vector2(10, y0)]), color, SchematicTheme.LINE_WIDTH, true)
+	draw_polyline(PackedVector2Array([Vector2(-10, y0), Vector2(-4, y0), Vector2(-4, y1), Vector2(4, y1), Vector2(4, y0), Vector2(10, y0)]), color, SchematicTheme.LINE_WIDTH)
 
 
 ## Three heaters inside one box spanning the poles.
@@ -41,11 +41,11 @@ func _draw_heaters(relay: OverloadRelay, color: Color, width: float) -> void:
 		var x: float = pole_x(pole)
 		var top: int = pole * 2
 		var bottom: int = top + 1
-		draw_line(Vector2(x, 0), Vector2(x, 24), lead_color(top), lead_width(top), true)
-		draw_line(Vector2(x, 36), Vector2(x, 3 * G), lead_color(bottom), lead_width(bottom), true)
+		draw_line(Vector2(x, 0), Vector2(x, 24), lead_color(top), lead_width(top))
+		draw_line(Vector2(x, 36), Vector2(x, 3 * G), lead_color(bottom), lead_width(bottom))
 		var heater: Color = lead_color(top) if reach(top) != REACH_NONE else color
 		var w: float = lead_width(top) if reach(top) != REACH_NONE else width
-		draw_polyline(PackedVector2Array([Vector2(x, 24), Vector2(x - 7, 24), Vector2(x - 7, 36), Vector2(x, 36)]), heater, w, true)
+		draw_polyline(PackedVector2Array([Vector2(x, 24), Vector2(x - 7, 24), Vector2(x - 7, 36), Vector2(x, 36)]), heater, w)
 
 
 func _draw_labels() -> void:

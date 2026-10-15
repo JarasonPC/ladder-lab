@@ -38,7 +38,7 @@ func _draw_shape(color: Color, width: float) -> void:
 	# PE: from the frame to the left, then down to its terminal.
 	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G
 	var frame: Vector2 = CENTER + Vector2.from_angle(PI * 0.88) * RADIUS
-	draw_polyline(PackedVector2Array([frame, Vector2(pe_cell.x, frame.y), pe_cell]), lead_color(windings), lead_width(windings), true)
+	draw_polyline(PackedVector2Array([frame, Vector2(pe_cell.x, frame.y), pe_cell]), lead_color(windings), lead_width(windings))
 	for i: int in windings:
 		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
 		var column: float = cell.x / (SymbolGeometry.POLE_SPACING * G)
@@ -54,14 +54,14 @@ func _draw_shape(color: Color, width: float) -> void:
 			angle = (i - 7) * PI * 0.2
 			bend = cell - Vector2(0.6 * G, 0)
 		var edge: Vector2 = CENTER + Vector2.from_angle(angle) * RADIUS
-		draw_polyline(PackedVector2Array([cell, bend, edge]), lead_color(i), lead_width(i), true)
+		draw_polyline(PackedVector2Array([cell, bend, edge]), lead_color(i), lead_width(i))
 	var fill: Color = SchematicTheme.COIL_ON if motor.is_running() else SchematicTheme.BACKGROUND
 	if motor.state == ThreePhaseMotor.State.PHASE_LOSS or motor.state == ThreePhaseMotor.State.MISWIRED:
 		fill = Color(SchematicTheme.FAULT, 0.25)
-	draw_circle(CENTER, RADIUS, fill, true, -1.0, true)
+	draw_circle(CENTER, RADIUS, fill)
 	# The housing is drawn plain; the leads show the phases.
 	color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-	draw_arc(CENTER, RADIUS, 0.0, TAU, 40, color, SchematicTheme.LINE_WIDTH if not motor.is_running() else width, true)
+	draw_arc(CENTER, RADIUS, 0.0, TAU, 40, color, SchematicTheme.LINE_WIDTH if not motor.is_running() else width)
 	if motor.is_running():
 		var r: float = RADIUS + 6.0
 		var arc: float = PI * 0.6
@@ -71,7 +71,7 @@ func _draw_shape(color: Color, width: float) -> void:
 			# Drawn mirrored: mirror the angle too, so the arrow turns the same way on screen.
 			start = PI - _angle
 			turn = -turn
-		draw_arc(CENTER, r, start, start + turn * arc, 12, SchematicTheme.LINE, 2.0, true)
+		draw_arc(CENTER, r, start, start + turn * arc, 12, SchematicTheme.LINE, 2.0)
 		var end_angle: float = start + turn * arc
 		var tip: Vector2 = CENTER + Vector2.from_angle(end_angle) * r
 		var forward: Vector2 = Vector2.from_angle(end_angle + turn * PI * 0.5)
@@ -103,14 +103,14 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 			var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
 			var stud: Vector2 = _stud(motor, i)
 			var toward: Vector2 = (cell - stud).normalized()
-			draw_line(cell, stud + toward * 3.5, lead_color(i), lead_width(i), true)
-			draw_circle(stud, 3.5, SchematicTheme.BACKGROUND, true, -1.0, true)
-			draw_arc(stud, 3.5, 0.0, TAU, 12, lead_color(i) if reach(i) != REACH_NONE else color, 1.5, true)
+			draw_line(cell, stud + toward * 3.5, lead_color(i), lead_width(i))
+			draw_circle(stud, 3.5, SchematicTheme.BACKGROUND)
+			draw_arc(stud, 3.5, 0.0, TAU, 12, lead_color(i) if reach(i) != REACH_NONE else color, 1.5)
 		_draw_box_pe(motor, board)
 		return
 	for i: int in 3:
 		var x: float = i * SymbolGeometry.POLE_SPACING * G
-		draw_line(Vector2(x, 0), Vector2(x, FEED_ROW - 4.0), lead_color(i), lead_width(i), true)
+		draw_line(Vector2(x, 0), Vector2(x, FEED_ROW - 4.0), lead_color(i), lead_width(i))
 	var bridge_width: float = 1.8
 	if motor.delta_bridges:
 		for i: int in 3:
@@ -121,8 +121,8 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 	for i: int in 3:
 		var x: float = i * SymbolGeometry.POLE_SPACING * G
 		for y: float in [FEED_ROW, END_ROW]:
-			draw_circle(Vector2(x, y), 3.5, SchematicTheme.BACKGROUND, true, -1.0, true)
-			draw_arc(Vector2(x, y), 3.5, 0.0, TAU, 12, lead_color(i) if y == FEED_ROW and reach(i) != REACH_NONE else color, 1.5, true)
+			draw_circle(Vector2(x, y), 3.5, SchematicTheme.BACKGROUND)
+			draw_arc(Vector2(x, y), 3.5, 0.0, TAU, 12, lead_color(i) if y == FEED_ROW and reach(i) != REACH_NONE else color, 1.5)
 	_draw_box_pe(motor, board)
 
 
@@ -130,7 +130,7 @@ func _draw_terminal_box(motor: ThreePhaseMotor, color: Color) -> void:
 func _draw_box_pe(motor: ThreePhaseMotor, board: Rect2) -> void:
 	var windings: int = motor.winding_terminal_count()
 	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G
-	draw_polyline(PackedVector2Array([Vector2(board.position.x, 3.0 * G), Vector2(pe_cell.x, 3.0 * G), pe_cell]), lead_color(windings), lead_width(windings), true)
+	draw_polyline(PackedVector2Array([Vector2(board.position.x, 3.0 * G), Vector2(pe_cell.x, 3.0 * G), pe_cell]), lead_color(windings), lead_width(windings))
 
 
 ## Box of the terminal board, wider for a motor with a third winding.
@@ -156,11 +156,11 @@ func _draw_bar(a: Vector2, b: Vector2, color: Color, w: float) -> void:
 	var r: float = 7.0
 	var along: Vector2 = (b - a).normalized()
 	var across: Vector2 = Vector2(-along.y, along.x) * r
-	draw_line(a + across, b + across, color, w, true)
-	draw_line(a - across, b - across, color, w, true)
+	draw_line(a + across, b + across, color, w)
+	draw_line(a - across, b - across, color, w)
 	var start: float = across.angle()
-	draw_arc(a, r, start, start + PI, 10, color, w, true)
-	draw_arc(b, r, start + PI, start + TAU, 10, color, w, true)
+	draw_arc(a, r, start, start + PI, 10, color, w)
+	draw_arc(b, r, start + PI, start + TAU, 10, color, w)
 
 
 func _draw_labels() -> void:
@@ -180,7 +180,8 @@ func _draw_labels() -> void:
 		for i: int in 3:
 			var x: float = i * SymbolGeometry.POLE_SPACING * G
 			draw_label(names[i], Vector2(x + 7.0, FEED_ROW - 8.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-			draw_label(ends[i], Vector2(x + 7.0, END_ROW + 10.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+			# Above the stud: below it the star bar would cross the text.
+			draw_label(ends[i], Vector2(x + 7.0, END_ROW - 13.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label(names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label("Δ" if motor.delta_bridges else "Y", _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
 		return
@@ -189,9 +190,13 @@ func _draw_labels() -> void:
 	draw_label(names[windings], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	for i: int in windings:
 		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
-		var offset: Vector2 = Vector2(0.3 * G, 0.4 * G)
+		# Beside the lead, clear of its bend toward the circle: upper ones
+		# left of the first column, lower ones level with their terminal
+		# (the PE lead runs left of them).
+		var side: float = -0.3 * G if cell.x < 1.0 else 0.3 * G
+		var offset: Vector2 = Vector2(side, 0.4 * G)
 		if i >= 3 and i < 6:
-			offset = Vector2(0.3 * G, -0.4 * G)
+			offset = Vector2(0.3 * G, -0.15 * G)
 		elif i >= 6:
 			offset = Vector2(-0.3 * G, -0.3 * G)
 		draw_label(names[i], cell + offset, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)

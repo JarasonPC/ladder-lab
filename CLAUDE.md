@@ -54,8 +54,8 @@
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
-  ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F)
-  or top-bottom (Shift+F, flip_component: mirrored + half turn, ends swap in place), so
+  ExampleCircuits) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
+  mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
 - UI look: `ui/app_theme.gd` (AppTheme) builds the whole Godot theme in code from colour tokens

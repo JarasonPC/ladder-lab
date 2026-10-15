@@ -48,14 +48,14 @@ func _draw() -> void:
 			var code: int = _reach(w)
 			if pass_codes.has(code):
 				var width: float = SchematicTheme.LINE_WIDTH if code == StepResult.REACH_NONE else SchematicTheme.LIVE_WIDTH
-				draw_polyline(_pixels(w), SchematicTheme.reach_color(code), width, true)
+				draw_polyline(_pixels(w), SchematicTheme.reach_color(code), width)
 	if blink_on:
 		for w: int in fault_wires:
-			draw_polyline(_pixels(w), SchematicTheme.FAULT, SchematicTheme.LIVE_WIDTH, true)
+			draw_polyline(_pixels(w), SchematicTheme.FAULT, SchematicTheme.LIVE_WIDTH)
 	for w: int in document.circuit.broken_wires:
 		_draw_break(w)
 	for cell: Vector2i in _junctions:
-		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell)), true, -1.0, true)
+		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell)))
 	if show_numbers:
 		_draw_wire_numbers()
 	_draw_path_numbers()
@@ -150,9 +150,9 @@ func _draw_break(wire_index: int) -> void:
 		if Vector2(points[s] - points[s - 1]).length() > Vector2(points[best] - points[best - 1]).length():
 			best = s
 	var middle: Vector2 = (Vector2(points[best - 1]) + Vector2(points[best])) * 0.5 * G
-	draw_circle(middle, 7.0, SchematicTheme.BACKGROUND, true, -1.0, true)
-	draw_line(middle + Vector2(-5, -5), middle + Vector2(5, 5), SchematicTheme.FAULT, 2.5, true)
-	draw_line(middle + Vector2(-5, 5), middle + Vector2(5, -5), SchematicTheme.FAULT, 2.5, true)
+	draw_circle(middle, 7.0, SchematicTheme.BACKGROUND)
+	draw_line(middle + Vector2(-5, -5), middle + Vector2(5, 5), SchematicTheme.FAULT, 2.5)
+	draw_line(middle + Vector2(-5, 5), middle + Vector2(5, -5), SchematicTheme.FAULT, 2.5)
 
 
 func _pixels(wire_index: int) -> PackedVector2Array:

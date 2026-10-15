@@ -20,10 +20,10 @@ func _designation_anchor() -> Vector2:
 func _draw_shape(color: Color, _width: float) -> void:
 	var contact: ChangeoverContact = component as ChangeoverContact
 	# Terminal order: common (0, bottom), NC side (1, top right), NO side (2, top).
-	draw_line(Vector2(0, 3 * G), PIVOT, lead_color(0), lead_width(0), true)
-	draw_line(Vector2(0, 0), NO_END, lead_color(2), lead_width(2), true)
-	draw_line(Vector2(G, 0), Vector2(G, 20), lead_color(1), lead_width(1), true)
-	draw_line(Vector2(G, 20), Vector2(9, 20), lead_color(1), lead_width(1), true)
+	draw_line(Vector2(0, 3 * G), PIVOT, lead_color(0), lead_width(0))
+	draw_line(Vector2(0, 0), NO_END, lead_color(2), lead_width(2))
+	draw_line(Vector2(G, 0), Vector2(G, 20), lead_color(1), lead_width(1))
+	draw_line(Vector2(G, 20), Vector2(9, 20), lead_color(1), lead_width(1))
 	var tip: Vector2
 	if contact.is_path_closed(ChangeoverContact.PATH_NO):
 		tip = NO_TIP
@@ -33,7 +33,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 		# In transit (or burnt): between the two fixed contacts.
 		var t: float = clampf(contact.get_travel(), 0.15, 0.85)
 		tip = NC_TIP.lerp(OPEN_TIP, t)
-	draw_line(PIVOT, tip, lead_color(0), lead_width(0), true)
+	draw_blade(PIVOT, tip, lead_color(0), lead_width(0))
 	if contact.delayed:
 		var mark: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
 		ContactSymbol.draw_delay_mark(self, PIVOT.lerp(tip, 0.5), mark)

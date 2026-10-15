@@ -339,6 +339,9 @@ static func build() -> Theme:
 	popup.shadow_size = 10
 	popup.shadow_offset = Vector2(0, 3)
 	t.set_stylebox("panel", "PopupMenu", popup)
+	var popup_panel: StyleBoxFlat = popup.duplicate()
+	popup_panel.set_content_margin_all(14.0)
+	t.set_stylebox("panel", "PopupPanel", popup_panel)
 	t.set_stylebox("hover", "PopupMenu", box(accent_soft, RADIUS - 1, 8.0, 4.0))
 	t.set_stylebox("separator", "PopupMenu", _line(border, false))
 	t.set_color("font_color", "PopupMenu", text)

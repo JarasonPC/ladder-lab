@@ -26,24 +26,24 @@ func _draw_shape(_color: Color, width: float) -> void:
 			var from: Vector2 = middles[pole] + Vector2(gap, 0)
 			var to: Vector2 = middles[pole + 1] - Vector2(gap, 0)
 			if to.x > from.x:
-				draw_dashed_line(from, to, link, 1.5, 3.0, true, true)
+				draw_dashed_line(from, to, link, 1.5, 3.0)
 		return
 	for pole: int in fuse.poles:
 		var x: Vector2 = Vector2(pole_x(pole), 0)
 		var top: int = pole * 2
 		var bottom: int = top + 1
 		var box: Rect2 = Rect2(BOX.position + x, BOX.size)
-		draw_line(x, x + Vector2(0, BOX.position.y), lead_color(top), lead_width(top), true)
-		draw_line(x + Vector2(0, BOX.end.y), x + Vector2(0, 3 * G), lead_color(bottom), lead_width(bottom), true)
+		draw_line(x, x + Vector2(0, BOX.position.y), lead_color(top), lead_width(top))
+		draw_line(x + Vector2(0, BOX.end.y), x + Vector2(0, 3 * G), lead_color(bottom), lead_width(bottom))
 		draw_rect(box, color, false, SchematicTheme.LINE_WIDTH)
 		if fuse.blown[pole] == 1:
-			draw_line(x + Vector2(0, BOX.position.y), x + Vector2(0, 24), lead_color(top), SchematicTheme.LINE_WIDTH, true)
-			draw_line(x + Vector2(0, 36), x + Vector2(0, BOX.end.y), lead_color(bottom), SchematicTheme.LINE_WIDTH, true)
-			draw_line(x + Vector2(-5, 25), x + Vector2(5, 35), SchematicTheme.FAULT, 2.5, true)
-			draw_line(x + Vector2(-5, 35), x + Vector2(5, 25), SchematicTheme.FAULT, 2.5, true)
+			draw_line(x + Vector2(0, BOX.position.y), x + Vector2(0, 24), lead_color(top), SchematicTheme.LINE_WIDTH)
+			draw_line(x + Vector2(0, 36), x + Vector2(0, BOX.end.y), lead_color(bottom), SchematicTheme.LINE_WIDTH)
+			draw_line(x + Vector2(-5, 25), x + Vector2(5, 35), SchematicTheme.FAULT, 2.5)
+			draw_line(x + Vector2(-5, 35), x + Vector2(5, 25), SchematicTheme.FAULT, 2.5)
 		else:
 			var pole_color: Color = lead_color(top) if reach(top) != REACH_NONE else color
-			draw_line(x + Vector2(0, BOX.position.y), x + Vector2(0, BOX.end.y), pole_color, width, true)
+			draw_line(x + Vector2(0, BOX.position.y), x + Vector2(0, BOX.end.y), pole_color, width)
 
 
 func _draw_labels() -> void:

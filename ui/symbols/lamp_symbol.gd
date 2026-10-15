@@ -8,15 +8,15 @@ const RADIUS: float = 12.0
 
 func _draw_shape(color: Color, width: float) -> void:
 	var lit: bool = (component as Load).energized
-	draw_line(Vector2(0, 0), Vector2(0, CENTER.y - RADIUS), lead_color(0), lead_width(0), true)
-	draw_line(Vector2(0, CENTER.y + RADIUS), Vector2(0, 3 * G), lead_color(1), lead_width(1), true)
+	draw_line(Vector2(0, 0), Vector2(0, CENTER.y - RADIUS), lead_color(0), lead_width(0))
+	draw_line(Vector2(0, CENTER.y + RADIUS), Vector2(0, 3 * G), lead_color(1), lead_width(1))
 	if lit:
-		draw_circle(CENTER, RADIUS, SchematicTheme.LAMP_ON, true, -1.0, true)
-	draw_arc(CENTER, RADIUS, 0.0, TAU, 32, color, width, true)
+		draw_circle(CENTER, RADIUS, SchematicTheme.LAMP_ON)
+	draw_arc(CENTER, RADIUS, 0.0, TAU, 32, color, width)
 	var d: float = RADIUS * 0.7071
 	var cross: Color = (SchematicTheme.LAMP_CROSS if lit else SchematicTheme.LINE) if not warning else color
-	draw_line(CENTER + Vector2(-d, -d), CENTER + Vector2(d, d), cross, SchematicTheme.LINE_WIDTH, true)
-	draw_line(CENTER + Vector2(-d, d), CENTER + Vector2(d, -d), cross, SchematicTheme.LINE_WIDTH, true)
+	draw_line(CENTER + Vector2(-d, -d), CENTER + Vector2(d, d), cross, SchematicTheme.LINE_WIDTH)
+	draw_line(CENTER + Vector2(-d, d), CENTER + Vector2(d, -d), cross, SchematicTheme.LINE_WIDTH)
 
 
 func _draw_labels() -> void:

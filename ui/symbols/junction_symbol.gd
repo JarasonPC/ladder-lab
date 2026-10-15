@@ -5,7 +5,7 @@ extends SchematicSymbol
 
 
 func _draw_shape(color: Color, _width: float) -> void:
-	draw_circle(Vector2.ZERO, 2.0, color, true, -1.0, true)
+	draw_circle(Vector2.ZERO, 2.0, color)
 
 
 func _draw_labels() -> void:

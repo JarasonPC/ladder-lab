@@ -221,7 +221,10 @@ func rotate_selection() -> void:
 
 func mirror_selection() -> void:
 	if tool == Tool.PLACE:
+		# Left to right as seen: along the axis of a horizontal symbol.
 		_ghost_mirrored = not _ghost_mirrored
+		if _ghost_rotation % 2 == 1:
+			_ghost_rotation = (_ghost_rotation + 2) % 4
 		_rebuild_ghost()
 		return
 	if selected_components.is_empty():
@@ -236,7 +239,8 @@ func mirror_selection() -> void:
 func flip_selection() -> void:
 	if tool == Tool.PLACE:
 		_ghost_mirrored = not _ghost_mirrored
-		_ghost_rotation = (_ghost_rotation + 2) % 4
+		if _ghost_rotation % 2 == 0:
+			_ghost_rotation = (_ghost_rotation + 2) % 4
 		_rebuild_ghost()
 		return
 	if selected_components.is_empty():
