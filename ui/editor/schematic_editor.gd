@@ -162,6 +162,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		_update_mouse()
+		if mb.pressed:
+			# Keys like R and Delete must reach the editor, not a text field
+			# in the properties panel that kept the focus.
+			get_viewport().gui_release_focus()
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
 				_on_left_pressed(mb.shift_pressed)

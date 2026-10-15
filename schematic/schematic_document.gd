@@ -94,6 +94,37 @@ func bounds() -> Rect2:
 	return r
 
 
+## Grid positions of the numbered current paths: x of each column when the
+## drawing is vertical, y of each row when it is horizontal. Every two-terminal
+## symbol marks the midpoint between its terminals; positions closer than
+## [param merge] cells count as one path.
+func current_paths(merge: float = 1.0) -> PackedFloat32Array:
+	var coordinates: Array[float] = []
+	for c: CircuitComponent in circuit.get_components():
+		var keys: PackedStringArray = c.get_terminal_keys()
+		if keys.size() != 2:
+			continue
+		var center: Vector2 = (Vector2(terminal_cell(keys[0])) + Vector2(terminal_cell(keys[1]))) * 0.5
+		coordinates.append(center.y if horizontal else center.x)
+	coordinates.sort()
+	var paths: PackedFloat32Array = PackedFloat32Array()
+	var group_start: float = 0.0
+	var group_sum: float = 0.0
+	var group_count: int = 0
+	for value: float in coordinates:
+		if group_count > 0 and value - group_start > merge:
+			paths.append(group_sum / group_count)
+			group_count = 0
+		if group_count == 0:
+			group_start = value
+			group_sum = 0.0
+		group_sum += value
+		group_count += 1
+	if group_count > 0:
+		paths.append(group_sum / group_count)
+	return paths
+
+
 ## Cells where three or more wire or lead directions meet, drawn as dots.
 func junction_cells() -> Array[Vector2i]:
 	var directions: Dictionary[Vector2i, int] = {}
@@ -372,9 +403,10 @@ func wire_cell_near(index: int, point: Vector2) -> Vector2i:
 	return best
 
 
-## First free designation "<prefix><n>", e.g. "K3".
-func next_designation(prefix: String) -> String:
-	var used: Dictionary[String, bool] = {}
+## First free designation "<prefix><n>", e.g. "K3", also avoiding
+## [param reserved].
+func next_designation(prefix: String, reserved: Dictionary[String, bool] = {}) -> String:
+	var used: Dictionary[String, bool] = reserved.duplicate()
 	for c: CircuitComponent in circuit.get_components():
 		used[c.designation] = true
 	var n: int = 1
@@ -404,6 +436,104 @@ func next_contact_sequence(designation: String) -> int:
 		if not used.has(n):
 			return n
 	return 9
+
+
+# --- Clipboard -----------------------------------------------------------------
+
+## Copies components and the wires running between them (both ends inside the
+## selection) into plain data for [method insert].
+func extract(ids: PackedStringArray) -> Dictionary:
+	var keys: Dictionary[String, bool] = {}
+	var components: Array[Dictionary] = []
+	for c: CircuitComponent in circuit.get_components():
+		if not ids.has(c.id):
+			continue
+		var d: Dictionary = DocumentSerializer.component_to_dict(c)
+		var p: Placement = _placements[c.id]
+		d["cell"] = [p.cell.x, p.cell.y]
+		d["rotation"] = p.rotation
+		d["mirrored"] = p.mirrored
+		components.append(d)
+		for key: String in c.get_terminal_keys():
+			keys[key] = true
+	var wires: Array[Dictionary] = []
+	var circuit_wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in circuit_wires.size():
+		if keys.has(circuit_wires[i][0]) and keys.has(circuit_wires[i][1]):
+			var corners: Array = []
+			for corner: Vector2i in _routes[i].corners:
+				corners.append([corner.x, corner.y])
+			wires.append({"a": circuit_wires[i][0], "b": circuit_wires[i][1], "corners": corners})
+	return {"components": components, "wires": wires}
+
+
+## Adds data from [method extract], shifted by [param offset] cells. Taken
+## designations are renumbered; a copied coil and its copied contacts get the
+## same new designation, contacts copied without their coil stay with it and
+## get a free contact number. Returns the ids of the new components.
+func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
+	var components: Array = data.get("components", [])
+	var renamed: Dictionary[String, String] = {}
+	var reserved: Dictionary[String, bool] = {}
+	for cd: Dictionary in components:
+		var kind: String = cd["type"]
+		if kind == "supply" or kind == "junction" or kind == "contact":
+			continue
+		var designation: String = cd["designation"]
+		if renamed.has(designation):
+			continue
+		var taken: bool = reserved.has(designation)
+		for c: CircuitComponent in circuit.get_components():
+			if c.designation == designation:
+				taken = true
+				break
+		var new_designation: String = designation
+		if taken:
+			new_designation = next_designation(_designation_prefix(designation), reserved)
+		renamed[designation] = new_designation
+		reserved[new_designation] = true
+
+	var new_ids: PackedStringArray = PackedStringArray()
+	var key_map: Dictionary[String, String] = {}
+	for cd: Dictionary in components:
+		var d: Dictionary = cd.duplicate()
+		match d["type"]:
+			"supply":
+				d["designation"] = next_supply_designation(PowerSupply.Conductor.N if d.get("conductor", "L") == "N" else PowerSupply.Conductor.L)
+			"junction":
+				d["designation"] = next_designation("J")
+			_:
+				d["designation"] = renamed.get(d["designation"], d["designation"])
+		var c: CircuitComponent = DocumentSerializer.component_from_dict(d)
+		if c is SwitchingElement and not DocumentSerializer._fits(circuit, c):
+			d["sequence"] = next_contact_sequence(d["designation"])
+			c = DocumentSerializer.component_from_dict(d)
+		if c == null or not DocumentSerializer._fits(circuit, c):
+			continue
+		var old_keys: PackedStringArray = DocumentSerializer.component_from_dict(cd).get_terminal_keys()
+		var new_keys: PackedStringArray = c.get_terminal_keys()
+		for k: int in old_keys.size():
+			key_map[old_keys[k]] = new_keys[k]
+		var cell: Array = cd["cell"]
+		add(c, Vector2i(int(cell[0]), int(cell[1])) + offset, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
+		new_ids.append(c.id)
+	for wd: Dictionary in data.get("wires", []):
+		if not key_map.has(wd["a"]) or not key_map.has(wd["b"]):
+			continue
+		var corners: Array[Vector2i] = []
+		for corner: Array in wd["corners"]:
+			corners.append(Vector2i(int(corner[0]), int(corner[1])) + offset)
+		connect_terminals(key_map[wd["a"]], key_map[wd["b"]], corners)
+	return new_ids
+
+
+static func _designation_prefix(designation: String) -> String:
+	var prefix: String = ""
+	for ch: String in designation:
+		if ch >= "0" and ch <= "9":
+			break
+		prefix += ch
+	return prefix if not prefix.is_empty() else "X"
 
 
 func _reroute_component(component_id: String) -> void:

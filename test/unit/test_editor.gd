@@ -115,3 +115,22 @@ func test_rotate_selection_turns_component() -> void:
 	assert_eq(editor.document().get_placement("H1").rotation, 1)
 	editor.mirror_selection()
 	assert_true(editor.document().get_placement("H1").mirrored)
+
+
+func _press_key(code: Key) -> void:
+	var e: InputEventKey = InputEventKey.new()
+	e.keycode = code
+	e.pressed = true
+	editor._unhandled_input(e)
+
+
+func test_r_and_delete_keys_act_on_clicked_component() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_at(Vector2(5, 5.5))
+	editor._on_left_pressed(false)
+	editor._on_left_released(false)
+	assert_true(editor.selected_components.has("H1"), "click selects")
+	_press_key(KEY_R)
+	assert_eq(editor.document().get_placement("H1").rotation, 1, "R rotates")
+	_press_key(KEY_DELETE)
+	assert_null(editor.document().circuit.get_component("H1"), "Delete removes")

@@ -59,7 +59,7 @@ func retranslate() -> void:
 ## Draws the symbol lying horizontally at the left of the button.
 func _add_icon(button: Button, template: Dictionary) -> void:
 	var data: Dictionary = template.duplicate()
-	data["designation"] = "L" if data.get("conductor", "") == "L" else ("N" if data.has("conductor") else "")
+	data["designation"] = "L" if data.get("conductor", "") == "L" else ("N" if data.has("conductor") else "X1")
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	var placement: Placement = Placement.new(Vector2i.ZERO, 3, true)
 	var symbol: SchematicSymbol = SymbolFactory.create(component, placement)

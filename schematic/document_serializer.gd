@@ -7,6 +7,8 @@ extends RefCounted
 
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
+const INVALID_CELL := Vector2i(-2147483648, -2147483648)
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "coil", "timer", "lamp", "motor"]
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -28,19 +30,39 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 	return {"title": doc.title, "horizontal": doc.horizontal, "components": components, "wires": wires}
 
 
+## Builds a document, or returns null if the data is malformed (unknown
+## component type, duplicate designation, wire to a missing terminal, ...).
+## Never pushes errors, so it can check untrusted files.
 static func from_dict(d: Dictionary) -> SchematicDocument:
-	var doc: SchematicDocument = SchematicDocument.new(d.get("title", ""))
+	var doc: SchematicDocument = SchematicDocument.new(str(d.get("title", "")))
 	doc.horizontal = bool(d.get("horizontal", false))
-	for cd: Dictionary in d.get("components", []):
+	var components: Variant = d.get("components", [])
+	var wires: Variant = d.get("wires", [])
+	if not (components is Array and wires is Array):
+		return null
+	for cd: Variant in components:
+		if not (cd is Dictionary):
+			return null
 		var c: CircuitComponent = component_from_dict(cd)
-		var cell: Array = cd.get("cell", [0, 0])
-		if c != null:
-			doc.add(c, Vector2i(int(cell[0]), int(cell[1])), int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
-	for wd: Dictionary in d.get("wires", []):
+		var cell: Vector2i = _cell(cd.get("cell", null))
+		if c == null or cell == INVALID_CELL or not _fits(doc.circuit, c):
+			return null
+		doc.add(c, cell, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
+	for wd: Variant in wires:
+		if not (wd is Dictionary):
+			return null
+		var a: String = str(wd.get("a", ""))
+		var b: String = str(wd.get("b", ""))
+		var raw_corners: Variant = wd.get("corners", [])
+		if not doc.circuit.has_terminal(a) or not doc.circuit.has_terminal(b) or not (raw_corners is Array):
+			return null
 		var corners: Array[Vector2i] = []
-		for corner: Array in wd.get("corners", []):
-			corners.append(Vector2i(int(corner[0]), int(corner[1])))
-		doc.connect_terminals(wd["a"], wd["b"], corners)
+		for corner: Variant in raw_corners:
+			var cell: Vector2i = _cell(corner)
+			if cell == INVALID_CELL:
+				return null
+			corners.append(cell)
+		doc.connect_terminals(a, b, corners)
 	return doc
 
 
@@ -77,11 +99,15 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	return d
 
 
+## Builds a component, or returns null for unknown or invalid data.
 static func component_from_dict(d: Dictionary) -> CircuitComponent:
-	var designation: String = d.get("designation", "")
+	var designation: String = str(d.get("designation", ""))
+	var kind: String = str(d.get("type", ""))
+	if designation.is_empty() or designation.contains(":") or not TYPES.has(kind):
+		return null
 	var contact: SwitchingElement.ContactType = NC if d.get("contact", "NO") == "NC" else NO
-	var sequence: int = int(d.get("sequence", 1))
-	match d.get("type", ""):
+	var sequence: int = clampi(int(d.get("sequence", 1)), 0, 9)
+	match kind:
 		"supply":
 			var conductor: PowerSupply.Conductor = PowerSupply.Conductor.N if d.get("conductor", "L") == "N" else PowerSupply.Conductor.L
 			return PowerSupply.new(designation, conductor)
@@ -97,10 +123,25 @@ static func component_from_dict(d: Dictionary) -> CircuitComponent:
 			return Coil.new(designation, Coil.Kind.RELAY if d.get("kind", "contactor") == "relay" else Coil.Kind.CONTACTOR)
 		"timer":
 			var mode: TimerRelay.Mode = TimerRelay.Mode.OFF_DELAY if d.get("mode", "on_delay") == "off_delay" else TimerRelay.Mode.ON_DELAY
-			return TimerRelay.new(designation, mode, float(d.get("delay", 1.0)))
+			return TimerRelay.new(designation, mode, maxf(float(d.get("delay", 1.0)), 0.0))
 		"lamp":
 			return Lamp.new(designation)
 		"motor":
 			return Motor.new(designation)
-	push_error("DocumentSerializer: unknown component type '%s'" % d.get("type", ""))
 	return null
+
+
+static func _cell(value: Variant) -> Vector2i:
+	if value is Array and value.size() == 2 and (value[0] is int or value[0] is float) and (value[1] is int or value[1] is float):
+		return Vector2i(int(value[0]), int(value[1]))
+	return INVALID_CELL
+
+
+## True if [param c] can be added without clashing ids or terminals.
+static func _fits(circuit: Circuit, c: CircuitComponent) -> bool:
+	if circuit.get_component(c.id) != null:
+		return false
+	for key: String in c.get_terminal_keys():
+		if circuit.has_terminal(key):
+			return false
+	return true
