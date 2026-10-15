@@ -6,7 +6,9 @@ extends RefCounted
 const EXTENSION: String = "ladder"
 const FORMAT: String = "ladder-lab"
 ## Raise when the file layout changes; older files must keep loading.
-const VERSION: int = 1
+## 1: first format. 2: switching times per coil and the switching mode
+## (missing in version 1, so defaults are used).
+const VERSION: int = 2
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

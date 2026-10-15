@@ -27,7 +27,7 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		for corner: Vector2i in doc.get_route(i).corners:
 			corners.append([corner.x, corner.y])
 		wires.append({"a": circuit_wires[i][0], "b": circuit_wires[i][1], "corners": corners})
-	return {"title": doc.title, "horizontal": doc.horizontal, "components": components, "wires": wires}
+	return {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "components": components, "wires": wires}
 
 
 ## Builds a document, or returns null if the data is malformed (unknown
@@ -36,6 +36,7 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 static func from_dict(d: Dictionary) -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(str(d.get("title", "")))
 	doc.horizontal = bool(d.get("horizontal", false))
+	doc.realistic_timing = d.get("switching", "realistic") != "ideal"
 	var components: Variant = d.get("components", [])
 	var wires: Variant = d.get("wires", [])
 	if not (components is Array and wires is Array):
@@ -89,9 +90,13 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "timer"
 		d["mode"] = "on_delay" if t.mode == TimerRelay.Mode.ON_DELAY else "off_delay"
 		d["delay"] = t.delay
+		d["pick_up"] = t.pick_up_time
+		d["drop_out"] = t.drop_out_time
 	elif c is Coil:
 		d["type"] = "coil"
 		d["kind"] = "relay" if (c as Coil).kind == Coil.Kind.RELAY else "contactor"
+		d["pick_up"] = (c as Coil).pick_up_time
+		d["drop_out"] = (c as Coil).drop_out_time
 	elif c is Lamp:
 		d["type"] = "lamp"
 	elif c is Motor:
@@ -120,15 +125,24 @@ static func component_from_dict(d: Dictionary) -> CircuitComponent:
 		"contact":
 			return Contact.new(designation, contact, sequence, bool(d.get("delayed", false)))
 		"coil":
-			return Coil.new(designation, Coil.Kind.RELAY if d.get("kind", "contactor") == "relay" else Coil.Kind.CONTACTOR)
+			var coil_kind: Coil.Kind = Coil.Kind.RELAY if d.get("kind", "contactor") == "relay" else Coil.Kind.CONTACTOR
+			return Coil.new(designation, coil_kind, _seconds(d, "pick_up"), _seconds(d, "drop_out"))
 		"timer":
 			var mode: TimerRelay.Mode = TimerRelay.Mode.OFF_DELAY if d.get("mode", "on_delay") == "off_delay" else TimerRelay.Mode.ON_DELAY
-			return TimerRelay.new(designation, mode, maxf(float(d.get("delay", 1.0)), 0.0))
+			return TimerRelay.new(designation, mode, maxf(float(d.get("delay", 1.0)), 0.0), _seconds(d, "pick_up"), _seconds(d, "drop_out"))
 		"lamp":
 			return Lamp.new(designation)
 		"motor":
 			return Motor.new(designation)
 	return null
+
+
+## A switching time in seconds, or -1 (use the default) if missing or invalid.
+static func _seconds(d: Dictionary, key: String) -> float:
+	var value: Variant = d.get(key, null)
+	if (value is float or value is int) and float(value) >= 0.0 and float(value) <= 10.0:
+		return float(value)
+	return -1.0
 
 
 static func _cell(value: Variant) -> Vector2i:

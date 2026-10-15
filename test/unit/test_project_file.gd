@@ -38,3 +38,23 @@ func test_bad_files_are_refused_cleanly() -> void:
 	]
 	for text: String in damaged:
 		assert_eq(ProjectFile.parse(text).get("error", ""), "%s is damaged and cannot be opened.", text)
+
+
+func test_version_1_files_load_with_default_times() -> void:
+	var text: String = '{"format": "ladder-lab", "version": 1, "document": {"title": "old", "components": [{"type": "coil", "kind": "relay", "designation": "K1", "cell": [0, 0]}, {"type": "timer", "mode": "on_delay", "delay": 2.0, "designation": "KT1", "cell": [4, 0]}], "wires": []}}'
+	var doc: SchematicDocument = ProjectFile.parse(text)["document"]
+	assert_true(doc.realistic_timing, "realistic switching by default")
+	var k1: Coil = doc.circuit.get_coil("K1")
+	assert_almost_eq(k1.pick_up_time, Coil.DEFAULT_PICK_UP[Coil.Kind.RELAY], 1e-9)
+	assert_almost_eq(k1.drop_out_time, Coil.DEFAULT_DROP_OUT[Coil.Kind.RELAY], 1e-9)
+
+
+func test_switching_times_and_mode_are_saved() -> void:
+	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	doc.realistic_timing = false
+	doc.replace_component("K1", Coil.new("K1", Coil.Kind.CONTACTOR, 0.035, 0.025))
+	ProjectFile.save(doc, PATH)
+	var copy: SchematicDocument = ProjectFile.load_file(PATH)["document"]
+	assert_false(copy.realistic_timing)
+	assert_almost_eq(copy.circuit.get_coil("K1").pick_up_time, 0.035, 1e-9)
+	assert_almost_eq(copy.circuit.get_coil("K1").drop_out_time, 0.025, 1e-9)

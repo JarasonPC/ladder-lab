@@ -61,10 +61,14 @@ func show_component(component: CircuitComponent) -> void:
 		"coil":
 			_text(tr("Designation"), "designation")
 			_choice(tr("Kind"), "kind", ["contactor", "relay"], [tr("Contactor"), tr("Relay")])
+			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
+			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"timer":
 			_text(tr("Designation"), "designation")
 			_choice(tr("Function"), "mode", ["on_delay", "off_delay"], [tr("On-delay"), tr("Off-delay")])
 			_number(tr("Delay (s)"), "delay", 0.1, 3600.0, 0.1)
+			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
+			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"lamp", "motor":
 			_text(tr("Designation"), "designation")
 	_label(tr("Terminals: %s") % ", ".join(component.get_terminal_names()))
@@ -124,6 +128,18 @@ func _number(caption: String, key: String, min_value: float, max_value: float, s
 	spin.step = step
 	spin.value = _data[key]
 	spin.value_changed.connect(func(value: float) -> void: _emit(key, value))
+	_box.add_child(spin)
+
+
+## A time stored in seconds, edited in milliseconds.
+func _milliseconds(caption: String, key: String) -> void:
+	_label(caption)
+	var spin: SpinBox = SpinBox.new()
+	spin.min_value = 0.1
+	spin.max_value = 1000.0
+	spin.step = 0.1
+	spin.value = float(_data[key]) * 1000.0
+	spin.value_changed.connect(func(value: float) -> void: _emit(key, value / 1000.0))
 	_box.add_child(spin)
 
 

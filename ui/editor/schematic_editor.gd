@@ -207,6 +207,14 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 			data["designation"] = doc.next_supply_designation(conductor)
 	if String(data.get("designation", "x")).is_empty():
 		return tr("The designation must not be empty.")
+	if old is Coil and data.get("kind", "") != "":
+		# A contactor turned into a relay (or back) takes the new kind's
+		# default times, unless its times had been set by hand.
+		var coil: Coil = old as Coil
+		var new_kind: Coil.Kind = Coil.Kind.RELAY if data["kind"] == "relay" else Coil.Kind.CONTACTOR
+		if new_kind != coil.kind and is_equal_approx(coil.pick_up_time, Coil.DEFAULT_PICK_UP[coil.kind]) and is_equal_approx(coil.drop_out_time, Coil.DEFAULT_DROP_OUT[coil.kind]):
+			data.erase("pick_up")
+			data.erase("drop_out")
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	var snapshot: Dictionary = DocumentSerializer.to_dict(doc)
 	if not _can_replace(old, replacement):

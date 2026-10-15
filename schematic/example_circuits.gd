@@ -12,6 +12,7 @@ const TITLES: PackedStringArray = [
 	"Time relays",
 	"Self-cutoff (oscillation)",
 	"Short circuit",
+	"Star/delta start",
 ]
 
 
@@ -33,6 +34,8 @@ static func build(index: int, horizontal: bool = false) -> SchematicDocument:
 			doc = self_cutoff()
 		4:
 			doc = short_circuit()
+		5:
+			doc = star_delta()
 	if doc != null and horizontal:
 		doc.transpose()
 	return doc
@@ -172,4 +175,42 @@ static func short_circuit() -> SchematicDocument:
 	doc.connect_terminals("S2:14", "N", _c([Vector2i(5, 13)]))
 	doc.connect_terminals("L", "H1:X1", _c([Vector2i(10, 1)]))
 	doc.connect_terminals("H1:X2", "N", _c([Vector2i(10, 13)]))
+	return doc
+
+
+## Star/delta start while START is held: S2 starts the star contactor KM3
+## (through the delta contactor's NC KM2 11-12); KM3 13-14 brings in the main
+## contactor KM1, which holds itself through KM1 13-14. Letting go of S2 drops
+## KM3, and its NC 11-12 brings in the delta contactor KM2, whose NC keeps
+## KM3 from starting again. S1 stops everything.
+## (Fuse and overload contact of the supply are not modelled yet.)
+static func star_delta() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new(TITLES[5])
+	_supplies(doc, 26)
+	doc.add(PushButton.new("S1", NC), Vector2i(5, 3))
+	doc.add(PushButton.new("S2", NO), Vector2i(5, 10))
+	doc.add(Contact.new("KM2", NC, 1), Vector2i(5, 15))
+	doc.add(Coil.new("KM3"), Vector2i(5, 20))
+	doc.add(Contact.new("KM3", NO, 1), Vector2i(10, 10))
+	doc.add(Coil.new("KM1"), Vector2i(10, 20))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(15, 10))
+	doc.add(Contact.new("KM3", NC, 1), Vector2i(15, 15))
+	doc.add(Coil.new("KM2"), Vector2i(15, 20))
+
+	doc.connect_terminals("L", "S1:11", _c([Vector2i(5, 1)]))
+	doc.connect_terminals("S1:12", "S2:13")
+	doc.connect_terminals("S1:12", "KM3:13", _c([Vector2i(5, 8), Vector2i(10, 8)]))
+	doc.connect_terminals("S1:12", "KM1:13", _c([Vector2i(5, 8), Vector2i(15, 8)]))
+	# Star.
+	doc.connect_terminals("S2:14", "KM2:11")
+	doc.connect_terminals("KM2:12", "KM3:A1")
+	doc.connect_terminals("KM3:A2", "N", _c([Vector2i(5, 26)]))
+	# Main contactor, fed by KM3 13-14 or its own KM1 13-14.
+	doc.connect_terminals("KM3:14", "KM1:A1")
+	doc.connect_terminals("KM3:14", "KM1:14", _c([Vector2i(10, 14), Vector2i(15, 14)]))
+	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(10, 26)]))
+	# Delta, through the star contactor's NC.
+	doc.connect_terminals("KM1:14", "KM3:11")
+	doc.connect_terminals("KM3:12", "KM2:A1")
+	doc.connect_terminals("KM2:A2", "N", _c([Vector2i(15, 26)]))
 	return doc

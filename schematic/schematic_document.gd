@@ -9,6 +9,9 @@ var title: String
 var circuit: Circuit = Circuit.new()
 ## True after [method transpose] turned the drawing to horizontal current paths.
 var horizontal: bool = false
+## Simulate relays with pick-up and drop-out times (see [Armature]) rather
+## than instant switching.
+var realistic_timing: bool = true
 
 var _placements: Dictionary[String, Placement] = {}
 var _routes: Array[WireRoute] = []
