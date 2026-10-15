@@ -957,5 +957,11 @@ msgstr "Doba brzdění DC (s)"
 msgid "DC brake"
 msgstr "brzdí DC"
 
+msgid "Drag to resize. Ctrl+wheel over the panel zooms it, Ctrl+0 resets the zoom."
+msgstr "Tažením změníte šířku. Ctrl+kolečko nad panelem jej přiblíží, Ctrl+0 vrátí přiblížení."
+
+msgid "Drag to share the width between the chart and the event log"
+msgstr "Tažením rozdělíte šířku mezi diagram a záznam událostí"
+
 msgid "Bridge rectifier"
 msgstr "Usměrňovací můstek"

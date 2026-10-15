@@ -30,7 +30,6 @@ var _swatches: Dictionary[String, Texture2D] = {}
 
 func _ready() -> void:
 	theme_type_variation = "RightPanel"
-	custom_minimum_size = Vector2(250, 0)
 	var outer: VBoxContainer = VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 10)
 	add_child(outer)

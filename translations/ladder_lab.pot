@@ -954,5 +954,10 @@ msgstr ""
 msgid "DC brake"
 msgstr ""
 
+msgid "Drag to resize. Ctrl+wheel over the panel zooms it, Ctrl+0 resets the zoom."
+msgstr ""
+
+msgid "Drag to share the width between the chart and the event log"
+
 msgid "Bridge rectifier"
 msgstr ""
