@@ -71,6 +71,46 @@ static func parse_latest(json: String) -> Dictionary:
 	}
 
 
+## Release notes written in Markdown (as on GitHub) as plain text for a dialog:
+## headings, emphasis, code marks, links and images lose their marks, list
+## items get a bullet, comments and rules are dropped and blank lines are not
+## repeated. Longer than [param max_length] (0 = any length), the text is cut
+## at a line end and "…" added.
+static func plain_text(markdown: String, max_length: int = 0) -> String:
+	var heading: RegEx = RegEx.create_from_string("^\\s{0,3}#{1,6}\\s+(.*?)\\s*#*\\s*$")
+	var rule: RegEx = RegEx.create_from_string("^\\s{0,3}([-*_])(\\s*\\1){2,}\\s*$")
+	var quote: RegEx = RegEx.create_from_string("^\\s*>\\s?")
+	var bullet: RegEx = RegEx.create_from_string("^(\\s*)[-*+]\\s+")
+	var image: RegEx = RegEx.create_from_string("!\\[([^\\]]*)\\]\\([^)]*\\)")
+	var link: RegEx = RegEx.create_from_string("\\[([^\\]]+)\\]\\([^)]*\\)")
+	var strong: RegEx = RegEx.create_from_string("(\\*\\*|__)(.+?)\\1")
+	var emphasis: RegEx = RegEx.create_from_string("(?<![\\w*])([*_])(?!\\s)([^*_\\n]+?)(?<!\\s)\\1(?![\\w*])")
+	var comment: RegEx = RegEx.create_from_string("<!--[\\s\\S]*?-->")
+	var text: String = comment.sub(markdown.replace("\r\n", "\n").replace("\r", "\n"), "", true)
+	var lines: PackedStringArray = []
+	for line: String in text.split("\n"):
+		if rule.search(line) != null:
+			continue
+		line = heading.sub(line, "$1")
+		line = quote.sub(line, "")
+		line = bullet.sub(line, "$1• ")
+		line = image.sub(line, "$1", true)
+		line = link.sub(line, "$1", true)
+		line = strong.sub(line, "$2", true)
+		line = emphasis.sub(line, "$2", true)
+		line = line.replace("`", "").strip_edges(false, true)
+		if line.is_empty() and (lines.is_empty() or lines[-1].is_empty()):
+			continue
+		lines.append(line)
+	while not lines.is_empty() and lines[-1].is_empty():
+		lines.resize(lines.size() - 1)
+	var plain: String = "\n".join(lines)
+	if max_length > 0 and plain.length() > max_length:
+		var cut: int = plain.rfind("\n", max_length)
+		plain = plain.left(cut if cut > 0 else max_length).strip_edges(false, true) + "\n…"
+	return plain
+
+
 ## [numbers, pre-release suffix] of a version text; numbers are empty when it
 ## does not start with one.
 static func _split(version: String) -> Array:

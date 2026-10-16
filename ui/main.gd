@@ -844,9 +844,7 @@ func _on_update_checked(result: UpdateChecker.Result, release: Dictionary) -> vo
 	match result:
 		UpdateChecker.Result.NEWER:
 			var text: String = tr("LadderLab %s is available (you have %s).") % [release["version"], ReleaseCheck.current_version()]
-			var notes: String = str(release["notes"]).strip_edges()
-			if notes.length() > 600:
-				notes = notes.left(600).strip_edges() + " …"
+			var notes: String = ReleaseCheck.plain_text(release["notes"], 600)
 			dialog.dialog_text = text if notes.is_empty() else text + "\n\n" + notes
 			dialog.ok_button_text = tr("Download")
 			_offering_download = true

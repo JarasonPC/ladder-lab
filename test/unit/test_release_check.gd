@@ -64,3 +64,29 @@ func test_rejects_unusable_answers() -> void:
 func test_this_build_has_a_version() -> void:
 	assert_false(ReleaseCheck.current_version().is_empty())
 	assert_true(ReleaseCheck.is_newer(ReleaseCheck.current_version(), "0.0.1"))
+
+
+func test_release_notes_lose_their_markdown() -> void:
+	var notes: String = "## What's new\r\n\r\n### Simulation\r\n- **Pause** with `Space`\r\n* Faster *timing* chart\r\n\r\n\r\n---\r\nSee [the changelog](https://example.com/CHANGELOG.md).\r\n<!-- generated -->"
+	assert_eq(ReleaseCheck.plain_text(notes), "What's new\n\nSimulation\n• Pause with Space\n• Faster timing chart\n\nSee the changelog.")
+
+
+func test_plain_text_keeps_ordinary_characters() -> void:
+	assert_eq(ReleaseCheck.plain_text("Fuses FU_1 and 3*4 terminals"), "Fuses FU_1 and 3*4 terminals")
+	assert_eq(ReleaseCheck.plain_text("  - nested item\n> quoted"), "  • nested item\nquoted")
+	assert_eq(ReleaseCheck.plain_text("![icon](icon.png) Logo"), "icon Logo")
+	assert_eq(ReleaseCheck.plain_text("# Title #"), "Title")
+
+
+func test_long_notes_are_cut_at_a_line_end() -> void:
+	var notes: String = "- first line\n- second line\n- third line"
+	assert_eq(ReleaseCheck.plain_text(notes, 20), "• first line\n…")
+	assert_eq(ReleaseCheck.plain_text(notes, 0), "• first line\n• second line\n• third line")
+
+
+func test_the_changelog_reads_as_plain_text() -> void:
+	var changelog: String = FileAccess.get_file_as_string("res://CHANGELOG.md")
+	var plain: String = ReleaseCheck.plain_text(changelog)
+	assert_false(plain.is_empty())
+	for mark: String in ["#", "**", "`", "](", "\n- "]:
+		assert_false(plain.contains(mark), "mark left: " + mark)

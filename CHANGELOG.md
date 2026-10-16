@@ -6,8 +6,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
-### Panels
-- Switchboard: bridge rectifiers (TB) on the rails, their DC LED lit while the input has voltage
+### Fixed
+- The About window opened taller than the screen, so it could not be closed
+- Release notes in the update dialog are shown as plain text, without formatting marks
 
 ## 0.2.0 – 2026-10-16
 
@@ -38,6 +39,7 @@ First public version.
 - Control panel: control boxes with push buttons, selector switches, signal lamps and
   illuminated buttons that operate the simulation
 - Switchboard: DIN rails with the breakers, fuses, contactors, relays and terminals
+- Switchboard: bridge rectifiers (TB) on the rails, their DC LED lit while the input has voltage
 
 ### Files and export
 - `.ladder` files, recent files; on Windows a double-click in Explorer opens them

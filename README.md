@@ -22,7 +22,6 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   DC braking of motors.
 - **Control panel**: control boxes with push buttons, selector switches and signal lamps
   that operate the simulated circuit.
-- **Switchboard**: DIN rails with the breakers, fuses, contactors, relays and terminals.
 - **Switchboard** (rozvaděč): DIN rails with the breakers, fuse holders, contactors,
   overload relays, relays, time relays and terminal strips of the schematic, drawn like
   the real cabinet; they show the simulation and breakers and fuses are switched there.

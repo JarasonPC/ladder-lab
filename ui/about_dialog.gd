@@ -18,10 +18,13 @@ var _license: TextEdit
 var _third_party: TextEdit
 
 
+## Size the dialog opens at, if the main window has room for it.
+const OPEN_SIZE: Vector2i = Vector2i(680, 520)
+
+
 func _init() -> void:
-	min_size = Vector2i(640, 500)
 	_tabs = TabContainer.new()
-	_tabs.custom_minimum_size = Vector2(600, 420)
+	_tabs.custom_minimum_size = Vector2(480, 300)
 	add_child(_tabs)
 
 	var about: VBoxContainer = VBoxContainer.new()
@@ -47,6 +50,8 @@ func _init() -> void:
 	copyright.text = COPYRIGHT
 	_notice = _text(about)
 	_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# A wrapped label needs a width, else the dialog sizes it one word per line.
+	_notice.custom_minimum_size = Vector2(440, 0)
 	_website = LinkButton.new()
 	_website.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_website.focus_mode = Control.FOCUS_NONE
@@ -80,7 +85,7 @@ func _page() -> TextEdit:
 func open() -> void:
 	retranslate()
 	_tabs.current_tab = 0
-	popup_centered()
+	popup_centered_clamped(OPEN_SIZE, 0.9)
 
 
 func retranslate() -> void:
