@@ -11,6 +11,8 @@ const BATCH: int = 4
 
 ## Draw the wire numbers.
 var wire_numbers: bool = true
+## Draw the current path numbers.
+var path_numbers: bool = true
 ## Texts of the title block: the schematic title, the file name (may be
 ## empty), and the page title of an untitled page ("Page %d"); the other
 ## fields come from [member SchematicDocument.title_block].
@@ -68,6 +70,7 @@ func _sheet(copy: SchematicDocument, page_count: int) -> Dictionary:
 	viewport.add_child(content)
 	var view: SchematicView = SchematicView.new()
 	view.set_wire_numbers_visible(wire_numbers)
+	view.set_path_numbers_visible(path_numbers)
 	content.add_child(view)
 	var frame: SheetFrame = SheetFrame.new()
 	frame.title = title

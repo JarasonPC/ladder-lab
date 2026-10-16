@@ -1,9 +1,13 @@
 class_name Palette
 extends PanelContainer
 ## Component palette for the editor. Each entry shows the symbol and emits a
-## component template (see [DocumentSerializer]) when chosen.
+## component template (see [DocumentSerializer]) when chosen. Shown as a list
+## (symbol and name, in titled groups) or as a grid of symbols alone (the
+## name in the tooltip), switched by the buttons at its top ([member grid]).
 
 signal template_chosen(template: Dictionary)
+## The list or the grid was chosen (to remember it).
+signal grid_toggled(grid: bool)
 
 ## Entries: English title (translated with tr()) and component template.
 const ENTRIES: Array[Dictionary] = [
@@ -48,6 +52,18 @@ const ICON_PADDING: float = 3.0
 ## Paper tile behind each symbol, at the left of its row.
 const TILE := Rect2(6, 4, 54, 34)
 
+## Symbols alone in a grid instead of the list with names.
+var grid: bool = false:
+	set(value):
+		if value == grid:
+			return
+		grid = value
+		if _list != null:
+			_build()
+
+var _list: VBoxContainer
+var _list_button: Button
+var _grid_button: Button
 var _buttons: Array[Button] = []
 var _tiles: Array[Panel] = []
 var _symbols: Array[SchematicSymbol] = []
@@ -92,45 +108,100 @@ func _group_title(group: String) -> String:
 
 func _ready() -> void:
 	theme_type_variation = "LeftPanel"
+	var outer: VBoxContainer = VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 4)
+	add_child(outer)
+	var switch: HBoxContainer = HBoxContainer.new()
+	switch.alignment = BoxContainer.ALIGNMENT_END
+	switch.add_theme_constant_override("separation", 2)
+	outer.add_child(switch)
+	var group: ButtonGroup = ButtonGroup.new()
+	for as_grid: bool in [false, true]:
+		var button: Button = Button.new()
+		button.theme_type_variation = "ToolButton"
+		button.focus_mode = Control.FOCUS_NONE
+		button.toggle_mode = true
+		button.button_group = group
+		button.icon = AppTheme.icon("grid" if as_grid else "list")
+		button.button_pressed = as_grid == grid
+		button.pressed.connect(func() -> void:
+			grid = as_grid
+			grid_toggled.emit(as_grid))
+		switch.add_child(button)
+		if as_grid:
+			_grid_button = button
+		else:
+			_list_button = button
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	var list: VBoxContainer = VBoxContainer.new()
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 1)
-	scroll.add_child(list)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(scroll)
+	_list = VBoxContainer.new()
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_theme_constant_override("separation", 1)
+	scroll.add_child(_list)
+	_build()
+
+
+## Fills the palette as a list or a grid.
+func _build() -> void:
+	for child: Node in _list.get_children():
+		_list.remove_child(child)
+		child.queue_free()
+	_buttons.clear()
+	_tiles.clear()
+	_symbols.clear()
+	_headers.clear()
+	_header_titles.clear()
+	if _grid_button != null:
+		_grid_button.set_pressed_no_signal(grid)
+		_list_button.set_pressed_no_signal(not grid)
 	var group: String = ""
+	var row: Container = _list
 	for entry: Dictionary in ENTRIES:
 		var template: Dictionary = entry["template"]
 		if group_of(template) != group:
 			group = group_of(template)
-			var header: Label = Label.new()
-			header.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-			header.theme_type_variation = "HeaderLabel"
-			header.custom_minimum_size = Vector2(0, 30 if _headers.is_empty() else 38)
-			header.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-			list.add_child(header)
-			_headers.append(header)
-			_header_titles.append(group)
+			if grid:
+				# Groups apart, without titles.
+				if not _buttons.is_empty():
+					_list.add_child(HSeparator.new())
+				var flow: HFlowContainer = HFlowContainer.new()
+				flow.add_theme_constant_override("h_separation", 1)
+				flow.add_theme_constant_override("v_separation", 1)
+				_list.add_child(flow)
+				row = flow
+			else:
+				var header: Label = Label.new()
+				header.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+				header.theme_type_variation = "HeaderLabel"
+				header.custom_minimum_size = Vector2(0, 30 if _headers.is_empty() else 38)
+				header.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+				_list.add_child(header)
+				_headers.append(header)
+				_header_titles.append(group)
 		var button: Button = Button.new()
 		button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		button.theme_type_variation = "ListButton"
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(0, TILE.size.y + 2.0 * TILE.position.y)
-		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		button.focus_mode = Control.FOCUS_NONE
-		# An empty icon keeps the room for the symbol tile.
-		var room: PlaceholderTexture2D = PlaceholderTexture2D.new()
-		room.size = TILE.size
-		button.icon = room
-		button.add_theme_constant_override("h_separation", 10)
-		button.add_theme_color_override("icon_normal_color", Color.TRANSPARENT)
-		button.add_theme_color_override("icon_hover_color", Color.TRANSPARENT)
-		button.add_theme_color_override("icon_pressed_color", Color.TRANSPARENT)
-		button.add_theme_color_override("icon_hover_pressed_color", Color.TRANSPARENT)
+		if grid:
+			button.custom_minimum_size = TILE.size + 2.0 * TILE.position
+		else:
+			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			button.custom_minimum_size = Vector2(0, TILE.size.y + 2.0 * TILE.position.y)
+			button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			# An empty icon keeps the room for the symbol tile.
+			var room: PlaceholderTexture2D = PlaceholderTexture2D.new()
+			room.size = TILE.size
+			button.icon = room
+			button.add_theme_constant_override("h_separation", 10)
+			button.add_theme_color_override("icon_normal_color", Color.TRANSPARENT)
+			button.add_theme_color_override("icon_hover_color", Color.TRANSPARENT)
+			button.add_theme_color_override("icon_pressed_color", Color.TRANSPARENT)
+			button.add_theme_color_override("icon_hover_pressed_color", Color.TRANSPARENT)
 		button.pressed.connect(func() -> void: template_chosen.emit(template.duplicate()))
 		_add_icon(button, template)
-		list.add_child(button)
+		row.add_child(button)
 		_buttons.append(button)
 	retranslate()
 
@@ -149,8 +220,12 @@ func _style_tile(tile: Panel) -> void:
 
 
 func retranslate() -> void:
+	if _list_button != null:
+		_list_button.tooltip_text = tr("Show the parts as a list with their names")
+		_grid_button.tooltip_text = tr("Show the parts as a grid of symbols")
 	for i: int in _buttons.size():
-		_buttons[i].text = tr(ENTRIES[i]["title"])
+		_buttons[i].text = "" if grid else tr(ENTRIES[i]["title"])
+		_buttons[i].tooltip_text = tr(ENTRIES[i]["title"]) if grid else ""
 	for i: int in _headers.size():
 		_headers[i].text = _group_title(_header_titles[i]).to_upper()
 

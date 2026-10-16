@@ -8,6 +8,8 @@ extends PanelContainer
 ## one undoable edit of the document (see [method SchematicEditor.edit_control_panel]).
 
 ## A push button was pressed (true) or let go (false) on a control box.
+## The title was clicked: the panel rolls in to a tab.
+signal roll_in_requested
 signal button_held(designation: String, pressed: bool)
 ## A switch was turned over on a control box.
 signal switch_toggled(designation: String)
@@ -21,7 +23,7 @@ var _document: SchematicDocument
 var _editing: bool = false
 var _selected_box: int = -1
 var _selected_item: int = -1
-var _title: Label
+var _title: Button
 var _list: VBoxContainer
 var _views: Array[ControlBoxView] = []
 var _rebuild_queued: bool = false
@@ -33,9 +35,10 @@ func _ready() -> void:
 	var outer: VBoxContainer = VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 10)
 	add_child(outer)
-	_title = Label.new()
-	_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_title.theme_type_variation = "TitleLabel"
+	# The title rolls the panel in to a tab (see [member SideBar.rolled]).
+	_title = TimingPanel.rollout_button()
+	_title.icon = AppTheme.icon("chevron_down", 16)
+	_title.pressed.connect(func() -> void: roll_in_requested.emit())
 	outer.add_child(_title)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -96,6 +99,7 @@ func _rebuild() -> void:
 		child.queue_free()
 	_views.clear()
 	_title.text = tr("Control panel")
+	_title.tooltip_text = tr("Roll the panel in")
 	if _document == null:
 		return
 	if _document.control_boxes.is_empty():

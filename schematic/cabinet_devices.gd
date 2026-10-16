@@ -315,6 +315,8 @@ static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictio
 
 ## Terminal strip name -> its terminals in order, each {"label", "kind": "L",
 ## "N" or "PE", "keys": PackedStringArray of the circuit terminals it joins}.
+## A terminal labelled PE or on a PE wire is a PE terminal, one labelled N
+## or on an N wire an N terminal (blue).
 static func strips(doc: SchematicDocument) -> Dictionary:
 	var found: Dictionary = {}
 	for c: CircuitComponent in doc.circuit.get_components():
@@ -328,6 +330,10 @@ static func strips(doc: SchematicDocument) -> Dictionary:
 			if index < keys.size():
 				_add_terminal(found, placement.strips[index], keys[index])
 	var result: Dictionary = {}
+	if found.is_empty():
+		return result
+	var net: Dictionary[String, int] = nets(doc.circuit)
+	var conductor: Dictionary[int, Conductor] = conductors(doc.circuit, net)
 	var names: Array = found.keys()
 	names.sort_custom(_natural_less)
 	for strip: String in names:
@@ -335,7 +341,15 @@ static func strips(doc: SchematicDocument) -> Dictionary:
 		labels.sort_custom(_natural_less)
 		var terminals: Array = []
 		for label: String in labels:
-			terminals.append({"label": label, "kind": _terminal_kind(label), "keys": found[strip][label]})
+			var kind: String = _terminal_kind(label)
+			for key: String in found[strip][label]:
+				match conductor.get(net.get(key, -1), Conductor.CONTROL):
+					Conductor.PE:
+						kind = "PE"
+					Conductor.NEUTRAL:
+						if kind != "PE":
+							kind = "N"
+			terminals.append({"label": label, "kind": kind, "keys": found[strip][label]})
 		result[strip] = terminals
 	return result
 

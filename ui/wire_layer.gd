@@ -17,6 +17,8 @@ var blink_on: bool = true
 var show_grid: bool = false
 ## Wire numbers at the wire ends.
 var show_numbers: bool = true
+## Draw the current path numbers.
+var show_path_numbers: bool = true
 ## Page drawn; -1: the document's current page.
 var page: int = -1
 
@@ -66,7 +68,10 @@ func _draw() -> void:
 		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell, wires)))
 	if show_numbers:
 		_draw_wire_numbers()
-	_draw_path_numbers()
+	if show_path_numbers:
+		_draw_path_numbers()
+	else:
+		_path_rects.clear()
 
 
 ## Writes the wire numbers at the wire ends listed by

@@ -1097,8 +1097,9 @@ const FERRULE: float = 1.8
 
 ## A wire of [param conductor] ([enum CabinetDevices.Conductor]) along
 ## [param points] (mm), [param width] mm thick: bends rounded, shaded like
-## round insulation, a ferrule at both ends.
-static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, width: float) -> void:
+## round insulation, a ferrule at both ends ([param bare_start]: none at
+## the first, a core coming out of a cable).
+static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, width: float, bare_start: bool = false) -> void:
 	if points.size() < 2:
 		return
 	var color: Color = WIRE_COLORS[conductor]
@@ -1116,7 +1117,7 @@ static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, 
 		for point: Vector2 in path:
 			shine.append(point - Vector2(1, 1) * w * 0.18)
 		p.canvas.draw_polyline(shine, color.lightened(0.35), maxf(w * 0.22, 1.0), true)
-	for end: int in 2:
+	for end: int in range(1 if bare_start else 0, 2):
 		var tip: Vector2 = points[0] if end == 0 else points[points.size() - 1]
 		var next: Vector2 = points[1] if end == 0 else points[points.size() - 2]
 		var back: Vector2 = tip + (next - tip).normalized() * minf(FERRULE, tip.distance_to(next))
@@ -1143,3 +1144,17 @@ static func _rounded_path(points: PackedVector2Array, radius: float) -> PackedVe
 			result.append(from.lerp(corner, t).lerp(corner.lerp(to, t), t))
 	result.append(points[points.size() - 1])
 	return result
+
+
+## Cable gland [param r] (mm) in the top of the enclosure where a supply
+## cable comes in: the black cable, the grey nut on the frame and the
+## black sealing insert the cores come out of.
+static func cable_gland(p: CabinetPainter, r: Rect2) -> void:
+	var cable: Rect2 = Rect2(r.position.x + r.size.x * 0.18, r.position.y, r.size.x * 0.64, r.size.y * 0.5)
+	p.hgradient(cable, Color("2b2d30"), Color("15161a"), 0.6)
+	var nut: Rect2 = Rect2(r.position.x, r.position.y + r.size.y * 0.35, r.size.x, r.size.y * 0.65)
+	p.gradient(nut, Color("8a9095"), Color("5d6368"), 0.8, Color("3d4145"), 0.2)
+	for i: int in range(1, 4):
+		var x: float = nut.position.x + nut.size.x * i / 4.0
+		p.line(Vector2(x, nut.position.y + 0.4), Vector2(x, nut.end.y - 0.4), Color(0, 0, 0, 0.25), 0.2)
+	p.rect(Rect2(cable.position.x, nut.end.y - 1.2, cable.size.x, 1.2), Color("1a1b1e"), 0.4)

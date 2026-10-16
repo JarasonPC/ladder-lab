@@ -9,7 +9,11 @@ extends RefCounted
 ## and comes out to the other terminal the same way. Wires from the bottom
 ## terminals of a contactor with an overload relay under it run across the
 ## contactor's front out to the nearer side and down beside the relay.
-## Wires sharing a duct lie side by side. The colour follows the conductor of the net
+## Wires sharing a duct lie side by side. The supply comes in from outside:
+## one cable per source (AC, DC) through a gland in the top of the
+## enclosure, each core of a supply conductor (L1, L2, L3, N, PE; +, -)
+## straight into the top duct and on to the first terminal it feeds. The
+## colour follows the conductor of the net
 ## ([method CabinetDevices.conductors]). No nodes.
 
 ## Room between a duct and the bend into its slot.
@@ -21,15 +25,23 @@ const POWER_W: float = 2.0
 const LANE: float = 2.2
 ## Room between two wires running out from under a contactor.
 const LEG_STEP: float = 0.8
-## Most wires led through one slot.
-const SLOT_WIRES: int = 2
+## Room between the cores of the incoming cable where it enters.
+const CORE: float = 2.2
+## Order of the cores of the incoming cables, AC then DC.
+const CORE_ORDER: Array[PowerSupply.Conductor] = [
+	PowerSupply.Conductor.L, PowerSupply.Conductor.L2, PowerSupply.Conductor.L3, PowerSupply.Conductor.N,
+	PowerSupply.Conductor.PE, PowerSupply.Conductor.DC_PLUS, PowerSupply.Conductor.DC_MINUS,
+]
 ## Room between two wires in one terminal.
 const SHARED: float = 0.9
 
 ## The wires: {"net": int, "conductor": [enum CabinetDevices.Conductor],
 ## "width": float, "points": PackedVector2Array (mm, from one terminal to
-## the other), "from", "to" (terminal keys in the circuit)}.
+## the other), "from", "to" (terminal keys in the circuit), "external"
+## (true for a core of an incoming cable: it starts at the gland)}.
 var wires: Array[Dictionary] = []
+## Cable glands in the top of the enclosure where the supply comes in (mm).
+var glands: Array[Rect2] = []
 
 # Ducts across (top to bottom) and down the sides (left, right).
 var _across: Array[Rect2] = []
@@ -56,15 +68,76 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float) -> Ca
 		if not by_net.has(n):
 			by_net[n] = []
 		by_net[n].append(point)
+	var cores: Dictionary[int, Dictionary] = wiring._feed(doc.circuit, net, conductor, by_net)
 	var edges: Array[Dictionary] = []
 	for n: int in by_net:
-		for pair: Vector2i in wiring._tree(by_net[n]):
-			var a: Dictionary = by_net[n][pair.x]
-			var b: Dictionary = by_net[n][pair.y]
-			var c: CabinetDevices.Conductor = conductor.get(n, CabinetDevices.Conductor.CONTROL)
-			edges.append({"net": n, "conductor": c, "a": a, "b": b, "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
+		var points: Array = by_net[n]
+		if cores.has(n):
+			points.push_front(cores[n])
+		var c: CabinetDevices.Conductor = conductor.get(n, CabinetDevices.Conductor.CONTROL)
+		for pair: Vector2i in wiring._tree(points, cores.has(n)):
+			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._route(edges)
+	wiring._glands()
 	return wiring
+
+
+## The cores of the incoming cables: net -> the core feeding it, a point like
+## those of [method _terminals] at the top of the enclosure with
+## "external" set. Nets of one supply conductor (several supply points of
+## L1 on the drawing) are merged in [param by_net] under the first, so one
+## core feeds them all; conductors without a terminal on the rails get no
+## core.
+func _feed(circuit: Circuit, net: Dictionary[String, int], conductor: Dictionary[int, CabinetDevices.Conductor], by_net: Dictionary[int, Array]) -> Dictionary[int, Dictionary]:
+	var fed: Dictionary[PowerSupply.Conductor, int] = {}
+	var keys: Dictionary[PowerSupply.Conductor, String] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if not (c is PowerSupply):
+			continue
+		var supply: PowerSupply = c as PowerSupply
+		var n: int = net[supply.get_terminal_keys()[0]]
+		if not by_net.has(n):
+			continue
+		if not fed.has(supply.conductor):
+			fed[supply.conductor] = n
+			keys[supply.conductor] = supply.get_terminal_keys()[0]
+		elif fed[supply.conductor] != n:
+			# Another supply point of the same conductor: one core feeds both.
+			var first: int = fed[supply.conductor]
+			by_net[first].append_array(by_net[n])
+			by_net.erase(n)
+			if conductor.get(n, CabinetDevices.Conductor.CONTROL) == CabinetDevices.Conductor.POWER:
+				conductor[first] = CabinetDevices.Conductor.POWER
+	var result: Dictionary[int, Dictionary] = {}
+	var top: Rect2 = _across[0]
+	var x: float = top.position.x + CabinetParts.duct_slot(0)
+	var id: int = 1000000
+	for k: int in CORE_ORDER.size():
+		var which: PowerSupply.Conductor = CORE_ORDER[k]
+		if k == CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS) and not result.is_empty():
+			# The DC source has a cable of its own.
+			x += 3.0 * (CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT)
+		if not fed.has(which):
+			continue
+		result[fed[which]] = {"key": keys[which], "at": Vector2(x, CabinetLayout.FRAME), "duct": 0, "up": false, "id": id, "external": true, "dc": k >= CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS)}
+		x += CORE
+		id += 1
+	return result
+
+
+## A gland round the cores of each incoming cable where they enter.
+func _glands() -> void:
+	for dc: bool in [false, true]:
+		var low: float = INF
+		var high: float = -INF
+		for wire: Dictionary in wires:
+			if wire["external"] and wire["dc"] == dc:
+				var x: float = (wire["points"] as PackedVector2Array)[0].x
+				low = minf(low, x)
+				high = maxf(high, x)
+		if low <= high:
+			var w: float = maxf(high - low + 2.0 * CORE + 2.0, 12.0)
+			glands.append(Rect2((low + high) * 0.5 - w * 0.5, 0.0, w, CabinetLayout.FRAME + 1.0))
 
 
 ## Every terminal on the rails a wire can go to: {"key" (terminal key in
@@ -126,7 +199,9 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 
 ## Pairs of indices into [param points] joining them all along the
 ## shortest routes (a minimum spanning tree).
-func _tree(points: Array) -> Array[Vector2i]:
+## [param single]: the first point gets one wire only (a core of an
+## incoming cable goes to one terminal).
+func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 	var pairs: Array[Vector2i] = []
 	if points.size() < 2:
 		return pairs
@@ -146,6 +221,13 @@ func _tree(points: Array) -> Array[Vector2i]:
 				next = i
 		joined[next] = true
 		pairs.append(Vector2i(from[next], next))
+		if single and step == 0:
+			# Nothing more from the first point: the others are reached
+			# from the one it went to.
+			for i: int in points.size():
+				if not joined[i]:
+					best[i] = _length(points[next], points[i])
+					from[i] = next
 		for i: int in points.size():
 			if not joined[i]:
 				var d: float = _length(points[next], points[i])
@@ -173,7 +255,7 @@ func _length(a: Dictionary, b: Dictionary) -> float:
 ## Lays the wires of [param edges] through the ducts.
 func _route(edges: Array[Dictionary]) -> void:
 	# Ends of the wires: side by side where two share a terminal, led
-	# through the slots of their ducts, at most SLOT_WIRES in one.
+	# through the nearest slots of their ducts, several in one.
 	var ends: Array[Dictionary] = []
 	var shared: Dictionary[int, int] = {}
 	for e: int in edges.size():
@@ -198,16 +280,8 @@ func _route(edges: Array[Dictionary]) -> void:
 		var duct: Rect2 = _across[d]
 		var count: int = CabinetParts.duct_slots(duct.size.x)
 		var along: float = end["x"] - duct.position.x
-		var nearest: int = clampi(roundi((along - CabinetParts.duct_slot(0)) / pitch), 0, count - 1)
-		# The nearest slot with room, trying further out on both sides
-		# (first towards the terminal).
-		var toward: int = 1 if along > CabinetParts.duct_slot(nearest) else -1
-		var slot: int = nearest
-		for t: int in 7:
-			var candidate: int = nearest + int((t + 1) / 2.0) * (toward if t % 2 == 1 else -toward)
-			if candidate >= 0 and candidate < count and slots.get(Vector2i(d, candidate), []).size() < SLOT_WIRES:
-				slot = candidate
-				break
+		# The nearest slot: wires near each other go in through one slot together.
+		var slot: int = clampi(roundi((along - CabinetParts.duct_slot(0)) / pitch), 0, count - 1)
 		var key: Vector2i = Vector2i(d, slot)
 		if not slots.has(key):
 			slots[key] = []
@@ -266,6 +340,7 @@ func _route(edges: Array[Dictionary]) -> void:
 		wires.append({
 			"net": edges[e]["net"], "conductor": edges[e]["conductor"], "width": edges[e]["width"],
 			"points": _clean(points), "from": edges[e]["a"]["key"], "to": edges[e]["b"]["key"],
+			"external": edges[e]["a"].get("external", false), "dc": edges[e]["a"].get("dc", false),
 		})
 
 
@@ -273,6 +348,9 @@ func _route(edges: Array[Dictionary]) -> void:
 ## lane at [param lane] (y).
 func _drop(end: Dictionary, lane: float) -> PackedVector2Array:
 	var point: Dictionary = end["point"]
+	if point.get("external", false):
+		# A core comes straight down from the gland into its slot.
+		return PackedVector2Array([Vector2(end["slot"], point["at"].y), Vector2(end["slot"], lane)])
 	var duct: Rect2 = _across[point["duct"]]
 	var bend: float = duct.end.y + BEND if point["up"] else duct.position.y - BEND
 	var points: PackedVector2Array = PackedVector2Array([end["start"]])

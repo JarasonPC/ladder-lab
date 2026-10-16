@@ -47,6 +47,7 @@ var sim_time: float:
 var _wire_layer: WireLayer
 var _grid_visible: bool = false
 var _numbers_visible: bool = true
+var _path_numbers_visible: bool = true
 var _symbols: Dictionary[String, SchematicSymbol] = {}
 ## Zoom the symbols were last drawn for.
 var _drawn_scale: float = 0.0
@@ -93,6 +94,7 @@ func rebuild() -> void:
 	_wire_layer = WireLayer.new()
 	_wire_layer.show_grid = _grid_visible
 	_wire_layer.show_numbers = _numbers_visible
+	_wire_layer.show_path_numbers = _path_numbers_visible
 	if page >= document.pages.size():
 		page = document.pages.size() - 1
 	_wire_layer.page = page
@@ -154,6 +156,14 @@ func set_wire_numbers_visible(on: bool) -> void:
 	_numbers_visible = on
 	if _wire_layer != null:
 		_wire_layer.show_numbers = on
+		_wire_layer.queue_redraw()
+
+
+## Shows or hides the current path numbers.
+func set_path_numbers_visible(on: bool) -> void:
+	_path_numbers_visible = on
+	if _wire_layer != null:
+		_wire_layer.show_path_numbers = on
 		_wire_layer.queue_redraw()
 
 

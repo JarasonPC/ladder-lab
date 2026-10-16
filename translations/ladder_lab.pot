@@ -1261,3 +1261,43 @@ msgstr ""
 #, c-format
 msgid "The license text is missing; see %s"
 msgstr ""
+
+msgid "Pick terminals to move them to another strip."
+msgstr ""
+
+msgid "Move to…"
+msgstr ""
+
+#, c-format
+msgid "New strip -%s"
+msgstr ""
+
+msgid "Move the picked terminals to another terminal strip"
+msgstr ""
+
+msgid "Roll the panel in"
+msgstr ""
+
+msgid "Current path numbers"
+msgstr ""
+
+msgid "Number the current paths above the columns (left of the rows), also on export"
+msgstr ""
+
+msgid "Ctrl+wheel over the switchboard zooms it, right or middle drag moves it."
+msgstr ""
+
+msgid "Zoom out"
+msgstr ""
+
+msgid "Zoom in"
+msgstr ""
+
+msgid "Fit the switchboard to the panel width"
+msgstr ""
+
+msgid "Show the parts as a list with their names"
+msgstr ""
+
+msgid "Show the parts as a grid of symbols"
+msgstr ""

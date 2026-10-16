@@ -9,6 +9,8 @@ extends PanelContainer
 ## of the document (see [method SchematicEditor.edit_cabinet]).
 
 ## A breaker, fuse holder or overload relay was clicked while simulating.
+## The title was clicked: the panel rolls in to a tab.
+signal roll_in_requested
 signal operate_requested(designation: String)
 ## A change of the switchboard: [param change] is called with the document.
 signal edit_requested(change: Callable)
@@ -19,9 +21,14 @@ const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "C
 var _document: SchematicDocument
 var _editing: bool = false
 var _selected: Vector2i = Vector2i(-1, -1)
-var _title: Label
+## Terminals (by label) of the selected terminal strip picked to move to another strip.
+var _picked: Dictionary[String, bool] = {}
+var _title: Button
 var _list: VBoxContainer
 var _view: CabinetView
+## Scrolls the zoomed switchboard sideways.
+var _across: ScrollContainer
+var _zoom_row: HBoxContainer
 var _rebuild_queued: bool = false
 
 
@@ -30,9 +37,10 @@ func _ready() -> void:
 	var outer: VBoxContainer = VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 10)
 	add_child(outer)
-	_title = Label.new()
-	_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_title.theme_type_variation = "TitleLabel"
+	# The title rolls the panel in to a tab (see [member SideBar.rolled]).
+	_title = TimingPanel.rollout_button()
+	_title.icon = AppTheme.icon("chevron_down", 16)
+	_title.pressed.connect(func() -> void: roll_in_requested.emit())
 	outer.add_child(_title)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -42,9 +50,23 @@ func _ready() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 8)
 	scroll.add_child(_list)
+	_across = ScrollContainer.new()
+	_across.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_across.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_across.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_zoom_row = HBoxContainer.new()
+	_zoom_row.add_theme_constant_override("separation", 2)
+	_zoom_row.alignment = BoxContainer.ALIGNMENT_END
 	_view = CabinetView.new()
+	_across.add_child(_view)
+	_view.zoom_changed.connect(_fill_zoom_row)
+	_across.resized.connect(func() -> void:
+		_view.update_minimum_size()
+		_view.queue_redraw())
 	_view.operate_requested.connect(func(designation: String) -> void: operate_requested.emit(designation))
 	_view.place_clicked.connect(func(rail: int, index: int) -> void:
+		if Vector2i(rail, index) != _selected:
+			_picked.clear()
 		_selected = Vector2i(rail, index)
 		_rebuild_queued = true)
 	_rebuild()
@@ -86,12 +108,14 @@ func _process(_delta: float) -> void:
 func _rebuild() -> void:
 	if _list == null:
 		return
-	if _view.get_parent() == _list:
-		_list.remove_child(_view)
+	for kept: Control in [_zoom_row, _across]:
+		if kept.get_parent() == _list:
+			_list.remove_child(kept)
 	for child: Node in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()
 	_title.text = tr("Switchboard")
+	_title.tooltip_text = tr("Roll the panel in")
 	if _document == null:
 		return
 	if _selected.x >= _document.cabinet_rails.size() or (_selected.x >= 0 and _selected.y >= _document.cabinet_rails[_selected.x].items.size()):
@@ -101,7 +125,9 @@ func _rebuild() -> void:
 	_view.document = _document
 	_view.simulating = not _editing
 	_view.selected = _selected
-	_list.add_child(_view)
+	_fill_zoom_row()
+	_list.add_child(_zoom_row)
+	_list.add_child(_across)
 	_view.refresh()
 	if not _editing:
 		return
@@ -123,6 +149,30 @@ func _rebuild() -> void:
 	fill.pressed.connect(func() -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet()))
 	_list.add_child(fill)
+
+
+## Zooming the drawing: out, in, back to the panel width (made once,
+## their state and tooltips brought up to date here).
+func _fill_zoom_row() -> void:
+	if _zoom_row.get_child_count() == 0:
+		for step: float in [1.0 / CabinetView.ZOOM_STEP, CabinetView.ZOOM_STEP, 0.0]:
+			var button: Button = _tool("zoom_out" if step < 1.0 and step > 0.0 else ("zoom_in" if step > 1.0 else "fit"), "")
+			button.pressed.connect(func() -> void: _zoom_by(step if step > 0.0 else 1.0 / _view.zoom))
+			_zoom_row.add_child(button)
+	var hint: String = tr("Ctrl+wheel over the switchboard zooms it, right or middle drag moves it.")
+	var buttons: Array[Node] = _zoom_row.get_children()
+	(buttons[0] as Button).tooltip_text = tr("Zoom out") + "\n" + hint
+	(buttons[0] as Button).disabled = _view.zoom <= 1.0
+	(buttons[1] as Button).tooltip_text = tr("Zoom in") + "\n" + hint
+	(buttons[1] as Button).disabled = _view.zoom >= CabinetView.MAX_ZOOM
+	(buttons[2] as Button).tooltip_text = tr("Fit the switchboard to the panel width")
+	(buttons[2] as Button).disabled = _view.zoom <= 1.0
+
+
+## Zooms about the middle of the part of the drawing in sight.
+func _zoom_by(factor: float) -> void:
+	var middle: Vector2 = Vector2(_across.scroll_horizontal + _across.size.x * 0.5, 0.0)
+	_view.zoom_at(factor, middle)
 
 
 ## Rail [param r]: its name, a menu that adds a device or strip, move up, delete.
@@ -206,6 +256,72 @@ func _place_editor(r: int, i: int) -> void:
 		_selected = Vector2i(-1, -1)
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_item(r, i)))
 	actions.add_child(remove)
+	if item.kind == CabinetItem.Kind.STRIP:
+		_strip_split(fields, item.designation)
+
+
+## Splitting terminal strip [param strip]: its terminals to pick and where
+## to move the picked ones (another strip or a new one).
+func _strip_split(fields: VBoxContainer, strip: String) -> void:
+	var terminals: Array = CabinetDevices.strips(_document).get(strip, [])
+	if terminals.is_empty():
+		return
+	var labels: PackedStringArray = PackedStringArray()
+	for t: Dictionary in terminals:
+		labels.append(t["label"])
+	for label: String in _picked.keys():
+		if not labels.has(label):
+			_picked.erase(label)
+	var hint: Label = Label.new()
+	hint.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	hint.theme_type_variation = "MutedLabel"
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.text = tr("Pick terminals to move them to another strip.")
+	fields.add_child(hint)
+	var move: OptionButton = OptionButton.new()
+	var flow: HFlowContainer = HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 2)
+	flow.add_theme_constant_override("v_separation", 2)
+	fields.add_child(flow)
+	for label: String in labels:
+		var pick: Button = Button.new()
+		pick.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		pick.focus_mode = Control.FOCUS_NONE
+		pick.toggle_mode = true
+		pick.text = label
+		pick.custom_minimum_size.x = 28.0
+		pick.button_pressed = _picked.has(label)
+		pick.toggled.connect(func(on: bool) -> void:
+			if on:
+				_picked[label] = true
+			else:
+				_picked.erase(label)
+			move.disabled = _picked.is_empty())
+		flow.add_child(pick)
+	var targets: PackedStringArray = PackedStringArray()
+	for other: String in CabinetDevices.strips(_document):
+		if other != strip:
+			targets.append(other)
+	var fresh: String = _document.next_strip_name()
+	move.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	move.focus_mode = Control.FOCUS_NONE
+	move.fit_to_longest_item = false
+	move.add_item(tr("Move to…"))
+	for other: String in targets:
+		move.add_item(tr("Terminal strip") + " -" + other)
+	move.add_item(tr("New strip -%s") % fresh)
+	targets.append(fresh)
+	move.select(0)
+	move.disabled = _picked.is_empty()
+	move.tooltip_text = tr("Move the picked terminals to another terminal strip")
+	move.item_selected.connect(func(k: int) -> void:
+		if k == 0 or _picked.is_empty():
+			return
+		var picked: PackedStringArray = PackedStringArray(_picked.keys())
+		var target: String = targets[k - 1]
+		_picked.clear()
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_strip_terminals(strip, picked, target)))
+	fields.add_child(move)
 
 
 ## "Contactor -KM1", "Terminal strip -X1".
