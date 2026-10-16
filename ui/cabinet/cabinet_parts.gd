@@ -357,6 +357,11 @@ const CONTACTOR_POWER_X: Array[float] = [11.2, 23.1, 35.0]
 const CONTACTOR_POWER_X4: Array[float] = [9.4, 18.6, 27.8, 37.0]
 const CONTACTOR_INNER_X: Array[float] = [16.8, 26.9, 37.8]
 const AUX_BLOCK_X: Array[float] = [7.6, 17.9, 28.2, 38.5]
+## Heights across a contactor clear of its screws and markings, under the
+## auxiliary contact block, the inner bottom tier and the power outputs:
+## wires from its bottom terminals run out to the side there when an
+## overload relay sits under it.
+const CONTACTOR_OUT_Y: Array[float] = [54.7, 66.2, 75.2]
 ## Screw columns of an overload relay: power outputs, auxiliary contacts
 ## 97 98 95 96.
 const OVERLOAD_OUT_X: Array[float] = [12.0, 25.0, 37.6]

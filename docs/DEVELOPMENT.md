@@ -99,7 +99,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   ("X2:4" = strip X2, plain "4" = strip X1). Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree, every wire straight from its terminal
   to the duct over or under its rail, in through a slot between the fingers, along the duct in a
-  lane of its own (down a side duct to another duct); colours by conductor
+  lane of its own (down a side duct to another duct); a contactor with its overload relay under
+  it has a wiring channel on both sides (CabinetLayout.WIRE_CHANNEL): wires from its bottom
+  terminals run across its front at heights clear of its screws (CabinetParts.CONTACTOR_OUT_Y)
+  out to the nearer side and down beside the relay, never across it; colours by conductor
   (CabinetDevices.conductors): red = phase of the control circuit (L), light blue = N (and the
   DC - pole), grey = main power circuit (L2/L3 and the terminals of main contacts, overload relay
   heaters, 3~ motors, fuses and breakers of 2-4 poles), green-yellow = PE; wires go into the
