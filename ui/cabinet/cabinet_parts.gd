@@ -391,8 +391,8 @@ static func _power_label(p: CabinetPainter, at: Vector2, digit: String, name: St
 ## Contactor (stykač) 45 x 77 mm drawn after the photographed one: an
 ## anthracite housing with two tiers of terminals at each end (power
 ## terminals with teal names outside, coil and auxiliary contacts inside),
-## the window with the contact carrier in the middle (it moves down while
-## the coil holds it), the label holder under it. [param poles]: 3 main
+## the window with the contact carrier in the middle (dark while the coil
+## holds it, light while it is dropped out), the label holder under it. [param poles]: 3 main
 ## poles (also for 1 or 2: the unused ones stay free, as on a real one) or
 ## 4. [param aux] names the auxiliary contacts ([top number, kind, bottom
 ## number]): the first two are built in, up to four more sit in an
@@ -450,14 +450,15 @@ static func contactor(p: CabinetPainter, on: bool, highlight: bool = false, aux:
 			p.rect(window.grow(1.0 + i), Color(1.0, 0.55, 0.25, 0.25 - 0.07 * i), 1.0 + i)
 	p.rect(Rect2(17.6, 18.0, 10.2, 9.6), Color("383b3f"), 0.4)
 	p.rect(window, Color("221e1c"), 0.5)
-	# The contact carrier: an H seen through the window.
-	var dy: float = 1.8 if on else 0.0
-	var carrier: Color = Color("3d3430")
-	p.rect(Rect2(18.6, 19.0 + dy, 8.2, 8.0), carrier, 0.4)
-	p.rect(Rect2(15.2, 28.4 + dy, 4.8, 10.6), carrier, 0.4)
-	p.rect(Rect2(25.4, 28.4 + dy, 4.8, 10.6), carrier, 0.4)
-	p.rect(Rect2(20.0, 31.4 + dy, 5.4, 2.4), carrier.lightened(0.08), 0.2)
-	p.rect(Rect2(22.0, 28.0 + dy, 1.4, 11.0), carrier.lightened(0.12), 0.2)
+	# The contact carrier: an H centred in the window, dark while pulled in,
+	# light while dropped out; a light edge keeps the dark one visible.
+	var carrier: Color = _carrier_color(on)
+	var edge: Color = carrier.lightened(0.3)
+	p.rect(Rect2(18.6, 19.0, 8.2, 8.0), carrier, 0.4, edge, 0.15)
+	p.rect(Rect2(15.2, 28.4, 4.8, 10.6), carrier, 0.4, edge, 0.15)
+	p.rect(Rect2(25.4, 28.4, 4.8, 10.6), carrier, 0.4, edge, 0.15)
+	p.rect(Rect2(20.0, 31.4, 5.4, 2.4), carrier.lightened(0.08), 0.2)
+	p.rect(Rect2(22.0, 28.0, 1.4, 11.0), carrier.lightened(0.12), 0.2)
 	p.rect(Rect2(12.9, 42.0, 19.6, 9.2), BLOCK_LIGHT.lightened(0.04), 0.5, Color("383b3f"), 0.2)
 	# Right: the auxiliary contact symbol and a second slot.
 	var sx: Vector2 = Vector2(37.0, 19.4)
@@ -501,8 +502,15 @@ static func _aux_block(p: CabinetPainter, on: bool, highlight: bool, aux: Array,
 		for i: int in 3:
 			p.rect(window.grow(1.0 + i), Color(1.0, 0.55, 0.25, 0.25 - 0.07 * i), 1.0 + i)
 	p.rect(window, Color("221e1c"), 0.4)
-	p.rect(Rect2(window.position.x + (5.6 if on else 0.8), window.position.y + 0.8, 5.0, 3.0), Color("3d3430").lightened(0.15), 0.3)
+	var slider: Color = _carrier_color(on)
+	p.rect(Rect2(window.get_center().x - 2.5, window.position.y + 0.8, 5.0, 3.0), slider, 0.3, slider.lightened(0.3), 0.15)
 	p.rect(Rect2(12.9, 35.0, 19.6, 7.0), BLOCK_LIGHT.lightened(0.04), 0.5, Color("383b3f"), 0.2)
+
+
+## Colour of a contactor's contact carrier: dark while pulled in, light
+## while dropped out.
+static func _carrier_color(on: bool) -> Color:
+	return Color("2a2320") if on else Color("74665c")
 
 
 ## Simplified QR code sticker (the same pattern every time).

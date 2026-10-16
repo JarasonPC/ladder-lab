@@ -27,12 +27,8 @@ func _initialize() -> void:
 	if not args.is_empty():
 		out_dir = args[0].trim_suffix("/") + "/"
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	# Round 4: pole variants, a more visible breaker lever.
-	await _breakers()
-	await _fuses()
+	# Round 5: the contactor's contact carrier centred, dark on, light off.
 	await _contactors()
-	await _relays()
-	await _timers()
 	await _cabinet("B", APP_K, "cabinet")
 	await _cabinet("B", SHEET_K, "cabinet_detail")
 	quit()
@@ -105,12 +101,12 @@ func _fuses() -> void:
 
 
 func _contactors() -> void:
-	var cols: PackedStringArray = ["3 poles (also 1-2), off", "3 poles, on", "4 poles, on", "6 auxiliary contacts, on"]
+	var cols: PackedStringArray = ["3 poles, off", "3 poles, on", "4 poles, on", "Aux block, off", "Aux block, on"]
 	var six: Array = [["13", "NO", "14"], ["21", "NC", "22"], ["53", "NO", "54"], ["61", "NC", "62"], ["71", "NC", "72"], ["83", "NO", "84"]]
 	await _grid("contactor", "Contactor (stykač) KM", [""], cols, Vector2(60, 90), 45.0, func(p: CabinetPainter, _r: int, c: int) -> void:
 		var q: CabinetPainter = _centred(p, 60, 45, 6.5)
-		var aux: Array = six if c == 3 else six.slice(0, 2)
-		CabinetParts.contactor(q, c >= 1, true, aux, {}, 4 if c == 2 else 3)
+		var aux: Array = six if c >= 3 else six.slice(0, 2)
+		CabinetParts.contactor(q, c == 1 or c == 2 or c == 4, true, aux, {}, 4 if c == 2 else 3)
 		CabinetParts.label(q, CabinetParts.contactor_label_at(aux.size()), "-KM1"))
 
 
@@ -142,7 +138,7 @@ func _cabinet(plate: String, k: float, file: String) -> void:
 	if detail:
 		px = Vector2i(Vector2(size_mm.x, 330) * k) + Vector2i(32, 70)
 	await _shot(file, px, func(ci: CanvasItem) -> void:
-		_text(ci, Vector2(16, 32), "Switchboard, round 4%s" % [": detail (2x)" if detail else " (size in the app)"], 20, HEADING, true)
+		_text(ci, Vector2(16, 32), "Switchboard, round 5%s" % [": detail (2x)" if detail else " (size in the app)"], 20, HEADING, true)
 		var p: CabinetPainter = CabinetPainter.new(ci, k, Vector2(16, 54))
 		_draw_cabinet(p, size_mm, plate))
 
