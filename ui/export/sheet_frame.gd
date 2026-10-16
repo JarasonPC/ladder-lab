@@ -1,11 +1,15 @@
 class_name SheetFrame
 extends Node2D
 ## Frame and title block of an exported sheet (see [SheetLayout]), drawn on
-## the drawing's grid (world pixels) in the line colour of the schematic:
-## the schematic title with the file name and date, the page title and the
-## page number.
+## the drawing's grid (world pixels) in the line colour of the schematic.
+## The title block has, left to right: company and project, the schematic
+## title with the file name, drawn by and checked by, date and drawing
+## number, the page title, revision and page number. Each field has a small
+## caption and stays there when empty, to be filled in by hand.
 
 const G: float = float(SymbolGeometry.GRID)
+## Column edges of the title block, as parts of its width.
+const COLUMNS: Array[float] = [0.0, 0.18, 0.46, 0.60, 0.74, 0.90, 1.0]
 
 var layout: SheetLayout
 ## Title of the schematic.
@@ -13,10 +17,12 @@ var title: String = ""
 var page_title: String = ""
 var page_number: int = 1
 var page_count: int = 1
-## Small text under the title, e.g. the file name and the date.
+## Small text under the title, e.g. the file name.
 var note: String = ""
-## Caption over the page number ("Page", translated).
-var page_caption: String = "Page"
+## Texts of the fields (drawn by, ...); an empty date is replaced by [member date].
+var block: TitleBlock = TitleBlock.new()
+## Date written when [member block] has none (the date of the export).
+var date: String = ""
 
 
 func _draw() -> void:
@@ -26,19 +32,40 @@ func _draw() -> void:
 	var mm: float = G / layout.cell_mm
 	var line: Color = SchematicTheme.LINE
 	var frame: Rect2 = Rect2(layout.frame.position * G, layout.frame.size * G)
-	var block: Rect2 = Rect2(layout.title_block.position * G, layout.title_block.size * G)
+	var area: Rect2 = Rect2(layout.title_block.position * G, layout.title_block.size * G)
 	draw_rect(frame, line, false, 0.5 * mm)
-	draw_line(block.position, Vector2(block.end.x, block.position.y), line, 0.5 * mm)
-	var split_a: float = block.position.x + block.size.x * 0.55
-	var split_b: float = block.position.x + block.size.x * 0.85
-	for x: float in [split_a, split_b]:
-		draw_line(Vector2(x, block.position.y), Vector2(x, block.end.y), line, 0.35 * mm)
-	var pad: float = 3.0 * mm
-	_text(title, Vector2(block.position.x + pad, block.position.y + 8.0 * mm), split_a - block.position.x - 2.0 * pad, 5.0 * mm, SchematicTheme.TEXT)
-	_text(note, Vector2(block.position.x + pad, block.end.y - 3.5 * mm), split_a - block.position.x - 2.0 * pad, 3.0 * mm, SchematicTheme.PATH_TEXT)
-	_text(page_title, Vector2(split_a + pad, block.position.y + 10.5 * mm), split_b - split_a - 2.0 * pad, 5.0 * mm, SchematicTheme.TEXT)
-	_text(page_caption, Vector2(split_b + pad, block.position.y + 5.5 * mm), block.end.x - split_b - 2.0 * pad, 3.0 * mm, SchematicTheme.PATH_TEXT)
-	_text("%d / %d" % [page_number, page_count], Vector2(split_b + pad, block.end.y - 3.5 * mm), block.end.x - split_b - 2.0 * pad, 5.0 * mm, SchematicTheme.TEXT)
+	draw_line(area.position, Vector2(area.end.x, area.position.y), line, 0.5 * mm)
+	var x: Array[float] = []
+	for part: float in COLUMNS:
+		x.append(area.position.x + area.size.x * part)
+	for i: int in range(1, x.size() - 1):
+		draw_line(Vector2(x[i], area.position.y), Vector2(x[i], area.end.y), line, 0.35 * mm)
+	var middle: float = area.position.y + area.size.y * 0.5
+	# Columns split into two fields: 0, 2, 3 and 5.
+	for i: int in [0, 2, 3, 5]:
+		draw_line(Vector2(x[i], middle), Vector2(x[i + 1], middle), line, 0.25 * mm)
+	var pad: float = 2.0 * mm
+	var top: float = area.position.y
+	_field(tr("Company"), block.company, x[0], x[1], top, mm)
+	_field(tr("Project"), block.project, x[0], x[1], middle, mm)
+	_text(title, Vector2(x[1] + pad, top + 8.0 * mm), x[2] - x[1] - 2.0 * pad, 5.0 * mm, SchematicTheme.TEXT)
+	_text(note, Vector2(x[1] + pad, area.end.y - 3.5 * mm), x[2] - x[1] - 2.0 * pad, 3.0 * mm, SchematicTheme.PATH_TEXT)
+	_field(tr("Drawn by"), block.drawn_by, x[2], x[3], top, mm)
+	_field(tr("Checked by"), block.checked_by, x[2], x[3], middle, mm)
+	_field(tr("Date"), block.date if not block.date.is_empty() else date, x[3], x[4], top, mm)
+	_field(tr("Drawing no."), block.drawing_number, x[3], x[4], middle, mm)
+	_text(page_title, Vector2(x[4] + pad, top + 10.5 * mm), x[5] - x[4] - 2.0 * pad, 5.0 * mm, SchematicTheme.TEXT)
+	_field(tr("Revision"), block.revision, x[5], x[6], top, mm)
+	_field(tr("Page"), "%d / %d" % [page_number, page_count], x[5], x[6], middle, mm)
+
+
+## A field between [param left] and [param right] whose half of the title
+## block starts at [param top]: the caption, and the value under it.
+func _field(caption: String, value: String, left: float, right: float, top: float, mm: float) -> void:
+	var pad: float = 1.5 * mm
+	var width: float = right - left - 2.0 * pad
+	_text(caption, Vector2(left + pad, top + 2.8 * mm), width, 2.2 * mm, SchematicTheme.PATH_TEXT)
+	_text(value, Vector2(left + pad, top + 7.6 * mm), width, 4.0 * mm, SchematicTheme.TEXT)
 
 
 ## Writes [param text] from [param at] (baseline), as large as [param height]

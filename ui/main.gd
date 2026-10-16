@@ -5,7 +5,7 @@ extends Node
 ## All user-facing text is English source text passed through tr().
 
 enum Mode { EDIT, SIMULATE }
-enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, QUIT }
+enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE }
@@ -90,6 +90,11 @@ var _page_menu: PopupMenu
 var _menu_page: int = -1
 var _rename_dialog: ConfirmationDialog
 var _rename_field: LineEdit
+## Title block texts of the exported sheets: the schematic title ("title")
+## and the [constant TitleBlock.FIELDS], each with its label.
+var _title_block_dialog: ConfirmationDialog
+var _title_block_edits: Dictionary[String, LineEdit] = {}
+var _title_block_labels: Dictionary[String, Label] = {}
 ## True while the tabs are being filled (their signals are ignored).
 var _updating_pages: bool = false
 ## Renders the pages for PNG and PDF export.
@@ -461,6 +466,20 @@ func _build_dialogs() -> void:
 			return
 		editor.edit_pages(func(doc: SchematicDocument) -> void: doc.rename_page(index, title)))
 	add_child(_rename_dialog)
+	_title_block_dialog = ConfirmationDialog.new()
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = 2
+	for field: String in ["title"] + Array(TitleBlock.FIELDS):
+		_title_block_labels[field] = _label(grid)
+		var edit: LineEdit = LineEdit.new()
+		edit.custom_minimum_size = Vector2(320, 0)
+		edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(edit)
+		_title_block_dialog.register_text_enter(edit)
+		_title_block_edits[field] = edit
+	_title_block_dialog.add_child(grid)
+	_title_block_dialog.confirmed.connect(_apply_title_block)
+	add_child(_title_block_dialog)
 	_retranslate_dialogs()
 
 
@@ -582,6 +601,12 @@ func _retranslate_dialogs() -> void:
 	_rename_dialog.title = tr("Rename page")
 	_rename_dialog.ok_button_text = tr("Rename")
 	_rename_dialog.cancel_button_text = tr("Cancel")
+	_title_block_dialog.title = tr("Title block")
+	_title_block_dialog.ok_button_text = tr("OK")
+	_title_block_dialog.cancel_button_text = tr("Cancel")
+	for field: String in _title_block_labels:
+		_title_block_labels[field].text = _title_block_caption(field)
+	_title_block_edits["date"].placeholder_text = tr("Date of the export")
 
 
 func _rebuild_file_menu() -> void:
@@ -596,6 +621,8 @@ func _rebuild_file_menu() -> void:
 	popup.add_item(tr("Save as…"), FileMenuId.SAVE_AS, KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_S)
 	popup.add_item(tr("Export page as PNG…"), FileMenuId.EXPORT_PNG)
 	popup.add_item(tr("Export all pages as PDF…"), FileMenuId.EXPORT_PDF)
+	popup.add_item(tr("Title block…"), FileMenuId.TITLE_BLOCK)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Texts of the title block on exported sheets: drawn by, checked by, company, ..."))
 	popup.add_separator()
 	popup.add_item(tr("Quit"), FileMenuId.QUIT, KEY_MASK_CTRL | KEY_Q)
 	_recent_menu.clear()
@@ -948,6 +975,8 @@ func _on_file_menu(id: int) -> void:
 			_show_file_dialog(DialogPurpose.EXPORT_PNG)
 		FileMenuId.EXPORT_PDF:
 			_show_file_dialog(DialogPurpose.EXPORT_PDF)
+		FileMenuId.TITLE_BLOCK:
+			_show_title_block_dialog()
 		FileMenuId.QUIT:
 			_confirm_discard(func() -> void: get_tree().quit())
 
@@ -1093,7 +1122,53 @@ func _prepare_export() -> void:
 	_sheet_renderer.file_name = _file_path.get_file()
 	_sheet_renderer.title = tr(edit_doc.title)
 	_sheet_renderer.untitled_page = tr("Page %d")
-	_sheet_renderer.page_caption = tr("Page")
+
+
+func _title_block_caption(field: String) -> String:
+	match field:
+		"title":
+			return tr("Title")
+		"company":
+			return tr("Company")
+		"project":
+			return tr("Project")
+		"drawing_number":
+			return tr("Drawing no.")
+		"revision":
+			return tr("Revision")
+		"drawn_by":
+			return tr("Drawn by")
+		"checked_by":
+			return tr("Checked by")
+		"date":
+			return tr("Date")
+	return field
+
+
+func _show_title_block_dialog() -> void:
+	_title_block_edits["title"].text = tr(edit_doc.title)
+	for field: String in TitleBlock.FIELDS:
+		_title_block_edits[field].text = edit_doc.title_block.get(field)
+	_title_block_dialog.popup_centered()
+	_title_block_edits["drawn_by"].grab_focus()
+
+
+## Puts the texts of the title block dialog into the schematic (undoable).
+func _apply_title_block() -> void:
+	var block: TitleBlock = TitleBlock.new()
+	for field: String in TitleBlock.FIELDS:
+		block.set(field, _title_block_edits[field].text)
+	var title: String = _title_block_edits["title"].text.strip_edges()
+	# An unchanged title stays English source text, shown translated.
+	if title == tr(edit_doc.title):
+		title = edit_doc.title
+	var snapshot: Dictionary = DocumentSerializer.to_dict(edit_doc)
+	if not edit_doc.set_title_block(title, block):
+		return
+	editor.history.record(snapshot)
+	if view.document != edit_doc:
+		view.document.set_title_block(title, block)
+	_mark_dirty()
 
 
 # --- Pages ------------------------------------------------------------------------

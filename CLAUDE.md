@@ -58,7 +58,10 @@
   click (Simulate) jumps to the partner page
 - Export: File > Export page as PNG / Export all pages as PDF; each page on an A4/A3 sheet
   (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
-  (SheetFrame), rendered by SheetRenderer at 200 dpi; PdfWriter writes one Flate image per page
+  (SheetFrame), rendered by SheetRenderer at 200 dpi; PdfWriter writes one Flate image per page;
+  title block texts (company, project, drawing no., revision, drawn by, checked by, date; empty
+  date = export date) are SchematicDocument.title_block (TitleBlock, saved), edited in
+  File > Title block… together with the schematic title (undoable)
 - Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
