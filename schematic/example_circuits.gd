@@ -648,36 +648,39 @@ static func two_windings() -> SchematicDocument:
 	return doc
 
 
-## DC braking: KM1 runs the motor (direct-on-line start). SB0 stops it with its
-## 11-12 and starts braking with its 23-24: as soon as KM1 has released (its
-## 31-32), KM2 feeds + and - of the DC source into U1 and V1, held by its
-## 13-14, until time relay KT1 opens its delayed 55-56. KM1 and KM2 are
-## interlocked by each other's NC contacts. Braking starts right after the
-## AC is cut, while the rotor field is still there; without it the motor would
-## run down in its run-down time.
+## DC braking: KM1 runs the motor (direct-on-line start). Bridge rectifier
+## TB1, fed from L2 and L3 behind FU1, makes the DC. SB0 stops the motor with
+## its 11-12 and starts braking with its 23-24: as soon as KM1 has released
+## (its 31-32), KM2 feeds + and - of TB1 into U1 and V1, held by its 13-14,
+## until time relay KT1 opens its delayed 55-56. KM1 and KM2 are interlocked
+## by each other's NC contacts. Braking starts right after the AC is cut,
+## while the rotor field is still there; without it the motor would run down
+## in its run-down time.
 static func dc_braking() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(TITLES[12])
 	doc.add(ThreePoleFuse.new("FU1"), Vector2i(5, 2))
 	_phases(doc, 5)
 	doc.add(MainContacts.new("KM1"), Vector2i(5, 10))
+	doc.add(Rectifier.new("TB1"), Vector2i(13, 9))
 	var brake: MainContacts = MainContacts.new("KM2")
 	brake.poles = 2
-	doc.add(brake, Vector2i(13, 10))
-	doc.add(OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 18))
+	doc.add(brake, Vector2i(13, 14))
+	doc.add(OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 20))
 	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M1")
 	motor.coast_time = 6.0
 	motor.brake_time = 1.5
-	doc.add(motor, Vector2i(5, 24))
-	doc.add(PowerSupply.new("+", PowerSupply.Conductor.DC_PLUS), Vector2i(13, 0))
-	doc.add(PowerSupply.new("-", PowerSupply.Conductor.DC_MINUS), Vector2i(15, 0))
+	doc.add(motor, Vector2i(5, 26))
 	_straight(doc, "FU1", "KM1", POLES)
 	_straight(doc, "KM1", "F1", POLES)
 	_straight(doc, "F1", "M1", ["U1", "V1", "W1"])
-	doc.connect_terminals("+", "KM2:1")
-	doc.connect_terminals("-", "KM2:3")
+	# TB1 between L2 and L3.
+	doc.connect_terminals("FU1:6", "TB1:~2", _c([Vector2i(9, 7), Vector2i(15, 7)]))
+	doc.connect_terminals("FU1:4", "TB1:~1", _c([Vector2i(7, 8), Vector2i(13, 8)]))
+	doc.connect_terminals("TB1:+", "KM2:1")
+	doc.connect_terminals("TB1:-", "KM2:3")
 	# DC into U1 and V1 (through the heaters of F1).
-	doc.connect_terminals("KM2:2", "F1:1", _c([Vector2i(13, 15), Vector2i(5, 15)]))
-	doc.connect_terminals("KM2:4", "F1:3", _c([Vector2i(15, 16), Vector2i(7, 16)]))
+	doc.connect_terminals("KM2:2", "F1:1", _c([Vector2i(13, 18), Vector2i(5, 18)]))
+	doc.connect_terminals("KM2:4", "F1:3", _c([Vector2i(15, 19), Vector2i(7, 19)]))
 
 	var x: int = 24
 	var xb: int = x + 8

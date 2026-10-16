@@ -960,6 +960,9 @@ msgstr "Tažením změníte šířku. Ctrl+kolečko nad panelem jej přiblíží
 msgid "Drag to share the width between the chart and the event log"
 msgstr "Tažením rozdělíte šířku mezi diagram a záznam událostí"
 
+msgid "Bridge rectifier"
+msgstr "Usměrňovací můstek"
+
 msgid "Direct-on-line start 3~ on three pages"
 msgstr "Přímý rozběh 3~ na třech stránkách"
 

@@ -19,7 +19,8 @@ const FORMAT: String = "ladder-lab"
 ## (older "fuse3" / "breaker3" still load), main contacts with "poles".
 ## 10: control boxes of the operator panel (missing before: no boxes).
 ## 11: DC supply points + / - (conductor "+" / "-"), run-down and DC
-## braking times of three-phase motors (missing before: defaults).
+## braking times of three-phase motors (missing before: defaults), bridge
+## rectifiers ("rectifier").
 ## 12: pages (titles, the page of each component, the page shown) and page
 ## connectors (missing before: one untitled page).
 const VERSION: int = 12

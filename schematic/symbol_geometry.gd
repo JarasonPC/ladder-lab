@@ -37,6 +37,11 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		for i: int in names.size():
 			result[names[i]] = motor_terminal_cell(i, (c as ThreePhaseMotor).kind) if i < windings else MOTOR_PE_CELL
 		return result
+	if c is Rectifier:
+		# AC input ~1 ~2 on top, DC output + - below.
+		for i: int in names.size():
+			result[names[i]] = Vector2i((i % 2) * POLE_SPACING, 0 if i < 2 else SPAN)
+		return result
 	if c is TimerRelay and names.size() == 3:
 		# Time relay with control input: A1 on top, A2 below, S beside A1.
 		result[names[0]] = Vector2i.ZERO
@@ -68,6 +73,8 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		if i >= (c as ThreePhaseMotor).winding_terminal_count():
 			return DIR_UP
 		return DIR_DOWN if i < 3 else (DIR_UP if i < 6 else DIR_LEFT)
+	if c is Rectifier:
+		return DIR_DOWN if names.find(terminal_name) < 2 else DIR_UP
 	if c is TimerRelay and names.size() == 3:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if names.size() == 3:
@@ -125,6 +132,8 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.85, 0.65, 1.7, 1.7)
 	if c is OverloadRelay:
 		return Rect2(-0.95, 0.55, 1.9, 1.9)
+	if c is Rectifier:
+		return Rect2(-0.6, 0.7, 3.2, 1.6)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
 
 

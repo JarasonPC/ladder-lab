@@ -956,6 +956,8 @@ msgstr ""
 
 msgid "Drag to share the width between the chart and the event log"
 
+msgid "Bridge rectifier"
+
 msgid "Direct-on-line start 3~ on three pages"
 msgstr ""
 

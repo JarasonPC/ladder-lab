@@ -7,7 +7,8 @@ extends RefCounted
 ## when its terminals are reached by two different supplies of the same source
 ## (phase and N, two phases, or + and -). A [ThreePhaseMotor] runs when its
 ## windings get all three phases and is braked when DC flows through them;
-## switched off, its shaft runs down over time.
+## switched off, its shaft runs down over time. A [Rectifier] whose input has
+## voltage makes its outputs + and - poles of the DC source.
 ##
 ## [enum Mode] IDEAL: relays switch instantly. Each [method step] advances the
 ## timers, then settles: the coils that should change are found and the first
@@ -44,6 +45,15 @@ const CHATTER_TOGGLES: int = 8
 const CHATTER_WINDOW: float = 0.5
 ## Event log entries kept per step at most.
 const MAX_LOGGED_EVENTS: int = 50
+## Edge kinds of the current-flow graph (see [method _find_current_paths]).
+const _EDGE_WIRE: int = 0
+const _EDGE_SWITCH: int = 1
+const _EDGE_LOAD: int = 2
+const _EDGE_VIRTUAL: int = 3
+## Rectifier output joined to its DC conductor node (ref: rectifier index).
+const _EDGE_OUTPUT: int = 4
+## Page connectors with the same label (see [method Circuit.get_links]).
+const _EDGE_LINK: int = 5
 
 var circuit: Circuit
 var mode: Mode = Mode.IDEAL
@@ -78,6 +88,11 @@ var _overload_relays: Array[OverloadRelay] = []
 ## Parts with a protection state (fuses, breakers, overload relays).
 var _protective: Array[CircuitComponent] = []
 var _supplies: Array[PowerSupply] = []
+## Indices into [member _loads] of the rectifiers, their output nets (+, -)
+## and, from the last evaluation, which ones have voltage on their input.
+var _rectifiers: PackedInt32Array = PackedInt32Array()
+var _rectifier_out_nets: PackedInt32Array = PackedInt32Array()
+var _rectifier_on: PackedByteArray = PackedByteArray()
 var _motors: Array[ThreePhaseMotor] = []
 ## Nine nets per motor (-1 where it has no such terminal).
 var _motor_nets: PackedInt32Array = PackedInt32Array()
@@ -177,6 +192,8 @@ func _build() -> void:
 	_control_nets.clear()
 	_coil_indices.clear()
 	_supplies.clear()
+	_rectifiers.clear()
+	_rectifier_out_nets.clear()
 	_actuators.clear()
 	_overload_relays.clear()
 	_protective.clear()
@@ -205,6 +222,10 @@ func _build() -> void:
 		elif c is Load:
 			if c is Coil:
 				_coil_indices.append(_loads.size())
+			elif c is Rectifier:
+				_rectifiers.append(_loads.size())
+				_rectifier_out_nets.append(_net_of_key[keys[2]])
+				_rectifier_out_nets.append(_net_of_key[keys[3]])
 			_loads.append(c as Load)
 			if c is TimerRelay and (c as TimerRelay).control_input and keys.size() > 2:
 				_control_nets[_loads.size() - 1] = _net_of_key[keys[2]]
@@ -212,6 +233,8 @@ func _build() -> void:
 			_load_nets.append(_net_of_key[keys[1]])
 		elif c is PowerSupply:
 			_supplies.append(c as PowerSupply)
+	_rectifier_on.resize(_rectifiers.size())
+	_rectifier_on.fill(0)
 	_motor_states.resize(_motors.size())
 	_motor_directions.resize(_motors.size())
 	_motor_speeds.resize(_motors.size())
@@ -240,13 +263,47 @@ func _union_closed() -> UnionFind:
 	return uf
 
 
-## Supply bits reaching each group root.
+## Supply bits reaching each group root. Rectifiers with voltage on their
+## input add the DC poles on their outputs (one may feed the next); sets
+## [member _rectifier_on].
 func _root_masks(uf: UnionFind) -> Dictionary[int, int]:
 	var masks: Dictionary[int, int] = {}
 	for supply: PowerSupply in _supplies:
 		var root: int = uf.find(_net_of_key[supply.designation])
 		masks[root] = masks.get(root, 0) | supply.source_bit()
+	_rectifier_on.fill(0)
+	var changed: bool = true
+	while changed:
+		changed = false
+		for r: int in _rectifiers.size():
+			var i: int = _rectifiers[r]
+			if _rectifier_on[r] == 1:
+				continue
+			var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
+			var b: int = masks.get(uf.find(_load_nets[2 * i + 1]), 0)
+			if _powers(a, b):
+				_rectifier_on[r] = 1
+				changed = true
+				var plus: int = uf.find(_rectifier_out_nets[2 * r])
+				var minus: int = uf.find(_rectifier_out_nets[2 * r + 1])
+				masks[plus] = masks.get(plus, 0) | PowerSupply.BIT_DC_PLUS
+				masks[minus] = masks.get(minus, 0) | PowerSupply.BIT_DC_MINUS
 	return masks
+
+
+## Points where a supply enters the circuit, as [net, source bit, name]: the
+## supply points, then the outputs of the rectifiers that have input voltage
+## ("TB1:+").
+func _source_points() -> Array[Array]:
+	var points: Array[Array] = []
+	for supply: PowerSupply in _supplies:
+		points.append([_net_of_key[supply.designation], supply.source_bit(), supply.designation])
+	for r: int in _rectifiers.size():
+		if _rectifier_on[r] == 1:
+			var keys: PackedStringArray = _loads[_rectifiers[r]].get_terminal_keys()
+			points.append([_rectifier_out_nets[2 * r], PowerSupply.BIT_DC_PLUS, keys[2]])
+			points.append([_rectifier_out_nets[2 * r + 1], PowerSupply.BIT_DC_MINUS, keys[3]])
+	return points
 
 
 static func _is_single_source(mask: int) -> bool:
@@ -665,38 +722,39 @@ func _find_short_path() -> PackedStringArray:
 			var b: int = _switch_nets[2 * i + 1]
 			adjacency[a].append_array(PackedInt32Array([i, b]))
 			adjacency[b].append_array(PackedInt32Array([i, a]))
+	var sources: Array[Array] = _source_points()
 	var bits: Array[int] = []
-	for supply: PowerSupply in _supplies:
-		if not bits.has(supply.source_bit()):
-			bits.append(supply.source_bit())
+	for source: Array in sources:
+		if not bits.has(source[1]):
+			bits.append(source[1])
 	bits.sort()
 	for bit: int in bits:
-		var path: PackedStringArray = _short_path_from(bit, adjacency)
+		var path: PackedStringArray = _short_path_from(bit, sources, adjacency)
 		if not path.is_empty():
 			return path
 	return PackedStringArray()
 
 
-func _short_path_from(bit: int, adjacency: Array[PackedInt32Array]) -> PackedStringArray:
-	var target_of_net: Dictionary[int, PowerSupply] = {}
-	for supply: PowerSupply in _supplies:
-		if supply.source_bit() != bit:
-			target_of_net[_net_of_key[supply.designation]] = supply
+func _short_path_from(bit: int, sources: Array[Array], adjacency: Array[PackedInt32Array]) -> PackedStringArray:
+	var target_of_net: Dictionary[int, String] = {}
+	for source: Array in sources:
+		if source[1] != bit:
+			target_of_net[source[0]] = source[2]
 	var prev_net: PackedInt32Array = PackedInt32Array()
 	var prev_switch: PackedInt32Array = PackedInt32Array()
 	prev_net.resize(_net_count)
 	prev_switch.resize(_net_count)
 	prev_net.fill(-2)
 	prev_switch.fill(-1)
-	var start_supply: Dictionary[int, PowerSupply] = {}
+	var start_supply: Dictionary[int, String] = {}
 	var queue: PackedInt32Array = PackedInt32Array()
-	for supply: PowerSupply in _supplies:
-		if supply.source_bit() != bit:
+	for source: Array in sources:
+		if source[1] != bit:
 			continue
-		var net: int = _net_of_key[supply.designation]
+		var net: int = source[0]
 		if prev_net[net] == -2:
 			prev_net[net] = -1
-			start_supply[net] = supply
+			start_supply[net] = source[2]
 			queue.append(net)
 	var head: int = 0
 	while head < queue.size():
@@ -709,9 +767,9 @@ func _short_path_from(bit: int, adjacency: Array[PackedInt32Array]) -> PackedStr
 				middle.append(_switches[prev_switch[cursor]].id)
 				cursor = prev_net[cursor]
 			middle.reverse()
-			var path: PackedStringArray = PackedStringArray([start_supply[cursor].designation])
+			var path: PackedStringArray = PackedStringArray([start_supply[cursor]])
 			path.append_array(middle)
-			path.append(target_of_net[net].designation)
+			path.append(target_of_net[net])
 			return path
 		var edges: PackedInt32Array = adjacency[net]
 		for e: int in range(0, edges.size(), 2):
@@ -766,94 +824,119 @@ func _find_live_parts(result: StepResult) -> void:
 ## in a biconnected component with a hub edge. Dead-end branches and loops
 ## hanging off a single point stay dark. During a short the loads are off, so
 ## the result is the fault-current path.
+##
+## The outputs of a rectifier with input voltage are joined to the DC
+## conductor nodes like supply points. Its input (an edge like a load's)
+## takes part only when current flows on its outputs, so a rectifier feeding
+## nothing draws nothing and a short on its DC side also shows (and blows the
+## fuses) on its AC side.
 func _find_current_paths(result: StepResult, include_loads: bool = true) -> void:
 	if _supplies.is_empty():
 		return
-	const WIRE := 0
-	const SWITCH := 1
-	const LOAD := 2
-	const VIRTUAL := 3
-	const LINK := 4
+	var feeding: Dictionary[int, bool] = {}
+	var graph: Dictionary = _current_graph(include_loads, feeding)
+	var block: PackedInt32Array = _hub_blocks(graph)
+	var kinds: PackedInt32Array = graph["kind"]
+	var refs: PackedInt32Array = graph["ref"]
+	for e: int in block:
+		if kinds[e] == _EDGE_OUTPUT:
+			feeding[refs[e]] = true
+	if not feeding.is_empty():
+		graph = _current_graph(include_loads, feeding)
+		block = _hub_blocks(graph)
+		kinds = graph["kind"]
+		refs = graph["ref"]
+	for e: int in block:
+		match kinds[e]:
+			_EDGE_WIRE:
+				result.current_wires.append(refs[e])
+			_EDGE_SWITCH:
+				result.current_switch_paths.append(refs[e])
+				if not result.current_components.has(_switches[refs[e]].id):
+					result.current_components.append(_switches[refs[e]].id)
+			_EDGE_LOAD:
+				result.current_components.append(_loads[refs[e]].id)
+
+
+## Edges of the current-flow graph (see [method _find_current_paths]) as
+## parallel arrays "a", "b", "kind", "ref", plus "hub", "hub_edges" and
+## "vertices". The inputs of the rectifiers in [param feeding] (by rectifier
+## index) are edges, whatever [param include_loads] says; other rectifier
+## inputs are not.
+func _current_graph(include_loads: bool, feeding: Dictionary[int, bool]) -> Dictionary:
 	var terminal_count: int = _terminal_index.size()
-	# Virtual vertices: hub, then one per conductor bit (1, 2, 4, 8).
+	# Virtual vertices: hub, then one per conductor bit.
 	var hub: int = terminal_count
 	var conductor_vertex: Dictionary[int, int] = {}
-	# Edges as parallel arrays indexed by edge id.
 	var edge_a: PackedInt32Array = PackedInt32Array()
 	var edge_b: PackedInt32Array = PackedInt32Array()
 	var edge_kind: PackedInt32Array = PackedInt32Array()
 	var edge_ref: PackedInt32Array = PackedInt32Array()
-
-	var wires: Array[PackedStringArray] = circuit.get_wires()
-	for i: int in wires.size():
-		if circuit.broken_wires.has(i):
-			continue
-		edge_a.append(_terminal_index[wires[i][0]])
-		edge_b.append(_terminal_index[wires[i][1]])
-		edge_kind.append(WIRE)
-		edge_ref.append(i)
-	for link: PackedStringArray in _links:
-		edge_a.append(_terminal_index[link[0]])
-		edge_b.append(_terminal_index[link[1]])
-		edge_kind.append(LINK)
-		edge_ref.append(-1)
-	for i: int in _switches.size():
-		if _switch_closed(i):
-			edge_a.append(_switch_terms[2 * i])
-			edge_b.append(_switch_terms[2 * i + 1])
-			edge_kind.append(SWITCH)
-			edge_ref.append(i)
-	for i: int in _loads.size():
-		if include_loads and _loads[i].energized:
-			var keys: PackedStringArray = _loads[i].get_terminal_keys()
-			edge_a.append(_terminal_index[keys[0]])
-			edge_b.append(_terminal_index[keys[1]])
-			edge_kind.append(LOAD)
-			edge_ref.append(i)
 	var hub_edges: PackedInt32Array = PackedInt32Array()
-	for supply: PowerSupply in _supplies:
-		var bit: int = supply.source_bit()
+	var add: Callable = func(a: int, b: int, kind: int, ref: int) -> void:
+		edge_a.append(a)
+		edge_b.append(b)
+		edge_kind.append(kind)
+		edge_ref.append(ref)
+	# Virtual node of a conductor bit, joined to the hub when first used.
+	var vertex_of: Callable = func(bit: int) -> int:
 		if not conductor_vertex.has(bit):
 			conductor_vertex[bit] = terminal_count + 1 + conductor_vertex.size()
 			hub_edges.append(edge_a.size())
-			edge_a.append(hub)
-			edge_b.append(conductor_vertex[bit])
-			edge_kind.append(VIRTUAL)
-			edge_ref.append(-1)
-		edge_a.append(conductor_vertex[bit])
-		edge_b.append(_terminal_index[supply.designation])
-		edge_kind.append(VIRTUAL)
-		edge_ref.append(-1)
-	if hub_edges.size() < 2:
-		return
+			add.call(hub, conductor_vertex[bit], _EDGE_VIRTUAL, -1)
+		return conductor_vertex[bit]
 
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		if not circuit.broken_wires.has(i):
+			add.call(_terminal_index[wires[i][0]], _terminal_index[wires[i][1]], _EDGE_WIRE, i)
+	# Page connectors with the same label: joined like a wire, not drawn.
+	for link: PackedStringArray in _links:
+		add.call(_terminal_index[link[0]], _terminal_index[link[1]], _EDGE_LINK, -1)
+	for i: int in _switches.size():
+		if _switch_closed(i):
+			add.call(_switch_terms[2 * i], _switch_terms[2 * i + 1], _EDGE_SWITCH, i)
+	for i: int in _loads.size():
+		var r: int = _rectifiers.find(i)
+		var wanted: bool = feeding.has(r) if r >= 0 else (include_loads and _loads[i].energized)
+		if wanted:
+			var keys: PackedStringArray = _loads[i].get_terminal_keys()
+			add.call(_terminal_index[keys[0]], _terminal_index[keys[1]], _EDGE_LOAD, i)
+	for supply: PowerSupply in _supplies:
+		add.call(vertex_of.call(supply.source_bit()), _terminal_index[supply.designation], _EDGE_VIRTUAL, -1)
+	for r: int in _rectifiers.size():
+		if _rectifier_on[r] == 1:
+			var keys: PackedStringArray = _loads[_rectifiers[r]].get_terminal_keys()
+			add.call(vertex_of.call(PowerSupply.BIT_DC_PLUS), _terminal_index[keys[2]], _EDGE_OUTPUT, r)
+			add.call(vertex_of.call(PowerSupply.BIT_DC_MINUS), _terminal_index[keys[3]], _EDGE_OUTPUT, r)
+	return {"a": edge_a, "b": edge_b, "kind": edge_kind, "ref": edge_ref, "hub": hub, "hub_edges": hub_edges, "vertices": terminal_count + 1 + conductor_vertex.size()}
+
+
+## Sorted ids of the edges of [param graph] that lie in a biconnected block
+## with a hub edge (empty with fewer than two conductors).
+func _hub_blocks(graph: Dictionary) -> PackedInt32Array:
+	var edge_a: PackedInt32Array = graph["a"]
+	var edge_b: PackedInt32Array = graph["b"]
+	var hub_edges: PackedInt32Array = graph["hub_edges"]
+	if hub_edges.size() < 2:
+		return PackedInt32Array()
 	var adjacency: Array[PackedInt32Array] = []
-	adjacency.resize(terminal_count + 1 + conductor_vertex.size())
+	adjacency.resize(graph["vertices"])
 	for i: int in adjacency.size():
 		adjacency[i] = PackedInt32Array()
 	for e: int in edge_a.size():
 		if edge_a[e] != edge_b[e]:
 			adjacency[edge_a[e]].append_array(PackedInt32Array([edge_b[e], e]))
 			adjacency[edge_b[e]].append_array(PackedInt32Array([edge_a[e], e]))
-
 	var in_block: Dictionary[int, bool] = {}
 	for hub_edge: int in hub_edges:
 		if in_block.has(hub_edge):
 			continue
-		for e: int in _biconnected_block(adjacency, hub, hub_edge):
+		for e: int in _biconnected_block(adjacency, graph["hub"], hub_edge):
 			in_block[e] = true
 	var block: PackedInt32Array = PackedInt32Array(in_block.keys())
 	block.sort()
-	for e: int in block:
-		match edge_kind[e]:
-			WIRE:
-				result.current_wires.append(edge_ref[e])
-			SWITCH:
-				result.current_switch_paths.append(edge_ref[e])
-				if not result.current_components.has(_switches[edge_ref[e]].id):
-					result.current_components.append(_switches[edge_ref[e]].id)
-			LOAD:
-				result.current_components.append(_loads[edge_ref[e]].id)
+	return block
 
 
 ## Edges of the biconnected component that contains [param target_edge],
