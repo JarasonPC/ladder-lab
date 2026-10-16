@@ -474,9 +474,6 @@ msgstr "Smazat"
 msgid "Select all"
 msgstr "Vybrat vše"
 
-msgid "A1 and A2 of a time relay do not change."
-msgstr "A1 a A2 časového relé se nemění."
-
 msgid "Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."
 msgstr "Kliknutím umístíte. R otočí, F zrcadlí zleva doprava, Shift+F shora dolů. Pravé tlačítko nebo Esc ukončí vkládání."
 
@@ -1081,3 +1078,15 @@ msgstr "Kontroloval"
 
 msgid "Date"
 msgstr "Datum"
+
+msgid "PE supply"
+msgstr "Přívod PE"
+
+msgid "Swap A1 and A2"
+msgstr "Prohodit A1 a A2"
+
+msgid "A2 on top, A1 below (or back). Double-clicking A1 and typing A2 does the same."
+msgstr "A2 nahoře, A1 dole (nebo zpět). Totéž udělá dvojklik na A1 a zápis A2."
+
+msgid "A1 and A2 of a time relay can only be swapped with each other."
+msgstr "A1 a A2 časového relé lze jen navzájem prohodit."

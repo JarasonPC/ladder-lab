@@ -85,6 +85,7 @@ var _canvas_area: Control
 ## Tabs of the pages above the schematic, and the button adding a page.
 var _page_tabs: TabBar
 var _page_add: MenuButton
+var _page_row: HBoxContainer
 ## Right click menu of a page tab, for page [member _menu_page].
 var _page_menu: PopupMenu
 var _menu_page: int = -1
@@ -398,18 +399,19 @@ func _build_ui() -> void:
 
 
 ## Tabs of the pages (click to show one, drag to reorder, double-click to
-## rename, right click for more) and a button adding a page.
+## rename, right click for more) and, right after the last tab, a button
+## adding a page.
 func _build_page_bar() -> Control:
 	var bar: PanelContainer = PanelContainer.new()
 	bar.theme_type_variation = "PageBar"
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
+	row.resized.connect(_fit_page_tabs)
 	bar.add_child(row)
+	_page_row = row
 	_page_tabs = TabBar.new()
 	_page_tabs.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_page_tabs.focus_mode = Control.FOCUS_NONE
-	_page_tabs.clip_tabs = true
-	_page_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_tabs.max_tab_width = 260
 	_page_tabs.tab_changed.connect(func(tab: int) -> void:
 		if not _updating_pages:
@@ -430,6 +432,10 @@ func _build_page_bar() -> Control:
 	_page_add.theme_type_variation = "ToolButton"
 	_page_add.icon = AppTheme.icon("plus")
 	_page_add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var rest: Control = Control.new()
+	rest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rest.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(rest)
 	_page_add.get_popup().id_pressed.connect(func(id: int) -> void:
 		_add_page(PAGE_PRESETS[id] if id < PAGE_PRESETS.size() else ""))
 	_page_menu = PopupMenu.new()
@@ -1187,6 +1193,21 @@ func _refresh_pages() -> void:
 	_page_tabs.drag_to_rearrange_enabled = mode == Mode.EDIT
 	_page_add.visible = mode == Mode.EDIT
 	_updating_pages = false
+	_fit_page_tabs()
+
+
+## The tabs take only the room they need, so the add button follows the
+## last one; when they do not fit, they share the bar and are clipped.
+func _fit_page_tabs() -> void:
+	if _page_tabs == null or _page_row == null:
+		return
+	_page_tabs.clip_tabs = false
+	var room: float = _page_row.size.x - (_page_add.size.x + 8.0 if _page_add.visible else 0.0)
+	var fits: bool = _page_tabs.get_combined_minimum_size().x <= room
+	_page_tabs.clip_tabs = not fits
+	_page_tabs.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN if fits else Control.SIZE_EXPAND_FILL
+	# The filler after the add button only takes the room the tabs leave.
+	(_page_row.get_child(_page_row.get_child_count() - 1) as Control).visible = fits
 
 
 ## Shows page [param index]; with [param focus_id], centred on that component.

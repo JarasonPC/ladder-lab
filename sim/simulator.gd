@@ -80,6 +80,8 @@ var _loads: Array[Load] = []
 var _load_nets: PackedInt32Array = PackedInt32Array()
 ## Load index -> net of the control input S of time relays that have one.
 var _control_nets: Dictionary[int, int] = {}
+## Time relays (load index) with A1 and A2 swapped: A2 is their first terminal.
+var _control_a2_first: Dictionary[int, bool] = {}
 ## Indices into [member _loads] of the coils, in the order they were added.
 var _coil_indices: PackedInt32Array = PackedInt32Array()
 ## Actuators of push buttons and switches (one per device).
@@ -190,6 +192,7 @@ func _build() -> void:
 	_loads.clear()
 	_load_nets.clear()
 	_control_nets.clear()
+	_control_a2_first.clear()
 	_coil_indices.clear()
 	_supplies.clear()
 	_rectifiers.clear()
@@ -229,6 +232,8 @@ func _build() -> void:
 			_loads.append(c as Load)
 			if c is TimerRelay and (c as TimerRelay).control_input and keys.size() > 2:
 				_control_nets[_loads.size() - 1] = _net_of_key[keys[2]]
+				if (c as TimerRelay).a2_index() == 0:
+					_control_a2_first[_loads.size() - 1] = true
 			_load_nets.append(_net_of_key[keys[0]])
 			_load_nets.append(_net_of_key[keys[1]])
 		elif c is PowerSupply:
@@ -613,7 +618,7 @@ func _evaluate() -> PackedByteArray:
 		if _control_nets.has(i):
 			# Control input S: pressed when it has voltage against A2 (bit 1).
 			var s: int = masks.get(uf.find(_control_nets[i]), 0)
-			if _powers(s, b):
+			if _powers(s, a if _control_a2_first.has(i) else b):
 				result[i] |= 2
 	_evaluate_motors(uf, masks)
 	return result
@@ -791,6 +796,15 @@ func _find_live_parts(result: StepResult) -> void:
 	var code_of_root: Dictionary[int, int] = {}
 	for root: int in masks:
 		code_of_root[root] = StepResult.reach_code(masks[root])
+	# N potential from PE alone is shown as PE.
+	var neutral_roots: Dictionary[int, bool] = {}
+	for supply: PowerSupply in _supplies:
+		if supply.conductor == PowerSupply.Conductor.N:
+			neutral_roots[uf.find(_net_of_key[supply.designation])] = true
+	for supply: PowerSupply in _supplies:
+		var root: int = uf.find(_net_of_key[supply.designation])
+		if supply.conductor == PowerSupply.Conductor.PE and not neutral_roots.has(root) and code_of_root.get(root, 0) == StepResult.REACH_N:
+			code_of_root[root] = StepResult.REACH_PE
 	for key: String in _net_of_key:
 		var code: int = code_of_root.get(uf.find(_net_of_key[key]), 0)
 		if code == 0:

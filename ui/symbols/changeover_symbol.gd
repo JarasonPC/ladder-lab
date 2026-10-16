@@ -45,3 +45,8 @@ func _draw_labels() -> void:
 	draw_label(names[0], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[2], Vector2(-0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[1], Vector2(1.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+
+
+## A block of a button or switch: a click operates the device.
+func is_interactive() -> bool:
+	return (component as ChangeoverContact).linked_actuator != null

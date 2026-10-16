@@ -471,9 +471,6 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
-msgid "A1 and A2 of a time relay do not change."
-msgstr ""
-
 msgid "Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."
 msgstr ""
 
@@ -1075,4 +1072,15 @@ msgid "Checked by"
 msgstr ""
 
 msgid "Date"
+
+msgid "PE supply"
+msgstr ""
+
+msgid "Swap A1 and A2"
+msgstr ""
+
+msgid "A2 on top, A1 below (or back). Double-clicking A1 and typing A2 does the same."
+msgstr ""
+
+msgid "A1 and A2 of a time relay can only be swapped with each other."
 msgstr ""

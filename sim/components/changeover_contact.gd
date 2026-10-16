@@ -16,6 +16,10 @@ var delayed: bool
 var fault: SwitchingElement.Fault = SwitchingElement.Fault.NONE
 ## Set by [Circuit] when a coil with the same designation exists.
 var linked_coil: Coil = null
+## Without a coil: the actuator of a button or switch with the same
+## designation, else a circuit breaker with it (see [Contact]).
+var linked_actuator: Armature = null
+var linked_breaker: CircuitComponent = null
 
 
 func _init(p_designation: String, p_sequence: int = 1, p_delayed: bool = false) -> void:
@@ -38,7 +42,12 @@ func switch_paths() -> Array[Vector2i]:
 
 
 func get_armature() -> Armature:
-	return linked_coil.get_armature(delayed) if linked_coil != null else null
+	return linked_coil.get_armature(delayed) if linked_coil != null else linked_actuator
+
+
+## True when a coil, button, switch or breaker operates this contact.
+func has_device() -> bool:
+	return linked_coil != null or linked_actuator != null or linked_breaker != null
 
 
 ## PATH_NC: common to NC side; PATH_NO: common to NO side.
@@ -49,6 +58,8 @@ func is_path_closed(path: int) -> bool:
 		SwitchingElement.Fault.OPEN:
 			return false
 	var a: Armature = get_armature()
+	if a == null and linked_breaker != null:
+		return linked_breaker.is_path_closed(0) == (path == PATH_NO)
 	if a == null:
 		return path == PATH_NC
 	return not a.nc_open if path == PATH_NC else a.no_closed

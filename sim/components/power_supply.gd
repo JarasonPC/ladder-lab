@@ -1,12 +1,14 @@
 class_name PowerSupply
 extends CircuitComponent
-## Supply point: one per conductor (L or L1, L2, L3, N, +, -). Has a single
+## Supply point: one per conductor (L or L1, L2, L3, N, PE, +, -). Has a single
 ## terminal addressed by its designation alone (e.g. "L", "L1", "N", "+").
 ## L, L1-L3 and N belong to the same three-phase source (L is the same phase as
-## L1); + and - are the poles of a separate DC source (e.g. a rectifier for
-## DC braking of motors).
+## L1); PE, the protective conductor, is joined to N at the source (TN
+## system), so it has the potential of N and a phase touching it is a short
+## that the fuse clears; + and - are the poles of a separate DC source (e.g. a
+## rectifier for DC braking of motors).
 
-enum Conductor { L, N, L2, L3, DC_PLUS, DC_MINUS }
+enum Conductor { L, N, L2, L3, DC_PLUS, DC_MINUS, PE }
 
 ## Source bits used by the simulator.
 const BIT_L1: int = 1
@@ -30,7 +32,7 @@ func _init(p_designation: String, p_conductor: Conductor) -> void:
 
 func source_bit() -> int:
 	match conductor:
-		Conductor.N:
+		Conductor.N, Conductor.PE:
 			return BIT_N
 		Conductor.L2:
 			return BIT_L2
@@ -47,7 +49,7 @@ func is_dc() -> bool:
 	return conductor == Conductor.DC_PLUS or conductor == Conductor.DC_MINUS
 
 
-## Short name of the conductor: "L", "L2", "L3", "N", "+" or "-" ("L1" when
+## Short name of the conductor: "L", "L2", "L3", "N", "PE", "+" or "-" ("L1" when
 ## the designation says so).
 func conductor_name() -> String:
 	match conductor:
@@ -61,6 +63,8 @@ func conductor_name() -> String:
 			return "+"
 		Conductor.DC_MINUS:
 			return "-"
+		Conductor.PE:
+			return "PE"
 	return "L1" if designation.begins_with("L1") else "L"
 
 

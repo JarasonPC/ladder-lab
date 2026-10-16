@@ -204,7 +204,10 @@ func stroke_color() -> Color:
 func stroke_width() -> float:
 	if not (component is Coil):
 		return SchematicTheme.LINE_WIDTH
-	return SchematicTheme.LIVE_WIDTH if warning or any_live() or live.has(REACH_N) or live.has(StepResult.REACH_DC_MINUS) else SchematicTheme.LINE_WIDTH
+	var reached: bool = false
+	for code: int in live:
+		reached = reached or code != REACH_NONE
+	return SchematicTheme.LIVE_WIDTH if warning or reached else SchematicTheme.LINE_WIDTH
 
 
 ## Colour of the lead and contact parts on the side of one terminal. The

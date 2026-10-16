@@ -4,10 +4,10 @@ extends SchematicSymbol
 ## IEC 60617) inside, AC input ~1 ~2 on top, DC output + - below. Filled
 ## while its input has voltage, like a running motor.
 
-const BOX := Rect2(-10, 16, 60, 28)
+const BOX := Rect2(-4, 10, 48, 40)
 const BRIDGE_CENTER := Vector2(20, 30)
-## Half width and half height of the bridge (a rhombus filling the box).
-const BRIDGE_SIZE := Vector2(17, 10)
+## Half diagonals of the bridge: a square standing on its corner.
+const BRIDGE_SIZE := Vector2(14, 14)
 
 
 func _draw_shape(color: Color, width: float) -> void:
@@ -48,5 +48,5 @@ func _draw_labels() -> void:
 	var names: PackedStringArray = component.get_terminal_names()
 	for i: int in names.size():
 		var x: float = (i % 2) * SymbolGeometry.POLE_SPACING * G + 0.3 * G
-		var y: float = 0.35 * G if i < 2 else 2.65 * G
+		var y: float = 0.22 * G if i < 2 else 2.78 * G
 		draw_label(names[i], Vector2(x, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)

@@ -121,6 +121,8 @@ static func reach_color(code: int) -> Color:
 			return LIVE_L3
 		StepResult.REACH_N:
 			return NEUTRAL
+		StepResult.REACH_PE:
+			return PE
 		StepResult.REACH_DC_PLUS:
 			return DC_PLUS
 		StepResult.REACH_DC_MINUS:
