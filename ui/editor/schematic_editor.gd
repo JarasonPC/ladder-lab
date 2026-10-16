@@ -1313,6 +1313,11 @@ func _restore(snapshot: Dictionary) -> void:
 
 ## Call after every edit of the document.
 func _changed() -> void:
+	# Next to L2 or L3 a plain L supply becomes L1 (and stays selected).
+	var renamed: Dictionary[String, String] = document().name_first_phase()
+	for id: String in renamed:
+		if selected_components.erase(id):
+			selected_components[renamed[id]] = true
 	# Indices of wires may have shifted; keep only valid ones.
 	for w: int in selected_wires.keys():
 		if w >= document().get_wire_count():

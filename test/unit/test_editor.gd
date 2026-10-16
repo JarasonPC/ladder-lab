@@ -540,3 +540,33 @@ func test_overload_contact_taken_is_not_refused() -> void:
 	assert_eq(doc.circuit.get_components().size(), count + 2, "both contacts placed")
 	assert_true(doc.circuit.get_component("F1:95-96") is OverloadContact, "the first is the relay's 95-96")
 	assert_true(doc.circuit.has_component_id("KM1:11-12"), "its 95-96 taken, the second goes to the coil")
+
+
+func test_plain_l_becomes_l1_next_to_l2() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 5))
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 5)])
+	_place({"type": "supply", "conductor": "L"}, Vector2i(8, 1))
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_component("L.2"), "single phase: a second L")
+	_place({"type": "supply", "conductor": "L2"}, Vector2i(10, 1))
+	assert_null(doc.circuit.get_component("L"))
+	assert_not_null(doc.circuit.get_component("L1"), "next to L2 the phase is L1")
+	assert_not_null(doc.circuit.get_component("L1.2"))
+	assert_eq((doc.circuit.get_component("L1") as PowerSupply).conductor_name(), "L1")
+	assert_true(doc.circuit.get_wires()[0].has("L1"), "its wire stays")
+	assert_not_null(view.get_symbol("L1"))
+	editor.undo()
+	assert_not_null(editor.document().circuit.get_component("L"), "undo brings plain L back")
+
+
+func test_conductor_l3_renames_the_plain_l() -> void:
+	_place({"type": "supply", "conductor": "N"}, Vector2i(8, 1))
+	editor._clear_selection()
+	var doc: SchematicDocument = editor.document()
+	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("N.2"))
+	data["conductor"] = "L3"
+	assert_eq(editor.apply_properties("N.2", data), "")
+	assert_not_null(doc.circuit.get_component("L3"))
+	assert_not_null(doc.circuit.get_component("L1"))
+	assert_null(doc.circuit.get_component("L"))
+	assert_eq(editor.selected_components.keys(), ["L3"])

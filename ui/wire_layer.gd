@@ -1,7 +1,7 @@
 class_name WireLayer
 extends Node2D
-## Draws the grid, the wires and junction dots of the current page of a
-## [SchematicDocument].
+## Draws the grid, the wires and junction dots of a page of a
+## [SchematicDocument] (the current page unless [member page] is set).
 ## Wires reached by a phase are drawn in that phase's colour, wires reached by
 ## N in the neutral colour; during a short the fault-current path blinks on top.
 
@@ -17,6 +17,8 @@ var blink_on: bool = true
 var show_grid: bool = false
 ## Wire numbers at the wire ends.
 var show_numbers: bool = true
+## Page drawn; -1: the document's current page.
+var page: int = -1
 
 var _junctions: Array[Vector2i] = []
 ## [Vector2i(wire, end), Rect2 in cells] of the numbers drawn last.
@@ -32,7 +34,7 @@ func set_document(doc: SchematicDocument) -> void:
 
 ## Recomputes cached geometry after placements changed.
 func refresh_layout() -> void:
-	_junctions = document.junction_cells() if document != null else []
+	_junctions = document.junction_cells(page) if document != null else []
 	queue_redraw()
 
 
@@ -40,13 +42,13 @@ func _draw() -> void:
 	if document == null:
 		return
 	if show_grid:
-		var area: Rect2 = document.bounds().grow(4.0)
+		var area: Rect2 = document.bounds(page).grow(4.0)
 		for x: int in range(floori(area.position.x), ceili(area.end.x) + 1):
 			for y: int in range(floori(area.position.y), ceili(area.end.y) + 1):
 				draw_rect(Rect2(Vector2(x, y) * G - Vector2.ONE, Vector2(2, 2)), SchematicTheme.GRID_DOT)
 
 	# Dead wires first, then N and DC -, then the phases and DC + on top.
-	var wires: PackedInt32Array = document.wires_on_page()
+	var wires: PackedInt32Array = document.wires_on_page(page)
 	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N, StepResult.REACH_PE, StepResult.REACH_DC_MINUS], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_DC_PLUS, StepResult.REACH_SEVERAL]]:
 		for w: int in wires:
 			var code: int = _reach(w)
@@ -75,7 +77,7 @@ func _draw_wire_numbers() -> void:
 	_number_rects.clear()
 	var font: Font = AppTheme.schematic_font()
 	var size: int = 10
-	for e: Vector2i in document.wire_number_ends():
+	for e: Vector2i in document.wire_number_ends(page):
 		var number: String = document.get_route(e.x).number
 		var at: Vector2 = document.wire_number_point(e.x, e.y) * G
 		var text_size: Vector2 = font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
@@ -130,10 +132,10 @@ func wire_number_at(point: Vector2) -> Vector2i:
 ## the rows of a horizontal one.
 func _draw_path_numbers() -> void:
 	_path_rects.clear()
-	var paths: PackedFloat32Array = document.current_paths()
+	var paths: PackedFloat32Array = document.current_paths(2.0, page)
 	if paths.is_empty():
 		return
-	var b: Rect2 = document.bounds()
+	var b: Rect2 = document.bounds(page)
 	var font: Font = AppTheme.schematic_font()
 	var size: int = SchematicTheme.LABEL_SIZE
 	var box: Vector2 = Vector2(1.4, 1.0) * G
