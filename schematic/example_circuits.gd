@@ -21,6 +21,7 @@ const TITLES: PackedStringArray = [
 	"Two-speed motor, separate windings",
 	"DC braking 3~",
 	"Direct-on-line start 3~ on three pages",
+	"PLC: start/stop with an on-delay",
 ]
 
 
@@ -60,6 +61,8 @@ static func build(index: int, horizontal: bool = false) -> SchematicDocument:
 			doc = dc_braking()
 		13:
 			doc = direct_on_line_pages()
+		14:
+			doc = plc_start_stop()
 	if doc != null and doc.control_boxes.is_empty():
 		doc.add_control_box_for_all()
 	if doc != null and doc.cabinet_rails.is_empty():
@@ -783,3 +786,71 @@ static func direct_on_line_pages() -> SchematicDocument:
 	doc.number_wires()
 	doc.page = 0
 	return doc
+
+
+## PLC A1 fed through FU1: start button SB1 (NO) on I1, stop button SB0 (NC)
+## on I2; output Q1 lights H1, Q2 lights H2 five seconds later. The program
+## (function block diagram): Q1 = (I1 OR Q1) AND I2, Q2 = on-delay of Q1; the
+## same in the ladder diagram, switched to in the PLC window.
+static func plc_start_stop() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new(TITLES[14])
+	_control_fuse(doc, 25)
+	doc.add(PushButton.new("SB1", NO), Vector2i(12, 7))
+	doc.add(PushButton.new("SB0", NC), Vector2i(17, 7))
+	doc.add(Plc.new("A1", plc_start_stop_program()), Vector2i(8, 12))
+	doc.add(_lamp("H1", "Running"), Vector2i(10, 20))
+	doc.add(_lamp("H2", "Delayed"), Vector2i(15, 20))
+
+	doc.connect_terminals("FU1:2", "A1:L1", _c([Vector2i(5, 6), Vector2i(8, 6)]))
+	doc.connect_terminals("A1:N", "N", _c([Vector2i(10, 10), Vector2i(3, 10), Vector2i(3, 25)]))
+	doc.connect_terminals("FU1:2", "SB1:13", _c([Vector2i(5, 6), Vector2i(12, 6)]))
+	doc.connect_terminals("FU1:2", "SB0:11", _c([Vector2i(5, 6), Vector2i(17, 6)]))
+	doc.connect_terminals("SB1:14", "A1:I1")
+	doc.connect_terminals("SB0:12", "A1:I2", _c([Vector2i(17, 11), Vector2i(14, 11)]))
+	doc.connect_terminals("FU1:2", "A1:Q1.1", _c([Vector2i(5, 19), Vector2i(8, 19)]))
+	doc.connect_terminals("A1:Q1.1", "A1:Q2.1", _c([Vector2i(8, 19), Vector2i(13, 19)]))
+	doc.connect_terminals("A1:Q1.2", "H1:X1")
+	doc.connect_terminals("A1:Q2.2", "H2:X1")
+	doc.connect_terminals("H1:X2", "N", _c([Vector2i(10, 25)]))
+	doc.connect_terminals("H2:X2", "N", _c([Vector2i(15, 25)]))
+	return doc
+
+
+## Program of [method plc_start_stop]: self-holding Q1 started by I1 and
+## stopped by I2 (the NC stop button), Q2 five seconds after Q1.
+static func plc_start_stop_program() -> PlcProgram:
+	var p: PlcProgram = PlcProgram.new()
+	var start: PlcBlock = p.add_block("input", Vector2i(0, 0))
+	var stop: PlcBlock = p.add_block("input", Vector2i(0, 6))
+	stop.operand = "I2"
+	var gate_or: PlcBlock = p.add_block("or", Vector2i(6, 0))
+	var gate_and: PlcBlock = p.add_block("and", Vector2i(12, 1))
+	var q1: PlcBlock = p.add_block("output", Vector2i(19, 2))
+	var delay: PlcBlock = p.add_block("on_delay", Vector2i(19, 8))
+	delay.time = 5.0
+	var q2: PlcBlock = p.add_block("output", Vector2i(26, 8))
+	q2.operand = "Q2"
+	gate_or.inputs[0] = start.id
+	gate_or.inputs[1] = q1.id
+	gate_and.inputs[0] = gate_or.id
+	gate_and.inputs[1] = stop.id
+	q1.inputs[0] = gate_and.id
+	delay.inputs[0] = q1.id
+	q2.inputs[0] = delay.id
+	var hold: PlcRung = PlcRung.new()
+	hold.set_cell(0, 0, {"kind": "no", "operand": "I1"})
+	hold.set_cell(0, 1, {"kind": "no", "operand": "I2"})
+	hold.set_coil(0, {"kind": "coil", "operand": "Q1"})
+	hold.wire_to_coil(0)
+	hold.set_cell(1, 0, {"kind": "no", "operand": "Q1"})
+	hold.set_link(0, 0, true)
+	var timer: PlcRung = PlcRung.new()
+	timer.set_cell(0, 0, {"kind": "no", "operand": "Q1"})
+	timer.set_coil(0, {"kind": "on_delay", "operand": "T1", "time": 5.0})
+	timer.wire_to_coil(0)
+	var output: PlcRung = PlcRung.new()
+	output.set_cell(0, 0, {"kind": "no", "operand": "T1"})
+	output.set_coil(0, {"kind": "coil", "operand": "Q2"})
+	output.wire_to_coil(0)
+	p.rungs.append_array([hold, timer, output])
+	return p

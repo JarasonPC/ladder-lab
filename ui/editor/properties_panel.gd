@@ -10,6 +10,8 @@ signal type_changed(component_id: String, template: Dictionary)
 signal rotate_requested
 signal mirror_requested
 signal flip_requested
+## The program of the PLC should be shown.
+signal plc_requested(component_id: String)
 
 var _component_id: String = ""
 var _data: Dictionary = {}
@@ -84,6 +86,8 @@ func show_component(component: CircuitComponent) -> void:
 			_timer_diagram(component as TimerRelay)
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
+		"plc":
+			_plc_program(component as Plc)
 		"changeover":
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")
@@ -316,6 +320,26 @@ func _timer_function_titles(input: String) -> Array:
 func _input_name(timer: TimerRelay) -> String:
 	var names: PackedStringArray = timer.get_terminal_names()
 	return names[2] if names.size() > 2 else "S"
+
+
+## What the PLC runs, with the button that opens its program.
+func _plc_program(plc: Plc) -> void:
+	_label(tr("Program"))
+	var language: String = tr("Ladder diagram (LAD)") if plc.program.language == PlcProgram.Language.LAD else tr("Function block diagram (FBD)")
+	var info: Label = Label.new()
+	info.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	info.text = language
+	_add(info)
+	var button: Button = Button.new()
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.theme_type_variation = "PrimaryButton"
+	button.text = tr("Program the PLC…")
+	button.tooltip_text = tr("Opens the program in a window of its own (also by double-clicking the PLC)")
+	var id: String = plc.id
+	button.pressed.connect(func() -> void: plc_requested.emit(id))
+	_add(button)
+	_group = null
+	_note(tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals."), "MutedLabel")
 
 
 ## Time-current characteristic of a protective device.

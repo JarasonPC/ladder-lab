@@ -27,6 +27,8 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = CoilSymbol.new()
 	elif component is Rectifier:
 		symbol = RectifierSymbol.new()
+	elif component is Plc:
+		symbol = PlcSymbol.new()
 	elif component is Lamp:
 		symbol = LampSymbol.new()
 	elif component is Motor:

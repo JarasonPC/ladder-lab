@@ -216,6 +216,14 @@ func _ready() -> void:
 	editor.edited.connect(_cabinet_panel.refresh)
 	_cabinet_panel.edit_requested.connect(editor.edit_cabinet)
 	_cabinet_panel.operate_requested.connect(view.operate_device)
+	editor.plc_requested.connect(open_plc_window)
+	view.plc_requested.connect(open_plc_window)
+	_properties.plc_requested.connect(open_plc_window)
+	view.loaded.connect(_rebind_plc_windows)
+	editor.edited.connect(_rebind_plc_windows)
+	view.stepped.connect(func(_result: StepResult) -> void:
+		for window: PlcWindow in _plc_windows():
+			window.show_step())
 	editor.active = true
 	_load_example()
 	# A schematic double-clicked in the file manager comes as an argument.
@@ -937,6 +945,8 @@ func _apply_ui_scale() -> void:
 	get_window().content_scale_factor = factor
 	for window: PageWindow in _page_windows():
 		window.content_scale_factor = factor
+	for window: PlcWindow in _plc_windows():
+		window.content_scale_factor = factor
 
 
 ## Puts [param content] into a resizable, zoomable [SideBar] added to
@@ -1572,6 +1582,62 @@ func open_page_window(index: int) -> PageWindow:
 	window.view.set_current_view(_current_view)
 	window.view.clamp_tool = _clamp_toggle.button_pressed
 	return window
+
+
+## Opens the program of PLC [param component_id] in its window (or brings
+## its window to the front): editable in Edit mode, running while simulating.
+func open_plc_window(component_id: String) -> PlcWindow:
+	for open: PlcWindow in _plc_windows():
+		if open.component_id == component_id:
+			open.grab_focus()
+			return open
+	var plc: Plc = view.document.circuit.get_component(component_id) as Plc
+	if plc == null:
+		return null
+	var window: PlcWindow = PlcWindow.new(component_id)
+	window.content_scale_factor = get_window().content_scale_factor
+	window.bind(plc, mode == Mode.SIMULATE)
+	window.program_edited.connect(_on_plc_program_edited)
+	window.undo_requested.connect(func() -> void:
+		if mode == Mode.EDIT:
+			editor.undo())
+	window.redo_requested.connect(func() -> void:
+		if mode == Mode.EDIT:
+			editor.redo())
+	window.key_pressed.connect(_on_window_key)
+	add_child(window)
+	return window
+
+
+## A PLC window changed its program: put it into the schematic (undoable).
+func _on_plc_program_edited(component_id: String, program: Dictionary) -> void:
+	var plc: Plc = edit_doc.circuit.get_component(component_id) as Plc
+	if mode != Mode.EDIT or plc == null:
+		return
+	var data: Dictionary = DocumentSerializer.component_to_dict(plc)
+	data["program"] = program
+	var error: String = editor.apply_properties(component_id, data)
+	if not error.is_empty():
+		_show_error(error)
+
+
+## The PLC windows show the PLCs of the schematic or simulation now shown;
+## a window whose PLC is gone closes.
+func _rebind_plc_windows() -> void:
+	for window: PlcWindow in _plc_windows():
+		var plc: Plc = view.document.circuit.get_component(window.component_id) as Plc
+		if plc == null:
+			window.queue_free()
+		else:
+			window.bind(plc, mode == Mode.SIMULATE)
+
+
+func _plc_windows() -> Array[PlcWindow]:
+	var windows: Array[PlcWindow] = []
+	for child: Node in get_children():
+		if child is PlcWindow and not child.is_queued_for_deletion():
+			windows.append(child as PlcWindow)
+	return windows
 
 
 ## The page windows that are open.

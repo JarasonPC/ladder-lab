@@ -44,6 +44,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Motor 3~ Dahlander", "template": {"type": "motor3", "motor_kind": "dahlander"}},
 	{"title": "Motor 3~ two windings", "template": {"type": "motor3", "motor_kind": "two_windings"}},
 	{"title": "Motor 3~ three windings", "template": {"type": "motor3", "motor_kind": "three_windings"}},
+	{"title": "PLC (logic module, 8 inputs, 4 relay outputs)", "template": {"type": "plc"}},
 ]
 
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
@@ -86,6 +87,8 @@ static func group_of(template: Dictionary) -> String:
 			return "loads"
 		"fuse", "breaker", "overload_relay", "overload_contact":
 			return "protection"
+		"plc":
+			return "plc"
 	return "power"
 
 
@@ -103,6 +106,8 @@ func _group_title(group: String) -> String:
 			return tr("Loads")
 		"protection":
 			return tr("Protection")
+		"plc":
+			return tr("PLC")
 	return tr("Power circuit")
 
 

@@ -63,6 +63,17 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 			_rows.append({"label": c.designation, "band": "", "line": c.designation + "/shaft", "step": c.designation})
 		elif c is Lamp or c is Motor:
 			_rows.append({"label": c.designation, "band": "", "line": "", "step": c.designation})
+		elif c is Plc:
+			# The outputs that are wired, as relays.
+			var keys: PackedStringArray = c.get_terminal_keys()
+			var wired: Dictionary[String, bool] = {}
+			for wire: PackedStringArray in doc.circuit.get_wires():
+				wired[wire[0]] = true
+				wired[wire[1]] = true
+			for k: int in Plc.OUTPUTS:
+				var t: int = Plc.output_terminal(k)
+				if wired.has(keys[t]) or wired.has(keys[t + 1]):
+					_rows.append({"label": "%s Q%d" % [c.designation, k + 1], "band": "", "line": "%s/Q%d" % [c.designation, k + 1], "step": ""})
 	for c: CircuitComponent in doc.circuit.get_components():
 		var count: int = 0
 		var rated: float = 0.0

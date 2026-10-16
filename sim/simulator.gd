@@ -96,6 +96,12 @@ var _control_nets: Dictionary[int, int] = {}
 var _control_a2_first: Dictionary[int, bool] = {}
 ## Indices into [member _loads] of the coils, in the order they were added.
 var _coil_indices: PackedInt32Array = PackedInt32Array()
+## Indices into [member _loads] of the PLCs, the nets of their inputs
+## ([constant Plc.INPUTS] per PLC) and, from the last evaluation, which
+## inputs have voltage against their N (bit k: input k + 1).
+var _plc_indices: PackedInt32Array = PackedInt32Array()
+var _plc_input_nets: PackedInt32Array = PackedInt32Array()
+var _plc_inputs: PackedInt32Array = PackedInt32Array()
 ## Actuators of push buttons and switches (one per device).
 var _actuators: Array[Armature] = []
 var _overload_relays: Array[OverloadRelay] = []
@@ -165,6 +171,10 @@ func step(delta: float = 0.0) -> StepResult:
 				var coil: Coil = _loads[i] as Coil
 				coil.advance(delta)
 				coil.snap()
+			for i: int in _plc_indices:
+				var plc: Plc = _loads[i] as Plc
+				plc.advance(delta)
+				plc.snap()
 			_advance_protection(delta, result)
 			_advance_motors(delta, result)
 		time += maxf(delta, 0.0)
@@ -243,6 +253,8 @@ func _build() -> void:
 	_control_nets.clear()
 	_control_a2_first.clear()
 	_coil_indices.clear()
+	_plc_indices.clear()
+	_plc_input_nets.clear()
 	_supplies.clear()
 	_rectifiers.clear()
 	_rectifier_out_nets.clear()
@@ -271,6 +283,17 @@ func _build() -> void:
 			_device_paths[c] = PackedInt32Array(range(_switches.size(), _switches.size() + paths.size()))
 		for p: int in paths.size():
 			_add_switch_path(c, p, keys[paths[p].x], keys[paths[p].y])
+		if c is Plc:
+			# A load on L1-N with inputs, besides its output contacts.
+			_plc_indices.append(_loads.size())
+			_loads.append(c as Plc)
+			_load_nets.append(_net_of_key[keys[0]])
+			_load_nets.append(_net_of_key[keys[1]])
+			_load_terms.append(index[keys[0]])
+			_load_terms.append(index[keys[1]])
+			for k: int in Plc.INPUTS:
+				_plc_input_nets.append(_net_of_key[keys[Plc.input_terminal(k)]])
+			continue
 		if not paths.is_empty():
 			continue
 		if c is ThreePhaseMotor:
@@ -302,6 +325,8 @@ func _build() -> void:
 			_supply_terms.append(index[keys[0]])
 	_rectifier_on.resize(_rectifiers.size())
 	_rectifier_on.fill(0)
+	_plc_inputs.resize(_plc_indices.size())
+	_plc_inputs.fill(0)
 	_motor_states.resize(_motors.size())
 	_motor_directions.resize(_motors.size())
 	_motor_speeds.resize(_motors.size())
@@ -399,7 +424,7 @@ static func _phase_of(mask: int) -> int:
 ## overload relays (coils are switched by the caller).
 func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
 	for i: int in _loads.size():
-		if not (_loads[i] is Coil):
+		if not (_loads[i] is Coil or _loads[i] is Plc):
 			_loads[i].energized = (desired[i] & 1) == 1
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
@@ -483,6 +508,19 @@ func _settle_coils(result: StepResult) -> void:
 				switched = true
 				break
 		if not switched:
+			for p: int in _plc_indices.size():
+				var plc: Plc = _loads[_plc_indices[p]] as Plc
+				var powered: bool = (desired[_plc_indices[p]] & 1) == 1
+				if plc.energized != powered or plc.inputs != _plc_inputs[p]:
+					plc.update(powered, _plc_inputs[p])
+				elif plc.pending:
+					plc.rescan()
+				else:
+					continue
+				plc.snap()
+				switched = true
+				break
+		if not switched:
 			settled = true
 			break
 
@@ -519,6 +557,8 @@ func _step_realistic(delta: float) -> StepResult:
 		var dt: float = remaining
 		for i: int in _coil_indices:
 			dt = minf(dt, (_loads[i] as Coil).time_to_next_event())
+		for i: int in _plc_indices:
+			dt = minf(dt, (_loads[i] as Plc).time_to_next_event())
 		for actuator: Armature in _actuators:
 			dt = minf(dt, actuator.time_to_next_event())
 		for relay: OverloadRelay in _overload_relays:
@@ -561,6 +601,12 @@ func _apply_power(result: StepResult) -> void:
 				_note_toggle(coil.designation)
 			if _control_nets.has(i):
 				(coil as TimerRelay).set_control((desired[i] & 2) != 0)
+		for p: int in _plc_indices.size():
+			var plc: Plc = _loads[_plc_indices[p]] as Plc
+			var powered: bool = (desired[_plc_indices[p]] & 1) == 1
+			if powered != plc.energized:
+				_log(result, "%s switched on" if powered else "%s switched off", [plc.designation])
+			plc.update(powered, _plc_inputs[p])
 		_apply_outputs(desired, result)
 		if not _instant_trips(result):
 			break
@@ -592,6 +638,17 @@ func _advance_armatures(dt: float, result: StepResult) -> void:
 			_log(result, "%s released", [coil.designation], time + dt)
 		if timer != null and timer.output != output_before:
 			_log(result, "%s timed output on" if timer.output else "%s timed output off", [coil.designation], time + dt)
+	for i: int in _plc_indices:
+		var plc: Plc = _loads[i] as Plc
+		var closed_before: PackedByteArray = PackedByteArray()
+		for a: Armature in plc.output_armatures:
+			closed_before.append(1 if a.no_closed else 0)
+		plc.move_armatures(dt)
+		plc.advance(dt)
+		for k: int in Plc.OUTPUTS:
+			var closed: bool = plc.output_armatures[k].no_closed
+			if closed != (closed_before[k] == 1):
+				_log(result, "%s: output Q%d on" if closed else "%s: output Q%d off", [plc.designation, k + 1], time + dt)
 
 
 ## Heats fuses, breakers and overload relays for [param dt] seconds with the
@@ -714,6 +771,9 @@ func _record_trace() -> void:
 			trace.record(load.designation + "/armature", time, (load as Coil).armature.position, true)
 			if load is TimerRelay:
 				trace.record(load.designation + "/output", time, (load as TimerRelay).output_armature.position, true)
+		elif load is Plc:
+			for k: int in Plc.OUTPUTS:
+				trace.record("%s/Q%d" % [load.designation, k + 1], time, (load as Plc).output_armatures[k].position, true)
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
 		trace.record(motor.designation, time, 1.0 if motor.is_running() else 0.0)
@@ -753,6 +813,7 @@ func _evaluate() -> PackedByteArray:
 	if _short:
 		for m: int in _motors.size():
 			_motor_supply[m] = _unfed_motor(_motors[m])
+		_plc_inputs.fill(0)
 		return result
 	for i: int in _loads.size():
 		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
@@ -767,6 +828,14 @@ func _evaluate() -> PackedByteArray:
 			var s: int = masks.get(uf.find(_control_nets[i]), 0)
 			if _powers(s, a if _control_a2_first.has(i) else b):
 				result[i] |= 2
+	for p: int in _plc_indices.size():
+		# Inputs: on with voltage against the N terminal of the PLC.
+		var n_mask: int = masks.get(uf.find(_load_nets[2 * _plc_indices[p] + 1]), 0)
+		var bits: int = 0
+		for k: int in Plc.INPUTS:
+			if _powers(masks.get(uf.find(_plc_input_nets[Plc.INPUTS * p + k]), 0), n_mask):
+				bits |= 1 << k
+		_plc_inputs[p] = bits
 	_evaluate_motors(uf, masks)
 	return result
 
@@ -939,8 +1008,17 @@ func _signature() -> PackedByteArray:
 		if coil is TimerRelay and (coil as TimerRelay).control:
 			b |= 4
 		sig.append(b)
+	for i: int in _plc_indices:
+		var plc: Plc = _loads[i] as Plc
+		var outputs: int = 1 if plc.energized else 0
+		for k: int in Plc.OUTPUTS:
+			if plc.output_on(k):
+				outputs |= 2 << k
+		sig.append(outputs)
 	for device: CircuitComponent in _protective:
 		sig.append(device.protection_state())
+	for i: int in _plc_indices:
+		sig.append_array((_loads[i] as Plc).state_signature())
 	return sig
 
 
@@ -949,10 +1027,11 @@ func _changing_tags(states: Array[PackedByteArray]) -> PackedStringArray:
 	var tags: PackedStringArray = PackedStringArray()
 	if states.is_empty():
 		return tags
-	for j: int in _coil_indices.size():
+	var indices: PackedInt32Array = _coil_indices + _plc_indices
+	for j: int in indices.size():
 		for s: PackedByteArray in states:
 			if s[j] != states[0][j]:
-				tags.append(_loads[_coil_indices[j]].designation)
+				tags.append(_loads[indices[j]].designation)
 				break
 	return tags
 

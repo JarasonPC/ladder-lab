@@ -15,6 +15,10 @@ const POLE_SPACING: int = 2
 const MOTOR_HEIGHT: int = 4
 ## PE terminal of a three-phase motor: below left of the motor circle.
 const MOTOR_PE_CELL := Vector2i(-1, 4)
+## PLC: distance in cells between its upper and lower terminals, and from
+## one output to the next (each output's two terminals are POLE_SPACING apart).
+const PLC_HEIGHT: int = 6
+const PLC_OUTPUT_PITCH: int = 5
 
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
@@ -36,6 +40,10 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		var windings: int = (c as ThreePhaseMotor).winding_terminal_count()
 		for i: int in names.size():
 			result[names[i]] = motor_terminal_cell(i, (c as ThreePhaseMotor).kind) if i < windings else MOTOR_PE_CELL
+		return result
+	if c is Plc:
+		for i: int in names.size():
+			result[names[i]] = plc_terminal_cell(i)
 		return result
 	if c is Rectifier:
 		# AC input ~1 ~2 on top, DC output + - below.
@@ -75,6 +83,8 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		return DIR_DOWN if i < 3 else (DIR_UP if i < 6 else DIR_LEFT)
 	if c is Rectifier:
 		return DIR_DOWN if names.find(terminal_name) < 2 else DIR_UP
+	if c is Plc:
+		return DIR_DOWN if names.find(terminal_name) < Plc.output_terminal(0) else DIR_UP
 	if c is TimerRelay and names.size() == 3:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if names.size() == 3:
@@ -137,6 +147,8 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.95, 0.55, 1.9, 1.9)
 	if c is Rectifier:
 		return Rect2(-0.3, 0.4, 2.6, 2.2)
+	if c is Plc:
+		return Rect2(-1.1, 0.9, 20.2, PLC_HEIGHT - 1.8)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
 
 
@@ -152,6 +164,16 @@ static func motor_terminal_cell(index: int, kind: ThreePhaseMotor.Kind = ThreePh
 			column = (column + 1) % 3
 		return Vector2i(column * POLE_SPACING, MOTOR_HEIGHT)
 	return Vector2i(3 * POLE_SPACING, index - 5)
+
+
+## Cell of PLC terminal [param index]: supply L1 N and inputs I1-I8 along the
+## top, two cells apart; the two terminals of each output Q1-Q4 below.
+static func plc_terminal_cell(index: int) -> Vector2i:
+	var first_output: int = Plc.output_terminal(0)
+	if index < first_output:
+		return Vector2i(index * POLE_SPACING, 0)
+	var k: int = (index - first_output) / 2
+	return Vector2i(k * PLC_OUTPUT_PITCH + (index - first_output) % 2 * POLE_SPACING, PLC_HEIGHT)
 
 
 static func _is_three_pole(c: CircuitComponent) -> bool:

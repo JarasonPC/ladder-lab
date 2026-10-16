@@ -31,7 +31,9 @@ const FORMAT: String = "ladder-lab"
 ## current setting of overload relays, rating plate of three-phase motors
 ## (rated power, current, speed, power factor, starting current ratio,
 ## run-up time, whether the plate is drawn; missing before: defaults).
-const VERSION: int = 16
+## 17: PLCs ("plc") with their program (function block diagram and ladder
+## diagram).
+const VERSION: int = 17
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

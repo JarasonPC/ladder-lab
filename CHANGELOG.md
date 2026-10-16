@@ -7,6 +7,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Simulation
+- The PLC runs its program in the simulation; clicked while simulating, its window shows the
+  running program: signals that are 1, the power flow through the ladder, running times and
+  counts. Its outputs are in the timing chart and the event log
 - Real currents: every load draws current and the simulation shows how much flows in every
   wire, contact, fuse and breaker; parallel contacts share it
 - Three-phase motors behave like induction motors: a large starting current (Ia/In) until they
@@ -23,6 +26,14 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The timing chart shows the currents of motors and protective devices over time
 
 ### Schematic editor
+- A PLC (logic module) in the parts palette: supply L1-N, eight inputs I1-I8 (on with voltage
+  against N) and four relay outputs Q1-Q4, each a contact between its two terminals
+- Program the PLC in a window of its own (double-click the PLC or "Program the PLC…"): as a
+  function block diagram with inputs, outputs, flags, AND, OR, NOT, NAND, NOR, XOR,
+  on-delay, off-delay, latching relay, pulse relay and up/down counter, or as a ladder
+  diagram with NO and NC contacts, branches, coils, set and reset coils, on- and off-delay
+  timers and counters
+- New example: PLC start/stop with an on-delay
 - Rated current of fuses and breakers, characteristic B/C/D of breakers and current setting of
   overload relays, with their time-current characteristic in the properties
 - Motor rating plate: power, rated current, speed, cos φ, starting current and run-up time;

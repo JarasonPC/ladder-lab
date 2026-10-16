@@ -16,6 +16,8 @@ signal loaded
 ## A page connector was clicked while simulating: show page [param index],
 ## centred on its partner [param focus_id].
 signal page_requested(index: int, focus_id: String)
+## A PLC was clicked while simulating: show its program running.
+signal plc_requested(component_id: String)
 ## The symbols were recreated (a document was loaded, it was edited, another
 ## page was chosen) or moved.
 signal rebuilt
@@ -227,6 +229,8 @@ func set_realistic_timing(on: bool) -> void:
 		for c: CircuitComponent in document.circuit.get_components():
 			if c is Coil:
 				(c as Coil).snap()
+			elif c is Plc:
+				(c as Plc).snap()
 	if simulating:
 		_apply(simulator.step())
 
@@ -330,6 +334,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif c is LatchingSwitch:
 				(c as LatchingSwitch).toggle()
 				_apply(simulator.step())
+				get_viewport().set_input_as_handled()
+			elif c is Plc:
+				plc_requested.emit(c.id)
 				get_viewport().set_input_as_handled()
 			elif c is PageConnector:
 				var targets: Array[Dictionary] = document.connector_targets(c.id)
