@@ -46,8 +46,7 @@ func _operated() -> float:
 
 func is_interactive() -> bool:
 	if component is OverloadContact:
-		var relay: OverloadRelay = (component as OverloadContact).linked_relay
-		return relay != null and relay.tripped
+		return (component as OverloadContact).linked_relay != null
 	# A contact of a button or switch operates it too.
 	return component is PushButton or component is LatchingSwitch or (component is Contact and (component as Contact).linked_actuator != null)
 

@@ -746,6 +746,10 @@ msgid "%s switched off"
 msgstr "%s vypnut"
 
 #, c-format
+msgid "%s tripped by hand (test button)"
+msgstr "%s vybavilo ručně (testovací tlačítko)"
+
+#, c-format
 msgid "%s reset"
 msgstr "%s: reset"
 
