@@ -137,9 +137,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   resets it. A program holds both a function block diagram (PlcBlock: connectors I/Q/M/hi/lo,
   AND OR NOT NAND NOR XOR with 4/4/1/4/4/2 inputs, on-/off-delay, latching relay, pulse relay,
   up/down counter; numbered B001; worked through in signal order, a feedback loop starting at
-  the lowest number) and a ladder diagram (PlcRung: networks of 8 cell columns, cells
-  wire/NO/NC with operands I Q M T C, vertical links at the right side of a cell, a coil per
-  row: assignment, S, R, SD, SF, CU, CD; power flows column by column, linked rows share it);
+  the lowest number) and a ladder diagram (one PlcRung along one power rail, no networks: rows
+  of 8 cell columns, cells wire/NO/NC/P/N (edge contacts, closed for one scan) with operands
+  I Q M T C, vertical links at the right side of a cell, a coil per row: assignment, negated,
+  S, R, SD, SF, CU, CD; rows joined by links make a rung (PlcRung.rung_groups, numbered in the
+  margin), rungs run from the top, power flows column by column, linked rows share it; older
+  programs with several networks load as rows one after another);
   language says which one runs. Operands I1-I8, Q1-Q4, M1-M16, T1-T16, C1-C16. Saved with
   the component ("program"); damaged parts of a program are left out, never refusing the file.
   The symbol (PlcSymbol): a box with L1 N I1-I8 on top, the output contacts below (moving),
@@ -151,12 +154,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   and the language), cursor keys, ESC / OK; it sits on the first rail after the rectifiers
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
   clicking it while simulating; one per PLC. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
-  PlcCanvas, drawn on schematic paper, Ctrl+wheel zoom) switched at the top (the PLC runs the
-  one shown), a palette of tools on the left, the selection's operand / time / preset on the
-  right. In Edit mode it edits a copy and sends each finished change to main.gd, which applies
+  PlcCanvas, drawn on schematic paper in a ScrollContainer: wheel scrolls, Ctrl+wheel zooms at
+  the mouse, middle / right drag or Space+drag pans; a right press that does not move is a
+  click) switched at the top (the PLC runs the one shown), a palette of tools on the left, the
+  selection's operand / time / preset on the right. FBD: frame selection on empty paper (Shift
+  adds), the selection moves together, Ctrl+A / C / X / V (pasted at the mouse with new block
+  numbers, connections between the copies kept). LAD: the power rail runs the whole height,
+  spare rows below the last one, anything placed anywhere along it; Insert / Delete row.
+  Simulation (Edit mode, as in LOGO!Soft Comfort): a Plc of its own runs a copy of the program
+  with switches I1-I8 and lamps Q1-Q4 below the diagram and the time running; read-only meanwhile. In Edit mode it edits a copy and sends each finished change to main.gd, which applies
   it with SchematicEditor.apply_properties (undoable; Ctrl+Z / Ctrl+Y in the window too). While
   simulating it shows the simulated PLC read-only: signals that are 1, the power flow, times
-  and counts in PlcCanvas.ON. Windows rebind when the document is loaded or edited and close
+  and counts, 1 in PlcCanvas.ON (red), 0 in PlcCanvas.OFF (blue) as in the programming software. Windows rebind when the document is loaded or edited and close
   when their PLC is gone
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes

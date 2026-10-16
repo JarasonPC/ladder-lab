@@ -1,23 +1,24 @@
 class_name PlcRung
 extends RefCounted
-## One network of a ladder diagram (LAD): rows of [constant COLUMNS] cells
-## between the left power rail and a coil at the end of each row. A cell is
-## empty, a wire or a contact (NO -| |- or NC -|/|- of an operand I, Q, M,
-## T or C); a vertical link at the right side of a cell joins its row with the
-## row below (parallel branches). Coils as in Siemens ladder diagrams:
-## -( )- assignment, -(S)- set, -(R)- reset (also of a timer or counter),
-## -(SD)- on-delay timer, -(SF)- off-delay timer, -(CU)- / -(CD)- counting up
-## and down with the counter's preset.
+## A ladder diagram (LAD): rows of [constant COLUMNS] cells along the left
+## power rail, each with a coil at its end. A cell is empty, a wire or a
+## contact (NO -| |-, NC -|/|-, rising edge -|P|-, falling edge -|N|- of an
+## operand I, Q, M, T or C); a vertical link at the right side of a cell joins
+## its row with the row below (parallel branches). Rows joined by links make
+## one rung ([method rung_groups]). Coils as in Siemens ladder diagrams:
+## -( )- assignment, -(/)- negated assignment, -(S)- set, -(R)- reset (also of
+## a timer or counter), -(SD)- on-delay timer, -(SF)- off-delay timer,
+## -(CU)- / -(CD)- counting up and down with the counter's preset.
 ##
 ## Cells and coils are Dictionaries: {} for empty, {"kind": "wire"},
 ## {"kind": "no" / "nc", "operand": "I1"}; coils {"kind": "coil", "operand":
 ## "Q1"} plus "time" (timer coils, seconds) or "preset" (counter coils).
 
 const COLUMNS: int = 8
-## Most rows of one network.
-const MAX_ROWS: int = 16
-const CELL_KINDS: PackedStringArray = ["wire", "no", "nc"]
-const COIL_KINDS: PackedStringArray = ["coil", "set", "reset", "on_delay", "off_delay", "count_up", "count_down"]
+## Most rows of a ladder diagram.
+const MAX_ROWS: int = 256
+const CELL_KINDS: PackedStringArray = ["wire", "no", "nc", "pos", "neg"]
+const COIL_KINDS: PackedStringArray = ["coil", "coil_not", "set", "reset", "on_delay", "off_delay", "count_up", "count_down"]
 
 var _cells: Array[Dictionary] = []
 ## One per cell: 1 where a vertical link joins the right side of the cell
@@ -41,6 +42,61 @@ func add_row() -> void:
 		_cells.append({})
 	_links.resize(_links.size() + COLUMNS)
 	_coils.append({})
+
+
+## Inserts an empty row before [param row]; links that crossed the gap are
+## kept across it.
+func insert_row(row: int) -> void:
+	if row_count() >= MAX_ROWS or row < 0 or row > row_count():
+		return
+	for c: int in COLUMNS:
+		_cells.insert(row * COLUMNS, {})
+	var fresh: PackedByteArray = PackedByteArray()
+	fresh.resize(COLUMNS)
+	if row > 0:
+		for c: int in COLUMNS:
+			fresh[c] = _links[(row - 1) * COLUMNS + c]
+	var before: PackedByteArray = _links.slice(0, row * COLUMNS)
+	before.append_array(fresh)
+	before.append_array(_links.slice(row * COLUMNS))
+	_links = before
+	_coils.insert(row, {})
+
+
+## Appends the rows of [param other] below these.
+func append(other: PlcRung) -> void:
+	var start: int = row_count()
+	if is_empty():
+		start = 0
+		_cells.clear()
+		_links.clear()
+		_coils.clear()
+	for r: int in other.row_count():
+		if row_count() >= MAX_ROWS:
+			return
+		add_row()
+		for c: int in COLUMNS:
+			_cells[(start + r) * COLUMNS + c] = other.get_cell(r, c).duplicate()
+			_links[(start + r) * COLUMNS + c] = 1 if other.has_link(r, c) else 0
+		_coils[start + r] = other.get_coil(r).duplicate()
+
+
+## Rows grouped into rungs: each group is the first and the last row of rows
+## joined by vertical links, top to bottom; empty rows are left out.
+func rung_groups() -> Array[Vector2i]:
+	var groups: Array[Vector2i] = []
+	var r0: int = 0
+	while r0 < row_count():
+		var r1: int = r0
+		while r1 < row_count() - 1 and _row_has_links(r1):
+			r1 += 1
+		var empty: bool = true
+		for r: int in range(r0, r1 + 1):
+			empty = empty and is_row_empty(r)
+		if not empty:
+			groups.append(Vector2i(r0, r1))
+		r0 = r1 + 1
+	return groups
 
 
 func remove_row(row: int) -> void:
@@ -141,9 +197,9 @@ func _joined_right(row: int, column: int) -> bool:
 ## Areas of the operands a cell or coil kind can name ("IQMTC" ...).
 static func operand_areas(kind: String) -> String:
 	match kind:
-		"no", "nc":
+		"no", "nc", "pos", "neg":
 			return "IQMTC"
-		"coil", "set":
+		"coil", "coil_not", "set":
 			return "QM"
 		"reset":
 			return "QMTC"
@@ -211,7 +267,7 @@ static func _valid_cell(d: Variant) -> Dictionary:
 	var kind: String = str((d as Dictionary).get("kind", ""))
 	if kind == "wire":
 		return {"kind": "wire"}
-	if kind != "no" and kind != "nc":
+	if not ["no", "nc", "pos", "neg"].has(kind):
 		return {}
 	var op: String = str((d as Dictionary).get("operand", ""))
 	return {"kind": kind, "operand": op} if PlcProgram.valid_operand(op, operand_areas(kind)) else {}

@@ -23,9 +23,11 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   DC braking of motors.
 - **PLC programming**: the PLC's program in a window of its own, as a function block
   diagram (FBD: AND, OR, NOT, NAND, NOR, XOR, on- and off-delays, latching and pulse relays,
-  up/down counter) or a ladder diagram (LAD: contacts, coils, set/reset, timer and counter
-  coils), in the style of Siemens programming software; while simulating it shows the
-  running program (signals, power flow, times and counts).
+  up/down counter) or a ladder diagram (LAD: one endless power rail, NO/NC and edge contacts,
+  coils, negated coils, set/reset, timer and counter coils), in the style of Siemens programming
+  software; a built-in simulation with input switches and output lamps tests the program on its
+  own, and while the schematic is simulated it shows the running program (signals, power flow,
+  times and counts).
 - **Control panel**: control boxes with push buttons, selector switches and signal lamps
   that operate the simulated circuit.
 - **Switchboard** (rozvaděč): DIN rails with the breakers, fuse holders, contactors,

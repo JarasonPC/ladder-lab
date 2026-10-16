@@ -26,6 +26,15 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The timing chart shows the currents of motors and protective devices over time
 
 ### Schematic editor
+- PLC window: the diagrams pan with the middle or right mouse button (or Space and drag), the
+  wheel scrolls and Ctrl+wheel zooms at the mouse
+- Function block diagram: select several blocks with a frame, move them together, copy, cut and
+  paste them (Ctrl+C, Ctrl+X, Ctrl+V) with the connections between them
+- Ladder diagram as in LOGO!Soft Comfort: one power rail down the whole diagram, no networks to
+  add; rows joined by branches make a rung, numbered on the left; rising and falling edge
+  contacts (P, N), negated coils, inserting and deleting rows
+- PLC simulation in the program window: switch the inputs I1-I8 and watch the outputs Q1-Q4,
+  timers and counters, without simulating the schematic; signals that are 1 are red, 0 blue
 - A PLC (logic module) in the parts palette: supply L1-N, eight inputs I1-I8 (on with voltage
   against N) and four relay outputs Q1-Q4, each a contact between its two terminals
 - Program the PLC in a window of its own (double-click the PLC or "Program the PLC…"): as a

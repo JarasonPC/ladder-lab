@@ -1654,3 +1654,63 @@ msgstr ""
 
 msgid "Counts each time the coil gets power. The counter's contacts C close when the count has reached the preset."
 msgstr ""
+
+msgid "Stop simulation"
+msgstr ""
+
+msgid "Test the program on its own: switch the inputs and watch the outputs"
+msgstr ""
+
+msgid "Simulation: switch the inputs below; red is 1, blue is 0"
+msgstr ""
+
+msgid "Middle or right drag (or Space+drag) pans, Ctrl+wheel zooms."
+msgstr ""
+
+msgid "Click an element to see its state."
+msgstr ""
+
+msgid "Drag an output (right) to an input (left) to connect; drag on empty paper to select several blocks."
+msgstr ""
+
+msgid "Click a place to select it; Delete removes it, Insert puts an empty row above it."
+msgstr ""
+
+msgid "Insert row"
+msgstr ""
+
+msgid "An empty row above this one (Insert)"
+msgstr ""
+
+msgid "Delete row"
+msgstr ""
+
+msgid "Blocks selected"
+msgstr ""
+
+msgid "Drag one of them to move them all. Ctrl+C copies them, Ctrl+V pastes them at the mouse, Delete removes them."
+msgstr ""
+
+msgid "Rising edge contact"
+msgstr ""
+
+msgid "Falling edge contact"
+msgstr ""
+
+msgid "Negated coil"
+msgstr ""
+
+msgid "Empty place"
+msgstr ""
+
+msgid "Choose a contact, wire or coil in the palette and click here to put it in."
+msgstr ""
+
+msgid "Closed for one program cycle when its operand goes from 0 to 1."
+msgstr ""
+
+msgid "Closed for one program cycle when its operand goes from 1 to 0."
+msgstr ""
+
+msgid "Its operand is 0 while the coil gets power, 1 otherwise."
+msgstr ""

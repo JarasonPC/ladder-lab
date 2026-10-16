@@ -7,11 +7,14 @@ extends PlcCanvas
 ## count below.
 ##
 ## Editing: choose a block in the palette and click to place it (repeatedly,
-## Esc or a right click ends it); drag a block to move it; drag from a block's
-## output (right) to another block's input (left) to connect them (an input
-## takes one connection, a new one replaces it); drag a connection away from
-## an input or right click the input to remove it; Delete removes the
-## selected block.
+## Esc or a right click ends it); drag a block to move it, drag on empty
+## paper to select the blocks in a frame (Shift adds to the selection) and
+## drag one of them to move them all; drag from a block's output (right) to
+## another block's input (left) to connect them (an input takes one
+## connection, a new one replaces it); drag a connection away from an input
+## or right click the input to remove it. Delete removes the selected
+## blocks, Ctrl+A selects all, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste
+## them (with the connections between them) at the mouse.
 
 ## Pixels per grid cell at zoom 1.
 const U: float = 20.0
@@ -25,14 +28,25 @@ const PIN_RADIUS: float = 0.45
 const SYMBOLS: Dictionary[String, String] = {"hi": "hi", "lo": "lo", "and": "&", "or": "≥1", "not": "1", "nand": "&", "nor": "≥1", "xor": "=1", "on_delay": "TON", "off_delay": "TOF", "latch": "RS", "pulse_relay": "TT", "counter": "CTUD"}
 const NEGATED: PackedStringArray = ["not", "nand", "nor"]
 
-## Number of the selected block, 0 for none.
+## Number of the selected block shown in the side panel, 0 for none.
 var selected: int = 0
+## Every selected block (the one in [member selected] among them).
+var chosen: Dictionary[int, bool] = {}
+
+## Blocks copied with Ctrl+C (saved block data), shared by all diagrams.
+static var _clipboard: Array[Dictionary] = []
 
 var _mouse: Vector2 = Vector2.ZERO
-## Moving a block: its number, the grab point inside it (cells), whether it moved.
+## Moving blocks: the block grabbed, the grab point (cells), where each
+## selected block started, whether they moved.
 var _drag_block: int = 0
 var _drag_grab: Vector2 = Vector2.ZERO
+var _drag_start: Dictionary[int, Vector2i] = {}
 var _drag_moved: bool = false
+## Selecting with a frame dragged on empty paper: its first corner (pixels).
+var _band: bool = false
+var _band_from: Vector2 = Vector2.ZERO
+var _band_adds: bool = false
 ## Drawing a connection from the output of block [member _wire_from].
 var _wire_from: int = 0
 
@@ -163,16 +177,20 @@ func _cells(pixel: Vector2) -> Vector2:
 
 
 func _content_size() -> Vector2:
-	var extent: Vector2 = Vector2(40, 24)
+	# Room beyond the blocks to place more and to drag them further.
+	var extent: Vector2 = Vector2(60, 40)
 	if program != null:
 		for b: PlcBlock in program.blocks:
-			extent = extent.max(Vector2(b.cell + block_size(b)) + Vector2(6, 4))
+			extent = extent.max(Vector2(b.cell + block_size(b)) + Vector2(24, 16))
 	return (extent + Vector2(MARGIN, MARGIN)) * U
 
 
 func _program_shown() -> void:
 	if program == null or program.block(selected) == null:
 		selected = 0
+	for id: int in chosen.keys():
+		if program == null or program.block(id) == null:
+			chosen.erase(id)
 	_drag_block = 0
 	_wire_from = 0
 
@@ -181,6 +199,8 @@ func _program_shown() -> void:
 
 func selection_info() -> Dictionary:
 	var b: PlcBlock = program.block(selected) if program != null else null
+	if b == null and chosen.size() > 1:
+		return {"title": "Blocks selected", "label": str(chosen.size()), "help": "Drag one of them to move them all. Ctrl+C copies them, Ctrl+V pastes them at the mouse, Delete removes them."}
 	if b == null:
 		return {}
 	var info: Dictionary = {"title": type_title(b.type), "label": b.label(), "help": type_help(b.type)}
@@ -213,9 +233,13 @@ func set_property(key: String, value: Variant) -> void:
 
 
 func delete_selection() -> void:
-	if not editable() or program.block(selected) == null:
+	if selected > 0:
+		chosen[selected] = true
+	if not editable() or chosen.is_empty():
 		return
-	program.remove_block(selected)
+	for id: int in chosen:
+		program.remove_block(id)
+	chosen.clear()
 	selected = 0
 	update_size()
 	queue_redraw()
@@ -239,55 +263,139 @@ func _live_text(b: PlcBlock) -> String:
 func _canvas_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_mouse = (event as InputEventMouseMotion).position
-		if _drag_block > 0 and editable():
-			var b: PlcBlock = program.block(_drag_block)
-			if b != null:
-				var to: Vector2i = Vector2i((_cells(_mouse) - _drag_grab).round())
-				to = to.max(Vector2i(0, 0))
-				if to != b.cell:
-					b.cell = to
-					_drag_moved = true
-					update_size()
+		if _drag_block > 0 and editable() and program.block(_drag_block) != null:
+			var grabbed: PlcBlock = program.block(_drag_block)
+			var to: Vector2i = Vector2i((_cells(_mouse) - _drag_grab).round())
+			var by: Vector2i = to - _drag_start[_drag_block]
+			# The whole selection moves, none of it past the top left edge.
+			for id: int in _drag_start:
+				by = by.max(-_drag_start[id])
+			if _drag_start[_drag_block] + by != grabbed.cell:
+				for id: int in _drag_start:
+					program.block(id).cell = _drag_start[id] + by
+				_drag_moved = true
+				update_size()
 		queue_redraw()
 	elif event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		_mouse = mb.position
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				_press()
+				_press(mb.shift_pressed)
 			else:
 				_release()
 			accept_event()
-		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			if not tool.is_empty() or _wire_from > 0:
-				_wire_from = 0
-				tool_finished.emit()
-			elif editable():
-				var pin: Vector2i = _input_pin_at(_cells(_mouse))
-				if pin.x > 0 and program.block(pin.x).inputs[pin.y] > 0:
-					program.block(pin.x).inputs[pin.y] = 0
-					changed.emit()
-			queue_redraw()
-			accept_event()
 	elif event is InputEventKey and (event as InputEventKey).pressed:
 		var key: InputEventKey = event as InputEventKey
-		if key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE:
-			delete_selection()
-			accept_event()
-		elif key.keycode == KEY_ESCAPE and (not tool.is_empty() or _wire_from > 0):
-			_wire_from = 0
-			tool_finished.emit()
+		var ctrl: bool = key.ctrl_pressed or key.meta_pressed
+		var handled: bool = true
+		match key.keycode:
+			KEY_DELETE, KEY_BACKSPACE:
+				delete_selection()
+			KEY_ESCAPE:
+				if not tool.is_empty() or _wire_from > 0:
+					_wire_from = 0
+					tool_finished.emit()
+				else:
+					_select_none()
+			KEY_A when ctrl:
+				select_all()
+			KEY_C when ctrl:
+				copy_selection()
+			KEY_X when ctrl:
+				copy_selection()
+				delete_selection()
+			KEY_V when ctrl:
+				paste()
+			_:
+				handled = false
+		if handled:
 			queue_redraw()
 			accept_event()
 
 
-func _press() -> void:
+func _right_click(at: Vector2) -> void:
+	_mouse = at
+	if not tool.is_empty() or _wire_from > 0:
+		_wire_from = 0
+		tool_finished.emit()
+	elif editable():
+		var pin: Vector2i = _input_pin_at(_cells(_mouse))
+		if pin.x > 0 and program.block(pin.x).inputs[pin.y] > 0:
+			program.block(pin.x).inputs[pin.y] = 0
+			changed.emit()
+	queue_redraw()
+
+
+func select_all() -> void:
+	chosen.clear()
+	for b: PlcBlock in program.blocks:
+		chosen[b.id] = true
+	selected = program.blocks[0].id if program.blocks.size() == 1 else 0
+	selection_changed.emit()
+	queue_redraw()
+
+
+func _select_none() -> void:
+	chosen.clear()
+	selected = 0
+	selection_changed.emit()
+
+
+## Copies the selected blocks to the clipboard.
+func copy_selection() -> void:
+	if selected > 0:
+		chosen[selected] = true
+	if chosen.is_empty():
+		return
+	_clipboard.clear()
+	for b: PlcBlock in program.blocks:
+		if chosen.has(b.id):
+			_clipboard.append(b.to_data())
+
+
+## Adds copies of the clipboard's blocks with their top left at the mouse
+## (or beside the originals): new numbers, connections between them kept,
+## connections from blocks not copied dropped. The copies are selected.
+func paste() -> void:
+	if not editable() or _clipboard.is_empty():
+		return
+	var top_left: Vector2i = Vector2i(1 << 20, 1 << 20)
+	for d: Dictionary in _clipboard:
+		top_left = top_left.min(Vector2i(int(d["cell"][0]), int(d["cell"][1])))
+	var at: Vector2i = Vector2i(_cells(_mouse).floor()).max(Vector2i.ZERO)
+	if not Rect2(Vector2.ZERO, size).has_point(_mouse):
+		at = top_left + Vector2i(2, 2)
+	var ids: Dictionary[int, int] = {}
+	var copies: Array[PlcBlock] = []
+	for d: Dictionary in _clipboard:
+		var copy: PlcBlock = PlcBlock.from_data(d)
+		if copy == null or program.blocks.size() >= PlcProgram.MAX_BLOCKS:
+			continue
+		ids[copy.id] = program.next_block_id()
+		copy.id = ids[copy.id]
+		copy.cell = copy.cell - top_left + at
+		program.blocks.append(copy)
+		copies.append(copy)
+	chosen.clear()
+	for copy: PlcBlock in copies:
+		for p: int in copy.inputs.size():
+			copy.inputs[p] = ids.get(copy.inputs[p], 0)
+		chosen[copy.id] = true
+	selected = copies[0].id if copies.size() == 1 else 0
+	update_size()
+	selection_changed.emit()
+	changed.emit()
+
+
+func _press(shift: bool) -> void:
 	var at: Vector2 = _cells(_mouse)
 	if not tool.is_empty():
 		if editable():
 			var b: PlcBlock = program.add_block(tool, _place_cell(at))
 			if b != null:
 				selected = b.id
+				chosen = {b.id: true}
 				update_size()
 				selection_changed.emit()
 				changed.emit()
@@ -304,10 +412,31 @@ func _press() -> void:
 			program.block(pin.x).inputs[pin.y] = 0
 			return
 	var hit: PlcBlock = _block_at(at)
-	selected = hit.id if hit != null else 0
-	if hit != null and editable():
+	if hit == null:
+		# A frame on empty paper selects what it touches.
+		_band = true
+		_band_from = _mouse
+		_band_adds = shift
+		if not shift:
+			chosen.clear()
+			selected = 0
+		selection_changed.emit()
+		queue_redraw()
+		return
+	if shift and chosen.has(hit.id):
+		chosen.erase(hit.id)
+		selected = 0
+	else:
+		if not chosen.has(hit.id) and not shift:
+			chosen.clear()
+		chosen[hit.id] = true
+		selected = hit.id
+	if editable() and chosen.has(hit.id):
 		_drag_block = hit.id
 		_drag_grab = at - Vector2(hit.cell)
+		_drag_start.clear()
+		for id: int in chosen:
+			_drag_start[id] = program.block(id).cell
 		_drag_moved = false
 	selection_changed.emit()
 	queue_redraw()
@@ -322,6 +451,14 @@ func _release() -> void:
 		changed.emit()
 	elif _drag_block > 0 and _drag_moved:
 		changed.emit()
+	elif _band:
+		var frame: Rect2 = Rect2(_cells(_band_from), Vector2.ZERO).expand(_cells(_mouse))
+		for b: PlcBlock in program.blocks:
+			if frame.intersects(body_rect(b)):
+				chosen[b.id] = true
+		selected = chosen.keys()[0] if chosen.size() == 1 else 0
+		selection_changed.emit()
+	_band = false
 	_drag_block = 0
 	queue_redraw()
 
@@ -382,6 +519,10 @@ func _draw() -> void:
 	if not tool.is_empty() and editable() and get_rect().has_point(_mouse + position):
 		var ghost: PlcBlock = PlcBlock.new(0, tool, _place_cell(_cells(_mouse)))
 		_draw_block(ghost, Color(1, 1, 1, 0.45))
+	if _band:
+		var frame: Rect2 = Rect2(_band_from, Vector2.ZERO).expand(_mouse)
+		draw_rect(frame, Color(AppTheme.accent, 0.12))
+		draw_rect(frame, AppTheme.accent, false, 1.0)
 
 
 func _draw_grid() -> void:
@@ -450,7 +591,7 @@ func _draw_block(b: PlcBlock, tint: Color) -> void:
 	if runtime != null and on and connector:
 		fill = Color(ON, 0.25)
 	draw_rect(r, fill)
-	if b.id == selected and b.id > 0:
+	if b.id > 0 and (b.id == selected or chosen.has(b.id)):
 		draw_rect(r.grow(4.0 * zoom), Color(AppTheme.accent, 0.25))
 	draw_rect(r, line, false, 1.6 * zoom)
 	# Input leads with their names.

@@ -1,10 +1,14 @@
 class_name PlcCanvas
 extends Control
 ## Base of the diagrams of the PLC program window ([PlcFbdCanvas],
-## [PlcLadCanvas]): drawn on schematic paper with _draw(), zoomed with
-## Ctrl+wheel. Editing changes [member program] in place and reports it with
+## [PlcLadCanvas]): drawn on schematic paper with _draw(). The wheel scrolls
+## (Shift+wheel sideways), Ctrl+wheel zooms, dragging with the middle or
+## right button or with Space held moves the view (in the [ScrollContainer]
+## it sits in). Editing changes [member program] in place and reports it with
 ## [signal changed]; while monitoring (a [member runtime] is given) nothing
-## can be changed and the signals are drawn in [constant ON] where they are 1.
+## can be changed and, as in the simulation of the programming software,
+## signals that are 1 are drawn in [constant ON] (red), signals that are 0 in
+## [constant OFF] (blue).
 ##
 ## Palette tools: [method tools] lists them, [member tool] is the one in use
 ## ("" selects and moves).
@@ -16,8 +20,12 @@ signal selection_changed
 ## The tool ended (Esc or right click): the palette goes back to selecting.
 signal tool_finished
 
-## Colour of a signal that is 1 while monitoring (as in PLC programming software).
-const ON := Color(0.1, 0.66, 0.28)
+## Colours of a signal that is 1 and of one that is 0 while monitoring.
+const ON := Color("e0201b")
+const OFF := Color("2f6fd4")
+## Mouse travel (pixels) after which a right button press moves the view
+## instead of clicking.
+const PAN_SLOP: float = 5.0
 const MIN_ZOOM: float = 0.5
 const MAX_ZOOM: float = 2.5
 
@@ -34,11 +42,18 @@ var tool: String = "":
 		tool = value
 		queue_redraw()
 
+## Moving the view: the button doing it (MOUSE_BUTTON_NONE when not), where
+## it went down, whether it moved far enough.
+var _pan_button: MouseButton = MOUSE_BUTTON_NONE
+var _pan_from: Vector2 = Vector2.ZERO
+var _panned: bool = false
+
 
 func _init() -> void:
 	focus_mode = Control.FOCUS_ALL
 	clip_contents = true
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	# Unused wheel turns go on to the ScrollContainer, which scrolls.
+	mouse_filter = Control.MOUSE_FILTER_PASS
 
 
 ## Shows [param p]; with [param p_runtime] its running state (monitoring,
@@ -96,13 +111,69 @@ func update_size() -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb != null and mb.pressed and (mb.ctrl_pressed or mb.meta_pressed) and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
-		zoom *= 1.1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1
+	if mb != null and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
+		if mb.pressed and (mb.ctrl_pressed or mb.meta_pressed) and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			_zoom_at(1.1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1, mb.position)
+			accept_event()
+		return
+	if _pan_input(event):
 		accept_event()
 		return
 	if mb != null and mb.pressed:
 		grab_focus()
 	_canvas_input(event)
+
+
+## Moves the view by middle or right dragging, or left dragging with Space
+## held. Returns true when [param event] was taken for it. A right press
+## that does not move is handed on as a click on its release.
+func _pan_input(event: InputEvent) -> bool:
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if mb != null:
+		var space: bool = mb.button_index == MOUSE_BUTTON_LEFT and Input.is_key_pressed(KEY_SPACE)
+		if mb.pressed and _pan_button == MOUSE_BUTTON_NONE and (mb.button_index == MOUSE_BUTTON_MIDDLE or mb.button_index == MOUSE_BUTTON_RIGHT or space):
+			_pan_button = mb.button_index
+			_pan_from = mb.global_position
+			_panned = mb.button_index != MOUSE_BUTTON_RIGHT
+			grab_focus()
+			return true
+		if not mb.pressed and mb.button_index == _pan_button:
+			var clicked: bool = _pan_button == MOUSE_BUTTON_RIGHT and not _panned
+			_pan_button = MOUSE_BUTTON_NONE
+			if clicked:
+				_right_click(mb.position)
+			return true
+		return false
+	var motion: InputEventMouseMotion = event as InputEventMouseMotion
+	if motion != null and _pan_button != MOUSE_BUTTON_NONE:
+		if not _panned and motion.global_position.distance_to(_pan_from) >= PAN_SLOP:
+			_panned = true
+		if _panned:
+			scroll_by(-motion.relative)
+		return true
+	return false
+
+
+## Scrolls the [ScrollContainer] the diagram sits in by [param pixels].
+func scroll_by(pixels: Vector2) -> void:
+	var scroll: ScrollContainer = get_parent() as ScrollContainer
+	if scroll != null:
+		scroll.scroll_horizontal += roundi(pixels.x)
+		scroll.scroll_vertical += roundi(pixels.y)
+
+
+## Zooms by [param factor] keeping the diagram point under [param at] where it is.
+func _zoom_at(factor: float, at: Vector2) -> void:
+	var before: float = zoom
+	zoom *= factor
+	var shift: Vector2 = at * (zoom / before - 1.0)
+	await get_tree().process_frame
+	scroll_by(shift)
+
+
+## A right click (that did not move the view) at [param _at]. Override.
+func _right_click(_at: Vector2) -> void:
+	pass
 
 
 ## Mouse and keys on the diagram. Override.
@@ -114,9 +185,12 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), SchematicTheme.BACKGROUND)
 
 
-## Line colour of a signal: [constant ON] while monitoring when [param on].
+## Line colour of a signal: [constant ON] or [constant OFF] while
+## monitoring, else the line colour.
 func signal_color(on: bool) -> Color:
-	return ON if runtime != null and on else SchematicTheme.LINE
+	if runtime == null:
+		return SchematicTheme.LINE
+	return ON if on else OFF
 
 
 ## Text centred on [param at] ([param align] -1 left from it, 1 right up to it).
