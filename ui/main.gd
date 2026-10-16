@@ -101,6 +101,11 @@ var _properties: PropertiesPanel
 var _control_panel: ControlPanel
 var _panel_toggle: Button
 var _show_control_panel: bool = true
+## Switchboard with the DIN rails (both modes).
+var _cabinet_panel: CabinetPanel
+var _cabinet_bar: SideBar
+var _cabinet_toggle: Button
+var _show_cabinet: bool = false
 var _check_panel: CheckPanel
 var _status_label: Label
 var _hint_label: Label
@@ -164,6 +169,11 @@ func _ready() -> void:
 	_control_panel.edit_requested.connect(editor.edit_control_panel)
 	_control_panel.button_held.connect(view.hold_button)
 	_control_panel.switch_toggled.connect(view.toggle_switch)
+	view.loaded.connect(func() -> void: _cabinet_panel.set_document(view.document, mode == Mode.EDIT))
+	view.stepped.connect(_cabinet_panel.show_step)
+	editor.edited.connect(_cabinet_panel.refresh)
+	_cabinet_panel.edit_requested.connect(editor.edit_cabinet)
+	_cabinet_panel.operate_requested.connect(view.operate_device)
 	editor.active = true
 	_load_example()
 
@@ -279,6 +289,9 @@ func _build_ui() -> void:
 	_panel_toggle = _tool(bar, func() -> void: _set_control_panel(_panel_toggle.button_pressed), "panel")
 	_panel_toggle.toggle_mode = true
 	_panel_toggle.button_pressed = _show_control_panel
+	_cabinet_toggle = _tool(bar, func() -> void: _set_cabinet(_cabinet_toggle.button_pressed), "cabinet")
+	_cabinet_toggle.toggle_mode = true
+	_cabinet_toggle.button_pressed = _show_cabinet
 	bar.add_child(VSeparator.new())
 
 	_edit_tools = HBoxContainer.new()
@@ -368,6 +381,8 @@ func _build_ui() -> void:
 	_side_bar = _side_panel(middle, _side, "properties", true)
 	_control_panel = ControlPanel.new()
 	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
+	_cabinet_panel = CabinetPanel.new()
+	_cabinet_bar = _side_panel(middle, _cabinet_panel, "cabinet", true)
 
 	_timing_panel = TimingPanel.new()
 	_timing_panel.panel_height = _timing_size.y
@@ -535,6 +550,7 @@ func _retranslate() -> void:
 	_delete_button.tooltip_text = tr("Delete") + "  (Del)"
 	_numbers_toggle.tooltip_text = tr("Show wire numbers (drag a number to move it)")
 	_panel_toggle.tooltip_text = tr("Show the control panel: boxes with the push buttons, switches and signal lamps")
+	_cabinet_toggle.tooltip_text = tr("Show the switchboard: DIN rails with the breakers, fuses, contactors, relays and terminals")
 	_number_button.tooltip_text = tr("Number the wires: every net gets its own number, all wire ends of a net the same")
 	_check_button.text = tr("Check")
 	_check_button.tooltip_text = tr("Look for unconnected terminals, contacts without a coil and other mistakes")
@@ -558,9 +574,10 @@ func _retranslate() -> void:
 	_page_tabs.tooltip_text = tr("Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more")
 	_refresh_pages()
 	_palette.retranslate()
-	for bar: SideBar in [_palette_bar, _side_bar, _control_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _control_bar, _cabinet_bar]:
 		bar.retranslate()
 	_control_panel.retranslate()
+	_cabinet_panel.retranslate()
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
@@ -694,7 +711,7 @@ func _apply_ui_scale() -> void:
 func _side_panel(parent: Control, content: Control, key: String, grip_left: bool) -> SideBar:
 	var bar: SideBar = SideBar.new(content, grip_left)
 	bar.name = key
-	var saved: Vector2 = _bar_settings.get(key, Vector2(250.0, 1.0))
+	var saved: Vector2 = _bar_settings.get(key, Vector2(340.0 if key == "cabinet" else 250.0, 1.0))
 	bar.width = saved.x
 	bar.zoom = saved.y
 	bar.changed.connect(_save_settings)
@@ -706,6 +723,14 @@ func _set_control_panel(on: bool) -> void:
 	_show_control_panel = on
 	_panel_toggle.set_pressed_no_signal(on)
 	_control_bar.visible = on
+	_save_settings()
+	_fit_camera_later()
+
+
+func _set_cabinet(on: bool) -> void:
+	_show_cabinet = on
+	_cabinet_toggle.set_pressed_no_signal(on)
+	_cabinet_bar.visible = on
 	_save_settings()
 	_fit_camera_later()
 
@@ -725,6 +750,7 @@ func _update_mode_ui() -> void:
 	_palette_bar.visible = editing
 	_side_bar.visible = editing
 	_control_bar.visible = _show_control_panel
+	_cabinet_bar.visible = _show_cabinet
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
@@ -1205,9 +1231,11 @@ func _load_settings() -> void:
 		_edit_grid = bool(config.get_value("view", "grid", false))
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
 		_show_control_panel = bool(config.get_value("view", "control_panel", true))
+		_show_cabinet = bool(config.get_value("view", "cabinet", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
 		for key: String in ["palette", "properties", "control_panel"]:
 			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", 250.0)), float(config.get_value("view", key + "_zoom", 1.0)))
+		_bar_settings["cabinet"] = Vector2(float(config.get_value("view", "cabinet_width", 340.0)), float(config.get_value("view", "cabinet_zoom", 1.0)))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 
@@ -1224,10 +1252,11 @@ func _save_settings() -> void:
 	config.set_value("view", "grid", _edit_grid)
 	config.set_value("view", "wire_numbers", _wire_numbers)
 	config.set_value("view", "control_panel", _show_control_panel)
+	config.set_value("view", "cabinet", _show_cabinet)
 	if _timing_panel != null:
 		config.set_value("view", "timing_height", _timing_panel.panel_height)
 		config.set_value("view", "event_log_width", _timing_panel.log_width)
-	for bar: SideBar in [_palette_bar, _side_bar, _control_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _control_bar, _cabinet_bar]:
 		if bar != null:
 			config.set_value("view", bar.name + "_width", bar.width)
 			config.set_value("view", bar.name + "_zoom", bar.zoom)

@@ -3,9 +3,9 @@ extends RefCounted
 ## Parts of the switchboard (rozvaděč) drawn to their real sizes in
 ## millimetres with a [CabinetPainter]: DIN rails, wire ducts, terminal
 ## blocks, circuit breakers, fuse holders, contactors, overload relays,
-## relays and time relays. Each part is drawn with its top-left corner at the
-## painter's origin; DIN-rail parts are centred on the rail.
-## PREVIEW: every part has look variants ("A", "B", "C") to choose from.
+## relays and time relays, after photos of real devices but without maker
+## names. Each part is drawn with its top-left corner at the painter's
+## origin; DIN-rail parts are centred on the rail.
 
 ## Height of a modular device (breaker, fuse holder, time relay).
 const MODULE_H: float = 90.0
@@ -17,40 +17,19 @@ const TERMINAL := Vector2(5.2, 47.0)
 const END_STOP_W: float = 9.0
 const RAIL_H: float = 35.0
 
-const WHITE := Color("eef0f1")
-const WHITE_SHADE := Color("d6dade")
-const WHITE_EDGE := Color("9aa1a7")
-const LIGHT_GREY := Color("c4c9cd")
-const DARK_GREY := Color("53585e")
 const HOLE := Color("1d1f22")
 const METAL := Color("d3d7da")
 const METAL_DARK := Color("868c92")
 const PRINT := Color("34383d")
-const PRINT_LIGHT := Color("eceef0")
 const LED_GREEN := Color("39d353")
 const LED_RED := Color("ff4545")
 const LED_YELLOW := Color("ffb000")
 const LED_OFF := Color("4a4d50")
 const TRIP := Color("ff8a1f")
 const DIAL_BLUE := Color("2f6fd4")
-const STOP_RED := Color("d63b3b")
 
 
 # --- Common details -------------------------------------------------------------
-
-## Terminal screw seen from the front: a dark opening with a combination
-## screw in it; [param reach] colours a ring around it (voltage reach).
-static func screw(p: CabinetPainter, center: Vector2, radius: float = 2.6, reach: Color = Color.TRANSPARENT) -> void:
-	var hole: float = radius * 1.15
-	p.rect(Rect2(center - Vector2(hole, hole), Vector2(hole, hole) * 2.0), HOLE, radius * 0.35)
-	if reach.a > 0.0:
-		p.ring(center, radius * 0.98, reach, 0.6)
-	p.circle(center, radius * 0.8, METAL, METAL_DARK, 0.15)
-	p.circle(center + Vector2(-0.25, -0.25) * radius, radius * 0.35, Color(1, 1, 1, 0.35))
-	var s: float = radius * 0.5
-	p.line(center + Vector2(-s, 0), center + Vector2(s, 0), METAL_DARK, radius * 0.16)
-	p.line(center + Vector2(0, -s), center + Vector2(0, s), METAL_DARK, radius * 0.16)
-
 
 static func led(p: CabinetPainter, center: Vector2, color: Color, lit: bool, radius: float = 1.1) -> void:
 	if lit:
@@ -61,53 +40,50 @@ static func led(p: CabinetPainter, center: Vector2, color: Color, lit: bool, rad
 		p.circle(center + Vector2(-0.3, -0.3) * radius, radius * 0.4, Color(1, 1, 1, 0.7))
 
 
-## Designation label: "A" white plate, "B" teal print, "C" yellow plate.
-static func label(p: CabinetPainter, center: Vector2, text: String, variant: String = "A", width_mm: float = 16.0) -> void:
-	match variant:
-		"B":
-			p.text_centered(center, text, 3.4, Color("2c8b86"), true, width_mm + 6.0)
-		"C":
-			p.rect(Rect2(center - Vector2(width_mm * 0.5, 2.6), Vector2(width_mm, 5.2)), Color("f4d23c"), 0.5, Color("b89a14"), 0.15)
-			p.text_centered(center, text, 3.2, PRINT, true, width_mm - 1.0)
-		_:
-			p.rect(Rect2(center - Vector2(width_mm * 0.5, 2.6), Vector2(width_mm, 5.2)), Color("fbfbf8"), 0.5, Color(0, 0, 0, 0.35), 0.15)
-			p.text_centered(center, text, 3.2, Color("111111"), true, width_mm - 1.0)
+## White designation label ("-KM1") centred on [param center].
+static func label(p: CabinetPainter, center: Vector2, text: String, width_mm: float = 16.0) -> void:
+	p.rect(Rect2(center - Vector2(width_mm * 0.5, 2.6), Vector2(width_mm, 5.2)), Color("fbfbf8"), 0.5, Color(0, 0, 0, 0.35), 0.15)
+	p.text_centered(center, text, 3.2, Color("111111"), true, width_mm - 1.0)
 
 
-## Body of a modular device: shoulders with the terminals at the top and
-## the bottom, a raised front cap in the middle.
-static func _modular_body(p: CabinetPainter, w: float, body: Color, shade: Color, edge: Color) -> void:
-	p.rect(Rect2(0, 0, w, MODULE_H), shade, 1.2, edge, 0.2)
-	p.gradient(Rect2(0.6, 21.0, w - 1.2, 48.0), body.lightened(0.15), body, 1.0, edge, 0.15)
+## An empty place [param size] mm big for a device the circuit no longer
+## has: a dashed outline with its name.
+static func missing(p: CabinetPainter, size: Vector2, text: String) -> void:
+	var r: Rect2 = Rect2(Vector2.ZERO, size)
+	p.rect(r, Color(0, 0, 0, 0.06), 1.0)
+	var corners: Array[Vector2] = [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+	for k: int in 4:
+		var a: Vector2 = corners[k]
+		var b: Vector2 = corners[(k + 1) % 4]
+		var length: float = a.distance_to(b)
+		var t: float = 0.0
+		while t < length:
+			p.line(a.lerp(b, t / length), a.lerp(b, minf(t + 2.0, length) / length), Color("8a9096"), 0.25)
+			t += 4.0
+	p.text_centered(r.get_center(), text, 3.0, Color("6b7177"), true, size.x - 1.0)
 
 
 # --- DIN rail, ducts, plate -----------------------------------------------------
 
-## TS35 rail [param length] mm long: "A" with mounting slots, "B" plain.
-static func din_rail(p: CabinetPainter, length: float, variant: String = "A") -> void:
+## TS35 rail [param length] mm long with its mounting slots.
+static func din_rail(p: CabinetPainter, length: float) -> void:
 	var steel: Color = Color("e4e8eb")
 	p.gradient(Rect2(0, 0, length, RAIL_H), steel.lightened(0.3), steel.darkened(0.1), 0.0, METAL_DARK, 0.2)
 	p.gradient(Rect2(0, 5.0, length, 25.0), steel, steel.darkened(0.06))
 	p.line(Vector2(0, 5.0), Vector2(length, 5.0), METAL_DARK, 0.2)
 	p.line(Vector2(0, 30.0), Vector2(length, 30.0), METAL_DARK, 0.2)
 	p.line(Vector2(0, 0.6), Vector2(length, 0.6), Color(1, 1, 1, 0.6), 0.2)
-	if variant == "A":
-		var x: float = 5.0
-		while x + 15.0 <= length - 3.0:
-			p.rect(Rect2(x, 14.9, 15.0, 5.2), Color(0, 0, 0, 0.55), 2.6)
-			x += 25.0
+	var x: float = 5.0
+	while x + 15.0 <= length - 3.0:
+		p.rect(Rect2(x, 14.9, 15.0, 5.2), Color(0, 0, 0, 0.55), 2.6)
+		x += 25.0
 
 
-## Slotted wire duct: "A" open (fingers and the wires' channel seen), "B"
-## with its cover on. [param vertical] runs it down instead of across.
-static func duct(p: CabinetPainter, length: float, thickness: float, vertical: bool, variant: String = "A") -> void:
+## Slotted wire duct without its cover: the fingers along both sides and
+## the floor between them. [param vertical] runs it down instead of across.
+static func duct(p: CabinetPainter, length: float, thickness: float, vertical: bool) -> void:
 	var base: Color = Color("9ea4a9")
 	var r: Rect2 = Rect2(0, 0, thickness, length) if vertical else Rect2(0, 0, length, thickness)
-	if variant == "B":
-		p.rect(r, base.lightened(0.12), 0.6, base.darkened(0.3), 0.2)
-		var inner: Rect2 = r.grow(-2.0)
-		p.rect(inner, base.lightened(0.2), 0.4, base.darkened(0.1), 0.15)
-		return
 	p.rect(r, base.darkened(0.35), 0.4, base.darkened(0.45), 0.2)
 	var finger: float = 6.0
 	var gap: float = 4.0
@@ -127,23 +103,13 @@ static func duct(p: CabinetPainter, length: float, thickness: float, vertical: b
 	p.rect(floor_r.grow(-0.5), base.darkened(0.2))
 
 
-## Mounting plate inside the enclosure: "A" galvanized, "B" white,
-## "C" orange, "D" dark.
-static func plate(p: CabinetPainter, size: Vector2, variant: String = "A") -> void:
+## The enclosure's frame with the white mounting plate inside it.
+static func plate(p: CabinetPainter, size: Vector2) -> void:
 	var frame: Color = Color("b3b8bc")
 	p.rect(Rect2(Vector2.ZERO, size), frame, 3.0, frame.darkened(0.35), 0.3)
 	var inner: Rect2 = Rect2(Vector2(6, 6), size - Vector2(12, 12))
 	p.rect(inner.grow(1.0), frame.darkened(0.45), 1.5)
-	var c: Color
-	match variant:
-		"B":
-			c = Color("efece4")
-		"C":
-			c = Color("e07a2a")
-		"D":
-			c = Color("2c3036")
-		_:
-			c = Color("c9cdd0")
+	var c: Color = Color("efece4")
 	p.gradient(inner, c.lightened(0.06), c.darkened(0.04), 1.0)
 	for corner: Vector2 in [inner.position + Vector2(5, 5), Vector2(inner.end.x - 5, inner.position.y + 5), Vector2(inner.position.x + 5, inner.end.y - 5), inner.end - Vector2(5, 5)]:
 		p.circle(corner, 2.4, METAL, METAL_DARK, 0.2)
@@ -359,7 +325,6 @@ const BLOCK_LIGHT := Color("53575d")
 const BLOCK_RECESS := Color("2a2c2f")
 const BLOCK_TEAL := Color("5fb8ac")
 const BLOCK_WHITE := Color("e2e4e6")
-const COPPER := Color("c98552")
 
 
 ## Screw of a contactor or overload relay: a dark round well with a silver
@@ -738,9 +703,9 @@ const TIMER_DIAL_4: PackedStringArray = ["OFF", "F10", "F11", "F12", "F13", "F14
 ## 26 25 28 on the inner bottom tier and 36 35 38 on the inner top tier
 ## (tiers without contacts stay plain); four white dials (function, range,
 ## fine time, function) with their scales, LED bars U (green, power) and R
-## (yellow, output). [param state]: 0 no power, 1 timing, 2 output on.
-## [param function] is the step of the first dial (1 = F1).
-static func timer(p: CabinetPainter, state: int, function: int = 1, control: String = "S", reach: Dictionary = {}, contacts: int = 1) -> void:
+## (yellow, output). The function dials point at [param code] ("F1" to
+## "F12", see [method timer_dials]).
+static func timer(p: CabinetPainter, powered: bool, output: bool, code: String = "F2", control: String = "S", reach: Dictionary = {}, contacts: int = 1) -> void:
 	var w: float = MODULE_W
 	var h: float = MODULE_H
 	# Tiers, outer ones lowest, then the raised front.
@@ -765,17 +730,29 @@ static func timer(p: CabinetPainter, state: int, function: int = 1, control: Str
 	var front: Rect2 = Rect2(0.3, 25.0, w - 0.6, 45.0)
 	p.rect(Rect2(front.position.x, front.end.y, front.size.x, 0.8), Color(0, 0, 0, 0.12))
 	p.gradient(front, MODULAR_FACE.lightened(0.3), MODULAR_FACE, 0.6, MODULAR_EDGE, 0.15)
-	var steps: Array[int] = [clampi(function, 0, 9), 2, 4, 0]
+	var dials: Vector2i = timer_dials(code)
+	var steps: Array[int] = [dials.x, 2, 4, dials.y]
 	var scales: Array = [TIMER_DIAL_1, TIMER_DIAL_2, TIMER_DIAL_3, TIMER_DIAL_4]
 	var marks: PackedStringArray = ["fc", "t", "t", "fc"]
 	for d: int in 4:
 		var c: Vector2 = Vector2(8.6, 32.6 + d * 10.2)
 		_timer_dial(p, c, scales[d], steps[d])
 		p.text(Vector2(w - 1.0, c.y + 0.8), marks[d], 2.0, MODULAR_PRINT, 1, true)
-	_led_bar(p, Rect2(1.0, 40.8, 1.2, 4.0), LED_GREEN, state >= 1)
-	_led_bar(p, Rect2(1.0, 51.0, 1.2, 4.0), LED_YELLOW, state == 2)
+	_led_bar(p, Rect2(1.0, 40.8, 1.2, 4.0), LED_GREEN, powered)
+	_led_bar(p, Rect2(1.0, 51.0, 1.2, 4.0), LED_YELLOW, output)
 	p.text(Vector2(1.6, 46.8), "U", 1.6, MODULAR_PRINT)
 	p.text(Vector2(1.6, 57.0), "R", 1.6, MODULAR_PRINT)
+
+
+## Steps of the two function dials for function [param code]: F1 to F8 and
+## F9 (test) on the first dial with the second at OFF, F10 to F12 on the
+## second with the first at OFF. The true off-delay has no code of its own;
+## it is shown as the first free function of the second dial (F13).
+static func timer_dials(code: String) -> Vector2i:
+	var n: int = int(code.trim_prefix("F")) if code.trim_prefix("F").is_valid_int() else 13
+	if n >= 1 and n <= 9:
+		return Vector2i(n, 0)
+	return Vector2i(0, clampi(n - 9, 1, 9))
 
 
 static func _modular_screw_small(p: CabinetPainter, center: Vector2, reach: Color) -> void:
@@ -834,6 +811,16 @@ static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> fl
 	x += q.snap(1.4)
 	_end_stop(q, x, "")
 	return x + q.snap(END_STOP_W)
+
+
+## Width in mm of a terminal strip of [param count] terminals with its end
+## plate and end stops (as [method terminal_strip] draws it at [param k]
+## pixels per mm).
+static func terminal_strip_width(count: int, k: float = 0.0) -> float:
+	if k <= 0.0:
+		return 2.0 * END_STOP_W + count * TERMINAL.x + 1.4
+	var snap: Callable = func(mm: float) -> float: return roundf(mm * k) / k
+	return 2.0 * snap.call(END_STOP_W) + count * snap.call(TERMINAL.x) + snap.call(1.4)
 
 
 const TERMINAL_GREY := Color("b4b9bd")
@@ -898,7 +885,7 @@ static func _end_stop(p: CabinetPainter, x: float, group: String) -> void:
 	var r: Rect2 = Rect2(x + p.snap(0.5), 5.0, w - p.snap(1.0), TERMINAL.y - 10.0)
 	p.hgradient(r, Color("50555b"), Color("2a2d31"), 1.0)
 	p.rect(r, Color.TRANSPARENT, 1.0, Color("16181a"), 0.0)
-	screw(p, Vector2(x + w * 0.5, TERMINAL.y * 0.5 + 9.0), 1.6)
+	_block_screw(p, Vector2(x + w * 0.5, TERMINAL.y * 0.5 + 9.0), 1.4)
 	if not group.is_empty():
 		var tag: Rect2 = Rect2(x + p.snap(1.2), TERMINAL.y * 0.5 - 8.0, w - p.snap(2.4), 9.0)
 		p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)

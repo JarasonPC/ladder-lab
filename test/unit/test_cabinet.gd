@@ -162,3 +162,33 @@ func test_saved_and_loaded() -> void:
 	var loaded: SchematicDocument = DocumentSerializer.from_dict(data)
 	assert_eq(loaded.cabinet_rails.size(), 1, "malformed rails and items are left out")
 	assert_eq(loaded.cabinet_rails[0].items.size(), 1)
+
+
+func test_layout_places_and_clicks() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.fill_cabinet()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	assert_eq(layout.rails.size(), 3)
+	assert_eq(layout.places.size(), 7)
+	assert_eq(layout.ducts.size(), 6, "across above, between and below three rails, down both sides")
+	var contactor: Dictionary = layout.places[4]
+	assert_eq(contactor["designation"], "KM1")
+	assert_eq(contactor["under_designation"], "F1", "the overload relay hangs under its contactor")
+	var under: Array = []
+	assert_eq(layout.place_at((contactor["under_rect"] as Rect2).get_center(), under), 4)
+	assert_eq(under, [true])
+	assert_eq(layout.place_at(Vector2(-5, -5)), -1)
+	var rail: Rect2 = layout.rails[0]
+	for place: Dictionary in layout.places.slice(0, 4):
+		assert_true((place["rect"] as Rect2).get_center().y > rail.position.y and (place["rect"] as Rect2).get_center().y < rail.end.y, "%s sits on its rail" % place["designation"])
+	assert_true(layout.size.x >= rail.end.x + CabinetLayout.SIDE_DUCT, "the plate holds the rails and the side ducts")
+
+
+func test_layout_marks_missing_devices() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.add_cabinet_rail()
+	doc.cabinet_rails[0].items.append(CabinetItem.new(CabinetItem.Kind.DEVICE, "KM9"))
+	doc.cabinet_rails[0].items.append(CabinetItem.new(CabinetItem.Kind.STRIP, "X7"))
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	assert_eq(layout.places[0]["kind"], CabinetLayout.MISSING_DEVICE)
+	assert_eq(layout.places[1]["kind"], CabinetLayout.MISSING_DEVICE, "a strip without terminals")

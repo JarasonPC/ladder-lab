@@ -47,6 +47,10 @@ func width(mm: float) -> float:
 
 
 func rect(r: Rect2, fill: Color, radius: float = 0.0, edge: Color = Color.TRANSPARENT, edge_mm: float = 0.0) -> void:
+	if _tiny(r):
+		if fill.a > 0.0:
+			canvas.draw_rect(Rect2(px(r.position), r.size * k), fill)
+		return
 	var points: PackedVector2Array = rounded(r, radius)
 	if fill.a > 0.0:
 		canvas.draw_colored_polygon(points, fill)
@@ -55,6 +59,9 @@ func rect(r: Rect2, fill: Color, radius: float = 0.0, edge: Color = Color.TRANSP
 
 ## Rectangle shaded from [param top] to [param bottom].
 func gradient(r: Rect2, top: Color, bottom: Color, radius: float = 0.0, edge: Color = Color.TRANSPARENT, edge_mm: float = 0.0) -> void:
+	if _tiny(r):
+		canvas.draw_rect(Rect2(px(r.position), r.size * k), top.lerp(bottom, 0.5))
+		return
 	var points: PackedVector2Array = rounded(r, radius)
 	var colors: PackedColorArray = PackedColorArray()
 	var y0: float = px(r.position).y
@@ -67,6 +74,9 @@ func gradient(r: Rect2, top: Color, bottom: Color, radius: float = 0.0, edge: Co
 
 ## Rectangle shaded from [param left] to [param right].
 func hgradient(r: Rect2, left: Color, right: Color, radius: float = 0.0) -> void:
+	if _tiny(r):
+		canvas.draw_rect(Rect2(px(r.position), r.size * k), left.lerp(right, 0.5))
+		return
 	var points: PackedVector2Array = rounded(r, radius)
 	var colors: PackedColorArray = PackedColorArray()
 	var x0: float = px(r.position).x
@@ -127,7 +137,7 @@ func text_centered(center: Vector2, s: String, size_mm: float, color: Color, bol
 func rounded(r: Rect2, radius: float) -> PackedVector2Array:
 	var points: PackedVector2Array = PackedVector2Array()
 	var rad: float = minf(radius, minf(r.size.x, r.size.y) * 0.5)
-	if rad * k < 0.6:
+	if rad * k < 1.5:
 		for corner: Vector2 in [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
 			points.append(px(corner))
 		return points
@@ -142,6 +152,12 @@ func rounded(r: Rect2, radius: float) -> PackedVector2Array:
 			var a: float = start + PI * 0.5 * s / steps
 			points.append(px(centers[c] + Vector2(cos(a), sin(a)) * rad))
 	return points
+
+
+## True for a rectangle under two pixels across: filled plainly, since a
+## polygon that small cannot be triangulated.
+func _tiny(r: Rect2) -> bool:
+	return r.size.x * k < 2.0 or r.size.y * k < 2.0
 
 
 func _outline(points: PackedVector2Array, color: Color, mm: float) -> void:

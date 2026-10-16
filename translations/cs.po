@@ -1042,3 +1042,67 @@ msgstr "Exportovat všechny stránky jako PDF…"
 
 msgid "Export PDF"
 msgstr "Exportovat PDF"
+
+msgid "Switchboard"
+msgstr "Rozvaděč"
+
+msgid "Show the switchboard: DIN rails with the breakers, fuses, contactors, relays and terminals"
+msgstr "Zobrazit rozvaděč: DIN lišty s jističi, pojistkami, stykači, relé a svorkami"
+
+msgid "No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it."
+msgstr "Zatím žádné DIN lišty. Naplňte rozvaděč ze schématu, nebo přidejte lištu a umístěte na ni přístroje."
+
+msgid "No switchboard yet. Make it in Edit mode."
+msgstr "Zatím žádný rozvaděč. Vytvořte ho v režimu Úpravy."
+
+msgid "Add rail"
+msgstr "Přidat lištu"
+
+msgid "Add an empty DIN rail at the bottom"
+msgstr "Přidat dolů prázdnou DIN lištu"
+
+msgid "Fill from the schematic"
+msgstr "Naplnit ze schématu"
+
+msgid "Add rails with every device and terminal strip of the schematic that is not in the switchboard yet"
+msgstr "Přidat lišty se všemi přístroji a svorkovnicemi schématu, které v rozvaděči ještě nejsou"
+
+#, c-format
+msgid "Rail %d"
+msgstr "Lišta %d"
+
+msgid "Add…"
+msgstr "Přidat…"
+
+msgid "Put a device or terminal strip on this rail"
+msgstr "Umístit na tuto lištu přístroj nebo svorkovnici"
+
+msgid "Move the rail up"
+msgstr "Posunout lištu nahoru"
+
+msgid "Delete the rail"
+msgstr "Smazat lištu"
+
+msgid "Move it one place left"
+msgstr "Posunout o místo doleva"
+
+msgid "Move it one place right"
+msgstr "Posunout o místo doprava"
+
+msgid "Move it to the rail above"
+msgstr "Přesunout na lištu nad ní"
+
+msgid "Move it to the rail below"
+msgstr "Přesunout na lištu pod ní"
+
+msgid "Terminal strip"
+msgstr "Svorkovnice"
+
+msgid "Auxiliary relay"
+msgstr "Pomocné relé"
+
+msgid "Time relay"
+msgstr "Časové relé"
+
+msgid "Click to operate it"
+msgstr "Kliknutím ho ovládáte"

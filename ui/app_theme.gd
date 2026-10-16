@@ -81,6 +81,7 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"arrow_right": '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
 	"arrow_up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
 	"arrow_down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+	"cabinet": '<rect x="3" y="2" width="18" height="20" rx="2"/><path d="M3 9h18"/><path d="M3 16h18"/><path d="M7 4.5v3"/><path d="M10 4.5v3"/><path d="M13 4.5v3"/><path d="M7 11.5v3"/><path d="M12 11.5v3"/>',
 }
 
 

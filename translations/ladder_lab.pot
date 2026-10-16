@@ -1037,3 +1037,67 @@ msgstr ""
 
 msgid "Export PDF"
 msgstr ""
+
+msgid "Switchboard"
+msgstr ""
+
+msgid "Show the switchboard: DIN rails with the breakers, fuses, contactors, relays and terminals"
+msgstr ""
+
+msgid "No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it."
+msgstr ""
+
+msgid "No switchboard yet. Make it in Edit mode."
+msgstr ""
+
+msgid "Add rail"
+msgstr ""
+
+msgid "Add an empty DIN rail at the bottom"
+msgstr ""
+
+msgid "Fill from the schematic"
+msgstr ""
+
+msgid "Add rails with every device and terminal strip of the schematic that is not in the switchboard yet"
+msgstr ""
+
+#, c-format
+msgid "Rail %d"
+msgstr ""
+
+msgid "Add…"
+msgstr ""
+
+msgid "Put a device or terminal strip on this rail"
+msgstr ""
+
+msgid "Move the rail up"
+msgstr ""
+
+msgid "Delete the rail"
+msgstr ""
+
+msgid "Move it one place left"
+msgstr ""
+
+msgid "Move it one place right"
+msgstr ""
+
+msgid "Move it to the rail above"
+msgstr ""
+
+msgid "Move it to the rail below"
+msgstr ""
+
+msgid "Terminal strip"
+msgstr ""
+
+msgid "Auxiliary relay"
+msgstr ""
+
+msgid "Time relay"
+msgstr ""
+
+msgid "Click to operate it"
+msgstr ""

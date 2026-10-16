@@ -1,0 +1,245 @@
+class_name CabinetPanel
+extends PanelContainer
+## Switchboard (rozvaděč) beside the schematic: the DIN rails of the document
+## ([CabinetRail]) with its circuit breakers, fuse holders, contactors and
+## overload relays, relays, time relays and terminal strips, drawn by a
+## [CabinetView]. While simulating they show the circuit and breakers, fuse
+## holders and overload relays are operated on them. While editing, rails
+## are added and filled here; every change is emitted as one undoable edit
+## of the document (see [method SchematicEditor.edit_cabinet]).
+
+## A breaker, fuse holder or overload relay was clicked while simulating.
+signal operate_requested(designation: String)
+## A change of the switchboard: [param change] is called with the document.
+signal edit_requested(change: Callable)
+
+## English names of [enum CabinetDevices.Kind] (translated with tr()).
+const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay"]
+
+var _document: SchematicDocument
+var _editing: bool = false
+var _selected: Vector2i = Vector2i(-1, -1)
+var _title: Label
+var _list: VBoxContainer
+var _view: CabinetView
+var _rebuild_queued: bool = false
+
+
+func _ready() -> void:
+	theme_type_variation = "RightPanel"
+	var outer: VBoxContainer = VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	add_child(outer)
+	_title = Label.new()
+	_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_title.theme_type_variation = "TitleLabel"
+	outer.add_child(_title)
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(scroll)
+	_list = VBoxContainer.new()
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_theme_constant_override("separation", 8)
+	scroll.add_child(_list)
+	_view = CabinetView.new()
+	_view.operate_requested.connect(func(designation: String) -> void: operate_requested.emit(designation))
+	_view.place_clicked.connect(func(rail: int, index: int) -> void:
+		_selected = Vector2i(rail, index)
+		_rebuild_queued = true)
+	_rebuild()
+
+
+## Shows the switchboard of [param doc]; [param editing] offers the editing
+## tools, otherwise it shows and operates the simulation of [param doc].
+func set_document(doc: SchematicDocument, editing: bool) -> void:
+	_document = doc
+	_editing = editing
+	if not editing:
+		_selected = Vector2i(-1, -1)
+	_rebuild()
+
+
+## Shows the document again after it was edited.
+func refresh() -> void:
+	_rebuild_queued = true
+
+
+func retranslate() -> void:
+	_rebuild()
+
+
+## Voltage reach of the last simulation step (terminal key -> reach code).
+func show_step(result: StepResult) -> void:
+	_view.reach = result.terminal_reach
+
+
+func _process(_delta: float) -> void:
+	if _rebuild_queued:
+		_rebuild_queued = false
+		_rebuild()
+	if not _editing and is_visible_in_tree():
+		# Levers, carriers, LEDs and voltage colours follow the simulation.
+		_view.queue_redraw()
+
+
+func _rebuild() -> void:
+	if _list == null:
+		return
+	if _view.get_parent() == _list:
+		_list.remove_child(_view)
+	for child: Node in _list.get_children():
+		_list.remove_child(child)
+		child.queue_free()
+	_title.text = tr("Switchboard")
+	if _document == null:
+		return
+	if _selected.x >= _document.cabinet_rails.size() or (_selected.x >= 0 and _selected.y >= _document.cabinet_rails[_selected.x].items.size()):
+		_selected = Vector2i(-1, -1)
+	if _document.cabinet_rails.is_empty():
+		_note(tr("No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it.") if _editing else tr("No switchboard yet. Make it in Edit mode."))
+	_view.document = _document
+	_view.simulating = not _editing
+	_view.selected = _selected
+	_list.add_child(_view)
+	_view.refresh()
+	if not _editing:
+		return
+	if _selected.x >= 0:
+		_place_editor(_selected.x, _selected.y)
+	for r: int in _document.cabinet_rails.size():
+		_rail_row(r)
+	_list.add_child(HSeparator.new())
+	var add_rail: Button = _button(tr("Add rail"), "plus")
+	add_rail.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	add_rail.tooltip_text = tr("Add an empty DIN rail at the bottom")
+	add_rail.pressed.connect(func() -> void:
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_rail()))
+	_list.add_child(add_rail)
+	var fill: Button = _button(tr("Fill from the schematic"), "cabinet")
+	fill.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	fill.tooltip_text = tr("Add rails with every device and terminal strip of the schematic that is not in the switchboard yet")
+	fill.disabled = _document.cabinet_unplaced().is_empty()
+	fill.pressed.connect(func() -> void:
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet()))
+	_list.add_child(fill)
+
+
+## Rail [param r]: its name, a menu that adds a device or strip, move up, delete.
+func _rail_row(r: int) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	var name_label: Label = Label.new()
+	name_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	name_label.text = tr("Rail %d") % (r + 1)
+	name_label.custom_minimum_size.x = 56.0
+	row.add_child(name_label)
+	var add: OptionButton = OptionButton.new()
+	add.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	add.focus_mode = Control.FOCUS_NONE
+	add.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add.fit_to_longest_item = false
+	var unplaced: Array[CabinetItem] = _document.cabinet_unplaced()
+	add.add_icon_item(AppTheme.icon("plus"), tr("Add…"))
+	for item: CabinetItem in unplaced:
+		add.add_item(_item_title(item))
+	add.select(0)
+	add.disabled = unplaced.is_empty()
+	add.tooltip_text = tr("Put a device or terminal strip on this rail")
+	add.item_selected.connect(func(k: int) -> void:
+		if k == 0:
+			return
+		var item: CabinetItem = unplaced[k - 1]
+		_selected = Vector2i(r, _document.cabinet_rails[r].items.size())
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_item(r, item.kind, item.designation)))
+	row.add_child(add)
+	var up: Button = _tool("arrow_up", tr("Move the rail up"))
+	up.disabled = r == 0
+	up.pressed.connect(func() -> void:
+		_selected = Vector2i(-1, -1)
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_rail(r, -1)))
+	row.add_child(up)
+	var remove: Button = _tool("delete", tr("Delete the rail"))
+	remove.pressed.connect(func() -> void:
+		_selected = Vector2i(-1, -1)
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_rail(r)))
+	row.add_child(remove)
+	_list.add_child(row)
+
+
+## The selected place: what it is, move it along its rail or to another rail, remove it.
+func _place_editor(r: int, i: int) -> void:
+	var item: CabinetItem = _document.cabinet_rails[r].items[i]
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "FunctionCard"
+	_list.add_child(card)
+	var fields: VBoxContainer = VBoxContainer.new()
+	fields.add_theme_constant_override("separation", 4)
+	card.add_child(fields)
+	var heading: Label = Label.new()
+	heading.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	heading.text = _item_title(item)
+	fields.add_child(heading)
+	var actions: HBoxContainer = HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 2)
+	fields.add_child(actions)
+	var count: int = _document.cabinet_rails[r].items.size()
+	for step: int in [-1, 1]:
+		var move: Button = _tool("arrow_left" if step < 0 else "arrow_right", tr("Move it one place left") if step < 0 else tr("Move it one place right"))
+		move.disabled = i + step < 0 or i + step >= count
+		move.pressed.connect(func() -> void:
+			_selected = Vector2i(r, i + step)
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_item(r, i, step)))
+		actions.add_child(move)
+	for step: int in [-1, 1]:
+		var to_rail: Button = _tool("arrow_up" if step < 0 else "arrow_down", tr("Move it to the rail above") if step < 0 else tr("Move it to the rail below"))
+		to_rail.disabled = r + step < 0 or r + step >= _document.cabinet_rails.size()
+		to_rail.pressed.connect(func() -> void:
+			_selected = Vector2i(r + step, _document.cabinet_rails[r + step].items.size())
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_item_to_rail(r, i, step)))
+		actions.add_child(to_rail)
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actions.add_child(spacer)
+	var remove: Button = _button(tr("Remove"), "delete")
+	remove.pressed.connect(func() -> void:
+		_selected = Vector2i(-1, -1)
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_item(r, i)))
+	actions.add_child(remove)
+
+
+## "Contactor -KM1", "Terminal strip -X1".
+func _item_title(item: CabinetItem) -> String:
+	if item.kind == CabinetItem.Kind.STRIP:
+		return tr("Terminal strip") + " -" + item.designation
+	var c: CircuitComponent = CabinetDevices.device(_document.circuit, item.designation)
+	if c == null:
+		return "-%s (%s)" % [item.designation, tr("not in the schematic")]
+	return tr(KIND_TITLES[CabinetDevices.kind_of(c)]) + " -" + item.designation
+
+
+# --- Controls ---------------------------------------------------------------------
+
+func _note(text: String) -> void:
+	var label: Label = Label.new()
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.theme_type_variation = "MutedLabel"
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.text = text
+	_list.add_child(label)
+
+
+func _button(text: String, icon_name: String) -> Button:
+	var button: Button = Button.new()
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.focus_mode = Control.FOCUS_NONE
+	button.text = text
+	button.icon = AppTheme.icon(icon_name)
+	return button
+
+
+func _tool(icon_name: String, tooltip: String) -> Button:
+	var button: Button = _button("", icon_name)
+	button.theme_type_variation = "ToolButton"
+	button.tooltip_text = tooltip
+	return button

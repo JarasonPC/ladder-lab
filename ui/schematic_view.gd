@@ -257,6 +257,14 @@ func toggle_switch(designation: String) -> void:
 	_apply(simulator.step())
 
 
+## Operates breaker, fuse holder or overload relay [param designation] as a
+## click on its symbol does, from the switchboard.
+func operate_device(designation: String) -> void:
+	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	if simulating and c != null and _operate_protection(c):
+		_apply(simulator.step())
+
+
 ## Replaces a blown fuse, switches a breaker, resets a tripped overload relay.
 ## Returns false if nothing happened.
 func _operate_protection(c: CircuitComponent) -> bool:
