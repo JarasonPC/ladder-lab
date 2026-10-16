@@ -1,0 +1,328 @@
+class_name CabinetDevices
+extends RefCounted
+## What the switchboard (rozvaděč) shows of a circuit: the devices that sit
+## on DIN rails (circuit breakers, fuse holders, contactors with the overload
+## relays fitted under them, auxiliary relays, time relays) and the terminal
+## strips, with everything their look depends on (poles, contacts, terminal
+## names) and their simulation state. Works on the circuit alone, no nodes.
+##
+## Terminal strips are made of the terminals on wires ([TerminalBlock]) and on
+## component leads ([member Placement.strips]): a label "X2:4" is terminal 4
+## of strip X2, a plain label "4" is terminal 4 of strip X1. Terminals with the
+## same strip and label are one terminal.
+
+enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD }
+
+## Strip of the terminals whose label names none.
+const DEFAULT_STRIP: String = "X1"
+
+
+## Kind of device [param c] is in the switchboard, NONE for parts that are
+## not devices of their own (contacts, main contacts) or sit elsewhere
+## (buttons, lamps, motors, supplies).
+static func kind_of(c: CircuitComponent) -> Kind:
+	if c is CircuitBreaker or c is MotorBreaker:
+		return Kind.BREAKER
+	if c is Fuse or c is ThreePoleFuse:
+		return Kind.FUSE
+	if c is TimerRelay:
+		return Kind.TIMER
+	if c is Coil:
+		return Kind.CONTACTOR if (c as Coil).kind == Coil.Kind.CONTACTOR else Kind.RELAY
+	if c is OverloadRelay:
+		return Kind.OVERLOAD
+	return Kind.NONE
+
+
+## Designations of the devices that can sit on a rail, in circuit order. An
+## overload relay fitted under its contactor is not a place of its own.
+static func devices(doc: SchematicDocument) -> PackedStringArray:
+	var under: Dictionary[String, String] = overloads_under_contactors(doc.circuit)
+	var fitted: Dictionary[String, bool] = {}
+	for contactor: String in under:
+		fitted[under[contactor]] = true
+	var result: PackedStringArray = PackedStringArray()
+	for c: CircuitComponent in doc.circuit.get_components():
+		if kind_of(c) != Kind.NONE and not result.has(c.designation) and not fitted.has(c.designation):
+			result.append(c.designation)
+	return result
+
+
+## The component of device [param designation] (the coil of a contactor or
+## relay), or null.
+static func device(circuit: Circuit, designation: String) -> CircuitComponent:
+	for c: CircuitComponent in circuit.get_components():
+		if c.designation == designation and kind_of(c) != Kind.NONE:
+			return c
+	return null
+
+
+## Everything a device's drawing needs, see the keys below; {} when the
+## circuit has no such device. "kind" (Kind), "poles" (breaker, fuse,
+## contactor: main poles; relay: changeover contacts), "terminals"
+## (terminal name on the device -> terminal key in the circuit) and the state:
+## - BREAKER: "on"
+## - FUSE: "closed", "blown"
+## - CONTACTOR: "aux" ([first terminal, "NO" / "NC" / "CO", last terminal]
+##   per auxiliary contact, the built-in ones first),
+##   "on" (armature pulled in), "energized" (coil has power), "overload"
+##   (designation of the overload relay under it, or "")
+## - RELAY: "on", "energized"
+## - TIMER: "contacts", "code" (function, "F2"), "control" (name of the
+##   control input), "powered", "output"
+## - OVERLOAD: "tripped"
+static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
+	var c: CircuitComponent = device(doc.circuit, designation)
+	if c == null:
+		return {}
+	var d: Dictionary = {"kind": kind_of(c), "designation": designation, "terminals": {}}
+	match d["kind"]:
+		Kind.BREAKER:
+			d["poles"] = (c as MotorBreaker).poles if c is MotorBreaker else 1
+			if c is MotorBreaker:
+				d["on"] = (c as MotorBreaker).switched_on and not (c as MotorBreaker).tripped
+			else:
+				d["on"] = (c as CircuitBreaker).switched_on and not (c as CircuitBreaker).tripped
+			d["terminals"] = _named_keys(c)
+		Kind.FUSE:
+			if c is ThreePoleFuse:
+				var f3: ThreePoleFuse = c as ThreePoleFuse
+				d["poles"] = f3.poles
+				d["closed"] = f3.switched_on or not f3.holder
+				d["blown"] = f3.any_blown()
+			else:
+				var f: Fuse = c as Fuse
+				d["poles"] = 1
+				d["closed"] = f.switched_on or not f.holder
+				d["blown"] = f.tripped
+			d["terminals"] = _named_keys(c)
+		Kind.CONTACTOR:
+			_describe_coil(doc, c as Coil, d)
+		Kind.RELAY:
+			_describe_coil(doc, c as Coil, d)
+		Kind.TIMER:
+			_describe_timer(doc, c as TimerRelay, d)
+		Kind.OVERLOAD:
+			_describe_overload(doc.circuit, c as OverloadRelay, d)
+	return d
+
+
+## Contacts (normal and changeover) of the relay, contactor or timer
+## [param designation], ordered by their sequence digit.
+static func contacts_of(circuit: Circuit, designation: String) -> Array[CircuitComponent]:
+	var result: Array[CircuitComponent] = []
+	for c: CircuitComponent in circuit.get_components():
+		if c.designation == designation and (c is Contact or c is ChangeoverContact):
+			result.append(c)
+	result.sort_custom(func(a: CircuitComponent, b: CircuitComponent) -> bool: return _sequence(a) < _sequence(b))
+	return result
+
+
+static func _sequence(c: CircuitComponent) -> int:
+	var first: String = c.get_terminal_names()[0]
+	return int(first.left(first.length() - 1)) if first.length() > 1 and first.left(first.length() - 1).is_valid_int() else 0
+
+
+static func _describe_coil(doc: SchematicDocument, coil: Coil, d: Dictionary) -> void:
+	var circuit: Circuit = doc.circuit
+	var terminals: Dictionary = {}
+	var coil_keys: PackedStringArray = coil.get_terminal_keys()
+	terminals["A1"] = coil_keys[0]
+	terminals["A2"] = coil_keys[1]
+	d["on"] = coil.armature != null and coil.armature.position >= 0.5
+	d["energized"] = coil.energized
+	var contacts: Array[CircuitComponent] = contacts_of(circuit, coil.designation)
+	if d["kind"] == Kind.CONTACTOR:
+		var mains: MainContacts = null
+		for c: CircuitComponent in circuit.get_components():
+			if c is MainContacts and c.designation == coil.designation:
+				mains = c as MainContacts
+				break
+		d["poles"] = mains.poles if mains != null else 3
+		if mains != null:
+			terminals.merge(_named_keys(mains))
+		var aux: Array = []
+		for c: CircuitComponent in contacts:
+			var names: PackedStringArray = c.get_terminal_names()
+			var keys: PackedStringArray = c.get_terminal_keys()
+			for k: int in names.size():
+				terminals[names[k]] = keys[k]
+			if c is ChangeoverContact:
+				aux.append([names[0], "CO", names[2]])
+			else:
+				aux.append([names[0], "NC" if (c as Contact).contact_type == SwitchingElement.ContactType.NC else "NO", names[1]])
+		# Two auxiliary contacts are built in; the unused ones keep their numbers.
+		for spare: Array in [["13", "NO", "14"], ["21", "NC", "22"]]:
+			if aux.size() < 2 and not terminals.has(spare[0]):
+				aux.append(spare)
+		d["aux"] = aux.slice(0, 6)
+		var under: Dictionary[String, String] = overloads_under_contactors(circuit)
+		d["overload"] = under.get(coil.designation, "")
+	else:
+		d["poles"] = clampi(contacts.size(), 1, 4)
+		for k: int in mini(contacts.size(), 4):
+			_map_changeover(contacts[k], str(k + 1), "1", "2", "4", terminals)
+	d["terminals"] = terminals
+
+
+static func _describe_timer(doc: SchematicDocument, timer: TimerRelay, d: Dictionary) -> void:
+	var names: PackedStringArray = timer.get_terminal_names()
+	var keys: PackedStringArray = timer.get_terminal_keys()
+	var terminals: Dictionary = {"A1": keys[0], "A2": keys[1]}
+	d["control"] = names[2] if names.size() > 2 else "S"
+	if names.size() > 2:
+		terminals[names[2]] = keys[2]
+	var contacts: Array[CircuitComponent] = contacts_of(doc.circuit, timer.designation)
+	d["contacts"] = clampi(contacts.size(), 1, 3)
+	for k: int in mini(contacts.size(), 3):
+		_map_changeover(contacts[k], str(k + 1), "5", "6", "8", terminals)
+	d["terminals"] = terminals
+	d["code"] = TimerRelay.code_of(timer.mode)
+	d["powered"] = timer.energized
+	d["output"] = timer.output
+
+
+## Puts the terminals of contact [param c] at the places of changeover
+## contact [param pole] of the device: common, NC side, NO side.
+static func _map_changeover(c: CircuitComponent, pole: String, common: String, nc: String, no: String, terminals: Dictionary) -> void:
+	var keys: PackedStringArray = c.get_terminal_keys()
+	terminals[pole + common] = keys[0]
+	if c is ChangeoverContact:
+		terminals[pole + nc] = keys[1]
+		terminals[pole + no] = keys[2]
+	else:
+		var is_nc: bool = (c as Contact).contact_type == SwitchingElement.ContactType.NC
+		terminals[pole + (nc if is_nc else no)] = keys[1]
+
+
+static func _describe_overload(circuit: Circuit, relay: OverloadRelay, d: Dictionary) -> void:
+	d["tripped"] = relay.tripped
+	var terminals: Dictionary = _named_keys(relay)
+	for c: CircuitComponent in circuit.get_components():
+		if c is OverloadContact and c.designation == relay.designation:
+			terminals.merge(_named_keys(c))
+	d["terminals"] = terminals
+
+
+## Terminal name -> terminal key of [param c].
+static func _named_keys(c: CircuitComponent) -> Dictionary:
+	var result: Dictionary = {}
+	var names: PackedStringArray = c.get_terminal_names()
+	var keys: PackedStringArray = c.get_terminal_keys()
+	for k: int in names.size():
+		result[names[k]] = keys[k]
+	return result
+
+
+## Contactor designation -> designation of the overload relay fitted under
+## it: a three-pole overload relay whose heater inputs (1, 3, 5) are wired to
+## the outputs (2, 4, 6) of the contactor's main contacts.
+static func overloads_under_contactors(circuit: Circuit) -> Dictionary[String, String]:
+	var result: Dictionary[String, String] = {}
+	var net: Dictionary[String, int] = nets(circuit)
+	var outputs: Dictionary[int, String] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if c is MainContacts and circuit.get_coil(c.designation) != null:
+			var keys: PackedStringArray = c.get_terminal_keys()
+			for k: int in range(1, keys.size(), 2):
+				if net.has(keys[k]):
+					outputs[net[keys[k]]] = c.designation
+	for c: CircuitComponent in circuit.get_components():
+		if c is OverloadRelay and (c as OverloadRelay).poles == 3:
+			var keys: PackedStringArray = c.get_terminal_keys()
+			for k: int in range(0, keys.size(), 2):
+				var contactor: String = outputs.get(net.get(keys[k], -1), "")
+				if not contactor.is_empty() and not result.has(contactor):
+					result[contactor] = c.designation
+					break
+	return result
+
+
+## Terminal key -> net number: terminals joined by wires or by page
+## connectors share a number.
+static func nets(circuit: Circuit) -> Dictionary[String, int]:
+	var index: Dictionary[String, int] = {}
+	for c: CircuitComponent in circuit.get_components():
+		for key: String in c.get_terminal_keys():
+			if not index.has(key):
+				index[key] = index.size()
+	var groups: UnionFind = UnionFind.new(index.size())
+	var pairs: Array[PackedStringArray] = circuit.get_wires().duplicate()
+	pairs.append_array(circuit.get_links())
+	for pair: PackedStringArray in pairs:
+		if index.has(pair[0]) and index.has(pair[1]):
+			groups.union(index[pair[0]], index[pair[1]])
+	var result: Dictionary[String, int] = {}
+	for key: String in index:
+		result[key] = groups.find(index[key])
+	return result
+
+
+# --- Terminal strips -----------------------------------------------------------------
+
+## Terminal strip name -> its terminals in order, each {"label", "kind": "L",
+## "N" or "PE", "keys": PackedStringArray of the circuit terminals it joins}.
+static func strips(doc: SchematicDocument) -> Dictionary:
+	var found: Dictionary = {}
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is TerminalBlock:
+			_add_terminal(found, (c as TerminalBlock).label, c.get_terminal_keys()[0])
+		var placement: Placement = doc.get_placement(c.id)
+		if placement == null:
+			continue
+		var keys: PackedStringArray = c.get_terminal_keys()
+		for index: int in placement.strips:
+			if index < keys.size():
+				_add_terminal(found, placement.strips[index], keys[index])
+	var result: Dictionary = {}
+	var names: Array = found.keys()
+	names.sort_custom(_natural_less)
+	for strip: String in names:
+		var labels: Array = (found[strip] as Dictionary).keys()
+		labels.sort_custom(_natural_less)
+		var terminals: Array = []
+		for label: String in labels:
+			terminals.append({"label": label, "kind": _terminal_kind(label), "keys": found[strip][label]})
+		result[strip] = terminals
+	return result
+
+
+## Strip and terminal of a terminal label: "X2:4" -> ["X2", "4"], "4" -> ["X1", "4"].
+static func split_label(label: String) -> PackedStringArray:
+	var colon: int = label.find(":")
+	if colon > 0:
+		return PackedStringArray([label.left(colon), label.substr(colon + 1)])
+	return PackedStringArray([DEFAULT_STRIP, label])
+
+
+static func _add_terminal(found: Dictionary, label: String, key: String) -> void:
+	label = label.strip_edges()
+	if label.is_empty():
+		return
+	var parts: PackedStringArray = split_label(label)
+	if parts[1].is_empty():
+		return
+	if not found.has(parts[0]):
+		found[parts[0]] = {}
+	var terminals: Dictionary = found[parts[0]]
+	if not terminals.has(parts[1]):
+		terminals[parts[1]] = PackedStringArray()
+	(terminals[parts[1]] as PackedStringArray).append(key)
+
+
+static func _terminal_kind(label: String) -> String:
+	var upper: String = label.to_upper()
+	if upper == "PE":
+		return "PE"
+	if upper == "N":
+		return "N"
+	return "L"
+
+
+## Numbers in numeric order, then the other names alphabetically ("2" < "10" < "N").
+static func _natural_less(a: String, b: String) -> bool:
+	if a.is_valid_int() and b.is_valid_int():
+		return int(a) < int(b)
+	if a.is_valid_int() != b.is_valid_int():
+		return a.is_valid_int()
+	return a.naturalnocasecmp_to(b) < 0
