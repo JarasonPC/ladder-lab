@@ -1173,3 +1173,80 @@ msgstr ""
 
 msgid "Click to operate it"
 msgstr ""
+
+msgid "Help"
+msgstr ""
+
+#, c-format
+msgid "Version %s available"
+msgstr ""
+
+msgid "Download the new version from its release page"
+msgstr ""
+
+msgid "Updates"
+msgstr ""
+
+msgid "Check for updates…"
+msgstr ""
+
+msgid "Check for updates at startup"
+msgstr ""
+
+msgid "LadderLab on GitHub"
+msgstr ""
+
+msgid "Report a problem…"
+msgstr ""
+
+msgid "Describe the problem on GitHub; attaching the .ladder file helps"
+msgstr ""
+
+msgid "About LadderLab"
+msgstr ""
+
+msgid "Checking for updates…"
+msgstr ""
+
+#, c-format
+msgid "LadderLab %s is available (you have %s)."
+msgstr ""
+
+msgid "Download"
+msgstr ""
+
+msgid "Later"
+msgstr ""
+
+#, c-format
+msgid "You have the latest version (%s)."
+msgstr ""
+
+msgid "Could not check for updates. Check the internet connection and try again."
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+msgid "License"
+msgstr ""
+
+msgid "Third-party licenses"
+msgstr ""
+
+#, c-format
+msgid "Version %s"
+msgstr ""
+
+msgid "Relay control circuit simulator"
+msgstr ""
+
+msgid "LadderLab is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License, version 3 or later. It comes with ABSOLUTELY NO WARRANTY."
+msgstr ""
+
+msgid "Project website"
+msgstr ""
+
+#, c-format
+msgid "The license text is missing; see %s"
+msgstr ""

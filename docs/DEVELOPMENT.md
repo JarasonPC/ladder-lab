@@ -156,6 +156,12 @@ Architecture and conventions of the code base. Read this before changing the cod
 - File association (FileAssociation): an exported Windows build registers .ladder for the current
   user (HKCU via `reg import`, redone only when the exe moved); a .ladder path among the
   command-line arguments is opened at start
+- Version: `application/config/version` in project.godot (semantic, e.g. 0.2.0); releases are
+  GitHub Releases tagged `v<version>`. Updates (Help menu): UpdateChecker asks the GitHub API for
+  the latest release at start (Help > Check for updates at startup, saved) and on request;
+  ReleaseCheck (no nodes) compares versions and reads the answer; a newer release shows a
+  toolbar button opening its page (no self-update). AboutDialog: version, GPL notice, the
+  LICENSE file (exported through include_filter) and Godot's third-party licenses
 - Translations: English source text in tr()/tr_n(); regenerate `translations/ladder_lab.pot`
   when UI text changes and update `cs.po` (keep reviewed translations)
 - `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech

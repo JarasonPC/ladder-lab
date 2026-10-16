@@ -9,6 +9,7 @@ enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK,
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE }
+enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT }
 ## Titles offered for a new page (English source text: saved like that and
 ## shown translated, as every page title).
 const PAGE_PRESETS: PackedStringArray = ["Power section", "Control section", "Signalling section"]
@@ -45,6 +46,20 @@ var _after_discard: Callable = Callable()
 var _file_menu: MenuButton
 var _recent_menu: PopupMenu
 var _view_menu: MenuButton
+var _help_menu: MenuButton
+## Shown in the toolbar when a newer version is released; opens its page.
+var _update_button: Button
+var _update_checker: UpdateChecker
+## Look for a newer version at every start (remembered).
+var _check_updates: bool = true
+## Newer release found ({"version", "url", "notes"}), or {}.
+var _new_release: Dictionary = {}
+## The running check was asked for in the Help menu, so its result is shown.
+var _manual_update_check: bool = false
+var _update_dialog: ConfirmationDialog
+## The update dialog offers the new version: its OK opens the release page.
+var _offering_download: bool = false
+var _about_dialog: AboutDialog
 var _edit_button: Button
 var _simulate_button: Button
 var _circuit_select: OptionButton
@@ -156,6 +171,11 @@ func _ready() -> void:
 	FileAssociation.register(tr("LadderLab schematic"))
 	_build_ui()
 	_build_dialogs()
+	_update_checker = UpdateChecker.new()
+	_update_checker.checked.connect(_on_update_checked)
+	add_child(_update_checker)
+	if _check_updates:
+		_update_checker.check()
 	_sheet_renderer = SheetRenderer.new()
 	add_child(_sheet_renderer)
 	view.stepped.connect(_on_stepped)
@@ -269,6 +289,12 @@ func _build_ui() -> void:
 	_view_menu = _menu(bar)
 	_view_menu.get_popup().id_pressed.connect(_on_view_menu)
 	_view_menu.about_to_popup.connect(_rebuild_view_menu)
+	_help_menu = _menu(bar)
+	_help_menu.get_popup().id_pressed.connect(_on_help_menu)
+	_help_menu.about_to_popup.connect(_rebuild_help_menu)
+	_update_button = _button(bar, func() -> void: OS.shell_open(_new_release.get("url", ReleaseCheck.RELEASES_PAGE)), "download")
+	_update_button.theme_type_variation = "PrimaryButton"
+	_update_button.visible = false
 	bar.add_child(VSeparator.new())
 
 	# Edit | Simulate as one segmented switch.
@@ -510,6 +536,15 @@ func _build_dialogs() -> void:
 	_title_block_dialog.add_child(grid)
 	_title_block_dialog.confirmed.connect(_apply_title_block)
 	add_child(_title_block_dialog)
+	_update_dialog = ConfirmationDialog.new()
+	_update_dialog.dialog_autowrap = true
+	_update_dialog.min_size = Vector2i(440, 0)
+	_update_dialog.confirmed.connect(func() -> void:
+		if _offering_download:
+			OS.shell_open(_new_release["url"]))
+	add_child(_update_dialog)
+	_about_dialog = AboutDialog.new()
+	add_child(_about_dialog)
 	_retranslate_dialogs()
 
 
@@ -568,6 +603,8 @@ func _retranslate() -> void:
 	_file_menu.text = tr("File")
 	_rebuild_file_menu()
 	_view_menu.text = tr("View")
+	_help_menu.text = tr("Help")
+	_update_new_release_button()
 	_edit_button.text = tr("Edit")
 	_simulate_button.text = tr("Simulate")
 	_circuit_select.tooltip_text = tr("Example circuit")
@@ -637,6 +674,8 @@ func _retranslate_dialogs() -> void:
 	for field: String in _title_block_labels:
 		_title_block_labels[field].text = _title_block_caption(field)
 	_title_block_edits["date"].placeholder_text = tr("Date of the export")
+	_update_dialog.title = tr("Updates")
+	_about_dialog.retranslate()
 
 
 func _rebuild_file_menu() -> void:
@@ -714,6 +753,82 @@ func _on_view_menu(id: int) -> void:
 		_fit_camera_later()
 	elif id >= ViewMenuId.LANGUAGE:
 		set_language(id - ViewMenuId.LANGUAGE)
+
+
+func _rebuild_help_menu() -> void:
+	var popup: PopupMenu = _help_menu.get_popup()
+	popup.clear()
+	popup.add_item(tr("Check for updates…"), HelpMenuId.CHECK_UPDATES)
+	popup.add_check_item(tr("Check for updates at startup"), HelpMenuId.CHECK_AT_START)
+	popup.set_item_checked(popup.item_count - 1, _check_updates)
+	popup.add_separator()
+	popup.add_item(tr("LadderLab on GitHub"), HelpMenuId.WEBSITE)
+	popup.add_item(tr("Report a problem…"), HelpMenuId.REPORT)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Describe the problem on GitHub; attaching the .ladder file helps"))
+	popup.add_separator()
+	popup.add_item(tr("About LadderLab"), HelpMenuId.ABOUT)
+
+
+func _on_help_menu(id: int) -> void:
+	match id:
+		HelpMenuId.CHECK_UPDATES:
+			_manual_update_check = true
+			_offering_download = false
+			_update_dialog.dialog_text = tr("Checking for updates…")
+			_update_dialog.ok_button_text = tr("OK")
+			_update_dialog.get_cancel_button().visible = false
+			_update_dialog.get_ok_button().disabled = true
+			_update_dialog.popup_centered()
+			_update_checker.check()
+		HelpMenuId.CHECK_AT_START:
+			_check_updates = not _check_updates
+			_save_settings()
+		HelpMenuId.WEBSITE:
+			OS.shell_open(ReleaseCheck.PROJECT_PAGE)
+		HelpMenuId.REPORT:
+			OS.shell_open(ReleaseCheck.ISSUES_PAGE)
+		HelpMenuId.ABOUT:
+			_about_dialog.open()
+
+
+## The answer of a check: a newer version shows the toolbar button; a check
+## from the Help menu also says what was found (the one at start is quiet).
+func _on_update_checked(result: UpdateChecker.Result, release: Dictionary) -> void:
+	if result == UpdateChecker.Result.NEWER:
+		_new_release = release
+	elif result == UpdateChecker.Result.LATEST:
+		_new_release = {}
+	_update_new_release_button()
+	if not _manual_update_check:
+		return
+	_manual_update_check = false
+	var dialog: ConfirmationDialog = _update_dialog
+	dialog.get_ok_button().disabled = false
+	match result:
+		UpdateChecker.Result.NEWER:
+			var text: String = tr("LadderLab %s is available (you have %s).") % [release["version"], ReleaseCheck.current_version()]
+			var notes: String = str(release["notes"]).strip_edges()
+			if notes.length() > 600:
+				notes = notes.left(600).strip_edges() + " …"
+			dialog.dialog_text = text if notes.is_empty() else text + "\n\n" + notes
+			dialog.ok_button_text = tr("Download")
+			_offering_download = true
+			dialog.cancel_button_text = tr("Later")
+			dialog.get_cancel_button().visible = true
+		UpdateChecker.Result.LATEST:
+			dialog.dialog_text = tr("You have the latest version (%s).") % ReleaseCheck.current_version()
+		_:
+			dialog.dialog_text = tr("Could not check for updates. Check the internet connection and try again.")
+	# The text changed: let the dialog fit it.
+	dialog.reset_size()
+	dialog.popup_centered()
+
+
+func _update_new_release_button() -> void:
+	_update_button.visible = not _new_release.is_empty()
+	if _update_button.visible:
+		_update_button.text = tr("Version %s available") % _new_release["version"]
+		_update_button.tooltip_text = tr("Download the new version from its release page")
 
 
 ## Puts the [AppTheme] in place for every control and window, including popups
@@ -1376,6 +1491,7 @@ func _load_settings() -> void:
 		_bar_settings["cabinet"] = Vector2(float(config.get_value("view", "cabinet_width", 340.0)), float(config.get_value("view", "cabinet_zoom", 1.0)))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
+		_check_updates = bool(config.get_value("updates", "check_at_start", true))
 
 
 func _save_settings() -> void:
@@ -1399,6 +1515,7 @@ func _save_settings() -> void:
 			config.set_value("view", bar.name + "_width", bar.width)
 			config.set_value("view", bar.name + "_zoom", bar.zoom)
 	config.set_value("view", "language", LOCALES[_locale_index])
+	config.set_value("updates", "check_at_start", _check_updates)
 	config.save(SETTINGS_PATH)
 
 
