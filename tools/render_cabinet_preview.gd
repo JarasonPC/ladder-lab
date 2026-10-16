@@ -27,7 +27,7 @@ func _initialize() -> void:
 	if not args.is_empty():
 		out_dir = args[0].trim_suffix("/") + "/"
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	# Round 3: the devices drawn after the reference photos.
+	# Round 4: pole variants, a more visible breaker lever.
 	await _breakers()
 	await _fuses()
 	await _contactors()
@@ -91,39 +91,40 @@ static func _centred(p: CabinetPainter, cell_w: float, part_w: float, top: float
 
 
 func _breakers() -> void:
-	var cols: PackedStringArray = ["Off", "On", "Tripped (as real)", "Tripped (marked)", "3-pole, on"]
-	await _grid("breaker", "Circuit breaker (jistič) FA", [""], cols, Vector2(66, 100), 50.0, func(p: CabinetPainter, _r: int, c: int) -> void:
-		var poles: int = 3 if c == 4 else 1
-		CabinetParts.breaker(_centred(p, 66, 18 * poles, 5), poles, c == 1 or c == 4, c == 2 or c == 3, "B10" if poles == 1 else "C16", [], c == 3))
+	var cols: PackedStringArray = ["1 pole", "2 poles", "3 poles", "4 poles"]
+	await _grid("breaker", "Circuit breaker (jistič) FA", ["Off", "On"], cols, Vector2(84, 100), 50.0, func(p: CabinetPainter, r: int, c: int) -> void:
+		var poles: int = c + 1
+		CabinetParts.breaker(_centred(p, 84, 18 * poles, 5), poles, r == 1, "B10" if poles == 1 else "C16"))
 
 
 func _fuses() -> void:
-	var cols: PackedStringArray = ["Closed", "Open", "Blown", "Blown, open", "3-pole"]
-	await _grid("fuse_holder", "Fuse holder (pojistkový odpínač) FU", [""], cols, Vector2(62, 100), 50.0, func(p: CabinetPainter, _r: int, c: int) -> void:
-		var poles: int = 3 if c == 4 else 1
-		CabinetParts.fuse_holder(_centred(p, 62, 18 * poles, 5), poles, c != 1 and c != 3, c == 2 or c == 3))
+	var cols: PackedStringArray = ["1 pole", "2 poles", "3 poles", "4 poles"]
+	await _grid("fuse_holder", "Fuse holder (pojistkový odpínač) FU", ["Closed", "Open"], cols, Vector2(84, 100), 50.0, func(p: CabinetPainter, r: int, c: int) -> void:
+		var poles: int = c + 1
+		CabinetParts.fuse_holder(_centred(p, 84, 18 * poles, 5), poles, r == 0, false))
 
 
 func _contactors() -> void:
-	var cols: PackedStringArray = ["Off", "On", "On, overload relay tripped"]
-	await _grid("contactor", "Contactor (stykač) KM with overload relay (tepelné relé) F", [""], cols, Vector2(60, 145), 45.0, func(p: CabinetPainter, _r: int, c: int) -> void:
+	var cols: PackedStringArray = ["3 poles (also 1-2), off", "3 poles, on", "4 poles, on", "6 auxiliary contacts, on"]
+	var six: Array = [["13", "NO", "14"], ["21", "NC", "22"], ["53", "NO", "54"], ["61", "NC", "62"], ["71", "NC", "72"], ["83", "NO", "84"]]
+	await _grid("contactor", "Contactor (stykač) KM", [""], cols, Vector2(60, 90), 45.0, func(p: CabinetPainter, _r: int, c: int) -> void:
 		var q: CabinetPainter = _centred(p, 60, 45, 6.5)
-		CabinetParts.contactor(q, c >= 1, true)
-		CabinetParts.label(q, Vector2(22.7, 46.6), "-KM1")
-		CabinetParts.overload_relay(q.shifted(Vector2(0, CabinetParts.CONTACTOR.y)), c == 2)
-		CabinetParts.label(q, Vector2(22.5, CabinetParts.CONTACTOR.y + CabinetParts.OVERLOAD.y + 4.0), "-F1", "A", 12.0))
+		var aux: Array = six if c == 3 else six.slice(0, 2)
+		CabinetParts.contactor(q, c >= 1, true, aux, {}, 4 if c == 2 else 3)
+		CabinetParts.label(q, CabinetParts.contactor_label_at(aux.size()), "-KM1"))
 
 
 func _relays() -> void:
-	var cols: PackedStringArray = ["Off", "On"]
-	await _grid("relay", "Auxiliary relay (pomocné relé) KA", [""], cols, Vector2(40, 100), 50.0, func(p: CabinetPainter, _r: int, c: int) -> void:
-		CabinetParts.relay(_centred(p, 40, CabinetParts.RELAY.x, 50.0 - CabinetParts.RELAY.y * 0.5), c == 1, true))
+	var cols: PackedStringArray = ["1 contact", "2 contacts", "3 contacts", "4 contacts"]
+	await _grid("relay", "Auxiliary relay (pomocné relé) KA", ["Off", "On"], cols, Vector2(44, 100), 50.0, func(p: CabinetPainter, r: int, c: int) -> void:
+		var size: Vector2 = CabinetParts.relay_size(c + 1)
+		CabinetParts.relay(_centred(p, 44, size.x, 50.0 - size.y * 0.5), r == 1, true, {}, c + 1))
 
 
 func _timers() -> void:
-	var cols: PackedStringArray = ["No power", "Timing", "Output on"]
-	await _grid("timer", "Time relay (časové relé) KT", [""], cols, Vector2(40, 100), 50.0, func(p: CabinetPainter, _r: int, c: int) -> void:
-		CabinetParts.timer(_centred(p, 40, 18, 5), c))
+	var cols: PackedStringArray = ["1 contact", "2 contacts", "3 contacts"]
+	await _grid("timer", "Time relay (časové relé) KT", ["Timing"], cols, Vector2(40, 100), 50.0, func(p: CabinetPainter, _r: int, c: int) -> void:
+		CabinetParts.timer(_centred(p, 40, 18, 5), 1, 1, "S", {}, c + 1))
 
 
 const L1 := Color("d8693d")
@@ -141,7 +142,7 @@ func _cabinet(plate: String, k: float, file: String) -> void:
 	if detail:
 		px = Vector2i(Vector2(size_mm.x, 330) * k) + Vector2i(32, 70)
 	await _shot(file, px, func(ci: CanvasItem) -> void:
-		_text(ci, Vector2(16, 32), "Switchboard, round 3%s" % [": detail (2x)" if detail else " (size in the app)"], 20, HEADING, true)
+		_text(ci, Vector2(16, 32), "Switchboard, round 4%s" % [": detail (2x)" if detail else " (size in the app)"], 20, HEADING, true)
 		var p: CabinetPainter = CabinetPainter.new(ci, k, Vector2(16, 54))
 		_draw_cabinet(p, size_mm, plate))
 
@@ -163,7 +164,7 @@ static func _draw_cabinet(p: CabinetPainter, size: Vector2, plate: String) -> vo
 	CabinetParts.din_rail(p.shifted(Vector2(x0 - 2.0, rail1 - 17.5)), x1 - x0 + 4.0, "A")
 	var x: float = x0
 	var top1: float = rail1 - 45.0
-	CabinetParts.breaker(p.shifted(Vector2(x, top1)), 3, true, false, "C10", [L1, L1, L2, L2, L3, L3])
+	CabinetParts.breaker(p.shifted(Vector2(x, top1)), 3, true, "C10", [L1, L1, L2, L2, L3, L3])
 	CabinetParts.label(p, Vector2(x + 27.0, top1 - 3.5), "-FA1")
 	x += 54.0 + 2.0
 	CabinetParts.fuse_holder(p.shifted(Vector2(x, top1)), 1, true, false, [L1, L1])
@@ -177,9 +178,11 @@ static func _draw_cabinet(p: CabinetPainter, size: Vector2, plate: String) -> vo
 	x += 18.0 + 6.0
 	for k: int in 2:
 		var on: bool = k == 0
-		CabinetParts.relay(p.shifted(Vector2(x, rail1 - CabinetParts.RELAY.y * 0.5)), on, true, {"A1": L1, "A2": N} if on else {})
-		CabinetParts.label(p, Vector2(x + 7.9, rail1 - CabinetParts.RELAY.y * 0.5 - 3.5), "-KA%d" % (k + 1), "A", 14.0)
-		x += CabinetParts.RELAY.x + 2.0
+		var poles: int = 2 if k == 0 else 4
+		var rsize: Vector2 = CabinetParts.relay_size(poles)
+		CabinetParts.relay(p.shifted(Vector2(x, rail1 - rsize.y * 0.5)), on, true, {"A1": L1, "A2": N} if on else {}, poles)
+		CabinetParts.label(p, Vector2(x + rsize.x * 0.5, rail1 - rsize.y * 0.5 - 3.5), "-KA%d" % (k + 1), "A", 14.0)
+		x += rsize.x + 2.0
 	# Rail 2: contactors, the overload relay under the first.
 	var rail2: float = 210.0
 	CabinetParts.din_rail(p.shifted(Vector2(x0 - 2.0, rail2 - 17.5)), x1 - x0 + 4.0, "A")
@@ -189,8 +192,9 @@ static func _draw_cabinet(p: CabinetPainter, size: Vector2, plate: String) -> vo
 	CabinetParts.label(p, Vector2(x0 + 22.7, top2 + 46.6), "-KM1")
 	CabinetParts.overload_relay(p.shifted(Vector2(x0, top2 + CabinetParts.CONTACTOR.y)), false, "5", {"2": L1, "4": L2, "6": L3, "95": L1, "96": L1})
 	CabinetParts.label(p, Vector2(x0 + 22.5, top2 + CabinetParts.CONTACTOR.y + CabinetParts.OVERLOAD.y + 4.0), "-F1", "A", 12.0)
-	CabinetParts.contactor(p.shifted(Vector2(x0 + 50.0, top2)), false, true, [["13", "NO", "14"], ["21", "NC", "22"]], {"1": L1, "3": L2, "5": L3})
-	CabinetParts.label(p, Vector2(x0 + 72.7, top2 + 46.6), "-KM2")
+	var aux: Array = [["13", "NO", "14"], ["21", "NC", "22"], ["53", "NO", "54"], ["61", "NC", "62"]]
+	CabinetParts.contactor(p.shifted(Vector2(x0 + 50.0, top2)), false, true, aux, {"1": L1, "3": L2, "5": L3})
+	CabinetParts.label(p, CabinetParts.contactor_label_at(aux.size()) + Vector2(x0 + 50.0, top2), "-KM2")
 	# Rail 3: terminal strips.
 	var rail3: float = 380.0
 	CabinetParts.din_rail(p.shifted(Vector2(x0 - 2.0, rail3 - 17.5)), x1 - x0 + 4.0, "A")
