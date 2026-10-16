@@ -24,6 +24,8 @@ var control_boxes: Array[ControlBox] = []
 ## Titles of the pages, e.g. "Power section" (shown translated, like
 ## [member title]); "" for an untitled page.
 var pages: PackedStringArray = PackedStringArray([""])
+## Texts of the title block on exported sheets (drawn by, checked by, ...).
+var title_block: TitleBlock = TitleBlock.new()
 ## Index of the page shown and edited.
 var page: int = 0:
 	set(value):
@@ -51,6 +53,18 @@ func connect_terminals(key_a: String, key_b: String, corners: Array[Vector2i] = 
 	if not circuit.connect_terminals(key_a, key_b):
 		return false
 	_routes.append(WireRoute.new(corners))
+	return true
+
+
+## Sets the schematic title and the title block texts (both stripped of
+## surrounding spaces). Returns false when nothing changed.
+func set_title_block(new_title: String, block: TitleBlock) -> bool:
+	var cleaned: TitleBlock = TitleBlock.from_data(block.to_data())
+	new_title = new_title.strip_edges()
+	if new_title == title and cleaned.equals(title_block):
+		return false
+	title = new_title
+	title_block = cleaned
 	return true
 
 

@@ -12,11 +12,11 @@ const BATCH: int = 4
 ## Draw the wire numbers.
 var wire_numbers: bool = true
 ## Texts of the title block: the schematic title, the file name (may be
-## empty), and the page title of an untitled page ("Page %d").
+## empty), and the page title of an untitled page ("Page %d"); the other
+## fields come from [member SchematicDocument.title_block].
 var title: String = ""
 var file_name: String = ""
 var untitled_page: String = "Page %d"
-var page_caption: String = "Page"
 ## Layouts of the pages rendered last, in the same order.
 var layouts: Array[SheetLayout] = []
 
@@ -75,9 +75,9 @@ func _sheet(copy: SchematicDocument, page_count: int) -> SubViewport:
 	frame.page_title = tr(page_title) if not page_title.is_empty() else untitled_page % (copy.page + 1)
 	frame.page_number = copy.page + 1
 	frame.page_count = page_count
-	frame.page_caption = page_caption
-	var date: String = Time.get_date_string_from_system()
-	frame.note = date if file_name.is_empty() else "%s   %s" % [file_name, date]
+	frame.note = file_name
+	frame.block = copy.title_block
+	frame.date = Time.get_date_string_from_system()
 	content.add_child(frame)
 	add_child(viewport)
 	view.load_document(copy, false)

@@ -47,6 +47,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		for box: ControlBox in doc.control_boxes:
 			boxes.append(box.to_data())
 		result["control_boxes"] = boxes
+	if not doc.title_block.is_empty():
+		result["title_block"] = doc.title_block.to_data()
 	return result
 
 
@@ -116,6 +118,7 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			var box: ControlBox = ControlBox.from_data(bd)
 			if box != null:
 				doc.control_boxes.append(box)
+	doc.title_block = TitleBlock.from_data(d.get("title_block", {}))
 	return doc
 
 

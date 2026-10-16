@@ -1035,6 +1035,44 @@ msgstr ""
 msgid "Export PDF"
 msgstr ""
 
+msgid "Title block"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Date of the export"
+msgstr ""
+
+msgid "Title block…"
+msgstr ""
+
+msgid "Texts of the title block on exported sheets: drawn by, checked by, company, ..."
+msgstr ""
+
+msgid "Title"
+msgstr ""
+
+msgid "Company"
+msgstr ""
+
+msgid "Project"
+msgstr ""
+
+msgid "Drawing no."
+msgstr ""
+
+msgid "Revision"
+msgstr ""
+
+msgid "Drawn by"
+msgstr ""
+
+msgid "Checked by"
+msgstr ""
+
+msgid "Date"
+
 msgid "PE supply"
 msgstr ""
 

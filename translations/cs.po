@@ -1040,6 +1040,45 @@ msgstr "Exportovat všechny stránky jako PDF…"
 msgid "Export PDF"
 msgstr "Exportovat PDF"
 
+msgid "Title block"
+msgstr "Popisové pole"
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Date of the export"
+msgstr "Datum exportu"
+
+msgid "Title block…"
+msgstr "Popisové pole…"
+
+msgid "Texts of the title block on exported sheets: drawn by, checked by, company, ..."
+msgstr "Texty popisového pole na exportovaných listech: kreslil, kontroloval, firma, ..."
+
+msgid "Title"
+msgstr "Název"
+
+msgid "Company"
+msgstr "Firma"
+
+msgid "Project"
+msgstr "Projekt"
+
+msgid "Drawing no."
+msgstr "Číslo výkresu"
+
+msgid "Revision"
+msgstr "Revize"
+
+msgid "Drawn by"
+msgstr "Kreslil"
+
+msgid "Checked by"
+msgstr "Kontroloval"
+
+msgid "Date"
+msgstr "Datum"
+
 msgid "PE supply"
 msgstr "Přívod PE"
 
