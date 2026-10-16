@@ -790,6 +790,86 @@ static func _led_bar(p: CabinetPainter, r: Rect2, color: Color, lit: bool) -> vo
 	p.rect(r, color if lit else color.darkened(0.6), 0.2)
 
 
+# --- Bridge rectifier ---------------------------------------------------------------
+
+## Width of a bridge rectifier: [param variant] "B" is two modules wide.
+static func rectifier_size(variant: String = "A") -> Vector2:
+	return Vector2(MODULE_W * (2.0 if variant == "B" else 1.0), MODULE_H)
+
+
+## Bridge rectifier (usměrňovač, TB) on the rail: the AC input ~1 ~2 on the
+## top tier, the DC output + and - on the bottom tier, the bridge symbol on
+## the front and a green LED that lights while the input has voltage
+## ([param on]). PREVIEW: "A" one light grey module, "B" two modules with
+## a heatsink, "C" one dark module.
+static func rectifier(p: CabinetPainter, on: bool, variant: String = "A", reach: Dictionary = {}) -> void:
+	var size: Vector2 = rectifier_size(variant)
+	var w: float = size.x
+	var h: float = size.y
+	var dark: bool = variant == "C"
+	var face: Color = BLOCK_LIGHT if dark else MODULAR_FACE
+	var shade: Color = BLOCK_DARK if dark else MODULAR_SHADE
+	var edge: Color = Color("2e3034") if dark else MODULAR_EDGE
+	var ink: Color = BLOCK_WHITE if dark else MODULAR_PRINT
+	for t: Array in [[0.0, 13.0], [h - 13.0, 13.0]]:
+		p.gradient(Rect2(0.3, t[0], w - 0.6, t[1]), face, shade, 0.6, edge, 0.15)
+	var xs: Array[float] = [w * 0.28, w * 0.72]
+	var top: PackedStringArray = ["~1", "~2"]
+	var bottom: PackedStringArray = ["+", "-"]
+	for j: int in 2:
+		if dark:
+			_block_screw(p, Vector2(xs[j], 8.6), 2.1, reach.get(top[j], Color.TRANSPARENT))
+			_block_screw(p, Vector2(xs[j], h - 8.6), 2.1, reach.get(bottom[j], Color.TRANSPARENT))
+		else:
+			_modular_screw_small(p, Vector2(xs[j], 8.6), reach.get(top[j], Color.TRANSPARENT))
+			_modular_screw_small(p, Vector2(xs[j], h - 8.6), reach.get(bottom[j], Color.TRANSPARENT))
+		p.text(Vector2(xs[j], 4.4), top[j], 2.0, BLOCK_TEAL if dark else ink, 0, false)
+		p.text(Vector2(xs[j], h - 2.4), "−" if bottom[j] == "-" else "+", 2.6, BLOCK_TEAL if dark else ink, 0, true)
+	var front: Rect2 = Rect2(0.3, 13.0, w - 0.6, h - 26.0)
+	p.rect(Rect2(front.position.x, front.end.y, front.size.x, 0.8), Color(0, 0, 0, 0.15))
+	if dark:
+		p.gradient(front, BLOCK_LIGHT.lightened(0.05), BLOCK_BODY, 0.6, edge, 0.2)
+	else:
+		p.gradient(front, MODULAR_FACE.lightened(0.3), MODULAR_FACE, 0.6, edge, 0.15)
+	var symbol_y: float = 34.0
+	if variant == "B":
+		# Aluminium heatsink: ribs across the upper front.
+		var sink: Rect2 = Rect2(2.0, 16.0, w - 4.0, 22.0)
+		p.rect(sink, Color("8c9399"), 0.8, Color("6b7177"), 0.15)
+		var ribs: int = 9
+		for r: int in ribs:
+			var rx: float = sink.position.x + 1.0 + r * (sink.size.x - 2.0) / ribs
+			p.hgradient(Rect2(rx, sink.position.y + 0.8, (sink.size.x - 2.0) / ribs - 0.7, sink.size.y - 1.6), Color("eef1f3"), Color("a7aeb4"), 0.3)
+		symbol_y = 47.0
+	_bridge_symbol(p, Vector2(w * 0.5, symbol_y), 4.6, ink)
+	p.text(Vector2(w * 0.5, symbol_y + 9.6), "~ / =", 1.9, ink, 0, true)
+	var led_y: float = symbol_y + 16.0
+	led(p, Vector2(w * 0.5, led_y), LED_GREEN, on, 1.0)
+	p.text(Vector2(w * 0.5, led_y + 4.2), "DC", 1.6, ink, 0, true)
+
+
+## Bridge (Graetz) symbol: a square on its corner with a diode on each side,
+## AC at the left and right corners, + at the top, - at the bottom.
+static func _bridge_symbol(p: CabinetPainter, c: Vector2, r: float, ink: Color) -> void:
+	var top: Vector2 = c + Vector2(0, -r)
+	var bottom: Vector2 = c + Vector2(0, r)
+	var left: Vector2 = c + Vector2(-r, 0)
+	var right: Vector2 = c + Vector2(r, 0)
+	# Each diode conducts towards the + corner.
+	for side: Array in [[left, top], [right, top], [bottom, left], [bottom, right]]:
+		var a: Vector2 = side[0]
+		var b: Vector2 = side[1]
+		p.line(a, b, ink, 0.15)
+		var mid: Vector2 = a.lerp(b, 0.5)
+		var along: Vector2 = (b - a).normalized()
+		var across: Vector2 = Vector2(-along.y, along.x)
+		var s: float = r * 0.19
+		p.polygon(PackedVector2Array([mid - along * s + across * s, mid - along * s - across * s, mid + along * s]), ink)
+		p.line(mid + along * s + across * s * 1.1, mid + along * s - across * s * 1.1, ink, 0.18)
+	p.text(top + Vector2(0, -0.8), "+", 1.8, ink, 0, true)
+	p.text(bottom + Vector2(0, 2.6), "−", 1.8, ink, 0, true)
+
+
 # --- Terminal blocks ----------------------------------------------------------------
 
 ## A strip of push-in terminal blocks (svorkovnice) between two end stops

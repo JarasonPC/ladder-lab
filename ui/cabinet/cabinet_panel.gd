@@ -2,7 +2,7 @@ class_name CabinetPanel
 extends PanelContainer
 ## Switchboard (rozvaděč) beside the schematic: the DIN rails of the document
 ## ([CabinetRail]) with its circuit breakers, fuse holders, contactors and
-## overload relays, relays, time relays and terminal strips, drawn by a
+## overload relays, relays, time relays, bridge rectifiers and terminal strips, drawn by a
 ## [CabinetView]. While simulating they show the circuit and breakers, fuse
 ## holders and overload relays are operated on them. While editing, rails
 ## are added and filled here; every change is emitted as one undoable edit
@@ -14,7 +14,7 @@ signal operate_requested(designation: String)
 signal edit_requested(change: Callable)
 
 ## English names of [enum CabinetDevices.Kind] (translated with tr()).
-const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay"]
+const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay", "Bridge rectifier"]
 
 var _document: SchematicDocument
 var _editing: bool = false

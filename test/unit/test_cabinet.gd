@@ -192,3 +192,18 @@ func test_layout_marks_missing_devices() -> void:
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	assert_eq(layout.places[0]["kind"], CabinetLayout.MISSING_DEVICE)
 	assert_eq(layout.places[1]["kind"], CabinetLayout.MISSING_DEVICE, "a strip without terminals")
+
+
+func test_bridge_rectifier() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.add(Rectifier.new("TB1"), Vector2i(100, 0))
+	assert_true(CabinetDevices.devices(doc).has("TB1"))
+	var rectifier: Dictionary = CabinetDevices.describe(doc, "TB1")
+	assert_eq(rectifier["kind"], CabinetDevices.Kind.RECTIFIER)
+	assert_false(rectifier["on"], "no voltage on its input")
+	assert_eq(rectifier["terminals"]["+"], "TB1:+")
+	doc.fill_cabinet()
+	var first: PackedStringArray = PackedStringArray()
+	for item: CabinetItem in doc.cabinet_rails[0].items:
+		first.append(item.designation)
+	assert_eq(first, PackedStringArray(["FA1", "FU1", "KT1", "KA1", "TB1"]), "rectifiers after the relays")

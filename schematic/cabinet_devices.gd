@@ -2,8 +2,8 @@ class_name CabinetDevices
 extends RefCounted
 ## What the switchboard (rozvaděč) shows of a circuit: the devices that sit
 ## on DIN rails (circuit breakers, fuse holders, contactors with the overload
-## relays fitted under them, auxiliary relays, time relays) and the terminal
-## strips, with everything their look depends on (poles, contacts, terminal
+## relays fitted under them, auxiliary relays, time relays, bridge
+## rectifiers) and the terminal strips, with everything their look depends on (poles, contacts, terminal
 ## names) and their simulation state. Works on the circuit alone, no nodes.
 ##
 ## Terminal strips are made of the terminals on wires ([TerminalBlock]) and on
@@ -11,7 +11,7 @@ extends RefCounted
 ## of strip X2, a plain label "4" is terminal 4 of strip X1. Terminals with the
 ## same strip and label are one terminal.
 
-enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD }
+enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER }
 
 ## Strip of the terminals whose label names none.
 const DEFAULT_STRIP: String = "X1"
@@ -31,6 +31,8 @@ static func kind_of(c: CircuitComponent) -> Kind:
 		return Kind.CONTACTOR if (c as Coil).kind == Coil.Kind.CONTACTOR else Kind.RELAY
 	if c is OverloadRelay:
 		return Kind.OVERLOAD
+	if c is Rectifier:
+		return Kind.RECTIFIER
 	return Kind.NONE
 
 
@@ -71,6 +73,7 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ## - TIMER: "contacts", "code" (function, "F2"), "control" (name of the
 ##   control input), "powered", "output"
 ## - OVERLOAD: "tripped"
+## - RECTIFIER: "on" (its input has voltage)
 static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 	var c: CircuitComponent = device(doc.circuit, designation)
 	if c == null:
@@ -104,6 +107,9 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 			_describe_timer(doc, c as TimerRelay, d)
 		Kind.OVERLOAD:
 			_describe_overload(doc.circuit, c as OverloadRelay, d)
+		Kind.RECTIFIER:
+			d["on"] = (c as Rectifier).energized
+			d["terminals"] = _named_keys(c)
 	return d
 
 
