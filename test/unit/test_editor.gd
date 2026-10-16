@@ -570,3 +570,44 @@ func test_conductor_l3_renames_the_plain_l() -> void:
 	assert_not_null(doc.circuit.get_component("L1"))
 	assert_null(doc.circuit.get_component("L"))
 	assert_eq(editor.selected_components.keys(), ["L3"])
+
+
+func test_click_does_not_move_a_part() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	var doc: SchematicDocument = editor.document()
+	# Grabbed just above a cell boundary, a twitch of the mouse crosses it.
+	_at(Vector2(5, 5.45))
+	editor._on_left_pressed(false)
+	_at(Vector2(5.05, 5.55))
+	editor._on_mouse_moved()
+	editor._on_left_released(false)
+	assert_eq(doc.get_placement("H1").cell, Vector2i(5, 4), "a click does not move the part")
+	_at(Vector2(5, 5.45))
+	editor._on_left_pressed(false)
+	_at(Vector2(8.2, 7.6))
+	editor._on_mouse_moved()
+	editor._on_left_released(false)
+	assert_eq(editor.document().get_placement("H1").cell, Vector2i(8, 6), "a drag moves it by whole cells")
+
+
+func test_drag_ends_when_the_release_was_missed() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_at(Vector2(5, 5.5))
+	editor._on_left_pressed(false)
+	assert_true(editor._dragging)
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.button_mask = 0
+	editor._unhandled_input(motion)
+	assert_false(editor._dragging, "no button held: the part stays put")
+
+
+func test_new_wire_does_not_join_its_own_net() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_place({"type": "lamp"}, Vector2i(9, 4))
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])
+	# From L again: the click on the wire L already has is a corner.
+	_wire([Vector2(2, 1), Vector2(4, 1), Vector2(9, 1), Vector2(9, 4)])
+	var doc: SchematicDocument = editor.document()
+	assert_null(doc.circuit.get_component("J1"), "no junction on the wire of L")
+	assert_eq(doc.get_wire_count(), 2)
+	assert_eq(doc.circuit.get_wires()[1], PackedStringArray(["L", "H2:X1"]))

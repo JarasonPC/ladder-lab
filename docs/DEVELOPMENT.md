@@ -150,6 +150,12 @@ Architecture and conventions of the code base. Read this before changing the cod
 - `ui/cabinet/` CabinetPanel (sidebar), CabinetView, CabinetLayout, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
+- Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP
+  pixels, so a click never moves anything; parts are dragged from the state at the press
+  (SchematicDocument.drag_start / drag_components), so wires are re-routed from their routes at
+  the press, never from those of an earlier mouse position. A re-routed wire (normalize_route)
+  never runs over itself, across the two symbols or over terminals of another net when a clean
+  route exists. Branch dots join wires of one net only
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
   through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are
   simulation-only state (never saved)

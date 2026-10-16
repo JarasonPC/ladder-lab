@@ -112,6 +112,19 @@ func test_mixed_horizontal_and_vertical_symbols() -> void:
 	assert_eq(doc.junction_cells(), [] as Array[Vector2i])
 
 
+func test_corners_of_two_nets_get_no_dot() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(3, 6))
+	doc.add(Lamp.new("H3"), Vector2i(3, -3))
+	doc.add(Lamp.new("H4"), Vector2i(6, 0))
+	# H1:X2 (0,3) -> (3,3) -> H2:X1 (3,6) and H3:X2 (3,0) -> (3,3) -> H4:X2 (6,3):
+	# two nets turning at the same cell, not joined.
+	doc.connect_terminals("H1:X2", "H2:X1", [Vector2i(3, 3)] as Array[Vector2i])
+	doc.connect_terminals("H3:X2", "H4:X2", [Vector2i(3, 3)] as Array[Vector2i])
+	assert_does_not_have(doc.junction_cells(), Vector2i(3, 3), "wires of two nets meeting are not a junction")
+
+
 func test_crossing_wires_get_no_dot() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
 	for name: String in ["H1", "H2", "H3", "H4"]:

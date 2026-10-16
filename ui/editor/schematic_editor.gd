@@ -53,11 +53,16 @@ var _ghost_mirrored: bool = false
 # Wiring: start terminal and fixed points so far (start cell first).
 var _wire_start: String = ""
 var _wire_points: Array[Vector2i] = []
+## Where the left button went down, and whether the mouse has since moved
+## far enough (CLICK_SLOP) to drag: a plain click never moves anything.
+var _press_point: Vector2 = Vector2.ZERO
+var _press_moved: bool = false
 # Dragging selected symbols.
 var _dragging: bool = false
-var _drag_origin: Vector2i = Vector2i.ZERO
 var _drag_applied: Vector2i = Vector2i.ZERO
 var _drag_recorded: bool = false
+## Placements and wire routes when the drag began (SchematicDocument.drag_start).
+var _drag_start: Dictionary = {}
 ## Dragging one segment of a wire sideways (tidying the route).
 var _wire_drag: int = -1
 var _wire_drag_segment: int = -1
@@ -481,6 +486,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion:
 		_update_mouse()
+		if _holding() and not ((event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT):
+			# The release went elsewhere (e.g. outside the window): end the
+			# drag rather than let the part follow the mouse.
+			_on_left_released(false)
 		_on_mouse_moved()
 	elif event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
@@ -632,19 +641,32 @@ func _on_mouse_moved() -> void:
 			if _ghost != null:
 				_ghost.position = Vector2(_mouse_cell) * G
 		Tool.SELECT:
-			if _dragging:
-				_drag_to(_mouse_cell - _drag_origin)
-			elif _wire_drag >= 0:
-				_drag_wire_to(_mouse_cell - _wire_drag_origin)
-			elif _number_drag.x >= 0:
-				_drag_number_to(_mouse_point - _number_drag_origin)
-			elif _marking_drag:
-				_drag_marking_to(_mouse_point - _marking_drag_origin)
+			if _holding() and not _press_moved:
+				var on_screen: float = (_mouse_point - _press_point).length() * G * get_global_transform_with_canvas().get_scale().x
+				_press_moved = on_screen >= CLICK_SLOP
+			if _press_moved:
+				if _dragging:
+					# Steps of whole cells from the press, wherever in its cell
+					# the part was grabbed.
+					_drag_to(Vector2i((_mouse_point - _press_point).round()))
+				elif _wire_drag >= 0:
+					_drag_wire_to(_mouse_cell - _wire_drag_origin)
+				elif _number_drag.x >= 0:
+					_drag_number_to(_mouse_point - _number_drag_origin)
+				elif _marking_drag:
+					_drag_marking_to(_mouse_point - _marking_drag_origin)
 	queue_redraw()
+
+
+## A drag of parts, a wire segment, a wire number or a marking is under way.
+func _holding() -> bool:
+	return _dragging or _wire_drag >= 0 or _number_drag.x >= 0 or _marking_drag
 
 
 func _on_left_pressed(shift: bool) -> void:
 	var doc: SchematicDocument = document()
+	_press_point = _mouse_point
+	_press_moved = false
 	match tool:
 		Tool.PLACE:
 			_place_at(_mouse_cell)
@@ -653,7 +675,7 @@ func _on_left_pressed(shift: bool) -> void:
 			if not key.is_empty() and key != _wire_start:
 				_finish_wire(key, -1)
 				return
-			var w: int = doc.wire_at(_mouse_point)
+			var w: int = _wire_to_join()
 			if w >= 0 and key.is_empty():
 				_finish_wire("", w)
 				return
@@ -700,7 +722,6 @@ func _on_left_pressed(shift: bool) -> void:
 					_clear_selection()
 					selected_components[hit.id] = true
 				_dragging = true
-				_drag_origin = _mouse_cell
 				_drag_applied = Vector2i.ZERO
 				_drag_recorded = false
 				_selection_updated()
@@ -746,6 +767,7 @@ func _on_left_released(shift: bool) -> void:
 			_changed()
 	if _dragging:
 		_dragging = false
+		_drag_start = {}
 		if _drag_recorded:
 			_changed()
 	if _boxing:
@@ -1018,6 +1040,21 @@ func _finish_wire(key: String, wire_index: int) -> void:
 	_emit_hint()
 
 
+## Wire under the mouse that the wire being drawn would end on (with a
+## junction), or -1. Wires already joined to the start terminal do not count:
+## a click on them adds a corner, as joining them would only close a loop.
+func _wire_to_join() -> int:
+	var doc: SchematicDocument = document()
+	var w: int = doc.wire_at(_mouse_point)
+	if w < 0:
+		return -1
+	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
+	for i: int in wires.size():
+		if wires[i].has(_wire_start):
+			return -1 if doc.wire_net(i).has(w) else w
+	return w
+
+
 ## Points from the last fixed wire point to the mouse cell, with one elbow.
 func _preview_points() -> Array[Vector2i]:
 	var target: Vector2i = _mouse_cell
@@ -1044,13 +1081,16 @@ func _route_to(target: Vector2i) -> Array[Vector2i]:
 	return result
 
 
+## Moves the dragged parts [param delta] cells from where they were at the
+## press; their wires are routed from their routes at the press.
 func _drag_to(delta: Vector2i) -> void:
 	if delta == _drag_applied or selected_components.is_empty():
 		return
 	if not _drag_recorded:
 		_record()
 		_drag_recorded = true
-	document().move_components(PackedStringArray(selected_components.keys()), delta - _drag_applied)
+		_drag_start = document().drag_start(PackedStringArray(selected_components.keys()))
+	document().drag_components(_drag_start, delta)
 	_drag_applied = delta
 	view.rebuild()
 
@@ -1481,7 +1521,7 @@ func _draw() -> void:
 	if tool == Tool.WIRE:
 		var points: Array[Vector2i] = _wire_points.duplicate()
 		var preview: Array[Vector2i] = _preview_points()
-		var w: int = doc.wire_at(_mouse_point)
+		var w: int = _wire_to_join()
 		if w >= 0 and doc.terminal_at(_mouse_point).is_empty():
 			var cell: Vector2i = doc.wire_cell_near(w, _mouse_point)
 			preview = _route_to(cell)

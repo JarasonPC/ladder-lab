@@ -174,16 +174,37 @@ func current_paths(merge: float = 2.0, on_page: int = -1) -> PackedFloat32Array:
 
 
 ## Cells of page [param on_page] (-1: the current page) where three or more wire or lead
-## directions meet at a wire's end or corner, drawn as dots (a plain crossing is not a connection).
+## directions of one net meet at a wire's end or corner, drawn as dots (a plain crossing is not
+## a connection, nor are wires of other nets running over the cell).
 func junction_cells(on_page: int = -1) -> Array[Vector2i]:
-	var directions: Dictionary[Vector2i, int] = {}
+	var on: PackedInt32Array = wires_on_page(on_page)
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	# Nets of the page: wires joined at shared terminals or by page connectors.
+	var nets: UnionFind = UnionFind.new(on.size())
+	var first_of_key: Dictionary[String, int] = {}
+	for n: int in on.size():
+		for key: String in wires[on[n]]:
+			if first_of_key.has(key):
+				nets.union(n, first_of_key[key])
+			else:
+				first_of_key[key] = n
+	for link: PackedStringArray in circuit.get_links():
+		if first_of_key.has(link[0]) and first_of_key.has(link[1]):
+			nets.union(first_of_key[link[0]], first_of_key[link[1]])
+	# Directions at (cell, net); wires of different nets never join.
+	var directions: Dictionary[Vector3i, int] = {}
 	# Cells where a wire starts, ends or turns: only there do wires connect.
 	# Two wires merely crossing each other get no dot.
-	var vertices: Dictionary[Vector2i, bool] = {}
-	for i: int in wires_on_page(on_page):
+	var vertices: Dictionary[Vector3i, bool] = {}
+	var net_of_key: Dictionary[String, int] = {}
+	for n: int in on.size():
+		var i: int = on[n]
+		var net: int = nets.find(n)
+		net_of_key[wires[i][0]] = net
+		net_of_key[wires[i][1]] = net
 		var points: Array[Vector2i] = wire_points(i)
 		for p: Vector2i in points:
-			vertices[p] = true
+			vertices[Vector3i(p.x, p.y, net)] = true
 		for s: int in range(1, points.size()):
 			var a: Vector2i = points[s - 1]
 			var b: Vector2i = points[s]
@@ -192,12 +213,13 @@ func junction_cells(on_page: int = -1) -> Array[Vector2i]:
 			var unit: Vector2i = (b - a).sign()
 			var cell: Vector2i = a
 			while true:
-				var bits: int = directions.get(cell, 0)
+				var at: Vector3i = Vector3i(cell.x, cell.y, net)
+				var bits: int = directions.get(at, 0)
 				if cell != b:
 					bits |= SymbolGeometry.direction_of(unit)
 				if cell != a:
 					bits |= SymbolGeometry.direction_of(-unit)
-				directions[cell] = bits
+				directions[at] = bits
 				if cell == b:
 					break
 				cell += unit
@@ -207,17 +229,20 @@ func junction_cells(on_page: int = -1) -> Array[Vector2i]:
 		var keys: PackedStringArray = c.get_terminal_keys()
 		for t: int in names.size():
 			var lead: int = SymbolGeometry.local_lead_direction(c, names[t])
-			if lead == 0:
+			if lead == 0 or not net_of_key.has(keys[t]):
 				continue
 			var cell: Vector2i = terminal_cell(keys[t])
-			if directions.has(cell):
-				directions[cell] |= SymbolGeometry.transform_direction(lead, p)
-	var result: Array[Vector2i] = []
-	for cell: Vector2i in directions:
-		var bits: int = directions[cell]
+			var at: Vector3i = Vector3i(cell.x, cell.y, net_of_key[keys[t]])
+			if directions.has(at):
+				directions[at] |= SymbolGeometry.transform_direction(lead, p)
+	var found: Dictionary[Vector2i, bool] = {}
+	for at: Vector3i in directions:
+		var bits: int = directions[at]
 		var count: int = (bits & 1) + ((bits >> 1) & 1) + ((bits >> 2) & 1) + ((bits >> 3) & 1)
-		if count >= 3 and vertices.has(cell):
-			result.append(cell)
+		if count >= 3 and vertices.has(at):
+			found[Vector2i(at.x, at.y)] = true
+	var result: Array[Vector2i] = []
+	result.assign(found.keys())
 	return result
 
 
@@ -678,6 +703,38 @@ func move_components(ids: PackedStringArray, delta: Vector2i) -> void:
 			normalize_route(i)
 
 
+## Where components [param ids] and all wire corners are before a drag, for
+## [method drag_components].
+func drag_start(ids: PackedStringArray) -> Dictionary:
+	var cells: Dictionary[String, Vector2i] = {}
+	for given: String in ids:
+		var id: String = _id(given)
+		if _placements.has(id):
+			cells[id] = _placements[id].cell
+	var corners: Array[Array] = []
+	for route: WireRoute in _routes:
+		corners.append(route.corners.duplicate())
+	return {"cells": cells, "corners": corners}
+
+
+## Moves the components of [param start] (from [method drag_start]) by
+## [param delta] cells from where they were when the drag began, so a drag can
+## be updated as the mouse moves: wires are re-routed from their routes at the
+## start, never from a route of an earlier mouse position, and moving back
+## puts everything back as it was.
+func drag_components(start: Dictionary, delta: Vector2i) -> void:
+	var cells: Dictionary[String, Vector2i] = start["cells"]
+	for id: String in cells:
+		_placements[id].cell = cells[id]
+	var corners: Array[Array] = start["corners"]
+	for i: int in mini(corners.size(), _routes.size()):
+		var saved: Array[Vector2i] = []
+		saved.assign(corners[i])
+		_routes[i].corners = saved
+	if delta != Vector2i.ZERO:
+		move_components(PackedStringArray(cells.keys()), delta)
+
+
 ## Turns a component a quarter turn clockwise (or counterclockwise).
 func rotate_component(component_id: String, clockwise: bool = true) -> void:
 	component_id = _id(component_id)
@@ -856,8 +913,9 @@ func cleanup_junctions() -> void:
 ## Re-routes a wire so all segments are horizontal or vertical. Each end that
 ## belongs to a symbol first leaves one cell straight out along the symbol
 ## axis. If that route would cross one of the two symbols (e.g. after turning
-## a symbol by 180 degrees) or run over another of their terminals, the
-## shortest route around them is used instead.
+## a symbol by 180 degrees), run over a terminal of another net or run over
+## itself (a corner left behind by the moved end), the shortest clean route
+## (direct or around the symbols) is used instead.
 func normalize_route(index: int) -> void:
 	var wire: PackedStringArray = circuit.get_wires()[index]
 	var points: Array[Vector2i] = wire_points(index)
@@ -875,29 +933,49 @@ func normalize_route(index: int) -> void:
 	var best: Array[Vector2i] = orthogonalize(path, terminal_axis(wire[0]), terminal_axis(wire[1]))
 
 	var bodies: Array[Rect2] = []
-	var cells: Array[Vector2i] = []
 	for key: String in [wire[0], wire[1]]:
 		var owner: CircuitComponent = circuit.get_terminal_owner(key)
 		if owner.get_terminal_keys().size() == 2:
 			bodies.append(component_body(owner))
-		for other: String in owner.get_terminal_keys():
-			if other != wire[0] and other != wire[1]:
-				cells.append(terminal_cell(other))
-	if not _route_clear(best, bodies, cells):
+	# A wire running over a terminal of another net would look connected to it.
+	var own: Dictionary[String, bool] = {}
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for w: int in wire_net(index):
+		own[wires[w][0]] = true
+		own[wires[w][1]] = true
+	var cells: Dictionary[Vector2i, bool] = {}
+	for c: CircuitComponent in components_on_page(wire_page(index)):
+		for other: String in c.get_terminal_keys():
+			if not own.has(other):
+				cells[terminal_cell(other)] = true
+	cells.erase(start)
+	cells.erase(end)
+	if not (_route_clear(best, bodies, cells) and _route_simple(best)):
 		var best_length: int = 1 << 30
+		# Without a clean route, at least one that does not run over itself.
+		var fallback: Array[Vector2i] = []
+		var fallback_length: int = 1 << 30
 		for candidate: Array[Vector2i] in _detours(start, end, out_a, out_b, bodies):
-			var clean: Array[Vector2i] = orthogonalize(candidate)
+			var clean: Array[Vector2i] = orthogonalize(candidate, terminal_axis(wire[0]), terminal_axis(wire[1]))
+			if not _route_simple(clean):
+				continue
 			var length: int = _route_length(clean)
 			if length < best_length and _route_clear(clean, bodies, cells):
 				best = clean
 				best_length = length
+			elif length < fallback_length:
+				fallback = clean
+				fallback_length = length
+		if best_length == 1 << 30 and not fallback.is_empty() and not _route_simple(best):
+			best = fallback
 	_routes[index].corners = best.slice(1, best.size() - 1)
 
 
-## Candidate routes around [param bodies]: via one or two corners of each body
-## grown by a cell, with and without the straight lead-out at each end.
+## Candidate routes: direct, or around [param bodies] via one or two corners
+## of each body grown by a cell, with and without the straight lead-out at
+## each end.
 func _detours(start: Vector2i, end: Vector2i, out_a: Vector2i, out_b: Vector2i, bodies: Array[Rect2]) -> Array:
-	var vias: Array = []
+	var vias: Array = [[]]
 	for body: Rect2 in bodies:
 		var left: int = floori(body.position.x) - 1
 		var right: int = ceili(body.end.x) + 1
@@ -927,19 +1005,38 @@ func _detours(start: Vector2i, end: Vector2i, out_a: Vector2i, out_b: Vector2i, 
 
 ## True if no segment crosses the inside of [param bodies] or runs over one
 ## of [param cells].
-static func _route_clear(points: Array[Vector2i], bodies: Array[Rect2], cells: Array[Vector2i]) -> bool:
+static func _route_clear(points: Array[Vector2i], bodies: Array[Rect2], cells: Dictionary[Vector2i, bool]) -> bool:
 	for s: int in range(1, points.size()):
 		var a: Vector2i = points[s - 1]
 		var b: Vector2i = points[s]
-		for cell: Vector2i in cells:
-			if _on_segment(cell, a, b):
+		var unit: Vector2i = (b - a).sign()
+		var cell: Vector2i = a
+		while true:
+			if cells.has(cell):
 				return false
+			if cell == b:
+				break
+			cell += unit
 		for body: Rect2 in bodies:
 			if a.x == b.x:
 				if float(a.x) > body.position.x and float(a.x) < body.end.x and float(maxi(a.y, b.y)) > body.position.y and float(mini(a.y, b.y)) < body.end.y:
 					return false
 			elif float(a.y) > body.position.y and float(a.y) < body.end.y and float(maxi(a.x, b.x)) > body.position.x and float(mini(a.x, b.x)) < body.end.x:
 				return false
+	return true
+
+
+## True if the route never runs over or across itself.
+static func _route_simple(points: Array[Vector2i]) -> bool:
+	var seen: Dictionary[Vector2i, bool] = {points[0]: true}
+	for s: int in range(1, points.size()):
+		var cell: Vector2i = points[s - 1]
+		var unit: Vector2i = (points[s] - cell).sign()
+		while cell != points[s]:
+			cell += unit
+			if seen.has(cell):
+				return false
+			seen[cell] = true
 	return true
 
 
