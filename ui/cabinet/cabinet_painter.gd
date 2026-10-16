@@ -28,6 +28,16 @@ func shifted(offset: Vector2) -> CabinetPainter:
 	return CabinetPainter.new(canvas, k, origin + offset * k)
 
 
+## [param mm] rounded to whole pixels.
+func snap(mm: float) -> float:
+	return roundf(mm * k) / k
+
+
+## The same painter with its origin on a whole pixel.
+func snapped() -> CabinetPainter:
+	return CabinetPainter.new(canvas, k, origin.round())
+
+
 ## Line width in pixels for [param mm] millimetres, never thinner than one pixel.
 func width(mm: float) -> float:
 	return maxf(mm * k, 1.0)

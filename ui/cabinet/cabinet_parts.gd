@@ -446,63 +446,91 @@ static func timer(p: CabinetPainter, state: int, variant: String = "A", function
 
 # --- Terminal blocks ----------------------------------------------------------------
 
-## A strip of terminal blocks (svorkovnice) between two end stops with the
-## strip's name on the first one. [param items]: {"label", "kind": "L" | "N" |
-## "PE", "reach": Color}. "A" grey screw terminals, "B" push-in terminals with
-## orange levers, "C" beige screw terminals. Returns the width in mm.
-static func terminal_strip(p: CabinetPainter, group: String, items: Array, variant: String = "A") -> float:
+## A strip of push-in terminal blocks (svorkovnice) between two end stops
+## with the strip's name on the first one. [param items]: {"label", "kind":
+## "L" | "N" | "PE", "reach": Color}; "reach" rings the wire entries (voltage
+## reach). Terminals sit on whole pixels so every one looks the same.
+## Returns the width in mm.
+static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> float:
+	var q: CabinetPainter = p.snapped()
+	var pitch: float = q.snap(TERMINAL.x)
 	var x: float = 0.0
-	_end_stop(p, x, group)
-	x += END_STOP_W
+	_end_stop(q, x, group)
+	x += q.snap(END_STOP_W)
 	for item: Dictionary in items:
-		_terminal(p, x, item, variant)
-		x += TERMINAL.x
+		_terminal(q, x, pitch, item)
+		x += pitch
 	# End plate.
-	p.rect(Rect2(x, 0.5, 1.5, TERMINAL.y - 1.0), _terminal_color("L", variant).darkened(0.25), 0.3)
-	x += 1.5
-	_end_stop(p, x, "")
-	return x + END_STOP_W
+	q.hgradient(Rect2(x, 0.8, q.snap(1.4), TERMINAL.y - 1.6), TERMINAL_GREY.darkened(0.15), TERMINAL_GREY.darkened(0.35), 0.3)
+	x += q.snap(1.4)
+	_end_stop(q, x, "")
+	return x + q.snap(END_STOP_W)
 
 
-static func _terminal_color(kind: String, variant: String) -> Color:
+const TERMINAL_GREY := Color("b4b9bd")
+const PUSH_ORANGE := Color("f28c1b")
+
+
+static func _terminal_color(kind: String) -> Color:
 	match kind:
 		"N":
-			return Color("2f80cc")
+			return Color("2f7fd0")
 		"PE":
-			return Color("2f9a45")
-	return Color("d8ceaa") if variant == "C" else Color("a9aeb2")
+			return Color("3f9e4a")
+	return TERMINAL_GREY
 
 
-static func _terminal(p: CabinetPainter, x: float, item: Dictionary, variant: String) -> void:
+## One push-in terminal [param w] mm wide: at both ends a wire entry with
+## the clamp's spring inside, the orange push button that opens it and a
+## test socket; the marker tag in the middle.
+static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -> void:
 	var kind: String = item.get("kind", "L")
-	var body: Color = _terminal_color(kind, variant)
-	var r: Rect2 = Rect2(x, 0, TERMINAL.x, TERMINAL.y)
-	p.gradient(r, body.lightened(0.1), body.darkened(0.06), 0.3, body.darkened(0.35), 0.15)
+	var body: Color = _terminal_color(kind)
+	var h: float = TERMINAL.y
+	# Body: lit from the left, a groove on the right where the next one starts.
+	p.hgradient(Rect2(x, 0, w, h), body.lightened(0.16), body.darkened(0.1), 0.0)
 	if kind == "PE":
-		p.rect(Rect2(x + 1.7, 0.3, 1.8, TERMINAL.y - 0.6), Color("f2d230"))
+		p.hgradient(Rect2(x + p.snap(w * 0.36), 0, p.snap(w * 0.28), h), Color("f6dc3c"), Color("e2c425"))
+	p.line(Vector2(x + w - 0.5 / p.k, 0), Vector2(x + w - 0.5 / p.k, h), body.darkened(0.45), 0.0)
+	p.line(Vector2(x + 0.5 / p.k, 0), Vector2(x + 0.5 / p.k, h), body.lightened(0.35), 0.0)
 	var reach: Color = item.get("reach", Color.TRANSPARENT)
-	var cx: float = x + TERMINAL.x * 0.5
-	for y: float in [6.5, TERMINAL.y - 6.5]:
-		if variant == "B":
-			# Push-in: an orange lever beside a round wire entry.
-			var toward: float = -1.0 if y < TERMINAL.y * 0.5 else 1.0
-			p.circle(Vector2(cx, y + 2.6 * toward), 1.5, HOLE)
-			if reach.a > 0.0:
-				p.ring(Vector2(cx, y + 2.6 * toward), 1.7, reach, 0.5)
-			p.rect(Rect2(cx - 1.7, y - 2.4 - 0.8 * toward, 3.4, 3.6), Color("f39200"), 0.6, Color("b06400"), 0.12)
+	var cx: float = x + w * 0.5
+	var bw: float = p.snap(w - 1.8)
+	for end: int in 2:
+		# Distances from the end of the terminal, mirrored for the bottom.
+		var at: Callable = func(d: float) -> float: return d if end == 0 else h - d
+		# Wire entry: a rounded square opening, the spring's edge inside it.
+		var entry: Vector2 = Vector2(cx, at.call(3.4))
+		if reach.a > 0.0:
+			# Voltage reach: a coloured frame with a light edge, seen on any body colour.
+			p.rect(Rect2(entry - Vector2(2.45, 2.45), Vector2(4.9, 4.9)), Color(1, 1, 1, 0.85), 1.3)
+			p.rect(Rect2(entry - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), reach, 1.1)
+		p.rect(Rect2(entry - Vector2(1.5, 1.5), Vector2(3.0, 3.0)), HOLE, 0.8)
+		p.rect(Rect2(entry + Vector2(-1.0, 0.3 if end == 0 else -0.8), Vector2(2.0, 0.5)), METAL_DARK, 0.2)
+		# Push button: the same on every terminal, lighter towards the wire entry.
+		var top: float = at.call(6.6) if end == 0 else at.call(11.4)
+		var button: Rect2 = Rect2(cx - bw * 0.5, top, bw, 4.8)
+		p.rect(button.grow(0.25), body.darkened(0.4), 0.9)
+		if end == 0:
+			p.gradient(button, PUSH_ORANGE.lightened(0.18), PUSH_ORANGE.darkened(0.08), 0.7)
 		else:
-			screw(p, Vector2(cx, y), 1.95, reach)
+			p.gradient(button, PUSH_ORANGE.darkened(0.08), PUSH_ORANGE.lightened(0.18), 0.7)
+		p.line(Vector2(cx - bw * 0.3, button.get_center().y), Vector2(cx + bw * 0.3, button.get_center().y), PUSH_ORANGE.darkened(0.35), 0.35)
+		# Test socket.
+		p.circle(Vector2(cx, at.call(14.2)), 0.7, HOLE)
 	# Marker tag with the terminal name.
-	var tag: Rect2 = Rect2(x + 0.5, TERMINAL.y * 0.5 - 4.0, TERMINAL.x - 1.0, 8.0)
-	p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.3), 0.1)
-	p.text_centered(tag.get_center(), str(item.get("label", "")), 2.4, Color("111111"), true, TERMINAL.x - 0.8)
+	var tag: Rect2 = Rect2(x + p.snap(0.5), h * 0.5 - 4.5, w - p.snap(1.0), 9.0)
+	p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
+	p.text_centered(tag.get_center(), str(item.get("label", "")), 2.4, Color("111111"), true, w - 0.8)
 
 
 static func _end_stop(p: CabinetPainter, x: float, group: String) -> void:
-	var r: Rect2 = Rect2(x + 0.5, 6.0, END_STOP_W - 1.0, TERMINAL.y - 12.0)
-	p.gradient(r, Color("4a4e53"), Color("25282b"), 1.0, Color("111214"), 0.15)
-	screw(p, Vector2(x + END_STOP_W * 0.5, TERMINAL.y * 0.5 + 6.0), 1.6)
+	var w: float = p.snap(END_STOP_W)
+	var r: Rect2 = Rect2(x + p.snap(0.5), 5.0, w - p.snap(1.0), TERMINAL.y - 10.0)
+	p.hgradient(r, Color("50555b"), Color("2a2d31"), 1.0)
+	p.rect(r, Color.TRANSPARENT, 1.0, Color("16181a"), 0.0)
+	screw(p, Vector2(x + w * 0.5, TERMINAL.y * 0.5 + 9.0), 1.6)
 	if not group.is_empty():
-		var tag: Rect2 = Rect2(x + 1.2, TERMINAL.y * 0.5 - 9.0, END_STOP_W - 2.4, 8.0)
-		p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.3), 0.1)
-		p.text_centered(tag.get_center(), group, 2.6, Color("111111"), true, END_STOP_W - 2.6)
+		var tag: Rect2 = Rect2(x + p.snap(1.2), TERMINAL.y * 0.5 - 8.0, w - p.snap(2.4), 9.0)
+		p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
+		p.text_centered(tag.get_center(), group, 2.6, Color("111111"), true, w - 2.6)

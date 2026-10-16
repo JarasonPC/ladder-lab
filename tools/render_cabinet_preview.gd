@@ -27,17 +27,11 @@ func _initialize() -> void:
 	if not args.is_empty():
 		out_dir = args[0].trim_suffix("/") + "/"
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	await _breakers()
-	await _fuses()
-	await _contactors()
-	await _overloads()
-	await _relays()
-	await _timers()
+	# Round 2: the terminal strip again, the cabinet with the parts chosen so far.
 	await _terminals()
-	await _rails_ducts_labels()
-	for plate: String in ["A", "B", "C", "D"]:
-		await _cabinet(plate, APP_K, "cabinet_plate_" + plate)
-	await _cabinet("A", SHEET_K, "cabinet_detail")
+	await _terminals_app_size()
+	await _cabinet("B", APP_K, "cabinet")
+	await _cabinet("B", SHEET_K, "cabinet_detail")
 	quit()
 
 
@@ -147,21 +141,36 @@ func _timers() -> void:
 		CabinetParts.timer(_centred(p, 40, 18, 5), c, "A" if r == 0 else "B"))
 
 
+const L1 := Color("d8693d")
+const L2 := Color("5c6a99")
+const L3 := Color("a597e0")
+const N := Color("1f9be6")
+
+
 func _terminal_items(reach: bool) -> Array:
 	var items: Array = []
-	var colors: Array[Color] = [Color("d8693d"), Color("d8693d"), Color("d8693d"), Color.TRANSPARENT, Color("d8693d"), Color.TRANSPARENT]
+	var colors: Array[Color] = [L1, L1, L1, Color.TRANSPARENT, L1, Color.TRANSPARENT]
 	for i: int in 6:
 		items.append({"label": str(i + 1), "kind": "L", "reach": colors[i] if reach else Color.TRANSPARENT})
-	items.append({"label": "N", "kind": "N", "reach": Color("1f9be6") if reach else Color.TRANSPARENT})
+	items.append({"label": "N", "kind": "N", "reach": N if reach else Color.TRANSPARENT})
 	items.append({"label": "PE", "kind": "PE"})
 	return items
 
 
 func _terminals() -> void:
-	var rows: PackedStringArray = ["A  screw, grey", "B  push-in", "C  screw, beige", "A + voltage"]
-	await _grid("terminals", "Terminal strip (svorkovnice) X1", rows, ["Strip X1 (6 terminals, N, PE)"], Vector2(80, 57), 28.5, func(p: CabinetPainter, r: int, _c: int) -> void:
-		var variant: String = ["A", "B", "C", "A"][r]
-		CabinetParts.terminal_strip(p.shifted(Vector2(8, 5)), "X1", _terminal_items(r == 3), variant))
+	var rows: PackedStringArray = ["No voltage", "With voltage"]
+	await _grid("terminals", "Terminal strip (svorkovnice) X1, push-in", rows, ["Strip X1 (6 terminals, N, PE), twice the app size"], Vector2(80, 57), 28.5, func(p: CabinetPainter, r: int, _c: int) -> void:
+		CabinetParts.terminal_strip(p.shifted(Vector2(8, 5)), "X1", _terminal_items(r == 1)))
+
+
+func _terminals_app_size() -> void:
+	await _shot("terminals_app", Vector2i(440, 300), func(ci: CanvasItem) -> void:
+		_text(ci, Vector2(16, 32), "At app size", 20, HEADING, true)
+		for r: int in 2:
+			var p: CabinetPainter = CabinetPainter.new(ci, APP_K, Vector2(16, 54 + r * 120))
+			p.rect(Rect2(0, 0, 180, 50), Color("efece4"), 1.0)
+			CabinetParts.din_rail(p.shifted(Vector2(0, 7.5)), 180, "A")
+			CabinetParts.terminal_strip(p.shifted(Vector2(6, 1.5)), "X1", _terminal_items(r == 1)))
 
 
 func _rails_ducts_labels() -> void:
@@ -186,7 +195,7 @@ func _cabinet(plate: String, k: float, file: String) -> void:
 	if detail:
 		px = Vector2i(Vector2(size_mm.x, 330) * k) + Vector2i(32, 70)
 	await _shot(file, px, func(ci: CanvasItem) -> void:
-		_text(ci, Vector2(16, 32), "Switchboard -  plate %s%s" % [plate, ", detail (2x)" if detail else " (size in the app)"], 20, HEADING, true)
+		_text(ci, Vector2(16, 32), "Switchboard, round 2%s" % [": detail (2x)" if detail else " (size in the app)"], 20, HEADING, true)
 		var p: CabinetPainter = CabinetPainter.new(ci, k, Vector2(16, 54))
 		_draw_cabinet(p, size_mm, plate))
 
@@ -221,13 +230,13 @@ static func _draw_cabinet(p: CabinetPainter, size: Vector2, plate: String) -> vo
 	CabinetParts.timer(p.shifted(Vector2(x, top1)), 1, "A")
 	CabinetParts.label(p, Vector2(x + 9.0, top1 - 3.5), "-KT1", "A", 14.0)
 	x += 18.0 + 6.0
-	CabinetParts.relay(p.shifted(Vector2(x, rail1 - CabinetParts.RELAY.y * 0.5)), true, "A")
+	CabinetParts.relay(p.shifted(Vector2(x, rail1 - CabinetParts.RELAY.y * 0.5)), true, "A", true)
 	CabinetParts.label(p, Vector2(x + 13.5, rail1 - CabinetParts.RELAY.y * 0.5 - 3.5), "-KA1", "A", 14.0)
 	# Rail 2: contactors, the overload relay under the first.
 	var rail2: float = 210.0
 	CabinetParts.din_rail(p.shifted(Vector2(x0 - 2.0, rail2 - 17.5)), x1 - x0 + 4.0, "A")
 	var top2: float = rail2 - 40.0
-	CabinetParts.contactor(p.shifted(Vector2(x0, top2)), true, "A")
+	CabinetParts.contactor(p.shifted(Vector2(x0, top2)), true, "A", ["A1", "1/L1", "3/L2", "5/L3", "13NO"], ["A2", "2/T1", "4/T2", "6/T3", "14NO"], true)
 	CabinetParts.label(p, Vector2(x0 + 22.5, top2 + 53.5), "-KM1")
 	CabinetParts.overload_relay(p.shifted(Vector2(x0, top2 + 80.0)), false, "A")
 	CabinetParts.label(p, Vector2(x0 + 22.5, top2 + 80.0 + 61.5), "-F1", "A", 12.0)
@@ -239,12 +248,13 @@ static func _draw_cabinet(p: CabinetPainter, size: Vector2, plate: String) -> vo
 	var rail3: float = 380.0
 	CabinetParts.din_rail(p.shifted(Vector2(x0 - 2.0, rail3 - 17.5)), x1 - x0 + 4.0, "A")
 	var items: Array = []
+	var reach: Array[Color] = [L1, L1, L1, Color.TRANSPARENT, L1, L1, Color.TRANSPARENT, L1, Color.TRANSPARENT]
 	for i: int in 9:
-		items.append({"label": str(i + 1), "kind": "L"})
-	items.append({"label": "N", "kind": "N"})
+		items.append({"label": str(i + 1), "kind": "L", "reach": reach[i]})
+	items.append({"label": "N", "kind": "N", "reach": N})
 	items.append({"label": "PE", "kind": "PE"})
-	var strip_w: float = CabinetParts.terminal_strip(p.shifted(Vector2(x0, rail3 - 23.5)), "X1", items, "A")
+	var strip_w: float = CabinetParts.terminal_strip(p.shifted(Vector2(x0, rail3 - 23.5)), "X1", items)
 	var motor: Array = []
-	for t: String in ["U", "V", "W", "PE"]:
-		motor.append({"label": t, "kind": "PE" if t == "PE" else "L"})
-	CabinetParts.terminal_strip(p.shifted(Vector2(x0 + strip_w + 6.0, rail3 - 23.5)), "X2", motor, "A")
+	for t: Array in [["U", L1], ["V", L2], ["W", L3], ["PE", Color.TRANSPARENT]]:
+		motor.append({"label": t[0], "kind": "PE" if t[0] == "PE" else "L", "reach": t[1]})
+	CabinetParts.terminal_strip(p.shifted(Vector2(x0 + strip_w + 6.0, rail3 - 23.5)), "X2", motor)
