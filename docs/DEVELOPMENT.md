@@ -1,4 +1,6 @@
-# Project: Relay control circuit simulator
+# LadderLab developer notes
+
+Architecture and conventions of the code base. Read this before changing the code.
 
 - Engine: Godot 4.7.2, GDScript only (no C#)
 - Use static typing everywhere (var x: int, func f() -> void)
@@ -83,7 +85,6 @@
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
-- Don't add features beyond what the current phase asks for
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
@@ -143,6 +144,5 @@
   command-line arguments is opened at start
 - Translations: English source text in tr()/tr_n(); regenerate `translations/ladder_lab.pot`
   when UI text changes and update `cs.po` (keep reviewed translations)
-- Merge the working branch into main after each finished phase
 - `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech
-- `test/unit/` GUT tests; headless Godot is not preinstalled in cloud sessions
+- `test/unit/` GUT tests
