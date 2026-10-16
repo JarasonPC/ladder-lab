@@ -3,8 +3,10 @@ name: Release
 # Builds the Windows version: runs the tests, exports LadderLab.exe and zips it
 # with the license.
 # - Pushing a version tag (v0.2.1, the version in project.godot) publishes the
-#   zip as a GitHub release, with that version's notes from CHANGELOG.md. If the
-#   release was already created on GitHub, the zip is added to it.
+#   zip as a GitHub release, with that version's notes from CHANGELOG.md. A
+#   release created on GitHub (Releases > Draft a new release, new tag) runs it
+#   too: the zip is added, and an empty title and description are filled in.
+#   If that run does not start, run the workflow by hand on the tag.
 # - Started by hand (Actions > Release > Run workflow) it only builds; the zip
 #   is kept with the run (Artifacts) for trying it out.
 
@@ -127,7 +129,17 @@ jobs:
           ZIP: ${{ steps.zip.outputs.file }}
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
+            # Created on GitHub (which also pushes the tag): add the zip, and the
+            # title and changelog notes when they were left empty there.
             gh release upload "$TAG" "$ZIP" --clobber
+            title=$(gh release view "$TAG" --json name --jq .name)
+            body=$(gh release view "$TAG" --json body --jq .body)
+            if [[ -z "$title" || "$title" == "$TAG" ]]; then
+              gh release edit "$TAG" --title "LadderLab $VERSION"
+            fi
+            if [[ -z "${body//[[:space:]]/}" ]]; then
+              gh release edit "$TAG" --notes-file notes.md
+            fi
           else
             # "1.0.0-beta1" and the like are published as pre-releases, which
             # the update check in the program ignores.
