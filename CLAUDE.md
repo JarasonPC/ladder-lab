@@ -38,7 +38,10 @@
   circuit breaker is its auxiliary contact; buttons, switches and limit switches of one name
   share one actuator (Circuit.get_operator finds the device to click or panel-operate). Markings (designations, terminal names, lamp and terminal labels,
   wire numbers) are edited by double-clicking them on the drawing, not in the properties panel;
-  a click highlights a marking, dragging moves it (Placement.labels, saved). Designations: no
+  a click highlights a marking, dragging moves it (Placement.labels, saved). A new device (coil,
+  time relay, button, breaker, overload relay) takes the designation of contacts drawn before it
+  without their device (SchematicDocument.next_device_designation: main contacts KM1-KM4, then a
+  coil = KM1); new main contacts take that of auxiliary contacts without a coil. Designations: no
   spaces or colons; only parts of one device share one (coil with its contacts, overload relay
   with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts. Renaming a terminal to the name of
   another terminal of the same part swaps the two (coils: also a "Swap A1 and A2" button; a
@@ -46,7 +49,8 @@
 - Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead
   (Placement.strips: terminal index -> label, drawn instead of the square; Delete on the selected
   mark removes it); wire segments can be dragged; wire
-  numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
+  numbers (WireRoute.number, one per net, shown once per terminal right next to its square,
+  a short wire once at its upper/left end, draggable offsets) via the
   numbering tool or double click; side panels (palette, properties + check, control panel) are
   SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
   so text stays sharp); the timing panel is resized by its top edge and the grip before the

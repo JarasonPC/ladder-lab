@@ -79,6 +79,53 @@ func test_contact_takes_coil_designation_and_next_number() -> void:
 	assert_not_null(doc.circuit.get_component("KM1:21-22"))
 
 
+func test_coil_takes_the_contacts_drawn_before_it() -> void:
+	for x: int in [3, 9, 15, 21]:
+		_place({"type": "main_contacts"}, Vector2i(x, 2))
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_component("KM4:1-2-3-4-5-6"))
+	_place({"type": "coil", "kind": "contactor"}, Vector2i(5, 7))
+	assert_not_null(doc.circuit.get_coil("KM1"), "the coil of the first main contacts, not KM5")
+	_place({"type": "coil", "kind": "contactor"}, Vector2i(9, 7))
+	assert_not_null(doc.circuit.get_coil("KM2"))
+
+
+func test_main_contacts_take_auxiliary_contacts_drawn_before_them() -> void:
+	_place({"type": "contact", "contact": "NO"}, Vector2i(5, 2))
+	var doc: SchematicDocument = editor.document()
+	assert_not_null(doc.circuit.get_component("KM1:13-14"))
+	_place({"type": "main_contacts"}, Vector2i(9, 2))
+	assert_not_null(doc.circuit.get_component("KM1:1-2-3-4-5-6"), "KM1, not KM2")
+	_place({"type": "main_contacts"}, Vector2i(15, 2))
+	assert_not_null(doc.circuit.get_component("KM2:1-2-3-4-5-6"))
+	_place({"type": "contact", "contact": "NC"}, Vector2i(22, 2))
+	assert_not_null(doc.circuit.get_component("KM1:21-22"), "contacts without a coil stay with KM1")
+
+
+func test_time_relay_takes_its_delayed_contacts() -> void:
+	_place({"type": "timer", "mode": "on_delay", "delay": 3.0}, Vector2i(5, 7))
+	var doc: SchematicDocument = editor.document()
+	_place({"type": "contact", "contact": "NO"}, Vector2i(9, 2))
+	assert_not_null(doc.circuit.get_component("KT1:17-18"))
+	editor.selected_components.clear()
+	editor.selected_components["KT1"] = true
+	editor.delete_selection()
+	_place({"type": "timer", "mode": "on_delay", "delay": 3.0}, Vector2i(5, 7))
+	assert_true(doc.circuit.get_coil("KT1") is TimerRelay, "the new time relay takes KT1 back")
+
+
+func test_coil_turned_into_time_relay_becomes_kt() -> void:
+	_place({"type": "coil", "kind": "contactor"}, Vector2i(5, 7))
+	assert_eq(editor.change_type("KM1", {"type": "timer", "mode": "on_delay", "delay": 3.0}), "")
+	var doc: SchematicDocument = editor.document()
+	assert_true(doc.circuit.get_coil("KT1") is TimerRelay)
+	assert_eq(editor.change_type("KT1", {"type": "coil"}), "")
+	assert_not_null(doc.circuit.get_coil("KM1"), "and back")
+	_place({"type": "contact", "contact": "NO"}, Vector2i(9, 2))
+	assert_eq(editor.change_type("KM1", {"type": "timer", "mode": "on_delay", "delay": 3.0}), "")
+	assert_true(doc.circuit.get_coil("KM1") is TimerRelay, "with contacts it keeps its designation")
+
+
 func test_undo_redo_and_delete() -> void:
 	_place({"type": "lamp"}, Vector2i(5, 4))
 	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])

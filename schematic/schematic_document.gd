@@ -519,14 +519,17 @@ func _label_connectors(net: PackedInt32Array, label: String) -> void:
 				circuit.set_connector_label(owner as PageConnector, label)
 
 
-## Wires up to this long (in cells) show their number only once, in the middle.
+## Wires up to this long (in cells) show their number only once.
 const SHORT_WIRE: float = 2.0
+## Distance (in cells) along the wire from its terminal to the wire number:
+## right next to the terminal square.
+const NUMBER_GAP: float = 0.4
 
 
 ## Wire ends of the current page that show their wire number, as
 ## Vector2i(wire, end): ends on components and terminal blocks (not junctions
 ## or page connectors, which show it themselves), one per terminal; a short
-## wire shows its number once.
+## wire shows its number once, at its upper (or left) end.
 func wire_number_ends() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var written: Dictionary[String, bool] = {}
@@ -542,19 +545,22 @@ func wire_number_ends() -> Array[Vector2i]:
 				written[key] = true
 				ends.append(end)
 		if ends.size() == 2 and _path_length(w) <= SHORT_WIRE:
-			ends.resize(1)
+			var points: Array[Vector2i] = wire_points(w)
+			var first: Vector2i = points[0]
+			var last: Vector2i = points[points.size() - 1]
+			ends.clear()
+			ends.append(1 if last.y < first.y or (last.y == first.y and last.x < first.x) else 0)
 		for end: int in ends:
 			result.append(Vector2i(w, end))
 	return result
 
 
-## Grid point the number of wire end [param end] is written at: 0.8 cell along
-## the wire from its terminal (the middle of a short wire), plus the offset
-## the user dragged it by.
+## Grid point the number of wire end [param end] is written at: right next
+## to its terminal, [constant NUMBER_GAP] along the wire (never past the
+## middle of a very short wire), plus the offset the user dragged it by.
 func wire_number_point(index: int, end: int) -> Vector2:
 	var points: Array[Vector2i] = wire_points(index)
-	var length: float = _path_length(index)
-	var along: float = length * 0.5 if length <= SHORT_WIRE else 0.8
+	var along: float = minf(NUMBER_GAP, _path_length(index) * 0.5)
 	if end == 1:
 		points.reverse()
 	var p: Vector2 = Vector2(points[0])
@@ -570,13 +576,19 @@ func wire_number_point(index: int, end: int) -> Vector2:
 ## True when the wire leaves end [param end] vertically (the number is
 ## written beside it), false when horizontally (written above it).
 func wire_number_vertical(index: int, end: int) -> bool:
+	return wire_number_direction(index, end).x == 0
+
+
+## Direction (one grid step) in which the wire leaves its terminal at end
+## [param end]; down for a wire without length.
+func wire_number_direction(index: int, end: int) -> Vector2i:
 	var points: Array[Vector2i] = wire_points(index)
 	if end == 1:
 		points.reverse()
 	for i: int in range(1, points.size()):
 		if points[i] != points[0]:
-			return points[i].x == points[0].x
-	return true
+			return (points[i] - points[0]).sign()
+	return Vector2i.DOWN
 
 
 ## Moves the number at wire end [param end] by [param offset] cells from its
@@ -1057,8 +1069,44 @@ func next_designation(prefix: String, reserved: Dictionary[String, bool] = {}) -
 	return prefix + str(n)
 
 
+## Designation for a new device "<prefix><n>" (coil, button, breaker,
+## ...): the first one carried only by parts whose device is not drawn (e.g.
+## main contacts KM1 placed before their coil), else the first free one.
+func next_device_designation(prefix: String, reserved: Dictionary[String, bool] = {}) -> String:
+	for designation: String in orphan_designations(prefix):
+		if not reserved.has(designation):
+			return designation
+	return next_designation(prefix, reserved)
+
+
+## Designations "<prefix><n>", lowest number first, that only contacts
+## (contacts, changeovers, main contacts, overload contacts) carry: their
+## coil, button, breaker or overload relay is not drawn.
+func orphan_designations(prefix: String) -> PackedStringArray:
+	var parts: Dictionary[int, bool] = {}
+	var devices: Dictionary[int, bool] = {}
+	for c: CircuitComponent in circuit.get_components():
+		var number: String = c.designation.trim_prefix(prefix)
+		if number == c.designation or not number.is_valid_int():
+			continue
+		if c is Contact or c is ChangeoverContact or c is MainContacts or c is OverloadContact:
+			parts[int(number)] = true
+		else:
+			devices[int(number)] = true
+	var numbers: Array[int] = []
+	for n: int in parts:
+		if not devices.has(n):
+			numbers.append(n)
+	numbers.sort()
+	var result: PackedStringArray = PackedStringArray()
+	for n: int in numbers:
+		result.append(prefix + str(n))
+	return result
+
+
 ## Designation for a new set of main contacts: the first of [param preferred],
-## then of the contactors, whose main contacts are not drawn yet, else a free
+## then of the contactors, whose main contacts are not drawn yet, then of
+## auxiliary contacts without a coil (e.g. KM1 13-14 drawn first), else a free
 ## KM designation (for a contactor still to be drawn); never one of
 ## [param reserved].
 func main_contacts_designation(preferred: PackedStringArray = PackedStringArray(), reserved: Dictionary[String, bool] = {}) -> String:
@@ -1069,6 +1117,7 @@ func main_contacts_designation(preferred: PackedStringArray = PackedStringArray(
 			taken[c.designation] = true
 		elif c is Coil and not (c is TimerRelay) and (c as Coil).kind == Coil.Kind.CONTACTOR:
 			candidates.append(c.designation)
+	candidates.append_array(orphan_designations("KM"))
 	for designation: String in candidates:
 		if not taken.has(designation):
 			return designation
