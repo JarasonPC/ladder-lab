@@ -112,6 +112,9 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-1.0, 0.5, span + 2.0, 2.0)
 	if c is ThreePhaseMotor:
 		var wide: bool = (c as ThreePhaseMotor).kind == ThreePhaseMotor.Kind.THREE_WINDINGS
+		if (c as ThreePhaseMotor).terminal_box:
+			# The terminal board (see ThreePhaseMotorSymbol.BOARD).
+			return Rect2(-0.6, 0.5, 7.0 if wide else 6.0, 3.2)
 		return Rect2(-0.4, 0.5, 6.0 if wide else 4.8, 3.0)
 	if c is CircuitBreaker:
 		return Rect2(-1.15, 0.7, 1.45, 1.6)
@@ -133,7 +136,7 @@ static func local_body(c: CircuitComponent) -> Rect2:
 	if c is OverloadRelay:
 		return Rect2(-0.95, 0.55, 1.9, 1.9)
 	if c is Rectifier:
-		return Rect2(-0.6, 0.7, 3.2, 1.6)
+		return Rect2(-0.3, 0.4, 2.6, 2.2)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
 
 

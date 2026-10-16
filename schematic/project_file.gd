@@ -23,7 +23,8 @@ const FORMAT: String = "ladder-lab"
 ## rectifiers ("rectifier").
 ## 12: pages (titles, the page of each component, the page shown) and page
 ## connectors (missing before: one untitled page).
-const VERSION: int = 12
+## 13: PE supply points (conductor "PE"), time relays with A1 and A2 swapped.
+const VERSION: int = 13
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

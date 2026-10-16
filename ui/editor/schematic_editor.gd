@@ -353,7 +353,7 @@ func change_type(component_id: String, template: Dictionary) -> String:
 			# The designation follows the type: SB push button, RB switch, SQ
 			# limit switch, a contact that of its coil.
 			var same_kind: bool = old_data["type"] == template["type"] or (old is Contact and to_contact)
-			var designation: String = old.designation if same_kind else _new_designation(template)
+			var designation: String = old.designation if same_kind else _new_designation(template, old.id)
 			if to_contact and template.get("delayed", false) and not (doc.circuit.get_coil(designation) is TimerRelay):
 				for c: CircuitComponent in doc.circuit.get_components():
 					if c is TimerRelay:
@@ -790,9 +790,8 @@ func _place_at(cell: Vector2i) -> void:
 	_rebuild_ghost()
 
 
-## Which parts may share a designation: a relay or contactor with its
-## contacts, an overload relay with its contacts, buttons or switches of one
-## actuator. Other parts have a designation of their own.
+## Parts that are renamed together with their device: a relay or contactor
+## with its contacts, an overload relay with its contacts.
 static func _designation_group(c: CircuitComponent) -> String:
 	if c is OverloadRelay or c is OverloadContact:
 		return "overload"
@@ -807,17 +806,44 @@ static func _designation_group(c: CircuitComponent) -> String:
 	return ""
 
 
+## What a part is to the device its designation names: the device itself
+## ("coil", "overload", "breaker", or "operator" for push buttons, switches
+## and limit switches, of which a device may have several blocks), one of its
+## contacts ("contact"), or "" for a part with a designation of its own.
+static func _device_role(c: CircuitComponent) -> String:
+	if c is OverloadRelay:
+		return "overload"
+	if c is Coil:
+		return "coil"
+	if c is CircuitBreaker or c is MotorBreaker:
+		return "breaker"
+	if c is PushButton or c is LatchingSwitch:
+		return "operator"
+	if c is Contact or c is ChangeoverContact or c is MainContacts or c is OverloadContact:
+		return "contact"
+	return ""
+
+
 ## True when [param replacement] (replacing [param old]) may carry its
-## designation: no other device has it, only parts of the same device (one
-## coil, one overload relay).
+## designation: only parts of one device share it. A device is one coil,
+## overload relay or circuit breaker, or any number of push buttons, switches
+## and limit switches (sharing one actuator), with any number of contacts.
 func _designation_free(old: CircuitComponent, replacement: CircuitComponent) -> bool:
-	var group: String = _designation_group(replacement)
+	var roles: Array[String] = [_device_role(replacement)]
 	for c: CircuitComponent in document().circuit.get_components():
-		if c == old or c.designation != replacement.designation:
-			continue
-		if group.is_empty() or _designation_group(c) != group:
+		if c != old and c.designation == replacement.designation:
+			roles.append(_device_role(c))
+	if roles.size() == 1:
+		return true
+	var device: String = ""
+	for role: String in roles:
+		if role.is_empty():
 			return false
-		if (c is Coil and replacement is Coil) or (c is OverloadRelay and replacement is OverloadRelay):
+		if role == "contact":
+			continue
+		if device.is_empty():
+			device = role
+		elif role != device or role != "operator":
 			return false
 	return true
 
@@ -844,7 +870,9 @@ func _follow_device(data: Dictionary, old_designation: String = "") -> void:
 		data.erase("terminals")
 
 
-func _new_designation(data: Dictionary) -> String:
+## Designation for a new part made from [param data]; [param changing] is
+## the id of a part being turned into it (never taken as its device).
+func _new_designation(data: Dictionary, changing: String = "") -> String:
 	var doc: SchematicDocument = document()
 	match data["type"]:
 		"supply":
@@ -892,6 +920,12 @@ func _new_designation(data: Dictionary) -> String:
 				var selected: CircuitComponent = doc.circuit.get_component(id)
 				if selected is Coil and (selected is TimerRelay or not want_timer):
 					return selected.designation
+			# Another block of the selected button or switch, or an
+			# auxiliary contact of the selected breaker.
+			for id: String in selected_components:
+				var device: CircuitComponent = doc.circuit.get_component(id)
+				if id != changing and not want_timer and _device_role(device) in ["operator", "breaker"]:
+					return device.designation
 			for c: CircuitComponent in doc.circuit.get_components():
 				if c is Coil and (c is TimerRelay) == want_timer:
 					return c.designation
@@ -1066,10 +1100,6 @@ func _marking_at(point: Vector2) -> Dictionary:
 func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
 	if c is Junction or c is PowerSupply:
 		return false
-	if kind == "terminal" and c is TimerRelay and index < 2:
-		# A1-A2 of a time relay are fixed; only its control input is renamed.
-		hint_changed.emit(tr("A1 and A2 of a time relay do not change."))
-		return false
 	var text: String = c.designation
 	match kind:
 		"terminal":
@@ -1157,9 +1187,18 @@ func _commit_inline(value: String) -> void:
 			data["designation"] = value
 		"terminal":
 			var names: Array = Array(c.get_terminal_names())
-			if value == names[target["index"]]:
+			var index: int = target["index"]
+			if value == names[index]:
 				return
-			names[target["index"]] = value
+			# The name of another terminal of the part: the two swap.
+			var other: int = names.find(value)
+			if c is TimerRelay and (index < 2 or other == 0 or other == 1) and not (index < 2 and other >= 0 and other < 2):
+				# A1 and A2 of a time relay are not renamed, only swapped.
+				hint_changed.emit(tr("A1 and A2 of a time relay can only be swapped with each other."))
+				return
+			if other >= 0:
+				names[other] = names[index]
+			names[index] = value
 			data["terminals"] = names
 		"purpose":
 			data["purpose"] = value

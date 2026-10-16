@@ -21,8 +21,8 @@
   any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
   are drawn mirrored along their axis so the blade pivots on the left. Every moving part (blades,
   buttons, holders) moves smoothly (SchematicSymbol.shown); marks fixed to a blade (breaker
-  releases, delay marks, limit-switch triangles) turn with it; button and switch heads stay
-  straight on a dashed stem; the overload contact's bimetal step stays straight on a solid stem. Breakers and fuse holders start switched off (open).
+  releases, delay marks) turn with it; button and switch heads stay straight on a dashed stem;
+  the limit switch's roller stays straight on a solid stem from the middle of the blade; the overload contact's bimetal step stays straight on a solid stem. Breakers and fuse holders start switched off (open).
 - Time relays (TimerRelay) are multifunction relays: functions F1-F12 (TimerRelay.Mode, codes as in
   real relays; F10-F12 use two times t1 = delay, t2 = delay2) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
   active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram
@@ -32,11 +32,17 @@
 - One palette part per family: fuse/fuse holder, breaker and main contacts have 1-4 poles, the
   overload relay none or 3 (set in the properties); a contact designated like an overload relay
   becomes its OverloadContact; a contact of a time relay KT is delayed by default (no separate
-  delayed contacts in the palette). Markings (designations, terminal names, lamp and terminal labels,
+  delayed contacts in the palette). Parts of one device share a designation whatever their
+  type: a contact, changeover or main contacts named like a push button, switch or limit switch
+  is one more block of it (follows its actuator; a coil of that name wins), one named like a
+  circuit breaker is its auxiliary contact; buttons, switches and limit switches of one name
+  share one actuator (Circuit.get_operator finds the device to click or panel-operate). Markings (designations, terminal names, lamp and terminal labels,
   wire numbers) are edited by double-clicking them on the drawing, not in the properties panel;
   a click highlights a marking, dragging moves it (Placement.labels, saved). Designations: no
   spaces or colons; only parts of one device share one (coil with its contacts, overload relay
-  with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts
+  with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts. Renaming a terminal to the name of
+  another terminal of the same part swaps the two (coils: also a "Swap A1 and A2" button; a
+  time relay's A1/A2 are only swapped, never renamed; its S counts against whichever is A2)
 - Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead
   (Placement.strips: terminal index -> label, drawn instead of the square; Delete on the selected
   mark removes it); wire segments can be dragged; wire
@@ -73,7 +79,9 @@
 
 - Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
-  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N,
+  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
+  and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
+  wires reached by PE alone are drawn in the PE colour, StepResult.REACH_PE),
   DC supplies + and - (a separate source: loads work between two conductors of the same source;
   AC joined to DC is a short; the - pole is drawn like N), TB = bridge rectifier (Rectifier, a Load
   with terminals ~1 ~2 + -: while its input has voltage its + and - are DC poles, output taken as
@@ -93,7 +101,7 @@
 - 3~ motors: + and - across a winding = DC_BRAKING (with a phase = MISWIRED); the shaft
   (ThreePhaseMotor.shaft, simulation state) runs down in coast_time when switched off, in brake_time
   with DC braking; braking force follows the rotor field (rotor_flux, decays with ROTOR_TIME_CONSTANT
-  after the AC cut), so DC applied at once brakes best
+  after the AC cut), so DC applied at once brakes best; a star/delta motor running shows a large Y or Δ under "M3~"
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)

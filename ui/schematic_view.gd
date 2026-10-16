@@ -210,6 +210,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed:
 			var c: CircuitComponent = _component_under_mouse()
+			# A contact of a button or switch operates the device.
+			var operator: CircuitComponent = operator_of(c)
+			if operator != null:
+				c = operator
 			if c is Fuse or c is CircuitBreaker or c is ThreePoleFuse or c is MotorBreaker or c is OverloadRelay or c is OverloadContact:
 				if _operate_protection(c):
 					_apply(simulator.step())
@@ -238,7 +242,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Presses or releases push button [param designation] (all its blocks), as
 ## from a control box of the operator panel.
 func hold_button(designation: String, pressed: bool) -> void:
-	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating or not (c is PushButton):
 		return
 	if pressed:
@@ -250,7 +254,7 @@ func hold_button(designation: String, pressed: bool) -> void:
 
 ## Turns switch [param designation] over, as from a control box.
 func toggle_switch(designation: String) -> void:
-	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating or not (c is LatchingSwitch):
 		return
 	(c as LatchingSwitch).toggle()
@@ -394,6 +398,13 @@ static func _clear_fault(c: CircuitComponent) -> void:
 		(c as OverloadRelay).overloaded = false
 	elif c is ThreePhaseMotor:
 		(c as ThreePhaseMotor).overloaded = false
+
+
+## The button or switch that [param c] (a contact or main contacts without a
+## coil) is a block of, or null.
+func operator_of(c: CircuitComponent) -> CircuitComponent:
+	var follows: bool = (c is Contact and (c as Contact).linked_actuator != null) or (c is ChangeoverContact and (c as ChangeoverContact).linked_actuator != null) or (c is MainContacts and (c as MainContacts).linked_actuator != null)
+	return document.circuit.get_operator(c.designation) if follows else null
 
 
 func _component_under_mouse() -> CircuitComponent:

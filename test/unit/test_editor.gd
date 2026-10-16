@@ -326,7 +326,8 @@ func test_markings_are_edited_in_place() -> void:
 	for c: CircuitComponent in doc.circuit.get_components():
 		if c is TimerRelay:
 			timer_id = c.id
-	assert_false(editor._edit_marking(doc.circuit.get_component(timer_id), "terminal", 0), "A1 of a time relay is fixed")
+	assert_true(editor._edit_marking(doc.circuit.get_component(timer_id), "terminal", 0), "A1 of a time relay opens (it can swap with A2)")
+	editor._close_inline()
 	editor.undo()
 	editor.undo()
 	assert_eq((editor.document().circuit.get_component("H1") as Lamp).purpose, "", "undoable")
@@ -390,7 +391,8 @@ func test_bad_markings_are_refused() -> void:
 		editor._commit_inline(bad)
 		assert_true(editor.document().circuit.has_component_id("KM1"), "'%s' refused" % bad)
 		assert_false(hints.is_empty(), "'%s' explained" % bad)
-	for bad: String in ["", "A2", "A 1", "A:1"]:
+	# ("A2" is no mistake: A1 and A2 swap, see test_devices.gd.)
+	for bad: String in ["", "A 1", "A:1"]:
 		hints.clear()
 		editor._inline_target = {"component": "KM1", "kind": "terminal", "index": 0}
 		editor._commit_inline(bad)

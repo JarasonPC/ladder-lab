@@ -56,7 +56,7 @@ func show_component(component: CircuitComponent) -> void:
 		_add(type_select)
 	match kind:
 		"supply":
-			_choice(tr("Conductor"), "conductor", Array(DocumentSerializer.CONDUCTORS), ["L / L1", "N", "L2", "L3", tr("+ (DC)"), tr("- (DC)")])
+			_choice(tr("Conductor"), "conductor", Array(DocumentSerializer.CONDUCTORS), ["L / L1", "N", "L2", "L3", tr("+ (DC)"), tr("- (DC)"), "PE"])
 		"junction":
 			_note(tr("Wire junction"), "MutedLabel")
 		"connector":
@@ -68,6 +68,7 @@ func show_component(component: CircuitComponent) -> void:
 				_check(tr("Delayed (timer contact)"), "delayed")
 		"coil":
 			_choice(tr("Kind"), "kind", ["contactor", "relay"], [tr("Contactor"), tr("Relay")])
+			_swap_coil_terminals(component)
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"timer":
@@ -79,6 +80,7 @@ func show_component(component: CircuitComponent) -> void:
 			else:
 				_number(tr("Time t (s)"), "delay", 0.1, 3600.0, 0.1)
 			_check(tr("Control input S (A1-S-A2)"), "control_input")
+			_swap_coil_terminals(component)
 			_timer_diagram(component as TimerRelay)
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
@@ -223,6 +225,21 @@ func _orientation() -> void:
 	flip.pressed.connect(func() -> void: flip_requested.emit())
 	row.add_child(flip)
 	_add(row)
+
+
+## Button swapping the names A1 and A2 of a coil (A2 on top).
+func _swap_coil_terminals(coil: CircuitComponent) -> void:
+	var names: PackedStringArray = coil.get_terminal_names()
+	var button: Button = Button.new()
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.text = tr("Swap A1 and A2")
+	button.tooltip_text = tr("A2 on top, A1 below (or back). Double-clicking A1 and typing A2 does the same.")
+	button.pressed.connect(func() -> void:
+		var swapped: PackedStringArray = names.duplicate()
+		swapped[0] = names[1]
+		swapped[1] = names[0]
+		_emit("terminals", Array(swapped)))
+	_add(button)
 
 
 ## Button with a list icon beside the function choice that shows every

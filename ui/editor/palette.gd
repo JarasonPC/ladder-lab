@@ -11,6 +11,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "L2 supply", "template": {"type": "supply", "conductor": "L2"}},
 	{"title": "L3 supply", "template": {"type": "supply", "conductor": "L3"}},
 	{"title": "N supply", "template": {"type": "supply", "conductor": "N"}},
+	{"title": "PE supply", "template": {"type": "supply", "conductor": "PE"}},
 	{"title": "+ supply (DC)", "template": {"type": "supply", "conductor": "+"}},
 	{"title": "- supply (DC)", "template": {"type": "supply", "conductor": "-"}},
 	{"title": "Bridge rectifier", "template": {"type": "rectifier"}},

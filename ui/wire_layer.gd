@@ -45,7 +45,7 @@ func _draw() -> void:
 
 	# Dead wires first, then N and DC -, then the phases and DC + on top.
 	var wires: PackedInt32Array = document.wires_on_page()
-	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N, StepResult.REACH_DC_MINUS], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_DC_PLUS, StepResult.REACH_SEVERAL]]:
+	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N, StepResult.REACH_PE, StepResult.REACH_DC_MINUS], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_DC_PLUS, StepResult.REACH_SEVERAL]]:
 		for w: int in wires:
 			var code: int = _reach(w)
 			if pass_codes.has(code):
