@@ -253,3 +253,18 @@ func test_field_cables_leave_through_the_bottom() -> void:
 	for g: Dictionary in wiring.glands:
 		assert_true(g["cable"] in ["AC", "M1"], "only the supply and the motor cable")
 	assert_eq(CabinetDevices.field_device(doc.circuit, "X5", CabinetDevices.nets(doc.circuit)), "", "the N terminal joins only devices inside")
+
+
+func test_plc_example_is_wired() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(14)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var kinds: Array = []
+	for place: Dictionary in layout.places:
+		kinds.append(place["kind"])
+	assert_true(kinds.has(CabinetDevices.Kind.PLC))
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var to_plc: bool = false
+	for wire: Dictionary in wiring.wires:
+		if str(wire["from"]).begins_with("A1:") or str(wire["to"]).begins_with("A1:"):
+			to_plc = true
+	assert_true(to_plc, "the fuse feeds the PLC in the switchboard")

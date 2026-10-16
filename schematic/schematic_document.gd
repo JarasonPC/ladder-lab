@@ -1680,7 +1680,7 @@ func cabinet_unplaced() -> Array[CabinetItem]:
 
 
 ## Adds rails with everything not in the switchboard yet: protection, time
-## relays, relays and bridge rectifiers on one rail, contactors (with their overload relays)
+## relays, relays, bridge rectifiers and PLCs on one rail, contactors (with their overload relays)
 ## and lone overload relays on the next, terminal strips at the bottom.
 ## Returns the number of rails added.
 func fill_cabinet() -> int:
@@ -1691,8 +1691,8 @@ func fill_cabinet() -> int:
 			continue
 		var kind: CabinetDevices.Kind = CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation))
 		groups[1 if kind == CabinetDevices.Kind.CONTACTOR or kind == CabinetDevices.Kind.OVERLOAD else 0].append(item)
-	# Protection first, then time relays, relays and rectifiers; each keeps circuit order.
-	var order: Array[CabinetDevices.Kind] = [CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.RECTIFIER]
+	# Protection first, then time relays, relays, rectifiers and PLCs; each keeps circuit order.
+	var order: Array[CabinetDevices.Kind] = [CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC]
 	var rank: Callable = func(item: CabinetItem) -> int:
 		return order.find(CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation)))
 	var first: Array = groups[0]

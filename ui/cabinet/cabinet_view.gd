@@ -273,6 +273,8 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 			CabinetParts.overload_relay(q, desc["tripped"], "5", _named_reach(desc))
 		CabinetDevices.Kind.RECTIFIER:
 			CabinetParts.rectifier(q, desc["on"], _named_reach(desc))
+		CabinetDevices.Kind.PLC:
+			CabinetParts.plc(q, desc, _named_reach(desc))
 		CabinetLayout.STRIP:
 			var items: Array = []
 			for t: Dictionary in desc["terminals"]:
