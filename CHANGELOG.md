@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.2.2 – 2026-10-16
+
 ### Fixed
 - The About window opened taller than the screen, so it could not be closed
 - Release notes in the update dialog are shown as plain text, without formatting marks
