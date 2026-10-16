@@ -205,6 +205,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   tests, exports the Windows build on Linux (Godot GODOT_VERSION, only the Windows template),
   zips LadderLab.exe with LICENSE.txt as LadderLab-<version>-win64.zip and publishes the
   release with that changelog section as its text (the update dialog shows it); it refuses a
-  tag that differs from the version or a version without a changelog section. Run by hand
-  (Actions > Release > Run workflow) it only builds the zip. Raise GODOT_VERSION there when
+  tag that differs from the version or a version without a changelog section. Instead of
+  pushing the tag: Actions > Release > Run workflow on main with "Publish" ticked creates the
+  tag itself (refused when that version is already released). Run by hand without "Publish"
+  it only builds the zip. Raise GODOT_VERSION there when
   the project moves to a newer Godot.
