@@ -34,6 +34,9 @@ contact numbering 13-14 / 21-22, coils A1-A2.
 Get the latest version from the [Releases](https://github.com/JarasonPC/ladder-lab/releases)
 page: unzip it and run `LadderLab.exe` (Windows, 64-bit). Schematics are saved as
 `.ladder` files.
+The program is not signed yet, so Windows may show "Windows protected your PC" the first
+time: click **More info** and then **Run anyway**.
+
 What changed in each version is in the [changelog](CHANGELOG.md). LadderLab tells you when
 a new version is out (Help > Check for updates).
 
