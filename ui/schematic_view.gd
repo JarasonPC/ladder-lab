@@ -261,8 +261,8 @@ func toggle_switch(designation: String) -> void:
 	_apply(simulator.step())
 
 
-## Replaces a blown fuse, switches a breaker, resets a tripped overload relay.
-## Returns false if nothing happened.
+## Replaces a blown fuse, switches a breaker, trips an overload relay by its
+## test button or resets it when tripped. Returns false if nothing happened.
 func _operate_protection(c: CircuitComponent) -> bool:
 	if c is Fuse:
 		var fuse: Fuse = c as Fuse
@@ -296,10 +296,14 @@ func _operate_protection(c: CircuitComponent) -> bool:
 		event_logged.emit("%s reset" if breaker_tripped else ("%s switched on" if motor_breaker.switched_on else "%s switched off"), [c.designation])
 	else:
 		var relay: OverloadRelay = document.circuit.get_overload_relay(c.designation)
-		if relay == null or not relay.tripped:
+		if relay == null:
 			return false
-		relay.reset()
-		event_logged.emit("%s reset", [c.designation])
+		if relay.tripped:
+			relay.reset()
+			event_logged.emit("%s reset", [c.designation])
+		else:
+			relay.test_trip()
+			event_logged.emit("%s tripped by hand (test button)", [c.designation])
 	return true
 
 

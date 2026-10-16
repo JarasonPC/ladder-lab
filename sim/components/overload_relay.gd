@@ -5,7 +5,8 @@ extends CircuitComponent
 ## into the power circuit (1-2, 3-4, 5-6) and it heats while the motor it
 ## feeds is overloaded or has lost a phase; with 0 poles it is a box that
 ## heats only with the injected [member overloaded] fault. It trips after
-## [member trip_delay] seconds of heating; [method reset] is its reset button.
+## [member trip_delay] seconds of heating; [method test_trip] is its test
+## button (trips it by hand), [method reset] its reset button.
 
 const DEFAULT_TRIP_DELAY: float = 5.0
 const _EPSILON: float = 1e-9
@@ -60,6 +61,14 @@ func protection_state() -> int:
 
 func _update_id() -> void:
 	id = designation if poles == 0 else "%s:%s" % [designation, "-".join(get_terminal_names())]
+
+
+## Test button: trips the relay by hand. Returns false if it already was.
+func test_trip() -> bool:
+	if tripped:
+		return false
+	tripped = true
+	return true
 
 
 func reset() -> void:

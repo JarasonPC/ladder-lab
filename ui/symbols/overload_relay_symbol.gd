@@ -2,14 +2,14 @@ class_name OverloadRelaySymbol
 extends SchematicSymbol
 ## Thermal overload relay (IEC 60617 thermal effect, S00325 style): a box
 ## with the thermal square wave. Shows the overload time while it heats up and
-## is filled when tripped; click to reset. With three poles its heaters are
+## is filled when tripped; a click trips it (test button) or resets it. With three poles its heaters are
 ## drawn in the power circuit: each conductor bent into the thermal mark.
 
 const BOX := Rect2(-16, 14, 32, 32)
 
 
 func is_interactive() -> bool:
-	return (component as OverloadRelay).tripped
+	return true
 
 
 func _draw_shape(color: Color, width: float) -> void:

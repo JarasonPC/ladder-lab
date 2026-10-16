@@ -113,6 +113,25 @@ func test_overload_relay_trips_after_delay_and_resets() -> void:
 	assert_false(doc.circuit.get_coil("KM1").energized, "reset does not restart: the self-hold is gone")
 
 
+
+func test_overload_relay_test_button_trips_by_hand() -> void:
+	doc = ExampleCircuits.star_delta()
+	sim = Simulator.new(doc.circuit)
+	var relay: OverloadRelay = doc.circuit.get_overload_relay("F1")
+	(doc.circuit.get_component("SB2") as PushButton).press()
+	sim.step(0.1)
+	(doc.circuit.get_component("SB2") as PushButton).release()
+	sim.step(0.1)
+	assert_true(doc.circuit.get_coil("KM1").energized)
+	assert_true(relay.test_trip(), "the test button trips it without overload")
+	assert_false(relay.test_trip(), "already tripped")
+	sim.step(0.1)
+	assert_true(relay.tripped, "stays tripped without heating")
+	assert_false(doc.circuit.get_coil("KM1").energized, "95-96 opened and stopped the motor")
+	relay.reset()
+	sim.step(0.1)
+	assert_false(relay.tripped)
+
 func test_contact_faults() -> void:
 	doc = ExampleCircuits.self_holding()
 	sim = Simulator.new(doc.circuit)

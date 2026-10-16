@@ -743,6 +743,10 @@ msgid "%s switched off"
 msgstr ""
 
 #, c-format
+msgid "%s tripped by hand (test button)"
+msgstr ""
+
+#, c-format
 msgid "%s reset"
 msgstr ""
 
