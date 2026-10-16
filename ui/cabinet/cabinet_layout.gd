@@ -148,9 +148,8 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 				place["under_label_at"] = place["under_origin"] + Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0)
 				place["bottom"] = place["under_label_at"].y + 2.6
 		CabinetDevices.Kind.RECTIFIER:
-			var rectifier: Vector2 = CabinetParts.rectifier_size(CabinetView.RECTIFIER_LOOK)
-			_box(place, rectifier)
-			_label(place, Vector2(rectifier.x * 0.5, -3.5), 14.0)
+			_box(place, CabinetParts.RECTIFIER)
+			_label(place, Vector2(CabinetParts.RECTIFIER.x * 0.5, -3.5), 14.0)
 		CabinetDevices.Kind.OVERLOAD:
 			_box(place, CabinetParts.OVERLOAD)
 			_label(place, Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0), 12.0)

@@ -13,9 +13,6 @@ signal operate_requested(designation: String)
 ## A place was clicked while editing (-1, -1: beside the places).
 signal place_clicked(rail: int, index: int)
 
-## Look of the bridge rectifiers (PREVIEW: "A", "B" or "C", see
-## [method CabinetParts.rectifier]).
-const RECTIFIER_LOOK: String = "A"
 ## Rating printed on the breakers (the circuit does not model it).
 const BREAKER_RATING: String = "C16"
 
@@ -188,7 +185,7 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 		CabinetDevices.Kind.OVERLOAD:
 			CabinetParts.overload_relay(q, desc["tripped"], "5", _named_reach(desc))
 		CabinetDevices.Kind.RECTIFIER:
-			CabinetParts.rectifier(q, desc["on"], RECTIFIER_LOOK, _named_reach(desc))
+			CabinetParts.rectifier(q, desc["on"], _named_reach(desc))
 		CabinetLayout.STRIP:
 			var items: Array = []
 			for t: Dictionary in desc["terminals"]:

@@ -95,7 +95,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   breakers and fuse holders 1-4 poles, contactors 3 (also for 1-2) or 4 main poles plus a front
   auxiliary block beyond two auxiliary contacts, the overload relay fitted under the contactor its
   heaters follow, relays one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
-  3-4: wide socket), time relays 1-3 changeover contacts; terminal strips from terminal labels
+  3-4: wide socket), time relays 1-3 changeover contacts, bridge rectifiers one dark module; terminal strips from terminal labels
   ("X2:4" = strip X2, plain "4" = strip X1). Edited in the sidebar (undoable, "Fill from the
   schematic"), breakers, fuse holders and overload relays operated there while simulating.
   tools/screenshot_cabinet.gd screenshots the app (xvfb) for visual review
