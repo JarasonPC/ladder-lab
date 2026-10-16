@@ -189,3 +189,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   tag); versions between two releases are simply skipped. Pre-releases use a suffix
   (`0.3.0-beta1`), are published as GitHub pre-releases and are older than `0.3.0`.
 - The program version is independent of ProjectFile.VERSION (the .ladder file format number).
+- CHANGELOG.md: every merge that raises the version adds its changes under "Unreleased", as
+  short lines a user understands (what they can do now, what works better), in the matching
+  group (Schematic editor, Simulation, Panels, Files and export, Application; "Fixed" for bug
+  fixes). Releasing: "Unreleased" becomes "<version> – <date>" (the version in project.godot),
+  a new empty "Unreleased" goes above it, and the section is the text of the GitHub release
+  (the update dialog shows it).
