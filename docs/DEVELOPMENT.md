@@ -99,7 +99,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   breakers and fuse holders 1-4 poles, contactors 3 (also for 1-2) or 4 main poles plus a front
   auxiliary block beyond two auxiliary contacts, the overload relay fitted under the contactor its
   heaters follow, relays one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
-  3-4: wide socket), time relays 1-3 changeover contacts, bridge rectifiers one dark module; terminal strips from terminal labels
+  3-4: wide socket), time relays 1-3 changeover contacts, bridge rectifiers one dark module, PLCs
+  four light grey modules; terminal strips from terminal labels
   ("X2:4" = strip X2, plain "4" = strip X1). Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree, every wire straight from its terminal
   to the duct over or under its rail, in through a slot between the fingers, along the duct in a
@@ -142,7 +143,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   language says which one runs. Operands I1-I8, Q1-Q4, M1-M16, T1-T16, C1-C16. Saved with
   the component ("program"); damaged parts of a program are left out, never refusing the file.
   The symbol (PlcSymbol): a box with L1 N I1-I8 on top, the output contacts below (moving),
-  input lights and a RUN display; the switchboard does not show PLCs yet
+  input lights and a RUN display. In the switchboard (CabinetDevices.Kind.PLC, CabinetParts.plc)
+  a light grey four-module device: L1 N I1-I8 screws on top, the two screws of each output under
+  its module below (CabinetParts.terminal_points by the standard marking, the schematic's names
+  printed), a display with the inputs and output relays that are on (backlit while powered, RUN
+  and the language), cursor keys, ESC / OK; it sits on the first rail after the rectifiers
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
   clicking it while simulating; one per PLC. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
   PlcCanvas, drawn on schematic paper, Ctrl+wheel zoom) switched at the top (the PLC runs the

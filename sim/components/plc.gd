@@ -42,8 +42,12 @@ func _init(p_designation: String, p_program: PlcProgram = null) -> void:
 		output_armatures.append(Armature.new(RELAY_PICK_UP, RELAY_DROP_OUT))
 
 
-## L1, N, I1-I8, then the two terminals of each output: Q1.1, Q1.2, ...
 func default_terminal_names() -> PackedStringArray:
+	return standard_terminal_names()
+
+
+## L1, N, I1-I8, then the two terminals of each output: Q1.1, Q1.2, ...
+static func standard_terminal_names() -> PackedStringArray:
 	var names: PackedStringArray = PackedStringArray(["L1", "N"])
 	for k: int in INPUTS:
 		names.append("I%d" % (k + 1))

@@ -3,7 +3,7 @@ extends RefCounted
 ## What the switchboard (rozvaděč) shows of a circuit: the devices that sit
 ## on DIN rails (circuit breakers, fuse holders, contactors with the overload
 ## relays fitted under them, auxiliary relays, time relays, bridge
-## rectifiers) and the terminal strips, with everything their look depends on (poles, contacts, terminal
+## rectifiers, PLCs) and the terminal strips, with everything their look depends on (poles, contacts, terminal
 ## names) and their simulation state. Works on the circuit alone, no nodes.
 ##
 ## Terminal strips are made of the terminals on wires ([TerminalBlock]) and on
@@ -11,7 +11,7 @@ extends RefCounted
 ## of strip X2, a plain label "4" is terminal 4 of strip X1. Terminals with the
 ## same strip and label are one terminal.
 
-enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER }
+enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER, PLC }
 ## Conductor a net is wired with in the switchboard (see [method conductors]):
 ## the phase of the control circuit (red), the neutral (light blue), the
 ## main power circuit (grey) and the protective conductor.
@@ -37,6 +37,8 @@ static func kind_of(c: CircuitComponent) -> Kind:
 		return Kind.OVERLOAD
 	if c is Rectifier:
 		return Kind.RECTIFIER
+	if c is Plc:
+		return Kind.PLC
 	return Kind.NONE
 
 
@@ -78,6 +80,10 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ##   control input), "powered", "output"
 ## - OVERLOAD: "tripped"
 ## - RECTIFIER: "on" (its input has voltage)
+## - PLC: "terminals" by the standard marking (L1, N, I1-I8, Q1.1-Q4.2),
+##   "names" (standard name -> name in the schematic), "powered", "inputs"
+##   and "outputs" (one bool per input, per output relay closed), "language"
+##   ("FBD" / "LAD")
 static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 	var c: CircuitComponent = device(doc.circuit, designation)
 	if c == null:
@@ -114,7 +120,32 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 		Kind.RECTIFIER:
 			d["on"] = (c as Rectifier).energized
 			d["terminals"] = _named_keys(c)
+		Kind.PLC:
+			_describe_plc(c as Plc, d)
 	return d
+
+
+static func _describe_plc(plc: Plc, d: Dictionary) -> void:
+	var standard: PackedStringArray = Plc.standard_terminal_names()
+	var names: PackedStringArray = plc.get_terminal_names()
+	var keys: PackedStringArray = plc.get_terminal_keys()
+	var terminals: Dictionary = {}
+	var shown: Dictionary = {}
+	for k: int in standard.size():
+		terminals[standard[k]] = keys[k]
+		shown[standard[k]] = names[k]
+	d["terminals"] = terminals
+	d["names"] = shown
+	d["powered"] = plc.energized
+	var inputs: Array[bool] = []
+	for k: int in Plc.INPUTS:
+		inputs.append(plc.energized and plc.input_on(k))
+	var outputs: Array[bool] = []
+	for a: Armature in plc.output_armatures:
+		outputs.append(a.no_closed)
+	d["inputs"] = inputs
+	d["outputs"] = outputs
+	d["language"] = "LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD"
 
 
 ## Contacts (normal and changeover) of the relay, contactor or timer

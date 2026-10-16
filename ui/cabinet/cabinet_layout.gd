@@ -155,6 +155,9 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 		CabinetDevices.Kind.RECTIFIER:
 			_box(place, CabinetParts.RECTIFIER)
 			_label(place, Vector2(CabinetParts.RECTIFIER.x * 0.5, -3.5), 14.0)
+		CabinetDevices.Kind.PLC:
+			_box(place, CabinetParts.PLC)
+			_label(place, Vector2(CabinetParts.PLC.x * 0.5, -3.5), 16.0)
 		CabinetDevices.Kind.OVERLOAD:
 			_box(place, CabinetParts.OVERLOAD)
 			_label(place, Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0), 12.0)

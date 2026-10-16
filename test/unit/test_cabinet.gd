@@ -207,3 +207,38 @@ func test_bridge_rectifier() -> void:
 	for item: CabinetItem in doc.cabinet_rails[0].items:
 		first.append(item.designation)
 	assert_eq(first, PackedStringArray(["FA1", "FU1", "KT1", "KA1", "TB1"]), "rectifiers after the relays")
+
+
+func test_plc() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.add(Rectifier.new("TB1"), Vector2i(100, 0))
+	doc.add(Plc.new("A1"), Vector2i(100, 10))
+	assert_true(CabinetDevices.devices(doc).has("A1"))
+	assert_false(CabinetDevices.is_outside(doc.circuit, doc.circuit.get_component("A1")), "it sits on a rail")
+	var plc: Dictionary = CabinetDevices.describe(doc, "A1")
+	assert_eq(plc["kind"], CabinetDevices.Kind.PLC)
+	assert_false(plc["powered"])
+	assert_eq(plc["terminals"]["Q4.2"], "A1:Q4.2")
+	assert_eq((plc["outputs"] as Array).size(), Plc.OUTPUTS)
+	var points: Dictionary = CabinetParts.terminal_points(CabinetDevices.Kind.PLC, plc)
+	assert_eq(points.size(), Plc.standard_terminal_names().size(), "a screw for every terminal")
+	for name: String in points:
+		var at: Vector3 = points[name]
+		assert_true(Rect2(Vector2.ZERO, CabinetParts.PLC).has_point(Vector2(at.x, at.y)), name)
+	doc.fill_cabinet()
+	var first: PackedStringArray = PackedStringArray()
+	for item: CabinetItem in doc.cabinet_rails[0].items:
+		first.append(item.designation)
+	assert_eq(first, PackedStringArray(["FA1", "FU1", "KT1", "KA1", "TB1", "A1"]), "PLCs after the rectifiers")
+
+
+func test_plc_terminals_keep_their_marking_when_renamed() -> void:
+	var doc: SchematicDocument = _doc()
+	var a1: Plc = Plc.new("A1")
+	var names: PackedStringArray = a1.default_terminal_names()
+	names[2] = "START"
+	a1.custom_terminals = names
+	doc.add(a1, Vector2i(100, 10))
+	var plc: Dictionary = CabinetDevices.describe(doc, "A1")
+	assert_eq(plc["terminals"]["I1"], "A1:START")
+	assert_eq(plc["names"]["I1"], "START", "printed with the name of the schematic")
