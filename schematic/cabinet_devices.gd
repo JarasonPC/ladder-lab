@@ -12,6 +12,10 @@ extends RefCounted
 ## same strip and label are one terminal.
 
 enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER }
+## Conductor a net is wired with in the switchboard (see [method conductors]):
+## the phase of the control circuit (red), the neutral (light blue), the
+## main power circuit (grey) and the protective conductor.
+enum Conductor { CONTROL, NEUTRAL, POWER, PE }
 
 ## Strip of the terminals whose label names none.
 const DEFAULT_STRIP: String = "X1"
@@ -264,6 +268,49 @@ static func nets(circuit: Circuit) -> Dictionary[String, int]:
 	return result
 
 
+## Net number (see [method nets]) -> [enum Conductor] of every net. Nets
+## joined to the N supply or the - pole are NEUTRAL, nets joined to PE alone
+## PE; nets on the terminals of the power circuit (supplies L2 and L3, main
+## contacts, overload relay heaters, 3~ motors, fuses and breakers of two or
+## more poles) are POWER, all others CONTROL.
+static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictionary[int, Conductor]:
+	var neutral: Dictionary[int, bool] = {}
+	var pe: Dictionary[int, bool] = {}
+	var power: Dictionary[int, bool] = {}
+	for c: CircuitComponent in circuit.get_components():
+		var keys: PackedStringArray = c.get_terminal_keys()
+		if c is PowerSupply:
+			match (c as PowerSupply).conductor:
+				PowerSupply.Conductor.N, PowerSupply.Conductor.DC_MINUS:
+					neutral[net[keys[0]]] = true
+				PowerSupply.Conductor.PE:
+					pe[net[keys[0]]] = true
+				PowerSupply.Conductor.L2, PowerSupply.Conductor.L3:
+					power[net[keys[0]]] = true
+			continue
+		var count: int = 0
+		if c is ThreePhaseMotor:
+			count = (c as ThreePhaseMotor).winding_terminal_count()
+		elif c is OverloadRelay or c is MainContacts or (c is PoleDevice and (c as PoleDevice).poles > 1):
+			count = keys.size()
+		for k: int in mini(count, keys.size()):
+			power[net[keys[k]]] = true
+	var result: Dictionary[int, Conductor] = {}
+	for key: String in net:
+		var n: int = net[key]
+		if result.has(n):
+			continue
+		if neutral.has(n):
+			result[n] = Conductor.NEUTRAL
+		elif power.has(n):
+			result[n] = Conductor.POWER
+		elif pe.has(n):
+			result[n] = Conductor.PE
+		else:
+			result[n] = Conductor.CONTROL
+	return result
+
+
 # --- Terminal strips -----------------------------------------------------------------
 
 ## Terminal strip name -> its terminals in order, each {"label", "kind": "L",
@@ -311,9 +358,10 @@ static func _add_terminal(found: Dictionary, label: String, key: String) -> void
 	if not found.has(parts[0]):
 		found[parts[0]] = {}
 	var terminals: Dictionary = found[parts[0]]
-	if not terminals.has(parts[1]):
-		terminals[parts[1]] = PackedStringArray()
-	(terminals[parts[1]] as PackedStringArray).append(key)
+	# Packed arrays are values: appended to and stored back.
+	var keys: PackedStringArray = terminals.get(parts[1], PackedStringArray())
+	keys.append(key)
+	terminals[parts[1]] = keys
 
 
 static func _terminal_kind(label: String) -> String:

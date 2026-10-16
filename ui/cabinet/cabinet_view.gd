@@ -1,7 +1,8 @@
 class_name CabinetView
 extends Control
 ## Draws the switchboard (rozvaděč) of a document like the real thing (see
-## [CabinetLayout], [CabinetParts]), as wide as the panel it sits in. While
+## [CabinetLayout], [CabinetParts]) with its wiring ([CabinetWiring]), as
+## wide as the panel it sits in. While
 ## simulating, the devices show the circuit's state, terminals are ringed in
 ## the colour of the voltage that reaches them, and a click switches a
 ## breaker or fuse holder, replaces a blown fuse or resets a tripped overload
@@ -25,6 +26,9 @@ var reach: Dictionary[String, int] = {}
 var selected: Vector2i = Vector2i(-1, -1)
 
 var _layout: CabinetLayout
+## Wires of the last layout, laid out again after edits and when the scale changes.
+var _wiring: CabinetWiring
+var _wiring_k: float = 0.0
 
 
 func _ready() -> void:
@@ -36,6 +40,7 @@ func _ready() -> void:
 ## Lays the switchboard out again (after edits or a new document).
 func refresh() -> void:
 	_layout = CabinetLayout.build(document, _k()) if document != null else null
+	_wiring = null
 	update_minimum_size()
 	queue_redraw()
 
@@ -150,6 +155,11 @@ func _draw() -> void:
 		CabinetParts.duct(p.shifted(r.position), r.size.y if duct["vertical"] else r.size.x, r.size.x if duct["vertical"] else r.size.y, duct["vertical"])
 	for place: Dictionary in _layout.places:
 		_draw_place(p, place)
+	if _wiring == null or not is_equal_approx(_wiring_k, k):
+		_wiring = CabinetWiring.build(document, _layout, k)
+		_wiring_k = k
+	for wire: Dictionary in _wiring.wires:
+		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"])
 	for place: Dictionary in _layout.places:
 		if place["label_w"] > 0.0:
 			CabinetParts.label(p, place["label_at"], "-" + str(place["designation"]), place["label_w"])

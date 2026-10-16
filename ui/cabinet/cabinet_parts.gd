@@ -79,16 +79,34 @@ static func din_rail(p: CabinetPainter, length: float) -> void:
 		x += 25.0
 
 
+## Fingers of the wire ducts: width, the slot between two, how far they
+## reach in from the sides, room before the first one.
+const DUCT_FINGER: float = 6.0
+const DUCT_SLOT: float = 4.0
+const DUCT_DEPTH: float = 8.0
+const DUCT_END: float = 1.5
+
+
+## Number of slots between the fingers of a duct [param length] mm long.
+static func duct_slots(length: float) -> int:
+	return maxi(floori((length - 2.0 * DUCT_END - DUCT_FINGER) / (DUCT_FINGER + DUCT_SLOT)), 1)
+
+
+## Centre of slot [param index] of a duct, from the duct's start.
+static func duct_slot(index: int) -> float:
+	return DUCT_END + DUCT_FINGER + DUCT_SLOT * 0.5 + (DUCT_FINGER + DUCT_SLOT) * index
+
+
 ## Slotted wire duct without its cover: the fingers along both sides and
 ## the floor between them. [param vertical] runs it down instead of across.
 static func duct(p: CabinetPainter, length: float, thickness: float, vertical: bool) -> void:
 	var base: Color = Color("9ea4a9")
 	var r: Rect2 = Rect2(0, 0, thickness, length) if vertical else Rect2(0, 0, length, thickness)
 	p.rect(r, base.darkened(0.35), 0.4, base.darkened(0.45), 0.2)
-	var finger: float = 6.0
-	var gap: float = 4.0
-	var depth: float = 8.0
-	var along: float = 1.5
+	var finger: float = DUCT_FINGER
+	var gap: float = DUCT_SLOT
+	var depth: float = DUCT_DEPTH
+	var along: float = DUCT_END
 	while along + finger <= length - 1.5:
 		for side: int in 2:
 			var f: Rect2
@@ -125,6 +143,13 @@ const MODULAR_EDGE := Color("aeb3b8")
 const MODULAR_SHADE := Color("d3d7da")
 const MODULAR_END := Color("60666c")
 const MODULAR_PRINT := Color("3e4247")
+
+
+## Height of the terminal screws of a breaker from its top and bottom.
+const BREAKER_SCREW_Y: float = 11.0
+## Height of the wire openings of a fuse holder from its top and bottom.
+const FUSE_HOLE_TOP: float = 8.0
+const FUSE_HOLE_BOTTOM: float = 7.5
 
 
 ## Terminal screw of a modular device: a round recess with a combination screw.
@@ -171,8 +196,8 @@ static func breaker(p: CabinetPainter, poles: int, on: bool, rating: String = "B
 	for i: int in poles:
 		var x0: float = MODULE_W * i
 		var cx: float = x0 + MODULE_W * 0.5
-		_modular_screw(p, Vector2(cx, 11.0), reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
-		_modular_screw(p, Vector2(cx, MODULE_H - 11.0), reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
+		_modular_screw(p, Vector2(cx, BREAKER_SCREW_Y), reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
+		_modular_screw(p, Vector2(cx, MODULE_H - BREAKER_SCREW_Y), reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
 		p.text(Vector2(cx + 5.2, 17.0), str(2 * i + 1), 2.5, MODULAR_PRINT, -1, false)
 		p.text(Vector2(cx + 5.2, MODULE_H - 15.0), str(2 * i + 2), 2.5, MODULAR_PRINT, -1, false)
 		# Slot for a busbar under the top terminal.
@@ -247,8 +272,8 @@ static func fuse_holder(p: CabinetPainter, poles: int, closed: bool, blown: bool
 	for i: int in poles:
 		var x0: float = MODULE_W * i
 		var cx: float = x0 + MODULE_W * 0.5
-		_fuse_hole(q, Vector2(cx, 8.0), reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
-		_fuse_hole(q, Vector2(cx, FUSE_H - 7.5), reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
+		_fuse_hole(q, Vector2(cx, FUSE_HOLE_TOP), reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
+		_fuse_hole(q, Vector2(cx, FUSE_H - FUSE_HOLE_BOTTOM), reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
 		if closed:
 			_fuse_carrier(q, x0, i, poles, blown)
 		else:
@@ -325,6 +350,18 @@ const BLOCK_LIGHT := Color("53575d")
 const BLOCK_RECESS := Color("2a2c2f")
 const BLOCK_TEAL := Color("5fb8ac")
 const BLOCK_WHITE := Color("e2e4e6")
+## Screw columns of a contactor: power terminals of three or four poles,
+## the inner tiers (two auxiliary contacts and the coil), the auxiliary
+## contact block on the front.
+const CONTACTOR_POWER_X: Array[float] = [11.2, 23.1, 35.0]
+const CONTACTOR_POWER_X4: Array[float] = [9.4, 18.6, 27.8, 37.0]
+const CONTACTOR_INNER_X: Array[float] = [16.8, 26.9, 37.8]
+const AUX_BLOCK_X: Array[float] = [7.6, 17.9, 28.2, 38.5]
+## Screw columns of an overload relay: power outputs, auxiliary contacts
+## 97 98 95 96.
+const OVERLOAD_OUT_X: Array[float] = [12.0, 25.0, 37.6]
+const OVERLOAD_AUX_X: Array[float] = [6.2, 17.7, 28.7, 39.7]
+const OVERLOAD_AUX: PackedStringArray = ["97", "98", "95", "96"]
 
 
 ## Screw of a contactor or overload relay: a dark round well with a silver
@@ -368,9 +405,7 @@ static func contactor(p: CabinetPainter, on: bool, highlight: bool = false, aux:
 	var w: float = CONTACTOR.x
 	var h: float = CONTACTOR.y
 	var four: bool = poles >= 4
-	var power_x: Array[float] = [11.2, 23.1, 35.0]
-	if four:
-		power_x = [9.4, 18.6, 27.8, 37.0]
+	var power_x: Array[float] = CONTACTOR_POWER_X4 if four else CONTACTOR_POWER_X
 	# Outer tiers with the power terminals; the inner tiers cover half of
 	# the top wells.
 	p.rect(Rect2(3.0, 0, w - 6.0, 6.5), BLOCK_DARK, 0.8, Color("2e3034"), 0.15)
@@ -386,7 +421,7 @@ static func contactor(p: CabinetPainter, on: bool, highlight: bool = false, aux:
 		_block_screw(p, Vector2(power_x[j] + 0.6, h - 6.9), radius + 0.1, reach.get(str(2 * j + 2), Color.TRANSPARENT))
 		_power_label(p, Vector2(power_x[j] + 0.4 - shift, h - 1.6), str(2 * j + 2), "T" + str(j + 1), four)
 	# Inner tiers: auxiliary contacts and the coil.
-	var inner_x: Array[float] = [16.8, 26.9, 37.8]
+	var inner_x: Array[float] = CONTACTOR_INNER_X
 	var top_names: Array = [aux[0][0], aux[1][0], "A1"]
 	var bottom_names: Array = [aux[0][2], aux[1][2], "A2"]
 	for j: int in 3:
@@ -455,7 +490,7 @@ static func _aux_block(p: CabinetPainter, on: bool, highlight: bool, aux: Array,
 	var r: Rect2 = Rect2(1.2, 16.4, CONTACTOR.x - 2.4, 37.4)
 	p.rect(r.grow(0.4), Color(0, 0, 0, 0.35), 1.2)
 	p.gradient(r, BLOCK_LIGHT.lightened(0.08), BLOCK_BODY.lightened(0.02), 1.0, Color("2b2d31"), 0.2)
-	var xs: Array[float] = [7.6, 17.9, 28.2, 38.5]
+	var xs: Array[float] = AUX_BLOCK_X
 	for k: int in aux.size():
 		var c: Array = aux[k]
 		_block_screw(p, Vector2(xs[k], 22.4), 2.3, reach.get(c[0], Color.TRANSPARENT))
@@ -510,7 +545,7 @@ static func _qr(p: CabinetPainter, r: Rect2) -> void:
 static func overload_relay(p: CabinetPainter, tripped: bool, setting: String = "5", reach: Dictionary = {}) -> void:
 	var w: float = OVERLOAD.x
 	var h: float = OVERLOAD.y
-	var holes_x: Array[float] = [12.0, 25.0, 37.6]
+	var holes_x: Array[float] = OVERLOAD_OUT_X
 	p.rect(Rect2(3.6, h - 9.6, w - 7.2, 9.6), BLOCK_DARK, 0.8, Color("2e3034"), 0.15)
 	var out: PackedStringArray = ["2", "4", "6"]
 	for j: int in 3:
@@ -556,8 +591,8 @@ static func overload_relay(p: CabinetPainter, tripped: bool, setting: String = "
 	var red: Color = Color("e5333d")
 	p.polygon(PackedVector2Array([Vector2(36.8, 21.0), Vector2(38.6, 21.0), Vector2(38.6, 19.3), Vector2(41.3, 19.3), Vector2(41.3, 27.9), Vector2(36.8, 27.9)]), red, red.darkened(0.3), 0.12)
 	# Auxiliary contacts 95-98.
-	var aux_x: Array[float] = [6.2, 17.7, 28.7, 39.7]
-	var aux: PackedStringArray = ["97", "98", "95", "96"]
+	var aux_x: Array[float] = OVERLOAD_AUX_X
+	var aux: PackedStringArray = OVERLOAD_AUX
 	var kinds: PackedStringArray = ["NO", "NO", "NC", "NC"]
 	for k: int in 4:
 		_block_screw(p, Vector2(aux_x[k], 36.0), 2.4, reach.get(aux[k], Color.TRANSPARENT), k < 2)
@@ -593,17 +628,8 @@ static func relay(p: CabinetPainter, on: bool, highlight: bool = false, reach: D
 	var w: float = size.x
 	var h: float = size.y
 	var wide: bool = poles > 2
-	# Screw columns: contact k's terminals; the slim socket keeps its two
-	# places and leaves the left one free for a single contact.
-	var columns: Array[float] = []
-	if wide:
-		var pitch: float = (w - 4.6) / poles
-		for k: int in poles:
-			columns.append(2.3 + pitch * (k + 0.5))
-	elif poles == 1:
-		columns = [w - 3.9]
-	else:
-		columns = [w - 3.9, 3.9]
+	# Screw columns: contact k's terminals.
+	var columns: Array[float] = _relay_columns(poles, w)
 	var tiers: PackedStringArray = ["COM", "NO", "NC"]
 	var functions: PackedStringArray = ["1", "4", "2"]
 	for t: int in 3:
@@ -658,15 +684,34 @@ static func relay(p: CabinetPainter, on: bool, highlight: bool = false, reach: D
 ## front on the rail: the coil terminals A2 and A1 on stepped tiers at the
 ## top, the LED, the end of the plug-in relay with its black ejector, then
 ## the contact terminals 14, 11 and 12 on stepped tiers.
+## Tiers of the 6.2 mm relay module [param h] mm high, from the outside in:
+## [top, height, terminal, screw y, label y].
+static func _slim_relay_tiers(h: float) -> Array:
+	return [
+		[0.0, 11.0, "A2", 5.2, 10.0], [10.0, 9.4, "A1", 14.2, 18.6],
+		[h - 22.0, 8.0, "14", h - 18.4, h - 14.6], [h - 15.0, 7.0, "11", h - 11.8, h - 8.4], [h - 8.4, 8.4, "12", h - 5.4, h - 1.0],
+	]
+
+
+## Screw columns of an auxiliary relay with [param poles] changeover
+## contacts in a socket [param w] mm wide (two or more contacts): the slim
+## socket keeps its two places, the wide one spreads them.
+static func _relay_columns(poles: int, w: float) -> Array[float]:
+	var columns: Array[float] = []
+	if poles > 2:
+		var pitch: float = (w - 4.6) / poles
+		for k: int in poles:
+			columns.append(2.3 + pitch * (k + 0.5))
+	else:
+		columns = [w - 3.9, 3.9]
+	return columns
+
+
 static func _slim_relay(p: CabinetPainter, on: bool, highlight: bool, reach: Dictionary) -> void:
 	var size: Vector2 = relay_size(1)
 	var w: float = size.x
 	var h: float = size.y
-	# Tiers from the outside in: [top, height, terminal, screw y, label y].
-	var tiers: Array = [
-		[0.0, 11.0, "A2", 5.2, 10.0], [10.0, 9.4, "A1", 14.2, 18.6],
-		[h - 22.0, 8.0, "14", h - 18.4, h - 14.6], [h - 15.0, 7.0, "11", h - 11.8, h - 8.4], [h - 8.4, 8.4, "12", h - 5.4, h - 1.0],
-	]
+	var tiers: Array = _slim_relay_tiers(h)
 	for t: Array in tiers:
 		p.gradient(Rect2(0, t[0], w, t[1]), SOCKET_BLUE.lightened(0.14), SOCKET_BLUE.darkened(0.1), 0.5, SOCKET_BLUE.darkened(0.45), 0.15)
 	# Middle: the socket's front with the LED and the relay in it.
@@ -705,20 +750,30 @@ const TIMER_DIAL_4: PackedStringArray = ["OFF", "F10", "F11", "F12", "F13", "F14
 ## fine time, function) with their scales, LED bars U (green, power) and R
 ## (yellow, output). The function dials point at [param code] ("F1" to
 ## "F12", see [method timer_dials]).
+## Screw columns of the time relay.
+const TIMER_X: Array[float] = [3.6, 9.0, 14.4]
+
+
+## Terminal rows of the time relay: [names, mark y (-1: none), name y,
+## screw y, shown].
+static func _timer_rows(control: String, contacts: int) -> Array:
+	var h: float = MODULE_H
+	return [
+		[["A1", "A2", control], 2.2, 6.6, 9.4, true],
+		[["36", "35", "38"], 13.4, 18.0, 21.4, contacts >= 3],
+		[["26", "25", "28"], -1.0, h - 13.4, h - 17.2, contacts >= 2],
+		[["16", "15", "18"], h - 2.8, h - 4.0, h - 8.6, true],
+	]
+
+
 static func timer(p: CabinetPainter, powered: bool, output: bool, code: String = "F2", control: String = "S", reach: Dictionary = {}, contacts: int = 1) -> void:
 	var w: float = MODULE_W
 	var h: float = MODULE_H
 	# Tiers, outer ones lowest, then the raised front.
 	for t: Array in [[0.0, 12.6], [12.0, 13.6], [h - 20.6, 8.6], [h - 12.6, 12.6]]:
 		p.gradient(Rect2(0.3, t[0], w - 0.6, t[1]), MODULAR_FACE, MODULAR_SHADE, 0.6, MODULAR_EDGE, 0.15)
-	var xs: Array[float] = [3.6, 9.0, 14.4]
-	var rows: Array = [
-		[["A1", "A2", control], 2.2, 6.6, 9.4, true],
-		[["36", "35", "38"], 13.4, 18.0, 21.4, contacts >= 3],
-		[["26", "25", "28"], -1.0, h - 13.4, h - 17.2, contacts >= 2],
-		[["16", "15", "18"], h - 2.8, h - 4.0, h - 8.6, true],
-	]
-	for row: Array in rows:
+	var xs: Array[float] = TIMER_X
+	for row: Array in _timer_rows(control, contacts):
 		if not row[4]:
 			continue
 		for j: int in 3:
@@ -794,6 +849,8 @@ static func _led_bar(p: CabinetPainter, r: Rect2, color: Color, lit: bool) -> vo
 
 ## Size of a bridge rectifier: one module.
 const RECTIFIER := Vector2(18.0, 90.0)
+## Height of the rectifier's screws from its top and bottom.
+const RECTIFIER_SCREW_Y: float = 8.6
 
 
 ## Bridge rectifier (usměrňovač, TB), one dark module like the contactors:
@@ -810,8 +867,8 @@ static func rectifier(p: CabinetPainter, on: bool, reach: Dictionary = {}) -> vo
 	var top: PackedStringArray = ["~1", "~2"]
 	var bottom: PackedStringArray = ["+", "-"]
 	for j: int in 2:
-		_block_screw(p, Vector2(xs[j], 8.6), 2.1, reach.get(top[j], Color.TRANSPARENT))
-		_block_screw(p, Vector2(xs[j], h - 8.6), 2.1, reach.get(bottom[j], Color.TRANSPARENT))
+		_block_screw(p, Vector2(xs[j], RECTIFIER_SCREW_Y), 2.1, reach.get(top[j], Color.TRANSPARENT))
+		_block_screw(p, Vector2(xs[j], h - RECTIFIER_SCREW_Y), 2.1, reach.get(bottom[j], Color.TRANSPARENT))
 		p.text(Vector2(xs[j], 4.4), top[j], 2.0, BLOCK_TEAL, 0, false)
 		p.text(Vector2(xs[j], h - 2.4), "−" if bottom[j] == "-" else "+", 2.6, BLOCK_TEAL, 0, true)
 	var front: Rect2 = Rect2(0.3, 13.0, w - 0.6, h - 26.0)
@@ -879,6 +936,8 @@ static func terminal_strip_width(count: int, k: float = 0.0) -> float:
 
 
 const TERMINAL_GREY := Color("b4b9bd")
+## Height of a push-in terminal's wire entries from its ends.
+const TERMINAL_ENTRY: float = 3.4
 const PUSH_ORANGE := Color("f28c1b")
 
 
@@ -911,7 +970,7 @@ static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -
 		# Distances from the end of the terminal, mirrored for the bottom.
 		var at: Callable = func(d: float) -> float: return d if end == 0 else h - d
 		# Wire entry: a rounded square opening, the spring's edge inside it.
-		var entry: Vector2 = Vector2(cx, at.call(3.4))
+		var entry: Vector2 = Vector2(cx, at.call(TERMINAL_ENTRY))
 		if reach.a > 0.0:
 			# Voltage reach: a coloured frame with a light edge, seen on any body colour.
 			p.rect(Rect2(entry - Vector2(2.45, 2.45), Vector2(4.9, 4.9)), Color(1, 1, 1, 0.85), 1.3)
@@ -945,3 +1004,137 @@ static func _end_stop(p: CabinetPainter, x: float, group: String) -> void:
 		var tag: Rect2 = Rect2(x + p.snap(1.2), TERMINAL.y * 0.5 - 8.0, w - p.snap(2.4), 9.0)
 		p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
 		p.text_centered(tag.get_center(), group, 2.6, Color("111111"), true, w - 2.6)
+
+
+## Centre of the top wire entry of terminal [param index] of a terminal
+## strip (as [method terminal_strip] draws it at [param k] pixels per mm).
+static func strip_entry(index: int, k: float) -> Vector2:
+	var snap: Callable = func(mm: float) -> float: return roundf(mm * k) / k
+	var pitch: float = snap.call(TERMINAL.x)
+	return Vector2(snap.call(END_STOP_W) + pitch * (index + 0.5), TERMINAL_ENTRY)
+
+
+# --- Terminals and wires -----------------------------------------------------------
+
+## Where the wires go into a device of [param kind] ([enum CabinetDevices.Kind])
+## as [param desc] describes it (see [method CabinetDevices.describe]):
+## terminal name -> Vector3 (x, y: centre of the screw from the device's
+## top-left corner; z: the screw's radius, where a wire ends).
+static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
+	var points: Dictionary = {}
+	match kind:
+		CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE:
+			var fuse: bool = kind == CabinetDevices.Kind.FUSE
+			var top: float = (MODULE_H - FUSE_H) * 0.5 + FUSE_HOLE_TOP if fuse else BREAKER_SCREW_Y
+			var bottom: float = (MODULE_H + FUSE_H) * 0.5 - FUSE_HOLE_BOTTOM if fuse else MODULE_H - BREAKER_SCREW_Y
+			for i: int in int(desc.get("poles", 1)):
+				var cx: float = MODULE_W * (i + 0.5)
+				points[str(2 * i + 1)] = Vector3(cx, top, 3.1)
+				points[str(2 * i + 2)] = Vector3(cx, bottom, 3.1)
+		CabinetDevices.Kind.CONTACTOR:
+			var four: bool = int(desc.get("poles", 3)) >= 4
+			var power_x: Array[float] = CONTACTOR_POWER_X4 if four else CONTACTOR_POWER_X
+			var radius: float = 2.1 if four else 2.3
+			for j: int in power_x.size():
+				points[str(2 * j + 1)] = Vector3(power_x[j], 5.6, radius + 0.55)
+				points[str(2 * j + 2)] = Vector3(power_x[j] + 0.6, CONTACTOR.y - 6.9, radius + 0.65)
+			var aux: Array = desc.get("aux", [["13", "NO", "14"], ["21", "NC", "22"]])
+			var top_names: Array = [aux[0][0], aux[1][0], "A1"]
+			var bottom_names: Array = [aux[0][2], aux[1][2], "A2"]
+			for j: int in 3:
+				points[top_names[j]] = Vector3(CONTACTOR_INNER_X[j], 12.7, 3.15)
+				points[bottom_names[j]] = Vector3(CONTACTOR_INNER_X[j] + 0.8, 58.8, 3.15)
+			for k: int in mini(aux.size() - 2, 4):
+				points[aux[k + 2][0]] = Vector3(AUX_BLOCK_X[k], 22.4, 2.85)
+				points[aux[k + 2][2]] = Vector3(AUX_BLOCK_X[k], 48.0, 2.85)
+		CabinetDevices.Kind.OVERLOAD:
+			for j: int in 3:
+				points[str(2 * j + 2)] = Vector3(OVERLOAD_OUT_X[j], OVERLOAD.y - 9.4, 2.85)
+			for k: int in 4:
+				points[OVERLOAD_AUX[k]] = Vector3(OVERLOAD_AUX_X[k], 36.0, 2.95)
+		CabinetDevices.Kind.RELAY:
+			var poles: int = clampi(int(desc.get("poles", 2)), 1, 4)
+			var size: Vector2 = relay_size(poles)
+			if poles == 1:
+				for t: Array in _slim_relay_tiers(size.y):
+					points[t[2]] = Vector3(size.x * 0.5, t[3], 2.05)
+			else:
+				var columns: Array[float] = _relay_columns(poles, size.x)
+				var functions: PackedStringArray = ["1", "4", "2"]
+				for t: int in 3:
+					for k: int in columns.size():
+						points[str(k + 1) + functions[t]] = Vector3(columns[k], 11.0 * t + 4.6, 2.55)
+				points["A2"] = Vector3(3.9, size.y - 4.6, 2.55)
+				points["A1"] = Vector3(size.x - 3.9, size.y - 4.6, 2.55)
+		CabinetDevices.Kind.TIMER:
+			for row: Array in _timer_rows(desc.get("control", "S"), int(desc.get("contacts", 1))):
+				if row[4]:
+					for j: int in 3:
+						points[row[0][j]] = Vector3(TIMER_X[j], row[3], 2.1)
+		CabinetDevices.Kind.RECTIFIER:
+			var xs: Array[float] = [RECTIFIER.x * 0.28, RECTIFIER.x * 0.72]
+			var top: PackedStringArray = ["~1", "~2"]
+			var bottom: PackedStringArray = ["+", "-"]
+			for j: int in 2:
+				points[top[j]] = Vector3(xs[j], RECTIFIER_SCREW_Y, 2.65)
+				points[bottom[j]] = Vector3(xs[j], RECTIFIER.y - RECTIFIER_SCREW_Y, 2.65)
+	return points
+
+
+## Insulation colours of the wires ([enum CabinetDevices.Conductor]): red
+## for the phase of the control circuit, light blue for the neutral, grey
+## for the main power circuit, green and yellow for PE.
+const WIRE_COLORS: Array[Color] = [Color("d6262b"), Color("5cb8f0"), Color("a3a8ad"), Color("3faa3c")]
+const WIRE_PE_STRIPE := Color("f2d630")
+## Length of the bare ferrule at each end of a wire.
+const FERRULE: float = 1.8
+
+
+## A wire of [param conductor] ([enum CabinetDevices.Conductor]) along
+## [param points] (mm), [param width] mm thick: bends rounded, shaded like
+## round insulation, a ferrule at both ends.
+static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, width: float) -> void:
+	if points.size() < 2:
+		return
+	var color: Color = WIRE_COLORS[conductor]
+	var path: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in _rounded_path(points, width * 1.6):
+		path.append(p.px(point))
+	var w: float = maxf(width * p.k, 1.5)
+	p.canvas.draw_polyline(path, color.darkened(0.5), w + 1.0, true)
+	p.canvas.draw_polyline(path, color, maxf(w - 0.6, 1.0), true)
+	if conductor == CabinetDevices.Conductor.PE:
+		p.canvas.draw_polyline(path, WIRE_PE_STRIPE, maxf(w * 0.4, 1.0), true)
+	elif w >= 3.0:
+		# Light along the top and left of the round insulation.
+		var shine: PackedVector2Array = PackedVector2Array()
+		for point: Vector2 in path:
+			shine.append(point - Vector2(1, 1) * w * 0.18)
+		p.canvas.draw_polyline(shine, color.lightened(0.35), maxf(w * 0.22, 1.0), true)
+	for end: int in 2:
+		var tip: Vector2 = points[0] if end == 0 else points[points.size() - 1]
+		var next: Vector2 = points[1] if end == 0 else points[points.size() - 2]
+		var back: Vector2 = tip + (next - tip).normalized() * minf(FERRULE, tip.distance_to(next))
+		p.line(tip, back, METAL_DARK, width + 0.2)
+		p.line(tip, back, METAL, maxf(width - 0.5, 0.3))
+
+
+## [param points] with every bend rounded off to [param radius] mm (less
+## where the legs are short).
+static func _rounded_path(points: PackedVector2Array, radius: float) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array([points[0]])
+	for i: int in range(1, points.size() - 1):
+		var a: Vector2 = points[i - 1]
+		var corner: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var r: float = minf(radius, minf(a.distance_to(corner), b.distance_to(corner)) * 0.5)
+		if r < 0.05:
+			result.append(corner)
+			continue
+		var from: Vector2 = corner + (a - corner).normalized() * r
+		var to: Vector2 = corner + (b - corner).normalized() * r
+		for s: int in 5:
+			var t: float = s / 4.0
+			result.append(from.lerp(corner, t).lerp(corner.lerp(to, t), t))
+	result.append(points[points.size() - 1])
+	return result

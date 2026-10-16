@@ -96,7 +96,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   auxiliary block beyond two auxiliary contacts, the overload relay fitted under the contactor its
   heaters follow, relays one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
   3-4: wide socket), time relays 1-3 changeover contacts, bridge rectifiers one dark module; terminal strips from terminal labels
-  ("X2:4" = strip X2, plain "4" = strip X1). Edited in the sidebar (undoable, "Fill from the
+  ("X2:4" = strip X2, plain "4" = strip X1). Wired after the circuit (CabinetWiring): each net
+  joins its terminals on the rails along the shortest tree, every wire straight from its terminal
+  to the duct over or under its rail, in through a slot between the fingers, along the duct in a
+  lane of its own (down a side duct to another duct); colours by conductor
+  (CabinetDevices.conductors): red = phase of the control circuit (L), light blue = N (and the
+  DC - pole), grey = main power circuit (L2/L3 and the terminals of main contacts, overload relay
+  heaters, 3~ motors, fuses and breakers of 2-4 poles), green-yellow = PE; wires go into the
+  top of strip terminals. Edited in the sidebar (undoable, "Fill from the
   schematic"), breakers, fuse holders and overload relays operated there while simulating.
   tools/screenshot_cabinet.gd screenshots the app (xvfb) for visual review
 - Keep the simulation logic (solver) separate from scenes and UI:
@@ -147,7 +154,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 - `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block),
   ExportPreview (dialog)
 - `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
-- `ui/cabinet/` CabinetPanel (sidebar), CabinetView, CabinetLayout, CabinetParts, CabinetPainter
+- `ui/cabinet/` CabinetPanel (sidebar), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP
