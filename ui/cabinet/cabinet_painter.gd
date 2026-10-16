@@ -150,7 +150,12 @@ func rounded(r: Rect2, radius: float) -> PackedVector2Array:
 		var start: float = -PI * 0.5 + c * PI * 0.5
 		for s: int in steps + 1:
 			var a: float = start + PI * 0.5 * s / steps
-			points.append(px(centers[c] + Vector2(cos(a), sin(a)) * rad))
+			var point: Vector2 = px(centers[c] + Vector2(cos(a), sin(a)) * rad)
+			# Neighbouring arcs meet in one point when the radius is half a side.
+			if points.is_empty() or points[points.size() - 1].distance_squared_to(point) > 0.0001:
+				points.append(point)
+	if points.size() > 1 and points[0].distance_squared_to(points[points.size() - 1]) <= 0.0001:
+		points.remove_at(points.size() - 1)
 	return points
 
 

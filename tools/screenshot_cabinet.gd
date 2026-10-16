@@ -23,7 +23,11 @@ func _initialize() -> void:
 	main.call("_set_cabinet", true)
 	if args.size() > 2:
 		(main.get("_cabinet_bar") as SideBar).width = float(args[2])
-	await _frames(20)
+	await _frames(10)
+	# Select the first contactor's place, so the editing card shows too.
+	var panel: CabinetPanel = main.get("_cabinet_panel")
+	(panel.get("_view") as CabinetView).place_clicked.emit(1, 0)
+	await _frames(10)
 	await _save("app_edit")
 	main.call("_set_mode", 1)
 	await _frames(5)
