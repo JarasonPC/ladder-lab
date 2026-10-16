@@ -9,6 +9,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ### Fixed
 - The About window opened taller than the screen, so it could not be closed
 - Release notes in the update dialog are shown as plain text, without formatting marks
+- A click on a part no longer nudges it a cell; parts move only when really dragged and stop
+  following the mouse when the button is let go outside the window
+- Wires of a dragged part no longer pick up hooks and loops, keep off the terminals of other
+  parts, and are back as they were when the part is dragged back
+- A new wire clicked onto a wire it is already connected to adds a corner there instead of an
+  extra junction
+- No branch dot where wires that are not connected only meet
 
 ## 0.2.0 – 2026-10-16
 

@@ -73,6 +73,47 @@ func test_move_reroutes_attached_wires() -> void:
 	assert_eq(points[1].x, 5)
 
 
+func test_drag_back_restores_routes() -> void:
+	var doc: SchematicDocument = _lamp_doc()
+	var before: Array = []
+	for w: int in doc.get_wire_count():
+		before.append(doc.wire_points(w))
+	var start: Dictionary = doc.drag_start(PackedStringArray(["S1"]))
+	# The mouse wanders right, down and back again.
+	for delta: Vector2i in [Vector2i(1, 0), Vector2i(2, 0), Vector2i(2, 1), Vector2i(1, 1), Vector2i(0, 1)]:
+		doc.drag_components(start, delta)
+		assert_eq(doc.terminal_cell("S1:13"), Vector2i(5, 2) + delta)
+		_assert_routes_valid(doc)
+		for w: int in doc.get_wire_count():
+			assert_true(SchematicDocument._route_simple(doc.wire_points(w)), "wire %d does not run over itself at %s" % [w, delta])
+	doc.drag_components(start, Vector2i.ZERO)
+	for w: int in doc.get_wire_count():
+		assert_eq(doc.wire_points(w), before[w], "wire %d is back as it was" % w)
+
+
+func test_moved_wire_does_not_loop() -> void:
+	# Step by step, the routes left behind used to grow hooks and loops.
+	var doc: SchematicDocument = _lamp_doc()
+	for step: Vector2i in [Vector2i(1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+		doc.move_components(PackedStringArray(["S1"]), step)
+		for w: int in doc.get_wire_count():
+			assert_true(SchematicDocument._route_simple(doc.wire_points(w)), "wire %d does not run over itself" % w)
+	assert_eq(doc.wire_points(1), [Vector2i(5, 5), Vector2i(5, 7)] as Array[Vector2i], "straight again")
+
+
+func test_moved_wire_avoids_other_terminals() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(6, 6))
+	doc.add(Lamp.new("H3"), Vector2i(3, 5))
+	doc.connect_terminals("H1:X2", "H2:X1")
+	doc.normalize_route(0)
+	var points: Array[Vector2i] = doc.wire_points(0)
+	for s: int in range(1, points.size()):
+		assert_false(SchematicDocument._on_segment(Vector2i(3, 5), points[s - 1], points[s]), "the wire keeps off H3:X1")
+	_assert_routes_valid(doc)
+
+
 func test_moving_both_ends_moves_corners() -> void:
 	var doc: SchematicDocument = _lamp_doc()
 	doc.move_components(PackedStringArray(["L", "S1"]), Vector2i(0, -1))
