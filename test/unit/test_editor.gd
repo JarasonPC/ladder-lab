@@ -355,6 +355,30 @@ func test_contact_of_an_overload_relay() -> void:
 	assert_true(doc.circuit.get_component("KA1:11-12") is Contact, "and back to a plain contact")
 
 
+func test_contacts_renamed_to_one_device_take_free_numbers() -> void:
+	_place({"type": "coil", "kind": "relay"}, Vector2i(10, 3))
+	var doc: SchematicDocument = editor.document()
+	var coil: String = ""
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is Coil:
+			coil = c.designation
+	var contacts: Array[String] = []
+	for k: int in 3:
+		editor._clear_selection()
+		var contact: Contact = Contact.new("K%d" % (k + 7), SwitchingElement.ContactType.NO)
+		doc.add(contact, Vector2i(14 + 4 * k, 3))
+		contacts.append(contact.id)
+	for id: String in contacts:
+		var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component(id))
+		data["designation"] = coil
+		assert_eq(editor.apply_properties(id, data), "", "%s takes the relay's designation" % id)
+	for id: String in [coil + ":13-14", coil + ":23-24", coil + ":33-34"]:
+		assert_true(doc.circuit.get_component(id) is Contact, id + " is a contact of the relay")
+	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component(coil + ":33-34"))
+	data["sequence"] = 1
+	assert_ne(editor.apply_properties(coil + ":33-34", data), "", "numbers chosen by hand that are taken are still refused")
+
+
 func test_markings_are_edited_in_place() -> void:
 	_place({"type": "coil"}, Vector2i(10, 3))
 	_place({"type": "lamp"}, Vector2i(14, 3))

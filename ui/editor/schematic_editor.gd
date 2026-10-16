@@ -307,6 +307,12 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 		if new_kind != coil.kind and not (old is TimerRelay) and data["designation"] == old.designation and SchematicDocument._designation_prefix(old.designation) == old_prefix and not _designation_shared(old):
 			data["designation"] = doc.next_device_designation(new_prefix)
 	_follow_device(data, old.designation)
+	# A contact given the designation of a device that already has a contact
+	# with its numbers takes the next free sequence digit (13-14 -> 23-24).
+	if (data["type"] == "contact" or data["type"] == "changeover") and data["designation"] != old.designation and not data.has("terminals"):
+		var probe: CircuitComponent = DocumentSerializer.component_from_dict(data)
+		if probe != null and doc.circuit.has_component_id(probe.id):
+			data["sequence"] = doc.next_contact_sequence(data["designation"])
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if replacement == null:
 		return tr("Terminal names must all be different, without spaces or colons.")

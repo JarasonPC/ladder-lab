@@ -13,6 +13,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   run down beside its overload relay, not across it
 
 ### Fixed
+- More than one contact can be given the designation of a relay or contactor (KA1): a contact
+  whose numbers are taken gets the next free ones (13-14, 23-24, 33-34)
 - Terminals of terminal strips in the switchboard show the voltage that reaches them while
   simulating
 
