@@ -171,3 +171,27 @@ Architecture and conventions of the code base. Read this before changing the cod
   when UI text changes and update `cs.po` (keep reviewed translations)
 - `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech
 - `test/unit/` GUT tests
+
+## Versioning
+
+- Every merge into main that changes the program raises `application/config/version` in
+  project.godot, so no two builds of main share a number. Merges that only touch README, docs/
+  or tests (the exported build stays the same) keep the version.
+- MAJOR.MINOR.PATCH, raised by the biggest change in the merge:
+  - PATCH (0.2.0 → 0.2.1): bug fixes, translation fixes, small drawing or layout adjustments
+  - MINOR (0.2.1 → 0.3.0, PATCH back to 0): a new feature, part, example, menu item or setting
+  - MAJOR stays 0 during development; 1.0.0 is the first stable release. After it, MAJOR rises
+    when something is removed or older versions can no longer open the new schematics
+- Raise it once per merge, in the working branch just before merging. If main moved meanwhile
+  and already raised it (a conflict on the version line), start from main's version and raise
+  that again: the number only ever goes up and is never reused.
+- A release is tagged `v<version>` exactly as in project.godot (the update check compares the
+  tag); versions between two releases are simply skipped. Pre-releases use a suffix
+  (`0.3.0-beta1`), are published as GitHub pre-releases and are older than `0.3.0`.
+- The program version is independent of ProjectFile.VERSION (the .ladder file format number).
+- CHANGELOG.md: every merge that raises the version adds its changes under "Unreleased", as
+  short lines a user understands (what they can do now, what works better), in the matching
+  group (Schematic editor, Simulation, Panels, Files and export, Application; "Fixed" for bug
+  fixes). Releasing: "Unreleased" becomes "<version> – <date>" (the version in project.godot),
+  a new empty "Unreleased" goes above it, and the section is the text of the GitHub release
+  (the update dialog shows it).
