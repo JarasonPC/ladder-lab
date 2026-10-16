@@ -297,7 +297,24 @@ func test_short_wire_shows_its_number_once() -> void:
 	doc.connect_terminals("F1:2", "S1:11")
 	doc.set_wire_number(0, "1")
 	assert_eq(doc.wire_number_ends().size(), 1, "a one-cell wire is numbered once")
-	assert_eq(doc.wire_number_point(0, doc.wire_number_ends()[0].y), Vector2(2, 5.5), "in its middle")
+	assert_eq(doc.wire_number_point(0, doc.wire_number_ends()[0].y), Vector2(2, 5.4), "next to the upper terminal")
+
+
+func test_wire_number_sits_next_to_the_terminal() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Fuse.new("F1"), Vector2i(2, 2))
+	doc.add(PushButton.new("S1", SwitchingElement.ContactType.NC), Vector2i(2, 10))
+	doc.connect_terminals("S1:11", "F1:2")
+	doc.set_wire_number(0, "1")
+	var ends: Array[Vector2i] = doc.wire_number_ends()
+	assert_eq(ends.size(), 2)
+	var points: Array[Vector2] = []
+	for e: Vector2i in ends:
+		points.append(doc.wire_number_point(e.x, e.y))
+	assert_true(points.has(Vector2(2, 5.4)), "below F1:2 at (2, 5)")
+	assert_true(points.has(Vector2(2, 9.6)), "above S1:11 at (2, 10)")
+	assert_eq(doc.wire_number_direction(0, 0), Vector2i.UP, "from S1:11 up")
+	assert_true(doc.wire_number_vertical(0, 1))
 
 
 func test_flip_swaps_the_ends_in_place() -> void:

@@ -68,8 +68,9 @@ func _draw() -> void:
 
 
 ## Writes the wire numbers at the wire ends listed by
-## [method SchematicDocument.wire_number_ends]: beside a vertical wire, above
-## a horizontal one, moved by the offset the user dragged them by.
+## [method SchematicDocument.wire_number_ends] next to the terminal: beside a
+## vertical wire, above a horizontal one (running away from the terminal),
+## moved by the offset the user dragged them by.
 func _draw_wire_numbers() -> void:
 	_number_rects.clear()
 	var font: Font = AppTheme.schematic_font()
@@ -79,10 +80,13 @@ func _draw_wire_numbers() -> void:
 		var at: Vector2 = document.wire_number_point(e.x, e.y) * G
 		var text_size: Vector2 = font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
 		var pos: Vector2
-		if document.wire_number_vertical(e.x, e.y):
+		var direction: Vector2i = document.wire_number_direction(e.x, e.y)
+		if direction.x == 0:
 			pos = at + Vector2(-text_size.x - 4.0, font.get_ascent(size) * 0.5)
+		elif direction.x > 0:
+			pos = at + Vector2(0.0, -4.0)
 		else:
-			pos = at + Vector2(-text_size.x * 0.5, -4.0)
+			pos = at + Vector2(-text_size.x, -4.0)
 		draw_string(font, pos, number, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.WIRE_NUMBER)
 		var rect: Rect2 = Rect2(pos - Vector2(0.0, font.get_ascent(size)), text_size).grow(2.0)
 		_number_rects.append([e, Rect2(rect.position / G, rect.size / G)])

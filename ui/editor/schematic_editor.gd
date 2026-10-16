@@ -299,13 +299,8 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 		# contacts carry its designation yet (they would lose their coil).
 		var old_prefix: String = "KA" if coil.kind == Coil.Kind.RELAY else "KM"
 		var new_prefix: String = "KA" if new_kind == Coil.Kind.RELAY else "KM"
-		if new_kind != coil.kind and not (old is TimerRelay) and data["designation"] == old.designation and SchematicDocument._designation_prefix(old.designation) == old_prefix:
-			var shared: bool = false
-			for c: CircuitComponent in doc.circuit.get_components():
-				if c != old and c.designation == old.designation:
-					shared = true
-			if not shared:
-				data["designation"] = doc.next_designation(new_prefix)
+		if new_kind != coil.kind and not (old is TimerRelay) and data["designation"] == old.designation and SchematicDocument._designation_prefix(old.designation) == old_prefix and not _designation_shared(old):
+			data["designation"] = doc.next_device_designation(new_prefix)
 	_follow_device(data, old.designation)
 	var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if replacement == null:
@@ -378,6 +373,12 @@ func change_type(component_id: String, template: Dictionary) -> String:
 				data["sequence"] = doc.next_contact_sequence(target)
 		"coil":
 			data["designation"] = old.designation
+			# A coil turned into a time relay becomes KT (and back), as long
+			# as no contacts carry its designation yet.
+			var old_prefix: String = "KT" if old is TimerRelay else ("KA" if (old as Coil).kind == Coil.Kind.RELAY else "KM")
+			var new_prefix: String = "KT" if template["type"] == "timer" else ("KA" if template.get("kind", "contactor") == "relay" else "KM")
+			if new_prefix != old_prefix and SchematicDocument._designation_prefix(old.designation) == old_prefix and not _designation_shared(old):
+				data["designation"] = doc.next_device_designation(new_prefix)
 			if old is TimerRelay and template["type"] == "timer":
 				data["delay"] = (old as TimerRelay).delay
 		"load":
@@ -790,6 +791,14 @@ func _place_at(cell: Vector2i) -> void:
 	_rebuild_ghost()
 
 
+## True when other parts carry the designation of [param c].
+func _designation_shared(c: CircuitComponent) -> bool:
+	for other: CircuitComponent in document().circuit.get_components():
+		if other != c and other.designation == c.designation:
+			return true
+	return false
+
+
 ## Parts that are renamed together with their device: a relay or contactor
 ## with its contacts, an overload relay with its contacts.
 static func _designation_group(c: CircuitComponent) -> String:
@@ -878,17 +887,17 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 		"supply":
 			return doc.next_supply_designation(_conductor(data))
 		"push_button":
-			return doc.next_designation("SB")
+			return doc.next_device_designation("SB")
 		"latching_switch":
-			return doc.next_designation("RB")
+			return doc.next_device_designation("RB")
 		"limit_switch":
-			return doc.next_designation("SQ")
+			return doc.next_device_designation("SQ")
 		"fuse":
 			return doc.next_designation("FU")
 		"breaker":
-			return doc.next_designation("FA")
+			return doc.next_device_designation("FA")
 		"overload_relay":
-			return doc.next_designation("F")
+			return doc.next_device_designation("F")
 		"main_contacts":
 			# Belongs to the selected contactor, else to the first one, as
 			# long as its main contacts are not drawn yet.
@@ -928,12 +937,14 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			for c: CircuitComponent in doc.circuit.get_components():
 				if c is Coil and (c is TimerRelay) == want_timer:
 					return c.designation
-			return "KT1" if want_timer else "KM1"
+			# No coil yet: the contactor whose main contacts are drawn, else KM1.
+			return doc.next_device_designation("KT" if want_timer else "KM")
 		"coil":
-			# Contactor KM, auxiliary (control) relay KA.
-			return doc.next_designation("KA" if data.get("kind", "contactor") == "relay" else "KM")
+			# Contactor KM, auxiliary (control) relay KA; it takes contacts
+			# drawn before it (e.g. main contacts KM1) rather than skip them.
+			return doc.next_device_designation("KA" if data.get("kind", "contactor") == "relay" else "KM")
 		"timer":
-			return doc.next_designation("KT")
+			return doc.next_device_designation("KT")
 		"lamp":
 			return doc.next_designation("H")
 		"rectifier":
