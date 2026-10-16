@@ -28,21 +28,21 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 			var conductor: PowerSupply.Conductor = (c as PowerSupply).conductor
 			if conductor == PowerSupply.Conductor.L or conductor == PowerSupply.Conductor.DC_PLUS:
 				has_l = true
-			else:
+			elif conductor != PowerSupply.Conductor.PE:
 				has_n = true
 		if c is Contact:
 			var contact: Contact = c as Contact
-			if contact.linked_coil == null:
+			if not contact.has_device():
 				issues.append(_issue("Contact %s has no coil %s.", [c.id, c.designation], [c.id]))
 			elif contact.delayed and not (contact.linked_coil is TimerRelay):
 				issues.append(_issue("Delayed contact %s belongs to %s, which is not a timer.", [c.id, c.designation], [c.id]))
 		if c is ChangeoverContact:
 			var changeover: ChangeoverContact = c as ChangeoverContact
-			if changeover.linked_coil == null:
+			if not changeover.has_device():
 				issues.append(_issue("Contact %s has no coil %s.", [c.id, c.designation], [c.id]))
 			elif changeover.delayed and not (changeover.linked_coil is TimerRelay):
 				issues.append(_issue("Delayed contact %s belongs to %s, which is not a timer.", [c.id, c.designation], [c.id]))
-		if c is MainContacts and (c as MainContacts).linked_coil == null:
+		if c is MainContacts and (c as MainContacts).get_armature() == null:
 			issues.append(_issue("Contact %s has no coil %s.", [c.id, c.designation], [c.id]))
 		if c is OverloadContact and (c as OverloadContact).linked_relay == null:
 			issues.append(_issue("Overload contact %s has no overload relay %s.", [c.id, c.designation], [c.id]))

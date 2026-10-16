@@ -123,7 +123,9 @@ func _item_at(point: Vector2) -> int:
 func _device(designation: String) -> CircuitComponent:
 	if designation.is_empty() or document == null:
 		return null
-	return document.circuit.get_component(designation)
+	# A button's name may be shared with contacts of the button.
+	var operator: CircuitComponent = document.circuit.get_operator(designation)
+	return operator if operator != null else document.circuit.get_component(designation)
 
 
 ## True when the item shows a device of its kind that the circuit has.

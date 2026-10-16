@@ -23,9 +23,11 @@ const FORMAT: String = "ladder-lab"
 ## rectifiers ("rectifier").
 ## 12: pages (titles, the page of each component, the page shown) and page
 ## connectors (missing before: one untitled page).
-## 13: switchboard rails with their devices and terminal strips ("cabinet",
+## 13: title block texts of the exported sheets (missing before: empty).
+## 14: PE supply points (conductor "PE"), time relays with A1 and A2 swapped.
+## 15: switchboard rails with their devices and terminal strips ("cabinet",
 ## missing before: no switchboard).
-const VERSION: int = 13
+const VERSION: int = 15
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

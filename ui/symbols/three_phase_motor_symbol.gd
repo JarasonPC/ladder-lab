@@ -81,8 +81,9 @@ func _draw_shape(color: Color, width: float) -> void:
 		aa_polygon(PackedVector2Array([tip + forward * 7.0, tip - side * 4.5, tip + side * 4.5]), SchematicTheme.LINE)
 
 
-## Box of the terminal board.
-const BOARD := Rect2(-12, 10, 104, 64)
+## Box of the terminal board, with room for the stud names right of the
+## last column.
+const BOARD := Rect2(-12, 10, 120, 64)
 ## Rows of the terminal studs: U1 V1 W1 (fed) and W2 U2 V2 below them.
 const FEED_ROW: float = 26.0
 const END_ROW: float = 58.0
@@ -180,6 +181,10 @@ func _draw_labels() -> void:
 			var anchor: Vector2 = stud + (Vector2(7.0, -8.0) if i < 3 else (Vector2(7.0, 10.0) if i < 6 else Vector2(6.0, -7.0)))
 			draw_label(box_names[i], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label(box_names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		var box_status: String = _status(motor)
+		if not box_status.is_empty():
+			var faulty: bool = motor.state in [ThreePhaseMotor.State.PHASE_LOSS, ThreePhaseMotor.State.MISWIRED]
+			draw_label(box_status, _designation_anchor(), SchematicTheme.LABEL_SIZE if not _connection(motor).is_empty() else SchematicTheme.TERMINAL_SIZE, SchematicTheme.FAULT if faulty else SchematicTheme.TEXT, 1)
 		return
 	if _terminal_box():
 		var names: PackedStringArray = motor.get_terminal_names()
@@ -203,33 +208,52 @@ func _draw_labels() -> void:
 		var side: float = -0.3 * G if cell.x < 1.0 else 0.3 * G
 		var offset: Vector2 = Vector2(side, 0.4 * G)
 		if i >= 3 and i < 6:
-			offset = Vector2(0.3 * G, -0.15 * G)
+			# Beside the wire leaving downward, below the lead's bend.
+			offset = Vector2(0.3 * G, 0.05 * G)
 		elif i >= 6:
-			offset = Vector2(-0.3 * G, -0.3 * G)
+			# Third winding: right of the terminal, above its wire.
+			offset = Vector2(0.3 * G, -0.35 * G)
 		draw_label(names[i], cell + offset, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	var font: Font = AppTheme.schematic_font()
 	var c: Vector2 = to_upright(CENTER)
-	_centered(font, "M3~", c, 15, SchematicTheme.TEXT)
-	var status: String = ""
-	var status_color: Color = SchematicTheme.TEXT
+	var connection: String = _connection(motor)
+	if connection.is_empty():
+		_centered(font, "M3~", c, 15, SchematicTheme.TEXT)
+	else:
+		# Running in star or delta: written large in the motor.
+		_centered(font, "M3~", c + Vector2(0, -8), 13, SchematicTheme.TEXT)
+		_centered(AppTheme.bold_font(), connection, c + Vector2(0, 10), 16, SchematicTheme.TEXT)
+	var status: String = _status(motor)
+	var status_color: Color = SchematicTheme.FAULT if motor.state in [ThreePhaseMotor.State.PHASE_LOSS, ThreePhaseMotor.State.MISWIRED] else SchematicTheme.TEXT
+	if not status.is_empty() and connection.is_empty():
+		draw_label(status, _designation_anchor(), SchematicTheme.TERMINAL_SIZE, status_color, 1)
+
+
+## "Y" or "Δ" while the motor runs in star or delta, else "".
+static func _connection(motor: ThreePhaseMotor) -> String:
 	match motor.state:
 		ThreePhaseMotor.State.STAR:
-			status = "Y"
+			return "Y"
 		ThreePhaseMotor.State.DELTA:
-			status = "Δ"
+			return "Δ"
+	return ""
+
+
+## What the motor is doing, written beside it: Y / Δ, the speed step, DC
+## braking, a phase loss or wrong connection; "" when there is nothing to say.
+func _status(motor: ThreePhaseMotor) -> String:
+	var status: String = _connection(motor)
+	match motor.state:
 		ThreePhaseMotor.State.PHASE_LOSS:
 			status = tr("phase loss")
-			status_color = SchematicTheme.FAULT
 		ThreePhaseMotor.State.MISWIRED:
 			status = tr("miswired")
-			status_color = SchematicTheme.FAULT
 		ThreePhaseMotor.State.DC_BRAKING:
 			status = tr("DC brake")
 		ThreePhaseMotor.State.RUNNING:
 			if motor.speed > 0:
 				status = tr("speed %d") % motor.speed
-	if not status.is_empty():
-		draw_label(status, _designation_anchor(), SchematicTheme.TERMINAL_SIZE, status_color, 1)
+	return status
 
 
 func _centered(font: Font, text: String, at: Vector2, size: int, color: Color) -> void:

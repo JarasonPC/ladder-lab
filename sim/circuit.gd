@@ -136,33 +136,46 @@ func _unregister(component: CircuitComponent) -> void:
 	_relink_contacts()
 
 
-## Links contacts to their coil and makes the blocks of each button or switch
-## share the actuator of its first block.
+## Links the parts of each device by designation: contacts to their coil;
+## the blocks of a device's buttons, switches and limit switches to the
+## actuator of its first one; without a coil, contacts to that actuator or
+## else to a circuit breaker with their designation (auxiliary contacts).
 func _relink_contacts() -> void:
-	var buttons: Dictionary[String, Armature] = {}
-	var switches: Dictionary[String, Armature] = {}
+	var actuators: Dictionary[String, Armature] = {}
+	var breakers: Dictionary[String, CircuitComponent] = {}
 	for c: CircuitComponent in _components:
+		if c is PushButton:
+			var button: PushButton = c as PushButton
+			if actuators.has(c.designation):
+				button.actuator = actuators[c.designation]
+			else:
+				actuators[c.designation] = button.actuator
+		elif c is LatchingSwitch:
+			# Limit switches and switches alike.
+			var switch: LatchingSwitch = c as LatchingSwitch
+			if actuators.has(c.designation):
+				switch.actuator = actuators[c.designation]
+			else:
+				actuators[c.designation] = switch.actuator
+		elif (c is CircuitBreaker or c is MotorBreaker) and not breakers.has(c.designation):
+			breakers[c.designation] = c
+	for c: CircuitComponent in _components:
+		var coil: Coil = _coils.get(c.designation, null)
+		var actuator: Armature = actuators.get(c.designation, null) if coil == null else null
+		var breaker: CircuitComponent = breakers.get(c.designation, null) if coil == null and actuator == null else null
 		if c is Contact:
-			(c as Contact).linked_coil = _coils.get(c.designation, null)
+			(c as Contact).linked_coil = coil
+			(c as Contact).linked_actuator = actuator
+			(c as Contact).linked_breaker = breaker
 		elif c is ChangeoverContact:
-			(c as ChangeoverContact).linked_coil = _coils.get(c.designation, null)
+			(c as ChangeoverContact).linked_coil = coil
+			(c as ChangeoverContact).linked_actuator = actuator
+			(c as ChangeoverContact).linked_breaker = breaker
 		elif c is MainContacts:
-			(c as MainContacts).linked_coil = _coils.get(c.designation, null)
+			(c as MainContacts).linked_coil = coil
+			(c as MainContacts).linked_actuator = actuator
 		elif c is OverloadContact:
 			(c as OverloadContact).linked_relay = _overload_relays.get(c.designation, null)
-		elif c is PushButton:
-			var button: PushButton = c as PushButton
-			if buttons.has(c.designation):
-				button.actuator = buttons[c.designation]
-			else:
-				buttons[c.designation] = button.actuator
-		elif c is LatchingSwitch:
-			# Limit switches and switches share actuators by designation alike.
-			var switch: LatchingSwitch = c as LatchingSwitch
-			if switches.has(c.designation):
-				switch.actuator = switches[c.designation]
-			else:
-				switches[c.designation] = switch.actuator
 
 
 ## Connects two terminals, e.g. connect_terminals("S1:14", "K1:A1").
@@ -198,6 +211,16 @@ func get_links() -> Array[PackedStringArray]:
 func set_connector_label(connector: PageConnector, label: String) -> void:
 	connector.label = label
 	topology_version += 1
+
+
+## The push button, switch or limit switch with designation
+## [param designation] (its first block), or null: what a click or the
+## control panel operates.
+func get_operator(designation: String) -> CircuitComponent:
+	for c: CircuitComponent in _components:
+		if c.designation == designation and (c is PushButton or c is LatchingSwitch):
+			return c
+	return null
 
 
 ## True if a component has exactly this id.

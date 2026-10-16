@@ -64,3 +64,19 @@ func test_paste_supply_and_junction() -> void:
 	var ids: PackedStringArray = doc.insert(doc.extract(PackedStringArray(["L", "J1"])), Vector2i(0, 4))
 	assert_eq(ids, PackedStringArray(["L.2", "J2"]))
 	assert_eq(doc.get_wire_count(), 2)
+
+
+func test_paste_changeover_without_coil_stays_with_it() -> void:
+	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	doc.add(ChangeoverContact.new("KM1", 3), Vector2i(20, 4))
+	var ids: PackedStringArray = doc.insert(doc.extract(PackedStringArray(["KM1:31-32-34"])), Vector2i(0, 10))
+	assert_eq(ids, PackedStringArray(["KM1:41-42-44"]), "stays with KM1, next contact number")
+
+
+func test_paste_main_contacts_go_to_a_contactor_without_them() -> void:
+	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	doc.add(Coil.new("KM2"), Vector2i(30, 4))
+	var ids: PackedStringArray = doc.insert(doc.extract(PackedStringArray(["KM1:1-2-3-4-5-6"])), Vector2i(10, 0))
+	assert_eq(ids, PackedStringArray(["KM2:1-2-3-4-5-6"]), "the main contacts of KM2")
+	ids = doc.insert(doc.extract(PackedStringArray(["KM1:1-2-3-4-5-6"])), Vector2i(20, 0))
+	assert_eq(ids, PackedStringArray(["KM3:1-2-3-4-5-6"]), "every contactor has them: a new KM")

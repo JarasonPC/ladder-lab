@@ -471,9 +471,6 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
-msgid "A1 and A2 of a time relay do not change."
-msgstr ""
-
 msgid "Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."
 msgstr ""
 
@@ -746,6 +743,10 @@ msgid "%s switched off"
 msgstr ""
 
 #, c-format
+msgid "%s tripped by hand (test button)"
+msgstr ""
+
+#, c-format
 msgid "%s reset"
 msgstr ""
 
@@ -796,6 +797,9 @@ msgid "Clear"
 msgstr ""
 
 msgid "Double click: follow"
+msgstr ""
+
+msgid "Timing chart"
 msgstr ""
 
 msgid "Time span:"
@@ -1037,6 +1041,74 @@ msgstr ""
 
 msgid "Export PDF"
 msgstr ""
+
+msgid "Title block"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Date of the export"
+msgstr ""
+
+msgid "Title block…"
+msgstr ""
+
+msgid "Texts of the title block on exported sheets: drawn by, checked by, company, ..."
+msgstr ""
+
+msgid "Title"
+msgstr ""
+
+msgid "Company"
+msgstr ""
+
+msgid "Project"
+msgstr ""
+
+msgid "Drawing no."
+msgstr ""
+
+msgid "Revision"
+msgstr ""
+
+msgid "Drawn by"
+msgstr ""
+
+msgid "Checked by"
+msgstr ""
+
+msgid "Date"
+
+msgid "PE supply"
+msgstr ""
+
+msgid "Swap A1 and A2"
+msgstr ""
+
+msgid "A2 on top, A1 below (or back). Double-clicking A1 and typing A2 does the same."
+msgstr ""
+
+msgid "A1 and A2 of a time relay can only be swapped with each other."
+msgstr ""
+
+#, c-format
+msgid "Page %d / %d"
+msgstr ""
+
+msgid "Rendering…"
+msgstr ""
+
+msgid "Save PDF…"
+msgstr ""
+
+msgid "Save PNG…"
+msgstr ""
+
+msgid "landscape"
+msgstr ""
+
+msgid "portrait"
 
 msgid "Switchboard"
 msgstr ""

@@ -74,6 +74,11 @@ func default_terminal_names() -> PackedStringArray:
 	return PackedStringArray(["A1", "A2", "S"]) if control_input else PackedStringArray(["A1", "A2"])
 
 
+## Index of terminal A2 (1, or 0 when A1 and A2 are swapped, A2 on top).
+func a2_index() -> int:
+	return 0 if get_terminal_names()[0] == "A2" else 1
+
+
 ## "F3" etc., "" for the true off-delay.
 static func code_of(m: Mode) -> String:
 	return MODE_CODES[m]

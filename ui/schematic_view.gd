@@ -94,6 +94,19 @@ func rebuild() -> void:
 	_update_visuals()
 
 
+## Everything drawn on the page, in cells, as last drawn: symbols and wires,
+## the markings and other texts of the symbols (also where they were
+## dragged to), the wire numbers and the current path numbers.
+func drawn_extent() -> Rect2:
+	var r: Rect2 = document.bounds()
+	for symbol: SchematicSymbol in _symbols.values():
+		for rect: Rect2 in symbol.text_rects:
+			r = r.merge(Rect2((rect.position + symbol.position) / G, rect.size / G))
+	if _wire_layer != null and _wire_layer.drawn_extent().has_area():
+		r = r.merge(_wire_layer.drawn_extent())
+	return r
+
+
 func get_symbol(component_id: String) -> SchematicSymbol:
 	return _symbols.get(component_id, null)
 
@@ -210,6 +223,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed:
 			var c: CircuitComponent = _component_under_mouse()
+			# A contact of a button or switch operates the device.
+			var operator: CircuitComponent = operator_of(c)
+			if operator != null:
+				c = operator
 			if c is Fuse or c is CircuitBreaker or c is ThreePoleFuse or c is MotorBreaker or c is OverloadRelay or c is OverloadContact:
 				if _operate_protection(c):
 					_apply(simulator.step())
@@ -238,7 +255,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Presses or releases push button [param designation] (all its blocks), as
 ## from a control box of the operator panel.
 func hold_button(designation: String, pressed: bool) -> void:
-	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating or not (c is PushButton):
 		return
 	if pressed:
@@ -250,7 +267,7 @@ func hold_button(designation: String, pressed: bool) -> void:
 
 ## Turns switch [param designation] over, as from a control box.
 func toggle_switch(designation: String) -> void:
-	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating or not (c is LatchingSwitch):
 		return
 	(c as LatchingSwitch).toggle()
@@ -265,8 +282,8 @@ func operate_device(designation: String) -> void:
 		_apply(simulator.step())
 
 
-## Replaces a blown fuse, switches a breaker, resets a tripped overload relay.
-## Returns false if nothing happened.
+## Replaces a blown fuse, switches a breaker, trips an overload relay by its
+## test button or resets it when tripped. Returns false if nothing happened.
 func _operate_protection(c: CircuitComponent) -> bool:
 	if c is Fuse:
 		var fuse: Fuse = c as Fuse
@@ -300,10 +317,14 @@ func _operate_protection(c: CircuitComponent) -> bool:
 		event_logged.emit("%s reset" if breaker_tripped else ("%s switched on" if motor_breaker.switched_on else "%s switched off"), [c.designation])
 	else:
 		var relay: OverloadRelay = document.circuit.get_overload_relay(c.designation)
-		if relay == null or not relay.tripped:
+		if relay == null:
 			return false
-		relay.reset()
-		event_logged.emit("%s reset", [c.designation])
+		if relay.tripped:
+			relay.reset()
+			event_logged.emit("%s reset", [c.designation])
+		else:
+			relay.test_trip()
+			event_logged.emit("%s tripped by hand (test button)", [c.designation])
 	return true
 
 
@@ -402,6 +423,13 @@ static func _clear_fault(c: CircuitComponent) -> void:
 		(c as OverloadRelay).overloaded = false
 	elif c is ThreePhaseMotor:
 		(c as ThreePhaseMotor).overloaded = false
+
+
+## The button or switch that [param c] (a contact or main contacts without a
+## coil) is a block of, or null.
+func operator_of(c: CircuitComponent) -> CircuitComponent:
+	var follows: bool = (c is Contact and (c as Contact).linked_actuator != null) or (c is ChangeoverContact and (c as ChangeoverContact).linked_actuator != null) or (c is MainContacts and (c as MainContacts).linked_actuator != null)
+	return document.circuit.get_operator(c.designation) if follows else null
 
 
 func _component_under_mouse() -> CircuitComponent:

@@ -54,3 +54,8 @@ func _draw_shape(_color: Color, _width: float) -> void:
 func _draw_labels() -> void:
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	_draw_pole_labels()
+
+
+## A block of a button or switch: a click operates the device.
+func is_interactive() -> bool:
+	return (component as MainContacts).linked_actuator != null

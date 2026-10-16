@@ -8,6 +8,8 @@ extends PoleDevice
 var fault: SwitchingElement.Fault = SwitchingElement.Fault.NONE
 ## Set by [Circuit] when a coil with the same designation exists.
 var linked_coil: Coil = null
+## Without a coil: the actuator of a button or switch with the same designation.
+var linked_actuator: Armature = null
 
 
 func _init(p_designation: String) -> void:
@@ -16,7 +18,7 @@ func _init(p_designation: String) -> void:
 
 
 func get_armature() -> Armature:
-	return linked_coil.armature if linked_coil != null else null
+	return linked_coil.armature if linked_coil != null else linked_actuator
 
 
 func get_travel() -> float:

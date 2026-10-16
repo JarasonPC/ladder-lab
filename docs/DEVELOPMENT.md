@@ -1,4 +1,6 @@
-# Project: Relay control circuit simulator
+# LadderLab developer notes
+
+Architecture and conventions of the code base. Read this before changing the code.
 
 - Engine: Godot 4.7.2, GDScript only (no C#)
 - Use static typing everywhere (var x: int, func f() -> void)
@@ -21,8 +23,8 @@
   any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
   are drawn mirrored along their axis so the blade pivots on the left. Every moving part (blades,
   buttons, holders) moves smoothly (SchematicSymbol.shown); marks fixed to a blade (breaker
-  releases, delay marks, limit-switch triangles) turn with it; button and switch heads stay
-  straight on a dashed stem; the overload contact's bimetal step stays straight on a solid stem. Breakers and fuse holders start switched off (open).
+  releases, delay marks) turn with it; button and switch heads stay straight on a dashed stem;
+  the limit switch's roller stays straight on a solid stem from the middle of the blade; the overload contact's bimetal step stays straight on a solid stem. Breakers and fuse holders start switched off (open).
 - Time relays (TimerRelay) are multifunction relays: functions F1-F12 (TimerRelay.Mode, codes as in
   real relays; F10-F12 use two times t1 = delay, t2 = delay2) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
   active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram
@@ -32,19 +34,29 @@
 - One palette part per family: fuse/fuse holder, breaker and main contacts have 1-4 poles, the
   overload relay none or 3 (set in the properties); a contact designated like an overload relay
   becomes its OverloadContact; a contact of a time relay KT is delayed by default (no separate
-  delayed contacts in the palette). Markings (designations, terminal names, lamp and terminal labels,
+  delayed contacts in the palette). Parts of one device share a designation whatever their
+  type: a contact, changeover or main contacts named like a push button, switch or limit switch
+  is one more block of it (follows its actuator; a coil of that name wins), one named like a
+  circuit breaker is its auxiliary contact; buttons, switches and limit switches of one name
+  share one actuator (Circuit.get_operator finds the device to click or panel-operate). Markings (designations, terminal names, lamp and terminal labels,
   wire numbers) are edited by double-clicking them on the drawing, not in the properties panel;
-  a click highlights a marking, dragging moves it (Placement.labels, saved). Designations: no
+  a click highlights a marking, dragging moves it (Placement.labels, saved). A new device (coil,
+  time relay, button, breaker, overload relay) takes the designation of contacts drawn before it
+  without their device (SchematicDocument.next_device_designation: main contacts KM1-KM4, then a
+  coil = KM1); new main contacts take that of auxiliary contacts without a coil. Designations: no
   spaces or colons; only parts of one device share one (coil with its contacts, overload relay
-  with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts
+  with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts. Renaming a terminal to the name of
+  another terminal of the same part swaps the two (coils: also a "Swap A1 and A2" button; a
+  time relay's A1/A2 are only swapped, never renamed; its S counts against whichever is A2)
 - Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead
   (Placement.strips: terminal index -> label, drawn instead of the square; Delete on the selected
   mark removes it); wire segments can be dragged; wire
-  numbers (WireRoute.number, one per net, shown once per terminal, draggable offsets) via the
+  numbers (WireRoute.number, one per net, shown once per terminal right next to its square,
+  a short wire once at its upper/left end, draggable offsets) via the
   numbering tool or double click; side panels (palette, properties + check, control panel) are
   SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
   so text stays sharp); the timing panel is resized by its top edge and the grip before the
-  event log; widths, heights and zooms are saved in the settings
+  event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -56,9 +68,15 @@
   with the same label are joined (Circuit.get_links, used by the solver and by wire_net); numbering
   runs over the pages and connectors take their net's wire number as label; right click (Edit) or
   click (Simulate) jumps to the partner page
-- Export: File > Export page as PNG / Export all pages as PDF; each page on an A4/A3 sheet
+- Export: File > Export page as PNG / Export all pages as PDF first show the sheets in a preview
+  (ExportPreview: page by page, paper and scale, wire numbers on/off, on by default); saving
+  writes what the preview shows. Each page on an A4/A3 sheet
   (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
-  (SheetFrame), rendered by SheetRenderer at 200 dpi; PdfWriter writes one Flate image per page
+  (SheetFrame), rendered by SheetRenderer at 200 dpi, fitted to everything drawn (it draws each
+  page once to measure: SchematicView.drawn_extent, with texts, wire and path numbers); PdfWriter writes one Flate image per page;
+  title block texts (company, project, drawing no., revision, drawn by, checked by, date; empty
+  date = export date) are SchematicDocument.title_block (TitleBlock, saved), edited in
+  File > Title block… together with the schematic title (undoable)
 - Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
@@ -80,13 +98,14 @@
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
-- Don't add features beyond what the current phase asks for
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
 - Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
-  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3 and N,
+  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
+  and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
+  wires reached by PE alone are drawn in the PE colour, StepResult.REACH_PE),
   DC supplies + and - (a separate source: loads work between two conductors of the same source;
   AC joined to DC is a short; the - pole is drawn like N), TB = bridge rectifier (Rectifier, a Load
   with terminals ~1 ~2 + -: while its input has voltage its + and - are DC poles, output taken as
@@ -106,7 +125,7 @@
 - 3~ motors: + and - across a winding = DC_BRAKING (with a phase = MISWIRED); the shaft
   (ThreePhaseMotor.shaft, simulation state) runs down in coast_time when switched off, in brake_time
   with DC braking; braking force follows the rotor field (rotor_flux, decays with ROTOR_TIME_CONSTANT
-  after the AC cut), so DC applied at once brakes best
+  after the AC cut), so DC applied at once brakes best; a star/delta motor running shows a large Y or Δ under "M3~"
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)
@@ -120,7 +139,8 @@
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
   per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
-- `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block)
+- `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block),
+  ExportPreview (dialog)
 - `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
 - `ui/cabinet/` CabinetPanel (sidebar), CabinetView, CabinetLayout, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
@@ -133,8 +153,10 @@
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION on
   format changes and keep older versions loading
+- File association (FileAssociation): an exported Windows build registers .ladder for the current
+  user (HKCU via `reg import`, redone only when the exe moved); a .ladder path among the
+  command-line arguments is opened at start
 - Translations: English source text in tr()/tr_n(); regenerate `translations/ladder_lab.pot`
   when UI text changes and update `cs.po` (keep reviewed translations)
-- Merge the working branch into main after each finished phase
 - `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech
-- `test/unit/` GUT tests; headless Godot is not preinstalled in cloud sessions
+- `test/unit/` GUT tests

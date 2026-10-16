@@ -5,7 +5,8 @@ extends SchematicSymbol
 ## second terminal (bottom, or right in horizontal paths) and its blade runs up
 ## toward the fixed contact: an NO blade stands off to the actuator side, an
 ## NC blade rests against the stop on its fixed contact on the other side. Shown
-## with the push-button (S00253) or turn-switch (S00254) actuator, the thermal
+## with the push-button (S00253), turn-switch (S00254) or roller (limit
+## switch) actuator, the thermal
 ## actuator of overload relay contacts, and the delay "parachute"
 ## on every delayed (time relay) contact, whatever the relay's function.
 
@@ -45,9 +46,9 @@ func _operated() -> float:
 
 func is_interactive() -> bool:
 	if component is OverloadContact:
-		var relay: OverloadRelay = (component as OverloadContact).linked_relay
-		return relay != null and relay.tripped
-	return component is PushButton or component is LatchingSwitch
+		return (component as OverloadContact).linked_relay != null
+	# A contact of a button or switch operates it too.
+	return component is PushButton or component is LatchingSwitch or (component is Contact and (component as Contact).linked_actuator != null)
 
 
 func _designation_anchor() -> Vector2:
@@ -92,7 +93,7 @@ func _draw_shape(color: Color, _width: float) -> void:
 	if component is PushButton:
 		_draw_push_actuator(middle, s, color)
 	elif component is LimitSwitch:
-		_draw_position_actuator(rest_middle, color, pivot, turn)
+		_draw_roller_actuator(middle, color)
 	elif component is LatchingSwitch:
 		_draw_turn_actuator(middle, (component as LatchingSwitch).switched_on, color)
 	elif component is OverloadContact:
@@ -112,14 +113,14 @@ func _draw_push_actuator(middle: Vector2, pressed: float, color: Color) -> void:
 	aa_line(Vector2(head_x, y + 7), Vector2(head_x + 5, y + 7), color, 1.8)
 
 
-## Limit switch actuator (IEC 60617 S00259/S00260): a small triangle on the
-## blade, its apex touching it; fixed to the blade and turned with it.
-func _draw_position_actuator(middle: Vector2, color: Color, pivot: Vector2, turn: float) -> void:
-	var on_blade: Callable = func(p: Vector2) -> Vector2:
-		return pivot + (p - pivot).rotated(turn)
-	var y: float = middle.y
-	var apex: Vector2 = Vector2(middle.x - 1.0, y)
-	aa_polyline(PackedVector2Array([on_blade.call(apex), on_blade.call(Vector2(apex.x - 9.0, y - 5.0)), on_blade.call(Vector2(apex.x - 9.0, y + 5.0)), on_blade.call(apex)]), color, 1.6)
+## Limit switch actuator: a roller on a solid stem standing straight out
+## from the middle of the blade, toward the machine part that runs onto it.
+func _draw_roller_actuator(middle: Vector2, color: Color) -> void:
+	var radius: float = 4.5
+	var center: Vector2 = Vector2(-22.0, middle.y)
+	aa_line(Vector2(center.x + radius, middle.y), Vector2(middle.x - 1.0, middle.y), color, 1.6)
+	aa_circle(center, radius, SchematicTheme.BACKGROUND)
+	aa_arc(center, radius, 0.0, TAU, 18, color, 1.6)
 
 
 ## Overload relay contact: a stem from the blade to the thermal (bimetal)

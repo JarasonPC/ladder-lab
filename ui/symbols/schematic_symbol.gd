@@ -26,6 +26,9 @@ var show_labels: bool = true
 ## "terminal" (index = terminal index), "purpose" (lamp) or "label" (terminal
 ## block, page connector).
 var marking_rects: Array = []
+## Every text written at the last draw (markings, times, states), in node
+## coordinates: what the symbol covers beyond its body.
+var text_rects: Array[Rect2] = []
 ## Local anchor the designation was last written at (texts written there
 ## follow it when it is dragged).
 var _designation_anchor_drawn: Vector2 = Vector2(INF, INF)
@@ -76,6 +79,7 @@ func _draw() -> void:
 		_draw_terminals()
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	marking_rects.clear()
+	text_rects.clear()
 	if show_labels:
 		_draw_labels()
 		_draw_strip_labels()
@@ -204,7 +208,10 @@ func stroke_color() -> Color:
 func stroke_width() -> float:
 	if not (component is Coil):
 		return SchematicTheme.LINE_WIDTH
-	return SchematicTheme.LIVE_WIDTH if warning or any_live() or live.has(REACH_N) or live.has(StepResult.REACH_DC_MINUS) else SchematicTheme.LINE_WIDTH
+	var reached: bool = false
+	for code: int in live:
+		reached = reached or code != REACH_NONE
+	return SchematicTheme.LIVE_WIDTH if warning or reached else SchematicTheme.LINE_WIDTH
 
 
 ## Colour of the lead and contact parts on the side of one terminal. The
@@ -371,6 +378,7 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 		own = placement.labels.get(marking_key(marking[0], marking[1]), Vector2.ZERO)
 		pos += own * G
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	text_rects.append(Rect2(Vector2(pos.x, pos.y - ascent), size))
 	if not marking.is_empty():
 		marking_rects.append([marking[0], marking[1], Rect2(Vector2(pos.x, pos.y - ascent), size), own])
 

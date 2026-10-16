@@ -474,9 +474,6 @@ msgstr "Smazat"
 msgid "Select all"
 msgstr "Vybrat vše"
 
-msgid "A1 and A2 of a time relay do not change."
-msgstr "A1 a A2 časového relé se nemění."
-
 msgid "Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."
 msgstr "Kliknutím umístíte. R otočí, F zrcadlí zleva doprava, Shift+F shora dolů. Pravé tlačítko nebo Esc ukončí vkládání."
 
@@ -749,6 +746,10 @@ msgid "%s switched off"
 msgstr "%s vypnut"
 
 #, c-format
+msgid "%s tripped by hand (test button)"
+msgstr "%s vybavilo ručně (testovací tlačítko)"
+
+#, c-format
 msgid "%s reset"
 msgstr "%s: reset"
 
@@ -800,6 +801,9 @@ msgstr "Vymazat"
 
 msgid "Double click: follow"
 msgstr "Dvojklik: sledovat"
+
+msgid "Timing chart"
+msgstr "Časový diagram"
 
 msgid "Time span:"
 msgstr "Časový úsek:"
@@ -1042,6 +1046,76 @@ msgstr "Exportovat všechny stránky jako PDF…"
 
 msgid "Export PDF"
 msgstr "Exportovat PDF"
+
+msgid "Title block"
+msgstr "Popisové pole"
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Date of the export"
+msgstr "Datum exportu"
+
+msgid "Title block…"
+msgstr "Popisové pole…"
+
+msgid "Texts of the title block on exported sheets: drawn by, checked by, company, ..."
+msgstr "Texty popisového pole na exportovaných listech: kreslil, kontroloval, firma, ..."
+
+msgid "Title"
+msgstr "Název"
+
+msgid "Company"
+msgstr "Firma"
+
+msgid "Project"
+msgstr "Projekt"
+
+msgid "Drawing no."
+msgstr "Číslo výkresu"
+
+msgid "Revision"
+msgstr "Revize"
+
+msgid "Drawn by"
+msgstr "Kreslil"
+
+msgid "Checked by"
+msgstr "Kontroloval"
+
+msgid "Date"
+msgstr "Datum"
+
+msgid "PE supply"
+msgstr "Přívod PE"
+
+msgid "Swap A1 and A2"
+msgstr "Prohodit A1 a A2"
+
+msgid "A2 on top, A1 below (or back). Double-clicking A1 and typing A2 does the same."
+msgstr "A2 nahoře, A1 dole (nebo zpět). Totéž udělá dvojklik na A1 a zápis A2."
+
+msgid "A1 and A2 of a time relay can only be swapped with each other."
+msgstr "A1 a A2 časového relé lze jen navzájem prohodit."
+
+#, c-format
+msgid "Page %d / %d"
+msgstr "Stránka %d / %d"
+
+msgid "Rendering…"
+msgstr "Vykresluji…"
+
+msgid "Save PDF…"
+msgstr "Uložit PDF…"
+
+msgid "Save PNG…"
+msgstr "Uložit PNG…"
+
+msgid "landscape"
+msgstr "na šířku"
+
+msgid "portrait"
+msgstr "na výšku"
 
 msgid "Switchboard"
 msgstr "Rozvaděč"

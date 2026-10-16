@@ -5,7 +5,7 @@ extends Node
 ## All user-facing text is English source text passed through tr().
 
 enum Mode { EDIT, SIMULATE }
-enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, QUIT }
+enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE }
@@ -61,8 +61,6 @@ var _number_button: Button
 var _numbers_toggle: Button
 var _sim_tools: HBoxContainer
 var _switching_select: OptionButton
-var _chart_button: Button
-var _log_button: Button
 var _timing_panel: TimingPanel
 var _run_button: Button
 var _step_button: Button
@@ -85,15 +83,28 @@ var _canvas_area: Control
 ## Tabs of the pages above the schematic, and the button adding a page.
 var _page_tabs: TabBar
 var _page_add: MenuButton
+var _page_row: HBoxContainer
 ## Right click menu of a page tab, for page [member _menu_page].
 var _page_menu: PopupMenu
 var _menu_page: int = -1
 var _rename_dialog: ConfirmationDialog
 var _rename_field: LineEdit
+## Title block texts of the exported sheets: the schematic title ("title")
+## and the [constant TitleBlock.FIELDS], each with its label.
+var _title_block_dialog: ConfirmationDialog
+var _title_block_edits: Dictionary[String, LineEdit] = {}
+var _title_block_labels: Dictionary[String, Label] = {}
 ## True while the tabs are being filled (their signals are ignored).
 var _updating_pages: bool = false
 ## Renders the pages for PNG and PDF export.
 var _sheet_renderer: SheetRenderer
+## Shows the sheets before they are exported; what it shows is saved.
+var _export_preview: ExportPreview
+var _export_pdf: bool = false
+var _export_images: Array[Image] = []
+var _export_layouts: Array[SheetLayout] = []
+## Counts preview renderings, so only the latest one is shown.
+var _export_render: int = 0
 ## Big red warning over the schematic during an unprotected short circuit.
 var _short_banner: Label
 var _properties: PropertiesPanel
@@ -110,7 +121,7 @@ var _check_panel: CheckPanel
 var _status_label: Label
 var _hint_label: Label
 var _editor_hint: String = ""
-## Timing chart and event log shown in Simulate mode (remembered).
+## Timing chart and event log rolled out in Simulate mode (remembered).
 var _show_chart: bool = true
 var _show_log: bool = true
 var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
@@ -142,6 +153,7 @@ func _ready() -> void:
 	_apply_ui_scale()
 	_apply_theme()
 	TranslationServer.set_locale(LOCALES[_locale_index])
+	FileAssociation.register(tr("LadderLab schematic"))
 	_build_ui()
 	_build_dialogs()
 	_sheet_renderer = SheetRenderer.new()
@@ -176,6 +188,10 @@ func _ready() -> void:
 	_cabinet_panel.operate_requested.connect(view.operate_device)
 	editor.active = true
 	_load_example()
+	# A schematic double-clicked in the file manager comes as an argument.
+	var start_file: String = FileAssociation.file_from_args(OS.get_cmdline_args())
+	if not start_file.is_empty():
+		open_file(start_file)
 
 
 func _process(_delta: float) -> void:
@@ -329,13 +345,6 @@ func _build_ui() -> void:
 	_switching_select.add_item("")
 	_switching_select.add_item("")
 	_switching_select.item_selected.connect(_on_switching_selected)
-	_sim_tools.add_child(VSeparator.new())
-	_chart_button = _tool(_sim_tools, _on_timing_parts_toggled, "chart")
-	_chart_button.toggle_mode = true
-	_chart_button.button_pressed = _show_chart
-	_log_button = _tool(_sim_tools, _on_timing_parts_toggled, "log")
-	_log_button.toggle_mode = true
-	_log_button.button_pressed = _show_log
 
 
 	var middle: HBoxContainer = HBoxContainer.new()
@@ -388,6 +397,7 @@ func _build_ui() -> void:
 	_timing_panel.panel_height = _timing_size.y
 	_timing_panel.log_width = _timing_size.x
 	_timing_panel.resized_by_user.connect(_save_settings)
+	_timing_panel.parts_toggled.connect(_on_timing_parts_toggled)
 	root.add_child(_timing_panel)
 
 	var bottom: PanelContainer = PanelContainer.new()
@@ -408,18 +418,19 @@ func _build_ui() -> void:
 
 
 ## Tabs of the pages (click to show one, drag to reorder, double-click to
-## rename, right click for more) and a button adding a page.
+## rename, right click for more) and, right after the last tab, a button
+## adding a page.
 func _build_page_bar() -> Control:
 	var bar: PanelContainer = PanelContainer.new()
 	bar.theme_type_variation = "PageBar"
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
+	row.resized.connect(_fit_page_tabs)
 	bar.add_child(row)
+	_page_row = row
 	_page_tabs = TabBar.new()
 	_page_tabs.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_page_tabs.focus_mode = Control.FOCUS_NONE
-	_page_tabs.clip_tabs = true
-	_page_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_tabs.max_tab_width = 260
 	_page_tabs.tab_changed.connect(func(tab: int) -> void:
 		if not _updating_pages:
@@ -440,6 +451,10 @@ func _build_page_bar() -> Control:
 	_page_add.theme_type_variation = "ToolButton"
 	_page_add.icon = AppTheme.icon("plus")
 	_page_add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var rest: Control = Control.new()
+	rest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rest.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(rest)
 	_page_add.get_popup().id_pressed.connect(func(id: int) -> void:
 		_add_page(PAGE_PRESETS[id] if id < PAGE_PRESETS.size() else ""))
 	_page_menu = PopupMenu.new()
@@ -462,6 +477,11 @@ func _build_dialogs() -> void:
 		_unsaved_dialog.hide()
 		_after_discard.call())
 	add_child(_unsaved_dialog)
+	_export_preview = ExportPreview.new()
+	_export_preview.confirmed.connect(func() -> void:
+		_show_file_dialog(DialogPurpose.EXPORT_PDF if _export_pdf else DialogPurpose.EXPORT_PNG))
+	_export_preview.wire_numbers_toggled.connect(func(_on: bool) -> void: _render_preview())
+	add_child(_export_preview)
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
 	_rename_dialog = ConfirmationDialog.new()
@@ -476,6 +496,20 @@ func _build_dialogs() -> void:
 			return
 		editor.edit_pages(func(doc: SchematicDocument) -> void: doc.rename_page(index, title)))
 	add_child(_rename_dialog)
+	_title_block_dialog = ConfirmationDialog.new()
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = 2
+	for field: String in ["title"] + Array(TitleBlock.FIELDS):
+		_title_block_labels[field] = _label(grid)
+		var edit: LineEdit = LineEdit.new()
+		edit.custom_minimum_size = Vector2(320, 0)
+		edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(edit)
+		_title_block_dialog.register_text_enter(edit)
+		_title_block_edits[field] = edit
+	_title_block_dialog.add_child(grid)
+	_title_block_dialog.confirmed.connect(_apply_title_block)
+	add_child(_title_block_dialog)
 	_retranslate_dialogs()
 
 
@@ -557,8 +591,6 @@ func _retranslate() -> void:
 	_switching_select.set_item_text(0, tr("Realistic"))
 	_switching_select.set_item_text(1, tr("Ideal"))
 	_switching_select.tooltip_text = tr("Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly.")
-	_chart_button.tooltip_text = tr("Show or hide the timing chart")
-	_log_button.tooltip_text = tr("Show or hide the event log")
 	_step_button.tooltip_text = tr("Step") + " – " + tr("Advance the simulation by 0.1 s times the speed")
 	_speed_select.tooltip_text = tr("Simulation speed")
 	_time_label.tooltip_text = tr("Simulation time")
@@ -599,6 +631,12 @@ func _retranslate_dialogs() -> void:
 	_rename_dialog.title = tr("Rename page")
 	_rename_dialog.ok_button_text = tr("Rename")
 	_rename_dialog.cancel_button_text = tr("Cancel")
+	_title_block_dialog.title = tr("Title block")
+	_title_block_dialog.ok_button_text = tr("OK")
+	_title_block_dialog.cancel_button_text = tr("Cancel")
+	for field: String in _title_block_labels:
+		_title_block_labels[field].text = _title_block_caption(field)
+	_title_block_edits["date"].placeholder_text = tr("Date of the export")
 
 
 func _rebuild_file_menu() -> void:
@@ -613,6 +651,8 @@ func _rebuild_file_menu() -> void:
 	popup.add_item(tr("Save as…"), FileMenuId.SAVE_AS, KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_S)
 	popup.add_item(tr("Export page as PNG…"), FileMenuId.EXPORT_PNG)
 	popup.add_item(tr("Export all pages as PDF…"), FileMenuId.EXPORT_PDF)
+	popup.add_item(tr("Title block…"), FileMenuId.TITLE_BLOCK)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Texts of the title block on exported sheets: drawn by, checked by, company, ..."))
 	popup.add_separator()
 	popup.add_item(tr("Quit"), FileMenuId.QUIT, KEY_MASK_CTRL | KEY_Q)
 	_recent_menu.clear()
@@ -754,8 +794,7 @@ func _update_mode_ui() -> void:
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
-	if editing:
-		_timing_panel.visible = false
+	_timing_panel.visible = not editing
 	_update_run_button()
 	_refresh_pages()
 	_on_stepped(view.last_result)
@@ -791,15 +830,15 @@ func _fit_camera_later() -> void:
 	_fit_camera()
 
 
-## (Re)starts the simulation on a fresh copy of the edited schematic.
-func _on_timing_parts_toggled() -> void:
-	_show_chart = _chart_button.button_pressed
-	_show_log = _log_button.button_pressed
-	_update_mode_ui()
+## The chart or the log was rolled in or out on the timing panel.
+func _on_timing_parts_toggled(show_chart: bool, show_log: bool) -> void:
+	_show_chart = show_chart
+	_show_log = show_log
 	_save_settings()
 	_fit_camera_later()
 
 
+## (Re)starts the simulation on a fresh copy of the edited schematic.
 func _start_simulation() -> void:
 	view.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
@@ -971,9 +1010,11 @@ func _on_file_menu(id: int) -> void:
 		FileMenuId.SAVE_AS:
 			_save_as()
 		FileMenuId.EXPORT_PNG:
-			_show_file_dialog(DialogPurpose.EXPORT_PNG)
+			_open_export_preview(false)
 		FileMenuId.EXPORT_PDF:
-			_show_file_dialog(DialogPurpose.EXPORT_PDF)
+			_open_export_preview(true)
+		FileMenuId.TITLE_BLOCK:
+			_show_title_block_dialog()
 		FileMenuId.QUIT:
 			_confirm_discard(func() -> void: get_tree().quit())
 
@@ -1037,11 +1078,11 @@ func _on_file_selected(path: String) -> void:
 		DialogPurpose.EXPORT_PNG:
 			if path.get_extension().to_lower() != "png":
 				path += ".png"
-			export_png(path)
+			_save_png(path, _export_images)
 		DialogPurpose.EXPORT_PDF:
 			if path.get_extension().to_lower() != "pdf":
 				path += ".pdf"
-			export_pdf(path)
+			_save_pdf(path, _export_images, _export_layouts)
 
 
 ## Saves to the current file, or asks for one. [param then] runs after a
@@ -1090,27 +1131,63 @@ func open_file(path: String) -> bool:
 ## on a sheet with a frame and title block (see [SheetRenderer]).
 func export_png(path: String) -> void:
 	_prepare_export()
-	var images: Array[Image] = await _sheet_renderer.render(edit_doc, PackedInt32Array([edit_doc.page]))
-	if images.is_empty() or images[0] == null or images[0].save_png(path) != OK:
-		_show_error(tr("Could not save %s.") % path.get_file())
+	_save_png(path, await _sheet_renderer.render(edit_doc, PackedInt32Array([edit_doc.page])))
 
 
 ## Saves every page as one page of a PDF document.
 func export_pdf(path: String) -> void:
 	_prepare_export()
-	var pages: PackedInt32Array = PackedInt32Array()
-	for i: int in edit_doc.pages.size():
-		pages.append(i)
-	var images: Array[Image] = await _sheet_renderer.render(edit_doc, pages)
+	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages())
+	_save_pdf(path, images, _sheet_renderer.layouts.duplicate())
+
+
+func _save_png(path: String, images: Array[Image]) -> void:
+	if images.is_empty() or images[0] == null or images[0].save_png(path) != OK:
+		_show_error(tr("Could not save %s.") % path.get_file())
+
+
+func _save_pdf(path: String, images: Array[Image], layouts: Array[SheetLayout]) -> void:
 	var pdf: PdfWriter = PdfWriter.new()
 	pdf.title = tr(edit_doc.title)
 	for i: int in images.size():
 		if images[i] == null:
 			_show_error(tr("Could not save %s.") % path.get_file())
 			return
-		pdf.add_page(images[i], _sheet_renderer.layouts[i].paper_points())
-	if pdf.save(path) != OK:
+		pdf.add_page(images[i], layouts[i].paper_points())
+	if images.is_empty() or pdf.save(path) != OK:
 		_show_error(tr("Could not save %s.") % path.get_file())
+
+
+func _all_pages() -> PackedInt32Array:
+	var pages: PackedInt32Array = PackedInt32Array()
+	for i: int in edit_doc.pages.size():
+		pages.append(i)
+	return pages
+
+
+## Shows the sheets of a PNG (the page shown) or PDF (every page) export
+## before asking where to save them.
+func _open_export_preview(pdf: bool) -> void:
+	_export_pdf = pdf
+	_export_images.clear()
+	_export_layouts.clear()
+	_export_preview.open(pdf)
+	_render_preview()
+
+
+## Renders the sheets the preview shows, as they will be saved.
+func _render_preview() -> void:
+	_export_render += 1
+	var ticket: int = _export_render
+	var pdf: bool = _export_pdf
+	_prepare_export()
+	_sheet_renderer.wire_numbers = _export_preview.wire_numbers()
+	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages() if pdf else PackedInt32Array([edit_doc.page]))
+	if ticket != _export_render:
+		return
+	_export_images = images
+	_export_layouts = _sheet_renderer.layouts.duplicate()
+	_export_preview.show_sheets(_export_images, _export_layouts)
 
 
 ## Texts of the title block and what to draw, as chosen in the window.
@@ -1119,7 +1196,53 @@ func _prepare_export() -> void:
 	_sheet_renderer.file_name = _file_path.get_file()
 	_sheet_renderer.title = tr(edit_doc.title)
 	_sheet_renderer.untitled_page = tr("Page %d")
-	_sheet_renderer.page_caption = tr("Page")
+
+
+func _title_block_caption(field: String) -> String:
+	match field:
+		"title":
+			return tr("Title")
+		"company":
+			return tr("Company")
+		"project":
+			return tr("Project")
+		"drawing_number":
+			return tr("Drawing no.")
+		"revision":
+			return tr("Revision")
+		"drawn_by":
+			return tr("Drawn by")
+		"checked_by":
+			return tr("Checked by")
+		"date":
+			return tr("Date")
+	return field
+
+
+func _show_title_block_dialog() -> void:
+	_title_block_edits["title"].text = tr(edit_doc.title)
+	for field: String in TitleBlock.FIELDS:
+		_title_block_edits[field].text = edit_doc.title_block.get(field)
+	_title_block_dialog.popup_centered()
+	_title_block_edits["drawn_by"].grab_focus()
+
+
+## Puts the texts of the title block dialog into the schematic (undoable).
+func _apply_title_block() -> void:
+	var block: TitleBlock = TitleBlock.new()
+	for field: String in TitleBlock.FIELDS:
+		block.set(field, _title_block_edits[field].text)
+	var title: String = _title_block_edits["title"].text.strip_edges()
+	# An unchanged title stays English source text, shown translated.
+	if title == tr(edit_doc.title):
+		title = edit_doc.title
+	var snapshot: Dictionary = DocumentSerializer.to_dict(edit_doc)
+	if not edit_doc.set_title_block(title, block):
+		return
+	editor.history.record(snapshot)
+	if view.document != edit_doc:
+		view.document.set_title_block(title, block)
+	_mark_dirty()
 
 
 # --- Pages ------------------------------------------------------------------------
@@ -1138,6 +1261,21 @@ func _refresh_pages() -> void:
 	_page_tabs.drag_to_rearrange_enabled = mode == Mode.EDIT
 	_page_add.visible = mode == Mode.EDIT
 	_updating_pages = false
+	_fit_page_tabs()
+
+
+## The tabs take only the room they need, so the add button follows the
+## last one; when they do not fit, they share the bar and are clipped.
+func _fit_page_tabs() -> void:
+	if _page_tabs == null or _page_row == null:
+		return
+	_page_tabs.clip_tabs = false
+	var room: float = _page_row.size.x - (_page_add.size.x + 8.0 if _page_add.visible else 0.0)
+	var fits: bool = _page_tabs.get_combined_minimum_size().x <= room
+	_page_tabs.clip_tabs = not fits
+	_page_tabs.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN if fits else Control.SIZE_EXPAND_FILL
+	# The filler after the add button only takes the room the tabs leave.
+	(_page_row.get_child(_page_row.get_child_count() - 1) as Control).visible = fits
 
 
 ## Shows page [param index]; with [param focus_id], centred on that component.

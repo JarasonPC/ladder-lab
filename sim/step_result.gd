@@ -37,6 +37,8 @@ const REACH_SEVERAL: int = 5
 ## Poles of the DC source.
 const REACH_DC_PLUS: int = 6
 const REACH_DC_MINUS: int = 7
+## Reached by PE only (N potential, drawn in the protective conductor colour).
+const REACH_PE: int = 8
 
 ## Reach code of every terminal reached by a supply (see REACH_*).
 var terminal_reach: Dictionary[String, int] = {}
@@ -77,7 +79,7 @@ static func reach_code(mask: int) -> int:
 
 ## True for the return conductors N and -: drawn like N, never "live".
 static func is_return(code: int) -> bool:
-	return code == REACH_N or code == REACH_DC_MINUS
+	return code == REACH_N or code == REACH_DC_MINUS or code == REACH_PE
 
 
 func is_oscillating() -> bool:
