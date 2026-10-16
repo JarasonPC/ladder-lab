@@ -311,6 +311,36 @@ static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictio
 	return result
 
 
+## True for a part that sits outside the switchboard and is wired to it
+## through a terminal strip: buttons, switches, lamps, motors (not
+## supplies, junctions, terminals, page connectors, nor the devices on the
+## rails and their contacts).
+static func is_outside(circuit: Circuit, c: CircuitComponent) -> bool:
+	if c is PowerSupply or c is Junction or c is TerminalBlock or c is PageConnector:
+		return false
+	if kind_of(c) != Kind.NONE:
+		return false
+	if c is Contact or c is ChangeoverContact or c is MainContacts or c is OverloadContact:
+		return device(circuit, c.designation) == null and circuit.get_overload_relay(c.designation) == null
+	return true
+
+
+## Designation of the part outside the switchboard that the strip terminal
+## joining [param key] leads to: the part whose lead it sits on, else the
+## first such part on its net; "" for none.
+static func field_device(circuit: Circuit, key: String, net: Dictionary[String, int]) -> String:
+	var owner: CircuitComponent = circuit.get_terminal_owner(key)
+	if owner != null and is_outside(circuit, owner):
+		return owner.designation
+	var n: int = net.get(key, -1)
+	for c: CircuitComponent in circuit.get_components():
+		if is_outside(circuit, c):
+			for k: String in c.get_terminal_keys():
+				if net.get(k, -2) == n:
+					return c.designation
+	return ""
+
+
 # --- Terminal strips -----------------------------------------------------------------
 
 ## Terminal strip name -> its terminals in order, each {"label", "kind": "L",

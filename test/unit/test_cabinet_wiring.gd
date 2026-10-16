@@ -78,7 +78,7 @@ func test_wires_join_the_terminals_of_each_net() -> void:
 	assert_eq(_wire(wiring, "KM1:14", "KM1:A1")["conductor"], CabinetDevices.Conductor.CONTROL)
 	assert_eq(_wire(wiring, "KM1:A2", "X5")["conductor"], CabinetDevices.Conductor.NEUTRAL)
 	assert_eq(_wire(wiring, "FU1:1", "FU2:1")["conductor"], CabinetDevices.Conductor.POWER, "L1 to both fuses")
-	assert_eq(wiring.wires.size(), 15, "one wire fewer than terminals in each net, and a core of the supply cable for each of L1, L2, L3, N and PE")
+	assert_eq(wiring.wires.size(), 19, "one wire fewer than terminals in each net, a core of the supply cable for each of L1, L2, L3, N and PE, and four cores out to the motor")
 
 
 func test_wires_run_through_the_ducts() -> void:
@@ -102,9 +102,10 @@ func test_wires_run_through_the_ducts() -> void:
 				var r: Rect2 = duct["rect"]
 				if not duct["vertical"] and r.has_point(a) and r.has_point(b) and is_equal_approx(a.y, b.y):
 					assert_true(a.y > r.position.y + CabinetParts.DUCT_DEPTH - 0.01 and a.y < r.end.y - CabinetParts.DUCT_DEPTH + 0.01, "along the floor of the duct")
-		for point: Vector2 in path:
+		for i: int in path.size() - 1:
+			var segment: Rect2 = Rect2(path[i], Vector2.ZERO).expand(path[i + 1]).grow(0.01)
 			for duct: Dictionary in layout.ducts:
-				in_duct = in_duct or (duct["rect"] as Rect2).has_point(point)
+				in_duct = in_duct or (duct["rect"] as Rect2).intersects(segment)
 		assert_true(in_duct, "%s-%s is led through a duct" % [wire["from"], wire["to"]])
 
 
@@ -163,7 +164,7 @@ func test_supply_comes_in_through_a_cable() -> void:
 	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
 	var cores: Dictionary[String, Dictionary] = {}
 	for wire: Dictionary in wiring.wires:
-		if wire["external"]:
+		if wire["external"] and wire["cable"] == "AC":
 			assert_false(cores.has(wire["from"]), "one core per conductor")
 			cores[wire["from"]] = wire
 	assert_eq(cores.keys(), ["L1", "L2", "L3", "N", "PE"], "the cores in order")
@@ -172,11 +173,15 @@ func test_supply_comes_in_through_a_cable() -> void:
 	assert_eq(cores["N"]["conductor"], CabinetDevices.Conductor.NEUTRAL)
 	assert_eq(cores["PE"]["to"], "M1:PE", "PE to the motor's PE terminal on the strip")
 	assert_eq(cores["PE"]["conductor"], CabinetDevices.Conductor.PE)
-	assert_eq(wiring.glands.size(), 1, "one cable for the AC supply")
+	var top: Array[Dictionary] = []
+	for gland: Dictionary in wiring.glands:
+		if not gland["bottom"]:
+			top.append(gland)
+	assert_eq(top.size(), 1, "one cable for the AC supply")
 	for core: Dictionary in cores.values():
 		var start: Vector2 = (core["points"] as PackedVector2Array)[0]
 		assert_true(is_equal_approx(start.y, CabinetLayout.FRAME), "a core starts at the top of the enclosure")
-		assert_true(wiring.glands[0].has_point(start + Vector2(0, -0.5)), "inside the gland")
+		assert_true((top[0]["rect"] as Rect2).has_point(start + Vector2(0, -0.5)), "inside the gland")
 
 
 func test_terminals_on_pe_and_n_wires_are_coloured() -> void:
@@ -218,3 +223,33 @@ func test_split_a_terminal_strip() -> void:
 	assert_eq(doc.get_placement(motor).strips[1], "2")
 	assert_false(doc.cabinet_has(CabinetItem.Kind.STRIP, "X3"), "nothing left in X3")
 	assert_eq(doc.move_strip_terminals("X2", PackedStringArray(["PE"]), "X2"), 0, "not into itself")
+
+
+func test_field_cables_leave_through_the_bottom() -> void:
+	var doc: SchematicDocument = _doc()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var to_motor: Dictionary[String, Dictionary] = {}
+	for wire: Dictionary in wiring.wires:
+		if wire["external"] and wire["cable"] == "M1":
+			to_motor[wire["to"]] = wire
+	assert_eq(to_motor.keys().size(), 4, "a core to each terminal of the motor's strip X2")
+	assert_eq(to_motor["M1:U1"]["conductor"], CabinetDevices.Conductor.POWER)
+	assert_eq(to_motor["M1:PE"]["conductor"], CabinetDevices.Conductor.PE)
+	var gland: Dictionary = {}
+	for g: Dictionary in wiring.glands:
+		if g["cable"] == "M1":
+			gland = g
+	assert_true(gland["bottom"], "the motor cable leaves through the bottom of the enclosure")
+	var strip: Dictionary = {}
+	for place: Dictionary in layout.places:
+		if place["kind"] == CabinetLayout.STRIP and place["designation"] == "X2":
+			strip = place
+	for wire: Dictionary in to_motor.values():
+		var path: PackedVector2Array = wire["points"]
+		assert_true(path[0].y > layout.size.y - CabinetLayout.FRAME - 0.5, "the core starts at the bottom of the enclosure")
+		assert_true(is_equal_approx(path[path.size() - 1].y, (strip["origin"] as Vector2).y + CabinetParts.TERMINAL.y - CabinetParts.TERMINAL_ENTRY), "and goes into the bottom of the strip terminal")
+	# Terminals of strip X1 lead to nothing outside: no cable for them.
+	for g: Dictionary in wiring.glands:
+		assert_true(g["cable"] in ["AC", "M1"], "only the supply and the motor cable")
+	assert_eq(CabinetDevices.field_device(doc.circuit, "X5", CabinetDevices.nets(doc.circuit)), "", "the N terminal joins only devices inside")

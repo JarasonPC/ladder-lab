@@ -113,7 +113,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   top of strip terminals, wires near each other share the nearest slot; the supply comes in
   from outside: one cable per source (AC, DC) through a gland in the top of the enclosure, one
   core per supply conductor (L1 L2 L3 N PE, + -) straight down into the top duct to the first
-  terminal it feeds. Strip terminals on a PE wire are PE terminals, on an N wire blue N
+  terminal it feeds. Strip terminals leading to parts outside (CabinetDevices.is_outside:
+  buttons, switches, lamps, motors; field_device finds the part: the one whose lead the
+  terminal is on, else the first on its net) send field wires out of their bottom entries to
+  the bottom duct and out through a gland in the bottom of the enclosure, one cable per part
+  (its name on the gland), cores coloured like the other wires (a PE or N terminal gives a PE or
+  N core). Strip terminals on a PE wire are PE terminals, on an N wire blue N
   terminals. A strip is split in the sidebar: picked terminals move to another strip or a new
   one (SchematicDocument.move_strip_terminals relabels them, "5" -> "X2:5", a taken number
   becomes the next free one; a new strip gets a place right after the old one). The drawing
