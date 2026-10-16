@@ -1087,3 +1087,22 @@ msgstr ""
 
 msgid "A1 and A2 of a time relay can only be swapped with each other."
 msgstr ""
+
+#, c-format
+msgid "Page %d / %d"
+msgstr ""
+
+msgid "Rendering…"
+msgstr ""
+
+msgid "Save PDF…"
+msgstr ""
+
+msgid "Save PNG…"
+msgstr ""
+
+msgid "landscape"
+msgstr ""
+
+msgid "portrait"
+msgstr ""

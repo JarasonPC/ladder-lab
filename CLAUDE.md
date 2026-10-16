@@ -62,9 +62,12 @@
   with the same label are joined (Circuit.get_links, used by the solver and by wire_net); numbering
   runs over the pages and connectors take their net's wire number as label; right click (Edit) or
   click (Simulate) jumps to the partner page
-- Export: File > Export page as PNG / Export all pages as PDF; each page on an A4/A3 sheet
+- Export: File > Export page as PNG / Export all pages as PDF first show the sheets in a preview
+  (ExportPreview: page by page, paper and scale, wire numbers on/off, on by default); saving
+  writes what the preview shows. Each page on an A4/A3 sheet
   (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
-  (SheetFrame), rendered by SheetRenderer at 200 dpi; PdfWriter writes one Flate image per page;
+  (SheetFrame), rendered by SheetRenderer at 200 dpi, fitted to everything drawn (it draws each
+  page once to measure: SchematicView.drawn_extent, with texts, wire and path numbers); PdfWriter writes one Flate image per page;
   title block texts (company, project, drawing no., revision, drawn by, checked by, date; empty
   date = export date) are SchematicDocument.title_block (TitleBlock, saved), edited in
   File > Title block… together with the schematic title (undoable)
@@ -118,7 +121,8 @@
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
   per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
-- `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block)
+- `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block),
+  ExportPreview (dialog)
 - `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes

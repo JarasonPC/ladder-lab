@@ -21,6 +21,8 @@ var show_numbers: bool = true
 var _junctions: Array[Vector2i] = []
 ## [Vector2i(wire, end), Rect2 in cells] of the numbers drawn last.
 var _number_rects: Array = []
+## Boxes (in cells) of the current path numbers drawn last.
+var _path_rects: Array[Rect2] = []
 
 
 func set_document(doc: SchematicDocument) -> void:
@@ -86,6 +88,20 @@ func _draw_wire_numbers() -> void:
 		_number_rects.append([e, Rect2(rect.position / G, rect.size / G)])
 
 
+## Everything this layer drew last outside the wires, in cells: wire numbers
+## and current path numbers (empty Rect2 when nothing).
+func drawn_extent() -> Rect2:
+	var r: Rect2 = Rect2()
+	var first: bool = true
+	for entry: Array in _number_rects:
+		r = (entry[1] as Rect2) if first else r.merge(entry[1])
+		first = false
+	for rect: Rect2 in _path_rects:
+		r = rect if first else r.merge(rect)
+		first = false
+	return r
+
+
 ## Box (in cells) around the number of wire end [param end] as last drawn,
 ## or an empty Rect2.
 func wire_number_rect(end: Vector2i) -> Rect2:
@@ -109,6 +125,7 @@ func wire_number_at(point: Vector2) -> Vector2i:
 ## Numbers the current paths: above the columns of a vertical drawing, left of
 ## the rows of a horizontal one.
 func _draw_path_numbers() -> void:
+	_path_rects.clear()
 	var paths: PackedFloat32Array = document.current_paths()
 	if paths.is_empty():
 		return
@@ -123,6 +140,7 @@ func _draw_path_numbers() -> void:
 		else:
 			center = Vector2(paths[i], b.position.y - 1.5) * G
 		var rect: Rect2 = Rect2(center - box * 0.5, box)
+		_path_rects.append(Rect2(rect.position / G, rect.size / G))
 		draw_rect(rect, SchematicTheme.BACKGROUND)
 		draw_rect(rect, SchematicTheme.PATH_TEXT, false, 1.0)
 		var text: String = str(i + 1)

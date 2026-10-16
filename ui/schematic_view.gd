@@ -94,6 +94,19 @@ func rebuild() -> void:
 	_update_visuals()
 
 
+## Everything drawn on the page, in cells, as last drawn: symbols and wires,
+## the markings and other texts of the symbols (also where they were
+## dragged to), the wire numbers and the current path numbers.
+func drawn_extent() -> Rect2:
+	var r: Rect2 = document.bounds()
+	for symbol: SchematicSymbol in _symbols.values():
+		for rect: Rect2 in symbol.text_rects:
+			r = r.merge(Rect2((rect.position + symbol.position) / G, rect.size / G))
+	if _wire_layer != null and _wire_layer.drawn_extent().has_area():
+		r = r.merge(_wire_layer.drawn_extent())
+	return r
+
+
 func get_symbol(component_id: String) -> SchematicSymbol:
 	return _symbols.get(component_id, null)
 

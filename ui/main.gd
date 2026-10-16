@@ -98,6 +98,13 @@ var _title_block_labels: Dictionary[String, Label] = {}
 var _updating_pages: bool = false
 ## Renders the pages for PNG and PDF export.
 var _sheet_renderer: SheetRenderer
+## Shows the sheets before they are exported; what it shows is saved.
+var _export_preview: ExportPreview
+var _export_pdf: bool = false
+var _export_images: Array[Image] = []
+var _export_layouts: Array[SheetLayout] = []
+## Counts preview renderings, so only the latest one is shown.
+var _export_render: int = 0
 ## Big red warning over the schematic during an unprotected short circuit.
 var _short_banner: Label
 var _properties: PropertiesPanel
@@ -455,6 +462,11 @@ func _build_dialogs() -> void:
 		_unsaved_dialog.hide()
 		_after_discard.call())
 	add_child(_unsaved_dialog)
+	_export_preview = ExportPreview.new()
+	_export_preview.confirmed.connect(func() -> void:
+		_show_file_dialog(DialogPurpose.EXPORT_PDF if _export_pdf else DialogPurpose.EXPORT_PNG))
+	_export_preview.wire_numbers_toggled.connect(func(_on: bool) -> void: _render_preview())
+	add_child(_export_preview)
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
 	_rename_dialog = ConfirmationDialog.new()
@@ -972,9 +984,9 @@ func _on_file_menu(id: int) -> void:
 		FileMenuId.SAVE_AS:
 			_save_as()
 		FileMenuId.EXPORT_PNG:
-			_show_file_dialog(DialogPurpose.EXPORT_PNG)
+			_open_export_preview(false)
 		FileMenuId.EXPORT_PDF:
-			_show_file_dialog(DialogPurpose.EXPORT_PDF)
+			_open_export_preview(true)
 		FileMenuId.TITLE_BLOCK:
 			_show_title_block_dialog()
 		FileMenuId.QUIT:
@@ -1040,11 +1052,11 @@ func _on_file_selected(path: String) -> void:
 		DialogPurpose.EXPORT_PNG:
 			if path.get_extension().to_lower() != "png":
 				path += ".png"
-			export_png(path)
+			_save_png(path, _export_images)
 		DialogPurpose.EXPORT_PDF:
 			if path.get_extension().to_lower() != "pdf":
 				path += ".pdf"
-			export_pdf(path)
+			_save_pdf(path, _export_images, _export_layouts)
 
 
 ## Saves to the current file, or asks for one. [param then] runs after a
@@ -1093,27 +1105,63 @@ func open_file(path: String) -> bool:
 ## on a sheet with a frame and title block (see [SheetRenderer]).
 func export_png(path: String) -> void:
 	_prepare_export()
-	var images: Array[Image] = await _sheet_renderer.render(edit_doc, PackedInt32Array([edit_doc.page]))
-	if images.is_empty() or images[0] == null or images[0].save_png(path) != OK:
-		_show_error(tr("Could not save %s.") % path.get_file())
+	_save_png(path, await _sheet_renderer.render(edit_doc, PackedInt32Array([edit_doc.page])))
 
 
 ## Saves every page as one page of a PDF document.
 func export_pdf(path: String) -> void:
 	_prepare_export()
-	var pages: PackedInt32Array = PackedInt32Array()
-	for i: int in edit_doc.pages.size():
-		pages.append(i)
-	var images: Array[Image] = await _sheet_renderer.render(edit_doc, pages)
+	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages())
+	_save_pdf(path, images, _sheet_renderer.layouts.duplicate())
+
+
+func _save_png(path: String, images: Array[Image]) -> void:
+	if images.is_empty() or images[0] == null or images[0].save_png(path) != OK:
+		_show_error(tr("Could not save %s.") % path.get_file())
+
+
+func _save_pdf(path: String, images: Array[Image], layouts: Array[SheetLayout]) -> void:
 	var pdf: PdfWriter = PdfWriter.new()
 	pdf.title = tr(edit_doc.title)
 	for i: int in images.size():
 		if images[i] == null:
 			_show_error(tr("Could not save %s.") % path.get_file())
 			return
-		pdf.add_page(images[i], _sheet_renderer.layouts[i].paper_points())
-	if pdf.save(path) != OK:
+		pdf.add_page(images[i], layouts[i].paper_points())
+	if images.is_empty() or pdf.save(path) != OK:
 		_show_error(tr("Could not save %s.") % path.get_file())
+
+
+func _all_pages() -> PackedInt32Array:
+	var pages: PackedInt32Array = PackedInt32Array()
+	for i: int in edit_doc.pages.size():
+		pages.append(i)
+	return pages
+
+
+## Shows the sheets of a PNG (the page shown) or PDF (every page) export
+## before asking where to save them.
+func _open_export_preview(pdf: bool) -> void:
+	_export_pdf = pdf
+	_export_images.clear()
+	_export_layouts.clear()
+	_export_preview.open(pdf)
+	_render_preview()
+
+
+## Renders the sheets the preview shows, as they will be saved.
+func _render_preview() -> void:
+	_export_render += 1
+	var ticket: int = _export_render
+	var pdf: bool = _export_pdf
+	_prepare_export()
+	_sheet_renderer.wire_numbers = _export_preview.wire_numbers()
+	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages() if pdf else PackedInt32Array([edit_doc.page]))
+	if ticket != _export_render:
+		return
+	_export_images = images
+	_export_layouts = _sheet_renderer.layouts.duplicate()
+	_export_preview.show_sheets(_export_images, _export_layouts)
 
 
 ## Texts of the title block and what to draw, as chosen in the window.
