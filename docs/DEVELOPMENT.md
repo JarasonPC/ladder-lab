@@ -175,8 +175,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 ## Versioning
 
 - Every merge into main that changes the program raises `application/config/version` in
-  project.godot, so no two builds of main share a number. Merges that only touch README, docs/
-  or tests (the exported build stays the same) keep the version.
+  project.godot, so no two builds of main share a number. Merges that only touch README,
+  CHANGELOG, docs/, tests, tools/ or .github/ (the program stays the same) keep the version.
 - MAJOR.MINOR.PATCH, raised by the biggest change in the merge:
   - PATCH (0.2.0 → 0.2.1): bug fixes, translation fixes, small drawing or layout adjustments
   - MINOR (0.2.1 → 0.3.0, PATCH back to 0): a new feature, part, example, menu item or setting
@@ -192,6 +192,13 @@ Architecture and conventions of the code base. Read this before changing the cod
 - CHANGELOG.md: every merge that raises the version adds its changes under "Unreleased", as
   short lines a user understands (what they can do now, what works better), in the matching
   group (Schematic editor, Simulation, Panels, Files and export, Application; "Fixed" for bug
-  fixes). Releasing: "Unreleased" becomes "<version> – <date>" (the version in project.godot),
-  a new empty "Unreleased" goes above it, and the section is the text of the GitHub release
-  (the update dialog shows it).
+  fixes).
+- Releasing (.github/workflows/release.yml): on main, "Unreleased" becomes
+  "<version> – <date>" with the version in project.godot and a new empty "Unreleased" above
+  it; commit, push, then push the tag `v<version>` on that commit. The workflow runs the
+  tests, exports the Windows build on Linux (Godot GODOT_VERSION, only the Windows template),
+  zips LadderLab.exe with LICENSE.txt as LadderLab-<version>-win64.zip and publishes the
+  release with that changelog section as its text (the update dialog shows it); it refuses a
+  tag that differs from the version or a version without a changelog section. Run by hand
+  (Actions > Release > Run workflow) it only builds the zip. Raise GODOT_VERSION there when
+  the project moves to a newer Godot.
