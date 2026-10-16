@@ -11,11 +11,13 @@ extends RefCounted
 ## input give 0; unconnected inputs of AND / NAND count as 1, of the others
 ## as 0.
 ##
-## Ladder diagram: the networks are worked through from the top; in each,
+## Ladder diagram: the rungs (rows joined by vertical links, see
+## [method PlcRung.rung_groups]) are worked through from the top; in each,
 ## power flows from the left rail column by column through closed contacts
 ## and wires, vertical links join the rows they connect; each row's coil gets
-## what reaches the end of its row. Coils act at once, so the networks below
-## see the new values in the same scan.
+## what reaches the end of its row. Coils act at once, so the rungs below see
+## the new values in the same scan. Edge contacts -|P|- / -|N|- close for one
+## scan when their operand went from 0 to 1 / from 1 to 0.
 
 ## Scans [method scan_until_stable] makes at most.
 const MAX_SCANS: int = 32
@@ -41,6 +43,9 @@ var coil_power: Array[PackedByteArray] = []
 ## and the last value of their edge-triggered inputs.
 var _states: Dictionary[int, bool] = {}
 var _edges: Dictionary[int, bool] = {}
+## Ladder diagram: the operand of each edge contact in the scan before
+## ("rung:row:column").
+var _cell_edges: Dictionary[String, bool] = {}
 ## Order in which the blocks are worked through (block numbers).
 var _order: PackedInt32Array = PackedInt32Array()
 
@@ -63,6 +68,7 @@ func reset() -> void:
 	counters.clear()
 	_states.clear()
 	_edges.clear()
+	_cell_edges.clear()
 	rung_power.clear()
 	coil_power.clear()
 	_order = _signal_order()
@@ -114,7 +120,12 @@ func snapshot() -> Array:
 	var counts: PackedInt32Array = PackedInt32Array()
 	for key: String in counters:
 		counts.append(counters[key].value)
-	return [outputs.duplicate(), flags.duplicate(), block_values, timer_states, counts]
+	var edges: PackedByteArray = PackedByteArray()
+	for id: int in _edges:
+		edges.append(1 if _edges[id] else 0)
+	for key: String in _cell_edges:
+		edges.append(1 if _cell_edges[key] else 0)
+	return [outputs.duplicate(), flags.duplicate(), block_values, timer_states, counts, edges]
 
 
 ## Value of operand [param operand] ("I1", "Q2", "M3", "T4", "C5").
@@ -288,35 +299,48 @@ func _scan_lad() -> void:
 		var rows: int = rung.row_count()
 		var power: PackedByteArray = PackedByteArray()
 		power.resize(rows * PlcRung.COLUMNS)
-		var left: PackedByteArray = PackedByteArray()
-		left.resize(rows)
-		left.fill(1)
-		for c: int in PlcRung.COLUMNS:
-			var right: PackedByteArray = PackedByteArray()
-			right.resize(rows)
-			for r: int in rows:
-				right[r] = 1 if left[r] != 0 and _conducts(rung.get_cell(r, c)) else 0
-			# Rows joined by vertical links share the power at this column.
-			var r0: int = 0
-			while r0 < rows:
-				var r1: int = r0
-				while r1 < rows - 1 and rung.has_link(r1, c):
-					r1 += 1
-				var any: int = 0
-				for r: int in range(r0, r1 + 1):
-					any |= right[r]
-				for r: int in range(r0, r1 + 1):
-					right[r] = any
-					power[r * PlcRung.COLUMNS + c] = any
-				r0 = r1 + 1
-			left = right
+		var coils: PackedByteArray = PackedByteArray()
+		coils.resize(rows)
+		for group: Vector2i in rung.rung_groups():
+			_scan_rows(n, rung, group.x, group.y, power, coils)
 		rung_power[n] = power
-		coil_power[n] = left
-		for r: int in rows:
-			_apply_coil(rung.get_coil(r), left[r] != 0)
+		coil_power[n] = coils
 
 
-func _conducts(cell: Dictionary) -> bool:
+## Power flow through rows [param r0] to [param r1] (one rung) of ladder
+## [param rung], then its coils.
+func _scan_rows(n: int, rung: PlcRung, r0: int, r1: int, power: PackedByteArray, coils: PackedByteArray) -> void:
+	var count: int = r1 - r0 + 1
+	var left: PackedByteArray = PackedByteArray()
+	left.resize(count)
+	left.fill(1)
+	for c: int in PlcRung.COLUMNS:
+		var right: PackedByteArray = PackedByteArray()
+		right.resize(count)
+		for i: int in count:
+			# Every cell is looked at, so edge contacts follow their operand.
+			var closed: bool = _conducts(rung.get_cell(r0 + i, c), "%d:%d:%d" % [n, r0 + i, c])
+			right[i] = 1 if left[i] != 0 and closed else 0
+		# Rows joined by vertical links share the power at this column.
+		var a: int = 0
+		while a < count:
+			var b: int = a
+			while b < count - 1 and rung.has_link(r0 + b, c):
+				b += 1
+			var any: int = 0
+			for i: int in range(a, b + 1):
+				any |= right[i]
+			for i: int in range(a, b + 1):
+				right[i] = any
+				power[(r0 + i) * PlcRung.COLUMNS + c] = any
+			a = b + 1
+		left = right
+	for i: int in count:
+		coils[r0 + i] = left[i]
+		_apply_coil(rung.get_coil(r0 + i), left[i] != 0)
+
+
+func _conducts(cell: Dictionary, place: String) -> bool:
 	match str(cell.get("kind", "")):
 		"wire":
 			return true
@@ -324,6 +348,11 @@ func _conducts(cell: Dictionary) -> bool:
 			return operand_value(cell["operand"])
 		"nc":
 			return not operand_value(cell["operand"])
+		"pos", "neg":
+			var now: bool = operand_value(cell["operand"])
+			var before: bool = _cell_edges.get(place, now)
+			_cell_edges[place] = now
+			return now and not before if cell["kind"] == "pos" else before and not now
 	return false
 
 
@@ -334,6 +363,8 @@ func _apply_coil(coil: Dictionary, power: bool) -> void:
 	match str(coil["kind"]):
 		"coil":
 			_write(operand, power)
+		"coil_not":
+			_write(operand, not power)
 		"set":
 			if power:
 				_write(operand, true)

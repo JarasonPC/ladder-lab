@@ -7,11 +7,11 @@ func test_lad_editing_builds_a_running_rung() -> void:
 	program.language = PlcProgram.Language.LAD
 	var canvas: PlcLadCanvas = autofree(PlcLadCanvas.new())
 	canvas.show_program(program, null)
-	assert_eq(program.rungs.size(), 1, "an empty network to draw into")
+	assert_eq(program.rungs.size(), 1, "a ladder to draw into")
 	watch_signals(canvas)
-	canvas._apply("no", 0, 0, 0, true)
-	canvas._apply("coil", 0, 0, 3, true)
-	var rung: PlcRung = program.rungs[0]
+	canvas._apply("no", 0, 0, true)
+	canvas._apply("coil", 0, 3, true)
+	var rung: PlcRung = program.ladder()
 	assert_eq(rung.get_cell(0, 0), {"kind": "no", "operand": "I1"})
 	assert_eq(rung.get_coil(0), {"kind": "coil", "operand": "Q1"})
 	assert_eq(rung.get_cell(0, PlcRung.COLUMNS - 1).get("kind", ""), "wire", "wired up to the coil")
@@ -19,29 +19,37 @@ func test_lad_editing_builds_a_running_rung() -> void:
 	canvas.set_property("operand", "Q3")
 	assert_signal_emitted(canvas, "changed")
 	assert_eq(rung.get_coil(0)["operand"], "Q3")
-	# A second coil takes the next free output.
-	canvas._apply("link", 0, 0, 0, true)
-	canvas._apply("coil", 0, 1, 0, true)
+	# A second coil on a branch takes the next free output.
+	canvas._apply("link", 0, 0, true)
+	canvas._apply("coil", 1, 0, true)
 	assert_eq(rung.get_coil(1)["operand"], "Q1")
 	var runtime: PlcRuntime = PlcRuntime.new(program)
 	runtime.inputs[0] = 1
 	runtime.scan_until_stable()
 	assert_eq(runtime.outputs[2], 1)
-	canvas.selected = {"rung": 0, "row": 0, "column": PlcRung.COLUMNS}
+	assert_eq(runtime.outputs[0], 1)
+	canvas.selected = {"row": 0, "column": PlcRung.COLUMNS}
 	canvas.delete_selection()
 	assert_true(rung.get_coil(0).is_empty())
 
 
-func test_lad_networks_added_and_removed() -> void:
+func test_lad_places_anywhere_along_the_rail() -> void:
 	var program: PlcProgram = PlcProgram.new()
 	program.language = PlcProgram.Language.LAD
 	var canvas: PlcLadCanvas = autofree(PlcLadCanvas.new())
 	canvas.show_program(program, null)
-	canvas.add_network()
-	assert_eq(program.rungs.size(), 2)
-	canvas.selected = {"rung": 0}
-	canvas.delete_selection()
-	assert_eq(program.rungs.size(), 1)
+	canvas._apply("no", 5, 0, true)
+	canvas._apply("coil", 5, 0, true)
+	var rung: PlcRung = program.ladder()
+	assert_eq(rung.row_count(), 6, "the rows above stay empty")
+	assert_eq(rung.rung_groups(), [Vector2i(5, 5)] as Array[Vector2i])
+	canvas.selected = {"row": 5, "column": 0}
+	canvas.insert_row()
+	assert_eq(rung.get_cell(6, 0)["operand"], "I1", "moved down by the new row")
+	canvas.selected = {"row": 6, "column": 0}
+	canvas.delete_row()
+	assert_eq(rung.row_count(), 1, "the empty rows at the bottom go")
+	assert_true(rung.is_empty())
 
 
 func test_monitoring_is_read_only() -> void:
@@ -74,3 +82,43 @@ func test_fbd_editing() -> void:
 	canvas.delete_selection()
 	assert_null(program.block(5))
 	assert_eq(program.block(3).inputs[1], 0, "the connection from the removed block went with it")
+
+
+func test_fbd_copy_and_paste_keeps_inner_connections() -> void:
+	var program: PlcProgram = ExampleCircuits.plc_start_stop_program()
+	var canvas: PlcFbdCanvas = autofree(PlcFbdCanvas.new())
+	canvas.show_program(program, null)
+	# B003 (OR) and B004 (AND): OR feeds AND; OR's inputs come from outside.
+	canvas.chosen = {3: true, 4: true}
+	canvas.copy_selection()
+	canvas.paste()
+	assert_eq(program.blocks.size(), 9)
+	var new_or: PlcBlock = program.block(8)
+	var new_and: PlcBlock = program.block(9)
+	assert_eq(new_or.type, "or")
+	assert_eq(new_and.inputs[0], 8, "the copy of AND is fed by the copy of OR")
+	assert_eq(new_or.inputs[0], 0, "connections from blocks not copied are left out")
+	assert_eq(canvas.chosen.keys().size(), 2, "the copies are selected")
+	canvas.delete_selection()
+	assert_eq(program.blocks.size(), 7)
+
+
+func test_fbd_selection_moves_together() -> void:
+	var program: PlcProgram = ExampleCircuits.plc_start_stop_program()
+	var canvas: PlcFbdCanvas = autofree(PlcFbdCanvas.new())
+	canvas.size = Vector2(1000, 800)
+	canvas.show_program(program, null)
+	canvas.select_all()
+	var before: Dictionary[int, Vector2i] = {}
+	for b: PlcBlock in program.blocks:
+		before[b.id] = b.cell
+	# Grab B004 and drag it two cells right and one down.
+	var grab: Vector2 = canvas._px(PlcFbdCanvas.body_rect(program.block(4)).get_center())
+	canvas._mouse = grab
+	canvas._press(false)
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = grab + Vector2(2, 1) * PlcFbdCanvas.U
+	canvas._canvas_input(motion)
+	canvas._release()
+	for b: PlcBlock in program.blocks:
+		assert_eq(b.cell, before[b.id] + Vector2i(2, 1), b.label())

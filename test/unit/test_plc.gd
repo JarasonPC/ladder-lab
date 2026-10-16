@@ -324,8 +324,8 @@ func test_realistic_timer_in_steps() -> void:
 
 func test_program_saved_and_loaded() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
-	var program: PlcProgram = _lad_program()
-	program.blocks = _fbd_self_hold().blocks
+	var program: PlcProgram = ExampleCircuits.plc_start_stop_program()
+	program.language = PlcProgram.Language.LAD
 	doc.add(Plc.new("A1", program), Vector2i(2, 2))
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 	assert_not_null(copy)
@@ -333,6 +333,66 @@ func test_program_saved_and_loaded() -> void:
 	assert_not_null(loaded)
 	assert_eq(loaded.program.language, PlcProgram.Language.LAD)
 	assert_eq(loaded.program.to_data(), program.to_data())
+
+
+func test_networks_of_older_programs_follow_one_another() -> void:
+	var p: PlcProgram = PlcProgram.from_data(_lad_program().to_data())
+	assert_eq(p.rungs.size(), 1, "one ladder along one power rail")
+	var ladder: PlcRung = p.ladder()
+	assert_eq(ladder.row_count(), 4)
+	assert_eq(ladder.rung_groups(), [Vector2i(0, 1), Vector2i(2, 2), Vector2i(3, 3)] as Array[Vector2i])
+	assert_eq(ladder.get_coil(3)["operand"], "Q2")
+	_build(p)
+	_click(s1)
+	assert_true(h1.energized)
+	_run(2.1)
+	assert_true(h2.energized)
+
+
+func test_lad_edge_contacts_and_negated_coil() -> void:
+	var p: PlcProgram = PlcProgram.new()
+	p.language = PlcProgram.Language.LAD
+	var ladder: PlcRung = p.ladder()
+	# Every rising edge of I1 counts, every falling edge of I1 sets M1.
+	ladder.set_cell(0, 0, {"kind": "pos", "operand": "I1"})
+	ladder.set_coil(0, {"kind": "count_up", "operand": "C1", "preset": 2})
+	ladder.wire_to_coil(0)
+	ladder.set_cell(1, 0, {"kind": "neg", "operand": "I1"})
+	ladder.set_coil(1, {"kind": "set", "operand": "M1"})
+	ladder.wire_to_coil(1)
+	ladder.set_cell(2, 0, {"kind": "no", "operand": "C1"})
+	ladder.set_coil(2, {"kind": "coil", "operand": "Q1"})
+	ladder.wire_to_coil(2)
+	ladder.set_cell(3, 0, {"kind": "no", "operand": "M1"})
+	ladder.set_coil(3, {"kind": "coil_not", "operand": "Q2"})
+	ladder.wire_to_coil(3)
+	_build(p)
+	assert_true(h2.energized, "negated coil: Q2 on while M1 is 0")
+	s1.press()
+	sim.step()
+	assert_eq(plc.runtime.counters["C1"].value, 1)
+	assert_true(h2.energized, "no falling edge yet")
+	s1.release()
+	sim.step()
+	assert_false(h2.energized, "the falling edge set M1")
+	s1.press()
+	sim.step()
+	s1.release()
+	sim.step()
+	assert_eq(plc.runtime.counters["C1"].value, 2, "one count per rising edge")
+	assert_true(h1.energized)
+
+
+func test_insert_row_keeps_links() -> void:
+	var ladder: PlcRung = PlcRung.new()
+	ladder.set_cell(0, 0, {"kind": "no", "operand": "I1"})
+	ladder.set_cell(1, 0, {"kind": "no", "operand": "I2"})
+	ladder.set_link(0, 0, true)
+	ladder.insert_row(1)
+	assert_eq(ladder.row_count(), 3)
+	assert_true(ladder.has_link(0, 0))
+	assert_true(ladder.has_link(1, 0), "the link goes on across the new row")
+	assert_eq(ladder.get_cell(2, 0)["operand"], "I2")
 
 
 func test_damaged_program_parts_left_out() -> void:

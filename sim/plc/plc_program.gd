@@ -14,9 +14,8 @@ enum Language { FBD, LAD }
 const LANGUAGE_NAMES: PackedStringArray = ["fbd", "lad"]
 ## Count of each operand area.
 const AREA_SIZES: Dictionary[String, int] = {"I": 8, "Q": 4, "M": 16, "T": 16, "C": 16}
-## Most blocks of a function block diagram and networks of a ladder diagram.
+## Most blocks of a function block diagram.
 const MAX_BLOCKS: int = 200
-const MAX_RUNGS: int = 64
 
 var language: Language = Language.FBD
 var blocks: Array[PlcBlock] = []
@@ -124,12 +123,24 @@ static func from_data(d: Variant) -> PlcProgram:
 		for p: int in b.inputs.size():
 			if program.block(b.inputs[p]) == null:
 				b.inputs[p] = 0
+	# One ladder along one power rail: networks of older programs follow
+	# one another.
 	var raw_rungs: Variant = data.get("rungs", [])
 	if raw_rungs is Array:
 		for rd: Variant in raw_rungs:
-			if program.rungs.size() < MAX_RUNGS:
-				program.rungs.append(PlcRung.from_data(rd))
+			var rung: PlcRung = PlcRung.from_data(rd)
+			if program.rungs.is_empty():
+				program.rungs.append(rung)
+			elif not rung.is_empty():
+				program.rungs[0].append(rung)
 	return program
+
+
+## The ladder diagram (made when there is none yet).
+func ladder() -> PlcRung:
+	if rungs.is_empty():
+		rungs.append(PlcRung.new())
+	return rungs[0]
 
 
 func duplicate_program() -> PlcProgram:

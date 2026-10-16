@@ -837,20 +837,19 @@ static func plc_start_stop_program() -> PlcProgram:
 	q1.inputs[0] = gate_and.id
 	delay.inputs[0] = q1.id
 	q2.inputs[0] = delay.id
-	var hold: PlcRung = PlcRung.new()
-	hold.set_cell(0, 0, {"kind": "no", "operand": "I1"})
-	hold.set_cell(0, 1, {"kind": "no", "operand": "I2"})
-	hold.set_coil(0, {"kind": "coil", "operand": "Q1"})
-	hold.wire_to_coil(0)
-	hold.set_cell(1, 0, {"kind": "no", "operand": "Q1"})
-	hold.set_link(0, 0, true)
-	var timer: PlcRung = PlcRung.new()
-	timer.set_cell(0, 0, {"kind": "no", "operand": "Q1"})
-	timer.set_coil(0, {"kind": "on_delay", "operand": "T1", "time": 5.0})
-	timer.wire_to_coil(0)
-	var output: PlcRung = PlcRung.new()
-	output.set_cell(0, 0, {"kind": "no", "operand": "T1"})
-	output.set_coil(0, {"kind": "coil", "operand": "Q2"})
-	output.wire_to_coil(0)
-	p.rungs.append_array([hold, timer, output])
+	# The same as a ladder: rung 1 self-holding Q1, rung 2 the timer T1,
+	# rung 3 Q2 from T1.
+	var ladder: PlcRung = p.ladder()
+	ladder.set_cell(0, 0, {"kind": "no", "operand": "I1"})
+	ladder.set_cell(0, 1, {"kind": "no", "operand": "I2"})
+	ladder.set_coil(0, {"kind": "coil", "operand": "Q1"})
+	ladder.wire_to_coil(0)
+	ladder.set_cell(1, 0, {"kind": "no", "operand": "Q1"})
+	ladder.set_link(0, 0, true)
+	ladder.set_cell(2, 0, {"kind": "no", "operand": "Q1"})
+	ladder.set_coil(2, {"kind": "on_delay", "operand": "T1", "time": 5.0})
+	ladder.wire_to_coil(2)
+	ladder.set_cell(3, 0, {"kind": "no", "operand": "T1"})
+	ladder.set_coil(3, {"kind": "coil", "operand": "Q2"})
+	ladder.wire_to_coil(3)
 	return p

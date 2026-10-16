@@ -6,9 +6,12 @@ extends Window
 ## selected element's operand, time or preset on the right.
 ##
 ## In Edit mode the program is edited on a copy; every finished change goes
-## to the schematic through [signal program_edited] (undoable there). While
-## simulating it shows the running PLC (online view): the signals that are 1,
-## the power flow, running times and counts; nothing can be changed then.
+## to the schematic through [signal program_edited] (undoable there). The
+## Simulation button tests the program on its own, as in the programming
+## software: a switch for each input I1-I8, a lamp for each output Q1-Q4, the
+## time running; the diagram shows the signals while nothing can be edited.
+## While the schematic is simulated it shows the running PLC (online view):
+## the signals that are 1, the power flow, running times and counts.
 
 ## The program was changed: [param program] is its new data (see
 ## [method PlcProgram.to_data]).
@@ -39,6 +42,15 @@ var _tool_buttons: Dictionary[String, Button] = {}
 var _side: VBoxContainer
 var _live: Label = null
 var _status: Label
+## Testing the program on its own: a PLC of its own running a copy of the
+## program, the input switches, the output lamps, the time.
+var _sim_plc: Plc = null
+var _sim_time: float = 0.0
+var _sim_button: Button
+var _io_bar: PanelContainer
+var _input_switches: Array[Button] = []
+var _output_lamps: Array[Panel] = []
+var _sim_clock: Label
 
 
 func _init(p_component_id: String) -> void:
@@ -67,6 +79,7 @@ func bind(p_plc: Plc, simulating: bool) -> void:
 	if same:
 		# This window's own change came back from the schematic.
 		return
+	_sim_plc = null
 	_program = p_plc.program if simulating else p_plc.program.duplicate_program()
 	if is_node_ready():
 		_show()
@@ -74,12 +87,32 @@ func bind(p_plc: Plc, simulating: bool) -> void:
 
 ## The simulation moved on: redraw the signals.
 func show_step() -> void:
-	if not monitoring or not is_node_ready():
+	if not (monitoring or _sim_plc != null) or not is_node_ready():
 		return
 	_canvas().queue_redraw()
 	if _live != null:
 		var info: Dictionary = _canvas().selection_info()
 		_live.text = info.get("live", "")
+
+
+## State of the running program shown: the simulated PLC's, the one of the
+## test simulation, or null while editing.
+func _runtime() -> PlcRuntime:
+	if monitoring:
+		return plc.runtime
+	return _sim_plc.runtime if _sim_plc != null else null
+
+
+func _process(delta: float) -> void:
+	if _sim_plc == null:
+		return
+	_sim_time += delta
+	_sim_plc.advance(delta)
+	_sim_plc.snap()
+	_sim_clock.text = "%.1f s" % _sim_time
+	for k: int in Plc.OUTPUTS:
+		_light(_output_lamps[k], _sim_plc.output_on(k))
+	show_step()
 
 
 func _canvas() -> PlcCanvas:
@@ -119,6 +152,12 @@ func _build() -> void:
 		b.pressed.connect(_on_language.bind(language))
 		segments.add_child(b)
 		_language_buttons.append(b)
+	_sim_button = Button.new()
+	_sim_button.toggle_mode = true
+	_sim_button.focus_mode = Control.FOCUS_NONE
+	_sim_button.icon = AppTheme.icon("simulate")
+	_sim_button.toggled.connect(_set_test_simulation)
+	tools.add_child(_sim_button)
 	_mode_label = Label.new()
 	_mode_label.theme_type_variation = "MutedLabel"
 	_mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -165,6 +204,42 @@ func _build() -> void:
 	_side.add_theme_constant_override("separation", 12)
 	side_scroll.add_child(_side)
 
+	_io_bar = PanelContainer.new()
+	_io_bar.theme_type_variation = "BottomPanel"
+	_io_bar.visible = false
+	column.add_child(_io_bar)
+	var io: HBoxContainer = HBoxContainer.new()
+	io.add_theme_constant_override("separation", 6)
+	_io_bar.add_child(io)
+	for k: int in Plc.INPUTS:
+		var switch: Button = Button.new()
+		switch.toggle_mode = true
+		switch.focus_mode = Control.FOCUS_NONE
+		switch.text = "I%d" % (k + 1)
+		switch.custom_minimum_size = Vector2(46, 34)
+		switch.toggled.connect(func(_on: bool) -> void: _feed_inputs())
+		io.add_child(switch)
+		_input_switches.append(switch)
+	io.add_child(VSeparator.new())
+	for k: int in Plc.OUTPUTS:
+		var lamp: Panel = Panel.new()
+		lamp.custom_minimum_size = Vector2(46, 34)
+		var name: Label = Label.new()
+		name.text = "Q%d" % (k + 1)
+		name.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lamp.add_child(name)
+		io.add_child(lamp)
+		_output_lamps.append(lamp)
+		_light(lamp, false)
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	io.add_child(spacer)
+	_sim_clock = Label.new()
+	_sim_clock.theme_type_variation = "TimeLabel"
+	io.add_child(_sim_clock)
+
 	var status_bar: PanelContainer = PanelContainer.new()
 	status_bar.theme_type_variation = "Statusbar"
 	column.add_child(status_bar)
@@ -207,12 +282,23 @@ func _show() -> void:
 		b.tooltip_text = tr("The PLC runs the program shown here.")
 	_fbd_scroll.visible = not lad
 	_lad_scroll.visible = lad
-	_fbd.show_program(_program, plc.runtime if monitoring else null)
-	_lad.show_program(_program, plc.runtime if monitoring else null)
+	var testing: bool = _sim_plc != null
+	for b: Button in _language_buttons:
+		b.disabled = monitoring or testing
+	_fbd.show_program(_program, _runtime())
+	_lad.show_program(_program, _runtime())
 	title = tr("%s – PLC program – LadderLab") % component_id
+	_sim_button.visible = not monitoring
+	_sim_button.set_pressed_no_signal(testing)
+	_sim_button.text = tr("Stop simulation") if testing else tr("Simulation")
+	_sim_button.tooltip_text = tr("Test the program on its own: switch the inputs and watch the outputs")
+	_io_bar.visible = testing
 	if monitoring:
 		_mode_label.text = tr("Online: the program running in the simulation (switch to Edit to change it)")
 		_mode_label.add_theme_color_override("font_color", AppTheme.success)
+	elif testing:
+		_mode_label.text = tr("Simulation: switch the inputs below; red is 1, blue is 0")
+		_mode_label.add_theme_color_override("font_color", AppTheme.warning)
 	else:
 		_mode_label.text = tr("Editing the program of %s") % component_id
 		_mode_label.remove_theme_color_override("font_color")
@@ -244,21 +330,12 @@ func _build_palette() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.text = "%s   %s" % [entry["symbol"], tr(entry["title"])]
-		b.disabled = monitoring and entry["id"] != ""
+		b.disabled = (monitoring or _sim_plc != null) and entry["id"] != ""
 		b.button_pressed = entry["id"] == _canvas().tool
 		var id: String = entry["id"]
 		b.pressed.connect(func() -> void: _set_tool(id))
 		_palette.add_child(b)
 		_tool_buttons[id] = b
-	if _canvas() == _lad and not monitoring:
-		_palette.add_child(HSeparator.new())
-		var add: Button = Button.new()
-		add.icon = AppTheme.icon("plus")
-		add.text = tr("Add network")
-		add.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		add.focus_mode = Control.FOCUS_NONE
-		add.pressed.connect(func() -> void: _lad.add_network())
-		_palette.add_child(add)
 	_update_status()
 
 
@@ -270,16 +347,17 @@ func _set_tool(id: String) -> void:
 
 
 func _update_status() -> void:
-	if monitoring:
-		_status.text = tr("Click an element to see its state. Ctrl+wheel zooms.")
+	var view: String = tr("Middle or right drag (or Space+drag) pans, Ctrl+wheel zooms.")
+	if monitoring or _sim_plc != null:
+		_status.text = tr("Click an element to see its state.") + " " + view
 	elif _canvas() == _fbd:
 		if _canvas().tool.is_empty():
-			_status.text = tr("Drag from a block's output (right) to an input (left) to connect them. Right click an input to remove its connection. Delete removes the selected block.")
+			_status.text = tr("Drag an output (right) to an input (left) to connect; drag on empty paper to select several blocks.") + " " + view
 		else:
 			_status.text = tr("Click to place the block. Esc or a right click ends placing.")
 	else:
 		if _canvas().tool.is_empty():
-			_status.text = tr("Click an element to select it, a network's title to select the network. Delete removes the selection.")
+			_status.text = tr("Click a place to select it; Delete removes it, Insert puts an empty row above it.") + " " + view
 		elif _canvas().tool == "link":
 			_status.text = tr("Click a cell to link its right side with the row below (click again to remove the link).")
 		else:
@@ -310,7 +388,7 @@ func _build_side() -> void:
 		for op: String in choices:
 			option.add_item(op)
 		option.select(choices.find(info["operand"]))
-		option.disabled = monitoring
+		option.disabled = monitoring or _sim_plc != null
 		option.item_selected.connect(func(i: int) -> void: canvas.set_property("operand", choices[i]))
 		_side.add_child(option)
 	if info.has("time"):
@@ -326,13 +404,29 @@ func _build_side() -> void:
 		_side.add_child(_live)
 	if not str(info.get("help", "")).is_empty():
 		_note(tr(info["help"]))
-	if not monitoring:
+	if not monitoring and _sim_plc == null:
 		var delete: Button = Button.new()
 		delete.icon = AppTheme.icon("delete")
 		delete.text = tr("Delete")
 		delete.focus_mode = Control.FOCUS_NONE
 		delete.pressed.connect(func() -> void: canvas.delete_selection())
 		_side.add_child(delete)
+		if info.get("rows", false):
+			var rows: HBoxContainer = HBoxContainer.new()
+			var insert: Button = Button.new()
+			insert.text = tr("Insert row")
+			insert.icon = AppTheme.icon("plus")
+			insert.tooltip_text = tr("An empty row above this one (Insert)")
+			insert.focus_mode = Control.FOCUS_NONE
+			insert.pressed.connect(func() -> void: _lad.insert_row())
+			rows.add_child(insert)
+			var remove: Button = Button.new()
+			remove.text = tr("Delete row")
+			remove.icon = AppTheme.icon("delete")
+			remove.focus_mode = Control.FOCUS_NONE
+			remove.pressed.connect(func() -> void: _lad.delete_row())
+			rows.add_child(remove)
+			_side.add_child(rows)
 
 
 func _caption(value: String) -> void:
@@ -357,12 +451,49 @@ func _spin(value: float, low: float, high: float, step: float, on_change: Callab
 	spin.max_value = high
 	spin.step = step
 	spin.value = value
-	spin.editable = not monitoring
+	spin.editable = not monitoring and _sim_plc == null
 	spin.value_changed.connect(on_change)
 	return spin
 
 
 # --- Changes -----------------------------------------------------------------------
+
+## Starts ([param on]) or stops testing the program on its own.
+func _set_test_simulation(on: bool) -> void:
+	if on and not monitoring:
+		_sim_plc = Plc.new(component_id, _program.duplicate_program())
+		_sim_time = 0.0
+		_canvas().tool = ""
+		_sim_plc.update(true, _input_bits())
+		_sim_plc.snap()
+	else:
+		_sim_plc = null
+		for switch: Button in _input_switches:
+			switch.set_pressed_no_signal(false)
+	_show()
+
+
+## Bits of the input switches that are on.
+func _input_bits() -> int:
+	var bits: int = 0
+	for k: int in _input_switches.size():
+		if _input_switches[k].button_pressed:
+			bits |= 1 << k
+	return bits
+
+
+func _feed_inputs() -> void:
+	if _sim_plc != null:
+		_sim_plc.update(true, _input_bits())
+		_sim_plc.snap()
+		show_step()
+
+
+## Paints an output lamp of the test simulation lit or dark.
+func _light(lamp: Panel, on: bool) -> void:
+	lamp.add_theme_stylebox_override("panel", AppTheme.box(Color("ffb000") if on else AppTheme.bg2, 6, 0.0, 0.0, AppTheme.border, 1))
+	(lamp.get_child(0) as Label).add_theme_color_override("font_color", Color("1d1f22") if on else AppTheme.text_muted)
+
 
 func _on_language(language: int) -> void:
 	if monitoring or _program.language == language:
@@ -373,7 +504,7 @@ func _on_language(language: int) -> void:
 
 
 func _on_canvas_changed() -> void:
-	if monitoring:
+	if monitoring or _sim_plc != null:
 		return
 	_canvas().update_size()
 	program_edited.emit(component_id, _program.to_data())
