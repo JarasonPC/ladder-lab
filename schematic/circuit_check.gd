@@ -15,9 +15,13 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 		connected[wire[0]] = true
 		connected[wire[1]] = true
 	var contact_designations: Dictionary[String, bool] = {}
+	var connector_labels: Dictionary[String, int] = {}
 	for c: CircuitComponent in circuit.get_components():
 		if c is Contact or c is ChangeoverContact or c is MainContacts:
 			contact_designations[c.designation] = true
+		if c is PageConnector:
+			var label: String = (c as PageConnector).label
+			connector_labels[label] = connector_labels.get(label, 0) + 1
 
 	for c: CircuitComponent in circuit.get_components():
 		if c is PowerSupply:
@@ -45,6 +49,13 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 		if c is Coil and not contact_designations.has(c.designation):
 			issues.append(_issue("Coil %s has no contacts.", [c.designation], [c.id]))
 		if c is Junction:
+			continue
+		if c is PageConnector:
+			var link: String = (c as PageConnector).label
+			if not connected.has(c.designation):
+				issues.append(_issue("Page connector %s is not connected to a wire.", [link], [c.id]))
+			elif link.is_empty() or connector_labels[link] < 2:
+				issues.append(_issue("Page connector %s does not continue anywhere: no other page connector has its label.", [link], [c.id]))
 			continue
 		var keys: PackedStringArray = c.get_terminal_keys()
 		if c is ThreePhaseMotor:

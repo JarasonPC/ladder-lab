@@ -59,6 +59,8 @@ func show_component(component: CircuitComponent) -> void:
 			_choice(tr("Conductor"), "conductor", Array(DocumentSerializer.CONDUCTORS), ["L / L1", "N", "L2", "L3", tr("+ (DC)"), tr("- (DC)")])
 		"junction":
 			_note(tr("Wire junction"), "MutedLabel")
+		"connector":
+			_note(tr("The wire continues on another page: it is joined to every page connector with the same label (usually the wire number). Right click it to go there."), "MutedLabel")
 		"push_button", "latching_switch", "limit_switch", "contact":
 			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO (make)"), tr("NC (break)")])
 			_number(tr("Contact number"), "sequence", 1, 9, 1)

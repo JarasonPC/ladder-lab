@@ -592,9 +592,6 @@ msgstr ""
 msgid "Save as…"
 msgstr ""
 
-msgid "Export PNG…"
-msgstr ""
-
 msgid "Quit"
 msgstr ""
 
@@ -960,4 +957,83 @@ msgstr ""
 msgid "Drag to share the width between the chart and the event log"
 
 msgid "Bridge rectifier"
+
+msgid "Direct-on-line start 3~ on three pages"
+msgstr ""
+
+msgid "Power section"
+msgstr ""
+
+msgid "Control section"
+msgstr ""
+
+msgid "Signalling section"
+msgstr ""
+
+msgid "Page connector"
+msgstr ""
+
+msgid "The wire continues on another page: it is joined to every page connector with the same label (usually the wire number). Right click it to go there."
+msgstr ""
+
+#, c-format
+msgid "Page connector %s is not connected to a wire."
+msgstr ""
+
+#, c-format
+msgid "Page connector %s does not continue anywhere: no other page connector has its label."
+msgstr ""
+
+#, c-format
+msgid "Go to page %d (%s)"
+msgstr ""
+
+#, c-format
+msgid "Page %d"
+msgstr ""
+
+msgid "Page"
+msgstr ""
+
+msgid "Add a page"
+msgstr ""
+
+msgid "Empty page"
+msgstr ""
+
+msgid "Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more"
+msgstr ""
+
+msgid "Rename page"
+msgstr ""
+
+msgid "Rename"
+msgstr ""
+
+msgid "Rename…"
+msgstr ""
+
+msgid "Move left"
+msgstr ""
+
+msgid "Move right"
+msgstr ""
+
+msgid "Delete page"
+msgstr ""
+
+msgid "Removes the page with everything drawn on it (Ctrl+Z brings it back)"
+msgstr ""
+
+#, c-format
+msgid "Title of page %d:"
+msgstr ""
+
+msgid "Export page as PNG…"
+msgstr ""
+
+msgid "Export all pages as PDF…"
+msgstr ""
+
+msgid "Export PDF"
 msgstr ""

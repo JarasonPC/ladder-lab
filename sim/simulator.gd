@@ -52,6 +52,8 @@ const _EDGE_LOAD: int = 2
 const _EDGE_VIRTUAL: int = 3
 ## Rectifier output joined to its DC conductor node (ref: rectifier index).
 const _EDGE_OUTPUT: int = 4
+## Page connectors with the same label (see [method Circuit.get_links]).
+const _EDGE_LINK: int = 5
 
 var circuit: Circuit
 var mode: Mode = Mode.IDEAL
@@ -102,6 +104,8 @@ var _relay_overcurrent: PackedByteArray = PackedByteArray()
 var _short: bool = false
 ## Terminal index (into the current-flow graph) of every terminal key.
 var _terminal_index: Dictionary[String, int] = {}
+## Terminal pairs joined by page connectors (see [method Circuit.get_links]).
+var _links: Array[PackedStringArray] = []
 ## Realistic mode: times at which each coil (by designation) switched recently.
 var _toggles: Dictionary[String, PackedFloat64Array] = {}
 var _chattering: Dictionary[String, bool] = {}
@@ -165,6 +169,10 @@ func _build() -> void:
 	for w: int in wires.size():
 		if not circuit.broken_wires.has(w):
 			uf.union(index[wires[w][0]], index[wires[w][1]])
+	# Page connectors with the same label join their pages.
+	_links = circuit.get_links()
+	for link: PackedStringArray in _links:
+		uf.union(index[link[0]], index[link[1]])
 
 	var net_of_root: Dictionary[int, int] = {}
 	_net_of_key.clear()
@@ -882,6 +890,9 @@ func _current_graph(include_loads: bool, feeding: Dictionary[int, bool]) -> Dict
 	for i: int in wires.size():
 		if not circuit.broken_wires.has(i):
 			add.call(_terminal_index[wires[i][0]], _terminal_index[wires[i][1]], _EDGE_WIRE, i)
+	# Page connectors with the same label: joined like a wire, not drawn.
+	for link: PackedStringArray in _links:
+		add.call(_terminal_index[link[0]], _terminal_index[link[1]], _EDGE_LINK, -1)
 	for i: int in _switches.size():
 		if _switch_closed(i):
 			add.call(_switch_terms[2 * i], _switch_terms[2 * i + 1], _EDGE_SWITCH, i)

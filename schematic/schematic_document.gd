@@ -3,6 +3,12 @@ extends RefCounted
 ## A circuit together with its drawing: where each component sits and how each
 ## wire is routed. Wire routes are kept in the same order as
 ## [method Circuit.get_wires].
+##
+## The drawing has one or more pages (e.g. power circuit, control circuit,
+## signalling): every component sits on one page, a wire joins terminals of
+## one page, and [PageConnector]s with the same label join the pages. The
+## queries for the drawing (bounds, component_at, current_paths, ...) look at
+## the current [member page]; new components are added to it.
 
 ## Display name of the schematic (English source text, translated by the UI).
 var title: String
@@ -15,6 +21,13 @@ var realistic_timing: bool = true
 ## Operator panel: control boxes with the buttons, switches and signal lamps
 ## of the circuit (see [ControlBox]).
 var control_boxes: Array[ControlBox] = []
+## Titles of the pages, e.g. "Power section" (shown translated, like
+## [member title]); "" for an untitled page.
+var pages: PackedStringArray = PackedStringArray([""])
+## Index of the page shown and edited.
+var page: int = 0:
+	set(value):
+		page = clampi(value, 0, pages.size() - 1)
 
 var _placements: Dictionary[String, Placement] = {}
 var _routes: Array[WireRoute] = []
@@ -29,6 +42,7 @@ func add(component: CircuitComponent, cell: Vector2i, rotation: int = 0, mirrore
 	if circuit.add(component) == null:
 		return null
 	_placements[component.id] = Placement.new(cell, rotation, mirrored)
+	_placements[component.id].page = page
 	return component
 
 
@@ -84,36 +98,38 @@ func component_body(component: CircuitComponent) -> Rect2:
 	return r
 
 
-## Topmost component whose body contains [param point] (grid units), or null.
+## Topmost component of the current page whose body contains [param point] (grid units), or null.
 func component_at(point: Vector2) -> CircuitComponent:
 	var components: Array[CircuitComponent] = circuit.get_components()
 	for i: int in range(components.size() - 1, -1, -1):
-		if component_body(components[i]).has_point(point):
+		if _placements[components[i].id].page == page and component_body(components[i]).has_point(point):
 			return components[i]
 	return null
 
 
-## Bounding box of all symbols and wires, in grid units.
-func bounds() -> Rect2:
+## Bounding box of all symbols and wires of page [param on_page] (-1: the
+## current page), in grid units.
+func bounds(on_page: int = -1) -> Rect2:
 	var r: Rect2 = Rect2()
 	var first: bool = true
-	for c: CircuitComponent in circuit.get_components():
+	for c: CircuitComponent in components_on_page(on_page):
 		var body: Rect2 = component_body(c)
 		r = body if first else r.merge(body)
 		first = false
-	for w: int in _routes.size():
+	for w: int in wires_on_page(on_page):
 		for p: Vector2i in wire_points(w):
 			r = r.expand(Vector2(p))
 	return r
 
 
-## Grid positions of the numbered current paths: x of each column when the
-## drawing is vertical, y of each row when it is horizontal. Every two-terminal
-## symbol marks the midpoint between its terminals; positions closer than
-## [param merge] cells count as one path.
-func current_paths(merge: float = 2.0) -> PackedFloat32Array:
+## Grid positions of the numbered current paths of page [param on_page] (-1:
+## the current page): x of each column when the drawing is vertical, y of each
+## row when it is horizontal. Every two-terminal symbol marks the midpoint
+## between its terminals; positions closer than [param merge] cells count as
+## one path.
+func current_paths(merge: float = 2.0, on_page: int = -1) -> PackedFloat32Array:
 	var coordinates: Array[float] = []
-	for c: CircuitComponent in circuit.get_components():
+	for c: CircuitComponent in components_on_page(on_page):
 		var keys: PackedStringArray = c.get_terminal_keys()
 		if keys.size() < 2:
 			continue
@@ -138,14 +154,14 @@ func current_paths(merge: float = 2.0) -> PackedFloat32Array:
 	return paths
 
 
-## Cells where three or more wire or lead directions meet at a wire's end or
+## Cells of the current page where three or more wire or lead directions meet at a wire's end or
 ## corner, drawn as dots (a plain crossing is not a connection).
 func junction_cells() -> Array[Vector2i]:
 	var directions: Dictionary[Vector2i, int] = {}
 	# Cells where a wire starts, ends or turns: only there do wires connect.
 	# Two wires merely crossing each other get no dot.
 	var vertices: Dictionary[Vector2i, bool] = {}
-	for i: int in _routes.size():
+	for i: int in wires_on_page():
 		var points: Array[Vector2i] = wire_points(i)
 		for p: Vector2i in points:
 			vertices[p] = true
@@ -166,7 +182,7 @@ func junction_cells() -> Array[Vector2i]:
 				if cell == b:
 					break
 				cell += unit
-	for c: CircuitComponent in circuit.get_components():
+	for c: CircuitComponent in components_on_page():
 		var p: Placement = _placements[c.id]
 		var names: PackedStringArray = c.get_terminal_names()
 		var keys: PackedStringArray = c.get_terminal_keys()
@@ -199,6 +215,166 @@ func transpose() -> void:
 		for i: int in route.corners.size():
 			route.corners[i] = Vector2i(route.corners[i].y, route.corners[i].x)
 	horizontal = not horizontal
+
+
+# --- Pages -------------------------------------------------------------------
+
+## Page a component is drawn on.
+func page_of(component_id: String) -> int:
+	return _placements[_id(component_id)].page
+
+
+## Page wire [param index] is drawn on (that of its terminals).
+func wire_page(index: int) -> int:
+	return _placements[circuit.get_terminal_owner(circuit.get_wires()[index][0]).id].page
+
+
+## Components drawn on page [param on_page] (-1: the current page).
+func components_on_page(on_page: int = -1) -> Array[CircuitComponent]:
+	var p: int = page if on_page < 0 else on_page
+	var result: Array[CircuitComponent] = []
+	for c: CircuitComponent in circuit.get_components():
+		if _placements[c.id].page == p:
+			result.append(c)
+	return result
+
+
+## Indices of the wires drawn on page [param on_page] (-1: the current page).
+func wires_on_page(on_page: int = -1) -> PackedInt32Array:
+	var p: int = page if on_page < 0 else on_page
+	var result: PackedInt32Array = PackedInt32Array()
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		if _placements[circuit.get_terminal_owner(wires[i][0]).id].page == p:
+			result.append(i)
+	return result
+
+
+## Inserts a page titled [param page_title] at [param at] (-1: after the last
+## one). Returns its index; the current page stays the same page.
+func add_page(page_title: String, at: int = -1) -> int:
+	var index: int = pages.size() if at < 0 or at > pages.size() else at
+	for p: Placement in _placements.values():
+		if p.page >= index:
+			p.page += 1
+	var shown: int = page + 1 if page >= index else page
+	pages.insert(index, page_title.strip_edges())
+	page = shown
+	return index
+
+
+func rename_page(index: int, page_title: String) -> void:
+	if index >= 0 and index < pages.size():
+		pages[index] = page_title.strip_edges()
+
+
+## Removes page [param index] with everything drawn on it. The last page
+## cannot be removed. Returns false when nothing was removed.
+func remove_page(index: int) -> bool:
+	if pages.size() <= 1 or index < 0 or index >= pages.size():
+		return false
+	for c: CircuitComponent in components_on_page(index):
+		if circuit.has_component_id(c.id):
+			remove_component(c.id)
+	for p: Placement in _placements.values():
+		if p.page > index:
+			p.page -= 1
+	var shown: int = page - 1 if page > index else page
+	pages.remove_at(index)
+	page = shown
+	return true
+
+
+## Moves page [param index] to place [param to] (clamped); the current page
+## moves along.
+func move_page(index: int, to: int) -> void:
+	if index < 0 or index >= pages.size():
+		return
+	to = clampi(to, 0, pages.size() - 1)
+	if to == index:
+		return
+	var order: Array[int] = []
+	for i: int in pages.size():
+		order.append(i)
+	order.remove_at(index)
+	order.insert(to, index)
+	var new_index: PackedInt32Array = PackedInt32Array()
+	new_index.resize(pages.size())
+	var titles: PackedStringArray = PackedStringArray()
+	for i: int in order.size():
+		new_index[order[i]] = i
+		titles.append(pages[order[i]])
+	pages = titles
+	for p: Placement in _placements.values():
+		p.page = new_index[p.page]
+	page = new_index[page]
+
+
+## Title of page [param index] as shown: its title, else [param untitled]
+## formatted with the page number (e.g. "Page %d").
+func page_name(index: int, untitled: String = "Page %d") -> String:
+	return pages[index] if not pages[index].is_empty() else untitled % (index + 1)
+
+
+## Number (from 1) of the current path of page [param on_page] nearest to the
+## grid coordinate [param at] (x when vertical, y when horizontal), or 0 when
+## the page has none.
+func path_number(on_page: int, at: float) -> int:
+	var paths: PackedFloat32Array = current_paths(2.0, on_page)
+	var best: int = 0
+	for i: int in paths.size():
+		if best == 0 or absf(paths[i] - at) < absf(paths[best - 1] - at):
+			best = i + 1
+	return best
+
+
+## Where page connector [param component_id] continues: the other connectors
+## with the same label as {"page": index, "path": number (0: none), "id": id},
+## in page order.
+func connector_targets(component_id: String) -> Array[Dictionary]:
+	var me: CircuitComponent = circuit.get_component(component_id)
+	var result: Array[Dictionary] = []
+	if not (me is PageConnector) or (me as PageConnector).label.is_empty():
+		return result
+	for c: CircuitComponent in circuit.get_components():
+		if c == me or not (c is PageConnector) or (c as PageConnector).label != (me as PageConnector).label:
+			continue
+		var p: Placement = _placements[c.id]
+		result.append({"page": p.page, "path": path_number(p.page, float(p.cell.y if horizontal else p.cell.x)), "id": c.id})
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["page"] < b["page"] or (a["page"] == b["page"] and a["path"] < b["path"]))
+	return result
+
+
+## Cross reference written at page connector [param component_id]: where
+## it continues, as "/page.path" per connector (e.g. "/2.4"), or "".
+func connector_reference(component_id: String) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	for target: Dictionary in connector_targets(component_id):
+		parts.append("/%d.%d" % [target["page"] + 1, target["path"]] if target["path"] > 0 else "/%d" % (target["page"] + 1))
+	return ", ".join(parts)
+
+
+## Label for a new page connector: that of a connector on another page that
+## has no partner yet (the new one continues it), else a free number.
+func next_connector_label() -> String:
+	var count: Dictionary[String, int] = {}
+	var page_of_label: Dictionary[String, int] = {}
+	var highest: int = 0
+	for c: CircuitComponent in circuit.get_components():
+		if c is PageConnector:
+			var label: String = (c as PageConnector).label
+			count[label] = count.get(label, 0) + 1
+			page_of_label[label] = _placements[c.id].page
+			if label.is_valid_int():
+				highest = maxi(highest, int(label))
+	for label: String in count:
+		if not label.is_empty() and count[label] == 1 and page_of_label[label] != page:
+			return label
+	for route: WireRoute in _routes:
+		if route.number.is_valid_int():
+			highest = maxi(highest, int(route.number))
+	return str(highest + 1)
 
 
 # --- Editing -----------------------------------------------------------------
@@ -268,7 +444,8 @@ static func _simplify_path(points: Array[Vector2i]) -> Array[Vector2i]:
 
 
 ## Wires of the net of wire [param index]: all wires joined to it through
-## shared terminals (junctions, terminal blocks, component terminals).
+## shared terminals (junctions, terminal blocks, component terminals) and
+## page connectors, on any page.
 func wire_net(index: int) -> PackedInt32Array:
 	var wires: Array[PackedStringArray] = circuit.get_wires()
 	var by_key: Dictionary[String, PackedInt32Array] = {}
@@ -277,13 +454,29 @@ func wire_net(index: int) -> PackedInt32Array:
 			if not by_key.has(key):
 				by_key[key] = PackedInt32Array()
 			by_key[key].append(i)
+	# Page connectors with the same label carry the net on to other pages.
+	var linked: Dictionary[String, PackedStringArray] = {}
+	for link: PackedStringArray in circuit.get_links():
+		for end: int in 2:
+			if not linked.has(link[end]):
+				linked[link[end]] = PackedStringArray()
+			linked[link[end]].append(link[1 - end])
 	var seen: Dictionary[int, bool] = {index: true}
+	var seen_keys: Dictionary[String, bool] = {}
 	var queue: PackedInt32Array = PackedInt32Array([index])
 	while not queue.is_empty():
 		var w: int = queue[queue.size() - 1]
 		queue.remove_at(queue.size() - 1)
-		for key: String in wires[w]:
-			for other: int in by_key[key]:
+		var keys: PackedStringArray = wires[w].duplicate()
+		var k: int = 0
+		while k < keys.size():
+			var key: String = keys[k]
+			k += 1
+			if seen_keys.has(key):
+				continue
+			seen_keys[key] = true
+			keys.append_array(linked.get(key, PackedStringArray()))
+			for other: int in by_key.get(key, PackedInt32Array()):
 				if not seen.has(other):
 					seen[other] = true
 					queue.append(other)
@@ -292,30 +485,46 @@ func wire_net(index: int) -> PackedInt32Array:
 	return result
 
 
-## Gives the whole net of wire [param index] the number [param number].
+## Gives the whole net of wire [param index] the number [param number]; its
+## page connectors take the number as their label (an empty number leaves
+## them as they are).
 func set_wire_number(index: int, number: String) -> void:
-	for w: int in wire_net(index):
+	var net: PackedInt32Array = wire_net(index)
+	for w: int in net:
 		_routes[w].number = number.strip_edges()
+	if not number.strip_edges().is_empty():
+		_label_connectors(net, number.strip_edges())
+
+
+## Gives the page connectors on the wires [param net] the label [param label].
+func _label_connectors(net: PackedInt32Array, label: String) -> void:
+	for w: int in net:
+		for key: String in circuit.get_wires()[w]:
+			var owner: CircuitComponent = circuit.get_terminal_owner(key)
+			if owner is PageConnector and (owner as PageConnector).label != label:
+				circuit.set_connector_label(owner as PageConnector, label)
 
 
 ## Wires up to this long (in cells) show their number only once, in the middle.
 const SHORT_WIRE: float = 2.0
 
 
-## Wire ends that show their wire number, as Vector2i(wire, end): ends on
-## components and terminal blocks (not junctions), one per terminal; a short
+## Wire ends of the current page that show their wire number, as
+## Vector2i(wire, end): ends on components and terminal blocks (not junctions
+## or page connectors, which show it themselves), one per terminal; a short
 ## wire shows its number once.
 func wire_number_ends() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var written: Dictionary[String, bool] = {}
 	var wires: Array[PackedStringArray] = circuit.get_wires()
-	for w: int in wires.size():
+	for w: int in wires_on_page():
 		if _routes[w].number.is_empty() or _path_length(w) == 0.0:
 			continue
 		var ends: Array[int] = []
 		for end: int in 2:
 			var key: String = wires[w][end]
-			if not (circuit.get_terminal_owner(key) is Junction) and not written.has(key):
+			var owner: CircuitComponent = circuit.get_terminal_owner(key)
+			if not (owner is Junction or owner is PageConnector) and not written.has(key):
 				written[key] = true
 				ends.append(end)
 		if ends.size() == 2 and _path_length(w) <= SHORT_WIRE:
@@ -370,8 +579,10 @@ func _path_length(index: int) -> float:
 	return length
 
 
-## Numbers every net from [param first] on, in drawing order (current path by
-## current path); nets fed straight from a supply (L, N, ...) stay unnumbered.
+## Numbers every net from [param first] on, in drawing order (page by page,
+## current path by current path); nets fed straight from a supply (L, N, ...)
+## stay unnumbered. A net running over several pages (through page
+## connectors) gets one number, which its connectors take as their label.
 func number_wires(first: int = 1) -> void:
 	var done: Dictionary[int, bool] = {}
 	var nets: Array[PackedInt32Array] = []
@@ -381,18 +592,17 @@ func number_wires(first: int = 1) -> void:
 			for w: int in net:
 				done[w] = true
 			nets.append(net)
-	var order: Callable = func(net: PackedInt32Array) -> Vector2i:
-		var best: Vector2i = Vector2i(2147483647, 2147483647)
+	var order: Callable = func(net: PackedInt32Array) -> Vector3i:
+		var best: Vector3i = Vector3i(2147483647, 2147483647, 2147483647)
 		for w: int in net:
+			var on_page: int = wire_page(w)
 			for p: Vector2i in wire_points(w):
-				var k: Vector2i = Vector2i(p.y, p.x) if horizontal else p
-				if k.x < best.x or (k.x == best.x and k.y < best.y):
+				var k: Vector3i = Vector3i(on_page, p.y, p.x) if horizontal else Vector3i(on_page, p.x, p.y)
+				if k < best:
 					best = k
 		return best
 	nets.sort_custom(func(a: PackedInt32Array, b: PackedInt32Array) -> bool:
-		var ka: Vector2i = order.call(a)
-		var kb: Vector2i = order.call(b)
-		return ka.x < kb.x or (ka.x == kb.x and ka.y < kb.y))
+		return order.call(a) < order.call(b))
 	var n: int = first
 	for net: PackedInt32Array in nets:
 		var supplied: bool = false
@@ -403,6 +613,7 @@ func number_wires(first: int = 1) -> void:
 		for w: int in net:
 			_routes[w].number = "" if supplied else str(n)
 		if not supplied:
+			_label_connectors(net, str(n))
 			n += 1
 
 
@@ -570,6 +781,7 @@ func split_wire(index: int, cell: Vector2i, point: CircuitComponent = null) -> S
 	# A new junction, or the given single-terminal component (a terminal block).
 	var junction: CircuitComponent = point if point != null else Junction.new(next_designation("J"))
 	add(junction, cell)
+	_placements[junction.id].page = wire_page(index)
 	var corners_a: Array[Vector2i] = points.slice(1, segment)
 	var corners_b: Array[Vector2i] = points.slice(segment, points.size() - 1)
 	if not corners_a.is_empty() and corners_a[corners_a.size() - 1] == cell:
@@ -774,12 +986,12 @@ static func orthogonalize(points: Array[Vector2i], start_axis: int = AXIS_NONE, 
 
 # --- Queries for the editor ----------------------------------------------------
 
-## Key of the terminal nearest to [param point] (grid units) within
-## [param radius], or "".
+## Key of the terminal of the current page nearest to [param point] (grid
+## units) within [param radius], or "".
 func terminal_at(point: Vector2, radius: float = 0.4) -> String:
 	var best: String = ""
 	var best_distance: float = radius
-	for c: CircuitComponent in circuit.get_components():
+	for c: CircuitComponent in components_on_page():
 		for key: String in c.get_terminal_keys():
 			var d: float = point.distance_to(Vector2(terminal_cell(key)))
 			if d <= best_distance:
@@ -788,11 +1000,12 @@ func terminal_at(point: Vector2, radius: float = 0.4) -> String:
 	return best
 
 
-## Index of the wire nearest to [param point] within [param tolerance], or -1.
+## Index of the wire of the current page nearest to [param point] within
+## [param tolerance], or -1.
 func wire_at(point: Vector2, tolerance: float = 0.3) -> int:
 	var best: int = -1
 	var best_distance: float = tolerance
-	for i: int in _routes.size():
+	for i: int in wires_on_page():
 		var points: Array[Vector2i] = wire_points(i)
 		for s: int in range(1, points.size()):
 			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(point, Vector2(points[s - 1]), Vector2(points[s]))

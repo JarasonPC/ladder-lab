@@ -21,7 +21,9 @@ const FORMAT: String = "ladder-lab"
 ## 11: DC supply points + / - (conductor "+" / "-"), run-down and DC
 ## braking times of three-phase motors (missing before: defaults), bridge
 ## rectifiers ("rectifier").
-const VERSION: int = 11
+## 12: pages (titles, the page of each component, the page shown) and page
+## connectors (missing before: one untitled page).
+const VERSION: int = 12
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

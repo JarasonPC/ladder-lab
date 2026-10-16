@@ -405,6 +405,34 @@ static func build() -> Theme:
 	status.border_width_top = 1
 	t.set_type_variation("Statusbar", "PanelContainer")
 	t.set_stylebox("panel", "Statusbar", status)
+	# Page tabs above the schematic.
+	var page_bar: StyleBoxFlat = box(bg0, 0, 8.0, 0.0)
+	page_bar.content_margin_top = 4.0
+	page_bar.border_color = border
+	page_bar.border_width_bottom = 1
+	t.set_type_variation("PageBar", "PanelContainer")
+	t.set_stylebox("panel", "PageBar", page_bar)
+	# The shown page: lifted onto the panel colour, with an accent line on top.
+	var tab_selected: StyleBoxFlat = box(bg1, RADIUS, 12.0, 5.0)
+	tab_selected.corner_radius_bottom_left = 0
+	tab_selected.corner_radius_bottom_right = 0
+	tab_selected.border_color = accent
+	tab_selected.border_width_top = 2
+	t.set_stylebox("tab_selected", "TabBar", tab_selected)
+	t.set_stylebox("tab_unselected", "TabBar", box(Color.TRANSPARENT, RADIUS, 12.0, 5.0))
+	t.set_stylebox("tab_hovered", "TabBar", box(bg2, RADIUS, 12.0, 5.0))
+	t.set_stylebox("tab_disabled", "TabBar", box(Color.TRANSPARENT, RADIUS, 12.0, 5.0))
+	t.set_stylebox("tab_focus", "TabBar", none)
+	t.set_stylebox("button_pressed", "TabBar", box(bg2))
+	t.set_stylebox("button_highlight", "TabBar", box(bg2))
+	t.set_color("font_selected_color", "TabBar", text)
+	t.set_color("font_unselected_color", "TabBar", text_muted)
+	t.set_color("font_hovered_color", "TabBar", text)
+	t.set_color("font_disabled_color", "TabBar", text_faint)
+	t.set_color("drop_mark_color", "TabBar", accent)
+	t.set_constant("h_separation", "TabBar", 6)
+	t.set_icon("increment", "TabBar", icon("chevron_right", 14, text_muted))
+	t.set_icon("decrement", "TabBar", icon("arrow_left", 14, text_muted))
 	var bottom: StyleBoxFlat = box(bg1, 0, 12.0, 8.0)
 	bottom.border_color = border
 	bottom.border_width_top = 1

@@ -595,9 +595,6 @@ msgstr "Otevřít nedávné"
 msgid "Save as…"
 msgstr "Uložit jako…"
 
-msgid "Export PNG…"
-msgstr "Exportovat PNG…"
-
 msgid "Quit"
 msgstr "Ukončit"
 
@@ -965,3 +962,83 @@ msgstr "Tažením rozdělíte šířku mezi diagram a záznam událostí"
 
 msgid "Bridge rectifier"
 msgstr "Usměrňovací můstek"
+
+msgid "Direct-on-line start 3~ on three pages"
+msgstr "Přímý rozběh 3~ na třech stránkách"
+
+msgid "Power section"
+msgstr "Silová část"
+
+msgid "Control section"
+msgstr "Ovládací část"
+
+msgid "Signalling section"
+msgstr "Signalizační část"
+
+msgid "Page connector"
+msgstr "Odkaz na stránku"
+
+msgid "The wire continues on another page: it is joined to every page connector with the same label (usually the wire number). Right click it to go there."
+msgstr "Vodič pokračuje na jiné stránce: je spojen se všemi odkazy na stránku se stejným označením (obvykle číslem vodiče). Klikněte na něj pravým tlačítkem a přejděte tam."
+
+#, c-format
+msgid "Page connector %s is not connected to a wire."
+msgstr "Odkaz na stránku %s není připojen k vodiči."
+
+#, c-format
+msgid "Page connector %s does not continue anywhere: no other page connector has its label."
+msgstr "Odkaz na stránku %s nikam nepokračuje: žádný jiný odkaz nemá jeho označení."
+
+#, c-format
+msgid "Go to page %d (%s)"
+msgstr "Přejít na stránku %d (%s)"
+
+#, c-format
+msgid "Page %d"
+msgstr "Stránka %d"
+
+msgid "Page"
+msgstr "Stránka"
+
+msgid "Add a page"
+msgstr "Přidat stránku"
+
+msgid "Empty page"
+msgstr "Prázdná stránka"
+
+msgid "Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more"
+msgstr "Stránky schématu: kliknutím zobrazíte, tažením přeřadíte, dvojklikem přejmenujete, pravým tlačítkem další volby"
+
+msgid "Rename page"
+msgstr "Přejmenovat stránku"
+
+msgid "Rename"
+msgstr "Přejmenovat"
+
+msgid "Rename…"
+msgstr "Přejmenovat…"
+
+msgid "Move left"
+msgstr "Posunout doleva"
+
+msgid "Move right"
+msgstr "Posunout doprava"
+
+msgid "Delete page"
+msgstr "Smazat stránku"
+
+msgid "Removes the page with everything drawn on it (Ctrl+Z brings it back)"
+msgstr "Odstraní stránku se vším, co je na ní nakresleno (Ctrl+Z ji vrátí)"
+
+#, c-format
+msgid "Title of page %d:"
+msgstr "Název stránky %d:"
+
+msgid "Export page as PNG…"
+msgstr "Exportovat stránku jako PNG…"
+
+msgid "Export all pages as PDF…"
+msgstr "Exportovat všechny stránky jako PDF…"
+
+msgid "Export PDF"
+msgstr "Exportovat PDF"

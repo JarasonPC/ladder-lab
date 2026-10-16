@@ -1,6 +1,7 @@
 class_name SchematicView
 extends Node2D
-## Shows a [SchematicDocument]. When [member simulating], runs its simulation:
+## Shows the current page of a [SchematicDocument] (the simulation runs on
+## all pages). When [member simulating], runs its simulation:
 ## push buttons are held with the left mouse button, switches toggle on click.
 ## Otherwise the schematic is shown at rest for editing.
 
@@ -10,6 +11,9 @@ signal stepped(result: StepResult)
 signal event_logged(text: String, args: Array)
 ## A document was loaded (for simulating or for editing).
 signal loaded
+## A page connector was clicked while simulating: show page [param index],
+## centred on its partner [param focus_id].
+signal page_requested(index: int, focus_id: String)
 
 enum FaultId { WELDED, CONTACT_OPEN, COIL_OPEN, COIL_STUCK, OVERLOAD, WIRE_BROKEN, CLEAR, CLEAR_ALL }
 
@@ -67,7 +71,8 @@ func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 	loaded.emit()
 
 
-## Recreates all symbol nodes, e.g. after the document was edited.
+## Recreates all symbol nodes, e.g. after the document was edited or another
+## page was chosen.
 func rebuild() -> void:
 	_set_hovered(null)
 	for child: Node in get_children():
@@ -80,8 +85,10 @@ func rebuild() -> void:
 	_wire_layer.show_numbers = _numbers_visible
 	add_child(_wire_layer)
 	_wire_layer.set_document(document)
-	for c: CircuitComponent in document.circuit.get_components():
+	for c: CircuitComponent in document.components_on_page():
 		var symbol: SchematicSymbol = SymbolFactory.create(c, document.get_placement(c.id))
+		if symbol is PageConnectorSymbol:
+			(symbol as PageConnectorSymbol).reference = document.connector_reference(c.id)
 		add_child(symbol)
 		_symbols[c.id] = symbol
 	_update_visuals()
@@ -216,6 +223,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				(c as LatchingSwitch).toggle()
 				_apply(simulator.step())
 				get_viewport().set_input_as_handled()
+			elif c is PageConnector:
+				var targets: Array[Dictionary] = document.connector_targets(c.id)
+				if not targets.is_empty():
+					page_requested.emit(targets[0]["page"], targets[0]["id"])
+					get_viewport().set_input_as_handled()
 		elif _held != null:
 			_held.release()
 			_held = null
@@ -407,3 +419,9 @@ func _set_hovered(symbol: SchematicSymbol) -> void:
 		_hovered.hovered = true
 		_hovered.queue_redraw()
 	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if _hovered != null else Input.CURSOR_ARROW)
+
+
+## Shows page [param index] of the document.
+func show_page(index: int) -> void:
+	document.page = index
+	rebuild()

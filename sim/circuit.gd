@@ -176,6 +176,30 @@ func connect_terminals(key_a: String, key_b: String) -> bool:
 	return true
 
 
+## Terminals joined without a drawn wire: every [PageConnector] to the first
+## connector with the same label, as pairs of terminal keys.
+func get_links() -> Array[PackedStringArray]:
+	var first: Dictionary[String, String] = {}
+	var links: Array[PackedStringArray] = []
+	for c: CircuitComponent in _components:
+		if not (c is PageConnector):
+			continue
+		var label: String = (c as PageConnector).label
+		if label.is_empty():
+			continue
+		if first.has(label):
+			links.append(PackedStringArray([first[label], c.designation]))
+		else:
+			first[label] = c.designation
+	return links
+
+
+## Renames the link of [param connector] (see [method get_links]).
+func set_connector_label(connector: PageConnector, label: String) -> void:
+	connector.label = label
+	topology_version += 1
+
+
 ## True if a component has exactly this id.
 func has_component_id(component_id: String) -> bool:
 	return _by_id.has(component_id)

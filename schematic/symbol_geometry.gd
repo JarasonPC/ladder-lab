@@ -63,7 +63,7 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 
 
 ## Direction of the symbol lead leaving a terminal, before rotation
-## (0 for supplies, whose symbol has no lead).
+## (0 for supplies and page connectors, whose wire may come from any side).
 static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> int:
 	var names: PackedStringArray = c.get_terminal_names()
 	if _is_three_pole(c):
@@ -90,6 +90,8 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.6, -1.4, 1.2, 1.8)
 	if c is Junction:
 		return Rect2(-0.3, -0.3, 0.6, 0.6)
+	if c is PageConnector:
+		return Rect2(-0.45, -1.35, 0.9, 1.6)
 	if c is TerminalBlock:
 		return Rect2(-0.45, -0.45, 0.9, 0.9)
 	# The others fit what their symbol draws (with a little margin), so

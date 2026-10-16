@@ -76,6 +76,7 @@ func test_wires_do_not_cross_symbol_bodies() -> void:
 	for index: int in ExampleCircuits.count() * 2:
 		var doc: SchematicDocument = ExampleCircuits.build(index / 2, index % 2 == 1)
 		for w: int in doc.get_wire_count():
+			doc.page = doc.wire_page(w)
 			var points: Array[Vector2i] = doc.wire_points(w)
 			for s: int in range(1, points.size()):
 				var a: Vector2 = Vector2(points[s - 1])
