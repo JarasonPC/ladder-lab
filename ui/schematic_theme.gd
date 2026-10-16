@@ -45,6 +45,8 @@ static var TERMINAL_DEAD: Color
 static var PE: Color
 ## Wire numbers at the wire ends.
 static var WIRE_NUMBER: Color
+## Currents written on the wires while simulating.
+static var CURRENT: Color
 
 const LINE_WIDTH: float = 2.0
 const LIVE_WIDTH: float = 2.6
@@ -85,6 +87,7 @@ static func use(dark_paper: bool) -> void:
 		TERMINAL_DEAD = Color("1d1d1d")
 		PE = Color("3c9a3c")
 		WIRE_NUMBER = Color("d0342c")
+		CURRENT = Color("8a5a00")
 	else:
 		BACKGROUND = Color("15181d")
 		GRID_DOT = Color("2a2f38")
@@ -108,6 +111,18 @@ static func use(dark_paper: bool) -> void:
 		TERMINAL_DEAD = Color("c3c9d2")
 		PE = Color("6cc56c")
 		WIRE_NUMBER = Color("ff7b72")
+		CURRENT = Color("ffc857")
+
+
+## A current as written on the drawing: "35 mA", "4.62 A", "48.1 A", "160 A".
+static func amperes(value: float) -> String:
+	if value < 1.0:
+		return "%d mA" % maxi(roundi(value * 1000.0), 1)
+	if value < 10.0:
+		return "%.2f A" % value
+	if value < 100.0:
+		return "%.1f A" % value
+	return "%d A" % roundi(value)
 
 
 ## Highlight colour for a reach code (see [StepResult]); LINE for none.

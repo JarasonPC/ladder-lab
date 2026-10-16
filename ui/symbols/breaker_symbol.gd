@@ -101,6 +101,19 @@ func _draw_shape(_color: Color, _width: float) -> void:
 func _draw_labels() -> void:
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	_draw_pole_labels()
+	# Characteristic and rated current as on the breaker, e.g. "C16".
+	var rating: String
+	var heat: TripCurve
+	if component is MotorBreaker:
+		var multi: MotorBreaker = component as MotorBreaker
+		rating = CircuitBreaker.rating_text(multi.characteristic, multi.rated_current)
+		heat = multi.heat
+	else:
+		var single: CircuitBreaker = component as CircuitBreaker
+		rating = CircuitBreaker.rating_text(single.characteristic, single.rated_current)
+		heat = single.heat
+	draw_label(rating, _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+	draw_heat(heat.progress, _designation_anchor(), 2)
 
 
 ## X of the blade at height [param y] for a blade ending at [param tip].

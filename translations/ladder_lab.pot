@@ -1300,4 +1300,82 @@ msgid "Show the parts as a list with their names"
 msgstr ""
 
 msgid "Show the parts as a grid of symbols"
+
+#, c-format
+msgid "%s up to speed"
+msgstr ""
+
+#, c-format
+msgid "%s tripped (short-circuit release)"
+msgstr ""
+
+#, c-format
+msgid "%s tripped"
+msgstr ""
+
+#, c-format
+msgid "%s blown"
+msgstr ""
+
+msgid "Characteristic"
+msgstr ""
+
+msgid "B (magnetic release 3-5 In)"
+msgstr ""
+
+msgid "C (magnetic release 5-10 In)"
+msgstr ""
+
+msgid "D (magnetic release 10-20 In)"
+msgstr ""
+
+msgid "Rated current In (A)"
+msgstr ""
+
+msgid "Current setting Ir (A)"
+msgstr ""
+
+msgid "Time-current characteristic"
+msgstr ""
+
+msgid "Show rating plate"
+msgstr ""
+
+msgid "Rated power (kW)"
+msgstr ""
+
+msgid "Rated speed (min⁻¹)"
+msgstr ""
+
+msgid "Power factor cos φ"
+msgstr ""
+
+msgid "Starting current Ia / In"
+msgstr ""
+
+msgid "Run-up time (s)"
+msgstr ""
+
+msgid "Simulation"
+msgstr ""
+
+msgid "Voltage view"
+msgstr ""
+
+msgid "Current view"
+msgstr ""
+
+msgid "Voltages"
+msgstr ""
+
+msgid "Currents"
+msgstr ""
+
+msgid "Voltage view: wires coloured by the voltage that reaches them. Current view: only what carries current is coloured, the thicker the more, with the current written on each wire."
+msgstr ""
+
+msgid "Clamp meter: click a wire to clamp it and read its current, click it again to take the meter off"
+msgstr ""
+
+msgid "short"
 msgstr ""

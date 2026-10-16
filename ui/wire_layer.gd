@@ -2,8 +2,11 @@ class_name WireLayer
 extends Node2D
 ## Draws the grid, the wires and junction dots of a page of a
 ## [SchematicDocument] (the current page unless [member page] is set).
-## Wires reached by a phase are drawn in that phase's colour, wires reached by
-## N in the neutral colour; during a short the fault-current path blinks on top.
+## Voltage view: wires reached by a phase are drawn in that phase's colour,
+## wires reached by N in the neutral colour. Current view ([member
+## current_view]): only wires that carry current are coloured, the thicker
+## the more current, with the current written in the middle of their longest
+## segment. During a short the fault-current path blinks on top.
 
 const G: float = float(SymbolGeometry.GRID)
 
@@ -19,6 +22,16 @@ var show_grid: bool = false
 var show_numbers: bool = true
 ## Draw the current path numbers.
 var show_path_numbers: bool = true
+## Current per wire in amperes (see [member StepResult.wire_currents]).
+var wire_currents: PackedFloat32Array = PackedFloat32Array()
+## Current view instead of voltage view.
+var current_view: bool = false
+## Clamp meters: wire index -> grid point (see [member SchematicView.clamps]).
+var clamps: Dictionary[int, Vector2] = {}
+## A short circuit lasts (clamp meters show it instead of a value).
+var short_circuit: bool = false
+## Smallest current shown, amperes.
+const MIN_CURRENT: float = 0.0005
 ## Page drawn; -1: the document's current page.
 var page: int = -1
 
@@ -56,6 +69,8 @@ func _draw() -> void:
 			var code: int = _reach(w)
 			if pass_codes.has(code):
 				var width: float = SchematicTheme.LINE_WIDTH if code == StepResult.REACH_NONE else SchematicTheme.LIVE_WIDTH
+				if current_view and code != StepResult.REACH_NONE:
+					width = current_width(wire_currents[w])
 				draw_polyline(_pixels(w), SchematicTheme.reach_color(code), width)
 	if blink_on:
 		for w: int in fault_wires:
@@ -68,10 +83,81 @@ func _draw() -> void:
 		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell, wires)))
 	if show_numbers:
 		_draw_wire_numbers()
+	if current_view and fault_wires.is_empty():
+		_draw_currents(wires)
+	_draw_clamps(wires)
 	if show_path_numbers:
 		_draw_path_numbers()
 	else:
 		_path_rects.clear()
+
+
+## Clamp meters: jaws around the wire and a display beside them with the
+## current of the wire (in either view).
+func _draw_clamps(wires: PackedInt32Array) -> void:
+	var font: Font = AppTheme.schematic_font()
+	var size: int = 11
+	for w: int in clamps:
+		if not wires.has(w):
+			continue
+		var at: Vector2 = clamps[w] * G
+		var points: Array[Vector2i] = document.wire_points(w)
+		var vertical: bool = false
+		for s: int in range(1, points.size()):
+			var a: Vector2 = Vector2(points[s - 1]) * G
+			var b: Vector2 = Vector2(points[s]) * G
+			if Geometry2D.get_closest_point_to_segment(at, a, b).distance_to(at) < 0.5:
+				vertical = is_equal_approx(a.x, b.x)
+				break
+		# Jaws: a ring open on the side of the display.
+		var side: Vector2 = Vector2(1, 0) if vertical else Vector2(0, -1)
+		var open_angle: float = side.angle()
+		draw_arc(at, 8.0, open_angle + 0.5, open_angle + TAU - 0.5, 24, SchematicTheme.TEXT, 2.5, true)
+		var text: String
+		var color: Color = SchematicTheme.TEXT
+		if fault_wires.has(w):
+			text = tr("short")
+			color = SchematicTheme.FAULT
+		else:
+			text = SchematicTheme.amperes(wire_currents[w]) if w < wire_currents.size() and wire_currents[w] >= MIN_CURRENT else "0.00 A"
+		var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
+		var box_size: Vector2 = text_size + Vector2(10.0, 6.0)
+		var handle: Vector2 = at + side * 8.0
+		var box_at: Vector2 = handle + side * 10.0
+		var box: Rect2 = Rect2(box_at - Vector2(0.0, box_size.y * 0.5), box_size) if vertical else Rect2(box_at - Vector2(box_size.x * 0.5, box_size.y), box_size)
+		draw_line(handle, box_at, SchematicTheme.TEXT, 2.0)
+		draw_rect(box, SchematicTheme.BACKGROUND)
+		draw_rect(box, SchematicTheme.CURRENT, false, 1.5)
+		draw_string(font, box.position + Vector2(5.0, 3.0 + font.get_ascent(size)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+
+
+## Writes the current of every wire carrying one beside its longest segment:
+## right of a vertical one, above a horizontal one.
+func _draw_currents(wires: PackedInt32Array) -> void:
+	var font: Font = AppTheme.schematic_font()
+	var size: int = 9
+	for w: int in wires:
+		if w >= wire_currents.size() or wire_currents[w] < MIN_CURRENT:
+			continue
+		var points: Array[Vector2i] = document.wire_points(w)
+		if points.size() < 2:
+			continue
+		var best: int = 1
+		for s: int in range(1, points.size()):
+			if Vector2(points[s] - points[s - 1]).length() > Vector2(points[best] - points[best - 1]).length():
+				best = s
+		var a: Vector2 = Vector2(points[best - 1]) * G
+		var b: Vector2 = Vector2(points[best]) * G
+		var middle: Vector2 = (a + b) * 0.5
+		var text: String = SchematicTheme.amperes(wire_currents[w])
+		var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
+		var pos: Vector2
+		if is_equal_approx(a.x, b.x):
+			pos = middle + Vector2(4.0, font.get_ascent(size) * 0.5)
+		else:
+			pos = middle + Vector2(-text_size.x * 0.5, -4.0)
+		draw_rect(Rect2(pos - Vector2(1.0, font.get_ascent(size)), text_size + Vector2(2.0, 0.0)), SchematicTheme.BACKGROUND)
+		draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.CURRENT)
 
 
 ## Writes the wire numbers at the wire ends listed by
@@ -159,8 +245,20 @@ func _draw_path_numbers() -> void:
 		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.PATH_TEXT)
 
 
+## Line width of a wire carrying [param amperes] in the current view: from
+## the live width at a few milliamperes to about twice it at 100 A.
+static func current_width(amperes: float) -> float:
+	var decades: float = clampf(log(maxf(amperes, 0.001) / 0.01) / log(10.0), 0.0, 4.0)
+	return SchematicTheme.LIVE_WIDTH + decades * 0.7
+
+
+## Reach code of a wire as drawn: in the current view only while it carries current.
 func _reach(wire_index: int) -> int:
-	return wire_reach[wire_index] if wire_index < wire_reach.size() else StepResult.REACH_NONE
+	if wire_index >= wire_reach.size():
+		return StepResult.REACH_NONE
+	if current_view and (wire_index >= wire_currents.size() or wire_currents[wire_index] < MIN_CURRENT) and not fault_wires.has(wire_index):
+		return StepResult.REACH_NONE
+	return wire_reach[wire_index]
 
 
 ## Reach code of the [param wires] through a junction cell (they all share one net).

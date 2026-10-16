@@ -6,6 +6,10 @@ extends CircuitComponent
 var energized: bool = false
 var _terminals: PackedStringArray
 
+## Current drawn at the nominal voltage (230 V AC between a phase and N, or
+## the DC supply), amperes; more between two phases.
+const RATED_DRAW: float = 0.02
+
 
 func _init(p_designation: String, terminal_a: String, terminal_b: String) -> void:
 	super(p_designation)
@@ -14,3 +18,8 @@ func _init(p_designation: String, terminal_a: String, terminal_b: String) -> voi
 
 func default_terminal_names() -> PackedStringArray:
 	return _terminals
+
+
+## Current it draws at the nominal voltage while energized, amperes.
+func rated_draw() -> float:
+	return RATED_DRAW

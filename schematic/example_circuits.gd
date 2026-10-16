@@ -522,7 +522,10 @@ static func star_delta_3() -> SchematicDocument:
 	_phases(doc, 5)
 	doc.add(MainContacts.new("KM1"), Vector2i(5, 10))
 	doc.add(MainContacts.new("KM2"), Vector2i(13, 10))
-	doc.add(OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 15))
+	# F1 carries the winding current: set to In / √3.
+	var relay: OverloadRelay = OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3)
+	relay.setting = 4.6
+	doc.add(relay, Vector2i(5, 15))
 	doc.add(ThreePhaseMotor.new("M1", ThreePhaseMotor.Kind.STAR_DELTA), Vector2i(5, 21))
 	doc.add(MainContacts.new("KM3"), Vector2i(5, 32))
 	_straight(doc, "FU1", "KM1", POLES)
@@ -576,7 +579,9 @@ static func _two_speed_power(doc: SchematicDocument, kind: ThreePhaseMotor.Kind)
 	_phases(doc, 5)
 	doc.add(MainContacts.new("KM1"), Vector2i(5, 11))
 	doc.add(MainContacts.new("KM2"), Vector2i(13, 11))
-	doc.add(OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(5, 16))
+	var low: OverloadRelay = OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3)
+	low.setting = 4.5
+	doc.add(low, Vector2i(5, 16))
 	doc.add(OverloadRelay.new("F2", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(13, 16))
 	doc.add(ThreePhaseMotor.new("M1", kind), Vector2i(5, 23))
 	_straight(doc, "FU1", "KM1", POLES)

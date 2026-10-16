@@ -11,7 +11,7 @@ signal resized_by_user
 ## The chart or the log was rolled in or out by clicking its title.
 signal parts_toggled(show_chart: bool, show_log: bool)
 
-const WINDOWS: Array[float] = [0.02, 0.1, 0.5, 2.0, 10.0]
+const WINDOWS: Array[float] = [0.02, 0.1, 0.5, 2.0, 10.0, 60.0]
 const MIN_HEIGHT: float = 140.0
 ## Highest share of the window the panel may take.
 const MAX_HEIGHT_SHARE: float = 0.75

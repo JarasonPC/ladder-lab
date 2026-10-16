@@ -52,4 +52,10 @@ func _draw_shape(_color: Color, width: float) -> void:
 
 func _draw_labels() -> void:
 	draw_label(designation_text(), Vector2(-1.0 * G, 1.5 * G), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	var fuse: ThreePoleFuse = component as ThreePoleFuse
+	draw_label(Fuse.amperes_text(fuse.rated_current) + " A", Vector2(-1.0 * G, 1.5 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+	var hottest: float = 0.0
+	for heat: TripCurve in fuse.heat:
+		hottest = maxf(hottest, heat.progress)
+	draw_heat(hottest, Vector2(-1.0 * G, 1.5 * G), 2)
 	_draw_pole_labels()

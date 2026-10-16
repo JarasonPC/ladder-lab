@@ -153,9 +153,12 @@ func test_phase_loss_trips_the_overload_relay() -> void:
 	sim.step()
 	assert_eq(_motor(doc).state, ST.PHASE_LOSS)
 	var relay: OverloadRelay = doc.circuit.get_overload_relay("F1")
-	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY * 0.9)
-	assert_false(relay.tripped, "not before the trip delay")
-	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY * 0.2)
+	var lines: PackedFloat32Array = sim.motor_line_currents(0)
+	assert_almost_eq(lines[1], 0.0, 1e-3, "nothing flows in L2")
+	assert_gt(lines[0], 1.5 * _motor(doc).rated_current, "the other two lines carry much more")
+	sim.step(30.0)
+	assert_false(relay.tripped, "class 10 takes longer at this current")
+	sim.step(120.0)
 	assert_true(relay.tripped)
 	assert_false(doc.circuit.get_coil("KM1").energized, "95-96 dropped KM1")
 	assert_eq(_motor(doc).state, ST.STOPPED)
@@ -168,7 +171,10 @@ func test_overloaded_motor_trips_its_relay() -> void:
 	sim.step(10.0)
 	assert_false(doc.circuit.get_overload_relay("F1").tripped, "a stopped motor draws no current")
 	_press(doc, sim, "SB1")
-	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY + 0.1)
+	assert_gt(_motor(doc).max_current(), 1.5 * _motor(doc).rated_current, "draws more than its rated current")
+	sim.step(10.0)
+	assert_false(doc.circuit.get_overload_relay("F1").tripped, "not at once")
+	sim.step(300.0)
 	assert_true(doc.circuit.get_overload_relay("F1").tripped)
 	assert_false(_motor(doc).is_running())
 
@@ -208,7 +214,8 @@ func test_dahlander_both_speeds_is_miswired() -> void:
 	(doc.circuit.get_component("KM2:1-2-3-4-5-6") as MainContacts).fault = SwitchingElement.Fault.WELDED
 	_press(doc, sim, "SB1")
 	assert_eq(_motor(doc).state, ST.MISWIRED)
-	sim.step(OverloadRelay.DEFAULT_TRIP_DELAY + 0.1)
+	assert_gt(_motor(doc).max_current(), 4.0 * _motor(doc).rated_current, "half windings across the line voltage")
+	sim.step(20.0)
 	assert_true(doc.circuit.get_overload_relay("F1").tripped, "overheats and trips")
 
 

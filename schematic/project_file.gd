@@ -27,7 +27,11 @@ const FORMAT: String = "ladder-lab"
 ## 14: PE supply points (conductor "PE"), time relays with A1 and A2 swapped.
 ## 15: switchboard rails with their devices and terminal strips ("cabinet",
 ## missing before: no switchboard).
-const VERSION: int = 15
+## 16: rated currents of fuses and breakers, breaker characteristic B / C / D,
+## current setting of overload relays, rating plate of three-phase motors
+## (rated power, current, speed, power factor, starting current ratio,
+## run-up time, whether the plate is drawn; missing before: defaults).
+const VERSION: int = 16
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

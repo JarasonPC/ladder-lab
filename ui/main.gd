@@ -6,7 +6,7 @@ extends Node
 
 enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, LANGUAGE = 10, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT }
@@ -80,6 +80,8 @@ var _timing_panel: TimingPanel
 var _run_button: Button
 var _step_button: Button
 var _speed_select: OptionButton
+var _view_select: OptionButton
+var _clamp_toggle: Button
 var _reset_button: Button
 var _time_label: Label
 var _palette: Palette
@@ -151,6 +153,8 @@ var _wire_numbers: bool = true
 var _path_numbers: bool = true
 ## The palette shows a grid of symbols instead of the list.
 var _palette_grid: bool = false
+## Simulation shown as currents (current view) instead of voltages.
+var _current_view: bool = false
 ## Chosen interface size (see UI_SCALES), 0 = automatic.
 var _ui_scale: float = 0.0
 var _locale_index: int = 0
@@ -413,6 +417,15 @@ func _build_ui() -> void:
 	_switching_select.add_item("")
 	_switching_select.add_item("")
 	_switching_select.item_selected.connect(_on_switching_selected)
+	_view_select = _option(_sim_tools)
+	_view_select.add_item("")
+	_view_select.add_item("")
+	_view_select.item_selected.connect(func(i: int) -> void: _set_current_view(i == 1))
+	_clamp_toggle = _tool(_sim_tools, func() -> void:
+		view.clamp_tool = _clamp_toggle.button_pressed
+		for window: PageWindow in _page_windows():
+			window.view.clamp_tool = _clamp_toggle.button_pressed, "clamp")
+	_clamp_toggle.toggle_mode = true
 
 
 	var middle: HBoxContainer = HBoxContainer.new()
@@ -677,6 +690,10 @@ func _retranslate() -> void:
 	_run_button.tooltip_text = tr("Run or pause the simulation") + "  (" + tr("Space") + ")"
 	_step_button.tooltip_text = tr("Step") + " – " + tr("Advance the simulation by 0.1 s times the speed")
 	_speed_select.tooltip_text = tr("Simulation speed")
+	_view_select.set_item_text(0, tr("Voltages"))
+	_view_select.set_item_text(1, tr("Currents"))
+	_clamp_toggle.tooltip_text = tr("Clamp meter: click a wire to clamp it and read its current, click it again to take the meter off")
+	_view_select.tooltip_text = tr("Voltage view: wires coloured by the voltage that reaches them. Current view: only what carries current is coloured, the thicker the more, with the current written on each wire.")
 	_time_label.tooltip_text = tr("Simulation time")
 	_time_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	_reset_button.tooltip_text = tr("Reset") + " – " + tr("Restart the simulation from the initial state")
@@ -770,6 +787,11 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_tooltip(popup.item_count - 1, tr("Number the current paths above the columns (left of the rows), also on export"))
 	popup.add_check_item(tr("Grid while editing"), ViewMenuId.GRID)
 	popup.set_item_checked(popup.item_count - 1, _edit_grid)
+	popup.add_separator(tr("Simulation"))
+	popup.add_radio_check_item(tr("Voltage view"), ViewMenuId.VOLTAGE_VIEW)
+	popup.set_item_checked(popup.item_count - 1, not _current_view)
+	popup.add_radio_check_item(tr("Current view"), ViewMenuId.CURRENT_VIEW)
+	popup.set_item_checked(popup.item_count - 1, _current_view)
 	popup.add_separator(tr("Language"))
 	for i: int in LOCALE_NAMES.size():
 		popup.add_radio_check_item(LOCALE_NAMES[i], ViewMenuId.LANGUAGE + i)
@@ -792,6 +814,8 @@ func _on_view_menu(id: int) -> void:
 		_set_wire_numbers(not _wire_numbers)
 	elif id == ViewMenuId.PATH_NUMBERS:
 		_set_path_numbers(not _path_numbers)
+	elif id == ViewMenuId.VOLTAGE_VIEW or id == ViewMenuId.CURRENT_VIEW:
+		_set_current_view(id == ViewMenuId.CURRENT_VIEW)
 	elif id == ViewMenuId.GRID:
 		_edit_grid = not _edit_grid
 		_update_mode_ui()
@@ -947,6 +971,16 @@ func _set_cabinet(on: bool) -> void:
 	_fit_camera_later()
 
 
+## Shows the simulation as currents ([param on]) or as voltages.
+func _set_current_view(on: bool) -> void:
+	_current_view = on
+	_view_select.select(1 if on else 0)
+	view.set_current_view(on)
+	for window: PageWindow in _page_windows():
+		window.view.set_current_view(on)
+	_save_settings()
+
+
 func _set_wire_numbers(on: bool) -> void:
 	_wire_numbers = on
 	_numbers_toggle.set_pressed_no_signal(on)
@@ -969,6 +1003,8 @@ func _update_mode_ui() -> void:
 	view.set_grid_visible(editing and _edit_grid)
 	view.set_wire_numbers_visible(_wire_numbers)
 	view.set_path_numbers_visible(_path_numbers)
+	view.set_current_view(_current_view)
+	_view_select.select(1 if _current_view else 0)
 	_edit_tools.visible = editing
 	_palette_bar.visible = editing
 	_side_bar.visible = editing
@@ -1533,6 +1569,8 @@ func open_page_window(index: int) -> PageWindow:
 	add_child(window)
 	window.view.set_wire_numbers_visible(_wire_numbers)
 	window.view.set_path_numbers_visible(_path_numbers)
+	window.view.set_current_view(_current_view)
+	window.view.clamp_tool = _clamp_toggle.button_pressed
 	return window
 
 
@@ -1585,6 +1623,7 @@ func _load_settings() -> void:
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
+		_current_view = bool(config.get_value("view", "current_view", false))
 		_show_control_panel = bool(config.get_value("view", "control_panel", true))
 		_show_cabinet = bool(config.get_value("view", "cabinet", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
@@ -1611,6 +1650,7 @@ func _save_settings() -> void:
 	config.set_value("view", "wire_numbers", _wire_numbers)
 	config.set_value("view", "path_numbers", _path_numbers)
 	config.set_value("view", "palette_grid", _palette_grid)
+	config.set_value("view", "current_view", _current_view)
 	config.set_value("view", "control_panel", _show_control_panel)
 	config.set_value("view", "cabinet", _show_cabinet)
 	if _timing_panel != null:

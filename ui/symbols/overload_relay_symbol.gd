@@ -1,8 +1,9 @@
 class_name OverloadRelaySymbol
 extends SchematicSymbol
 ## Thermal overload relay (IEC 60617 thermal effect, S00325 style): a box
-## with the thermal square wave. Shows the overload time while it heats up and
-## is filled when tripped; a click trips it (test button) or resets it. With three poles its heaters are
+## with the thermal square wave. Shows its current setting (three poles) or
+## trip delay and how far it has heated up, and is filled when tripped; a
+## click trips it (test button) or resets it. With three poles its heaters are
 ## drawn in the power circuit: each conductor bent into the thermal mark.
 
 const BOX := Rect2(-16, 14, 32, 32)
@@ -55,6 +56,14 @@ func _draw_labels() -> void:
 		anchor = Vector2(-1.2 * G, 1.5 * G)
 		_draw_pole_labels()
 	draw_label(designation_text(), anchor, SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	if relay.poles == 3:
+		# The current setting, then how far it has heated up.
+		draw_label("Ir %s A" % Fuse.amperes_text(relay.setting), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+		if relay.overloaded and not relay.tripped:
+			draw_label("%.1f / %.1f s" % [relay.elapsed, relay.trip_delay], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.FAULT, 2)
+		else:
+			draw_heat(relay.heat.progress, anchor, 2)
+		return
 	var text: String = "%.1f s" % relay.trip_delay
 	if relay.is_heating() and not relay.tripped:
 		text = "%.1f / %.1f s" % [relay.elapsed, relay.trip_delay]

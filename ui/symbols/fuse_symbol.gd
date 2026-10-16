@@ -46,6 +46,9 @@ func _draw_shape(color: Color, width: float) -> void:
 
 func _draw_labels() -> void:
 	draw_label(designation_text(), Vector2(-1.0 * G, 1.5 * G), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	var fuse: Fuse = component as Fuse
+	draw_label(Fuse.amperes_text(fuse.rated_current) + " A", Vector2(-1.0 * G, 1.5 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+	draw_heat(fuse.heat.progress, Vector2(-1.0 * G, 1.5 * G), 2)
 	var names: PackedStringArray = component.get_terminal_names()
 	draw_label(names[0], Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)

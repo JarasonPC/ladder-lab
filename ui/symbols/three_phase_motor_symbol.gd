@@ -4,7 +4,9 @@ extends SchematicSymbol
 ## per terminal. While the shaft turns an arrow turns around it in its
 ## direction of rotation, faster at higher speeds and slowing down as the
 ## motor runs down; Y / Δ, the speed step or DC braking is written beside it,
-## a phase loss or wrong connection in the fault colour. The PE terminal of
+## a phase loss or wrong connection in the fault colour, the current it
+## draws (in the fault colour above its rated current) and its speed; its
+## rating plate can be drawn beside it. The PE terminal of
 ## the frame is below left, as in the guide.
 
 const CENTER := Vector2(2.0 * G, 2.0 * G)
@@ -18,7 +20,7 @@ func _process(delta: float) -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
 	if motor.is_turning():
 		var turn: float = 1.0 if motor.shaft_direction == ThreePhaseMotor.Direction.CLOCKWISE else -1.0
-		_angle = fmod(_angle + turn * delta * TAU * maxf(motor.speed, 1) * motor.shaft, TAU)
+		_angle = fmod(_angle + turn * delta * TAU * motor.speed_count() * absf(motor.rotor_speed), TAU)
 		queue_redraw()
 
 
@@ -174,6 +176,8 @@ func _draw_bar(a: Vector2, b: Vector2, color: Color, w: float) -> void:
 func _draw_labels() -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	if motor.show_plate:
+		_draw_plate(motor)
 	if _terminal_box() and motor.kind != ThreePhaseMotor.Kind.STANDARD:
 		var box_names: PackedStringArray = motor.get_terminal_names()
 		for i: int in motor.winding_terminal_count():
@@ -185,6 +189,7 @@ func _draw_labels() -> void:
 		if not box_status.is_empty():
 			var faulty: bool = motor.state in [ThreePhaseMotor.State.PHASE_LOSS, ThreePhaseMotor.State.MISWIRED]
 			draw_label(box_status, _designation_anchor(), SchematicTheme.LABEL_SIZE if not _connection(motor).is_empty() else SchematicTheme.TERMINAL_SIZE, SchematicTheme.FAULT if faulty else SchematicTheme.TEXT, 1)
+		_draw_current(motor, 2 if not box_status.is_empty() else 1)
 		return
 	if _terminal_box():
 		var names: PackedStringArray = motor.get_terminal_names()
@@ -196,6 +201,7 @@ func _draw_labels() -> void:
 			draw_label(ends[i], Vector2(x + 7.0, END_ROW - 13.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label(names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label("Δ" if motor.delta_bridges else "Y", _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+		_draw_current(motor, 2)
 		return
 	var names: PackedStringArray = motor.get_terminal_names()
 	var windings: int = motor.winding_terminal_count()
@@ -227,6 +233,64 @@ func _draw_labels() -> void:
 	var status_color: Color = SchematicTheme.FAULT if motor.state in [ThreePhaseMotor.State.PHASE_LOSS, ThreePhaseMotor.State.MISWIRED] else SchematicTheme.TEXT
 	if not status.is_empty() and connection.is_empty():
 		draw_label(status, _designation_anchor(), SchematicTheme.TERMINAL_SIZE, status_color, 1)
+	_draw_current(motor, 2 if not status.is_empty() and connection.is_empty() else 1)
+
+
+## While it draws current: the largest of its line currents; while it
+## turns: its speed.
+func _draw_current(motor: ThreePhaseMotor, line: int) -> void:
+	var amps: float = maxf(motor.max_line_current(), motor.max_current() if motor.state == ThreePhaseMotor.State.DC_BRAKING else 0.0)
+	if amps >= 0.0005:
+		var color: Color = SchematicTheme.FAULT if amps > motor.rated_current * 1.15 else SchematicTheme.CURRENT
+		draw_label(SchematicTheme.amperes(amps), _designation_anchor(), SchematicTheme.TERMINAL_SIZE, color, line)
+		line += 1
+	if motor.is_turning():
+		draw_label("%d min⁻¹" % roundi(absf(motor.rpm())), _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, line)
+
+
+## Lines of the rating plate: kind, voltage and connection, currents, power
+## and cos φ, speeds and efficiency, starting current.
+static func plate_lines(motor: ThreePhaseMotor) -> PackedStringArray:
+	var voltage: PackedStringArray = motor.plate_voltage()
+	var amps: String = "%.1f" % motor.rated_current
+	if motor.kind == ThreePhaseMotor.Kind.STAR_DELTA:
+		amps += "/%.1f" % (motor.rated_current / MotorModel.SQRT3)
+	var speeds: PackedStringArray = PackedStringArray()
+	for n: float in motor.rated_speeds():
+		speeds.append(str(roundi(n)))
+	return PackedStringArray([
+		"3~ Mot.   %s" % motor.designation,
+		"%s %s   50 Hz" % [voltage[0], voltage[1]],
+		"%s A" % amps,
+		"%s kW   cos φ %.2f" % [Fuse.amperes_text(snappedf(motor.rated_power, 0.01)), motor.power_factor],
+		"%s min⁻¹" % "/".join(speeds),
+		"η %d %%   Ia/In %.1f" % [roundi(motor.efficiency() * 100.0), motor.start_ratio],
+	])
+
+
+## The rating plate in a box beside the motor (dragged like a marking).
+func _draw_plate(motor: ThreePhaseMotor) -> void:
+	var font: Font = AppTheme.schematic_font()
+	var size: int = SchematicTheme.TERMINAL_SIZE
+	var lines: PackedStringArray = plate_lines(motor)
+	var width: float = 0.0
+	for text: String in lines:
+		width = maxf(width, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x)
+	var line_height: float = font.get_height(size) + 1.0
+	var box_size: Vector2 = Vector2(width + 10.0, lines.size() * line_height + 6.0)
+	var local: Vector2 = Vector2(5.5 * G, 0.5 * G) if not _terminal_box() else Vector2(6.0 * G, 0.5 * G)
+	var own: Vector2 = placement.labels.get("plate", Vector2.ZERO)
+	var top_left: Vector2 = to_upright(local) + own * G
+	var box: Rect2 = Rect2(top_left, box_size)
+	draw_rect(box, SchematicTheme.BACKGROUND)
+	draw_rect(box, SchematicTheme.LINE, false, 1.0)
+	draw_line(box.position + Vector2(0.0, line_height + 3.0), Vector2(box.end.x, box.position.y + line_height + 3.0), SchematicTheme.LINE, 1.0)
+	var efficiency_bad: bool = motor.efficiency() > 0.99
+	for i: int in lines.size():
+		var color: Color = SchematicTheme.FAULT if i == 5 and efficiency_bad else SchematicTheme.TEXT
+		draw_string(font, box.position + Vector2(5.0, 3.0 + i * line_height + font.get_ascent(size)), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+	text_rects.append(box)
+	marking_rects.append(["plate", -1, box, own])
 
 
 ## "Y" or "Δ" while the motor runs in star or delta, else "".

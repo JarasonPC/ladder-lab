@@ -12,5 +12,10 @@ func _init(p_designation: String) -> void:
 	super(p_designation, "~1", "~2")
 
 
+## Draws what its output delivers (worked out by the simulator).
+func rated_draw() -> float:
+	return 0.0
+
+
 func default_terminal_names() -> PackedStringArray:
 	return PackedStringArray(["~1", "~2", "+", "-"])

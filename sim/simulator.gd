@@ -29,6 +29,16 @@ extends RefCounted
 ## circuit breaker, it trips and the circuit is traced again. A short that no
 ## protective device interrupts makes the supply drop out while it lasts and
 ## is reported in [member StepResult.short_circuit].
+##
+## Currents: every load draws a current (coils and lamps a little, three-phase
+## motors what their [MotorModel] gives for their supply and speed), and
+## [CurrentFlow] spreads it over the wires and closed switching paths
+## ([member StepResult.wire_currents], [member StepResult.terminal_currents]).
+## Fuses, breakers and overload relays heat up with the current through them
+## and trip after the time of their characteristic; the magnetic release of a
+## breaker trips at once. In realistic timing motors run up over time (the
+## starting current flows while they do); with instant switching they are at
+## their final speed at once.
 ## Push buttons and switches move through their own actuators the same way
 ## (instantly in IDEAL mode). Injected faults (welded or open contacts, open
 ## or stuck coils, broken wires, overload) are taken into account.
@@ -45,6 +55,8 @@ const CHATTER_TOGGLES: int = 8
 const CHATTER_WINDOW: float = 0.5
 ## Event log entries kept per step at most.
 const MAX_LOGGED_EVENTS: int = 50
+## Longest step while a motor runs up or slows down (seconds).
+const MOTOR_STEP: float = 0.01
 ## Edge kinds of the current-flow graph (see [method _find_current_paths]).
 const _EDGE_WIRE: int = 0
 const _EDGE_SWITCH: int = 1
@@ -102,7 +114,27 @@ var _motor_nets: PackedInt32Array = PackedInt32Array()
 var _motor_states: PackedInt32Array = PackedInt32Array()
 var _motor_directions: PackedInt32Array = PackedInt32Array()
 var _motor_speeds: PackedInt32Array = PackedInt32Array()
-var _relay_overcurrent: PackedByteArray = PackedByteArray()
+## Per motor terminal slot: the phase 1-3 on it (0: none), from the last evaluation.
+var _motor_phases: PackedInt32Array = PackedInt32Array()
+## Per motor: [potentials, fixed, groups, DC polarity] of its winding terminals
+## (see [method ThreePhaseMotor.set_supply]), from the last evaluation.
+var _motor_supply: Array[Array] = []
+## Terminal indices: of each motor terminal slot (-1 where none), of the two
+## terminals of each load, of each supply point, of each rectifier's + and -.
+var _motor_terms: PackedInt32Array = PackedInt32Array()
+var _load_terms: PackedInt32Array = PackedInt32Array()
+var _supply_terms: PackedInt32Array = PackedInt32Array()
+var _rectifier_out_terms: PackedInt32Array = PackedInt32Array()
+## Terminal key of every terminal index.
+var _terminal_keys: PackedStringArray = PackedStringArray()
+## Group roots and supply masks of the last evaluation.
+var _eval_uf: UnionFind = null
+var _eval_masks: Dictionary[int, int] = {}
+var _flow: CurrentFlow = CurrentFlow.new()
+## Current through each switching path (amperes), from the last evaluation.
+var _path_current: PackedFloat32Array = PackedFloat32Array()
+## Switching paths of each protective part, in pole order.
+var _device_paths: Dictionary[CircuitComponent, PackedInt32Array] = {}
 var _short: bool = false
 ## Terminal index (into the current-flow graph) of every terminal key.
 var _terminal_index: Dictionary[String, int] = {}
@@ -133,7 +165,7 @@ func step(delta: float = 0.0) -> StepResult:
 				var coil: Coil = _loads[i] as Coil
 				coil.advance(delta)
 				coil.snap()
-			_advance_overloads(delta, result)
+			_advance_protection(delta, result)
 			_advance_motors(delta, result)
 		time += maxf(delta, 0.0)
 		last_result = _settle(result)
@@ -161,9 +193,11 @@ func _ensure_built() -> void:
 
 func _build() -> void:
 	var index: Dictionary[String, int] = {}
+	_terminal_keys.clear()
 	for c: CircuitComponent in circuit.get_components():
 		for key: String in c.get_terminal_keys():
 			index[key] = index.size()
+			_terminal_keys.append(key)
 	_terminal_index = index
 
 	var uf: UnionFind = UnionFind.new(index.size())
@@ -184,6 +218,21 @@ func _build() -> void:
 			net_of_root[root] = net_of_root.size()
 		_net_of_key[key] = net_of_root[root]
 	_net_count = net_of_root.size()
+	# Current flow along the wires and page links of each net.
+	var net_of: PackedInt32Array = PackedInt32Array()
+	net_of.resize(index.size())
+	for key: String in index:
+		net_of[index[key]] = _net_of_key[key]
+	var edges: PackedInt32Array = PackedInt32Array()
+	var edge_wires: PackedInt32Array = PackedInt32Array()
+	for w: int in wires.size():
+		if not circuit.broken_wires.has(w):
+			edges.append_array(PackedInt32Array([index[wires[w][0]], index[wires[w][1]]]))
+			edge_wires.append(w)
+	for link: PackedStringArray in _links:
+		edges.append_array(PackedInt32Array([index[link[0]], index[link[1]]]))
+		edge_wires.append(-1)
+	_flow.setup(net_of, _net_count, edges, edge_wires, wires.size())
 
 	_switches.clear()
 	_switch_paths.clear()
@@ -202,6 +251,11 @@ func _build() -> void:
 	_protective.clear()
 	_motors.clear()
 	_motor_nets.clear()
+	_motor_terms.clear()
+	_load_terms.clear()
+	_supply_terms.clear()
+	_rectifier_out_terms.clear()
+	_device_paths.clear()
 	for c: CircuitComponent in circuit.get_components():
 		var keys: PackedStringArray = c.get_terminal_keys()
 		if c is PushButton or c is LatchingSwitch:
@@ -213,6 +267,8 @@ func _build() -> void:
 		if c is OverloadRelay:
 			_overload_relays.append(c as OverloadRelay)
 		var paths: Array[Vector2i] = c.switch_paths()
+		if c.protection_state() >= 0 and not paths.is_empty():
+			_device_paths[c] = PackedInt32Array(range(_switches.size(), _switches.size() + paths.size()))
 		for p: int in paths.size():
 			_add_switch_path(c, p, keys[paths[p].x], keys[paths[p].y])
 		if not paths.is_empty():
@@ -222,6 +278,7 @@ func _build() -> void:
 			var windings: int = (c as ThreePhaseMotor).winding_terminal_count()
 			for t: int in MOTOR_TERMINALS:
 				_motor_nets.append(_net_of_key[keys[t]] if t < windings else -1)
+				_motor_terms.append(index[keys[t]] if t < windings else -1)
 		elif c is Load:
 			if c is Coil:
 				_coil_indices.append(_loads.size())
@@ -229,6 +286,8 @@ func _build() -> void:
 				_rectifiers.append(_loads.size())
 				_rectifier_out_nets.append(_net_of_key[keys[2]])
 				_rectifier_out_nets.append(_net_of_key[keys[3]])
+				_rectifier_out_terms.append(index[keys[2]])
+				_rectifier_out_terms.append(index[keys[3]])
 			_loads.append(c as Load)
 			if c is TimerRelay and (c as TimerRelay).control_input and keys.size() > 2:
 				_control_nets[_loads.size() - 1] = _net_of_key[keys[2]]
@@ -236,14 +295,23 @@ func _build() -> void:
 					_control_a2_first[_loads.size() - 1] = true
 			_load_nets.append(_net_of_key[keys[0]])
 			_load_nets.append(_net_of_key[keys[1]])
+			_load_terms.append(index[keys[0]])
+			_load_terms.append(index[keys[1]])
 		elif c is PowerSupply:
 			_supplies.append(c as PowerSupply)
+			_supply_terms.append(index[keys[0]])
 	_rectifier_on.resize(_rectifiers.size())
 	_rectifier_on.fill(0)
 	_motor_states.resize(_motors.size())
 	_motor_directions.resize(_motors.size())
 	_motor_speeds.resize(_motors.size())
-	_relay_overcurrent.resize(_overload_relays.size())
+	_motor_phases.resize(_motors.size() * MOTOR_TERMINALS)
+	_motor_phases.fill(0)
+	_motor_supply.clear()
+	for m: int in _motors.size():
+		_motor_supply.append(_unfed_motor(_motors[m]))
+	_path_current.resize(_switches.size())
+	_path_current.fill(0.0)
 
 
 func _add_switch_path(c: CircuitComponent, path: int, key_a: String, key_b: String) -> void:
@@ -358,17 +426,32 @@ func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
 		motor.state = new_state
 		motor.direction = _motor_directions[m] as ThreePhaseMotor.Direction
 		motor.speed = _motor_speeds[m]
-		# Running: the shaft is at full speed; switched off it runs down (at
-		# once when its run-down time is 0).
+		var supply: Array = _motor_supply[m]
+		motor.set_supply(supply[0], supply[1], supply[2], supply[3])
+		if mode == Mode.IDEAL:
+			# Instant switching: at the final speed at once.
+			motor.snap_speed()
+		# Fed: the currents for the present speed; switched off it runs down
+		# (at once when its run-down time is 0).
 		if motor.advance_shaft(0.0):
 			_log(result, "%s stopped", [motor.designation])
 		elif was_running and new_state == ThreePhaseMotor.State.STOPPED and motor.is_turning():
 			_log(result, "%s switched off, runs down", [motor.designation])
-	for r: int in _overload_relays.size():
-		_overload_relays[r].motor_overcurrent = _relay_overcurrent[r] == 1
+	_compute_currents()
 
 
+## Settles the coils, then lets breakers whose magnetic release the currents
+## reach trip and settles again.
 func _settle(result: StepResult) -> StepResult:
+	for round: int in _protective.size() + 1:
+		_settle_coils(result)
+		if not _instant_trips(result):
+			break
+	_finish(result)
+	return result
+
+
+func _settle_coils(result: StepResult) -> void:
 	var seen: Dictionary[String, int] = {}
 	var history: Array[PackedByteArray] = []
 	var desired: PackedByteArray = PackedByteArray()
@@ -410,12 +493,15 @@ func _settle(result: StepResult) -> StepResult:
 
 	result.stable = settled
 	_apply_outputs(desired, result)
-	_finish(result)
-	return result
 
 
 func _finish(result: StepResult) -> void:
 	result.short_circuit = _short
+	result.wire_currents = _flow.wire_currents.duplicate()
+	for t: int in _flow.terminal_currents.size():
+		var amps: float = _flow.terminal_currents[t].length()
+		if amps > 1e-6:
+			result.terminal_currents[_terminal_keys[t]] = amps
 	if _short:
 		result.short_circuit_path = _find_short_path()
 	_find_current_paths(result)
@@ -439,6 +525,9 @@ func _step_realistic(delta: float) -> StepResult:
 			dt = minf(dt, relay.time_to_trip())
 		for motor: ThreePhaseMotor in _motors:
 			dt = minf(dt, motor.time_to_standstill())
+			if not motor.is_settled():
+				dt = minf(dt, MOTOR_STEP)
+		dt = minf(dt, _time_to_heat_trip())
 		dt = maxf(dt, 0.0)
 		_advance_armatures(dt, result)
 		time += dt
@@ -462,16 +551,19 @@ func _step_realistic(delta: float) -> StepResult:
 ## Traces power for the present contact positions: coils get or lose power
 ## (their armatures start moving), lamps and motors follow at once.
 func _apply_power(result: StepResult) -> void:
-	var desired: PackedByteArray = _evaluate_protected(result)
-	for i: int in _coil_indices:
-		var coil: Coil = _loads[i] as Coil
-		var want: bool = (desired[i] & 1) == 1
-		if coil.energized != want:
-			coil.set_energized(want)
-			_note_toggle(coil.designation)
-		if _control_nets.has(i):
-			(coil as TimerRelay).set_control((desired[i] & 2) != 0)
-	_apply_outputs(desired, result)
+	for round: int in _protective.size() + 1:
+		var desired: PackedByteArray = _evaluate_protected(result)
+		for i: int in _coil_indices:
+			var coil: Coil = _loads[i] as Coil
+			var want: bool = (desired[i] & 1) == 1
+			if coil.energized != want:
+				coil.set_energized(want)
+				_note_toggle(coil.designation)
+			if _control_nets.has(i):
+				(coil as TimerRelay).set_control((desired[i] & 2) != 0)
+		_apply_outputs(desired, result)
+		if not _instant_trips(result):
+			break
 	if _short and _short_since < 0.0:
 		_short_since = time
 		_log(result, "Short circuit: %s", [" → ".join(_find_short_path())])
@@ -484,7 +576,7 @@ func _apply_power(result: StepResult) -> void:
 func _advance_armatures(dt: float, result: StepResult) -> void:
 	for actuator: Armature in _actuators:
 		actuator.advance(dt)
-	_advance_overloads(dt, result)
+	_advance_protection(dt, result)
 	_advance_motors(dt, result)
 	for i: int in _coil_indices:
 		var coil: Coil = _loads[i] as Coil
@@ -502,18 +594,61 @@ func _advance_armatures(dt: float, result: StepResult) -> void:
 			_log(result, "%s timed output on" if timer.output else "%s timed output off", [coil.designation], time + dt)
 
 
-func _advance_overloads(dt: float, result: StepResult) -> void:
+## Heats fuses, breakers and overload relays for [param dt] seconds with the
+## currents of the last evaluation; the injected overload of overload relays
+## counts on.
+func _advance_protection(dt: float, result: StepResult) -> void:
 	for relay: OverloadRelay in _overload_relays:
 		if relay.advance(dt):
 			_log(result, "%s tripped (overload)", [relay.designation], time + dt)
+	for device: CircuitComponent in _device_paths:
+		var currents: PackedFloat32Array = _device_currents(device)
+		var soonest: float = device.time_to_heat_trip(currents)
+		if device.heat_up(dt, currents):
+			var text: String = "%s blown" if device is Fuse or device is ThreePoleFuse else "%s tripped (overload)"
+			_log(result, text, [device.designation], time + minf(soonest, dt))
 
 
-## Lets the shafts of switched-off motors run down for [param dt] seconds.
+## Currents through the poles of a protective part, amperes.
+func _device_currents(device: CircuitComponent) -> PackedFloat32Array:
+	var currents: PackedFloat32Array = PackedFloat32Array()
+	for i: int in _device_paths[device]:
+		currents.append(_path_current[i])
+	return currents
+
+
+## Seconds until the present currents make a protective part trip, or INF.
+func _time_to_heat_trip() -> float:
+	var soonest: float = INF
+	for device: CircuitComponent in _device_paths:
+		soonest = minf(soonest, device.time_to_heat_trip(_device_currents(device)))
+	return soonest
+
+
+## Breakers whose magnetic release the present currents reach trip at once.
+## Returns true if one did.
+func _instant_trips(result: StepResult) -> bool:
+	var any: bool = false
+	for device: CircuitComponent in _device_paths:
+		if device.trips_instantly(_device_currents(device)):
+			_log(result, "%s tripped (short-circuit release)", [device.designation])
+			any = true
+	return any
+
+
+## Moves the shafts on by [param dt] seconds: motors fed with AC run up or
+## slow down (in realistic timing; with instant switching they already are at
+## their speed), switched-off motors run down.
 func _advance_motors(dt: float, result: StepResult) -> void:
 	for motor: ThreePhaseMotor in _motors:
+		if motor.ac_powered and mode == Mode.IDEAL:
+			continue
 		var stops_in: float = motor.time_to_standstill()
+		var before: float = motor.shaft
 		if motor.advance_shaft(dt):
 			_log(result, "%s stopped", [motor.designation], time + minf(stops_in, dt))
+		elif motor.ac_powered and motor.is_running() and before < 0.95 and motor.shaft >= 0.95:
+			_log(result, "%s up to speed", [motor.designation], time + dt)
 
 
 ## [method _evaluate], but first lets every fuse or breaker that carries the
@@ -579,9 +714,17 @@ func _record_trace() -> void:
 			trace.record(load.designation + "/armature", time, (load as Coil).armature.position, true)
 			if load is TimerRelay:
 				trace.record(load.designation + "/output", time, (load as TimerRelay).output_armature.position, true)
-	for motor: ThreePhaseMotor in _motors:
+	for m: int in _motors.size():
+		var motor: ThreePhaseMotor = _motors[m]
 		trace.record(motor.designation, time, 1.0 if motor.is_running() else 0.0)
 		trace.record(motor.designation + "/shaft", time, motor.shaft, true)
+		var lines: PackedFloat32Array = motor_line_currents(m)
+		for p: int in 3:
+			trace.record("%s/I%d" % [motor.designation, p + 1], time, lines[p], true)
+	for device: CircuitComponent in _device_paths:
+		var currents: PackedFloat32Array = _device_currents(device)
+		for p: int in currents.size():
+			trace.record("%s/I%d" % [device.designation, p + 1], time, currents[p], true)
 
 
 ## Returns, per load, 1 if its terminals are reached by two different supplies
@@ -604,8 +747,12 @@ func _evaluate() -> PackedByteArray:
 	_motor_states.fill(ThreePhaseMotor.State.STOPPED)
 	_motor_directions.fill(ThreePhaseMotor.Direction.NONE)
 	_motor_speeds.fill(0)
-	_relay_overcurrent.fill(0)
+	_motor_phases.fill(0)
+	_eval_uf = uf
+	_eval_masks = masks
 	if _short:
+		for m: int in _motors.size():
+			_motor_supply[m] = _unfed_motor(_motors[m])
 		return result
 	for i: int in _loads.size():
 		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
@@ -633,10 +780,108 @@ static func _powers(a: int, b: int) -> bool:
 	return ((a & ac) != 0) == ((b & ac) != 0)
 
 
+## Supply of a motor with nothing on its terminals (see [member _motor_supply]).
+static func _unfed_motor(motor: ThreePhaseMotor) -> Array:
+	var count: int = motor.winding_terminal_count()
+	var potentials: PackedVector2Array = PackedVector2Array()
+	potentials.resize(count)
+	var fixed: PackedByteArray = PackedByteArray()
+	fixed.resize(count)
+	var groups: PackedInt32Array = PackedInt32Array(range(-1, -1 - count, -1))
+	var polarity: PackedInt32Array = PackedInt32Array()
+	polarity.resize(count)
+	return [potentials, fixed, groups, polarity]
+
+
+## Potential of a group reached by supply bits [param mask] (see [Phasor]):
+## the phase, 0 for N and DC -, 1 for DC +.
+static func _potential_of(mask: int) -> Vector2:
+	match mask:
+		PowerSupply.BIT_L1:
+			return Phasor.phase(1)
+		PowerSupply.BIT_L2:
+			return Phasor.phase(2)
+		PowerSupply.BIT_L3:
+			return Phasor.phase(3)
+		PowerSupply.BIT_DC_PLUS:
+			return Phasor.ONE
+	return Vector2.ZERO
+
+
+## Currents in the lines L1, L2, L3 feeding motor [param m] (amperes): the
+## currents of its terminals on each phase added up.
+func motor_line_currents(m: int) -> PackedFloat32Array:
+	var lines: PackedVector2Array = PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
+	var motor: ThreePhaseMotor = _motors[m]
+	for t: int in mini(motor.terminal_currents.size(), MOTOR_TERMINALS):
+		var p: int = _motor_phases[MOTOR_TERMINALS * m + t]
+		if p > 0:
+			lines[p - 1] += motor.terminal_currents[t]
+	return PackedFloat32Array([lines[0].length(), lines[1].length(), lines[2].length()])
+
+
+## Works out the current of every load and spreads it over the circuit (see
+## [CurrentFlow]); nothing flows while there is a short (the fault current is
+## shown apart).
+func _compute_currents() -> void:
+	var draws: PackedVector2Array = PackedVector2Array()
+	draws.resize(_terminal_index.size())
+	var paths: PackedInt32Array = PackedInt32Array()
+	var path_ids: PackedInt32Array = PackedInt32Array()
+	var sources: PackedInt32Array = _supply_terms.duplicate()
+	if not _short and _eval_uf != null:
+		for i: int in _loads.size():
+			if _loads[i].energized and _loads[i].rated_draw() > 0.0:
+				var v: Vector2 = _load_voltage(i)
+				draws[_load_terms[2 * i]] += v * _loads[i].rated_draw()
+				draws[_load_terms[2 * i + 1]] -= v * _loads[i].rated_draw()
+		for m: int in _motors.size():
+			var motor: ThreePhaseMotor = _motors[m]
+			for t: int in mini(motor.terminal_currents.size(), MOTOR_TERMINALS):
+				draws[_motor_terms[MOTOR_TERMINALS * m + t]] += motor.terminal_currents[t]
+		for i: int in _switches.size():
+			if _switch_closed(i):
+				paths.append(_switch_terms[2 * i])
+				paths.append(_switch_terms[2 * i + 1])
+				path_ids.append(i)
+		for r: int in _rectifiers.size():
+			if _rectifier_on[r] == 1:
+				sources.append(_rectifier_out_terms[2 * r])
+				sources.append(_rectifier_out_terms[2 * r + 1])
+	_flow.solve(draws, paths, sources)
+	# A working rectifier draws on its input what its output delivers.
+	var feeding: bool = false
+	for r: int in _rectifiers.size():
+		if _rectifier_on[r] == 1 and not _short:
+			var out: float = _flow.terminal_currents[_rectifier_out_terms[2 * r]].length()
+			var v: Vector2 = _load_voltage(_rectifiers[r])
+			if out > 0.0 and v.length() > 0.0:
+				var i: int = _rectifiers[r]
+				draws[_load_terms[2 * i]] += v.normalized() * out
+				draws[_load_terms[2 * i + 1]] -= v.normalized() * out
+				feeding = true
+	if feeding:
+		_flow.solve(draws, paths, sources)
+	_path_current.fill(0.0)
+	for k: int in path_ids.size():
+		_path_current[path_ids[k]] = _flow.path_currents[k].length()
+	for relay: OverloadRelay in _overload_relays:
+		if _device_paths.has(relay):
+			relay.current = TripCurve.largest(_device_currents(relay))
+	for m: int in _motors.size():
+		_motors[m].line_currents = motor_line_currents(m)
+
+
+## Voltage across load [param i] (first terminal against the second) from the
+## last evaluation, in phase voltages.
+func _load_voltage(i: int) -> Vector2:
+	var a: int = _eval_masks.get(_eval_uf.find(_load_nets[2 * i]), 0)
+	var b: int = _eval_masks.get(_eval_uf.find(_load_nets[2 * i + 1]), 0)
+	return _potential_of(a) - _potential_of(b)
+
+
 func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 	const PHASE_BITS: int = PowerSupply.BIT_L1 | PowerSupply.BIT_L2 | PowerSupply.BIT_L3
-	# Group roots of the terminals of motors drawing overcurrent.
-	var hot_roots: Dictionary[int, bool] = {}
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
 		var phases: PackedInt32Array = PackedInt32Array()
@@ -666,22 +911,20 @@ func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 		_motor_states[m] = outcome[0]
 		_motor_directions[m] = outcome[1]
 		_motor_speeds[m] = outcome[2]
-		var state: ThreePhaseMotor.State = outcome[0]
-		var running: bool = state == ThreePhaseMotor.State.RUNNING or state == ThreePhaseMotor.State.STAR or state == ThreePhaseMotor.State.DELTA
-		if state == ThreePhaseMotor.State.PHASE_LOSS or state == ThreePhaseMotor.State.MISWIRED or (motor.overloaded and running):
-			for root: int in roots:
-				if root >= 0:
-					hot_roots[root] = true
-	# An overload relay heats when one of its heaters carries such a motor's current.
-	for r: int in _overload_relays.size():
-		var relay: OverloadRelay = _overload_relays[r]
-		if relay.poles != 3:
-			continue
-		var keys: PackedStringArray = relay.get_terminal_keys()
-		for k: String in keys:
-			if hot_roots.has(uf.find(_net_of_key[k])):
-				_relay_overcurrent[r] = 1
-				break
+		# Potentials for the currents: terminals on one AC conductor are fed,
+		# the others float (joined when in one group).
+		var count: int = motor.winding_terminal_count()
+		var potentials: PackedVector2Array = PackedVector2Array()
+		var fixed: PackedByteArray = PackedByteArray()
+		var groups: PackedInt32Array = PackedInt32Array()
+		for t: int in count:
+			var mask: int = masks.get(roots[t], 0)
+			var on_ac: bool = _is_single_source(mask) and (mask & PowerSupply.AC_BITS) != 0
+			potentials.append(Phasor.phase(phases[t]) if on_ac else Vector2.ZERO)
+			fixed.append(1 if on_ac else 0)
+			groups.append(roots[t])
+			_motor_phases[MOTOR_TERMINALS * m + t] = phases[t]
+		_motor_supply[m] = [potentials, fixed, groups, polarity.slice(0, count)]
 
 
 ## One byte per coil (bit 0 coil power, bit 1 timed output), then one per

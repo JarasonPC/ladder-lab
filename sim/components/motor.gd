@@ -5,3 +5,7 @@ extends Load
 
 func _init(p_designation: String) -> void:
 	super(p_designation, "U1", "U2")
+
+
+func rated_draw() -> float:
+	return 2.0
