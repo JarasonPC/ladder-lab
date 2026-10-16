@@ -130,6 +130,9 @@
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION on
   format changes and keep older versions loading
+- File association (FileAssociation): an exported Windows build registers .ladder for the current
+  user (HKCU via `reg import`, redone only when the exe moved); a .ladder path among the
+  command-line arguments is opened at start
 - Translations: English source text in tr()/tr_n(); regenerate `translations/ladder_lab.pot`
   when UI text changes and update `cs.po` (keep reviewed translations)
 - Merge the working branch into main after each finished phase
