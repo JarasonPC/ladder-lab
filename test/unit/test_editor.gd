@@ -456,3 +456,40 @@ func test_designation_prefixes_and_limit_switch() -> void:
 	assert_false(limit.is_closed(), "operated it opens")
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 	assert_true(copy.circuit.get_component("SQ1") is LimitSwitch, "saved as a limit switch")
+
+
+func test_main_contacts_go_to_a_contactor_without_them() -> void:
+	var doc: SchematicDocument = editor.document()
+	# Power section first: no coils yet, every set gets its own contactor.
+	_place({"type": "main_contacts"}, Vector2i(5, 20))
+	editor._clear_selection()
+	_place({"type": "main_contacts"}, Vector2i(13, 20))
+	assert_true(doc.circuit.has_component_id("KM1:1-2-3-4-5-6"))
+	assert_true(doc.circuit.has_component_id("KM2:1-2-3-4-5-6"), "the second set is KM2, not refused as KM1")
+	# The coils drawn later; a third coil gets main contacts of its own,
+	# even while a coil whose main contacts are drawn is selected.
+	_place({"type": "coil"}, Vector2i(5, 4))
+	_place({"type": "coil"}, Vector2i(9, 4))
+	_place({"type": "coil"}, Vector2i(13, 4))
+	assert_not_null(doc.circuit.get_coil("KM3"))
+	editor._clear_selection()
+	editor.selected_components["KM1"] = true
+	_place({"type": "main_contacts"}, Vector2i(21, 20))
+	assert_true(doc.circuit.has_component_id("KM3:1-2-3-4-5-6"), "KM3 is the contactor without main contacts")
+	editor._clear_selection()
+	_place({"type": "main_contacts"}, Vector2i(29, 20))
+	assert_true(doc.circuit.has_component_id("KM4:1-2-3-4-5-6"), "all contactors have theirs: a new KM")
+
+
+func test_overload_contact_taken_is_not_refused() -> void:
+	_place({"type": "overload_relay", "trip_delay": 5.0}, Vector2i(10, 3))
+	_place({"type": "coil"}, Vector2i(20, 3))
+	var doc: SchematicDocument = editor.document()
+	var count: int = doc.circuit.get_components().size()
+	for x: int in [14, 18]:
+		editor._clear_selection()
+		editor.selected_components["F1"] = true
+		_place({"type": "contact", "contact": "NC"}, Vector2i(x, 8))
+	assert_eq(doc.circuit.get_components().size(), count + 2, "both contacts placed")
+	assert_true(doc.circuit.get_component("F1:95-96") is OverloadContact, "the first is the relay's 95-96")
+	assert_true(doc.circuit.has_component_id("KM1:11-12"), "its 95-96 taken, the second goes to the coil")
