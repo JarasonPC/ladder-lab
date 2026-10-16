@@ -1172,7 +1172,7 @@ func _marking_at(point: Vector2) -> Dictionary:
 
 
 func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
-	if c is Junction or c is PowerSupply:
+	if c is Junction or c is PowerSupply or kind == "plate":
 		return false
 	var text: String = c.designation
 	match kind:

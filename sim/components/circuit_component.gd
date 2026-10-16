@@ -86,6 +86,24 @@ func trip_message() -> String:
 	return "%s tripped"
 
 
+## Overcurrent protection (fuses, breakers, overload relays): heats up for
+## [param _dt] seconds with [param _currents] (amperes, one per switching
+## path). Returns true when it trips.
+func heat_up(_dt: float, _currents: PackedFloat32Array) -> bool:
+	return false
+
+
+## Seconds until [param _currents] trip it by heating up; INF if never.
+func time_to_heat_trip(_currents: PackedFloat32Array) -> float:
+	return INF
+
+
+## True when [param _currents] trip its magnetic release at once (it then has
+## tripped).
+func trips_instantly(_currents: PackedFloat32Array) -> bool:
+	return false
+
+
 ## Full terminal addresses used for wiring, e.g. ["K1:A1", "K1:A2"].
 func get_terminal_keys() -> PackedStringArray:
 	var keys: PackedStringArray = PackedStringArray()

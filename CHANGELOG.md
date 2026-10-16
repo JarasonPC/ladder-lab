@@ -6,6 +6,29 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Simulation
+- Real currents: every load draws current and the simulation shows how much flows in every
+  wire, contact, fuse and breaker; parallel contacts share it
+- Three-phase motors behave like induction motors: a large starting current (Ia/In) until they
+  are up to speed, a third of it when started in star, the winding current In/√3 in delta, more
+  current when a phase is lost or the motor is overloaded, a reversed winding in delta makes
+  the motor pull both ways and draw a lot; plugging (reversing at speed) draws even more than a
+  start
+- Fuses (gG), circuit breakers with characteristic B, C or D and overload relays (class 10)
+  trip after the time their characteristic gives for the current through them; the magnetic
+  release of a breaker trips at once (a B breaker on a motor start, for example)
+- Voltage view or current view: the current view colours only what carries current, with the
+  current written on each wire
+- Clamp meter: click a wire to read the current in it
+- The timing chart shows the currents of motors and protective devices over time
+
+### Schematic editor
+- Rated current of fuses and breakers, characteristic B/C/D of breakers and current setting of
+  overload relays, with their time-current characteristic in the properties
+- Motor rating plate: power, rated current, speed, cos φ, starting current and run-up time;
+  it can be drawn beside the motor with the voltages for Y/Δ, the currents and the efficiency
+- Breakers, fuses and overload relays show their rating on the drawing (C16, 16 A, Ir 8 A)
+
 ### Panels
 - The switchboard shows its wiring: every connection of the schematic between its devices and
   terminal strips is a wire led through the wire ducts, red for the control phase (L), light blue

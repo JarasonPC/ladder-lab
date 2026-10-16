@@ -47,6 +47,14 @@ var sim_time: float:
 var _wire_layer: WireLayer
 var _grid_visible: bool = false
 var _numbers_visible: bool = true
+## Current view: only what carries current is coloured, with the currents
+## written on the wires; else the voltage view.
+var _current_view: bool = false
+## Clamp meter tool: a click on a wire clamps the meter on it (or takes it off).
+var clamp_tool: bool = false
+## Clamp meters on wires: wire index -> grid point where it is clamped
+## (simulation only; a view following another one shows the other's).
+var clamps: Dictionary[int, Vector2] = {}
 var _symbols: Dictionary[String, SchematicSymbol] = {}
 ## Zoom the symbols were last drawn for.
 var _drawn_scale: float = 0.0
@@ -68,6 +76,7 @@ func _ready() -> void:
 
 func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 	document = doc
+	clamps.clear()
 	simulating = simulate
 	simulator = Simulator.new(doc.circuit)
 	simulator.mode = Simulator.Mode.REALISTIC if doc.realistic_timing else Simulator.Mode.IDEAL
@@ -93,6 +102,7 @@ func rebuild() -> void:
 	_wire_layer = WireLayer.new()
 	_wire_layer.show_grid = _grid_visible
 	_wire_layer.show_numbers = _numbers_visible
+	_wire_layer.current_view = _current_view
 	if page >= document.pages.size():
 		page = document.pages.size() - 1
 	_wire_layer.page = page
@@ -155,6 +165,14 @@ func set_wire_numbers_visible(on: bool) -> void:
 	if _wire_layer != null:
 		_wire_layer.show_numbers = on
 		_wire_layer.queue_redraw()
+
+
+## Switches between the current view ([param on]) and the voltage view.
+func set_current_view(on: bool) -> void:
+	_current_view = on
+	if _wire_layer != null:
+		_wire_layer.current_view = on
+		_update_visuals()
 
 
 ## Shows or hides the dot grid behind the drawing.
@@ -248,6 +266,9 @@ func _update_visuals() -> void:
 	var blink_on: bool = _blink_time < BLINK_PERIOD * 0.5
 	var reach_of: Dictionary[String, int] = last_result.terminal_reach
 	_wire_layer.wire_reach = last_result.wire_reach
+	_wire_layer.wire_currents = last_result.wire_currents
+	_wire_layer.clamps = source.clamps if source != null else clamps
+	_wire_layer.short_circuit = last_result.short_circuit
 	_wire_layer.fault_wires.clear()
 	if last_result.short_circuit:
 		for w: int in last_result.current_wires:
@@ -260,6 +281,9 @@ func _update_visuals() -> void:
 		symbol.live.resize(keys.size())
 		for k: int in keys.size():
 			symbol.live[k] = reach_of.get(keys[k], SchematicSymbol.REACH_NONE)
+			if _current_view and not last_result.short_circuit and not last_result.terminal_currents.has(keys[k]):
+				# Current view: a terminal no current flows through is drawn dead.
+				symbol.live[k] = SchematicSymbol.REACH_NONE
 		symbol.warning = blink_on and last_result.oscillating_tags.has(symbol.component.designation) and not (symbol.component is PowerSupply)
 		symbol.queue_redraw()
 
@@ -279,6 +303,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed:
 			var c: CircuitComponent = _component_under_mouse()
+			if clamp_tool and c == null and _toggle_clamp():
+				get_viewport().set_input_as_handled()
+				return
 			# A contact of a button or switch operates the device.
 			var operator: CircuitComponent = operator_of(c)
 			if operator != null:
@@ -306,6 +333,28 @@ func _unhandled_input(event: InputEvent) -> void:
 			_held = null
 			_apply(simulator.step())
 			get_viewport().set_input_as_handled()
+
+
+## Clamps the meter on the wire under the mouse, or takes it off. Returns
+## false when there is no wire there.
+func _toggle_clamp() -> bool:
+	var point: Vector2 = get_local_mouse_position() / G
+	var w: int = document.wire_at(point, 0.4, page)
+	if w < 0:
+		return false
+	var on: Dictionary[int, Vector2] = source.clamps if source != null else clamps
+	if on.has(w):
+		on.erase(w)
+	else:
+		var points: Array[Vector2i] = document.wire_points(w)
+		var best: Vector2 = Vector2(points[0])
+		for s: int in range(1, points.size()):
+			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(point, Vector2(points[s - 1]), Vector2(points[s]))
+			if closest.distance_to(point) < best.distance_to(point):
+				best = closest
+		on[w] = best
+	_update_visuals()
+	return true
 
 
 ## Presses or releases push button [param designation] (all its blocks), as

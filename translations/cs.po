@@ -1269,3 +1269,82 @@ msgstr "Stránky projektu"
 #, c-format
 msgid "The license text is missing; see %s"
 msgstr "Text licence chybí; viz %s"
+
+#, c-format
+msgid "%s up to speed"
+msgstr "%s se rozběhl na jmenovité otáčky"
+
+#, c-format
+msgid "%s tripped (short-circuit release)"
+msgstr "%s vypnul (zkratová spoušť)"
+
+#, c-format
+msgid "%s tripped"
+msgstr "%s vypnul"
+
+#, c-format
+msgid "%s blown"
+msgstr "%s se přepálila"
+
+msgid "Characteristic"
+msgstr "Charakteristika"
+
+msgid "B (magnetic release 3-5 In)"
+msgstr "B (zkratová spoušť 3–5 In)"
+
+msgid "C (magnetic release 5-10 In)"
+msgstr "C (zkratová spoušť 5–10 In)"
+
+msgid "D (magnetic release 10-20 In)"
+msgstr "D (zkratová spoušť 10–20 In)"
+
+msgid "Rated current In (A)"
+msgstr "Jmenovitý proud In (A)"
+
+msgid "Current setting Ir (A)"
+msgstr "Nastavený proud Ir (A)"
+
+msgid "Time-current characteristic"
+msgstr "Vypínací charakteristika"
+
+msgid "Show rating plate"
+msgstr "Zobrazit výrobní štítek"
+
+msgid "Rated power (kW)"
+msgstr "Jmenovitý výkon (kW)"
+
+msgid "Rated speed (min⁻¹)"
+msgstr "Jmenovité otáčky (min⁻¹)"
+
+msgid "Power factor cos φ"
+msgstr "Účiník cos φ"
+
+msgid "Starting current Ia / In"
+msgstr "Záběrný proud Ia / In"
+
+msgid "Run-up time (s)"
+msgstr "Doba rozběhu (s)"
+
+msgid "Simulation"
+msgstr "Simulace"
+
+msgid "Voltage view"
+msgstr "Zobrazení napětí"
+
+msgid "Current view"
+msgstr "Zobrazení proudů"
+
+msgid "Voltages"
+msgstr "Napětí"
+
+msgid "Currents"
+msgstr "Proudy"
+
+msgid "Voltage view: wires coloured by the voltage that reaches them. Current view: only what carries current is coloured, the thicker the more, with the current written on each wire."
+msgstr "Zobrazení napětí: vodiče obarvené podle napětí, které na ně dosáhne. Zobrazení proudů: obarveno je jen to, čím teče proud, čím větší proud, tím silnější čára, a u každého vodiče je napsán jeho proud."
+
+msgid "Clamp meter: click a wire to clamp it and read its current, click it again to take the meter off"
+msgstr "Klešťový ampérmetr: klepnutím na vodič jej obemknete a změříte jeho proud, dalším klepnutím kleště sundáte"
+
+msgid "short"
+msgstr "zkrat"

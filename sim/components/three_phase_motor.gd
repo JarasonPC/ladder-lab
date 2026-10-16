@@ -24,6 +24,16 @@ extends CircuitComponent
 ## off. DC applied at once meets the remaining field and brakes fully; applied
 ## later, the braking force builds up again only with the same time constant,
 ## so the motor stops later.
+##
+## Currents: fed with AC the motor is an induction machine ([MotorModel]) of
+## [member rated_current] that draws [member start_ratio] times it at
+## standstill. The simulator gives it the potentials of its terminals
+## ([method set_supply]); it works out the current of each terminal
+## ([member terminal_currents]) and the torque, and in realistic timing runs up
+## against its load (rated torque at rated speed, more with [member
+## overloaded]) in about [member run_up_time]: a star start draws a third of the
+## current, a lost phase or a reversed winding much more. Under DC braking it
+## draws [constant DC_BRAKING_CURRENT] times its rated current.
 
 enum Kind { STANDARD, STAR_DELTA, DAHLANDER, TWO_WINDINGS, THREE_WINDINGS }
 enum State { STOPPED, RUNNING, STAR, DELTA, PHASE_LOSS, MISWIRED, DC_BRAKING }
@@ -36,6 +46,19 @@ const STANDSTILL: float = 1e-6
 ## Seconds in which the rotor field falls to 37 % after switching off (and
 ## builds up again under DC braking); 100-500 ms in common motors.
 const ROTOR_TIME_CONSTANT: float = 0.2
+const DEFAULT_RATED_CURRENT: float = 8.0
+const DEFAULT_START_RATIO: float = 6.0
+const DEFAULT_RUN_UP_TIME: float = 1.0
+const DEFAULT_RATED_POWER: float = 4.0
+const DEFAULT_RATED_SPEED: float = 1440.0
+## Line voltage of the supply, volts.
+const RATED_VOLTAGE: float = 400.0
+## Load of an overloaded motor, in multiples of the rated torque.
+const OVERLOAD_FACTOR: float = 1.8
+## DC braking current, in multiples of the rated current.
+const DC_BRAKING_CURRENT: float = 2.0
+## Longest step of the run-up calculation (seconds).
+const MAX_STEP: float = 0.002
 
 var kind: Kind
 var state: State = State.STOPPED
@@ -60,6 +83,40 @@ var shaft: float = 0.0
 var shaft_direction: Direction = Direction.NONE
 ## Rotor field, 1 while running (simulation state, never saved).
 var rotor_flux: float = 0.0
+## Rated (full load) line current in amperes.
+var rated_current: float = DEFAULT_RATED_CURRENT
+## Starting current as a multiple of the rated current.
+var start_ratio: float = DEFAULT_START_RATIO
+## Seconds to run up direct on line with rated load (sets the inertia).
+var run_up_time: float = DEFAULT_RUN_UP_TIME
+## Rated output power, kW (rating plate).
+var rated_power: float = DEFAULT_RATED_POWER
+## Rated speed at rated load, min⁻¹ (of the fastest speed of multi-speed
+## motors); with the synchronous speed it gives the rated slip.
+var rated_speed: float = DEFAULT_RATED_SPEED
+## Power factor cos φ at rated load.
+var power_factor: float = MotorModel.DEFAULT_POWER_FACTOR
+## Draw its rating plate beside it (design data).
+var show_plate: bool = false
+## Signed shaft speed: fraction of the synchronous speed of the fastest
+## winding, clockwise positive (simulation state).
+var rotor_speed: float = 0.0
+## Current into each winding terminal, amperes (phasors; DC on the real axis).
+var terminal_currents: PackedVector2Array = PackedVector2Array()
+## Currents in the lines L1, L2, L3 feeding it, amperes (set by the simulator).
+var line_currents: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0])
+## Fed with AC: the windings have voltage (set by [method set_supply]).
+var ac_powered: bool = false
+## Torque at the present speed (multiples of the rated torque).
+var torque: float = 0.0
+## Rated speed of the speed step it last ran at: [member shaft] is the speed
+## as a fraction of it.
+var _reference: float = 1.0 - MotorModel.DEFAULT_SLIP
+var _potentials: PackedVector2Array = PackedVector2Array()
+var _fixed: PackedByteArray = PackedByteArray()
+var _groups: PackedInt32Array = PackedInt32Array()
+## DC braking: share of the DC current into each terminal (+ positive).
+var _dc_share: PackedFloat32Array = PackedFloat32Array()
 
 
 func _init(p_designation: String, p_kind: Kind = Kind.STANDARD) -> void:
@@ -109,7 +166,7 @@ func is_turning() -> bool:
 ## Seconds until the shaft stands still while it runs down (switched off or
 ## braked); INF while it is driven or stands still.
 func time_to_standstill() -> float:
-	if is_running() or shaft <= 0.0:
+	if ac_powered or is_running() or shaft <= 0.0:
 		return INF
 	if _stops_at_once():
 		return 0.0
@@ -131,10 +188,25 @@ func time_to_standstill() -> float:
 ## Moves the shaft on by [param dt] seconds in the present state: full speed
 ## while running, else slowing down. Returns true when it came to a standstill.
 func advance_shaft(dt: float) -> bool:
+	if ac_powered:
+		var left: float = dt
+		while left > 0.0:
+			var h: float = minf(left, MAX_STEP)
+			var before: float = rotor_speed
+			_accelerate(h)
+			left -= h
+			if absf(rotor_speed - before) < 1e-10 * h / MAX_STEP:
+				break
+		rotor_flux = 1.0
+		_sync_shaft()
+		update_currents()
+		return false
 	if is_running():
+		# Running with no supply given (not simulated): at rated speed.
 		shaft = 1.0
 		shaft_direction = direction
 		rotor_flux = 1.0
+		_sync_speed()
 		return false
 	var turning: bool = shaft > 0.0
 	if turning:
@@ -145,7 +217,9 @@ func advance_shaft(dt: float) -> bool:
 	if turning and shaft <= STANDSTILL:
 		shaft = 0.0
 		shaft_direction = Direction.NONE
+		_sync_speed()
 		return true
+	_sync_speed()
 	return false
 
 
@@ -169,9 +243,217 @@ func _slowdown(dt: float) -> float:
 	return drop
 
 
-## Draws more current than it should: overloaded, missing a phase or miswired.
-func is_overcurrent() -> bool:
-	return state == State.PHASE_LOSS or state == State.MISWIRED or (overloaded and is_running())
+func model() -> MotorModel:
+	return MotorModel.of(kind, start_ratio, rated_slip(), power_factor)
+
+
+## Synchronous speed of the fastest winding at 50 Hz (min⁻¹): 3000 / pole pairs.
+func synchronous_rpm() -> float:
+	var pairs: int = maxi(1, floori(3000.0 / maxf(rated_speed, 1.0) + 1e-9))
+	return 3000.0 / pairs
+
+
+## Slip at rated load, from [member rated_speed].
+func rated_slip() -> float:
+	return clampf(1.0 - rated_speed / synchronous_rpm(), 0.005, 0.2)
+
+
+## Efficiency at rated load: rated power over the power drawn from the
+## 400 V supply at rated current and power factor.
+func efficiency() -> float:
+	return rated_power * 1000.0 / (MotorModel.SQRT3 * RATED_VOLTAGE * rated_current * power_factor)
+
+
+## Speed of the shaft now, min⁻¹ (negative counterclockwise).
+func rpm() -> float:
+	return rotor_speed * synchronous_rpm()
+
+
+## Rated speed of each speed step, min⁻¹, slowest first.
+func rated_speeds() -> PackedFloat32Array:
+	var speeds: PackedFloat32Array = PackedFloat32Array()
+	var steps: int = speed_count()
+	for k: int in steps:
+		speeds.append(rated_speed * (0.5 if kind == Kind.DAHLANDER and k == 0 else float(k + 1) / steps))
+	return speeds
+
+
+## Rated voltages and connections as on the rating plate, e.g. ["400/690 V", "Δ/Y"].
+func plate_voltage() -> PackedStringArray:
+	match kind:
+		Kind.STAR_DELTA:
+			return PackedStringArray(["400/690 V", "Δ/Y"])
+		Kind.DAHLANDER:
+			return PackedStringArray(["400 V", "Δ/YY"])
+		Kind.TWO_WINDINGS:
+			return PackedStringArray(["400 V", "Y/Y"])
+		Kind.THREE_WINDINGS:
+			return PackedStringArray(["400 V", "Y/Y/Y"])
+	return PackedStringArray(["400 V", "Y"])
+
+
+## Load torque against the shaft now (multiples of the rated torque).
+func load_factor() -> float:
+	return OVERLOAD_FACTOR if overloaded else 1.0
+
+
+## Set by the simulator: [param potentials] of the winding terminals (see
+## [Phasor]) where [param fixed] is 1, terminals joined outside sharing a
+## [param groups] value; [param dc_polarity] +1 / -1 on terminals on the DC
+## poles while it is braked.
+func set_supply(potentials: PackedVector2Array, fixed: PackedByteArray, groups: PackedInt32Array, dc_polarity: PackedInt32Array) -> void:
+	_potentials = potentials
+	_fixed = fixed
+	_groups = groups
+	ac_powered = false
+	for i: int in fixed.size():
+		for j: int in range(i + 1, fixed.size()):
+			if fixed[i] == 1 and fixed[j] == 1 and not potentials[i].is_equal_approx(potentials[j]):
+				ac_powered = true
+	_dc_share.resize(dc_polarity.size())
+	_dc_share.fill(0.0)
+	if state == State.DC_BRAKING:
+		var plus: int = dc_polarity.count(1)
+		var minus: int = dc_polarity.count(-1)
+		for i: int in dc_polarity.size():
+			if dc_polarity[i] == 1:
+				_dc_share[i] = 1.0 / plus
+			elif dc_polarity[i] == -1:
+				_dc_share[i] = -1.0 / minus
+	if ac_powered:
+		var sets: int = model().sync_speed.size()
+		var step: int = clampi(speed - 1, 0, sets - 1) if speed > 0 else sets - 1
+		if kind == Kind.STAR_DELTA or kind == Kind.STANDARD:
+			step = 0
+		_reference = model().rated_speed(step)
+	update_currents()
+
+
+## Works out [member terminal_currents] and [member torque] at the present speed.
+func update_currents() -> void:
+	var count: int = winding_terminal_count()
+	if ac_powered:
+		var solved: Array = model().solve(_potentials, _fixed, _groups, rotor_speed, rated_current)
+		terminal_currents = solved[0]
+		torque = solved[1]
+		return
+	terminal_currents.resize(count)
+	terminal_currents.fill(Vector2.ZERO)
+	torque = 0.0
+	if state == State.DC_BRAKING:
+		for i: int in mini(count, _dc_share.size()):
+			terminal_currents[i] = Vector2(_dc_share[i] * DC_BRAKING_CURRENT * rated_current, 0.0)
+
+
+## Largest line current (see [member line_currents]), amperes.
+func max_line_current() -> float:
+	return maxf(line_currents[0], maxf(line_currents[1], line_currents[2]))
+
+
+## Largest current of a winding terminal, amperes.
+func max_current() -> float:
+	var most: float = 0.0
+	for i: Vector2 in terminal_currents:
+		most = maxf(most, i.length())
+	return most
+
+
+## Jumps to the speed the motor settles at with the present supply (instant
+## switching): the first speed in the direction it is pushed where its torque
+## meets the load.
+func snap_speed() -> void:
+	if not ac_powered:
+		return
+	var at: Callable = func(n: float) -> float:
+		var solved: Array = model().solve(_potentials, _fixed, _groups, n, rated_current)
+		return solved[1]
+	var load: float = load_factor()
+	var n: float = rotor_speed
+	var drive: float = at.call(n)
+	var push: float = drive - signf(n) * model().load_torque(n, load)
+	if n == 0.0 and absf(drive) <= model().load_torque(0.0, load):
+		update_currents()
+		return
+	var direction_sign: float = signf(push)
+	if direction_sign == 0.0:
+		update_currents()
+		return
+	var step: float = 0.02 * direction_sign
+	var accel: Callable = func(v: float) -> float:
+		var t: float = at.call(v)
+		if v == 0.0:
+			return 0.0 if absf(t) <= model().load_torque(0.0, load) else t
+		return t - signf(v) * model().load_torque(v, load)
+	var limit: float = 1.2
+	while absf(n + step) <= limit:
+		var next: float = n + step
+		if signf(next) != signf(n) and n != 0.0:
+			# Through standstill: the load holds it there unless the torque wins.
+			if absf(at.call(0.0)) <= model().load_torque(0.0, load):
+				rotor_speed = 0.0
+				_sync_shaft()
+				update_currents()
+				return
+		if signf(accel.call(next)) != direction_sign:
+			var low: float = n
+			var high: float = next
+			for i: int in 40:
+				var mid: float = (low + high) * 0.5
+				if signf(accel.call(mid)) == direction_sign:
+					low = mid
+				else:
+					high = mid
+			n = (low + high) * 0.5
+			break
+		n = next
+	rotor_speed = n
+	_sync_shaft()
+	update_currents()
+
+
+## Settled at a steady speed (or held at standstill): nothing changes
+## until the supply does.
+func is_settled() -> bool:
+	if not ac_powered:
+		return true
+	var load: float = model().load_torque(rotor_speed, load_factor())
+	if rotor_speed == 0.0:
+		return absf(torque) <= load
+	var accel: float = (torque - signf(rotor_speed) * load) / (maxf(run_up_time, 0.01) / model().run_up_per_inertia)
+	return absf(accel) < 1e-4
+
+
+## One step of the run-up: torque against load and inertia.
+func _accelerate(h: float) -> void:
+	var solved: Array = model().solve(_potentials, _fixed, _groups, rotor_speed, rated_current)
+	var drive: float = solved[1]
+	var load: float = model().load_torque(rotor_speed, load_factor())
+	var inertia: float = maxf(run_up_time, 0.01) / model().run_up_per_inertia
+	if rotor_speed == 0.0:
+		if absf(drive) <= load:
+			return
+		rotor_speed = signf(drive) * minf((absf(drive) - load) / inertia * h, 0.01)
+		return
+	var next: float = rotor_speed + (drive - signf(rotor_speed) * load) / inertia * h
+	if signf(next) != signf(rotor_speed):
+		next = 0.0
+	rotor_speed = next
+
+
+## [member shaft] and its direction from [member rotor_speed].
+func _sync_shaft() -> void:
+	shaft = absf(rotor_speed) / _reference
+	if shaft <= STANDSTILL:
+		shaft = 0.0
+		shaft_direction = Direction.NONE
+	else:
+		shaft_direction = Direction.CLOCKWISE if rotor_speed > 0.0 else Direction.COUNTERCLOCKWISE
+
+
+## [member rotor_speed] from [member shaft] and its direction.
+func _sync_speed() -> void:
+	var sign: float = -1.0 if shaft_direction == Direction.COUNTERCLOCKWISE else 1.0
+	rotor_speed = sign * shaft * _reference
 
 
 ## Works out [state, direction, speed] from the phase on each terminal

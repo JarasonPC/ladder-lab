@@ -11,6 +11,12 @@ const INVALID_CELL := Vector2i(-2147483648, -2147483648)
 const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
+## Limits of rated currents and settings (amperes) and of the starting
+## current ratio of motors.
+const MIN_AMPERES: float = 0.1
+const MAX_AMPERES: float = 10000.0
+const MIN_START_RATIO: float = 2.0
+const MAX_START_RATIO: float = 12.0
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -158,8 +164,11 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "fuse"
 		if (c as Fuse).holder:
 			d["holder"] = true
+		d["rated_current"] = (c as Fuse).rated_current
 	elif c is CircuitBreaker:
 		d["type"] = "breaker"
+		d["rated_current"] = (c as CircuitBreaker).rated_current
+		d["characteristic"] = TripCurve.LETTERS[(c as CircuitBreaker).characteristic]
 	elif c is OverloadContact:
 		d["type"] = "overload_contact"
 		d["contact"] = "NO" if (c as OverloadContact).contact_type == NO else "NC"
@@ -172,6 +181,7 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "overload_relay"
 		d["trip_delay"] = (c as OverloadRelay).trip_delay
 		d["poles"] = (c as OverloadRelay).poles
+		d["setting"] = (c as OverloadRelay).setting
 	elif c is MainContacts:
 		d["type"] = "main_contacts"
 		d["poles"] = (c as MainContacts).poles
@@ -180,9 +190,12 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["poles"] = (c as ThreePoleFuse).poles
 		if (c as ThreePoleFuse).holder:
 			d["holder"] = true
+		d["rated_current"] = (c as ThreePoleFuse).rated_current
 	elif c is MotorBreaker:
 		d["type"] = "breaker"
 		d["poles"] = (c as MotorBreaker).poles
+		d["rated_current"] = (c as MotorBreaker).rated_current
+		d["characteristic"] = TripCurve.LETTERS[(c as MotorBreaker).characteristic]
 	elif c is ThreePhaseMotor:
 		d["type"] = "motor3"
 		var motor: ThreePhaseMotor = c as ThreePhaseMotor
@@ -192,6 +205,14 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 			d["connection"] = "delta" if motor.delta_bridges else "star"
 		d["coast_time"] = motor.coast_time
 		d["brake_time"] = motor.brake_time
+		d["rated_current"] = motor.rated_current
+		d["start_ratio"] = motor.start_ratio
+		d["run_up_time"] = motor.run_up_time
+		d["rated_power"] = motor.rated_power
+		d["rated_speed"] = motor.rated_speed
+		d["power_factor"] = motor.power_factor
+		if motor.show_plate:
+			d["show_plate"] = true
 	elif c is SwitchingElement:
 		var s: SwitchingElement = c as SwitchingElement
 		d["contact"] = "NO" if s.contact_type == NO else "NC"
@@ -289,18 +310,28 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 				var multi_fuse: ThreePoleFuse = ThreePoleFuse.new(designation)
 				multi_fuse.poles = _poles(d, 1, 1)
 				multi_fuse.holder = bool(d.get("holder", false))
+				multi_fuse.rated_current = _amperes(d, "rated_current", ThreePoleFuse.DEFAULT_RATED_CURRENT)
 				return multi_fuse
 			var fuse: Fuse = Fuse.new(designation)
 			fuse.holder = bool(d.get("holder", false))
+			fuse.rated_current = _amperes(d, "rated_current", Fuse.DEFAULT_RATED_CURRENT)
 			return fuse
 		"breaker":
+			var characteristic: int = maxi(TripCurve.LETTERS.find(str(d.get("characteristic", "C"))), 0)
 			if _poles(d, 1, 1) > 1:
 				var multi_breaker: MotorBreaker = MotorBreaker.new(designation)
 				multi_breaker.poles = _poles(d, 1, 1)
+				multi_breaker.rated_current = _amperes(d, "rated_current", MotorBreaker.DEFAULT_RATED_CURRENT)
+				multi_breaker.characteristic = characteristic as CircuitBreaker.Characteristic
 				return multi_breaker
-			return CircuitBreaker.new(designation)
+			var breaker: CircuitBreaker = CircuitBreaker.new(designation)
+			breaker.rated_current = _amperes(d, "rated_current", CircuitBreaker.DEFAULT_RATED_CURRENT)
+			breaker.characteristic = characteristic as CircuitBreaker.Characteristic
+			return breaker
 		"overload_relay":
-			return OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0), 3 if int(d.get("poles", 0)) == 3 else 0)
+			var relay: OverloadRelay = OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0), 3 if int(d.get("poles", 0)) == 3 else 0)
+			relay.setting = _amperes(d, "setting", OverloadRelay.DEFAULT_SETTING)
+			return relay
 		"main_contacts":
 			var contacts: MainContacts = MainContacts.new(designation)
 			contacts.poles = _poles(d, 1, 3)
@@ -321,6 +352,13 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			motor3.delta_bridges = d.get("connection", "star") == "delta"
 			motor3.coast_time = _seconds_or(d, "coast_time", ThreePhaseMotor.DEFAULT_COAST_TIME, 3600.0)
 			motor3.brake_time = _seconds_or(d, "brake_time", ThreePhaseMotor.DEFAULT_BRAKE_TIME, 3600.0)
+			motor3.rated_current = _amperes(d, "rated_current", ThreePhaseMotor.DEFAULT_RATED_CURRENT)
+			motor3.start_ratio = clampf(_number_or(d, "start_ratio", ThreePhaseMotor.DEFAULT_START_RATIO), MIN_START_RATIO, MAX_START_RATIO)
+			motor3.run_up_time = _seconds_or(d, "run_up_time", ThreePhaseMotor.DEFAULT_RUN_UP_TIME, 600.0)
+			motor3.rated_power = clampf(_number_or(d, "rated_power", ThreePhaseMotor.DEFAULT_RATED_POWER), 0.01, 10000.0)
+			motor3.rated_speed = clampf(_number_or(d, "rated_speed", ThreePhaseMotor.DEFAULT_RATED_SPEED), 100.0, 2990.0)
+			motor3.power_factor = clampf(_number_or(d, "power_factor", MotorModel.DEFAULT_POWER_FACTOR), 0.3, 0.97)
+			motor3.show_plate = bool(d.get("show_plate", false))
 			return motor3
 		"overload_contact":
 			return OverloadContact.new(designation, contact)
@@ -350,6 +388,17 @@ static func _seconds(d: Dictionary, key: String) -> float:
 	if (value is float or value is int) and float(value) >= 0.0 and float(value) <= 10.0:
 		return float(value)
 	return -1.0
+
+
+## A current in amperes (0.1 A - 10 kA), or [param fallback] if missing or invalid.
+static func _amperes(d: Dictionary, key: String, fallback: float) -> float:
+	var value: float = _number_or(d, key, fallback)
+	return value if value >= MIN_AMPERES and value <= MAX_AMPERES else fallback
+
+
+static func _number_or(d: Dictionary, key: String, fallback: float) -> float:
+	var value: Variant = d.get(key, null)
+	return float(value) if value is float or value is int else fallback
 
 
 static func _seconds_or(d: Dictionary, key: String, fallback: float, maximum: float) -> float:

@@ -70,6 +70,7 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"chevron_right": '<path d="m9 18 6-6-6-6"/>',
 	"menu": '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
 	"list": '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+	"clamp": '<path d="M7 10a5 5 0 1 1 10 0"/><path d="M10 10h4"/><rect x="7" y="13" width="10" height="9" rx="1.5"/><path d="M10 17h4"/>',
 	"wire_numbers": '<path d="M2 19h20"/><path d="M5 7l2-2v10"/><path d="M12 7a2.5 2.5 0 1 1 4.5 1.5L12 15h5"/>',
 	"hash": '<path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="m16 3-2 18"/>',
 	"panel": '<rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="7" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="17" r="2"/>',

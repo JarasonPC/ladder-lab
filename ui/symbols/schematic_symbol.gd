@@ -312,6 +312,14 @@ func has_fault() -> bool:
 	return false
 
 
+## Writes how far an overcurrent has heated a protective device towards
+## tripping ([param progress] 0-1) as a percentage, on line [param line]
+## beside [param anchor]; nothing while it is cold.
+func draw_heat(progress: float, anchor: Vector2, line: int) -> void:
+	if progress >= 0.005:
+		draw_label("%d %%" % roundi(progress * 100.0), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.FAULT, line)
+
+
 ## Terminal numbers of a multi-pole symbol: 1, 3, 5, 7 on top, 2, 4, 6, 8 below.
 func _draw_pole_labels() -> void:
 	var names: PackedStringArray = component.get_terminal_names()

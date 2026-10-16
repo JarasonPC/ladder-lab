@@ -89,15 +89,31 @@ func show_component(component: CircuitComponent) -> void:
 			_check(tr("Delayed (timer contact)"), "delayed")
 		"fuse", "breaker", "main_contacts":
 			_choice(tr("Poles"), "poles", [1, 2, 3, 4], ["1", "2", "3", "4"])
+			if kind == "breaker":
+				_choice(tr("Characteristic"), "characteristic", ["B", "C", "D"], [tr("B (magnetic release 3-5 In)"), tr("C (magnetic release 5-10 In)"), tr("D (magnetic release 10-20 In)")])
+			if kind != "main_contacts":
+				_number(tr("Rated current In (A)"), "rated_current", DocumentSerializer.MIN_AMPERES, DocumentSerializer.MAX_AMPERES, 0.1)
+				_trip_curve(TripCurve.Kind.FUSE_GG if kind == "fuse" else CircuitBreaker.breaker_curve(TripCurve.LETTERS.find(_data["characteristic"]) as CircuitBreaker.Characteristic))
 		"overload_relay":
 			_choice(tr("Poles"), "poles", [0, 3], [tr("None (contacts only)"), tr("3 (heaters in the power circuit)")])
-			_number(tr("Trip delay (s)"), "trip_delay", 0.0, 3600.0, 0.5)
+			if (component as OverloadRelay).poles == 3:
+				_number(tr("Current setting Ir (A)"), "setting", DocumentSerializer.MIN_AMPERES, DocumentSerializer.MAX_AMPERES, 0.1)
+				_trip_curve(TripCurve.Kind.OVERLOAD)
+			else:
+				_number(tr("Trip delay (s)"), "trip_delay", 0.0, 3600.0, 0.5)
 		"overload_contact":
 			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO 97-98"), tr("NC 95-96")])
 		"motor3":
 			_check(tr("Draw as terminal box"), "terminal_box")
 			if _data.has("connection"):
 				_choice(tr("Bridges"), "connection", ["star", "delta"], [tr("Star (Y)"), tr("Delta (Δ)")])
+			_check(tr("Show rating plate"), "show_plate")
+			_number(tr("Rated power (kW)"), "rated_power", 0.01, 10000.0, 0.01)
+			_number(tr("Rated current In (A)"), "rated_current", DocumentSerializer.MIN_AMPERES, DocumentSerializer.MAX_AMPERES, 0.1)
+			_number(tr("Rated speed (min⁻¹)"), "rated_speed", 100.0, 2990.0, 5.0)
+			_number(tr("Power factor cos φ"), "power_factor", 0.3, 0.97, 0.01)
+			_number(tr("Starting current Ia / In"), "start_ratio", DocumentSerializer.MIN_START_RATIO, DocumentSerializer.MAX_START_RATIO, 0.1)
+			_number(tr("Run-up time (s)"), "run_up_time", 0.0, 600.0, 0.1)
 			_number(tr("Run-down time (s)"), "coast_time", 0.0, 3600.0, 0.1)
 			_number(tr("DC braking time (s)"), "brake_time", 0.0, 3600.0, 0.1)
 	if not (component is Junction):
@@ -300,6 +316,14 @@ func _timer_function_titles(input: String) -> Array:
 func _input_name(timer: TimerRelay) -> String:
 	var names: PackedStringArray = timer.get_terminal_names()
 	return names[2] if names.size() > 2 else "S"
+
+
+## Time-current characteristic of a protective device.
+func _trip_curve(curve: TripCurve.Kind) -> void:
+	_label(tr("Time-current characteristic"))
+	var diagram: TripCurveDiagram = TripCurveDiagram.new()
+	diagram.kind = curve
+	_add(diagram)
 
 
 ## Timing diagram of the chosen function (Un, S, R).

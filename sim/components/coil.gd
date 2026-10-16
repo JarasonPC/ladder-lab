@@ -54,6 +54,11 @@ func get_armature(_delayed: bool) -> Armature:
 	return armature
 
 
+## A contactor coil draws more than a relay coil (holding current).
+func rated_draw() -> float:
+	return 0.05 if kind == Kind.CONTACTOR else 0.02
+
+
 ## Instant switching: every armature jumps to where it is heading.
 func snap() -> void:
 	armature.snap(armature.target)

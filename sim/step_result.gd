@@ -55,6 +55,12 @@ var current_wires: PackedInt32Array = PackedInt32Array()
 var current_switch_paths: PackedInt32Array = PackedInt32Array()
 ## Ids of closed switching elements and energized loads that carry current.
 var current_components: PackedStringArray = PackedStringArray()
+## Current in each wire (amperes, RMS for AC), in the order of
+## [method Circuit.get_wires]; 0 where nothing flows and during a short.
+var wire_currents: PackedFloat32Array = PackedFloat32Array()
+## Current into a part at each of its terminals (amperes) where any flows,
+## by terminal key, e.g. {"M1:U1": 8.0, "FU1:1": 8.0}.
+var terminal_currents: Dictionary[String, float] = {}
 
 
 ## Reach code for a mask of supply bits (see [PowerSupply]).

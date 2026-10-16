@@ -136,7 +136,29 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Layout
 
-- `sim/` solver (Circuit, Simulator, StepResult, UnionFind, Armature, TraceRecorder, components/) - no nodes
+- `sim/` solver (Circuit, Simulator, StepResult, UnionFind, Armature, TraceRecorder, Phasor,
+  MotorModel, CurrentFlow, TripCurve, components/) - no nodes
+- Currents: AC as phasors in a Vector2 (Phasor; potentials in phase voltages, L1 = 1∠0°, N = 0,
+  DC + = 1). Loads draw Load.rated_draw() at 230 V (x √3 between two phases); three-phase motors
+  what MotorModel gives; CurrentFlow spreads it (supply nets held fixed, other nets joined by
+  closed switching paths of equal resistance, so parallel paths share; within a net along a
+  wire tree); a working rectifier draws on its input what its output delivers. Results:
+  StepResult.wire_currents / terminal_currents, ThreePhaseMotor.terminal_currents /
+  line_currents, trace signals "<designation>/I1".. (motor lines L1-L3, device poles).
+  Nothing flows during a short (the fault path is shown as before)
+- MotorModel (cached per kind, Ia/In, rated slip, cos φ): windings in sets (one per speed;
+  STANDARD star inside, STAR_DELTA U1-U2.. rated 400 V, Dahlander delta + tap halves taking
+  part only while a tap is fed, separate windings as stars), each set an induction machine by
+  symmetrical components: positive and negative sequence admittance -j m + 1/(r2/s + j x) at
+  slips s and 2 - s, zero sequence 1/(r2 + j x); calibrated to In at rated slip and cos φ and
+  Ia at standstill; floating terminals and star points solved by nodal analysis. Torque
+  (positive minus negative sequence rotor power) against a fan-like load (25 % at standstill,
+  rated at rated speed, x OVERLOAD_FACTOR when overloaded) and inertia from run_up_time gives
+  ThreePhaseMotor.rotor_speed (signed, fraction of the fastest synchronous speed; shaft =
+  |speed| / rated speed of the step). REALISTIC: runs up in steps of at most MOTOR_STEP while
+  not settled; IDEAL: snap_speed() jumps to the speed where torque meets load. Rating plate
+  (rated_power, rated_current, rated_speed -> slip, power_factor, start_ratio, run_up_time;
+  400 V supply, 50 Hz) drawn beside the motor with show_plate (marking "plate", draggable)
 - 3~ motors: + and - across a winding = DC_BRAKING (with a phase = MISWIRED); the shaft
   (ThreePhaseMotor.shaft, simulation state) runs down in coast_time when switched off, in brake_time
   with DC braking; braking force follows the rotor field (rotor_flux, decays with ROTOR_TIME_CONSTANT
@@ -153,7 +175,16 @@ Architecture and conventions of the code base. Read this before changing the cod
   (dark/light), system fonts (MSDF font for schematic text), line icons as inline SVG via
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
   per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
-- `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom)
+- `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom); the chart ends with
+  rows of currents (motor lines, poles of fuses, breakers and overload relays; autoscaled, rated
+  current dashed)
+- Simulate mode shows a voltage view (wires coloured by voltage reach) or a current view
+  (SchematicView.set_current_view, saved setting: only wires and terminals carrying current
+  coloured, line width growing with the current, amperes written on the wires); a clamp meter
+  (SchematicView.clamp_tool / clamps, simulation only) reads the current of clicked wires in
+  either view. Symbols show ratings (breaker "C16", fuse "16 A", relay "Ir 8 A"), the heat of
+  protective devices in % and a motor's line current and speed while simulating; the
+  properties panel draws the time-current characteristic (TripCurveDiagram)
 - `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block),
   ExportPreview (dialog)
 - `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
@@ -168,7 +199,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   route exists. Branch dots join wires of one net only
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
   through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are
-  simulation-only state (never saved)
+  simulation-only state (never saved). Overcurrent: every fuse, breaker and 3-pole overload
+  relay has rated_current (relay: setting Ir) and TripCurve heat (simulation state): progress +=
+  dt / trip time of the curve (breakers B/C/D thermal per ČSN EN 60898 with magnetic release at
+  5/10/20 In tripping at once; fuses gG; overload relays class 10), cooling below the lowest
+  point; CircuitComponent.heat_up / time_to_heat_trip / trips_instantly, driven by the
+  Simulator with the path currents of the last evaluation (event-driven in REALISTIC). Breakers
+  trip all poles on the largest pole current, fuses per pole, the relay on its largest heater;
+  a 0-pole relay (and the injected overloaded fault) still uses trip_delay
 - Buttons/switches with the same designation share one actuator (multi-block devices); ids of
   switching elements are "<designation>:<terminals>"; any component may have custom terminal names
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
