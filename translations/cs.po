@@ -1093,3 +1093,22 @@ msgstr "A2 nahoře, A1 dole (nebo zpět). Totéž udělá dvojklik na A1 a zápi
 
 msgid "A1 and A2 of a time relay can only be swapped with each other."
 msgstr "A1 a A2 časového relé lze jen navzájem prohodit."
+
+#, c-format
+msgid "Page %d / %d"
+msgstr "Stránka %d / %d"
+
+msgid "Rendering…"
+msgstr "Vykresluji…"
+
+msgid "Save PDF…"
+msgstr "Uložit PDF…"
+
+msgid "Save PNG…"
+msgstr "Uložit PNG…"
+
+msgid "landscape"
+msgstr "na šířku"
+
+msgid "portrait"
+msgstr "na výšku"
