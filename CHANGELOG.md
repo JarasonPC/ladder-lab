@@ -32,6 +32,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The parts palette can show a grid of symbols without names (the name shows on hover)
 
 ### Panels
+- Terminals of the switchboard's terminal strips send their wires out to the buttons, lamps and
+  motors outside: from the bottom of each terminal through the bottom wire duct to a cable
+  gland in the bottom of the enclosure, one cable per device with its name on the gland
 - The supply comes into the switchboard from outside: a cable through a gland in the top of the
   enclosure with a core for each supply conductor, led to the first terminal it feeds
 - Terminal strips can be split: pick terminals in the switchboard sidebar and move them to

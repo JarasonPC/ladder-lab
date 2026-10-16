@@ -1011,12 +1011,13 @@ static func _end_stop(p: CabinetPainter, x: float, group: String) -> void:
 		p.text_centered(tag.get_center(), group, 2.6, Color("111111"), true, w - 2.6)
 
 
-## Centre of the top wire entry of terminal [param index] of a terminal
-## strip (as [method terminal_strip] draws it at [param k] pixels per mm).
-static func strip_entry(index: int, k: float) -> Vector2:
+## Centre of the top (or [param bottom]) wire entry of terminal
+## [param index] of a terminal strip (as [method terminal_strip] draws it
+## at [param k] pixels per mm).
+static func strip_entry(index: int, k: float, bottom: bool = false) -> Vector2:
 	var snap: Callable = func(mm: float) -> float: return roundf(mm * k) / k
 	var pitch: float = snap.call(TERMINAL.x)
-	return Vector2(snap.call(END_STOP_W) + pitch * (index + 0.5), TERMINAL_ENTRY)
+	return Vector2(snap.call(END_STOP_W) + pitch * (index + 0.5), TERMINAL.y - TERMINAL_ENTRY if bottom else TERMINAL_ENTRY)
 
 
 # --- Terminals and wires -----------------------------------------------------------
@@ -1146,15 +1147,16 @@ static func _rounded_path(points: PackedVector2Array, radius: float) -> PackedVe
 	return result
 
 
-## Cable gland [param r] (mm) in the top of the enclosure where a supply
-## cable comes in: the black cable, the grey nut on the frame and the
-## black sealing insert the cores come out of.
-static func cable_gland(p: CabinetPainter, r: Rect2) -> void:
-	var cable: Rect2 = Rect2(r.position.x + r.size.x * 0.18, r.position.y, r.size.x * 0.64, r.size.y * 0.5)
+## Cable gland [param r] (mm) in the top (or [param bottom]) of the
+## enclosure where a cable comes in or goes out: the black cable outside,
+## the grey nut on the frame and the black sealing insert the cores come
+## out of.
+static func cable_gland(p: CabinetPainter, r: Rect2, bottom: bool = false) -> void:
+	var cable: Rect2 = Rect2(r.position.x + r.size.x * 0.18, r.position.y + (r.size.y * 0.5 if bottom else 0.0), r.size.x * 0.64, r.size.y * 0.5)
 	p.hgradient(cable, Color("2b2d30"), Color("15161a"), 0.6)
-	var nut: Rect2 = Rect2(r.position.x, r.position.y + r.size.y * 0.35, r.size.x, r.size.y * 0.65)
+	var nut: Rect2 = Rect2(r.position.x, r.position.y + (0.0 if bottom else r.size.y * 0.35), r.size.x, r.size.y * 0.65)
 	p.gradient(nut, Color("8a9095"), Color("5d6368"), 0.8, Color("3d4145"), 0.2)
 	for i: int in range(1, 4):
 		var x: float = nut.position.x + nut.size.x * i / 4.0
 		p.line(Vector2(x, nut.position.y + 0.4), Vector2(x, nut.end.y - 0.4), Color(0, 0, 0, 0.25), 0.2)
-	p.rect(Rect2(cable.position.x, nut.end.y - 1.2, cable.size.x, 1.2), Color("1a1b1e"), 0.4)
+	p.rect(Rect2(cable.position.x, nut.position.y if bottom else nut.end.y - 1.2, cable.size.x, 1.2), Color("1a1b1e"), 0.4)
