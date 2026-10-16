@@ -141,6 +141,7 @@ func _ready() -> void:
 	_apply_ui_scale()
 	_apply_theme()
 	TranslationServer.set_locale(LOCALES[_locale_index])
+	FileAssociation.register(tr("LadderLab schematic"))
 	_build_ui()
 	_build_dialogs()
 	_sheet_renderer = SheetRenderer.new()
@@ -170,6 +171,10 @@ func _ready() -> void:
 	_control_panel.switch_toggled.connect(view.toggle_switch)
 	editor.active = true
 	_load_example()
+	# A schematic double-clicked in the file manager comes as an argument.
+	var start_file: String = FileAssociation.file_from_args(OS.get_cmdline_args())
+	if not start_file.is_empty():
+		open_file(start_file)
 
 
 func _process(_delta: float) -> void:
