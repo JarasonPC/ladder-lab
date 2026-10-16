@@ -5,6 +5,9 @@ extends RefCounted
 ## their real sizes with it, so they line up on the DIN rails at any zoom.
 ## Filled shapes get an antialiased outline one pixel wide.
 
+## Text smaller than this many pixels is not drawn.
+const MIN_TEXT_PX: float = 3.5
+
 var canvas: CanvasItem
 ## Pixels per millimetre.
 var k: float = 2.2
@@ -98,6 +101,9 @@ func polygon(points: PackedVector2Array, fill: Color, edge: Color = Color.TRANSP
 
 ## Text with its baseline at [param at]; [param align] -1 left, 0 centre, 1 right.
 func text(at: Vector2, s: String, size_mm: float, color: Color, align: int = 0, bold: bool = true, max_mm: float = -1.0) -> void:
+	if size_mm * k < MIN_TEXT_PX:
+		# Too small to read at this zoom: left out rather than blown up.
+		return
 	var font: Font = AppTheme.bold_font() if bold else AppTheme.ui_font()
 	var font_size: int = maxi(roundi(size_mm * k), 5)
 	if max_mm > 0.0:

@@ -11,9 +11,9 @@ extends RefCounted
 const MODULE_H: float = 90.0
 ## Width of one module (one pole of a breaker).
 const MODULE_W: float = 18.0
-const CONTACTOR := Vector2(45.0, 80.0)
-const OVERLOAD := Vector2(45.0, 58.0)
-const RELAY := Vector2(27.0, 78.0)
+const CONTACTOR := Vector2(45.0, 77.0)
+const OVERLOAD := Vector2(45.0, 52.0)
+const RELAY := Vector2(15.8, 78.0)
 const TERMINAL := Vector2(5.2, 47.0)
 const END_STOP_W: float = 9.0
 const RAIL_H: float = 35.0
@@ -151,297 +151,543 @@ static func plate(p: CabinetPainter, size: Vector2, variant: String = "A") -> vo
 		p.circle(corner, 0.9, METAL_DARK)
 
 
+# --- Modular devices ------------------------------------------------------------------------
+
+## Light grey of the modular devices (housing, lever, fuse carrier).
+const MODULAR_BODY := Color("e7e9ea")
+const MODULAR_FACE := Color("f1f2f3")
+const MODULAR_EDGE := Color("aeb3b8")
+const MODULAR_SHADE := Color("d3d7da")
+const MODULAR_END := Color("60666c")
+const MODULAR_PRINT := Color("3e4247")
+
+
+## Terminal screw of a modular device: a round recess with a combination screw.
+static func _modular_screw(p: CabinetPainter, center: Vector2, reach: Color = Color.TRANSPARENT) -> void:
+	if reach.a > 0.0:
+		p.circle(center, 3.75, Color(1, 1, 1, 0.85))
+		p.circle(center, 3.45, reach)
+	p.circle(center, 3.1, Color("8f959a"))
+	p.circle(center, 2.75, Color("6d7378"))
+	p.circle(center, 2.3, METAL, METAL_DARK, 0.15)
+	p.circle(center + Vector2(-0.7, -0.7), 0.9, Color(1, 1, 1, 0.4))
+	p.line(center + Vector2(-1.3, 0), center + Vector2(1.3, 0), METAL_DARK, 0.4)
+	p.line(center + Vector2(0, -1.3), center + Vector2(0, 1.3), METAL_DARK, 0.4)
+
+
+## Deep round wire opening of a fuse holder (the screw far inside).
+static func _fuse_hole(p: CabinetPainter, center: Vector2, reach: Color = Color.TRANSPARENT) -> void:
+	if reach.a > 0.0:
+		p.circle(center, 3.85, Color(1, 1, 1, 0.85))
+		p.circle(center, 3.55, reach)
+	p.circle(center, 3.2, Color("9a9fa4"))
+	p.circle(center, 2.8, Color("26282b"))
+	p.circle(center + Vector2(0.2, 0.3), 1.5, Color("3a3d41"))
+	p.line(center + Vector2(-0.9, 0.3), center + Vector2(1.3, 0.3), Color("55595e"), 0.3)
+
+
 # --- Circuit breaker --------------------------------------------------------------
 
-## Miniature circuit breaker (jistič), [param poles] modules wide.
-## "A": black lever with a red/green window, "B": grey lever, blue rating tag.
-static func breaker(p: CabinetPainter, poles: int, on: bool, tripped: bool, variant: String = "A", rating: String = "C16", reach: Array = []) -> void:
+## Miniature circuit breaker (jistič), [param poles] modules wide:
+## light grey housing and lever, the lever's ribbed grip in a recess at the
+## bottom of the front (up = on), red window while on, green while off.
+## [param mark_trip] shows a trip in the window (orange); a real one only
+## drops to off.
+static func breaker(p: CabinetPainter, poles: int, on: bool, tripped: bool, rating: String = "B10", reach: Array = [], mark_trip: bool = false) -> void:
 	var w: float = MODULE_W * poles
-	_modular_body(p, w, WHITE, WHITE_SHADE, WHITE_EDGE)
-	var lever_y: float = 33.0 if on else 43.0
+	var cap: float = 22.5
+	p.rect(Rect2(0, 0, w, MODULE_H), MODULAR_SHADE, 0.8, MODULAR_EDGE, 0.2)
+	p.gradient(Rect2(0.3, 2.2, w - 0.6, cap - 2.2), MODULAR_BODY, MODULAR_SHADE)
+	p.gradient(Rect2(0.3, cap + 45.0, w - 0.6, MODULE_H - cap - 47.2), MODULAR_SHADE, MODULAR_BODY)
+	p.rect(Rect2(0, 0, w, 2.2), MODULAR_END, 0.6)
+	p.rect(Rect2(0, MODULE_H - 2.2, w, 2.2), MODULAR_END, 0.6)
+	# Raised front: a soft shadow under it, the face lit from above.
+	p.rect(Rect2(0.2, cap + 45.0, w - 0.4, 0.8), Color(0, 0, 0, 0.12))
+	p.gradient(Rect2(0.2, cap, w - 0.4, 45.0), MODULAR_FACE.lightened(0.3), MODULAR_FACE, 0.6, MODULAR_EDGE, 0.15)
+	for i: int in poles:
+		var x0: float = MODULE_W * i
+		var cx: float = x0 + MODULE_W * 0.5
+		_modular_screw(p, Vector2(cx, 11.0), reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
+		_modular_screw(p, Vector2(cx, MODULE_H - 11.0), reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
+		p.text(Vector2(cx + 5.2, 17.0), str(2 * i + 1), 2.5, MODULAR_PRINT, -1, false)
+		p.text(Vector2(cx + 5.2, MODULE_H - 15.0), str(2 * i + 2), 2.5, MODULAR_PRINT, -1, false)
+		# Slot for a busbar under the top terminal.
+		p.rect(Rect2(x0 + 4.0, 18.4, 6.5, 2.4), Color("c3c7cb"), 0.3, Color("9ba1a6"), 0.12)
+		if i > 0:
+			p.line(Vector2(x0, cap + 0.3), Vector2(x0, cap + 26.0), MODULAR_EDGE, 0.0)
+		# Contact position window.
+		var window: Color = (TRIP if tripped and mark_trip else (Color("d3222b") if on else Color("2e9e48")))
+		p.rect(Rect2(x0 + 7.6, cap + 22.3, 4.7, 2.5), Color("8d9296"), 0.2)
+		p.rect(Rect2(x0 + 7.9, cap + 22.6, 4.1, 1.9), window)
+	# Printing on the first pole (rating, symbol, data), the I / O marks on the last.
+	var c: Vector2 = Vector2(1.2, cap)
+	p.text(c + Vector2(0, 16.4), rating, 4.2, MODULAR_PRINT, -1, true, 9.0)
+	# Small switch symbol 1-2.
+	var sx: float = c.x + 11.6
+	p.line(Vector2(sx, cap + 11.0), Vector2(sx, cap + 12.6), MODULAR_PRINT, 0.15)
+	p.line(Vector2(sx, cap + 14.4), Vector2(sx - 0.9, cap + 12.6), MODULAR_PRINT, 0.15)
+	p.line(Vector2(sx, cap + 14.4), Vector2(sx, cap + 16.0), MODULAR_PRINT, 0.15)
+	p.text(Vector2(sx + 0.9, cap + 11.8), "1", 1.1, MODULAR_PRINT, -1, false)
+	p.text(Vector2(sx + 0.9, cap + 16.2), "2", 1.1, MODULAR_PRINT, -1, false)
+	p.text(c + Vector2(0, 20.9), "~230/400V", 1.35, MODULAR_PRINT, -1, false)
+	p.rect(Rect2(c + Vector2(0, 21.7), Vector2(5.2, 1.9)), Color.TRANSPARENT, 0.0, MODULAR_PRINT, 0.1)
+	p.text_centered(c + Vector2(2.6, 22.65), "10000", 1.15, MODULAR_PRINT, false)
+	p.rect(Rect2(c + Vector2(1.8, 23.6), Vector2(1.6, 1.9)), Color.TRANSPARENT, 0.0, MODULAR_PRINT, 0.1)
+	p.text_centered(c + Vector2(2.6, 24.55), "3", 1.15, MODULAR_PRINT, false)
+	var ix: float = w - 2.4
+	p.text(Vector2(ix, cap + 19.9), "I", 1.7, MODULAR_PRINT)
+	p.line(Vector2(ix, cap + 20.5), Vector2(ix, cap + 23.4), MODULAR_PRINT, 0.15)
+	p.polygon(PackedVector2Array([Vector2(ix - 0.5, cap + 22.9), Vector2(ix + 0.5, cap + 22.9), Vector2(ix, cap + 23.7)]), MODULAR_PRINT)
+	p.text(Vector2(ix, cap + 25.6), "O", 1.7, MODULAR_PRINT)
+	# Lever: the recess, the lever body from its pivot, the ribbed grip.
+	var recess: Rect2 = Rect2(0.5, cap + 26.4, w - 1.0, 18.0)
+	p.gradient(recess, Color("b5babf"), Color("dadde0"), 1.4)
+	var pivot: float = cap + 35.4
+	var grip_y: float = cap + 27.0 if on else cap + 40.6
+	var body_top: float = minf(grip_y + 3.0, pivot)
+	var body_bottom: float = maxf(grip_y + 0.6, pivot)
 	for i: int in poles:
 		var cx: float = MODULE_W * (i + 0.5)
-		screw(p, Vector2(cx, 9.0), 2.6, reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
-		screw(p, Vector2(cx, 81.0), 2.6, reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
-		p.text(Vector2(cx, 18.6), str(2 * i + 1), 2.3, PRINT)
-		p.text(Vector2(cx, 75.2), str(2 * i + 2), 2.3, PRINT)
-		if variant == "A":
-			var window: Color = (TRIP if tripped else (Color("e0322f") if on else Color("2ea44f")))
-			p.rect(Rect2(cx - 3.0, 23.6, 6.0, 3.4), HOLE, 0.5)
-			p.rect(Rect2(cx - 2.4, 24.1, 4.8, 2.4), window, 0.3)
-		p.rect(Rect2(cx - 4.6, 30.0, 9.2, 26.0), HOLE, 1.0)
-		p.text(Vector2(cx + 6.0, 33.0), "I", 2.0, PRINT)
-		p.text(Vector2(cx + 6.0, 55.0), "O", 2.0, PRINT)
-	var lever_top: Color = Color("3a3d42") if variant == "A" else Color("dfe2e5")
-	var lever_bottom: Color = Color("141517") if variant == "A" else Color("a5abb0")
-	if poles > 1:
-		# The levers are joined by a bar.
-		p.rect(Rect2(MODULE_W * 0.5 - 2.0, lever_y + 4.5, w - MODULE_W + 4.0, 3.0), lever_bottom, 0.5)
-	for i: int in poles:
-		var cx: float = MODULE_W * (i + 0.5)
-		p.gradient(Rect2(cx - 3.6, lever_y, 7.2, 12.0), lever_top, lever_bottom, 1.0, Color(0, 0, 0, 0.6), 0.15)
-		for g: int in 3:
-			var gy: float = lever_y + (2.0 if on else 6.5) + g * 1.3
-			p.line(Vector2(cx - 2.4, gy), Vector2(cx + 2.4, gy), Color(1, 1, 1, 0.18 if variant == "A" else 0.6), 0.25)
-		p.line(Vector2(cx - 3.0, lever_y + 0.6), Vector2(cx + 3.0, lever_y + 0.6), Color(1, 1, 1, 0.35), 0.25)
-	if variant == "B":
-		p.rect(Rect2(w * 0.5 - 6.0, 59.5, 12.0, 6.0), DIAL_BLUE, 0.6)
-		p.text_centered(Vector2(w * 0.5, 62.5), rating, 3.2, Color.WHITE, true, 11.0)
-		if tripped:
-			p.rect(Rect2(MODULE_W * 0.5 - 2.5, 23.5, 5.0, 3.0), TRIP, 0.5)
-	else:
-		p.text_centered(Vector2(w * 0.5, 62.5), rating, 3.4, PRINT, true, w - 2.0)
+		p.hgradient(Rect2(cx - 5.2, body_top, 10.4, body_bottom - body_top), Color("d5d9dc"), Color("eef0f1"), 0.6)
+		p.hgradient(Rect2(cx, body_top, 5.2, body_bottom - body_top), Color("eef0f1"), Color("c9cdd1"), 0.6)
+	var grip: Rect2 = Rect2(0.9, grip_y, w - 1.8, 3.4)
+	p.rect(grip.grow(0.25), Color(0, 0, 0, 0.18), 0.8)
+	p.gradient(grip, Color("f6f7f8"), Color("d9dcdf"), 0.6, MODULAR_EDGE, 0.12)
+	for r: int in 4:
+		var ry: float = grip_y + 0.75 + r * 0.65
+		p.line(Vector2(grip.position.x + 0.8, ry), Vector2(grip.end.x - 0.8, ry), Color(0, 0, 0, 0.16), 0.12)
 
 
 # --- Fuse holder -------------------------------------------------------------------
 
-## Modular fuse holder (pojistkový odpínač) with a carrier that swings down
-## to open. "A": grey body, black carrier, LED shows a blown fuse.
-## "B": white body, grey carrier with a window on the fuse.
-static func fuse_holder(p: CabinetPainter, poles: int, closed: bool, blown: bool, variant: String = "A", rating: String = "10A", reach: Array = []) -> void:
+## Height of a fuse holder (shorter than a breaker).
+const FUSE_H: float = 82.0
+
+
+## Fuse holder (pojistkový odpínač), [param poles] modules wide,
+## [constant FUSE_H] high, centred like the other modular devices: a white
+## carrier with a ledge at the top that swings down about its bottom to
+## open. A blown fuse lights the LED in the slot under the ledge.
+static func fuse_holder(p: CabinetPainter, poles: int, closed: bool, blown: bool, reach: Array = []) -> void:
 	var w: float = MODULE_W * poles
-	var body: Color = LIGHT_GREY if variant == "A" else WHITE
-	var shade: Color = body.darkened(0.08)
-	p.rect(Rect2(0, 0, w, MODULE_H), shade, 1.2, WHITE_EDGE.darkened(0.1), 0.2)
-	var carrier: Color = Color("33373c") if variant == "A" else Color("8e959b")
-	var carrier_light: Color = carrier.lightened(0.18)
+	var top: float = (MODULE_H - FUSE_H) * 0.5
+	var q: CabinetPainter = p.shifted(Vector2(0, top))
+	q.rect(Rect2(0, 0, w, FUSE_H), MODULAR_SHADE, 0.8, MODULAR_EDGE, 0.2)
+	q.gradient(Rect2(0.3, 0.3, w - 0.6, 20.0), MODULAR_FACE, MODULAR_BODY)
+	q.gradient(Rect2(0.3, 66.0, w - 0.6, FUSE_H - 66.3), MODULAR_BODY, MODULAR_SHADE)
 	for i: int in poles:
 		var x0: float = MODULE_W * i
 		var cx: float = x0 + MODULE_W * 0.5
-		screw(p, Vector2(cx, 9.0), 2.6, reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
-		screw(p, Vector2(cx, 81.0), 2.6, reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
-		p.text(Vector2(cx, 18.6), str(2 * i + 1), 2.3, PRINT)
-		p.text(Vector2(cx, 75.2), str(2 * i + 2), 2.3, PRINT)
-		var cr: Rect2 = Rect2(x0 + 1.4, 21.0, MODULE_W - 2.8, 48.0)
+		_fuse_hole(q, Vector2(cx, 8.0), reach[2 * i] if 2 * i < reach.size() else Color.TRANSPARENT)
+		_fuse_hole(q, Vector2(cx, FUSE_H - 7.5), reach[2 * i + 1] if 2 * i + 1 < reach.size() else Color.TRANSPARENT)
 		if closed:
-			p.gradient(cr, carrier_light, carrier, 1.2, Color(0, 0, 0, 0.6), 0.15)
-			# Lifting tab at the top, finger grips at the bottom.
-			p.rect(Rect2(cx - 3.0, 22.0, 6.0, 2.0), carrier_light.lightened(0.15), 0.5)
-			for g: int in 4:
-				p.line(Vector2(x0 + 4.0, 59.0 + g * 2.0), Vector2(x0 + MODULE_W - 4.0, 59.0 + g * 2.0), Color(0, 0, 0, 0.35), 0.35)
-			if variant == "B":
-				p.rect(Rect2(cx - 3.2, 30.0, 6.4, 16.0), Color(0.75, 0.85, 0.9, 0.6), 0.6, Color(0, 0, 0, 0.4), 0.15)
-				p.rect(Rect2(cx - 2.2, 31.5, 4.4, 13.0), Color("f2efe6"), 0.4)
-				if blown:
-					p.circle(Vector2(cx, 33.5), 1.3, LED_RED)
-				p.text(Vector2(cx, 53.0), rating, 2.4, PRINT_LIGHT, 0, true, MODULE_W - 4.0)
-			else:
-				led(p, Vector2(cx, 29.0), LED_RED, blown, 1.1)
-				p.text(Vector2(cx, 40.0), rating, 2.4, PRINT_LIGHT, 0, true, MODULE_W - 4.0)
-				p.text(Vector2(cx, 44.5), "gG", 2.0, PRINT_LIGHT.darkened(0.25), 0, true)
+			_fuse_carrier(q, x0, i, poles, blown)
 		else:
-			# Swung down about its bottom: the empty socket above it, the
-			# carrier's top with the fuse cartridge, its front foreshortened.
-			p.rect(Rect2(cr.position.x, 21.0, cr.size.x, 28.0), HOLE, 1.0)
-			p.rect(Rect2(cx - 3.0, 22.5, 6.0, 2.2), METAL_DARK, 0.4)
-			p.gradient(Rect2(cr.position.x, 47.0, cr.size.x, 8.0), carrier.lightened(0.3), carrier_light, 1.0, Color(0, 0, 0, 0.6), 0.15)
-			p.rect(Rect2(cx - 4.0, 48.0, 8.0, 6.0), Color("f2efe6"), 1.5, Color(0, 0, 0, 0.35), 0.15)
-			p.circle(Vector2(cx, 51.0), 2.3, METAL, METAL_DARK, 0.15)
-			if blown:
-				p.circle(Vector2(cx, 51.0), 1.1, LED_RED)
-			p.gradient(Rect2(cr.position.x, 55.0, cr.size.x, 14.0), carrier_light, carrier, 1.0, Color(0, 0, 0, 0.6), 0.15)
-			for g: int in 3:
-				p.line(Vector2(x0 + 4.0, 60.0 + g * 2.0), Vector2(x0 + MODULE_W - 4.0, 60.0 + g * 2.0), Color(0, 0, 0, 0.35), 0.35)
+			_fuse_carrier_open(q, x0, blown)
+
+
+## Closed carrier of pole [param pole]: the ledge, the slot with the LED,
+## the printing (fuse size on the first pole, the fuse symbols of all
+## poles on the second of three).
+static func _fuse_carrier(p: CabinetPainter, x0: float, pole: int, poles: int, blown: bool) -> void:
+	var cx: float = x0 + MODULE_W * 0.5
+	var face: Rect2 = Rect2(x0 + 0.6, 24.0, MODULE_W - 1.2, 43.0)
+	p.gradient(face, MODULAR_FACE.lightened(0.3), MODULAR_FACE, 1.6, MODULAR_EDGE, 0.15)
+	# Rounded bottom edge where the carrier turns about its hinge.
+	p.rect(Rect2(face.position.x + 0.6, face.end.y - 1.4, face.size.x - 1.2, 1.0), Color(0, 0, 0, 0.08), 0.5)
+	# Ledge across the top: lit top face, shadow under it.
+	p.rect(Rect2(x0 + 0.3, 26.6, MODULE_W - 0.6, 1.4), Color(0, 0, 0, 0.16), 0.4)
+	p.gradient(Rect2(x0 + 0.3, 21.2, MODULE_W - 0.6, 5.6), Color("fbfbfc"), Color("dfe2e4"), 0.8, MODULAR_EDGE, 0.15)
+	# Slot: dark, red while the LED shows a blown fuse.
+	var slot: Rect2 = Rect2(cx - 1.1, 29.0, 2.2, 6.2)
+	p.rect(slot, Color("2b2e31"), 0.3)
+	if blown:
+		for k: int in 3:
+			p.rect(slot.grow(0.5 + 0.7 * k), Color(1.0, 0.25, 0.2, 0.2 - 0.05 * k), 0.8 + 0.7 * k)
+		p.rect(slot.grow(-0.3), LED_RED, 0.3)
+	var three: bool = poles == 3
+	if not three or pole == 0:
+		_fuse_symbol(p, Vector2(x0 + 4.0, 31.0), "1" if not three else "1", "2")
+		# Switch-disconnector symbol on the right.
+		var sx: float = x0 + 14.2
+		p.line(Vector2(sx, 30.0), Vector2(sx, 31.2), MODULAR_PRINT, 0.15)
+		p.line(Vector2(sx, 33.0), Vector2(sx - 0.9, 31.4), MODULAR_PRINT, 0.15)
+		p.line(Vector2(sx, 33.0), Vector2(sx, 34.4), MODULAR_PRINT, 0.15)
+		p.circle(Vector2(sx, 33.0), 0.25, MODULAR_PRINT)
+	if pole == 0:
+		p.text(Vector2(cx, 50.6), "10x38", 2.4, MODULAR_PRINT, 0, true, MODULE_W - 3.0)
+		p.text(Vector2(cx, 54.4), "400V", 1.8, MODULAR_PRINT, 0, false)
+	elif three and pole == 1:
+		for k: int in 3:
+			_fuse_symbol(p, Vector2(x0 + 4.6 + k * 4.4, 37.5), str(2 * k + 1), str(2 * k + 2))
+
+
+## Fuse symbol (a box with the line through it) with its terminal numbers.
+static func _fuse_symbol(p: CabinetPainter, at: Vector2, top: String, bottom: String) -> void:
+	p.text(at + Vector2(0, -0.2), top, 1.2, MODULAR_PRINT, 0, false)
+	p.line(at + Vector2(0, 0.3), at + Vector2(0, 6.3), MODULAR_PRINT, 0.15)
+	p.rect(Rect2(at + Vector2(-0.7, 1.8), Vector2(1.4, 3.0)), Color.TRANSPARENT, 0.0, MODULAR_PRINT, 0.12)
+	p.text(at + Vector2(0, 7.9), bottom, 1.2, MODULAR_PRINT, 0, false)
+
+
+## Opened carrier: swung down about its bottom, so the empty socket shows
+## above it, then the carrier's top with the fuse cartridge in it and its
+## front, foreshortened.
+static func _fuse_carrier_open(p: CabinetPainter, x0: float, blown: bool) -> void:
+	var cx: float = x0 + MODULE_W * 0.5
+	var inner: float = MODULE_W - 1.2
+	p.rect(Rect2(x0 + 0.6, 21.0, inner, 25.0), Color("2d3033"), 0.8)
+	p.rect(Rect2(cx - 3.0, 22.4, 6.0, 2.0), METAL_DARK, 0.4)
+	# Top of the carrier, lit, with the cartridge's end cap.
+	p.gradient(Rect2(x0 + 0.6, 45.0, inner, 9.0), Color("fbfbfc"), Color("dcdfe2"), 1.0, MODULAR_EDGE, 0.15)
+	p.rect(Rect2(cx - 4.4, 46.2, 8.8, 6.6), Color("f4f1e8"), 2.0, Color(0, 0, 0, 0.3), 0.15)
+	p.circle(Vector2(cx, 49.5), 2.6, METAL, METAL_DARK, 0.15)
+	if blown:
+		p.circle(Vector2(cx, 49.5), 1.2, LED_RED)
+	p.gradient(Rect2(x0 + 0.6, 54.0, inner, 13.0), MODULAR_FACE.lightened(0.2), MODULAR_SHADE, 1.0, MODULAR_EDGE, 0.15)
+	p.rect(Rect2(x0 + 0.3, 63.5, MODULE_W - 0.6, 3.2), Color("e6e8ea"), 0.8, MODULAR_EDGE, 0.15)
 
 
 # --- Contactor, relay, overload relay -------------------------------------------
 
-## Contactor (stykač) 45 mm wide: "A" dark body with a light front, "B" light
-## body, "C" modular contactor two modules wide. The window shows the
-## armature: 0 dropped out, I pulled in. [param highlight] rings the window
-## while the coil has power.
-static func contactor(p: CabinetPainter, on: bool, variant: String = "A", top: PackedStringArray = ["A1", "1/L1", "3/L2", "5/L3", "13NO"], bottom: PackedStringArray = ["A2", "2/T1", "4/T2", "6/T3", "14NO"], highlight: bool = false, reach: Array = []) -> void:
-	if variant == "C":
-		_modular_contactor(p, on, highlight)
+const BLOCK_BODY := Color("4b4f54")
+const BLOCK_DARK := Color("404348")
+const BLOCK_LIGHT := Color("53575d")
+const BLOCK_RECESS := Color("2a2c2f")
+const BLOCK_TEAL := Color("5fb8ac")
+const BLOCK_WHITE := Color("e2e4e6")
+const COPPER := Color("c98552")
+
+
+## Screw of a contactor or overload relay: a dark round well with a silver
+## combination screw; [param reach] rings the well.
+static func _block_screw(p: CabinetPainter, center: Vector2, radius: float, reach: Color = Color.TRANSPARENT, empty: bool = false) -> void:
+	if reach.a > 0.0:
+		p.circle(center, radius + 1.25, Color(1, 1, 1, 0.85))
+		p.circle(center, radius + 0.95, reach)
+	p.circle(center, radius + 0.55, Color("1c1d20"))
+	if empty:
+		p.circle(center + Vector2(0.3, 0.4), radius * 0.6, Color("111214"))
 		return
+	p.circle(center, radius, Color("c3c8cc"), Color("7d8389"), 0.15)
+	p.circle(center + Vector2(-0.35, -0.35) * radius, radius * 0.45, Color(1, 1, 1, 0.35))
+	var s: float = radius * 0.62
+	p.line(center + Vector2(-s, 0), center + Vector2(s, 0), Color("5d6369"), radius * 0.2)
+	p.line(center + Vector2(0, -s), center + Vector2(0, s), Color("5d6369"), radius * 0.2)
+	var d: float = s * 0.55
+	p.line(center + Vector2(-d, -d), center + Vector2(d, d), Color("7d8389"), radius * 0.1)
+
+
+## Power terminal name as printed in teal: the big digit and the small
+## conductor name after it ("1" "L1"), ending left of [param right].
+static func _power_label(p: CabinetPainter, at: Vector2, digit: String, name: String) -> void:
+	p.text(at, digit, 2.8, BLOCK_TEAL, -1, false)
+	p.text(at + Vector2(1.9, -0.1), name, 1.7, BLOCK_TEAL, -1, false)
+
+
+## Contactor (stykač) 45 x 77 mm drawn after the photographed one: an
+## anthracite housing with two tiers of terminals at each end (power
+## terminals with teal names outside, coil and auxiliary contacts inside),
+## the window with the contact carrier in the middle (it moves down while
+## the coil holds it), the label holder under it. [param aux] names the
+## auxiliary terminals top and bottom ([top number, kind, bottom number]);
+## [param highlight] glows round the window while the coil has power.
+## [param reach]: terminal name -> colour of voltage reach.
+static func contactor(p: CabinetPainter, on: bool, highlight: bool = false, aux: Array = [["13", "NO", "14"], ["21", "NC", "22"]], reach: Dictionary = {}) -> void:
 	var w: float = CONTACTOR.x
 	var h: float = CONTACTOR.y
-	var base: Color = DARK_GREY if variant == "A" else Color("d4d8db")
-	var front: Color = Color("a7adb2") if variant == "A" else Color("f3f4f5")
-	var text_on_base: Color = PRINT_LIGHT if variant == "A" else PRINT
-	p.gradient(Rect2(0, 0, w, h), base.lightened(0.1), base.darkened(0.08), 1.6, base.darkened(0.45), 0.2)
-	var n: int = top.size()
-	var pitch: float = w / n
-	for j: int in n:
-		var cx: float = pitch * (j + 0.5)
-		screw(p, Vector2(cx, 6.5), 2.5, reach[j] if j < reach.size() else Color.TRANSPARENT)
-		screw(p, Vector2(cx, h - 6.5), 2.5, reach[n + j] if n + j < reach.size() else Color.TRANSPARENT)
-		p.text(Vector2(cx, 14.0), top[j], 1.9, text_on_base, 0, true, pitch - 0.6)
-		p.text(Vector2(cx, h - 11.8), bottom[j], 1.9, text_on_base, 0, true, pitch - 0.6)
-	var front_r: Rect2 = Rect2(3.0, 17.0, w - 6.0, h - 36.0)
-	p.gradient(front_r, front.lightened(0.08), front.darkened(0.06), 1.4, base.darkened(0.3), 0.2)
-	# Slot for an auxiliary contact block on the front.
-	p.rect(Rect2(front_r.position.x + 3.0, front_r.position.y + 2.5, front_r.size.x - 6.0, 4.0), front.darkened(0.18), 0.6)
-	var window_c: Vector2 = Vector2(w * 0.5, front_r.position.y + 15.0)
+	var power_x: Array[float] = [11.2, 23.1, 35.0]
+	# Outer tiers with the power terminals; the inner tiers cover half of
+	# the top wells.
+	p.rect(Rect2(3.0, 0, w - 6.0, 6.5), BLOCK_DARK, 0.8, Color("2e3034"), 0.15)
+	p.rect(Rect2(3.0, h - 11.5, w - 6.0, 11.5), BLOCK_DARK, 0.8, Color("2e3034"), 0.15)
+	var names_in: PackedStringArray = ["1", "3", "5"]
+	var names_out: PackedStringArray = ["2", "4", "6"]
+	for j: int in 3:
+		_block_screw(p, Vector2(power_x[j], 5.6), 2.3, reach.get(names_in[j], Color.TRANSPARENT))
+	p.gradient(Rect2(0, 5.1, w, h - 16.6), BLOCK_LIGHT, BLOCK_BODY, 1.0, Color("2e3034"), 0.15)
+	for j: int in 3:
+		_power_label(p, Vector2(power_x[j] - 7.4, 3.6), names_in[j], "L" + str(j + 1))
+		_block_screw(p, Vector2(power_x[j] + 0.6, h - 6.9), 2.4, reach.get(names_out[j], Color.TRANSPARENT))
+		_power_label(p, Vector2(power_x[j] - 7.0, h - 1.6), names_out[j], "T" + str(j + 1))
+	# Inner tiers: auxiliary contacts and the coil.
+	var inner_x: Array[float] = [16.8, 26.9, 37.8]
+	var top_names: Array = [aux[0][0], aux[1][0], "A1"]
+	var bottom_names: Array = [aux[0][2], aux[1][2], "A2"]
+	for j: int in 3:
+		_block_screw(p, Vector2(inner_x[j], 12.7), 2.6, reach.get(top_names[j], Color.TRANSPARENT))
+		_block_screw(p, Vector2(inner_x[j] + 0.8, 58.8), 2.6, reach.get(bottom_names[j], Color.TRANSPARENT))
+	for k: int in 2:
+		var lx: float = inner_x[k]
+		p.text(Vector2(lx - 2.9, 8.5), aux[k][0], 1.9, BLOCK_WHITE)
+		p.text(Vector2(lx + 3.6, 8.5), aux[k][1], 1.9, BLOCK_WHITE)
+		p.text(Vector2(lx - 2.3, 64.6), aux[k][2], 1.9, BLOCK_WHITE)
+		p.text(Vector2(lx + 4.0, 64.6), aux[k][1], 1.9, BLOCK_WHITE)
+	p.text(Vector2(40.6, 8.5), "A1", 1.9, BLOCK_WHITE)
+	p.text(Vector2(42.2, 64.6), "A2", 1.9, BLOCK_WHITE)
+	p.line(Vector2(0.4, 17.3), Vector2(w - 0.4, 17.3), Color("36393d"), 0.2)
+	p.line(Vector2(0.4, 53.2), Vector2(w - 0.4, 53.2), Color("36393d"), 0.2)
+	# Left: a slot for accessories; the QR sticker below.
+	p.rect(Rect2(2.9, 30.4, 7.6, 9.6), BLOCK_RECESS, 0.4)
+	p.rect(Rect2(6.4, 30.8, 0.9, 8.8), Color("5a5e63"))
+	_qr(p, Rect2(1.7, 54.0, 9.4, 10.8))
+	# Middle: the raised front with the window and the label holder.
+	var front: Rect2 = Rect2(11.6, 17.5, 22.2, 35.5)
+	p.gradient(front, BLOCK_LIGHT.lightened(0.05), BLOCK_BODY, 0.6, Color("34373b"), 0.2)
+	var window: Rect2 = Rect2(12.4, 27.2, 20.6, 13.2)
 	if highlight and on:
 		for i: int in 3:
-			p.rect(Rect2(window_c - Vector2(8.0 + i, 5.0 + i), Vector2(16.0 + 2 * i, 10.0 + 2 * i)), Color(1.0, 0.55, 0.25, 0.25 - 0.07 * i), 2.0 + i)
-	p.rect(Rect2(window_c - Vector2(6.5, 3.6), Vector2(13.0, 7.2)), HOLE, 0.8)
-	var slider_x: float = 2.6 if on else -2.6
-	p.rect(Rect2(window_c + Vector2(slider_x - 3.0, -2.8), Vector2(6.0, 5.6)), Color("f4f4f2") if not on else Color("ffd84a"), 0.4)
-	p.text_centered(window_c + Vector2(slider_x, 0.0), "I" if on else "0", 3.2, PRINT)
-	# Label holder.
-	p.rect(Rect2(front_r.position.x + 4.0, front_r.end.y - 11.0, front_r.size.x - 8.0, 7.0), front.darkened(0.12), 0.5)
+			p.rect(window.grow(1.0 + i), Color(1.0, 0.55, 0.25, 0.25 - 0.07 * i), 1.0 + i)
+	p.rect(Rect2(17.6, 18.0, 10.2, 9.6), Color("383b3f"), 0.4)
+	p.rect(window, Color("221e1c"), 0.5)
+	# The contact carrier: an H seen through the window.
+	var dy: float = 1.8 if on else 0.0
+	var carrier: Color = Color("3d3430")
+	p.rect(Rect2(18.6, 19.0 + dy, 8.2, 8.0), carrier, 0.4)
+	p.rect(Rect2(15.2, 28.4 + dy, 4.8, 10.6), carrier, 0.4)
+	p.rect(Rect2(25.4, 28.4 + dy, 4.8, 10.6), carrier, 0.4)
+	p.rect(Rect2(20.0, 31.4 + dy, 5.4, 2.4), carrier.lightened(0.08), 0.2)
+	p.rect(Rect2(22.0, 28.0 + dy, 1.4, 11.0), carrier.lightened(0.12), 0.2)
+	p.rect(Rect2(12.9, 42.0, 19.6, 9.2), BLOCK_LIGHT.lightened(0.04), 0.5, Color("383b3f"), 0.2)
+	# Right: the auxiliary contact symbol and a second slot.
+	var sx: Vector2 = Vector2(37.0, 19.4)
+	p.text(sx + Vector2(0, 0.8), aux[0][0], 1.1, BLOCK_WHITE, 0, false)
+	p.text(sx + Vector2(4.4, 0.8), aux[1][0], 1.1, BLOCK_WHITE, 0, false)
+	p.text(sx + Vector2(0, 2.0), aux[0][1], 1.0, BLOCK_WHITE, 0, false)
+	p.text(sx + Vector2(4.4, 2.0), aux[1][1], 1.0, BLOCK_WHITE, 0, false)
+	p.line(sx + Vector2(0, 2.6), sx + Vector2(0, 7.6), BLOCK_WHITE, 0.12)
+	p.line(sx + Vector2(4.4, 2.6), sx + Vector2(4.4, 7.6), BLOCK_WHITE, 0.12)
+	p.line(sx + Vector2(-0.7, 4.6), sx + Vector2(4.4, 5.6), BLOCK_WHITE, 0.12)
+	p.text(sx + Vector2(0, 9.0), aux[0][2], 1.1, BLOCK_WHITE, 0, false)
+	p.text(sx + Vector2(4.4, 9.0), aux[1][2], 1.1, BLOCK_WHITE, 0, false)
+	p.rect(Rect2(34.0, 30.4, 8.0, 9.2), BLOCK_RECESS, 0.4)
+	p.rect(Rect2(34.3, 30.8, 2.6, 8.4), Color("8c9094"), 0.2)
 
 
-## Modular (installation) contactor, two modules wide.
-static func _modular_contactor(p: CabinetPainter, on: bool, highlight: bool) -> void:
-	var w: float = MODULE_W * 2.0
-	_modular_body(p, w, WHITE, WHITE_SHADE, WHITE_EDGE)
-	var top: PackedStringArray = ["A1", "1", "3", "5"]
-	var bottom: PackedStringArray = ["A2", "2", "4", "6"]
-	for j: int in 4:
-		var cx: float = 4.5 + 9.0 * j
-		screw(p, Vector2(cx, 9.0), 2.3)
-		screw(p, Vector2(cx, 81.0), 2.3)
-		p.text(Vector2(cx, 18.0), top[j], 2.0, PRINT, 0, true, 8.5)
-		p.text(Vector2(cx, 75.6), bottom[j], 2.0, PRINT, 0, true, 8.5)
-	var window_c: Vector2 = Vector2(w * 0.5, 30.0)
-	if highlight and on:
-		for i: int in 3:
-			p.circle(window_c, 4.2 + i * 1.2, Color(1.0, 0.55, 0.25, 0.25 - 0.07 * i))
-	p.circle(window_c, 3.6, HOLE)
-	p.circle(window_c, 2.8, Color("e0322f") if on else Color("2ea44f"))
-	p.text_centered(window_c, "I" if on else "0", 2.6, Color.WHITE)
-	# Manual selector: AUTO / 0 / I.
-	p.rect(Rect2(w * 0.5 - 9.0, 40.0, 18.0, 7.0), HOLE, 1.0)
-	p.gradient(Rect2(w * 0.5 - 8.0, 41.0, 6.0, 5.0), Color("4a4e53"), Color("1f2124"), 0.8)
-	p.text(Vector2(w * 0.5 - 5.0, 52.0), "AUTO", 1.7, PRINT)
-	p.text(Vector2(w * 0.5 + 2.0, 52.0), "0", 1.7, PRINT)
-	p.text(Vector2(w * 0.5 + 6.5, 52.0), "I", 1.7, PRINT)
-	p.text_centered(Vector2(w * 0.5, 61.5), "25A  AC-1", 2.2, PRINT, true, w - 4.0)
+## Simplified QR code sticker (the same pattern every time).
+static func _qr(p: CabinetPainter, r: Rect2) -> void:
+	p.rect(r, Color("f4f4f2"), 0.3)
+	var n: int = 15
+	var cell: float = minf(r.size.x, r.size.y - 1.0) / (n + 2)
+	var o: Vector2 = r.position + Vector2((r.size.x - cell * n) * 0.5, (r.size.y - cell * n) * 0.5)
+	var seed: int = 12345
+	for y: int in n:
+		for x: int in n:
+			var corner: bool = (x < 4 and y < 4) or (x >= n - 4 and y < 4) or (x < 4 and y >= n - 4)
+			var on: bool
+			if corner:
+				var fx: int = x if x < 4 else x - (n - 4)
+				var fy: int = y if y < 4 else y - (n - 4)
+				on = fx == 0 or fy == 0 or fx == 3 or fy == 3 or (fx == 1 or fx == 2) and (fy == 1 or fy == 2)
+				on = on and not (fx == 3 or fy == 3) if (x >= n - 4 or y >= n - 4) else on
+			else:
+				seed = (seed * 1103515245 + 12345) & 0x7fffffff
+				on = (seed >> 16) % 2 == 0
+			if on:
+				p.rect(Rect2(o + Vector2(x, y) * cell, Vector2(cell, cell)), Color("1a1a1a"))
 
 
-## Thermal overload relay (tepelné relé) fitted under a contactor: blue
-## current dial, reset (blue) and stop (red) buttons, trip window.
-static func overload_relay(p: CabinetPainter, tripped: bool, variant: String = "A", setting: String = "1,6", reach: Array = []) -> void:
+## Thermal overload relay (tepelné relé) 45 x 52 mm drawn after the
+## photographed one, fitted under its contactor: the current dial, the TEST
+## slider with the trip window (orange after a trip), the H / A reset
+## selector, the blue reset and red stop tabs in a dark recess, the 95-98
+## auxiliary terminals and the power terminals 2/T1 4/T2 6/T3 below.
+## A trip pushes the blue reset tab out.
+static func overload_relay(p: CabinetPainter, tripped: bool, setting: String = "5", reach: Dictionary = {}) -> void:
 	var w: float = OVERLOAD.x
 	var h: float = OVERLOAD.y
-	var base: Color = DARK_GREY if variant == "A" else Color("d4d8db")
-	var front: Color = Color("a7adb2") if variant == "A" else Color("f3f4f5")
-	var text_on_base: Color = PRINT_LIGHT if variant == "A" else PRINT
-	p.gradient(Rect2(0, 0, w, h), base.lightened(0.06), base.darkened(0.08), 1.6, base.darkened(0.45), 0.2)
-	var aux: PackedStringArray = ["95", "96", "97", "98"]
-	for j: int in 4:
-		var cx: float = 23.0 + 6.2 * j
-		screw(p, Vector2(cx, 5.5), 2.1)
-		p.text(Vector2(cx, 12.0), aux[j], 1.8, text_on_base)
-	var main: PackedStringArray = ["2/T1", "4/T2", "6/T3"]
+	var holes_x: Array[float] = [12.0, 25.0, 37.6]
+	p.rect(Rect2(3.6, h - 9.6, w - 7.2, 9.6), BLOCK_DARK, 0.8, Color("2e3034"), 0.15)
+	var out: PackedStringArray = ["2", "4", "6"]
 	for j: int in 3:
-		var cx: float = 9.0 + 13.5 * j
-		screw(p, Vector2(cx, h - 6.5), 2.5, reach[j] if j < reach.size() else Color.TRANSPARENT)
-		p.text(Vector2(cx, h - 11.8), main[j], 1.9, text_on_base)
-	var front_r: Rect2 = Rect2(3.0, 15.0, w - 6.0, h - 33.0)
-	p.gradient(front_r, front.lightened(0.08), front.darkened(0.06), 1.4, base.darkened(0.3), 0.2)
-	# Current dial with its scale.
-	var dial: Vector2 = Vector2(13.0, front_r.get_center().y)
-	p.circle(dial, 7.0, Color(0, 0, 0, 0.15))
-	for t: int in 7:
-		var a: float = lerpf(PI * 0.8, PI * 2.2, t / 6.0)
-		p.line(dial + Vector2(cos(a), sin(a)) * 7.6, dial + Vector2(cos(a), sin(a)) * 8.6, PRINT, 0.2)
-	p.circle(dial, 5.8, DIAL_BLUE, DIAL_BLUE.darkened(0.4), 0.2)
-	p.circle(dial + Vector2(-1.5, -1.5), 2.0, Color(1, 1, 1, 0.18))
-	var pointer: float = PI * 1.55
-	p.line(dial, dial + Vector2(cos(pointer), sin(pointer)) * 5.0, Color.WHITE, 0.6)
-	p.text(dial + Vector2(0, 9.5), setting + " A", 1.8, PRINT)
-	# Reset and stop buttons, trip window.
-	var reset_c: Vector2 = Vector2(29.0, front_r.position.y + 7.0)
-	var stop_c: Vector2 = Vector2(37.5, front_r.position.y + 7.0)
-	var popped: float = 0.6 if tripped else 0.0
-	p.circle(reset_c + Vector2(0.4, 0.6), 3.4 + popped, Color(0, 0, 0, 0.3))
-	p.circle(reset_c, 3.2 + popped, DIAL_BLUE.lightened(0.15 if tripped else 0.0), DIAL_BLUE.darkened(0.4), 0.2)
-	p.text_centered(reset_c, "R", 2.6, Color.WHITE)
-	p.circle(stop_c, 3.2, STOP_RED, STOP_RED.darkened(0.4), 0.2)
-	p.text_centered(stop_c, "S", 2.4, Color.WHITE)
-	var window: Rect2 = Rect2(26.0, front_r.position.y + 13.5, 15.0, 4.6)
-	p.rect(window, HOLE, 0.6)
-	p.rect(window.grow(-0.7), TRIP if tripped else Color("2ea44f"), 0.4)
-	p.text_centered(window.get_center(), "TRIP" if tripped else "", 2.0, PRINT)
+		_block_screw(p, Vector2(holes_x[j], h - 9.4), 2.3, reach.get(out[j], Color.TRANSPARENT), true)
+	p.gradient(Rect2(0, 0, w, h - 9.6), BLOCK_LIGHT, BLOCK_BODY, 0.8, Color("2e3034"), 0.15)
+	for j: int in 3:
+		_power_label(p, Vector2(holes_x[j] - 7.4, h - 2.4), out[j], "T" + str(j + 1))
+	p.text(Vector2(9.0, 5.4), "70 23 04   17:48 E2 1", 1.15, Color(BLOCK_WHITE, 0.7), -1, false)
+	# Front: dial, TEST slider, H / A selector.
+	p.rect(Rect2(0.8, 7.0, 27.0, 24.4), Color.TRANSPARENT, 0.6, Color("383b3f"), 0.15)
+	var dial: Vector2 = Vector2(9.1, 25.0)
+	for t: int in 5:
+		var a: float = lerpf(PI * 1.05, PI * 1.95, t / 4.0)
+		p.line(dial + Vector2(cos(a), sin(a)) * 4.1, dial + Vector2(cos(a), sin(a)) * 4.9, BLOCK_WHITE, 0.15)
+	p.circle(dial, 3.4, Color("2f3236"), Color("1f2124"), 0.2)
+	p.line(dial + Vector2(-2.2, 0), dial + Vector2(2.2, 0), Color("6b7075"), 0.6)
+	p.line(dial + Vector2(0, -2.2), dial + Vector2(0, 2.2), Color("6b7075"), 0.6)
+	p.polygon(PackedVector2Array([dial + Vector2(2.6, -0.8), dial + Vector2(2.6, 0.8), dial + Vector2(4.0, 0.0)]), BLOCK_WHITE)
+	p.text(dial + Vector2(-5.4, 1.1), "4", 1.8, BLOCK_WHITE)
+	p.text(dial + Vector2(-1.0, -4.8), setting, 1.8, BLOCK_WHITE)
+	p.text(dial + Vector2(5.3, -2.4), "6", 1.8, BLOCK_WHITE)
+	p.rect(Rect2(13.9, 14.2, 1.9, 1.8), Color("1d1e21"), 0.3)
+	p.text(Vector2(21.8, 9.6), "TEST", 1.9, BLOCK_WHITE, 0, false)
+	p.line(Vector2(19.8, 10.7), Vector2(24.6, 10.7), BLOCK_WHITE, 0.15)
+	p.polygon(PackedVector2Array([Vector2(19.4, 10.7), Vector2(20.4, 10.2), Vector2(20.4, 11.2)]), BLOCK_WHITE)
+	p.rect(Rect2(19.1, 13.1, 5.4, 5.6), Color("222427"), 0.4)
+	p.rect(Rect2(19.8, 13.8, 4.0, 4.2), TRIP if tripped else Color("34373b"), 0.3)
+	p.text(Vector2(18.0, 18.6), "O", 1.6, BLOCK_WHITE, 0, false)
+	p.text(Vector2(25.6, 18.6), "I", 1.6, BLOCK_WHITE, 0, false)
+	p.text(Vector2(21.8, 21.8), "H", 2.0, BLOCK_WHITE, 0, false)
+	p.rect(Rect2(19.8, 23.0, 4.4, 3.8), Color("2b2e31"), 0.3)
+	p.rect(Rect2(19.8, 26.9, 4.4, 0.5), DIAL_BLUE)
+	p.text(Vector2(22.0, 30.6), "A", 2.0, BLOCK_WHITE, 0, false)
+	# Recess with the reset (blue) and stop (red) tabs.
+	p.rect(Rect2(28.4, 1.2, 15.8, 30.0), BLOCK_RECESS, 0.6)
+	p.rect(Rect2(29.6, 3.0, 5.0, 26.4), Color("35383c"), 0.3)
+	var out_by: float = 0.8 if tripped else 0.0
+	if tripped:
+		p.rect(Rect2(36.6, 7.4, 4.6, 7.6), Color(0, 0, 0, 0.45), 0.4)
+	var blue: Color = Color("3d80d8").lightened(0.12 if tripped else 0.0)
+	p.gradient(Rect2(36.0 - out_by, 6.6 - out_by, 4.6, 4.4), blue.lightened(0.12), blue, 0.4)
+	p.rect(Rect2(36.0 - out_by, 11.0 - out_by, 2.6, 3.2), blue.darkened(0.08), 0.3)
+	var red: Color = Color("e5333d")
+	p.polygon(PackedVector2Array([Vector2(36.8, 21.0), Vector2(38.6, 21.0), Vector2(38.6, 19.3), Vector2(41.3, 19.3), Vector2(41.3, 27.9), Vector2(36.8, 27.9)]), red, red.darkened(0.3), 0.12)
+	# Auxiliary contacts 95-98.
+	var aux_x: Array[float] = [6.2, 17.7, 28.7, 39.7]
+	var aux: PackedStringArray = ["97", "98", "95", "96"]
+	var kinds: PackedStringArray = ["NO", "NO", "NC", "NC"]
+	for k: int in 4:
+		_block_screw(p, Vector2(aux_x[k], 36.0), 2.4, reach.get(aux[k], Color.TRANSPARENT), k < 2)
+		p.text(Vector2(aux_x[k] - 1.9, 41.4), aux[k], 1.7, BLOCK_WHITE)
+		p.text(Vector2(aux_x[k] + 2.7, 41.4), kinds[k], 1.7, BLOCK_WHITE)
 
 
-## Auxiliary relay: "A" plug-in relay in a socket (clear cover, coil and
-## LED inside), "B" control relay shaped like a contactor.
-static func relay(p: CabinetPainter, on: bool, variant: String = "A", highlight: bool = false) -> void:
-	if variant == "B":
-		contactor(p, on, "A", ["A1", "13", "21", "33", "43"], ["A2", "14", "22", "34", "44"], highlight)
-		return
+const SOCKET_BLUE := Color("3c86d6")
+
+
+## Auxiliary relay (pomocné relé) with two changeover contacts: a slim
+## plug-in relay in a blue screw socket with three stepped tiers of contact
+## terminals (21 COM 11, 24 NO 14, 22 NC 12) and the coil A2 A1 at the
+## bottom. Through the clear cover: the coil, the contacts (they move while
+## on) and the LED; the blue test button and the light grey retaining clip
+## in front. [param highlight] glows round it while the coil has power.
+static func relay(p: CabinetPainter, on: bool, highlight: bool = false, reach: Dictionary = {}) -> void:
 	var w: float = RELAY.x
 	var h: float = RELAY.y
-	var socket: Color = Color("3b3f44")
-	p.gradient(Rect2(0, 0, w, h), socket.lightened(0.08), socket.darkened(0.1), 1.4, socket.darkened(0.5), 0.2)
-	var top: PackedStringArray = ["12", "14", "22", "24"]
-	var bottom: PackedStringArray = ["11", "21", "A1", "A2"]
-	for j: int in 4:
-		var cx: float = 3.9 + 6.4 * j
-		screw(p, Vector2(cx, 5.5), 2.2)
-		screw(p, Vector2(cx, h - 5.5), 2.2)
-		p.text(Vector2(cx, 11.8), top[j], 1.8, PRINT_LIGHT)
-		p.text(Vector2(cx, h - 9.8), bottom[j], 1.8, PRINT_LIGHT)
-	# The relay: a clear cover with the coil, the armature and the contacts in it.
-	var cover: Rect2 = Rect2(3.0, 16.0, w - 6.0, 42.0)
+	var tiers: Array = [["21", "COM", "11"], ["24", "NO", "14"], ["22", "NC", "12"]]
+	for t: int in 3:
+		var y0: float = 11.0 * t
+		p.gradient(Rect2(0, y0, w, 11.4), SOCKET_BLUE.lightened(0.12), SOCKET_BLUE.darkened(0.08), 0.8, SOCKET_BLUE.darkened(0.4), 0.15)
+		_block_screw(p, Vector2(3.9, y0 + 4.6), 2.0, reach.get(tiers[t][0], Color.TRANSPARENT))
+		_block_screw(p, Vector2(w - 3.9, y0 + 4.6), 2.0, reach.get(tiers[t][2], Color.TRANSPARENT))
+		p.text(Vector2(3.9, y0 + 9.6), tiers[t][0], 1.6, Color.WHITE)
+		p.text(Vector2(w - 3.9, y0 + 9.6), tiers[t][2], 1.6, Color.WHITE)
+		p.text_centered(Vector2(w * 0.5, y0 + 4.6), tiers[t][1], 1.3, Color.WHITE, true)
+	# Coil tier at the bottom.
+	p.gradient(Rect2(0, h - 10.0, w, 10.0), SOCKET_BLUE.lightened(0.12), SOCKET_BLUE.darkened(0.08), 0.8, SOCKET_BLUE.darkened(0.4), 0.15)
+	_block_screw(p, Vector2(3.9, h - 4.6), 2.0, reach.get("A2", Color.TRANSPARENT))
+	_block_screw(p, Vector2(w - 3.9, h - 4.6), 2.0, reach.get("A1", Color.TRANSPARENT))
+	p.text(Vector2(7.75, h - 1.4), "A2  A1", 1.4, Color.WHITE)
+	# The relay.
+	var body: Rect2 = Rect2(1.0, 33.4, w - 2.0, 35.0)
 	if highlight and on:
 		for i: int in 3:
-			p.rect(cover.grow(1.0 + i), Color(1.0, 0.55, 0.25, 0.22 - 0.06 * i), 2.0 + i)
-	p.rect(cover, Color("d8e3e8"), 1.2, Color("8aa0aa"), 0.2)
-	p.rect(Rect2(cover.position.x + 2.0, cover.position.y + 16.0, 8.0, 18.0), Color("b8733d"), 1.0, Color("7a4a25"), 0.15)
-	for g: int in 6:
-		p.line(Vector2(cover.position.x + 2.5, cover.position.y + 18.0 + g * 2.6), Vector2(cover.position.x + 9.5, cover.position.y + 18.0 + g * 2.6), Color(0, 0, 0, 0.2), 0.2)
-	var arm_y: float = cover.position.y + (13.0 if on else 11.5)
-	p.rect(Rect2(cover.position.x + 1.5, arm_y, 12.0, 1.4), Color("8f969c"))
+			p.rect(body.grow(1.0 + i), Color(1.0, 0.55, 0.25, 0.22 - 0.06 * i), 1.0 + i)
+	p.rect(body, Color(0.82, 0.9, 0.96, 0.92), 0.8, Color("7e99b0"), 0.18)
+	# Inside, seen through the right half of the cover.
+	p.rect(Rect2(8.2, 37.0, 4.6, 12.0), Color("b8733d"), 0.6, Color("7a4a25"), 0.12)
+	for g: int in 5:
+		p.line(Vector2(8.4, 38.4 + g * 2.2), Vector2(12.6, 38.4 + g * 2.2), Color(0, 0, 0, 0.2), 0.15)
+	var arm: float = 1.2 if on else 0.0
+	p.rect(Rect2(7.8, 50.0 - arm * 0.5, 5.4, 1.0), Color("8f969c"))
 	for c: int in 2:
-		var x: float = cover.position.x + 12.5 + c * 3.0
-		p.rect(Rect2(x, cover.position.y + 6.0, 1.6, 26.0), Color("d9b45a"), 0.3)
-	led(p, Vector2(cover.end.x - 3.0, cover.position.y + 4.0), LED_RED, on, 1.0)
-	# Test button with the mechanical flag.
-	p.rect(Rect2(cover.end.x - 5.5, cover.end.y - 6.0, 4.0, 4.0), Color("f39200") if on else Color("c9b49a"), 0.6)
-	# Retaining clip.
-	p.rect(Rect2(w * 0.5 - 6.0, cover.end.y + 0.5, 12.0, 2.0), Color("23262a"), 0.6)
+		p.rect(Rect2(8.6 + c * 2.4, 52.0, 0.8, 9.0), Color("d9b45a"))
+		p.rect(Rect2(8.6 + c * 2.4 + (0.9 if on else 0.0), 52.4, 0.6, 3.0), Color("c08a3a"))
+	led(p, Vector2(12.6, 63.6), LED_GREEN, on, 0.8)
+	# Label plate on the left half: coil and contact ratings.
+	p.rect(Rect2(1.7, 35.0, 5.6, 24.0), Color("eceeef"), 0.4, Color("b5babf"), 0.12)
+	p.text(Vector2(4.5, 40.0), "24V", 1.4, PRINT)
+	p.text(Vector2(4.5, 42.2), "DC", 1.4, PRINT)
+	p.text(Vector2(4.5, 46.0), "8A", 1.3, PRINT, 0, false)
+	p.text(Vector2(4.5, 48.0), "250V~", 1.1, PRINT, 0, false)
+	# Lockable test button and the retaining clip.
+	p.rect(Rect2(1.8, 61.0, 4.4, 5.6), SOCKET_BLUE.darkened(0.1), 0.6)
+	p.rect(Rect2(3.1, 61.8 + (1.2 if on else 0.0), 1.8, 2.6), Color.WHITE, 0.3)
+	p.polygon(PackedVector2Array([Vector2(6.6, 60.4), Vector2(w - 1.4, 59.2), Vector2(w - 1.4, h - 9.4), Vector2(6.6, h - 9.4)]), Color("e3e5e7"), Color("a6abb0"), 0.15)
 
 
 # --- Time relay -------------------------------------------------------------------
 
-## Multifunction time relay (časové relé), one module wide: LEDs U (power)
-## and R (output). "A" with dials, "B" with a display counting down.
-## [param state]: 0 no power, 1 timing, 2 output on.
-static func timer(p: CabinetPainter, state: int, variant: String = "A", function: String = "F1", remaining: String = "2,4s") -> void:
+## Function codes on the first function dial of the time relay, OFF to test.
+const TIMER_DIAL_1: PackedStringArray = ["OFF", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "test"]
+const TIMER_DIAL_2: PackedStringArray = ["1s", "10", "1m", "10", "1h", "10", "100"]
+const TIMER_DIAL_3: PackedStringArray = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+const TIMER_DIAL_4: PackedStringArray = ["OFF", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18"]
+
+
+## Multifunction time relay (časové relé), one module wide, light grey:
+## two stepped tiers of terminals at each end (coil A1 A2 and the control
+## input on the outer top tier, the changeover contact 16 15 18 on the
+## outer bottom tier), four white dials (function, range, fine time,
+## function) with their scales, LED bars U (green, power) and R (yellow,
+## output). [param state]: 0 no power, 1 timing, 2 output on.
+## [param function] is the step of the first dial (1 = F1).
+static func timer(p: CabinetPainter, state: int, function: int = 1, control: String = "S", reach: Dictionary = {}) -> void:
 	var w: float = MODULE_W
-	_modular_body(p, w, WHITE, WHITE_SHADE, WHITE_EDGE)
-	var top: PackedStringArray = ["A1", "S", "A2"]
-	var bottom: PackedStringArray = ["15", "16", "18"]
+	var h: float = MODULE_H
+	# Tiers, outer ones lowest, then the raised front.
+	for t: Array in [[0.0, 12.6], [12.0, 13.6], [h - 25.6, 13.6], [h - 12.6, 12.6]]:
+		p.gradient(Rect2(0.3, t[0], w - 0.6, t[1]), MODULAR_FACE, MODULAR_SHADE, 0.6, MODULAR_EDGE, 0.15)
+	var xs: Array[float] = [3.6, 9.0, 14.4]
+	var top: PackedStringArray = ["A1", "A2", control]
+	var bottom: PackedStringArray = ["16", "15", "18"]
 	for j: int in 3:
-		var cx: float = 3.6 + 5.4 * j
-		screw(p, Vector2(cx, 8.0), 2.0)
-		screw(p, Vector2(cx, 82.0), 2.0)
-		p.text(Vector2(cx, 15.5), top[j], 1.8, PRINT)
-		p.text(Vector2(cx, 77.0), bottom[j], 1.8, PRINT)
-	led(p, Vector2(5.0, 25.0), LED_GREEN, state >= 1, 1.0)
-	led(p, Vector2(13.0, 25.0), LED_YELLOW, state == 2, 1.0)
-	p.text(Vector2(5.0, 30.0), "U", 1.8, PRINT)
-	p.text(Vector2(13.0, 30.0), "R", 1.8, PRINT)
-	if variant == "B":
-		var lcd: Rect2 = Rect2(2.2, 33.0, w - 4.4, 13.0)
-		p.rect(lcd.grow(0.6), HOLE, 0.8)
-		var lit: bool = state >= 1
-		p.rect(lcd, Color("b7c9a0") if lit else Color("7f8a74"), 0.4)
-		if lit:
-			p.text(Vector2(lcd.position.x + 1.0, lcd.position.y + 4.0), function, 2.0, Color("1d2a16"), -1)
-			p.text(Vector2(lcd.end.x - 0.8, lcd.end.y - 1.6), remaining if state == 1 else "0,0s", 3.0, Color("1d2a16"), 1, true, lcd.size.x - 1.0)
-		for b: int in 2:
-			var bc: Vector2 = Vector2(5.5 + 7.0 * b, 52.0)
-			p.circle(bc, 2.2, Color("5b6066"), Color("2a2d30"), 0.2)
-		p.text(Vector2(5.5, 58.0), "SET", 1.6, PRINT)
-		p.text(Vector2(12.5, 58.0), "F", 1.6, PRINT)
-	else:
-		for d: int in 3:
-			var c: Vector2 = Vector2(w * 0.5, 37.5 + d * 10.0)
-			var r: float = 3.3 if d < 2 else 3.8
-			for t: int in 9:
-				var a: float = lerpf(PI * 0.75, PI * 2.25, t / 8.0)
-				p.line(c + Vector2(cos(a), sin(a)) * (r + 0.6), c + Vector2(cos(a), sin(a)) * (r + 1.4), PRINT, 0.18)
-			p.circle(c, r, Color("6c7177") if d < 2 else Color("2f6fd4"), Color("2a2d30"), 0.2)
-			var a2: float = [PI * 1.1, PI * 1.6, PI * 1.9][d]
-			p.line(c, c + Vector2(cos(a2), sin(a2)) * (r - 0.5), Color.WHITE, 0.5)
-	p.text(Vector2(w * 0.5, 67.0), function, 2.6, PRINT)
+		p.rect(Rect2(xs[j] - 1.8, 2.2, 3.6, 1.6), Color("3a3d41"), 0.3)
+		p.text(Vector2(xs[j], 6.6), top[j], 1.9, MODULAR_PRINT, 0, false, 5.2)
+		_modular_screw_small(p, Vector2(xs[j], 9.4), reach.get(top[j], Color.TRANSPARENT))
+		_modular_screw_small(p, Vector2(xs[j], h - 8.6), reach.get(bottom[j], Color.TRANSPARENT))
+		p.text(Vector2(xs[j], h - 4.0), bottom[j], 1.9, MODULAR_PRINT, 0, false, 5.2)
+		p.rect(Rect2(xs[j] - 1.8, h - 2.8, 3.6, 1.4), Color("3a3d41"), 0.3)
+	var front: Rect2 = Rect2(0.3, 25.0, w - 0.6, 47.6)
+	p.rect(Rect2(front.position.x, front.end.y, front.size.x, 0.8), Color(0, 0, 0, 0.12))
+	p.gradient(front, MODULAR_FACE.lightened(0.3), MODULAR_FACE, 0.6, MODULAR_EDGE, 0.15)
+	# Plain plate at the bottom of the front (no maker or type printed).
+	p.rect(Rect2(0.8, 68.6, w - 1.6, 3.4), MODULAR_SHADE, 0.3)
+	var steps: Array[int] = [clampi(function, 0, 9), 2, 4, 0]
+	var scales: Array = [TIMER_DIAL_1, TIMER_DIAL_2, TIMER_DIAL_3, TIMER_DIAL_4]
+	var marks: PackedStringArray = ["fc", "t", "t", "fc"]
+	for d: int in 4:
+		var c: Vector2 = Vector2(8.6, 33.0 + d * 10.6)
+		_timer_dial(p, c, scales[d], steps[d])
+		p.text(Vector2(w - 1.0, c.y + 0.8), marks[d], 2.0, MODULAR_PRINT, 1, true)
+	_led_bar(p, Rect2(1.0, 41.6, 1.2, 4.0), LED_GREEN, state >= 1)
+	_led_bar(p, Rect2(1.0, 52.2, 1.2, 4.0), LED_YELLOW, state == 2)
+	p.text(Vector2(1.6, 47.6), "U", 1.6, MODULAR_PRINT)
+	p.text(Vector2(1.6, 58.2), "R", 1.6, MODULAR_PRINT)
+
+
+static func _modular_screw_small(p: CabinetPainter, center: Vector2, reach: Color) -> void:
+	if reach.a > 0.0:
+		p.circle(center, 2.75, Color(1, 1, 1, 0.85))
+		p.circle(center, 2.45, reach)
+	p.circle(center, 2.1, Color("a1a6ab"))
+	p.circle(center, 1.75, METAL, METAL_DARK, 0.12)
+	p.line(center + Vector2(-1.0, 0), center + Vector2(1.0, 0), METAL_DARK, 0.3)
+	p.line(center + Vector2(0, -1.0), center + Vector2(0, 1.0), METAL_DARK, 0.3)
+
+
+## White dial with a cross grip and its pointer at step [param step] of
+## [param scale], the scale printed round it (open at the bottom).
+static func _timer_dial(p: CabinetPainter, c: Vector2, scale: PackedStringArray, step: int) -> void:
+	var n: int = scale.size()
+	for i: int in n:
+		var a: float = lerpf(PI * 0.78, PI * 2.22, float(i) / (n - 1))
+		var along: Vector2 = Vector2(cos(a), sin(a))
+		p.line(c + along * 3.1, c + along * 3.6, MODULAR_PRINT, 0.12)
+		p.text_centered(c + along * 5.0, scale[i], 1.0, MODULAR_PRINT, false)
+	p.circle(c + Vector2(0.2, 0.3), 2.9, Color(0, 0, 0, 0.18))
+	p.circle(c, 2.8, Color("fafafa"), Color("b9bec3"), 0.15)
+	var a2: float = lerpf(PI * 0.78, PI * 2.22, float(step) / (n - 1))
+	for k: int in 2:
+		var g: float = a2 + PI * 0.25 + k * PI * 0.5
+		p.line(c - Vector2(cos(g), sin(g)) * 1.8, c + Vector2(cos(g), sin(g)) * 1.8, Color("d6d9dc"), 0.7)
+	p.polygon(PackedVector2Array([c + Vector2(cos(a2), sin(a2)) * 2.6, c + Vector2(cos(a2 + 0.5), sin(a2 + 0.5)) * 1.6, c + Vector2(cos(a2 - 0.5), sin(a2 - 0.5)) * 1.6]), Color("9aa0a5"))
+
+
+static func _led_bar(p: CabinetPainter, r: Rect2, color: Color, lit: bool) -> void:
+	if lit:
+		for i: int in 3:
+			p.rect(r.grow(0.5 + 0.6 * i), Color(color, 0.22 - 0.06 * i), 0.6 + 0.6 * i)
+	p.rect(r, color if lit else color.darkened(0.6), 0.2)
 
 
 # --- Terminal blocks ----------------------------------------------------------------
