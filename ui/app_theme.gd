@@ -64,8 +64,6 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"pause": '<rect x="6" y="4" width="4" height="16" rx="1" fill="#ffffff"/><rect x="14" y="4" width="4" height="16" rx="1" fill="#ffffff"/>',
 	"step": '<path d="M5 5v14"/><path d="M9 5.5v13a.8.8 0 0 0 1.2.7l10.4-6.5a.8.8 0 0 0 0-1.4L10.2 4.8A.8.8 0 0 0 9 5.5z"/>',
 	"reset": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
-	"chart": '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-	"log": '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
 	"close": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
 	"follow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
 	"chevron_down": '<path d="m6 9 6 6 6-6"/>',

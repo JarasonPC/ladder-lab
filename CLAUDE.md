@@ -50,7 +50,7 @@
   numbering tool or double click; side panels (palette, properties + check, control panel) are
   SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
   so text stays sharp); the timing panel is resized by its top edge and the grip before the
-  event log; widths, heights and zooms are saved in the settings
+  event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,

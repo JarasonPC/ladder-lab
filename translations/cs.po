@@ -798,6 +798,9 @@ msgstr "Vymazat"
 msgid "Double click: follow"
 msgstr "Dvojklik: sledovat"
 
+msgid "Timing chart"
+msgstr "Časový diagram"
+
 msgid "Time span:"
 msgstr "Časový úsek:"
 
