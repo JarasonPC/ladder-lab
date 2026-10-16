@@ -6,6 +6,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Panels
+- Switchboard: bridge rectifiers (TB) on the rails, their DC LED lit while the input has voltage
+
 ## 0.2.0 – 2026-10-16
 
 First public version.
