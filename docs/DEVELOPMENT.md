@@ -100,7 +100,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   auxiliary block beyond two auxiliary contacts, the overload relay fitted under the contactor its
   heaters follow, relays one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
   3-4: wide socket), time relays 1-3 changeover contacts, bridge rectifiers one dark module, PLCs
-  four light grey modules; terminal strips from terminal labels
+  four modules in Siemens grey; terminal strips from terminal labels
   ("X2:4" = strip X2, plain "4" = strip X1). Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree, every wire straight from its terminal
   to the duct over or under its rail, in through a slot between the fingers, along the duct in a
@@ -144,7 +144,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   the component ("program"); damaged parts of a program are left out, never refusing the file.
   The symbol (PlcSymbol): a box with L1 N I1-I8 on top, the output contacts below (moving),
   input lights and a RUN display. In the switchboard (CabinetDevices.Kind.PLC, CabinetParts.plc)
-  a light grey four-module device: L1 N I1-I8 screws on top, the two screws of each output under
+  a four-module device in Siemens light grey (RAL 7035) with anthracite (RAL 7016) keys, print and
+  display frame and a white backlit display: L1 N I1-I8 screws on top, the two screws of each output under
   its module below (CabinetParts.terminal_points by the standard marking, the schematic's names
   printed), a display with the inputs and output relays that are on (backlit while powered, RUN
   and the language), cursor keys, ESC / OK; it sits on the first rail after the rectifiers
