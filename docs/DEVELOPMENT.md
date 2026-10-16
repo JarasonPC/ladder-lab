@@ -86,6 +86,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
   renames; edited in the sidebar in Edit mode (undoable), operate the simulation in Simulate mode
+- Switchboard (rozvaděč, sidebar, both modes, toolbar toggle): DIN rails (SchematicDocument.cabinet_rails,
+  CabinetRail / CabinetItem: a device by designation or a terminal strip by name, saved as "cabinet")
+  drawn by CabinetView / CabinetLayout / CabinetParts in millimetres (CabinetPainter), real sizes, after
+  photos of real devices but never with maker names or type designations; approved look: white plate,
+  slotted TS35 rails, open slotted ducts, white labels, push-in terminals, orange glow on energized
+  coils, voltage colours on terminals while simulating. The look follows the circuit (CabinetDevices):
+  breakers and fuse holders 1-4 poles, contactors 3 (also for 1-2) or 4 main poles plus a front
+  auxiliary block beyond two auxiliary contacts, the overload relay fitted under the contactor its
+  heaters follow, relays one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
+  3-4: wide socket), time relays 1-3 changeover contacts; terminal strips from terminal labels
+  ("X2:4" = strip X2, plain "4" = strip X1). Edited in the sidebar (undoable, "Fill from the
+  schematic"), breakers, fuse holders and overload relays operated there while simulating.
+  tools/screenshot_cabinet.gd screenshots the app (xvfb) for visual review
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
@@ -134,6 +147,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 - `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block),
   ExportPreview (dialog)
 - `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
+- `ui/cabinet/` CabinetPanel (sidebar), CabinetView, CabinetLayout, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows

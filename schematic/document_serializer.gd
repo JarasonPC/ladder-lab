@@ -49,6 +49,11 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		result["control_boxes"] = boxes
 	if not doc.title_block.is_empty():
 		result["title_block"] = doc.title_block.to_data()
+	if not doc.cabinet_rails.is_empty():
+		var rails: Array[Dictionary] = []
+		for rail: CabinetRail in doc.cabinet_rails:
+			rails.append(rail.to_data())
+		result["cabinet"] = rails
 	return result
 
 
@@ -119,6 +124,13 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			if box != null:
 				doc.control_boxes.append(box)
 	doc.title_block = TitleBlock.from_data(d.get("title_block", {}))
+	# So is the switchboard: malformed rails and items are left out.
+	var raw_rails: Variant = d.get("cabinet", [])
+	if raw_rails is Array:
+		for rd: Variant in raw_rails:
+			var rail: CabinetRail = CabinetRail.from_data(rd)
+			if rail != null:
+				doc.cabinet_rails.append(rail)
 	return doc
 
 

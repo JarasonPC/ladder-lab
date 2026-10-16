@@ -21,6 +21,9 @@ var realistic_timing: bool = true
 ## Operator panel: control boxes with the buttons, switches and signal lamps
 ## of the circuit (see [ControlBox]).
 var control_boxes: Array[ControlBox] = []
+## Switchboard (rozvaděč): DIN rails with the devices and terminal strips of
+## the circuit, top to bottom (see [CabinetRail]).
+var cabinet_rails: Array[CabinetRail] = []
 ## Titles of the pages, e.g. "Power section" (shown translated, like
 ## [member title]); "" for an untitled page.
 var pages: PackedStringArray = PackedStringArray([""])
@@ -784,8 +787,10 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 	_placements[new_component.id] = p
 	_reroute_component(new_component.id)
 	if new_component.designation != old.designation and circuit.get_component(old.designation) == null:
-		# The last part of the device was renamed: the control panel follows.
+		# The last part of the device was renamed: the control panel and the
+		# switchboard follow.
 		rename_control_device(old.designation, new_component.designation)
+		rename_cabinet_device(old.designation, new_component.designation)
 	return true
 
 
@@ -1492,3 +1497,133 @@ func control_panel_devices() -> Dictionary[String, bool]:
 			if not item.lamp.is_empty():
 				listed[item.lamp] = true
 	return listed
+
+
+# --- Switchboard ------------------------------------------------------------------
+
+## Adds an empty DIN rail at the bottom of the switchboard.
+func add_cabinet_rail() -> CabinetRail:
+	var rail: CabinetRail = CabinetRail.new()
+	cabinet_rails.append(rail)
+	return rail
+
+
+func remove_cabinet_rail(index: int) -> void:
+	if index >= 0 and index < cabinet_rails.size():
+		cabinet_rails.remove_at(index)
+
+
+## Moves rail [param index] by [param delta] places (clamped).
+func move_cabinet_rail(index: int, delta: int) -> void:
+	if index < 0 or index >= cabinet_rails.size():
+		return
+	var rail: CabinetRail = cabinet_rails[index]
+	cabinet_rails.remove_at(index)
+	cabinet_rails.insert(clampi(index + delta, 0, cabinet_rails.size()), rail)
+
+
+## Puts a device or terminal strip at the end of rail [param rail_index].
+## Returns the item, or null when there is no such rail or it is already in
+## the switchboard.
+func add_cabinet_item(rail_index: int, kind: CabinetItem.Kind, designation: String) -> CabinetItem:
+	if rail_index < 0 or rail_index >= cabinet_rails.size() or designation.is_empty() or cabinet_has(kind, designation):
+		return null
+	var item: CabinetItem = CabinetItem.new(kind, designation)
+	cabinet_rails[rail_index].items.append(item)
+	return item
+
+
+func remove_cabinet_item(rail_index: int, item_index: int) -> void:
+	if _has_cabinet_item(rail_index, item_index):
+		cabinet_rails[rail_index].items.remove_at(item_index)
+
+
+## Moves an item by [param delta] places along its rail (clamped).
+func move_cabinet_item(rail_index: int, item_index: int, delta: int) -> void:
+	if not _has_cabinet_item(rail_index, item_index):
+		return
+	var items: Array[CabinetItem] = cabinet_rails[rail_index].items
+	var item: CabinetItem = items[item_index]
+	items.remove_at(item_index)
+	items.insert(clampi(item_index + delta, 0, items.size()), item)
+
+
+## Moves an item to the end of the rail [param delta] rails up or down.
+## Returns false when there is no such rail.
+func move_cabinet_item_to_rail(rail_index: int, item_index: int, delta: int) -> bool:
+	var target: int = rail_index + delta
+	if not _has_cabinet_item(rail_index, item_index) or target < 0 or target >= cabinet_rails.size() or delta == 0:
+		return false
+	var item: CabinetItem = cabinet_rails[rail_index].items[item_index]
+	cabinet_rails[rail_index].items.remove_at(item_index)
+	cabinet_rails[target].items.append(item)
+	return true
+
+
+## True when the device or strip already has a place in the switchboard.
+func cabinet_has(kind: CabinetItem.Kind, designation: String) -> bool:
+	for rail: CabinetRail in cabinet_rails:
+		for item: CabinetItem in rail.items:
+			if item.kind == kind and item.designation == designation:
+				return true
+	return false
+
+
+## Devices (by designation) and terminal strips (by name) of the circuit that
+## have no place in the switchboard yet, as items not on any rail.
+func cabinet_unplaced() -> Array[CabinetItem]:
+	var result: Array[CabinetItem] = []
+	for designation: String in CabinetDevices.devices(self):
+		if not cabinet_has(CabinetItem.Kind.DEVICE, designation):
+			result.append(CabinetItem.new(CabinetItem.Kind.DEVICE, designation))
+	for strip: String in CabinetDevices.strips(self):
+		if not cabinet_has(CabinetItem.Kind.STRIP, strip):
+			result.append(CabinetItem.new(CabinetItem.Kind.STRIP, strip))
+	return result
+
+
+## Adds rails with everything not in the switchboard yet: protection, time
+## relays and relays on one rail, contactors (with their overload relays)
+## and lone overload relays on the next, terminal strips at the bottom.
+## Returns the number of rails added.
+func fill_cabinet() -> int:
+	var groups: Array[Array] = [[], [], []]
+	for item: CabinetItem in cabinet_unplaced():
+		if item.kind == CabinetItem.Kind.STRIP:
+			groups[2].append(item)
+			continue
+		var kind: CabinetDevices.Kind = CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation))
+		groups[1 if kind == CabinetDevices.Kind.CONTACTOR or kind == CabinetDevices.Kind.OVERLOAD else 0].append(item)
+	# Protection first, then time relays, then relays; each keeps circuit order.
+	var order: Array[CabinetDevices.Kind] = [CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.RELAY]
+	var rank: Callable = func(item: CabinetItem) -> int:
+		return order.find(CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation)))
+	var first: Array = groups[0]
+	var sorted: Array = []
+	for r: int in order.size():
+		for item: CabinetItem in first:
+			if rank.call(item) == r:
+				sorted.append(item)
+	groups[0] = sorted
+	var added: int = 0
+	for group: Array in groups:
+		if group.is_empty():
+			continue
+		var rail: CabinetRail = add_cabinet_rail()
+		for item: CabinetItem in group:
+			rail.items.append(item)
+		added += 1
+	return added
+
+
+## Points every switchboard place of device [param old_designation] to
+## [param new_designation].
+func rename_cabinet_device(old_designation: String, new_designation: String) -> void:
+	for rail: CabinetRail in cabinet_rails:
+		for item: CabinetItem in rail.items:
+			if item.kind == CabinetItem.Kind.DEVICE and item.designation == old_designation:
+				item.designation = new_designation
+
+
+func _has_cabinet_item(rail_index: int, item_index: int) -> bool:
+	return rail_index >= 0 and rail_index < cabinet_rails.size() and item_index >= 0 and item_index < cabinet_rails[rail_index].items.size()

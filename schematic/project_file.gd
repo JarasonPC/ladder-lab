@@ -25,7 +25,9 @@ const FORMAT: String = "ladder-lab"
 ## connectors (missing before: one untitled page).
 ## 13: title block texts of the exported sheets (missing before: empty).
 ## 14: PE supply points (conductor "PE"), time relays with A1 and A2 swapped.
-const VERSION: int = 14
+## 15: switchboard rails with their devices and terminal strips ("cabinet",
+## missing before: no switchboard).
+const VERSION: int = 15
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

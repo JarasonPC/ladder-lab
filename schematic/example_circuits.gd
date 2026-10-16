@@ -62,6 +62,8 @@ static func build(index: int, horizontal: bool = false) -> SchematicDocument:
 			doc = direct_on_line_pages()
 	if doc != null and doc.control_boxes.is_empty():
 		doc.add_control_box_for_all()
+	if doc != null and doc.cabinet_rails.is_empty():
+		doc.fill_cabinet()
 	if doc != null and horizontal:
 		doc.transpose()
 	return doc

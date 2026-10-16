@@ -399,6 +399,14 @@ func edit_control_panel(change: Callable) -> void:
 	edited.emit()
 
 
+## Applies [param change] (called with the document) to the switchboard as
+## one undoable edit.
+func edit_cabinet(change: Callable) -> void:
+	_record()
+	change.call(document())
+	edited.emit()
+
+
 func copy_selection() -> void:
 	if selected_components.is_empty():
 		return

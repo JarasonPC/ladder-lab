@@ -1,0 +1,194 @@
+extends GutTest
+## The switchboard (rozvaděč): which devices and terminal strips it shows and
+## how they look, editing its rails in the document, saving, following
+## renamed devices.
+
+const NO := SwitchingElement.ContactType.NO
+const NC := SwitchingElement.ContactType.NC
+
+
+func _doc() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new("cabinet")
+	var breaker: MotorBreaker = MotorBreaker.new("FA1")
+	doc.add(breaker, Vector2i(0, 0))
+	var fuse: Fuse = Fuse.new("FU1")
+	fuse.holder = true
+	doc.add(fuse, Vector2i(4, 0))
+	doc.add(Coil.new("KM1"), Vector2i(8, 0))
+	doc.add(MainContacts.new("KM1"), Vector2i(12, 0))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(16, 0))
+	doc.add(OverloadRelay.new("F1", 5.0, 3), Vector2i(20, 0))
+	doc.add(OverloadContact.new("F1", NC), Vector2i(24, 0))
+	doc.add(Coil.new("KA1", Coil.Kind.RELAY), Vector2i(28, 0))
+	for k: int in 3:
+		doc.add(Contact.new("KA1", NO if k != 1 else NC, k + 1), Vector2i(32 + 4 * k, 0))
+	doc.add(TimerRelay.new("KT1", TimerRelay.Mode.ON_DELAY, 2.0), Vector2i(48, 0))
+	doc.add(Contact.new("KT1", NO, 1, true), Vector2i(52, 0))
+	doc.add(Lamp.new("H1"), Vector2i(56, 0))
+	for t: Array in [["X1", "1"], ["X2", "X2:3"], ["X3", "PE"], ["X4", "N"]]:
+		var block: TerminalBlock = TerminalBlock.new(t[0])
+		block.label = t[1]
+		doc.add(block, Vector2i(60, 4 * doc.circuit.get_components().size()))
+	doc.set_strip_terminal(doc.circuit.get_component("H1").id, 0, "2")
+	# The overload relay is fitted under KM1: its heaters follow the main contacts.
+	for pole: int in 3:
+		doc.connect_terminals("KM1:%d" % (2 * pole + 2), "F1:%d" % (2 * pole + 1))
+	return doc
+
+
+func test_devices_and_kinds() -> void:
+	var doc: SchematicDocument = _doc()
+	assert_eq(CabinetDevices.devices(doc), PackedStringArray(["FA1", "FU1", "KM1", "KA1", "KT1"]), "contacts, lamps and the fitted overload relay are no places of their own")
+	assert_eq(CabinetDevices.overloads_under_contactors(doc.circuit), {"KM1": "F1"})
+	assert_eq(CabinetDevices.kind_of(doc.circuit.get_component("H1")), CabinetDevices.Kind.NONE)
+
+
+func test_overload_relay_without_contactor_is_its_own_place() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.remove_wire(0)
+	doc.remove_wire(0)
+	doc.remove_wire(0)
+	assert_true(CabinetDevices.devices(doc).has("F1"))
+	assert_eq(CabinetDevices.describe(doc, "KM1")["overload"], "")
+
+
+func test_descriptions_follow_poles_and_contacts() -> void:
+	var doc: SchematicDocument = _doc()
+	var breaker: Dictionary = CabinetDevices.describe(doc, "FA1")
+	assert_eq(breaker["poles"], 3)
+	assert_false(breaker["on"], "breakers start switched off")
+	var fuse: Dictionary = CabinetDevices.describe(doc, "FU1")
+	assert_eq(fuse["poles"], 1)
+	assert_false(fuse["closed"], "fuse holders start open")
+	var contactor: Dictionary = CabinetDevices.describe(doc, "KM1")
+	assert_eq(contactor["poles"], 3)
+	assert_eq(contactor["aux"], [["13", "NO", "14"], ["21", "NC", "22"]], "the unused built-in contact keeps its numbers")
+	assert_eq(contactor["overload"], "F1")
+	assert_eq(contactor["terminals"]["A1"], "KM1:A1")
+	assert_eq(contactor["terminals"]["6"], "KM1:6")
+	var relay: Dictionary = CabinetDevices.describe(doc, "KA1")
+	assert_eq(relay["poles"], 3, "a relay has a changeover contact for every contact it uses")
+	assert_eq(relay["terminals"]["21"], "KA1:21")
+	assert_eq(relay["terminals"]["22"], "KA1:22", "the NC contact sits on the NC side")
+	assert_eq(relay["terminals"]["34"], "KA1:34")
+	var timer: Dictionary = CabinetDevices.describe(doc, "KT1")
+	assert_eq(timer["contacts"], 1)
+	assert_eq(timer["code"], "F2")
+	assert_eq(timer["terminals"]["15"], "KT1:17", "a delayed NO contact uses common and NO side")
+	assert_eq(timer["terminals"]["18"], "KT1:18")
+	var overload: Dictionary = CabinetDevices.describe(doc, "F1")
+	assert_false(overload["tripped"])
+	assert_eq(overload["terminals"]["95"], "F1:95")
+	assert_eq(CabinetDevices.describe(doc, "H1"), {})
+
+
+func test_more_auxiliary_contacts_and_four_poles() -> void:
+	var doc: SchematicDocument = _doc()
+	for k: int in 3:
+		doc.add(Contact.new("KM1", NC if k == 0 else NO, k + 2), Vector2i(70 + 4 * k, 0))
+	var mains: MainContacts = MainContacts.new("KM2")
+	mains.poles = 4
+	doc.add(Coil.new("KM2"), Vector2i(90, 0))
+	doc.add(mains, Vector2i(94, 0))
+	assert_eq((CabinetDevices.describe(doc, "KM1")["aux"] as Array).size(), 4, "two more go to the auxiliary contact block")
+	assert_eq(CabinetDevices.describe(doc, "KM2")["poles"], 4)
+
+
+func test_terminal_strips() -> void:
+	var doc: SchematicDocument = _doc()
+	var strips: Dictionary = CabinetDevices.strips(doc)
+	assert_eq(strips.keys(), ["X1", "X2"])
+	var labels: PackedStringArray = PackedStringArray()
+	for t: Dictionary in strips["X1"]:
+		labels.append("%s %s" % [t["label"], t["kind"]])
+	assert_eq(labels, PackedStringArray(["1 L", "2 L", "N N", "PE PE"]), "numbers first, terminals on leads too")
+	assert_eq(strips["X2"][0]["label"], "3")
+	assert_eq(CabinetDevices.split_label("X5:12"), PackedStringArray(["X5", "12"]))
+
+
+func test_fill_cabinet() -> void:
+	var doc: SchematicDocument = _doc()
+	assert_eq(doc.fill_cabinet(), 3)
+	var rails: Array[PackedStringArray] = []
+	for rail: CabinetRail in doc.cabinet_rails:
+		var names: PackedStringArray = PackedStringArray()
+		for item: CabinetItem in rail.items:
+			names.append(item.designation)
+		rails.append(names)
+	assert_eq(rails[0], PackedStringArray(["FA1", "FU1", "KT1", "KA1"]), "protection, then time relays, then relays")
+	assert_eq(rails[1], PackedStringArray(["KM1"]), "contactors, the overload relay under its contactor")
+	assert_eq(rails[2], PackedStringArray(["X1", "X2"]))
+	assert_eq(doc.cabinet_rails[2].items[0].kind, CabinetItem.Kind.STRIP)
+	assert_eq(doc.fill_cabinet(), 0, "everything has a place already")
+	assert_true(doc.cabinet_unplaced().is_empty())
+
+
+func test_edit_rails_and_items() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.add_cabinet_rail()
+	doc.add_cabinet_rail()
+	assert_not_null(doc.add_cabinet_item(0, CabinetItem.Kind.DEVICE, "KM1"))
+	assert_null(doc.add_cabinet_item(1, CabinetItem.Kind.DEVICE, "KM1"), "one place per device")
+	assert_null(doc.add_cabinet_item(5, CabinetItem.Kind.DEVICE, "KA1"), "no such rail")
+	doc.add_cabinet_item(0, CabinetItem.Kind.DEVICE, "KA1")
+	doc.move_cabinet_item(0, 1, -1)
+	assert_eq(doc.cabinet_rails[0].items[0].designation, "KA1")
+	assert_true(doc.move_cabinet_item_to_rail(0, 0, 1))
+	assert_eq(doc.cabinet_rails[1].items[0].designation, "KA1")
+	assert_false(doc.move_cabinet_item_to_rail(1, 0, 1), "no rail below")
+	doc.move_cabinet_rail(1, -1)
+	assert_eq(doc.cabinet_rails[0].items[0].designation, "KA1")
+	doc.remove_cabinet_item(0, 0)
+	assert_true(doc.cabinet_rails[0].items.is_empty())
+	doc.remove_cabinet_rail(0)
+	assert_eq(doc.cabinet_rails.size(), 1)
+
+
+func test_renamed_device_keeps_its_place() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.fill_cabinet()
+	doc.rename_cabinet_device("KA1", "KA7")
+	assert_eq(doc.cabinet_rails[0].items[3].designation, "KA7")
+
+
+func test_saved_and_loaded() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.fill_cabinet()
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(DocumentSerializer.to_dict(copy), DocumentSerializer.to_dict(doc))
+	assert_eq(copy.cabinet_rails.size(), 3)
+	var data: Dictionary = DocumentSerializer.to_dict(doc)
+	data["cabinet"] = [{"items": [{"kind": "device", "designation": "KM1"}, {"kind": "rocket", "designation": "R1"}, "x"]}, 5]
+	var loaded: SchematicDocument = DocumentSerializer.from_dict(data)
+	assert_eq(loaded.cabinet_rails.size(), 1, "malformed rails and items are left out")
+	assert_eq(loaded.cabinet_rails[0].items.size(), 1)
+
+
+func test_layout_places_and_clicks() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.fill_cabinet()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	assert_eq(layout.rails.size(), 3)
+	assert_eq(layout.places.size(), 7)
+	assert_eq(layout.ducts.size(), 6, "across above, between and below three rails, down both sides")
+	var contactor: Dictionary = layout.places[4]
+	assert_eq(contactor["designation"], "KM1")
+	assert_eq(contactor["under_designation"], "F1", "the overload relay hangs under its contactor")
+	var under: Array = []
+	assert_eq(layout.place_at((contactor["under_rect"] as Rect2).get_center(), under), 4)
+	assert_eq(under, [true])
+	assert_eq(layout.place_at(Vector2(-5, -5)), -1)
+	var rail: Rect2 = layout.rails[0]
+	for place: Dictionary in layout.places.slice(0, 4):
+		assert_true((place["rect"] as Rect2).get_center().y > rail.position.y and (place["rect"] as Rect2).get_center().y < rail.end.y, "%s sits on its rail" % place["designation"])
+	assert_true(layout.size.x >= rail.end.x + CabinetLayout.SIDE_DUCT, "the plate holds the rails and the side ducts")
+
+
+func test_layout_marks_missing_devices() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.add_cabinet_rail()
+	doc.cabinet_rails[0].items.append(CabinetItem.new(CabinetItem.Kind.DEVICE, "KM9"))
+	doc.cabinet_rails[0].items.append(CabinetItem.new(CabinetItem.Kind.STRIP, "X7"))
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	assert_eq(layout.places[0]["kind"], CabinetLayout.MISSING_DEVICE)
+	assert_eq(layout.places[1]["kind"], CabinetLayout.MISSING_DEVICE, "a strip without terminals")
