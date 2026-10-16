@@ -1005,7 +1005,7 @@ msgstr ""
 msgid "Empty page"
 msgstr ""
 
-msgid "Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more"
+msgid "Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more (also: open a page in a new window)"
 msgstr ""
 
 msgid "Rename page"
@@ -1173,6 +1173,17 @@ msgstr ""
 
 msgid "Click to operate it"
 msgstr ""
+
+msgid "Run or pause the simulation"
+msgstr ""
+
+msgid "Space"
+msgstr ""
+
+msgid "Open in a new window"
+msgstr ""
+
+msgid "Shows the page in a window of its own, e.g. on a second monitor; while simulating, buttons and switches work there too"
 
 msgid "Help"
 msgstr ""

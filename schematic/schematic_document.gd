@@ -115,11 +115,13 @@ func component_body(component: CircuitComponent) -> Rect2:
 	return r
 
 
-## Topmost component of the current page whose body contains [param point] (grid units), or null.
-func component_at(point: Vector2) -> CircuitComponent:
+## Topmost component of page [param on_page] (-1: the current page) whose
+## body contains [param point] (grid units), or null.
+func component_at(point: Vector2, on_page: int = -1) -> CircuitComponent:
+	var p: int = page if on_page < 0 else on_page
 	var components: Array[CircuitComponent] = circuit.get_components()
 	for i: int in range(components.size() - 1, -1, -1):
-		if _placements[components[i].id].page == page and component_body(components[i]).has_point(point):
+		if _placements[components[i].id].page == p and component_body(components[i]).has_point(point):
 			return components[i]
 	return null
 
@@ -171,14 +173,14 @@ func current_paths(merge: float = 2.0, on_page: int = -1) -> PackedFloat32Array:
 	return paths
 
 
-## Cells of the current page where three or more wire or lead directions meet at a wire's end or
-## corner, drawn as dots (a plain crossing is not a connection).
-func junction_cells() -> Array[Vector2i]:
+## Cells of page [param on_page] (-1: the current page) where three or more wire or lead
+## directions meet at a wire's end or corner, drawn as dots (a plain crossing is not a connection).
+func junction_cells(on_page: int = -1) -> Array[Vector2i]:
 	var directions: Dictionary[Vector2i, int] = {}
 	# Cells where a wire starts, ends or turns: only there do wires connect.
 	# Two wires merely crossing each other get no dot.
 	var vertices: Dictionary[Vector2i, bool] = {}
-	for i: int in wires_on_page():
+	for i: int in wires_on_page(on_page):
 		var points: Array[Vector2i] = wire_points(i)
 		for p: Vector2i in points:
 			vertices[p] = true
@@ -199,7 +201,7 @@ func junction_cells() -> Array[Vector2i]:
 				if cell == b:
 					break
 				cell += unit
-	for c: CircuitComponent in components_on_page():
+	for c: CircuitComponent in components_on_page(on_page):
 		var p: Placement = _placements[c.id]
 		var names: PackedStringArray = c.get_terminal_names()
 		var keys: PackedStringArray = c.get_terminal_keys()
@@ -529,15 +531,15 @@ const SHORT_WIRE: float = 2.0
 const NUMBER_GAP: float = 0.4
 
 
-## Wire ends of the current page that show their wire number, as
+## Wire ends of page [param on_page] (-1: the current page) that show their wire number, as
 ## Vector2i(wire, end): ends on components and terminal blocks (not junctions
 ## or page connectors, which show it themselves), one per terminal; a short
 ## wire shows its number once, at its upper (or left) end.
-func wire_number_ends() -> Array[Vector2i]:
+func wire_number_ends(on_page: int = -1) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var written: Dictionary[String, bool] = {}
 	var wires: Array[PackedStringArray] = circuit.get_wires()
-	for w: int in wires_on_page():
+	for w: int in wires_on_page(on_page):
 		if _routes[w].number.is_empty() or _path_length(w) == 0.0:
 			continue
 		var ends: Array[int] = []
@@ -1031,12 +1033,12 @@ func terminal_at(point: Vector2, radius: float = 0.4) -> String:
 	return best
 
 
-## Index of the wire of the current page nearest to [param point] within
-## [param tolerance], or -1.
-func wire_at(point: Vector2, tolerance: float = 0.3) -> int:
+## Index of the wire of page [param on_page] (-1: the current page) nearest to
+## [param point] within [param tolerance], or -1.
+func wire_at(point: Vector2, tolerance: float = 0.3, on_page: int = -1) -> int:
 	var best: int = -1
 	var best_distance: float = tolerance
-	for i: int in wires_on_page():
+	for i: int in wires_on_page(on_page):
 		var points: Array[Vector2i] = wire_points(i)
 		for s: int in range(1, points.size()):
 			var closest: Vector2 = Geometry2D.get_closest_point_to_segment(point, Vector2(points[s - 1]), Vector2(points[s]))
@@ -1163,6 +1165,35 @@ func next_supply_designation(conductor: PowerSupply.Conductor) -> String:
 	while circuit.has_component_id("%s.%d" % [base, n]):
 		n += 1
 	return "%s.%d" % [base, n]
+
+
+## Next to L2 or L3 the first phase is called L1: its supply points still
+## named plain "L" ("L.2", ...) are renamed "L1" ("L1.2", ...), their wires
+## stay. Returns the renamed component ids (old id -> new id).
+func name_first_phase() -> Dictionary[String, String]:
+	var renamed: Dictionary[String, String] = {}
+	var three_phase: bool = false
+	for c: CircuitComponent in circuit.get_components():
+		if c is PowerSupply and (c as PowerSupply).conductor in [PowerSupply.Conductor.L2, PowerSupply.Conductor.L3]:
+			three_phase = true
+			break
+	if not three_phase:
+		return renamed
+	for c: CircuitComponent in circuit.get_components().duplicate():
+		if not (c is PowerSupply) or (c as PowerSupply).conductor != PowerSupply.Conductor.L:
+			continue
+		if c.designation != "L" and not c.designation.begins_with("L."):
+			continue
+		var designation: String = "L1" + c.designation.substr(1)
+		if circuit.has_component_id(designation):
+			designation = next_supply_designation(PowerSupply.Conductor.L)
+		var data: Dictionary = DocumentSerializer.component_to_dict(c)
+		data["designation"] = designation
+		var old_id: String = c.id
+		var replacement: CircuitComponent = DocumentSerializer.component_from_dict(data)
+		if replacement != null and replace_component(old_id, replacement):
+			renamed[old_id] = replacement.id
+	return renamed
 
 
 ## First contact sequence digit (1-9) not yet used by [param designation].

@@ -257,3 +257,39 @@ func test_pdf_file_structure() -> void:
 	assert_eq(pixels.size(), 8 * 6 * 3)
 	assert_eq(Array(pixels.slice(0, 3)), [255, 0, 0])
 	assert_eq(bytes[start], 0x78, "zlib header")
+
+
+func test_page_window_view_follows_the_main_view() -> void:
+	var main_view: SchematicView = SchematicView.new()
+	add_child_autofree(main_view)
+	main_view.load_document(_two_pages(), true)
+	main_view.simulator.mode = Simulator.Mode.IDEAL
+	main_view.running = false
+	var window_view: SchematicView = SchematicView.new()
+	window_view.page = 1
+	add_child_autofree(window_view)
+	window_view.follow(main_view)
+	assert_eq(main_view.document.page, 0, "the main window still shows page 1")
+	assert_not_null(window_view.get_symbol("H1"), "the window shows page 2")
+	assert_null(window_view.get_symbol("L"))
+	assert_not_null(main_view.get_symbol("L"))
+	var events: Array = []
+	main_view.event_logged.connect(func(text: String, _args: Array) -> void: events.append(text))
+	# Operated in the window, the main simulation goes on.
+	(main_view.document.circuit.get_component("RB1") as LatchingSwitch).set_switched_on(true)
+	window_view._apply(window_view.simulator.step())
+	assert_true((main_view.document.circuit.get_component("H1") as Lamp).energized)
+	assert_eq(main_view.last_result, window_view.last_result, "the main view shows the step too")
+	assert_eq(window_view.get_symbol("H1").live[0], StepResult.REACH_L1)
+	window_view._log("Fault removed", [])
+	assert_eq(events, ["Fault removed"], "logged through the main view")
+	# A document loaded in the main view is followed.
+	main_view.load_document(_two_pages(), false)
+	assert_eq(window_view.document, main_view.document)
+	assert_false(window_view.simulating)
+	assert_not_null(window_view.get_symbol("H1"))
+	# A removed page: the window shows the last one left.
+	main_view.document.remove_page(1)
+	main_view.rebuild()
+	assert_eq(window_view.page, 0)
+	assert_not_null(window_view.get_symbol("L"))

@@ -62,7 +62,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
   junction_cells, wire_number_ends) look at the current page; new parts go on it; a wire joins
   terminals of one page. Page tabs above the drawing (add from presets, double-click renames,
-  drag reorders, right click: move/delete; page edits undoable via SchematicEditor.edit_pages)
+  drag reorders, right click: move/delete, open in a new window; page edits undoable via SchematicEditor.edit_pages).
+  A page window (PageWindow) holds a SchematicView with its own page (SchematicView.page) that
+  follows the main view (SchematicView.follow: same document and simulation, steps and events go
+  through the main view; it rebuilds when the main view does); shortcuts pressed there are handled
+  by main.gd. Space runs/pauses the simulation
 - Page connectors (PageConnector, internal designation "PC1", drawn as a tag: point on the wire, flat
   end away from it; label in the wire-number colour, cross reference "/page.path" below): all connectors
   with the same label are joined (Circuit.get_links, used by the solver and by wire_net); numbering
@@ -110,7 +114,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   AC joined to DC is a short; the - pole is drawn like N), TB = bridge rectifier (Rectifier, a Load
   with terminals ~1 ~2 + -: while its input has voltage its + and - are DC poles, output taken as
   isolated; its input carries current only while its output does)
-  (supply points of one conductor are the same potential on every page)
+  (supply points of one conductor are the same potential on every page); next to L2 or L3 a plain "L" supply is renamed
+  "L1" ("L.2" -> "L1.2", SchematicDocument.name_first_phase, run after every edit)
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2

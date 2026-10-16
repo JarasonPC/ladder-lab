@@ -4,6 +4,8 @@ extends Node2D
 ## all pages). When [member simulating], runs its simulation:
 ## push buttons are held with the left mouse button, switches toggle on click.
 ## Otherwise the schematic is shown at rest for editing.
+## A view following another one (see [method follow], a page window) shows
+## its own [member page] of the same document and simulation.
 
 signal stepped(result: StepResult)
 ## Something was operated or a fault changed outside the simulation step
@@ -14,6 +16,9 @@ signal loaded
 ## A page connector was clicked while simulating: show page [param index],
 ## centred on its partner [param focus_id].
 signal page_requested(index: int, focus_id: String)
+## The symbols were recreated (a document was loaded, it was edited, another
+## page was chosen) or moved.
+signal rebuilt
 
 enum FaultId { WELDED, CONTACT_OPEN, COIL_OPEN, COIL_STUCK, OVERLOAD, WIRE_BROKEN, CLEAR, CLEAR_ALL }
 
@@ -29,6 +34,11 @@ var speed: float = 1.0
 var last_result: StepResult = StepResult.new()
 ## History of coil power, armature positions and loads for the timing chart.
 var trace: TraceRecorder = TraceRecorder.new()
+## Page shown; -1: the document's current page.
+var page: int = -1
+## The view this one follows, sharing its document and simulation (it runs
+## no simulation of its own), or null.
+var source: SchematicView = null
 ## Simulated seconds since the document was loaded.
 var sim_time: float:
 	get:
@@ -83,22 +93,50 @@ func rebuild() -> void:
 	_wire_layer = WireLayer.new()
 	_wire_layer.show_grid = _grid_visible
 	_wire_layer.show_numbers = _numbers_visible
+	if page >= document.pages.size():
+		page = document.pages.size() - 1
+	_wire_layer.page = page
 	add_child(_wire_layer)
 	_wire_layer.set_document(document)
-	for c: CircuitComponent in document.components_on_page():
+	for c: CircuitComponent in document.components_on_page(page):
 		var symbol: SchematicSymbol = SymbolFactory.create(c, document.get_placement(c.id))
 		if symbol is PageConnectorSymbol:
 			(symbol as PageConnectorSymbol).reference = document.connector_reference(c.id)
 		add_child(symbol)
 		_symbols[c.id] = symbol
 	_update_visuals()
+	rebuilt.emit()
+
+
+## Shows the document and the simulation of [param view] (page [member page]),
+## and keeps following it: what is operated here acts on its simulation.
+func follow(view: SchematicView) -> void:
+	if source != view:
+		if source != null and source.rebuilt.is_connected(_on_source_rebuilt):
+			source.rebuilt.disconnect(_on_source_rebuilt)
+		source = view
+		source.rebuilt.connect(_on_source_rebuilt)
+	document = source.document
+	simulator = source.simulator
+	trace = source.trace
+	simulating = source.simulating
+	last_result = source.last_result
+	rebuild()
+
+
+## The followed view loaded a document or rebuilt its symbols after an edit.
+func _on_source_rebuilt() -> void:
+	if source.document != document or source.simulator != simulator or source.simulating != simulating:
+		follow(source)
+	else:
+		rebuild()
 
 
 ## Everything drawn on the page, in cells, as last drawn: symbols and wires,
 ## the markings and other texts of the symbols (also where they were
 ## dragged to), the wire numbers and the current path numbers.
 func drawn_extent() -> Rect2:
-	var r: Rect2 = document.bounds()
+	var r: Rect2 = document.bounds(page)
 	for symbol: SchematicSymbol in _symbols.values():
 		for rect: Rect2 in symbol.text_rects:
 			r = r.merge(Rect2((rect.position + symbol.position) / G, rect.size / G))
@@ -144,6 +182,7 @@ func refresh_layout() -> void:
 		_symbols[id].update_position()
 	_wire_layer.refresh_layout()
 	_update_visuals()
+	rebuilt.emit()
 
 
 ## Advances the simulation by [param dt] seconds (used while paused).
@@ -176,16 +215,33 @@ func _process(delta: float) -> void:
 		for symbol: SchematicSymbol in _symbols.values():
 			symbol.queue_redraw()
 	_blink_time = fmod(_blink_time + delta, BLINK_PERIOD)
-	if simulating and running:
+	if source != null:
+		# The followed view runs the simulation; show its latest step.
+		last_result = source.last_result
+		_update_visuals()
+	elif simulating and running:
 		_apply(simulator.step(delta * speed))
 	else:
 		_update_visuals()
 
 
 func _apply(result: StepResult) -> void:
+	if source != null:
+		# The followed view shows the step too and reports it.
+		source._apply(result)
 	last_result = result
 	_update_visuals()
-	stepped.emit(result)
+	if source == null:
+		stepped.emit(result)
+
+
+## Reports [param text] (see [signal event_logged]) through the followed view,
+## if any.
+func _log(text: String, args: Array) -> void:
+	if source != null:
+		source.event_logged.emit(text, args)
+	else:
+		event_logged.emit(text, args)
 
 
 func _update_visuals() -> void:
@@ -289,49 +345,49 @@ func _operate_protection(c: CircuitComponent) -> bool:
 		var fuse: Fuse = c as Fuse
 		if fuse.tripped:
 			fuse.reset()
-			event_logged.emit("%s replaced", [c.designation])
+			_log("%s replaced", [c.designation])
 		elif fuse.holder:
 			fuse.toggle()
-			event_logged.emit("%s switched on" if fuse.switched_on else "%s switched off", [c.designation])
+			_log("%s switched on" if fuse.switched_on else "%s switched off", [c.designation])
 		else:
 			return false
 	elif c is CircuitBreaker:
 		var breaker: CircuitBreaker = c as CircuitBreaker
 		var was_tripped: bool = breaker.tripped
 		breaker.toggle()
-		event_logged.emit("%s reset" if was_tripped else ("%s switched on" if breaker.switched_on else "%s switched off"), [c.designation])
+		_log("%s reset" if was_tripped else ("%s switched on" if breaker.switched_on else "%s switched off"), [c.designation])
 	elif c is ThreePoleFuse:
 		var fuse3: ThreePoleFuse = c as ThreePoleFuse
 		if fuse3.any_blown():
 			fuse3.reset()
-			event_logged.emit("%s replaced", [c.designation])
+			_log("%s replaced", [c.designation])
 		elif fuse3.holder:
 			fuse3.toggle()
-			event_logged.emit("%s switched on" if fuse3.switched_on else "%s switched off", [c.designation])
+			_log("%s switched on" if fuse3.switched_on else "%s switched off", [c.designation])
 		else:
 			return false
 	elif c is MotorBreaker:
 		var motor_breaker: MotorBreaker = c as MotorBreaker
 		var breaker_tripped: bool = motor_breaker.tripped
 		motor_breaker.toggle()
-		event_logged.emit("%s reset" if breaker_tripped else ("%s switched on" if motor_breaker.switched_on else "%s switched off"), [c.designation])
+		_log("%s reset" if breaker_tripped else ("%s switched on" if motor_breaker.switched_on else "%s switched off"), [c.designation])
 	else:
 		var relay: OverloadRelay = document.circuit.get_overload_relay(c.designation)
 		if relay == null:
 			return false
 		if relay.tripped:
 			relay.reset()
-			event_logged.emit("%s reset", [c.designation])
+			_log("%s reset", [c.designation])
 		else:
 			relay.test_trip()
-			event_logged.emit("%s tripped by hand (test button)", [c.designation])
+			_log("%s tripped by hand (test button)", [c.designation])
 	return true
 
 
 func _open_fault_menu() -> void:
 	var point: Vector2 = get_local_mouse_position() / G
-	_fault_target = document.component_at(point)
-	_fault_wire = document.wire_at(point) if _fault_target == null else -1
+	_fault_target = document.component_at(point, page)
+	_fault_wire = document.wire_at(point, 0.3, page) if _fault_target == null else -1
 	_fault_menu.clear()
 	if _fault_target is SwitchingElement and not (_fault_target is ProtectiveDevice) or _fault_target is ChangeoverContact or _fault_target is MainContacts:
 		_fault_menu.add_item(tr("Contact welded (stays closed)"), FaultId.WELDED)
@@ -365,32 +421,32 @@ func _on_fault_menu(id: int) -> void:
 				(c as MainContacts).fault = fault
 			else:
 				(c as SwitchingElement).fault = fault
-			event_logged.emit("Fault: %s welded" if id == FaultId.WELDED else "Fault: %s burnt", [c.id])
+			_log("Fault: %s welded" if id == FaultId.WELDED else "Fault: %s burnt", [c.id])
 		FaultId.COIL_OPEN, FaultId.COIL_STUCK:
 			(c as Coil).fault = Coil.Fault.OPEN if id == FaultId.COIL_OPEN else Coil.Fault.STUCK
-			event_logged.emit("Fault: coil %s broken" if id == FaultId.COIL_OPEN else "Fault: %s armature stuck", [c.designation])
+			_log("Fault: coil %s broken" if id == FaultId.COIL_OPEN else "Fault: %s armature stuck", [c.designation])
 		FaultId.OVERLOAD:
 			if c is ThreePhaseMotor:
 				(c as ThreePhaseMotor).overloaded = true
 			else:
 				(c as OverloadRelay).overloaded = true
-			event_logged.emit("Fault: overload on %s", [c.designation])
+			_log("Fault: overload on %s", [c.designation])
 		FaultId.WIRE_BROKEN:
 			document.circuit.set_wire_broken(_fault_wire, true)
 			_wire_layer.queue_redraw()
-			event_logged.emit("Fault: broken wire %s", [" – ".join(document.circuit.get_wires()[_fault_wire])])
+			_log("Fault: broken wire %s", [" – ".join(document.circuit.get_wires()[_fault_wire])])
 		FaultId.CLEAR:
 			if c != null:
 				_clear_fault(c)
 			elif _fault_wire >= 0:
 				document.circuit.set_wire_broken(_fault_wire, false)
-			event_logged.emit("Fault removed", [])
+			_log("Fault removed", [])
 		FaultId.CLEAR_ALL:
 			for component: CircuitComponent in document.circuit.get_components():
 				_clear_fault(component)
 			for w: int in document.circuit.broken_wires.keys():
 				document.circuit.set_wire_broken(w, false)
-			event_logged.emit("All faults removed", [])
+			_log("All faults removed", [])
 	_apply(simulator.step())
 
 
@@ -433,7 +489,7 @@ func operator_of(c: CircuitComponent) -> CircuitComponent:
 
 
 func _component_under_mouse() -> CircuitComponent:
-	return document.component_at(get_local_mouse_position() / G)
+	return document.component_at(get_local_mouse_position() / G, page)
 
 
 func _update_hover() -> void:

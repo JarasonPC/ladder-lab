@@ -1010,8 +1010,8 @@ msgstr "Přidat stránku"
 msgid "Empty page"
 msgstr "Prázdná stránka"
 
-msgid "Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more"
-msgstr "Stránky schématu: kliknutím zobrazíte, tažením přeřadíte, dvojklikem přejmenujete, pravým tlačítkem další volby"
+msgid "Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more (also: open a page in a new window)"
+msgstr "Stránky schématu: kliknutím zobrazíte, tažením přeřadíte, dvojklikem přejmenujete, pravým tlačítkem další volby (i otevření stránky v novém okně)"
 
 msgid "Rename page"
 msgstr "Přejmenovat stránku"
@@ -1116,6 +1116,18 @@ msgstr "na šířku"
 
 msgid "portrait"
 msgstr "na výšku"
+
+msgid "Run or pause the simulation"
+msgstr "Spustit nebo pozastavit simulaci"
+
+msgid "Space"
+msgstr "Mezerník"
+
+msgid "Open in a new window"
+msgstr "Otevřít v novém okně"
+
+msgid "Shows the page in a window of its own, e.g. on a second monitor; while simulating, buttons and switches work there too"
+msgstr "Zobrazí stránku ve vlastním okně, např. na druhém monitoru; při simulaci tam fungují i tlačítka a přepínače"
 
 msgid "Switchboard"
 msgstr "Rozvaděč"

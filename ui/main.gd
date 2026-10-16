@@ -8,7 +8,7 @@ enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
-enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE }
+enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT }
 ## Titles offered for a new page (English source text: saved like that and
 ## shown translated, as every page title).
@@ -229,9 +229,46 @@ func _notification(what: int) -> void:
 		_confirm_discard(func() -> void: get_tree().quit())
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey) or not (event as InputEventKey).pressed or (event as InputEventKey).echo:
+## Space runs or pauses the simulation, unless a text field is being typed in
+## (taken before the controls, so a focused list or button does not eat it).
+func _input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if key == null or not key.pressed or key.echo or key.keycode != KEY_SPACE:
 		return
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
+		return
+	if _toggle_run_key(key):
+		get_viewport().set_input_as_handled()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _shortcut(event):
+		get_viewport().set_input_as_handled()
+
+
+## A key pressed in a page window: the same shortcuts as here.
+func _on_window_key(key: InputEventKey) -> void:
+	if not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_SPACE:
+		_toggle_run_key(key)
+	else:
+		_shortcut(key)
+
+
+## Space alone, while simulating: run or pause. Returns true when it did.
+func _toggle_run_key(key: InputEventKey) -> bool:
+	if mode != Mode.SIMULATE or key.ctrl_pressed or key.meta_pressed or key.alt_pressed or key.shift_pressed:
+		return false
+	_on_run_pressed()
+	return true
+
+
+## Keyboard shortcuts of the window. Returns true when [param event] was one.
+func _shortcut(event: InputEvent) -> bool:
+	if not (event is InputEventKey) or not (event as InputEventKey).pressed or (event as InputEventKey).echo:
+		return false
 	var key: InputEventKey = event as InputEventKey
 	var ctrl: bool = key.ctrl_pressed or key.meta_pressed
 	var handled: bool = true
@@ -250,8 +287,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_confirm_discard(func() -> void: get_tree().quit())
 		_:
 			handled = false
-	if handled:
-		get_viewport().set_input_as_handled()
+	return handled
 
 
 # --- UI construction ------------------------------------------------------------
@@ -628,6 +664,7 @@ func _retranslate() -> void:
 	_switching_select.set_item_text(0, tr("Realistic"))
 	_switching_select.set_item_text(1, tr("Ideal"))
 	_switching_select.tooltip_text = tr("Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly.")
+	_run_button.tooltip_text = tr("Run or pause the simulation") + "  (" + tr("Space") + ")"
 	_step_button.tooltip_text = tr("Step") + " – " + tr("Advance the simulation by 0.1 s times the speed")
 	_speed_select.tooltip_text = tr("Simulation speed")
 	_time_label.tooltip_text = tr("Simulation time")
@@ -640,7 +677,7 @@ func _retranslate() -> void:
 		page_popup.add_item(tr(PAGE_PRESETS[i]), i)
 	page_popup.add_separator()
 	page_popup.add_item(tr("Empty page"), PAGE_PRESETS.size())
-	_page_tabs.tooltip_text = tr("Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more")
+	_page_tabs.tooltip_text = tr("Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more (also: open a page in a new window)")
 	_refresh_pages()
 	_palette.retranslate()
 	for bar: SideBar in [_palette_bar, _side_bar, _control_bar, _cabinet_bar]:
@@ -859,6 +896,8 @@ func _apply_ui_scale() -> void:
 			factor = DisplayServer.screen_get_dpi() / 96.0
 		factor = clampf(snappedf(factor, 0.25), 1.0, 3.0)
 	get_window().content_scale_factor = factor
+	for window: PageWindow in _page_windows():
+		window.content_scale_factor = factor
 
 
 ## Puts [param content] into a resizable, zoomable [SideBar] added to
@@ -894,6 +933,8 @@ func _set_wire_numbers(on: bool) -> void:
 	_wire_numbers = on
 	_numbers_toggle.set_pressed_no_signal(on)
 	view.set_wire_numbers_visible(on)
+	for window: PageWindow in _page_windows():
+		window.view.set_wire_numbers_visible(on)
 	_save_settings()
 
 
@@ -1415,10 +1456,14 @@ func _add_page(title: String) -> void:
 
 
 func _open_page_menu(tab: int) -> void:
-	if mode != Mode.EDIT:
-		return
 	_menu_page = tab
 	_page_menu.clear()
+	_page_menu.add_item(tr("Open in a new window"), PageMenuId.WINDOW)
+	_page_menu.set_item_tooltip(_page_menu.item_count - 1, tr("Shows the page in a window of its own, e.g. on a second monitor; while simulating, buttons and switches work there too"))
+	if mode != Mode.EDIT:
+		_popup_page_menu()
+		return
+	_page_menu.add_separator()
 	_page_menu.add_item(tr("Rename…"), PageMenuId.RENAME)
 	_page_menu.add_item(tr("Move left"), PageMenuId.MOVE_LEFT)
 	_page_menu.set_item_disabled(_page_menu.item_count - 1, tab == 0)
@@ -1428,6 +1473,10 @@ func _open_page_menu(tab: int) -> void:
 	_page_menu.add_item(tr("Delete page"), PageMenuId.DELETE)
 	_page_menu.set_item_disabled(_page_menu.item_count - 1, edit_doc.pages.size() <= 1)
 	_page_menu.set_item_tooltip(_page_menu.item_count - 1, tr("Removes the page with everything drawn on it (Ctrl+Z brings it back)"))
+	_popup_page_menu()
+
+
+func _popup_page_menu() -> void:
 	_page_menu.reset_size()
 	_page_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
 
@@ -1443,6 +1492,28 @@ func _on_page_menu(id: int) -> void:
 		PageMenuId.DELETE:
 			editor.edit_pages(func(doc: SchematicDocument) -> void: doc.remove_page(index))
 			_fit_camera()
+		PageMenuId.WINDOW:
+			open_page_window(index)
+
+
+## Opens page [param index] in a window of its own, following the main view
+## (same schematic, same simulation). Returns the window.
+func open_page_window(index: int) -> PageWindow:
+	var window: PageWindow = PageWindow.new(view, index)
+	window.content_scale_factor = get_window().content_scale_factor
+	window.key_pressed.connect(_on_window_key)
+	add_child(window)
+	window.view.set_wire_numbers_visible(_wire_numbers)
+	return window
+
+
+## The page windows that are open.
+func _page_windows() -> Array[PageWindow]:
+	var windows: Array[PageWindow] = []
+	for child: Node in get_children():
+		if child is PageWindow and not child.is_queued_for_deletion():
+			windows.append(child as PageWindow)
+	return windows
 
 
 ## Title of page [param index] as shown ("" when untitled).
