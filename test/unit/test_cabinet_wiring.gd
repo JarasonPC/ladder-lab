@@ -128,3 +128,30 @@ func test_power_wire_between_rails_takes_a_side_duct() -> void:
 	for point: Vector2 in coil:
 		sides = sides or point.x < x0
 	assert_true(sides, "through the left side duct")
+
+
+func test_wires_go_beside_the_overload_relay() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(9)
+	if doc.cabinet_rails.is_empty():
+		doc.fill_cabinet()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var relays: Array[Rect2] = []
+	for place: Dictionary in layout.places:
+		if place.has("under_rect"):
+			relays.append((place["under_rect"] as Rect2).grow(-0.5))
+	assert_false(relays.is_empty(), "an overload relay sits under a contactor")
+	var beside: int = 0
+	for wire: Dictionary in wiring.wires:
+		if str(wire["from"]).begins_with("F1:") or str(wire["to"]).begins_with("F1:"):
+			continue
+		var path: PackedVector2Array = wire["points"]
+		for i: int in path.size() - 1:
+			var segment: Rect2 = Rect2(path[i], Vector2.ZERO).expand(path[i + 1])
+			for relay: Rect2 in relays:
+				assert_false(relay.intersects(segment.grow(0.01)), "%s-%s keeps off the relay" % [wire["from"], wire["to"]])
+			for relay: Rect2 in relays:
+				var channel: Rect2 = relay.grow_individual(CabinetLayout.WIRE_CHANNEL, 0.0, CabinetLayout.WIRE_CHANNEL, 0.0)
+				if channel.encloses(Rect2(segment.position.x, relay.position.y, segment.size.x, relay.size.y)) and segment.position.y <= relay.position.y and segment.end.y >= relay.end.y:
+					beside += 1
+	assert_true(beside > 0, "wires from the contactor's bottom terminals run down beside the relay")

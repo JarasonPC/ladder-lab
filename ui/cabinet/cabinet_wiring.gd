@@ -6,8 +6,10 @@ extends RefCounted
 ## tree joining them. A wire leaves its terminal straight to the duct over
 ## or under its rail, goes in through the nearest slot between the duct's
 ## fingers, runs along the duct (down a side duct to reach another duct)
-## and comes out to the other terminal the same way. Wires sharing a duct
-## lie side by side. The colour follows the conductor of the net
+## and comes out to the other terminal the same way. Wires from the bottom
+## terminals of a contactor with an overload relay under it run across the
+## contactor's front out to the nearer side and down beside the relay.
+## Wires sharing a duct lie side by side. The colour follows the conductor of the net
 ## ([method CabinetDevices.conductors]). No nodes.
 
 ## Room between a duct and the bend into its slot.
@@ -17,6 +19,8 @@ const WIRE_W: float = 1.6
 const POWER_W: float = 2.0
 ## Room a wire takes in a duct and in a slot.
 const LANE: float = 2.2
+## Room between two wires running out from under a contactor.
+const LEG_STEP: float = 0.8
 ## Most wires led through one slot.
 const SLOT_WIRES: int = 2
 ## Room between two wires in one terminal.
@@ -65,7 +69,9 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float) -> Ca
 
 ## Every terminal on the rails a wire can go to: {"key" (terminal key in
 ## the circuit), "at" (where the wire ends), "duct" (index of the duct
-## across it is led to), "up" (the duct is above it), "id" (its index)}.
+## across it is led to), "up" (the duct is above it), "id" (its index),
+## for a terminal under a contactor with an overload relay "beside" (the
+## two together, Rect2) and "out" (heights to run out to the side at)}.
 ## A terminal of a strip is one terminal for each net it joins.
 func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -86,7 +92,10 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 			CabinetLayout.MISSING_DEVICE:
 				pass
 			_:
-				_add_device(result, net, place["kind"], place["desc"], origin, rail, centre)
+				var beside: Rect2 = Rect2()
+				if place.has("under_rect"):
+					beside = (place["rect"] as Rect2).merge(place["under_rect"])
+				_add_device(result, net, place["kind"], place["desc"], origin, rail, centre, beside)
 				if place.has("under_origin"):
 					_add_device(result, net, CabinetDevices.Kind.OVERLOAD, place["under_desc"], place["under_origin"], rail, centre)
 	for i: int in result.size():
@@ -94,7 +103,9 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 	return result
 
 
-func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, origin: Vector2, rail: int, centre: float) -> void:
+## Terminals of a device at [param origin] on rail [param rail]; wires from
+## its bottom terminals go round [param beside] when it has an area.
+func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, origin: Vector2, rail: int, centre: float, beside: Rect2 = Rect2()) -> void:
 	var terminals: Dictionary = desc.get("terminals", {})
 	var points: Dictionary = CabinetParts.terminal_points(kind, desc)
 	for name: String in points:
@@ -103,7 +114,14 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 		var p: Vector3 = points[name]
 		var up: bool = origin.y + p.y < centre
 		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z))
-		result.append({"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up})
+		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up}
+		if not up and beside.has_area():
+			var out: Array[float] = []
+			for y: float in CabinetParts.CONTACTOR_OUT_Y:
+				out.append(origin.y + y)
+			point["beside"] = beside
+			point["out"] = out
+		result.append(point)
 
 
 ## Pairs of indices into [param points] joining them all along the
@@ -169,6 +187,9 @@ func _route(edges: Array[Dictionary]) -> void:
 		var index: int = used.get(id, 0)
 		used[id] = index + 1
 		end["x"] = end["point"]["at"].x + (index - (shared[id] - 1) * 0.5) * SHARED
+		end["start"] = Vector2(end["x"], end["point"]["at"].y)
+		end["via"] = PackedVector2Array()
+	_lead_beside(ends)
 	ends.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
 	var pitch: float = CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT
 	var slots: Dictionary[Vector2i, Array] = {}
@@ -254,8 +275,59 @@ func _drop(end: Dictionary, lane: float) -> PackedVector2Array:
 	var point: Dictionary = end["point"]
 	var duct: Rect2 = _across[point["duct"]]
 	var bend: float = duct.end.y + BEND if point["up"] else duct.position.y - BEND
-	var at: Vector2 = Vector2(end["x"], point["at"].y)
-	return PackedVector2Array([at, Vector2(at.x, bend), Vector2(end["slot"], bend), Vector2(end["slot"], lane)])
+	var points: PackedVector2Array = PackedVector2Array([end["start"]])
+	points.append_array(end["via"])
+	points.append_array([Vector2(end["x"], bend), Vector2(end["slot"], bend), Vector2(end["slot"], lane)])
+	return points
+
+
+## Leads the wire ends from the bottom terminals of a contactor with an
+## overload relay under it out of the way: down to the first height under
+## the terminal clear of the contactor's screws, across to the nearer side
+## and on down beside the relay. At one height the wire nearest the side
+## runs highest; beside the relay the highest runs outermost, so they
+## never cross.
+func _lead_beside(ends: Array[Dictionary]) -> void:
+	var sides: Dictionary[Vector3, Array] = {}
+	for end: Dictionary in ends:
+		var point: Dictionary = end["point"]
+		if not point.has("beside"):
+			continue
+		var r: Rect2 = point["beside"]
+		var right: bool = end["x"] > r.get_center().x
+		var out: Array[float] = point["out"]
+		var leg: float = out[out.size() - 1]
+		for y: float in out:
+			if y > point["at"].y + LEG_STEP:
+				leg = y
+				break
+		end["leg"] = leg
+		var key: Vector3 = Vector3(r.position.x, r.position.y, 1.0 if right else 0.0)
+		if not sides.has(key):
+			sides[key] = []
+		sides[key].append(end)
+	for key: Vector3 in sides:
+		var group: Array = sides[key]
+		var right: bool = key.z > 0.5
+		var r: Rect2 = group[0]["point"]["beside"]
+		var edge: float = r.end.x if right else r.position.x
+		group.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
+			if not is_equal_approx(p["leg"], q["leg"]):
+				return p["leg"] < q["leg"]
+			return absf(edge - p["x"]) < absf(edge - q["x"]))
+		var at_height: Dictionary[float, int] = {}
+		for end: Dictionary in group:
+			at_height[end["leg"]] = at_height.get(end["leg"], 0) + 1
+		var placed: Dictionary[float, int] = {}
+		var spread: float = minf(LANE, (CabinetLayout.WIRE_CHANNEL - 1.5) / maxf(group.size() - 1, 1))
+		for j: int in group.size():
+			var end: Dictionary = group[j]
+			var i: int = placed.get(end["leg"], 0)
+			placed[end["leg"]] = i + 1
+			var y: float = end["leg"] + (i - (at_height[end["leg"]] - 1) * 0.5) * LEG_STEP
+			var x: float = edge + (CabinetLayout.WIRE_CHANNEL - 1.0 - spread * j) * (1.0 if right else -1.0)
+			end["via"] = PackedVector2Array([Vector2(end["x"], y), Vector2(x, y)])
+			end["x"] = x
 
 
 ## Lanes for the [param runs] ({"from", "to"} along one duct) between

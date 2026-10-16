@@ -9,7 +9,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ### Panels
 - The switchboard shows its wiring: every connection of the schematic between its devices and
   terminal strips is a wire led through the wire ducts, red for the control phase (L), light blue
-  for N, grey for the main power circuit and green-yellow for PE
+  for N, grey for the main power circuit and green-yellow for PE; wires from under a contactor
+  run down beside its overload relay, not across it
 
 ### Fixed
 - Terminals of terminal strips in the switchboard show the voltage that reaches them while

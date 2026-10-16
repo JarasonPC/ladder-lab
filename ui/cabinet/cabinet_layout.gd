@@ -17,6 +17,9 @@ const DUCT: float = 28.0
 const MARGIN: float = 5.0
 const GAP: float = 2.0
 const PAD: float = 4.0
+## Room on both sides of a contactor with an overload relay under it for
+## the wires from the contactor's bottom terminals (see [CabinetWiring]).
+const WIRE_CHANNEL: float = 6.0
 ## Narrowest room for the rails.
 const MIN_CONTENT: float = 100.0
 ## Size of an empty place (device not in the circuit).
@@ -39,7 +42,8 @@ var rails: Array[Rect2] = []
 ## for a strip {"terminals": [...]}), "origin" (top-left of the drawing),
 ## "size", "rect" (answers clicks), "label_at", "label_w" (no label when 0),
 ## and for a contactor with its overload relay "under_origin",
-## "under_rect", "under_label_at", "under_designation"}.
+## "under_rect", "under_label_at", "under_designation", "channel" (room for
+## wires on both sides)}.
 var places: Array[Dictionary] = []
 
 
@@ -59,7 +63,7 @@ static func build(doc: SchematicDocument, k: float) -> CabinetLayout:
 			var place: Dictionary = _place(doc, strips, rail.items[i], k)
 			place["rail"] = r
 			place["index"] = i
-			var slot: float = maxf(place["size"].x, place["label_w"])
+			var slot: float = maxf(place["size"].x + 2.0 * place.get("channel", 0.0), place["label_w"])
 			place["origin"] = Vector2(x + (slot - place["size"].x) * 0.5, place["origin"].y)
 			x += slot + GAP
 			row["places"].append(place)
@@ -142,6 +146,7 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 			var overload: String = place["desc"].get("overload", "")
 			if not overload.is_empty():
 				place["under_designation"] = overload
+				place["channel"] = WIRE_CHANNEL
 				place["under_desc"] = CabinetDevices.describe(doc, overload)
 				place["under_origin"] = Vector2(0.0, place["origin"].y + CabinetParts.CONTACTOR.y)
 				place["under_rect"] = Rect2(place["under_origin"], CabinetParts.OVERLOAD)
