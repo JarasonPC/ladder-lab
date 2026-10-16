@@ -14,12 +14,18 @@ contact numbering 13-14 / 21-22, coils A1-A2.
 - **Schematic editor**: supplies (L1 L2 L3 N PE, DC + and -), push buttons, switches,
   limit switches, NO / NC / changeover contacts, contactors and relays, multifunction
   time relays (F1-F12), lamps, fuses and fuse holders, circuit breakers, overload relays,
-  three-phase motors (including star/delta and Dahlander), bridge rectifiers and terminals.
+  three-phase motors (including star/delta and Dahlander), bridge rectifiers, terminals and a
+  small PLC (logic module with 8 inputs and 4 relay outputs).
   Undo / redo, rotating and mirroring, wire numbering, multi-page schematics with page
   connectors.
 - **Simulation**: ideal (instant) or realistic switching with pick-up and drop-out times,
   a timing chart and event log, short circuits and overloads that trip the protection,
   DC braking of motors.
+- **PLC programming**: the PLC's program in a window of its own, as a function block
+  diagram (FBD: AND, OR, NOT, NAND, NOR, XOR, on- and off-delays, latching and pulse relays,
+  up/down counter) or a ladder diagram (LAD: contacts, coils, set/reset, timer and counter
+  coils), in the style of Siemens programming software; while simulating it shows the
+  running program (signals, power flow, times and counts).
 - **Control panel**: control boxes with push buttons, selector switches and signal lamps
   that operate the simulated circuit.
 - **Switchboard** (rozvaděč): DIN rails with the breakers, fuse holders, contactors,

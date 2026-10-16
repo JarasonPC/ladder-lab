@@ -21,6 +21,8 @@ signal hint_changed(text: String)
 ## Another page should be shown, centred on [param focus_id] (a page
 ## connector's partner, from the right click menu).
 signal page_requested(index: int, focus_id: String)
+## A PLC was double-clicked: open its program.
+signal plc_requested(component_id: String)
 
 enum Tool { SELECT, PLACE, WIRE }
 
@@ -986,6 +988,8 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			return doc.next_designation("H")
 		"rectifier":
 			return doc.next_designation("TB")
+		"plc":
+			return doc.next_designation("A")
 		"motor", "motor3":
 			return doc.next_designation("M")
 		"terminal":
@@ -1144,6 +1148,9 @@ func edit_marking_at(point: Vector2) -> bool:
 	if not marking.is_empty():
 		return _edit_marking(doc.circuit.get_component(marking["component"]), marking["kind"], marking["index"])
 	var hit: CircuitComponent = doc.component_at(point)
+	if hit is Plc:
+		plc_requested.emit(hit.id)
+		return true
 	if hit != null:
 		var kind: String = "designation"
 		if hit is Lamp:

@@ -1388,3 +1388,278 @@ msgstr "Klešťový ampérmetr: klepnutím na vodič jej obemknete a změříte 
 
 msgid "short"
 msgstr "zkrat"
+
+msgid "PLC (logic module, 8 inputs, 4 relay outputs)"
+msgstr "PLC (logický modul, 8 vstupů, 4 reléové výstupy)"
+
+msgid "PLC"
+msgstr "PLC"
+
+msgid "PLC: start/stop with an on-delay"
+msgstr "PLC: start/stop se zpožděním zapnutí"
+
+msgid "Delayed"
+msgstr "Zpožděně"
+
+msgid "Program"
+msgstr "Program"
+
+msgid "Function block diagram (FBD)"
+msgstr "Funkční blokové schéma (FBD)"
+
+msgid "Ladder diagram (LAD)"
+msgstr "Kontaktní schéma (LAD)"
+
+msgid "Program the PLC…"
+msgstr "Programovat PLC…"
+
+msgid "Opens the program in a window of its own (also by double-clicking the PLC)"
+msgstr "Otevře program ve vlastním okně (také poklepáním na PLC)"
+
+msgid "Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals."
+msgstr "Vstupy I1-I8 jsou sepnuté, když mají napětí proti N. Každý výstup Q1-Q4 je kontakt relé mezi svými dvěma svorkami."
+
+#, c-format
+msgid "%s: output Q%d on"
+msgstr "%s: výstup Q%d sepnut"
+
+#, c-format
+msgid "%s: output Q%d off"
+msgstr "%s: výstup Q%d rozepnut"
+
+msgid "The PLC runs the program shown here."
+msgstr "PLC vykonává program, který je zde zobrazen."
+
+#, c-format
+msgid "%s – PLC program – LadderLab"
+msgstr "%s – program PLC – LadderLab"
+
+msgid "Online: the program running in the simulation (switch to Edit to change it)"
+msgstr "Online: program běžící v simulaci (ke změnám přepněte na Úpravy)"
+
+#, c-format
+msgid "Editing the program of %s"
+msgstr "Úprava programu %s"
+
+msgid "Add network"
+msgstr "Přidat síť"
+
+msgid "Click an element to see its state. Ctrl+wheel zooms."
+msgstr "Klepnutím na prvek uvidíte jeho stav. Ctrl+kolečko mění zvětšení."
+
+msgid "Drag from a block's output (right) to an input (left) to connect them. Right click an input to remove its connection. Delete removes the selected block."
+msgstr "Tažením z výstupu bloku (vpravo) na vstup (vlevo) je spojíte. Pravým tlačítkem na vstup jeho spojení zrušíte. Delete odstraní vybraný blok."
+
+msgid "Click to place the block. Esc or a right click ends placing."
+msgstr "Klepnutím blok umístíte. Esc nebo pravé tlačítko umísťování ukončí."
+
+msgid "Click an element to select it, a network's title to select the network. Delete removes the selection."
+msgstr "Klepnutím vyberete prvek, klepnutím na název sítě celou síť. Delete odstraní výběr."
+
+msgid "Click a cell to link its right side with the row below (click again to remove the link)."
+msgstr "Klepnutím na buňku spojíte její pravou stranu s řádkem pod ní (dalším klepnutím spojení zrušíte)."
+
+msgid "Click a cell to put the element there (coils go to the end of the row). Esc or a right click ends it."
+msgstr "Klepnutím na buňku do ní vložíte prvek (cívky jdou na konec řádku). Esc nebo pravé tlačítko vkládání ukončí."
+
+msgid "Select a block or an element to see and set its operand, time or preset."
+msgstr "Vyberte blok, abyste viděli a nastavili jeho operand, čas nebo předvolbu."
+
+msgid "Select a contact or coil to see and set its operand, time or preset."
+msgstr "Vyberte kontakt nebo cívku, abyste viděli a nastavili jejich operand, čas nebo předvolbu."
+
+msgid "Operand"
+msgstr "Operand"
+
+msgid "Time (s)"
+msgstr "Čas (s)"
+
+msgid "Preset (count)"
+msgstr "Předvolba (počet)"
+
+msgid "Output"
+msgstr "Výstup"
+
+msgid "Connectors"
+msgstr "Konektory"
+
+msgid "Basic functions"
+msgstr "Základní funkce"
+
+msgid "Special functions"
+msgstr "Speciální funkce"
+
+msgid "Timers and counters"
+msgstr "Časovače a čítače"
+
+msgid "Select and connect"
+msgstr "Vybrat a spojit"
+
+msgid "Input I"
+msgstr "Vstup I"
+
+msgid "Output Q"
+msgstr "Výstup Q"
+
+msgid "Flag M"
+msgstr "Příznak (merker) M"
+
+msgid "Constant 1 (hi)"
+msgstr "Konstanta 1 (hi)"
+
+msgid "Constant 0 (lo)"
+msgstr "Konstanta 0 (lo)"
+
+msgid "AND"
+msgstr "AND"
+
+msgid "OR"
+msgstr "OR"
+
+msgid "NOT"
+msgstr "NOT"
+
+msgid "NAND"
+msgstr "NAND"
+
+msgid "NOR"
+msgstr "NOR"
+
+msgid "XOR"
+msgstr "XOR"
+
+msgid "On-delay"
+msgstr "Zpoždění zapnutí"
+
+msgid "Off-delay"
+msgstr "Zpoždění vypnutí"
+
+msgid "Latching relay"
+msgstr "Paměťové relé"
+
+msgid "Pulse relay"
+msgstr "Impulzní relé"
+
+msgid "Up/down counter"
+msgstr "Vratný čítač"
+
+msgid "Input"
+msgstr "Vstup"
+
+msgid "Flag"
+msgstr "Příznak"
+
+msgid "Brings an input of the PLC into the diagram: 1 while the input has voltage."
+msgstr "Přivádí do schématu vstup PLC: 1, dokud má vstup napětí."
+
+msgid "Switches an output relay of the PLC: its contact closes while the input of this block is 1. Its own output can be fed back."
+msgstr "Spíná výstupní relé PLC: jeho kontakt je sepnutý, dokud je vstup tohoto bloku 1. Jeho vlastní výstup lze vést zpět."
+
+msgid "Stores a signal as a flag M; its output can be used elsewhere in the diagram."
+msgstr "Ukládá signál jako příznak M; jeho výstup lze použít jinde ve schématu."
+
+msgid "A fixed signal 1 or 0."
+msgstr "Pevný signál 1 nebo 0."
+
+msgid "1 when all connected inputs are 1 (unconnected inputs count as 1)."
+msgstr "1, když jsou všechny připojené vstupy 1 (nepřipojené vstupy se počítají jako 1)."
+
+msgid "1 when at least one input is 1."
+msgstr "1, když je alespoň jeden vstup 1."
+
+msgid "Inverts its input."
+msgstr "Neguje svůj vstup."
+
+msgid "AND with an inverted output."
+msgstr "AND s negovaným výstupem."
+
+msgid "OR with an inverted output."
+msgstr "OR s negovaným výstupem."
+
+msgid "1 when exactly one of its two inputs is 1."
+msgstr "1, když je právě jeden z obou vstupů 1."
+
+msgid "The output comes on when the trigger Trg has been 1 for the time T; off with Trg."
+msgstr "Výstup sepne, když byl spouštěcí vstup Trg 1 po dobu T; vypne se s Trg."
+
+msgid "The output is on with the trigger Trg and goes off the time T after Trg went off; R switches it off at once."
+msgstr "Výstup sepne s Trg a vypne se za dobu T po vypnutí Trg; R jej vypne ihned."
+
+msgid "S sets the output, R resets it; R wins when both are 1."
+msgstr "S výstup nastaví, R jej vynuluje; když jsou oba 1, má přednost R."
+
+msgid "Every rising edge on Trg switches the output over; S sets it, R resets it (R wins)."
+msgstr "Každá náběžná hrana na Trg výstup přepne; S jej nastaví, R vynuluje (R má přednost)."
+
+msgid "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
+msgstr "Čítá náběžné hrany na Cnt, nahoru, nebo dolů, když je Dir 1; R vynuluje stav. Výstup je sepnutý, dokud stav dosahuje předvolby."
+
+#, c-format
+msgid "Network %d"
+msgstr "Síť %d"
+
+msgid "Select"
+msgstr "Vybrat"
+
+msgid "NO contact"
+msgstr "Kontakt NO"
+
+msgid "NC contact"
+msgstr "Kontakt NC"
+
+msgid "Branch (vertical link)"
+msgstr "Větev (svislé spojení)"
+
+msgid "Coil"
+msgstr "Cívka"
+
+msgid "Set coil"
+msgstr "Cívka nastavení (S)"
+
+msgid "Reset coil"
+msgstr "Cívka nulování (R)"
+
+msgid "On-delay timer"
+msgstr "Časovač se zpožděním zapnutí"
+
+msgid "Off-delay timer"
+msgstr "Časovač se zpožděním vypnutí"
+
+msgid "Count up"
+msgstr "Čítání nahoru"
+
+msgid "Count down"
+msgstr "Čítání dolů"
+
+msgid "Erase"
+msgstr "Vymazat"
+
+msgid "Network"
+msgstr "Síť"
+
+msgid "Closed while its operand is 1."
+msgstr "Sepnutý, dokud je jeho operand 1."
+
+msgid "Closed while its operand is 0."
+msgstr "Sepnutý, dokud je jeho operand 0."
+
+msgid "Passes the power on."
+msgstr "Vede proud dál."
+
+msgid "Its operand is 1 while the coil gets power."
+msgstr "Jeho operand je 1, dokud cívka dostává proud."
+
+msgid "Sets its operand to 1 when it gets power; it stays 1."
+msgstr "Nastaví svůj operand na 1, když dostane proud; zůstane 1."
+
+msgid "Resets its operand to 0 when it gets power (a timer stops, a counter goes back to 0)."
+msgstr "Vynuluje svůj operand, když dostane proud (časovač se zastaví, čítač se vrátí na 0)."
+
+msgid "The timer T comes on when the coil has had power for the time; off with the power."
+msgstr "Časovač T sepne, když cívka dostávala proud po nastavenou dobu; vypne se s proudem."
+
+msgid "The timer T is on with the power and goes off the time after the power went off."
+msgstr "Časovač T sepne s proudem a vypne se za nastavenou dobu po jeho vypnutí."
+
+msgid "Counts each time the coil gets power. The counter's contacts C close when the count has reached the preset."
+msgstr "Načítá pokaždé, když cívka dostane proud. Kontakty čítače C sepnou, když stav dosáhne předvolby."

@@ -1379,3 +1379,278 @@ msgstr ""
 
 msgid "short"
 msgstr ""
+
+msgid "PLC (logic module, 8 inputs, 4 relay outputs)"
+msgstr ""
+
+msgid "PLC"
+msgstr ""
+
+msgid "PLC: start/stop with an on-delay"
+msgstr ""
+
+msgid "Delayed"
+msgstr ""
+
+msgid "Program"
+msgstr ""
+
+msgid "Function block diagram (FBD)"
+msgstr ""
+
+msgid "Ladder diagram (LAD)"
+msgstr ""
+
+msgid "Program the PLC…"
+msgstr ""
+
+msgid "Opens the program in a window of its own (also by double-clicking the PLC)"
+msgstr ""
+
+msgid "Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals."
+msgstr ""
+
+#, c-format
+msgid "%s: output Q%d on"
+msgstr ""
+
+#, c-format
+msgid "%s: output Q%d off"
+msgstr ""
+
+msgid "The PLC runs the program shown here."
+msgstr ""
+
+#, c-format
+msgid "%s – PLC program – LadderLab"
+msgstr ""
+
+msgid "Online: the program running in the simulation (switch to Edit to change it)"
+msgstr ""
+
+#, c-format
+msgid "Editing the program of %s"
+msgstr ""
+
+msgid "Add network"
+msgstr ""
+
+msgid "Click an element to see its state. Ctrl+wheel zooms."
+msgstr ""
+
+msgid "Drag from a block's output (right) to an input (left) to connect them. Right click an input to remove its connection. Delete removes the selected block."
+msgstr ""
+
+msgid "Click to place the block. Esc or a right click ends placing."
+msgstr ""
+
+msgid "Click an element to select it, a network's title to select the network. Delete removes the selection."
+msgstr ""
+
+msgid "Click a cell to link its right side with the row below (click again to remove the link)."
+msgstr ""
+
+msgid "Click a cell to put the element there (coils go to the end of the row). Esc or a right click ends it."
+msgstr ""
+
+msgid "Select a block or an element to see and set its operand, time or preset."
+msgstr ""
+
+msgid "Select a contact or coil to see and set its operand, time or preset."
+msgstr ""
+
+msgid "Operand"
+msgstr ""
+
+msgid "Time (s)"
+msgstr ""
+
+msgid "Preset (count)"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Connectors"
+msgstr ""
+
+msgid "Basic functions"
+msgstr ""
+
+msgid "Special functions"
+msgstr ""
+
+msgid "Timers and counters"
+msgstr ""
+
+msgid "Select and connect"
+msgstr ""
+
+msgid "Input I"
+msgstr ""
+
+msgid "Output Q"
+msgstr ""
+
+msgid "Flag M"
+msgstr ""
+
+msgid "Constant 1 (hi)"
+msgstr ""
+
+msgid "Constant 0 (lo)"
+msgstr ""
+
+msgid "AND"
+msgstr ""
+
+msgid "OR"
+msgstr ""
+
+msgid "NOT"
+msgstr ""
+
+msgid "NAND"
+msgstr ""
+
+msgid "NOR"
+msgstr ""
+
+msgid "XOR"
+msgstr ""
+
+msgid "On-delay"
+msgstr ""
+
+msgid "Off-delay"
+msgstr ""
+
+msgid "Latching relay"
+msgstr ""
+
+msgid "Pulse relay"
+msgstr ""
+
+msgid "Up/down counter"
+msgstr ""
+
+msgid "Input"
+msgstr ""
+
+msgid "Flag"
+msgstr ""
+
+msgid "Brings an input of the PLC into the diagram: 1 while the input has voltage."
+msgstr ""
+
+msgid "Switches an output relay of the PLC: its contact closes while the input of this block is 1. Its own output can be fed back."
+msgstr ""
+
+msgid "Stores a signal as a flag M; its output can be used elsewhere in the diagram."
+msgstr ""
+
+msgid "A fixed signal 1 or 0."
+msgstr ""
+
+msgid "1 when all connected inputs are 1 (unconnected inputs count as 1)."
+msgstr ""
+
+msgid "1 when at least one input is 1."
+msgstr ""
+
+msgid "Inverts its input."
+msgstr ""
+
+msgid "AND with an inverted output."
+msgstr ""
+
+msgid "OR with an inverted output."
+msgstr ""
+
+msgid "1 when exactly one of its two inputs is 1."
+msgstr ""
+
+msgid "The output comes on when the trigger Trg has been 1 for the time T; off with Trg."
+msgstr ""
+
+msgid "The output is on with the trigger Trg and goes off the time T after Trg went off; R switches it off at once."
+msgstr ""
+
+msgid "S sets the output, R resets it; R wins when both are 1."
+msgstr ""
+
+msgid "Every rising edge on Trg switches the output over; S sets it, R resets it (R wins)."
+msgstr ""
+
+msgid "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
+msgstr ""
+
+#, c-format
+msgid "Network %d"
+msgstr ""
+
+msgid "Select"
+msgstr ""
+
+msgid "NO contact"
+msgstr ""
+
+msgid "NC contact"
+msgstr ""
+
+msgid "Branch (vertical link)"
+msgstr ""
+
+msgid "Coil"
+msgstr ""
+
+msgid "Set coil"
+msgstr ""
+
+msgid "Reset coil"
+msgstr ""
+
+msgid "On-delay timer"
+msgstr ""
+
+msgid "Off-delay timer"
+msgstr ""
+
+msgid "Count up"
+msgstr ""
+
+msgid "Count down"
+msgstr ""
+
+msgid "Erase"
+msgstr ""
+
+msgid "Network"
+msgstr ""
+
+msgid "Closed while its operand is 1."
+msgstr ""
+
+msgid "Closed while its operand is 0."
+msgstr ""
+
+msgid "Passes the power on."
+msgstr ""
+
+msgid "Its operand is 1 while the coil gets power."
+msgstr ""
+
+msgid "Sets its operand to 1 when it gets power; it stays 1."
+msgstr ""
+
+msgid "Resets its operand to 0 when it gets power (a timer stops, a counter goes back to 0)."
+msgstr ""
+
+msgid "The timer T comes on when the coil has had power for the time; off with the power."
+msgstr ""
+
+msgid "The timer T is on with the power and goes off the time after the power went off."
+msgstr ""
+
+msgid "Counts each time the coil gets power. The counter's contacts C close when the count has reached the preset."
+msgstr ""

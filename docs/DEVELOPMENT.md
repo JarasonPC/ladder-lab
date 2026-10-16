@@ -126,13 +126,39 @@ Architecture and conventions of the code base. Read this before changing the cod
   drag moves it). Edited in the sidebar (undoable, "Fill from the
   schematic"), breakers, fuse holders and overload relays operated there while simulating.
   tools/screenshot_cabinet.gd screenshots the app (xvfb) for visual review
+- PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
+  maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
+  voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
+  (Q1.1-Q1.2, switch paths with an Armature per output, 10/8 ms). It runs its PlcProgram
+  (sim/plc/, no nodes) through PlcRuntime: scans when the power or an input changes and when a
+  program timer ends, until a scan changes nothing (PlcRuntime.MAX_SCANS; a program that keeps
+  changing is scanned again after Plc.CYCLE_TIME and reported as oscillating); losing power
+  resets it. A program holds both a function block diagram (PlcBlock: connectors I/Q/M/hi/lo,
+  AND OR NOT NAND NOR XOR with 4/4/1/4/4/2 inputs, on-/off-delay, latching relay, pulse relay,
+  up/down counter; numbered B001; worked through in signal order, a feedback loop starting at
+  the lowest number) and a ladder diagram (PlcRung: networks of 8 cell columns, cells
+  wire/NO/NC with operands I Q M T C, vertical links at the right side of a cell, a coil per
+  row: assignment, S, R, SD, SF, CU, CD; power flows column by column, linked rows share it);
+  language says which one runs. Operands I1-I8, Q1-Q4, M1-M16, T1-T16, C1-C16. Saved with
+  the component ("program"); damaged parts of a program are left out, never refusing the file.
+  The symbol (PlcSymbol): a box with L1 N I1-I8 on top, the output contacts below (moving),
+  input lights and a RUN display; the switchboard does not show PLCs yet
+- PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
+  clicking it while simulating; one per PLC. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
+  PlcCanvas, drawn on schematic paper, Ctrl+wheel zoom) switched at the top (the PLC runs the
+  one shown), a palette of tools on the left, the selection's operand / time / preset on the
+  right. In Edit mode it edits a copy and sends each finished change to main.gd, which applies
+  it with SchematicEditor.apply_properties (undoable; Ctrl+Z / Ctrl+Y in the window too). While
+  simulating it shows the simulated PLC read-only: signals that are 1, the power flow, times
+  and counts in PlcCanvas.ON. Windows rebind when the document is loaded or edited and close
+  when their PLC is gone
 - Keep the simulation logic (solver) separate from scenes and UI:
   solver classes extend RefCounted and must work without any nodes
 - Tests use GUT; run them with: godot --headless -s addons/gut/gut_cmdln.gd
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
+- Device designations: A = PLC, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
@@ -204,6 +230,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   properties panel draws the time-current characteristic (TripCurveDiagram)
 - `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block),
   ExportPreview (dialog)
+- `sim/plc/` PlcProgram, PlcBlock, PlcRung, PlcRuntime, PlcTimer, PlcCounter (PLC programs)
+- `ui/plc/` PlcWindow, PlcCanvas, PlcFbdCanvas, PlcLadCanvas (PLC program window)
 - `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
 - `ui/cabinet/` CabinetPanel (sidebar), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
