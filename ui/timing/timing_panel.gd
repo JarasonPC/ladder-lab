@@ -1,12 +1,15 @@
 class_name TimingPanel
 extends PanelContainer
 ## Bottom panel in Simulate mode: timing chart with its zoom choice next to
-## the event log. Either part can be shown or hidden ([method show_parts]).
+## the event log. Either part rolls in to its title and out again by a click
+## on the title ([method show_parts]); with both rolled in only the titles stay.
 ## Its top edge is dragged to make it taller or lower, the grip between the
 ## chart and the log to share the width.
 
 ## The height or the log width was changed by dragging (to remember them).
 signal resized_by_user
+## The chart or the log was rolled in or out by clicking its title.
+signal parts_toggled(show_chart: bool, show_log: bool)
 
 const WINDOWS: Array[float] = [0.02, 0.1, 0.5, 2.0, 10.0]
 const MIN_HEIGHT: float = 140.0
@@ -20,6 +23,13 @@ const EDGE: float = 6.0
 var chart: TimingChart
 var event_log: EventLog
 var _chart_part: VBoxContainer
+var _chart_title: Button
+## Time span, Follow and the hint: shown with the chart only.
+var _chart_tools: HBoxContainer
+var _chart_card: PanelContainer
+## Rolled out: the chart, the event log.
+var _show_chart: bool = true
+var _show_log: bool = true
 var _window_label: Label
 var _window_select: OptionButton
 var _live: Button
@@ -32,12 +42,23 @@ var panel_height: float = 220.0:
 	set(value):
 		var top: float = maxf(MIN_HEIGHT, get_viewport_rect().size.y * MAX_HEIGHT_SHARE) if is_inside_tree() else 10000.0
 		panel_height = clampf(value, MIN_HEIGHT, top)
-		custom_minimum_size.y = panel_height
+		_apply_sizes()
 var log_width: float = 340.0:
 	set(value):
 		log_width = clampf(value, MIN_LOG_WIDTH, MAX_LOG_WIDTH)
-		if event_log != null:
-			event_log.custom_minimum_size.x = log_width
+		_apply_sizes()
+
+
+## Header button that rolls a part of the panel in and out: an arrow and the
+## part's title.
+static func rollout_button() -> Button:
+	var button: Button = Button.new()
+	button.theme_type_variation = "ListButton"
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.focus_mode = Control.FOCUS_NONE
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.add_theme_constant_override("h_separation", 4)
+	return button
 
 
 func _ready() -> void:
@@ -50,8 +71,14 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(left)
 	_chart_part = left
+	var header: HBoxContainer = HBoxContainer.new()
+	left.add_child(header)
+	_chart_title = rollout_button()
+	_chart_title.pressed.connect(func() -> void: _toggle(not _show_chart, _show_log))
+	header.add_child(_chart_title)
 	var tools: HBoxContainer = HBoxContainer.new()
-	left.add_child(tools)
+	header.add_child(tools)
+	_chart_tools = tools
 	_window_label = Label.new()
 	_window_label.theme_type_variation = "MutedLabel"
 	_window_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -81,6 +108,7 @@ func _ready() -> void:
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	card.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
 	left.add_child(card)
+	_chart_card = card
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -95,24 +123,51 @@ func _ready() -> void:
 	_log_grip.gui_input.connect(_on_log_grip_input)
 	split.add_child(_log_grip)
 	event_log = EventLog.new()
-	event_log.custom_minimum_size = Vector2(log_width, 0)
+	event_log.expand_toggled.connect(func(expanded: bool) -> void: _toggle(_show_chart, expanded))
 	split.add_child(event_log)
 	_window_select.select(WINDOWS.find(0.1))
 	chart.window = 0.1
+	_apply_parts()
 	retranslate()
 
 
-## Shows the timing chart and/or the event log; the event log takes the full
-## width when it is shown alone.
+## Rolls the timing chart and the event log out ([code]true[/code]) or in;
+## a part rolled out alone takes the full width.
 func show_parts(show_chart: bool, show_log: bool) -> void:
-	_chart_part.visible = show_chart
-	event_log.visible = show_log
-	_log_grip.visible = show_chart and show_log
-	event_log.size_flags_horizontal = Control.SIZE_FILL if show_chart else Control.SIZE_EXPAND_FILL
-	visible = show_chart or show_log
+	_show_chart = show_chart
+	_show_log = show_log
+	if event_log != null:
+		_apply_parts()
+
+
+func _toggle(show_chart: bool, show_log: bool) -> void:
+	show_parts(show_chart, show_log)
+	parts_toggled.emit(show_chart, show_log)
+
+
+func _apply_parts() -> void:
+	event_log.expanded = _show_log
+	_chart_tools.visible = _show_chart
+	_chart_card.visible = _show_chart
+	_chart_title.icon = AppTheme.icon("chevron_down" if _show_chart else "chevron_right", 16)
+	_log_grip.visible = _show_chart and _show_log
+	# The chart keeps the free width unless the log is rolled out alone.
+	_chart_part.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _show_chart or not _show_log else Control.SIZE_FILL
+	event_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _show_log and not _show_chart else Control.SIZE_FILL
+	_apply_sizes()
+
+
+## Rolled-in parts shrink to their titles, the whole panel when both are.
+func _apply_sizes() -> void:
+	if event_log == null:
+		return
+	custom_minimum_size.y = panel_height if _show_chart or _show_log else 0.0
+	event_log.custom_minimum_size.x = log_width if _show_log and _show_chart else 0.0
 
 
 func retranslate() -> void:
+	_chart_title.text = tr("Timing chart")
+	_chart_title.tooltip_text = tr("Show or hide the timing chart")
 	_window_label.text = tr("Time span:")
 	_live.text = tr("Follow")
 	_hint.text = tr("Drag to look back, wheel zooms")
@@ -123,6 +178,15 @@ func retranslate() -> void:
 
 ## The top edge: drag up to make the panel taller.
 func _gui_input(event: InputEvent) -> void:
+	# Wheel left over the panel (the log at its end) is not for the schematic.
+	if event is InputEventMouseButton:
+		match (event as InputEventMouseButton).button_index:
+			MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT:
+				accept_event()
+				return
+	if not (_show_chart or _show_log):
+		mouse_default_cursor_shape = Control.CURSOR_ARROW
+		return
 	if event is InputEventMouseMotion:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		if _dragging_edge:

@@ -890,31 +890,30 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 		"overload_relay":
 			return doc.next_designation("F")
 		"main_contacts":
-			# Belongs to the selected contactor, else to the first one.
+			# Belongs to the selected contactor, else to the first one, as
+			# long as its main contacts are not drawn yet.
+			var preferred: PackedStringArray = PackedStringArray()
 			for id: String in selected_components:
 				var picked: CircuitComponent = doc.circuit.get_component(id)
 				if picked is Coil and not (picked is TimerRelay):
-					return picked.designation
-			for c: CircuitComponent in doc.circuit.get_components():
-				if c is Coil and not (c is TimerRelay) and (c as Coil).kind == Coil.Kind.CONTACTOR:
-					return c.designation
-			return "KM1"
+					preferred.append(picked.designation)
+			return doc.main_contacts_designation(preferred)
 		"overload_contact":
 			for id: String in selected_components:
 				var chosen: CircuitComponent = doc.circuit.get_component(id)
-				if chosen is OverloadRelay:
+				if chosen is OverloadRelay and _overload_contact_free(chosen.designation, data):
 					return chosen.designation
 			for c: CircuitComponent in doc.circuit.get_components():
-				if c is OverloadRelay:
+				if c is OverloadRelay and _overload_contact_free(c.designation, data):
 					return c.designation
-			return "F1"
+			return doc.next_designation("F")
 		"contact", "changeover":
 			# Belongs to the selected coil (or overload relay), else to the
 			# first coil of the right kind.
 			var want_timer: bool = data.get("delayed", false)
 			for id: String in selected_components:
 				var relay: CircuitComponent = doc.circuit.get_component(id)
-				if relay is OverloadRelay and data["type"] == "contact" and not want_timer:
+				if relay is OverloadRelay and data["type"] == "contact" and not want_timer and _overload_contact_free(relay.designation, data):
 					return relay.designation
 			for id: String in selected_components:
 				var selected: CircuitComponent = doc.circuit.get_component(id)
@@ -947,6 +946,16 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			# Never shown: the connector shows its label.
 			return doc.next_designation("PC")
 	return doc.next_designation("X")
+
+
+## True while the overload relay [param designation] has no contact of the
+## kind of [param data] (NC 95-96, NO 97-98) drawn yet.
+func _overload_contact_free(designation: String, data: Dictionary) -> bool:
+	var nc: bool = str(data.get("contact", "NO")) == "NC"
+	for c: CircuitComponent in document().circuit.get_components():
+		if c is OverloadContact and c.designation == designation and ((c as OverloadContact).contact_type == SwitchingElement.ContactType.NC) == nc:
+			return false
+	return true
 
 
 static func _conductor(data: Dictionary) -> PowerSupply.Conductor:

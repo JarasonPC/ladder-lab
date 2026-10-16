@@ -2,11 +2,24 @@ class_name EventLog
 extends VBoxContainer
 ## Timestamped list of simulation events ([member StepResult.events]).
 ## Keeps the newest [constant MAX_ENTRIES]; texts are translated when shown.
+## Its title rolls the list in and out ([member expanded]).
+
+## The title was clicked to roll the list in or out.
+signal expand_toggled(expanded: bool)
 
 const MAX_ENTRIES: int = 500
 
+## The list is shown (rolled out); rolled in, only the title stays.
+var expanded: bool = true:
+	set(value):
+		expanded = value
+		if _list != null:
+			_list.visible = expanded
+			_clear.visible = expanded
+			_title.icon = AppTheme.icon("chevron_down" if expanded else "chevron_right", 16)
+
 var _entries: Array[Dictionary] = []
-var _title: Label
+var _title: Button
 var _clear: Button
 var _list: ItemList
 
@@ -14,11 +27,15 @@ var _list: ItemList
 func _ready() -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	add_child(header)
-	_title = Label.new()
-	_title.theme_type_variation = "MutedLabel"
-	_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title = TimingPanel.rollout_button()
+	_title.pressed.connect(func() -> void:
+		expanded = not expanded
+		expand_toggled.emit(expanded))
 	header.add_child(_title)
+	var gap: Control = Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.add_child(gap)
 	_clear = Button.new()
 	_clear.theme_type_variation = "ToolButton"
 	_clear.add_theme_font_size_override("font_size", AppTheme.SMALL_FONT_SIZE)
@@ -31,6 +48,7 @@ func _ready() -> void:
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.focus_mode = Control.FOCUS_NONE
 	add_child(_list)
+	expanded = expanded
 	retranslate()
 
 
@@ -53,6 +71,7 @@ func clear() -> void:
 
 func retranslate() -> void:
 	_title.text = tr("Event log")
+	_title.tooltip_text = tr("Show or hide the event log")
 	_clear.text = tr("Clear")
 	_list.clear()
 	for e: Dictionary in _entries:

@@ -3,7 +3,7 @@ extends Container
 ## Shows its one child at [member zoom]: the child is laid out in the box's
 ## size divided by the zoom and drawn scaled up, with text and icons rendered
 ## for the scale, so they stay sharp. Ctrl+wheel over the box zooms it,
-## Ctrl+0 sets it back to 100 %.
+## Ctrl+0 sets it back to 100 %. Other wheel steps never pass through it.
 
 signal zoom_changed(zoom: float)
 
@@ -70,6 +70,15 @@ func _input(event: InputEvent) -> void:
 		if key.pressed and not key.echo and (key.ctrl_pressed or key.meta_pressed) and (key.keycode == KEY_0 or key.keycode == KEY_KP_0):
 			zoom = 1.0
 			get_viewport().set_input_as_handled()
+
+
+## Wheel steps that nothing in the panel used (a list scrolled to its end)
+## stop here, so they do not reach the schematic behind it.
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		match (event as InputEventMouseButton).button_index:
+			MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT:
+				accept_event()
 
 
 ## Symbols drawn for the screen scale (see [SchematicSymbol]) are drawn again.

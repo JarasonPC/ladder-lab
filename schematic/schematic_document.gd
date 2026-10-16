@@ -1057,6 +1057,24 @@ func next_designation(prefix: String, reserved: Dictionary[String, bool] = {}) -
 	return prefix + str(n)
 
 
+## Designation for a new set of main contacts: the first of [param preferred],
+## then of the contactors, whose main contacts are not drawn yet, else a free
+## KM designation (for a contactor still to be drawn); never one of
+## [param reserved].
+func main_contacts_designation(preferred: PackedStringArray = PackedStringArray(), reserved: Dictionary[String, bool] = {}) -> String:
+	var taken: Dictionary[String, bool] = reserved.duplicate()
+	var candidates: PackedStringArray = preferred.duplicate()
+	for c: CircuitComponent in circuit.get_components():
+		if c is MainContacts:
+			taken[c.designation] = true
+		elif c is Coil and not (c is TimerRelay) and (c as Coil).kind == Coil.Kind.CONTACTOR:
+			candidates.append(c.designation)
+	for designation: String in candidates:
+		if not taken.has(designation):
+			return designation
+	return next_designation("KM", reserved)
+
+
 ## Designation for another supply point: "L", then "L.2", "L.3", ...
 func next_supply_designation(conductor: PowerSupply.Conductor) -> String:
 	var base: String = "N"
@@ -1142,15 +1160,17 @@ func extract(ids: PackedStringArray) -> Dictionary:
 
 ## Adds data from [method extract], shifted by [param offset] cells. Taken
 ## designations are renumbered; a copied coil and its copied contacts get the
-## same new designation, contacts copied without their coil stay with it and
-## get a free contact number. Returns the ids of the new components.
+## same new designation, contacts (and changeovers) copied without their coil
+## stay with it and get a free contact number, main contacts copied without
+## their coil go to a contactor without main contacts
+## ([method main_contacts_designation]). Returns the ids of the new components.
 func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 	var components: Array = data.get("components", [])
 	var renamed: Dictionary[String, String] = {}
 	var reserved: Dictionary[String, bool] = {}
 	for cd: Dictionary in components:
 		var kind: String = cd["type"]
-		if kind == "supply" or kind == "junction" or kind == "contact":
+		if kind in ["supply", "junction", "contact", "changeover", "main_contacts"]:
 			continue
 		var designation: String = cd["designation"]
 		if renamed.has(designation):
@@ -1179,8 +1199,11 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 			_:
 				d["designation"] = renamed.get(d["designation"], d["designation"])
 		var c: CircuitComponent = DocumentSerializer.component_from_dict(d)
-		if c is SwitchingElement and not DocumentSerializer._fits(circuit, c):
+		if (c is SwitchingElement or c is ChangeoverContact) and not DocumentSerializer._fits(circuit, c):
 			d["sequence"] = next_contact_sequence(d["designation"])
+			c = DocumentSerializer.component_from_dict(d)
+		elif c is MainContacts and not DocumentSerializer._fits(circuit, c):
+			d["designation"] = main_contacts_designation(PackedStringArray(), reserved)
 			c = DocumentSerializer.component_from_dict(d)
 		if c == null or not DocumentSerializer._fits(circuit, c):
 			continue

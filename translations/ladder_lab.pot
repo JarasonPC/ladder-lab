@@ -795,6 +795,9 @@ msgstr ""
 msgid "Double click: follow"
 msgstr ""
 
+msgid "Timing chart"
+msgstr ""
+
 msgid "Time span:"
 msgstr ""
 

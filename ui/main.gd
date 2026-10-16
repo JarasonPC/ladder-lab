@@ -61,8 +61,6 @@ var _number_button: Button
 var _numbers_toggle: Button
 var _sim_tools: HBoxContainer
 var _switching_select: OptionButton
-var _chart_button: Button
-var _log_button: Button
 var _timing_panel: TimingPanel
 var _run_button: Button
 var _step_button: Button
@@ -111,7 +109,7 @@ var _check_panel: CheckPanel
 var _status_label: Label
 var _hint_label: Label
 var _editor_hint: String = ""
-## Timing chart and event log shown in Simulate mode (remembered).
+## Timing chart and event log rolled out in Simulate mode (remembered).
 var _show_chart: bool = true
 var _show_log: bool = true
 var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
@@ -322,13 +320,6 @@ func _build_ui() -> void:
 	_switching_select.add_item("")
 	_switching_select.add_item("")
 	_switching_select.item_selected.connect(_on_switching_selected)
-	_sim_tools.add_child(VSeparator.new())
-	_chart_button = _tool(_sim_tools, _on_timing_parts_toggled, "chart")
-	_chart_button.toggle_mode = true
-	_chart_button.button_pressed = _show_chart
-	_log_button = _tool(_sim_tools, _on_timing_parts_toggled, "log")
-	_log_button.toggle_mode = true
-	_log_button.button_pressed = _show_log
 
 
 	var middle: HBoxContainer = HBoxContainer.new()
@@ -379,6 +370,7 @@ func _build_ui() -> void:
 	_timing_panel.panel_height = _timing_size.y
 	_timing_panel.log_width = _timing_size.x
 	_timing_panel.resized_by_user.connect(_save_settings)
+	_timing_panel.parts_toggled.connect(_on_timing_parts_toggled)
 	root.add_child(_timing_panel)
 
 	var bottom: PanelContainer = PanelContainer.new()
@@ -566,8 +558,6 @@ func _retranslate() -> void:
 	_switching_select.set_item_text(0, tr("Realistic"))
 	_switching_select.set_item_text(1, tr("Ideal"))
 	_switching_select.tooltip_text = tr("Realistic: relays need their pick-up and drop-out time, NC contacts break before NO contacts make. Ideal: relays switch instantly.")
-	_chart_button.tooltip_text = tr("Show or hide the timing chart")
-	_log_button.tooltip_text = tr("Show or hide the event log")
 	_step_button.tooltip_text = tr("Step") + " – " + tr("Advance the simulation by 0.1 s times the speed")
 	_speed_select.tooltip_text = tr("Simulation speed")
 	_time_label.tooltip_text = tr("Simulation time")
@@ -761,8 +751,7 @@ func _update_mode_ui() -> void:
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
-	if editing:
-		_timing_panel.visible = false
+	_timing_panel.visible = not editing
 	_update_run_button()
 	_refresh_pages()
 	_on_stepped(view.last_result)
@@ -798,15 +787,15 @@ func _fit_camera_later() -> void:
 	_fit_camera()
 
 
-## (Re)starts the simulation on a fresh copy of the edited schematic.
-func _on_timing_parts_toggled() -> void:
-	_show_chart = _chart_button.button_pressed
-	_show_log = _log_button.button_pressed
-	_update_mode_ui()
+## The chart or the log was rolled in or out on the timing panel.
+func _on_timing_parts_toggled(show_chart: bool, show_log: bool) -> void:
+	_show_chart = show_chart
+	_show_log = show_log
 	_save_settings()
 	_fit_camera_later()
 
 
+## (Re)starts the simulation on a fresh copy of the edited schematic.
 func _start_simulation() -> void:
 	view.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
