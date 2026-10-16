@@ -1269,3 +1269,43 @@ msgstr "Stránky projektu"
 #, c-format
 msgid "The license text is missing; see %s"
 msgstr "Text licence chybí; viz %s"
+
+msgid "Pick terminals to move them to another strip."
+msgstr "Vyberte svorky a přesuňte je do jiné svorkovnice."
+
+msgid "Move to…"
+msgstr "Přesunout do…"
+
+#, c-format
+msgid "New strip -%s"
+msgstr "Nová svorkovnice -%s"
+
+msgid "Move the picked terminals to another terminal strip"
+msgstr "Přesunout vybrané svorky do jiné svorkovnice"
+
+msgid "Roll the panel in"
+msgstr "Sbalit panel"
+
+msgid "Current path numbers"
+msgstr "Čísla proudových drah"
+
+msgid "Number the current paths above the columns (left of the rows), also on export"
+msgstr "Číslovat proudové dráhy nad sloupci (vlevo od řádků), i při exportu"
+
+msgid "Ctrl+wheel over the switchboard zooms it, right or middle drag moves it."
+msgstr "Ctrl+kolečko nad rozvaděčem jej zvětšuje, tažení pravým nebo prostředním tlačítkem jím posouvá."
+
+msgid "Zoom out"
+msgstr "Oddálit"
+
+msgid "Zoom in"
+msgstr "Přiblížit"
+
+msgid "Fit the switchboard to the panel width"
+msgstr "Přizpůsobit rozvaděč šířce panelu"
+
+msgid "Show the parts as a list with their names"
+msgstr "Zobrazit součástky jako seznam s názvy"
+
+msgid "Show the parts as a grid of symbols"
+msgstr "Zobrazit součástky jako mřížku značek"

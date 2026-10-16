@@ -78,7 +78,7 @@ func test_wires_join_the_terminals_of_each_net() -> void:
 	assert_eq(_wire(wiring, "KM1:14", "KM1:A1")["conductor"], CabinetDevices.Conductor.CONTROL)
 	assert_eq(_wire(wiring, "KM1:A2", "X5")["conductor"], CabinetDevices.Conductor.NEUTRAL)
 	assert_eq(_wire(wiring, "FU1:1", "FU2:1")["conductor"], CabinetDevices.Conductor.POWER, "L1 to both fuses")
-	assert_eq(wiring.wires.size(), 10, "one wire fewer than terminals in each net; PE has one terminal only")
+	assert_eq(wiring.wires.size(), 15, "one wire fewer than terminals in each net, and a core of the supply cable for each of L1, L2, L3, N and PE")
 
 
 func test_wires_run_through_the_ducts() -> void:
@@ -155,3 +155,66 @@ func test_wires_go_beside_the_overload_relay() -> void:
 				if channel.encloses(Rect2(segment.position.x, relay.position.y, segment.size.x, relay.size.y)) and segment.position.y <= relay.position.y and segment.end.y >= relay.end.y:
 					beside += 1
 	assert_true(beside > 0, "wires from the contactor's bottom terminals run down beside the relay")
+
+
+func test_supply_comes_in_through_a_cable() -> void:
+	var doc: SchematicDocument = _doc()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var cores: Dictionary[String, Dictionary] = {}
+	for wire: Dictionary in wiring.wires:
+		if wire["external"]:
+			assert_false(cores.has(wire["from"]), "one core per conductor")
+			cores[wire["from"]] = wire
+	assert_eq(cores.keys(), ["L1", "L2", "L3", "N", "PE"], "the cores in order")
+	assert_eq(cores["L1"]["to"], "FU1:1", "L1 to the nearest terminal it feeds; FU2 is jumpered from there")
+	assert_false(_wire(wiring, "FU1:1", "FU2:1").is_empty())
+	assert_eq(cores["N"]["conductor"], CabinetDevices.Conductor.NEUTRAL)
+	assert_eq(cores["PE"]["to"], "M1:PE", "PE to the motor's PE terminal on the strip")
+	assert_eq(cores["PE"]["conductor"], CabinetDevices.Conductor.PE)
+	assert_eq(wiring.glands.size(), 1, "one cable for the AC supply")
+	for core: Dictionary in cores.values():
+		var start: Vector2 = (core["points"] as PackedVector2Array)[0]
+		assert_true(is_equal_approx(start.y, CabinetLayout.FRAME), "a core starts at the top of the enclosure")
+		assert_true(wiring.glands[0].has_point(start + Vector2(0, -0.5)), "inside the gland")
+
+
+func test_terminals_on_pe_and_n_wires_are_coloured() -> void:
+	var doc: SchematicDocument = _doc()
+	var strips: Dictionary = CabinetDevices.strips(doc)
+	var kinds: Dictionary = {}
+	for t: Dictionary in strips["X2"]:
+		kinds[t["label"]] = t["kind"]
+	assert_eq(kinds, {"1": "L", "2": "L", "3": "L", "PE": "PE"})
+	doc.set_strip_terminal(doc.circuit.get_component("M1").id, 3, "X2:4")
+	assert_eq(CabinetDevices.strips(doc)["X2"][3]["kind"], "PE", "a terminal on the PE wire is a PE terminal whatever its number")
+	var block: TerminalBlock = doc.circuit.get_component("X5") as TerminalBlock
+	block.label = "7"
+	assert_eq(CabinetDevices.strips(doc)["X1"][0]["kind"], "N", "a terminal on the N wire is blue")
+
+
+func test_split_a_terminal_strip() -> void:
+	var doc: SchematicDocument = _doc()
+	var motor: String = doc.circuit.get_component("M1").id
+	(doc.circuit.get_component("X5") as TerminalBlock).label = "X2:5"
+	assert_eq(doc.next_strip_name(), "X3", "X1 has no terminals any more but still its place")
+	assert_eq(doc.move_strip_terminals("X2", PackedStringArray(["2", "5"]), "X3"), 2)
+	assert_eq(doc.get_placement(motor).strips[1], "X3:2", "a terminal on a lead")
+	assert_eq((doc.circuit.get_component("X5") as TerminalBlock).label, "X3:5", "a terminal on a wire")
+	assert_eq(doc.get_placement(motor).strips[0], "X2:1", "the others stay")
+	var names: PackedStringArray = PackedStringArray()
+	for rail: CabinetRail in doc.cabinet_rails:
+		for item: CabinetItem in rail.items:
+			if item.kind == CabinetItem.Kind.STRIP:
+				names.append(item.designation)
+	assert_true(names.find("X3") == names.find("X2") + 1, "the new strip sits right after the old one")
+	# A number the strip has already: the next free one.
+	doc.set_strip_terminal(motor, 0, "X2:5")
+	assert_eq(doc.move_strip_terminals("X2", PackedStringArray(["5"]), "X3"), 1)
+	assert_eq(doc.get_placement(motor).strips[0], "X3:6")
+	# Back to X1 the plain number is used; the emptied strip loses its place.
+	doc.move_strip_terminals("X3", PackedStringArray(["2", "5", "6"]), "X1")
+	assert_eq((doc.circuit.get_component("X5") as TerminalBlock).label, "5")
+	assert_eq(doc.get_placement(motor).strips[1], "2")
+	assert_false(doc.cabinet_has(CabinetItem.Kind.STRIP, "X3"), "nothing left in X3")
+	assert_eq(doc.move_strip_terminals("X2", PackedStringArray(["PE"]), "X2"), 0, "not into itself")

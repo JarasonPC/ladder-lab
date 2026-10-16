@@ -6,7 +6,7 @@ extends Node
 
 enum Mode { EDIT, SIMULATE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, LANGUAGE = 10, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT }
@@ -91,6 +91,8 @@ var _side_bar: SideBar
 var _control_bar: SideBar
 ## Width and zoom of each side panel by its settings name, as loaded.
 var _bar_settings: Dictionary[String, Vector2] = {}
+## Side panels rolled in to their tabs, by settings name.
+var _bar_rolled: Dictionary[String, bool] = {}
 ## Event log width and timing panel height, as loaded.
 var _timing_size: Vector2 = Vector2(340.0, 220.0)
 ## Part of the window where the schematic is visible (between the panels).
@@ -145,6 +147,10 @@ var _white_paper: bool = false
 ## Dot grid while editing (never while simulating).
 var _edit_grid: bool = false
 var _wire_numbers: bool = true
+## Current path numbers shown (above the columns or left of the rows).
+var _path_numbers: bool = true
+## The palette shows a grid of symbols instead of the list.
+var _palette_grid: bool = false
 ## Chosen interface size (see UI_SCALES), 0 = automatic.
 var _ui_scale: float = 0.0
 var _locale_index: int = 0
@@ -414,6 +420,10 @@ func _build_ui() -> void:
 	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(middle)
 	_palette = Palette.new()
+	_palette.grid = _palette_grid
+	_palette.grid_toggled.connect(func(on: bool) -> void:
+		_palette_grid = on
+		_save_settings())
 	_palette_bar = _side_panel(middle, _palette, "palette", false)
 	var canvas_column: VBoxContainer = VBoxContainer.new()
 	canvas_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -684,6 +694,8 @@ func _retranslate() -> void:
 		bar.retranslate()
 	_control_panel.retranslate()
 	_cabinet_panel.retranslate()
+	_control_bar.title = tr("Control panel")
+	_cabinet_bar.title = tr("Switchboard")
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
@@ -753,6 +765,9 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_tooltip(popup.item_count - 1, tr("Draw the schematic on white paper in the dark theme, as in the guide"))
 	popup.add_check_item(tr("Wire numbers"), ViewMenuId.WIRE_NUMBERS)
 	popup.set_item_checked(popup.item_count - 1, _wire_numbers)
+	popup.add_check_item(tr("Current path numbers"), ViewMenuId.PATH_NUMBERS)
+	popup.set_item_checked(popup.item_count - 1, _path_numbers)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Number the current paths above the columns (left of the rows), also on export"))
 	popup.add_check_item(tr("Grid while editing"), ViewMenuId.GRID)
 	popup.set_item_checked(popup.item_count - 1, _edit_grid)
 	popup.add_separator(tr("Language"))
@@ -775,6 +790,8 @@ func _on_view_menu(id: int) -> void:
 		_save_settings()
 	elif id == ViewMenuId.WIRE_NUMBERS:
 		_set_wire_numbers(not _wire_numbers)
+	elif id == ViewMenuId.PATH_NUMBERS:
+		_set_path_numbers(not _path_numbers)
 	elif id == ViewMenuId.GRID:
 		_edit_grid = not _edit_grid
 		_update_mode_ui()
@@ -906,6 +923,9 @@ func _side_panel(parent: Control, content: Control, key: String, grip_left: bool
 	var saved: Vector2 = _bar_settings.get(key, Vector2(340.0 if key == "cabinet" else 250.0, 1.0))
 	bar.width = saved.x
 	bar.zoom = saved.y
+	bar.rolled = _bar_rolled.get(key, false)
+	if content.has_signal("roll_in_requested"):
+		content.connect("roll_in_requested", func() -> void: bar.rolled = true)
 	bar.changed.connect(_save_settings)
 	parent.add_child(bar)
 	return bar
@@ -936,10 +956,19 @@ func _set_wire_numbers(on: bool) -> void:
 	_save_settings()
 
 
+func _set_path_numbers(on: bool) -> void:
+	_path_numbers = on
+	view.set_path_numbers_visible(on)
+	for window: PageWindow in _page_windows():
+		window.view.set_path_numbers_visible(on)
+	_save_settings()
+
+
 func _update_mode_ui() -> void:
 	var editing: bool = mode == Mode.EDIT
 	view.set_grid_visible(editing and _edit_grid)
 	view.set_wire_numbers_visible(_wire_numbers)
+	view.set_path_numbers_visible(_path_numbers)
 	_edit_tools.visible = editing
 	_palette_bar.visible = editing
 	_side_bar.visible = editing
@@ -1347,6 +1376,7 @@ func _render_preview() -> void:
 ## Texts of the title block and what to draw, as chosen in the window.
 func _prepare_export() -> void:
 	_sheet_renderer.wire_numbers = _wire_numbers
+	_sheet_renderer.path_numbers = _path_numbers
 	_sheet_renderer.file_name = _file_path.get_file()
 	_sheet_renderer.title = tr(edit_doc.title)
 	_sheet_renderer.untitled_page = tr("Page %d")
@@ -1502,6 +1532,7 @@ func open_page_window(index: int) -> PageWindow:
 	window.key_pressed.connect(_on_window_key)
 	add_child(window)
 	window.view.set_wire_numbers_visible(_wire_numbers)
+	window.view.set_path_numbers_visible(_path_numbers)
 	return window
 
 
@@ -1552,12 +1583,16 @@ func _load_settings() -> void:
 		_white_paper = bool(config.get_value("view", "white_paper", false))
 		_edit_grid = bool(config.get_value("view", "grid", false))
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
+		_path_numbers = bool(config.get_value("view", "path_numbers", true))
+		_palette_grid = bool(config.get_value("view", "palette_grid", false))
 		_show_control_panel = bool(config.get_value("view", "control_panel", true))
 		_show_cabinet = bool(config.get_value("view", "cabinet", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
 		for key: String in ["palette", "properties", "control_panel"]:
 			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", 250.0)), float(config.get_value("view", key + "_zoom", 1.0)))
 		_bar_settings["cabinet"] = Vector2(float(config.get_value("view", "cabinet_width", 340.0)), float(config.get_value("view", "cabinet_zoom", 1.0)))
+		for key: String in ["control_panel", "cabinet"]:
+			_bar_rolled[key] = bool(config.get_value("view", key + "_rolled", false))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 		_check_updates = bool(config.get_value("updates", "check_at_start", true))
@@ -1574,6 +1609,8 @@ func _save_settings() -> void:
 	config.set_value("view", "white_paper", _white_paper)
 	config.set_value("view", "grid", _edit_grid)
 	config.set_value("view", "wire_numbers", _wire_numbers)
+	config.set_value("view", "path_numbers", _path_numbers)
+	config.set_value("view", "palette_grid", _palette_grid)
 	config.set_value("view", "control_panel", _show_control_panel)
 	config.set_value("view", "cabinet", _show_cabinet)
 	if _timing_panel != null:
@@ -1583,6 +1620,8 @@ func _save_settings() -> void:
 		if bar != null:
 			config.set_value("view", bar.name + "_width", bar.width)
 			config.set_value("view", bar.name + "_zoom", bar.zoom)
+			if bar == _control_bar or bar == _cabinet_bar:
+				config.set_value("view", bar.name + "_rolled", bar.rolled)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.set_value("updates", "check_at_start", _check_updates)
 	config.save(SETTINGS_PATH)

@@ -55,7 +55,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   a short wire once at its upper/left end, draggable offsets) via the
   numbering tool or double click; side panels (palette, properties + check, control panel) are
   SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
-  so text stays sharp); the timing panel is resized by its top edge and the grip before the
+  so text stays sharp); the control panel and the switchboard roll in to a narrow tab with their
+  title by a click on the title (SideBar.rolled, saved), a click on the tab rolls them out; the
+  palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved); the timing panel is resized by its top edge and the grip before the
   event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
@@ -72,6 +74,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   with the same label are joined (Circuit.get_links, used by the solver and by wire_net); numbering
   runs over the pages and connectors take their net's wire number as label; right click (Edit) or
   click (Simulate) jumps to the partner page
+- Current path numbers (above the columns, left of the rows) can be turned off in View >
+  Current path numbers (saved; page windows and export follow it)
 - Export: File > Export page as PNG / Export all pages as PDF first show the sheets in a preview
   (ExportPreview: page by page, paper and scale, wire numbers on/off, on by default); saving
   writes what the preview shows. Each page on an A4/A3 sheet
@@ -106,7 +110,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   (CabinetDevices.conductors): red = phase of the control circuit (L), light blue = N (and the
   DC - pole), grey = main power circuit (L2/L3 and the terminals of main contacts, overload relay
   heaters, 3~ motors, fuses and breakers of 2-4 poles), green-yellow = PE; wires go into the
-  top of strip terminals. Edited in the sidebar (undoable, "Fill from the
+  top of strip terminals, wires near each other share the nearest slot; the supply comes in
+  from outside: one cable per source (AC, DC) through a gland in the top of the enclosure, one
+  core per supply conductor (L1 L2 L3 N PE, + -) straight down into the top duct to the first
+  terminal it feeds. Strip terminals on a PE wire are PE terminals, on an N wire blue N
+  terminals. A strip is split in the sidebar: picked terminals move to another strip or a new
+  one (SchematicDocument.move_strip_terminals relabels them, "5" -> "X2:5", a taken number
+  becomes the next free one; a new strip gets a place right after the old one). The drawing
+  zooms (CabinetView.zoom over fitting the width: buttons, Ctrl+wheel over it; right or middle
+  drag moves it). Edited in the sidebar (undoable, "Fill from the
   schematic"), breakers, fuse holders and overload relays operated there while simulating.
   tools/screenshot_cabinet.gd screenshots the app (xvfb) for visual review
 - Keep the simulation logic (solver) separate from scenes and UI:

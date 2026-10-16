@@ -1722,5 +1722,71 @@ func rename_cabinet_device(old_designation: String, new_designation: String) -> 
 				item.designation = new_designation
 
 
+## Moves terminals [param labels] of terminal strip [param strip] to strip
+## [param target] (a new one or one there already): every terminal on a
+## wire and on a lead with such a label is relabelled ("5" -> "X2:5"). A
+## number the target strip has already becomes its next free one. A new
+## strip takes a place right after [param strip] in the switchboard; the
+## place of a strip left without terminals goes. Returns how many
+## terminals of the strip were moved.
+func move_strip_terminals(strip: String, labels: PackedStringArray, target: String) -> int:
+	target = target.strip_edges()
+	if target.is_empty() or target == strip or target.contains(" ") or target.contains(":"):
+		return 0
+	var strips: Dictionary = CabinetDevices.strips(self)
+	var taken: Dictionary[String, bool] = {}
+	var highest: int = 0
+	for t: Dictionary in strips.get(target, []):
+		taken[t["label"]] = true
+		if str(t["label"]).is_valid_int():
+			highest = maxi(highest, int(t["label"]))
+	# Old terminal label -> its label in the target strip.
+	var renamed: Dictionary[String, String] = {}
+	for t: Dictionary in strips.get(strip, []):
+		var label: String = t["label"]
+		if not labels.has(label):
+			continue
+		var number: String = label
+		if taken.has(number):
+			highest += 1
+			number = str(highest)
+		taken[number] = true
+		renamed[label] = number if target == CabinetDevices.DEFAULT_STRIP else target + ":" + number
+	if renamed.is_empty():
+		return 0
+	for c: CircuitComponent in circuit.get_components():
+		if c is TerminalBlock:
+			var block: TerminalBlock = c as TerminalBlock
+			var parts: PackedStringArray = CabinetDevices.split_label(block.label.strip_edges())
+			if parts[0] == strip and renamed.has(parts[1]):
+				block.label = renamed[parts[1]]
+		var placement: Placement = _placements[c.id]
+		for index: int in placement.strips:
+			var parts: PackedStringArray = CabinetDevices.split_label(str(placement.strips[index]).strip_edges())
+			if parts[0] == strip and renamed.has(parts[1]):
+				placement.strips[index] = renamed[parts[1]]
+	var left: bool = CabinetDevices.strips(self).has(strip)
+	for rail: CabinetRail in cabinet_rails:
+		for i: int in rail.items.size():
+			var item: CabinetItem = rail.items[i]
+			if item.kind != CabinetItem.Kind.STRIP or item.designation != strip:
+				continue
+			if not cabinet_has(CabinetItem.Kind.STRIP, target):
+				rail.items.insert(i + 1, CabinetItem.new(CabinetItem.Kind.STRIP, target))
+			if not left:
+				rail.items.remove_at(i)
+			return renamed.size()
+	return renamed.size()
+
+
+## Name for a new terminal strip: the first "X<n>" no terminal uses.
+func next_strip_name() -> String:
+	var strips: Dictionary = CabinetDevices.strips(self)
+	var n: int = 1
+	while strips.has("X%d" % n) or cabinet_has(CabinetItem.Kind.STRIP, "X%d" % n):
+		n += 1
+	return "X%d" % n
+
+
 func _has_cabinet_item(rail_index: int, item_index: int) -> bool:
 	return rail_index >= 0 and rail_index < cabinet_rails.size() and item_index >= 0 and item_index < cabinet_rails[rail_index].items.size()

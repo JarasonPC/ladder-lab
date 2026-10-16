@@ -6,7 +6,19 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- The current path numbers can be turned off (View > Current path numbers), also for export
+- The parts palette can show a grid of symbols without names (the name shows on hover)
+
 ### Panels
+- The supply comes into the switchboard from outside: a cable through a gland in the top of the
+  enclosure with a core for each supply conductor, led to the first terminal it feeds
+- Terminal strips can be split: pick terminals in the switchboard sidebar and move them to
+  another strip or a new one
+- Terminals on a PE wire are green-yellow, terminals on an N wire blue
+- Wires next to each other go into the wire duct through one slot
+- The switchboard drawing zooms (buttons, Ctrl+wheel over it) and moves by right or middle drag
+- The control panel and the switchboard roll in to a narrow tab by a click on their title
 - The switchboard shows its wiring: every connection of the schematic between its devices and
   terminal strips is a wire led through the wire ducts, red for the control phase (L), light blue
   for N, grey for the main power circuit and green-yellow for PE; wires from under a contactor

@@ -415,7 +415,8 @@ func edit_control_panel(change: Callable) -> void:
 func edit_cabinet(change: Callable) -> void:
 	_record()
 	change.call(document())
-	edited.emit()
+	# Splitting a terminal strip relabels terminals on the drawing too.
+	_changed()
 
 
 func copy_selection() -> void:
