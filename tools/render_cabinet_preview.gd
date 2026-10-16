@@ -183,6 +183,9 @@ static func _draw_cabinet(p: CabinetPainter, size: Vector2, plate: String) -> vo
 		CabinetParts.relay(p.shifted(Vector2(x, rail1 - rsize.y * 0.5)), on, true, {"A1": L1, "A2": N} if on else {}, poles)
 		CabinetParts.label(p, Vector2(x + rsize.x * 0.5, rail1 - rsize.y * 0.5 - 3.5), "-KA%d" % (k + 1), "A", 14.0)
 		x += rsize.x + 2.0
+	var slim: Vector2 = CabinetParts.relay_size(1)
+	CabinetParts.relay(p.shifted(Vector2(x + 1.0, rail1 - slim.y * 0.5)), true, true, {"A1": L1, "A2": N, "11": L1, "14": L1}, 1)
+	CabinetParts.label(p, Vector2(x + 4.1, rail1 - slim.y * 0.5 - 3.5), "-KA3", "A", 11.0)
 	# Rail 2: contactors, the overload relay under the first.
 	var rail2: float = 210.0
 	CabinetParts.din_rail(p.shifted(Vector2(x0 - 2.0, rail2 - 17.5)), x1 - x0 + 4.0, "A")

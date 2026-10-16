@@ -595,10 +595,13 @@ static func overload_relay(p: CabinetPainter, tripped: bool, setting: String = "
 const SOCKET_BLUE := Color("3c86d6")
 
 
-## Size of an auxiliary relay in its socket with [param poles] changeover
-## contacts: a slim socket for one or two, a wide one for three or four.
+## Size of an auxiliary relay with [param poles] changeover contacts: a
+## 6.2 mm relay module for one, a slim socket for two, a wide one for three
+## or four.
 static func relay_size(poles: int) -> Vector2:
-	return Vector2(15.8, 78.0) if poles <= 2 else Vector2(27.0, 78.0)
+	if poles <= 1:
+		return Vector2(6.2, 93.0)
+	return Vector2(15.8, 78.0) if poles == 2 else Vector2(27.0, 78.0)
 
 
 ## Auxiliary relay (pomocné relé) with 1 to 4 changeover contacts: a
@@ -610,6 +613,9 @@ static func relay_size(poles: int) -> Vector2:
 ## front. [param highlight] glows round it while the coil has power.
 static func relay(p: CabinetPainter, on: bool, highlight: bool = false, reach: Dictionary = {}, poles: int = 2) -> void:
 	poles = clampi(poles, 1, 4)
+	if poles == 1:
+		_slim_relay(p, on, highlight, reach)
+		return
 	var size: Vector2 = relay_size(poles)
 	var w: float = size.x
 	var h: float = size.y
@@ -673,6 +679,40 @@ static func relay(p: CabinetPainter, on: bool, highlight: bool = false, reach: D
 	p.rect(Rect2(1.8, 61.0, 4.4, 5.6), SOCKET_BLUE.darkened(0.1), 0.6)
 	p.rect(Rect2(3.1, 61.8 + (1.2 if on else 0.0), 1.8, 2.6), Color.WHITE, 0.3)
 	p.polygon(PackedVector2Array([Vector2(6.6, 60.4), Vector2(w - 1.4, 59.2), Vector2(w - 1.4, h - 9.4), Vector2(6.6, h - 9.4)]), Color("e3e5e7"), Color("a6abb0"), 0.15)
+
+
+## Relay module 6.2 mm wide with one changeover contact, seen from the
+## front on the rail: the coil terminals A2 and A1 on stepped tiers at the
+## top, the LED, the end of the plug-in relay with its black ejector, then
+## the contact terminals 14, 11 and 12 on stepped tiers.
+static func _slim_relay(p: CabinetPainter, on: bool, highlight: bool, reach: Dictionary) -> void:
+	var size: Vector2 = relay_size(1)
+	var w: float = size.x
+	var h: float = size.y
+	# Tiers from the outside in: [top, height, terminal, screw y, label y].
+	var tiers: Array = [
+		[0.0, 11.0, "A2", 5.2, 10.0], [10.0, 9.4, "A1", 14.2, 18.6],
+		[h - 22.0, 8.0, "14", h - 18.4, h - 14.6], [h - 15.0, 7.0, "11", h - 11.8, h - 8.4], [h - 8.4, 8.4, "12", h - 5.4, h - 1.0],
+	]
+	for t: Array in tiers:
+		p.gradient(Rect2(0, t[0], w, t[1]), SOCKET_BLUE.lightened(0.14), SOCKET_BLUE.darkened(0.1), 0.5, SOCKET_BLUE.darkened(0.45), 0.15)
+	# Middle: the socket's front with the LED and the relay in it.
+	var mid: Rect2 = Rect2(0, 19.0, w, h - 41.0)
+	p.gradient(mid, SOCKET_BLUE.lightened(0.2), SOCKET_BLUE, 0.5, SOCKET_BLUE.darkened(0.45), 0.15)
+	for t: Array in tiers:
+		_block_screw(p, Vector2(w * 0.5, t[3]), 1.5, reach.get(t[2], Color.TRANSPARENT))
+		p.text(Vector2(w * 0.5, t[4]), t[2], 1.5, Color.WHITE)
+	led(p, Vector2(w * 0.5, 23.6), LED_GREEN, on, 0.9)
+	var relay: Rect2 = Rect2(0.6, 27.0, w - 1.2, 28.0)
+	if highlight and on:
+		for i: int in 3:
+			p.rect(relay.grow(0.8 + i), Color(1.0, 0.55, 0.25, 0.25 - 0.07 * i), 0.8 + i)
+	p.gradient(relay, Color("f4f3ee"), Color("dedcd3"), 0.4, Color("a9a79d"), 0.15)
+	# Ejector: black lever over the end of the relay, notched.
+	var ej: Rect2 = Rect2(0.3, 52.0, w - 0.6, 15.0)
+	p.gradient(ej, Color("34363a"), Color("1b1c1f"), 0.5, Color("0e0f10"), 0.15)
+	p.rect(Rect2(1.4, 56.0, w - 2.8, 3.0), Color("0f1012"), 0.3)
+	p.rect(Rect2(1.4, 61.0, w - 2.8, 3.0), Color("0f1012"), 0.3)
 
 
 # --- Time relay -------------------------------------------------------------------
