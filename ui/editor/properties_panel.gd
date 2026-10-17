@@ -95,8 +95,11 @@ func show_component(component: CircuitComponent) -> void:
 			_choice(tr("Poles"), "poles", [1, 2, 3, 4], ["1", "2", "3", "4"])
 			if kind == "breaker":
 				_choice(tr("Characteristic"), "characteristic", ["B", "C", "D"], [tr("B (magnetic release 3-5 In)"), tr("C (magnetic release 5-10 In)"), tr("D (magnetic release 10-20 In)")])
-			if kind != "main_contacts":
+			if kind == "breaker":
+				_breaker_rating()
+			elif kind == "fuse":
 				_number(tr("Rated current In (A)"), "rated_current", DocumentSerializer.MIN_AMPERES, DocumentSerializer.MAX_AMPERES, 0.1)
+			if kind != "main_contacts":
 				_trip_curve(TripCurve.Kind.FUSE_GG if kind == "fuse" else CircuitBreaker.breaker_curve(TripCurve.LETTERS.find(_data["characteristic"]) as CircuitBreaker.Characteristic))
 		"overload_relay":
 			_choice(tr("Poles"), "poles", [0, 3], [tr("None (contacts only)"), tr("3 (heaters in the power circuit)")])
@@ -202,6 +205,33 @@ func _number(caption: String, key: String, min_value: float, max_value: float, s
 	spin.value = _data[key]
 	spin.value_changed.connect(func(value: float) -> void: _emit(key, value))
 	_add(spin)
+
+
+## Rated current of a breaker, one of the [constant CircuitBreaker.STANDARD_RATINGS]
+## (a value from an older file that is not among them stays in the list).
+func _breaker_rating() -> void:
+	var values: Array = []
+	values.assign(CircuitBreaker.STANDARD_RATINGS)
+	var current: float = float(_data["rated_current"])
+	var known: bool = false
+	for v: float in values:
+		known = known or is_equal_approx(v, current)
+	if not known:
+		values.append(current)
+		values.sort()
+	var titles: Array = []
+	for v: float in values:
+		titles.append(Fuse.amperes_text(v) + " A")
+	_label(tr("Rated current In (A)"))
+	var option: OptionButton = OptionButton.new()
+	option.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	for t: String in titles:
+		option.add_item(t)
+	for i: int in values.size():
+		if is_equal_approx(values[i], current):
+			option.select(i)
+	option.item_selected.connect(func(i: int) -> void: _emit("rated_current", values[i]))
+	_add(option)
 
 
 ## A time stored in seconds, edited in milliseconds.

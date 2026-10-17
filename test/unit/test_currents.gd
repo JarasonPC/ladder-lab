@@ -242,6 +242,20 @@ func test_power_factor_sets_the_rated_current_angle() -> void:
 
 # --- Protection ---------------------------------------------------------------------
 
+func test_breakers_default_to_ratings_sold() -> void:
+	var ratings: Array[float] = CircuitBreaker.STANDARD_RATINGS
+	var sorted: Array[float] = ratings.duplicate()
+	sorted.sort()
+	assert_eq(ratings, sorted, "offered from the smallest")
+	assert_has(ratings, CircuitBreaker.DEFAULT_RATED_CURRENT)
+	assert_has(ratings, MotorBreaker.DEFAULT_RATED_CURRENT)
+	for c: CircuitComponent in ExampleCircuits.build(0).circuit.get_components():
+		if c is CircuitBreaker:
+			assert_has(ratings, (c as CircuitBreaker).rated_current, c.designation)
+		elif c is MotorBreaker:
+			assert_has(ratings, (c as MotorBreaker).rated_current, c.designation)
+
+
 func test_trip_curves() -> void:
 	assert_eq(TripCurve.trip_time(TripCurve.Kind.BREAKER_C, 1.0), INF, "no trip at the rated current")
 	assert_eq(TripCurve.trip_time(TripCurve.Kind.BREAKER_B, 5.0), 0.0, "B: magnetic at 5 In")
