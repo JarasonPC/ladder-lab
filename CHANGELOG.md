@@ -33,6 +33,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   three sizes: 6 inputs / 4 outputs, 8 / 6 and 14 / 10, each with 2 analog inputs; signal
   modules (8 inputs, 8 outputs, 8 + 8, 4 analog inputs, 2 analog outputs) as many as the CPU
   takes. Its program writes the addresses as the CPU does: %I0.0, %Q0.0, %IW64, %M0.0
+- Frequency inverter (TA1) for a 3~ motor, modelled on the small Siemens drives: supply L1 L2 L3,
+  motor on U V W, control terminals DI1-DI4, 24V-0V, 10V and AI1, relay output DO2; maximum
+  frequency, ramp times, fixed frequency and where run and the setpoint come from are set in
+  its properties
 
 ### Simulation
 - Supplies of different voltages: 230 V between a phase and N, 400 V between two phases, and DC
@@ -42,6 +46,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   replaced from the right-click menu. New parts are rated 230 V; parts of older schematics work
   on any voltage as before
 - A bridge rectifier gives 207 V DC, a source of its own: joined to a DC supply it is a short
+- The frequency inverter runs its motor at its output frequency along the ramps: DI1 run, DI2
+  reverse, DI3 fixed frequency, DI4 coast stop, the setpoint 0-10 V on AI1 (from its 10V, a PLC
+  or a sensor) or from its keypad, opened by a click while simulating; the motor turns at the
+  speed of the frequency without the starting current of a direct start, DO2 closes while it
+  runs, and the timing chart shows the frequency
 - The compact CPU: inputs on with 24 V against their common 1M, transistor outputs switching
   their supply 3L+, analog inputs 0-10 V as 0-27648; changing its size keeps the wires on
   their terminals
@@ -57,6 +66,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The switchboard shows the PLC's expansion modules clipped on beside it, wired like the rest
 - The compact CPU and its signal modules in the switchboard, their terminal blocks open, with
   the status, input and output lights and the network port
+- The frequency inverter in the switchboard, dark as the real ones, with its display showing
+  the frequency, its keys and its terminals
 - The switchboard prints each breaker's characteristic and rating (B2, C16, …)
 - Terminals can be moved along their terminal strip in the switchboard
 - The incoming supply lands on the supply's strip terminals

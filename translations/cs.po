@@ -1646,6 +1646,81 @@ msgstr "8 vstupů, 8 tranzistorových výstupů 24 V DC"
 msgid "4 analog inputs 0-10 V"
 msgstr "4 analogové vstupy 0-10 V"
 
+msgid "Frequency inverter (VFD) 3~ 400 V"
+msgstr "Frekvenční měnič 3~ 400 V"
+
+msgid "Run and stop"
+msgstr "Chod a zastavení"
+
+msgid "Terminals (DI1 run, DI2 reverse)"
+msgstr "Svorky (DI1 chod, DI2 reverzace)"
+
+msgid "Keypad (I / O)"
+msgstr "Klávesnice (I / O)"
+
+msgid "Setpoint"
+msgstr "Žádaná hodnota"
+
+msgid "Analog input AI1 (0-10 V)"
+msgstr "Analogový vstup AI1 (0-10 V)"
+
+msgid "Keypad"
+msgstr "Klávesnice"
+
+msgid "Maximum frequency (Hz)"
+msgstr "Maximální frekvence (Hz)"
+
+msgid "Ramp-up time (s)"
+msgstr "Doba rozběhu (s)"
+
+msgid "Ramp-down time (s)"
+msgstr "Doba doběhu (s)"
+
+msgid "Fixed frequency, DI3 (Hz)"
+msgstr "Pevná frekvence, DI3 (Hz)"
+
+msgid "Keypad setpoint (Hz)"
+msgstr "Žádaná hodnota z klávesnice (Hz)"
+
+msgid "Supply 3 x 400 V on L1 L2 L3, the motor on U V W. DI1 runs, DI2 reverses, DI3 runs at the fixed frequency, DI4 stops the output at once (coast stop); the inputs are on with 24 V against DIC, from its own 24V-0V. AI1 takes 0-10 V (from its 10V reference, a PLC or a sensor) for 0 to the maximum frequency. DO2 closes while the motor runs. While simulating, click it for its keypad."
+msgstr "Napájení 3 x 400 V na L1 L2 L3, motor na U V W. DI1 spouští, DI2 reverzuje, DI3 jede pevnou frekvencí, DI4 hned vypne výstup (doběh volně); vstupy jsou sepnuté s 24 V proti DIC, z vlastních 24V-0V. AI1 bere 0-10 V (z vlastní reference 10V, z PLC nebo ze snímače) pro 0 až maximální frekvenci. DO2 sepne, když motor běží. Při simulaci na něj klikněte pro jeho klávesnici."
+
+#, c-format
+msgid "Keypad of %s"
+msgstr "Klávesnice %s"
+
+msgid "Reverse"
+msgstr "Reverzace"
+
+msgid "Stop"
+msgstr "Stop"
+
+#, c-format
+msgid "Setpoint %.1f Hz"
+msgstr "Žádaná hodnota %.1f Hz"
+
+msgid "Set in its properties what the keypad takes: run and stop, the setpoint."
+msgstr "V jeho vlastnostech nastavte, co ovládá klávesnice: chod a zastavení, žádanou hodnotu."
+
+msgid "Frequency inverter"
+msgstr "Frekvenční měnič"
+
+#, c-format
+msgid "%s: output off"
+msgstr "%s: výstup vypnut"
+
+#, c-format
+msgid "%s: stopping"
+msgstr "%s: zastavuje"
+
+#, c-format
+msgid "%s: runs forward at %.1f Hz"
+msgstr "%s: běží vpřed na %.1f Hz"
+
+#, c-format
+msgid "%s: runs reverse at %.1f Hz"
+msgstr "%s: běží vzad na %.1f Hz"
+
 msgid "The PLC runs the program shown here."
 msgstr "PLC vykonává program, který je zde zobrazen."
 

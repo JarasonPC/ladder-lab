@@ -58,6 +58,9 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 			_rows.append({"label": c.designation, "band": c.designation, "line": c.designation + "/armature", "step": ""})
 			if c is TimerRelay:
 				_rows.append({"label": c.designation + " ◷", "band": "", "line": c.designation + "/output", "step": ""})
+		elif c is Vfd:
+			# Output on as a step line, its frequency (of the maximum) as a line.
+			_rows.append({"label": c.designation, "band": "", "line": c.designation + "/frequency", "step": c.designation})
 		elif c is ThreePhaseMotor:
 			# Running as a step line, the shaft speed (run-down, braking) as a line.
 			_rows.append({"label": c.designation, "band": "", "line": c.designation + "/shaft", "step": c.designation})

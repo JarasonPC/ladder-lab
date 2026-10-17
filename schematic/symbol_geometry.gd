@@ -27,6 +27,11 @@ const PLC_MODULE_MIN_WIDTH: int = 10
 const PLC_ANALOG_OUTPUT_PITCH: int = 4
 ## Temperature sensor: its output U beside L+.
 const SENSOR_OUTPUT_CELL := Vector2i(2, 0)
+## Frequency inverter: height (as a PLC's), where its control terminals
+## start, its width from the left edge of its box.
+const VFD_HEIGHT: int = 6
+const VFD_CONTROL_X: int = 10
+const VFD_WIDTH: int = 28
 
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
@@ -58,6 +63,10 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		result[names[0]] = Vector2i.ZERO
 		result[names[1]] = Vector2i(0, SPAN)
 		result[names[2]] = SENSOR_OUTPUT_CELL
+		return result
+	if c is Vfd:
+		for i: int in names.size():
+			result[names[i]] = vfd_terminal_cell(i)
 		return result
 	if c is Rectifier:
 		# AC input ~1 ~2 on top, DC output + - below.
@@ -104,6 +113,8 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if c is TemperatureSensor:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
+	if c is Vfd:
+		return DIR_UP if names.find(terminal_name) >= Vfd.FIRST_BOTTOM else DIR_DOWN
 	if names.size() == 3:
 		return DIR_UP if terminal_name == names[0] else DIR_DOWN
 	if names.size() != 2:
@@ -168,6 +179,8 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-1.1, 0.9, plc_width(c as Plc) + 0.2, PLC_HEIGHT - 1.8)
 	if c is TemperatureSensor:
 		return Rect2(-0.95, 0.75, 3.9, 1.5)
+	if c is Vfd:
+		return Rect2(-1.1, 0.9, VFD_WIDTH + 0.2, VFD_HEIGHT - 1.8)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
 
 
@@ -257,6 +270,19 @@ static func plc_module_width(plc: Plc, m: int) -> int:
 static func plc_width(plc: Plc) -> int:
 	var origins: PackedInt32Array = plc_module_origins(plc)
 	return origins[origins.size() - 1] + plc_module_width(plc, plc.modules.size() - 1)
+
+
+## Cell of frequency inverter terminal [param index]: L1 L2 L3 PE and then
+## the control terminals along the top, U V W and the relay output DO2
+## below, two cells apart.
+static func vfd_terminal_cell(index: int) -> Vector2i:
+	if index < Vfd.REF_10V:
+		return Vector2i(index * POLE_SPACING, 0)
+	if index < Vfd.FIRST_BOTTOM:
+		return Vector2i(VFD_CONTROL_X + (index - Vfd.REF_10V) * POLE_SPACING, 0)
+	if index < Vfd.DO2C:
+		return Vector2i((index - Vfd.FIRST_BOTTOM) * POLE_SPACING, VFD_HEIGHT)
+	return Vector2i(VFD_CONTROL_X + (index - Vfd.DO2C) * PLC_OUTPUT_PITCH, VFD_HEIGHT)
 
 
 static func _is_three_pole(c: CircuitComponent) -> bool:

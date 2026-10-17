@@ -341,6 +341,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif c is TemperatureSensor:
 				_open_temperature(c as TemperatureSensor)
 				get_viewport().set_input_as_handled()
+			elif c is Vfd:
+				_open_keypad(c as Vfd)
+				get_viewport().set_input_as_handled()
 			elif c is PageConnector:
 				var targets: Array[Dictionary] = document.connector_targets(c.id)
 				if not targets.is_empty():
@@ -404,6 +407,71 @@ func set_temperature(designation: String, celsius: float) -> void:
 		return
 	sensor.temperature = clampf(celsius, TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
 	_apply(simulator.step())
+
+
+## Runs ([param run]) or stops frequency inverter [param designation] from its
+## keypad, in [param reverse] or forward, at [param hz] (keypad setpoint;
+## negative keeps it).
+func operate_keypad(designation: String, run: bool, reverse: bool, hz: float = -1.0) -> void:
+	var drive: Vfd = document.circuit.get_component(designation) as Vfd if document != null else null
+	if not simulating or drive == null:
+		return
+	drive.keypad_run = run
+	drive.keypad_reverse = reverse
+	if hz >= 0.0:
+		drive.keypad_frequency = clampf(hz, 0.0, drive.max_frequency)
+	_apply(simulator.step())
+
+
+## The keypad of [param drive] under the mouse: I (run), O (stop), the
+## direction and the keypad setpoint.
+func _open_keypad(drive: Vfd) -> void:
+	var popup: PopupPanel = PopupPanel.new()
+	popup.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	var box: VBoxContainer = VBoxContainer.new()
+	box.custom_minimum_size = Vector2(260, 0)
+	popup.add_child(box)
+	var caption: Label = Label.new()
+	caption.text = tr("Keypad of %s") % drive.designation
+	box.add_child(caption)
+	var designation: String = drive.designation
+	var keys: HBoxContainer = HBoxContainer.new()
+	box.add_child(keys)
+	var reverse: CheckBox = CheckBox.new()
+	reverse.text = tr("Reverse")
+	reverse.button_pressed = drive.keypad_reverse
+	for key: Array in [["I", true], ["O", false]]:
+		var button: Button = Button.new()
+		button.text = key[0]
+		button.custom_minimum_size = Vector2(56, 34)
+		button.tooltip_text = tr("Run") if key[1] else tr("Stop")
+		var run: bool = key[1]
+		button.pressed.connect(func() -> void: operate_keypad(designation, run, reverse.button_pressed))
+		keys.add_child(button)
+	keys.add_child(reverse)
+	reverse.toggled.connect(func(on: bool) -> void: operate_keypad(designation, drive.keypad_run, on))
+	var slider: HSlider = HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = drive.max_frequency
+	slider.step = 0.5
+	slider.value = drive.keypad_frequency
+	box.add_child(slider)
+	var value: Label = Label.new()
+	value.text = tr("Setpoint %.1f Hz") % drive.keypad_frequency
+	box.add_child(value)
+	slider.value_changed.connect(func(v: float) -> void:
+		value.text = tr("Setpoint %.1f Hz") % v
+		operate_keypad(designation, drive.keypad_run, drive.keypad_reverse, v))
+	if drive.control != Vfd.Command.KEYPAD or drive.setpoint != Vfd.Setpoint.KEYPAD:
+		var note: Label = Label.new()
+		note.theme_type_variation = "MutedLabel"
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size = Vector2(240, 0)
+		note.text = tr("Set in its properties what the keypad takes: run and stop, the setpoint.")
+		box.add_child(note)
+	popup.popup_hide.connect(popup.queue_free)
+	add_child(popup)
+	popup.popup(Rect2i(Vector2i(get_viewport().get_mouse_position()) + Vector2i(12, 12), Vector2i.ZERO))
 
 
 ## A slider under the mouse setting the temperature at [param sensor], a

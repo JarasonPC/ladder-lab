@@ -18,7 +18,7 @@ signal operate_requested(designation: String)
 signal edit_requested(change: Callable)
 
 ## English names of [enum CabinetDevices.Kind] (translated with tr()).
-const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay", "Bridge rectifier", "PLC"]
+const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay", "Bridge rectifier", "PLC", "Frequency inverter"]
 
 var _document: SchematicDocument
 var _editing: bool = false

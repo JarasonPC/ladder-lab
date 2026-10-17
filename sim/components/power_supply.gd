@@ -27,9 +27,15 @@ const BIT_DC_220: int = 512
 ## The + of a bridge rectifier ([constant RECTIFIED_VOLTS]).
 const BIT_DC_RECTIFIED: int = 1024
 const DC_PLUS_BITS: int = BIT_DC_PLUS | BIT_DC_12 | BIT_DC_48 | BIT_DC_110 | BIT_DC_220 | BIT_DC_RECTIFIED
+## The motor outputs U V W of frequency inverters (an AC source of their
+## own, at their frequency).
+const BIT_VFD_U: int = 2048
+const BIT_VFD_V: int = 4096
+const BIT_VFD_W: int = 8192
+const VFD_BITS: int = BIT_VFD_U | BIT_VFD_V | BIT_VFD_W
 ## Bits of the AC source and of the DC source: a load works between two
 ## conductors of the same source only.
-const AC_BITS: int = BIT_L1 | BIT_L2 | BIT_L3 | BIT_N
+const AC_BITS: int = BIT_L1 | BIT_L2 | BIT_L3 | BIT_N | VFD_BITS
 const DC_BITS: int = DC_PLUS_BITS | BIT_DC_MINUS
 ## Volts between a phase and N.
 const PHASE_VOLTS: float = 230.0

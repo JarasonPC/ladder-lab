@@ -233,7 +233,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: A = PLC, BT = temperature sensor, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
+- Device designations: A = PLC, BT = temperature sensor, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
@@ -299,6 +299,24 @@ Architecture and conventions of the code base. Read this before changing the cod
   drawn as a converter (box with a diagonal, θ in, U out; TemperatureSensorSymbol), its range,
   temperature and volts written beside it; while simulating a click opens a slider
   (SchematicView.set_temperature); outside the switchboard like buttons and lamps
+- Frequency inverter (Vfd, "TA1", modelled on the small Siemens drives, never with maker names or
+  type designations; CabinetDevices.Kind.VFD): supply L1 L2 L3 (all three phases or it does
+  nothing; PE not simulated), motor output U V W, control terminals 10V AI1 0V DI1-DI4 DIC 24V and
+  the relay output DO2 (C-NO, closed while the motor runs). DI1 run, DI2 reverse, DI3 fixed
+  frequency, DI4 coast stop (OFF2), on with 24 V against DIC (Vfd.INPUT_THRESHOLD); run / stop
+  from the terminals or the keypad (Vfd.control), the setpoint from AI1 0-10 V or the keypad
+  (Vfd.setpoint; a click while simulating opens its keypad, SchematicView.operate_keypad); the
+  output frequency follows the target along the ramps (Vfd.advance; IDEAL: snap), through 0
+  when reversing. The simulator: its 24V-0V a DC source and its 10V an analog source while it
+  has its supply, its output nets source bits of their own (PowerSupply.BIT_VFD_U/V/W, AC,
+  mains on them is a short, V and W swapped in reverse) that the motors take as phases; a motor
+  on them runs at frequency ThreePhaseMotor.frequency (fraction of 50 Hz): with V/f the torque
+  and the currents depend on the slip frequency alone, so MotorModel is solved at the speed
+  shifted by (1 - frequency) in the field's direction (ThreePhaseMotor._solve); it draws on
+  its supply the power its motors take, balanced (Simulator._drive_input_draws). Symbol
+  (VfdSymbol): a converter box with a diagonal, "3~ 50 Hz" / "3~ f", the frequency in a window;
+  switchboard (CabinetParts.vfd): 90 x 150 mm, dark, heat sink fins over the supply terminals,
+  display, O I M OK and arrow keys, warning label, control and motor terminals at the bottom
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)

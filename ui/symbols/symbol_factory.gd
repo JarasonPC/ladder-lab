@@ -31,6 +31,8 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = PlcSymbol.new()
 	elif component is TemperatureSensor:
 		symbol = TemperatureSensorSymbol.new()
+	elif component is Vfd:
+		symbol = VfdSymbol.new()
 	elif component is Lamp:
 		symbol = LampSymbol.new()
 	elif component is Motor:
