@@ -1,5 +1,7 @@
 extends GutTest
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const PATH: String = "user://test_project_file.ladder"
 
 
@@ -9,7 +11,7 @@ func after_all() -> void:
 
 func test_save_and_load_every_example() -> void:
 	for index: int in ExampleCircuits.count() * 2:
-		var doc: SchematicDocument = ExampleCircuits.build(index / 2, index % 2 == 1)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index / 2, index % 2 == 1))
 		assert_eq(ProjectFile.save(doc, PATH), OK)
 		var result: Dictionary = ProjectFile.load_file(PATH)
 		assert_true(result.has("document"), "%s loads" % doc.title)
@@ -17,7 +19,7 @@ func test_save_and_load_every_example() -> void:
 
 
 func test_file_is_readable_json_with_version() -> void:
-	ProjectFile.save(ExampleCircuits.self_cutoff(), PATH)
+	ProjectFile.save(ExamplePower.on(ExampleCircuits.self_cutoff()), PATH)
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PATH))
 	assert_eq(data["format"], "ladder-lab")
 	assert_eq(int(data["version"]), ProjectFile.VERSION)
@@ -50,7 +52,7 @@ func test_version_1_files_load_with_default_times() -> void:
 
 
 func test_switching_times_and_mode_are_saved() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	doc.realistic_timing = false
 	doc.replace_component("KM1", Coil.new("KM1", Coil.Kind.CONTACTOR, 0.035, 0.025))
 	ProjectFile.save(doc, PATH)

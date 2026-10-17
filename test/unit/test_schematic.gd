@@ -1,5 +1,7 @@
 extends GutTest
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 
 func test_rotated_terminals() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
@@ -20,16 +22,16 @@ func test_mirrored_terminals_and_lead() -> void:
 
 
 func test_transpose_makes_horizontal_paths() -> void:
-	var doc: SchematicDocument = ExampleCircuits.build(0, true)
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(0, true))
 	assert_true(doc.horizontal)
-	assert_eq(doc.terminal_cell("SB1:13"), Vector2i(12, 5))
-	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(15, 5))
+	assert_eq(doc.terminal_cell("SB1:13"), Vector2i(17, 16))
+	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(20, 16))
 	var cells: Array[Vector2i] = doc.junction_cells()
 	cells.sort()
-	assert_eq(cells, [Vector2i(6, 5), Vector2i(11, 5), Vector2i(16, 5), Vector2i(22, 5)] as Array[Vector2i])
+	assert_eq(cells, [Vector2i(6, 16), Vector2i(16, 16), Vector2i(20, 16), Vector2i(27, 16)] as Array[Vector2i])
 	doc.transpose()
 	assert_false(doc.horizontal)
-	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(5, 15))
+	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(16, 20))
 
 
 func test_rotated_body_hit() -> void:
@@ -40,23 +42,23 @@ func test_rotated_body_hit() -> void:
 
 
 func test_component_at() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
-	assert_eq(doc.component_at(Vector2(5.0, 13.5)).id, "SB1:13-14")
-	assert_eq(doc.component_at(Vector2(8.0, 13.5)).id, "KM1:13-14")
-	assert_eq(doc.component_at(Vector2(5.0, 18.5)).id, "KM1")
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
+	assert_eq(doc.component_at(Vector2(16.0, 18.5)).id, "SB1:13-14")
+	assert_eq(doc.component_at(Vector2(20.0, 18.5)).id, "KM1:13-14")
+	assert_eq(doc.component_at(Vector2(16.0, 23.5)).id, "KM1")
 	assert_null(doc.component_at(Vector2(0.0, 0.0)))
 
 
 func test_junction_dots() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	var cells: Array[Vector2i] = doc.junction_cells()
 	cells.sort()
-	assert_eq(cells, [Vector2i(5, 6), Vector2i(5, 11), Vector2i(5, 16), Vector2i(5, 22)] as Array[Vector2i])
+	assert_eq(cells, [Vector2i(16, 6), Vector2i(16, 16), Vector2i(16, 20), Vector2i(16, 27)] as Array[Vector2i])
 
 
 func test_examples_are_consistent() -> void:
 	for index: int in ExampleCircuits.count() * 2:
-		var doc: SchematicDocument = ExampleCircuits.build(index / 2, index % 2 == 1)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index / 2, index % 2 == 1))
 		assert_not_null(doc, "example %d builds" % index)
 		assert_eq(doc.get_wire_count(), doc.circuit.get_wires().size())
 		for c: CircuitComponent in doc.circuit.get_components():
@@ -74,7 +76,7 @@ func test_wires_do_not_cross_symbol_bodies() -> void:
 	# A wire running through a symbol would look like a connection that is not there.
 	var crossings: PackedStringArray = PackedStringArray()
 	for index: int in ExampleCircuits.count() * 2:
-		var doc: SchematicDocument = ExampleCircuits.build(index / 2, index % 2 == 1)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index / 2, index % 2 == 1))
 		for w: int in doc.get_wire_count():
 			doc.page = doc.wire_page(w)
 			var points: Array[Vector2i] = doc.wire_points(w)
@@ -152,3 +154,19 @@ func test_blades_keep_their_length_while_moving() -> void:
 			var tip: Vector2 = SchematicSymbol.blade_tip(pivot, blade[1], blade[2], step / 10.0)
 			assert_almost_eq(pivot.distance_to(tip), length, 0.1, "the blade turns, never shrinks")
 		assert_almost_eq(SchematicSymbol.blade_tip(pivot, blade[1], blade[2], 1.0), blade[2], Vector2(0.01, 0.01))
+
+
+func test_examples_have_a_motor_and_field_terminals() -> void:
+	for index: int in ExampleCircuits.count():
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index))
+		var motors: int = 0
+		var coils: int = 0
+		for c: CircuitComponent in doc.circuit.get_components():
+			if c is ThreePhaseMotor:
+				motors += 1
+			elif c is Coil:
+				coils += 1
+			if c is PushButton or c is LatchingSwitch or c is Lamp:
+				assert_eq(doc.get_placement(c.id).strips.size(), c.get_terminal_names().size(), "%s: every terminal of %s on a strip terminal" % [doc.title, c.id])
+		assert_gt(motors, 0, doc.title + ": power circuit with a motor")
+		assert_gt(coils, 0, doc.title + ": control circuit")

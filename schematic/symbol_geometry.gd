@@ -14,7 +14,7 @@ const POLE_SPACING: int = 2
 ## Distance in cells between the upper and lower terminals of a motor.
 const MOTOR_HEIGHT: int = 4
 ## PE terminal of a three-phase motor: below left of the motor circle.
-const MOTOR_PE_CELL := Vector2i(-1, 4)
+const MOTOR_PE_CELL := Vector2i(-2, 4)
 ## PLC: distance in cells between its upper and lower terminals, and from
 ## one output to the next (each output's two terminals are POLE_SPACING apart).
 const PLC_HEIGHT: int = 6

@@ -2,6 +2,8 @@ extends GutTest
 ## Control boxes of the operator panel: editing them in the document, saving,
 ## following renamed devices, and operating the circuit through them.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 
@@ -131,18 +133,18 @@ func test_renaming_a_device_renames_its_items() -> void:
 
 func test_examples_have_a_control_box() -> void:
 	for index: int in ExampleCircuits.count():
-		var doc: SchematicDocument = ExampleCircuits.build(index)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index))
 		var devices: int = 0
 		for kind: int in 3:
 			devices += doc.control_devices(kind).size()
 		assert_eq(doc.control_boxes.is_empty(), devices == 0, doc.title)
-	var forward_reverse: SchematicDocument = ExampleCircuits.forward_reverse()
+	var forward_reverse: SchematicDocument = ExamplePower.on(ExampleCircuits.forward_reverse())
 	var items: Array[ControlBoxItem] = forward_reverse.control_boxes[0].items
 	assert_eq([items[0].label, items[0].lamp, items[2].color], ["Forward", "H1", "red"])
 
 
 func test_control_box_operates_the_simulation() -> void:
-	var doc: SchematicDocument = ExampleCircuits.build(1)
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(1))
 	var view: SchematicView = SchematicView.new()
 	add_child_autofree(view)
 	view.load_document(doc, true)
@@ -160,7 +162,7 @@ func test_control_box_operates_the_simulation() -> void:
 
 
 func test_control_box_switch_toggles() -> void:
-	var doc: SchematicDocument = ExampleCircuits.build(2)
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(2))
 	var view: SchematicView = SchematicView.new()
 	add_child_autofree(view)
 	view.load_document(doc, true)

@@ -48,9 +48,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   with its contacts, blocks of one button); renaming a coil or overload relay renames its contacts. Renaming a terminal to the name of
   another terminal of the same part swaps the two (coils: also a "Swap A1 and A2" button; a
   time relay's A1/A2 are only swapped, never renamed; its S counts against whichever is A2)
-- Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead
-  (Placement.strips: terminal index -> label, drawn instead of the square; Delete on the selected
-  mark removes it); wire segments can be dragged; wire
+- Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead, supply
+  points included (Placement.strips: terminal index -> label, drawn instead of the square, a
+  label of another strip than X1 on two lines, strip over number; Delete on the selected mark
+  removes it, a right click on a lead adds or removes one); wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal right next to its square,
   a short wire once at its upper/left end, draggable offsets) via the
   numbering tool or double click; side panels (palette, properties + check, control panel) are
@@ -67,6 +68,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   (with the check results) shows in Edit mode only while something is selected or the check
   results are shown; by default (no settings saved yet) the control panel and the switchboard
   are off and the timing chart and event log rolled in
+- Built-in examples (ExampleCircuits): each has a power circuit with a motor on the left (L1 L2
+  L3 on top) and its control circuit on the right; circuit breakers FA1 (C16, three poles) for
+  the power circuit and FA2 (B2) for the control circuit; everything outside the switchboard on
+  terminal strips: the supply on X1 (one terminal per conductor, "X1:L1" .. "X1:PE"), buttons,
+  switches and lamps on X2, motors with their PE on X3; a PE supply point under every motor
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -108,8 +114,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   auxiliary block beyond two auxiliary contacts, the overload relay fitted under the contactor its
   heaters follow, relays one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
   3-4: wide socket), time relays 1-3 changeover contacts, bridge rectifiers one dark module, PLCs
-  four modules in Siemens grey; terminal strips from terminal labels
-  ("X2:4" = strip X2, plain "4" = strip X1). Wired after the circuit (CabinetWiring): each net
+  four modules in Siemens grey; breakers print their characteristic and rating ("B2", "C16");
+  terminal strips from terminal labels ("X2:4" = strip X2, plain "4" = strip X1), their
+  terminals in the order set in the sidebar (SchematicDocument.strip_orders, saved; arrows move
+  the picked terminals along the strip), else by label. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree, every wire straight from its terminal
   to the duct over or under its rail, in through a slot between the fingers, along the duct in a
   lane of its own (down a side duct to another duct); a contactor with its overload relay under
@@ -122,7 +130,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   top of strip terminals, wires near each other share the nearest slot; the supply comes in
   from outside: one cable per source (AC, DC) through a gland in the top of the enclosure, one
   core per supply conductor (L1 L2 L3 N PE, + -) straight down into the top duct to the first
-  terminal it feeds. Strip terminals leading to parts outside (CabinetDevices.is_outside:
+  terminal it feeds, or onto the field side (bottom entry) of the strip terminal on a supply
+  point's lead. Strip terminals leading to parts outside (CabinetDevices.is_outside:
   buttons, switches, lamps, motors; field_device finds the part: the one whose lead the
   terminal is on, else the first on its net) send field wires out of their bottom entries to
   the bottom duct and out through a gland in the bottom of the enclosure, one cable per part
@@ -271,7 +280,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   relay has rated_current (relay: setting Ir) and TripCurve heat (simulation state): progress +=
   dt / trip time of the curve (breakers B/C/D thermal per ČSN EN 60898 with magnetic release at
   5/10/20 In tripping at once; fuses gG; overload relays class 10), cooling below the lowest
-  point; CircuitComponent.heat_up / time_to_heat_trip / trips_instantly, driven by the
+  point; a trip keeps the heat, which cools down from there (a breaker switched on or an
+  overload relay reset while still hot trips sooner; a replaced fuse is cold); CircuitComponent.heat_up / time_to_heat_trip / trips_instantly, driven by the
   Simulator with the path currents of the last evaluation (event-driven in REALISTIC). Breakers
   trip all poles on the largest pole current, fuses per pole, the relay on its largest heater;
   a 0-pole relay (and the injected overloaded fault) still uses trip_delay
@@ -292,7 +302,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Translations: English source text in tr()/tr_n(); regenerate `translations/ladder_lab.pot`
   when UI text changes and update `cs.po` (keep reviewed translations)
 - `translations/` gettext: English source text in tr(), `ladder_lab.pot` template, `cs.po` Czech
-- `test/unit/` GUT tests
+- `test/unit/` GUT tests; example_power.gd switches on the breakers of a built-in example
+  (they start switched off like every breaker)
 
 ## Versioning
 

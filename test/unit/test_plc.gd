@@ -5,6 +5,8 @@ extends GutTest
 ## L - S1 (button NO 13-14) - A1 I1;  L - S2 (button NC 11-12) - A1 I2
 ## L - A1 Q1.1, A1 Q1.2 - H1 - N;  L - A1 Q2.1, A1 Q2.2 - H2 - N
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 
@@ -422,7 +424,7 @@ func test_operands() -> void:
 
 func test_example_runs_in_both_languages() -> void:
 	for language: int in [PlcProgram.Language.FBD, PlcProgram.Language.LAD]:
-		var doc: SchematicDocument = ExampleCircuits.plc_start_stop()
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.plc_start_stop())
 		(doc.circuit.get_component("A1") as Plc).program.language = language as PlcProgram.Language
 		var example_sim: Simulator = Simulator.new(doc.circuit)
 		example_sim.step()

@@ -242,3 +242,23 @@ func test_plc_terminals_keep_their_marking_when_renamed() -> void:
 	var plc: Dictionary = CabinetDevices.describe(doc, "A1")
 	assert_eq(plc["terminals"]["I1"], "A1:START")
 	assert_eq(plc["names"]["I1"], "START", "printed with the name of the schematic")
+
+
+func _strip_labels(doc: SchematicDocument, strip: String) -> Array:
+	var labels: Array = []
+	for t: Dictionary in CabinetDevices.strips(doc).get(strip, []):
+		labels.append(t["label"])
+	return labels
+
+
+func test_strip_terminals_move_along_the_strip() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(9)
+	assert_eq(_strip_labels(doc, "X3"), ["1", "2", "3", "4", "5", "6", "7"], "U1 V1 W1 U2 V2 W2 PE of the motor")
+	assert_true(doc.move_strip_terminals_along("X3", PackedStringArray(["4"]), -1))
+	assert_eq(_strip_labels(doc, "X3"), ["1", "2", "4", "3", "5", "6", "7"])
+	assert_false(doc.move_strip_terminals_along("X3", PackedStringArray(["1"]), -1), "the first one stays")
+	assert_true(doc.move_strip_terminals_along("X3", PackedStringArray(["5", "6"]), 1))
+	assert_eq(_strip_labels(doc, "X3"), ["1", "2", "4", "3", "7", "5", "6"], "picked terminals move together")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(_strip_labels(copy, "X3"), ["1", "2", "4", "3", "7", "5", "6"], "the order is saved")
+

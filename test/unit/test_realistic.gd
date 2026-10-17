@@ -1,6 +1,8 @@
 extends GutTest
 ## Realistic switching: armatures take time, NC breaks before NO makes.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 
@@ -91,7 +93,7 @@ func test_release_opens_no_before_nc_closes() -> void:
 
 
 func test_self_holding_needs_full_pick_up() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	var sim: Simulator = _sim(doc)
 	var start: PushButton = doc.circuit.get_component("SB1") as PushButton
 	var k1: Coil = doc.circuit.get_coil("KM1")
@@ -110,7 +112,7 @@ func test_self_holding_needs_full_pick_up() -> void:
 
 
 func test_forward_reverse_race_has_one_winner() -> void:
-	var doc: SchematicDocument = ExampleCircuits.forward_reverse()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.forward_reverse())
 	var sim: Simulator = _sim(doc)
 	(doc.circuit.get_component("SB1") as PushButton).press()
 	(doc.circuit.get_component("SB2") as PushButton).press()
@@ -124,7 +126,7 @@ func test_forward_reverse_race_has_one_winner() -> void:
 
 
 func test_self_cutoff_chatters_at_expected_rate() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_cutoff()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_cutoff())
 	var sim: Simulator = _sim(doc)
 	(doc.circuit.get_component("SB1") as PushButton).press()
 	var r: StepResult = _run(sim, 0.6)
@@ -136,7 +138,7 @@ func test_self_cutoff_chatters_at_expected_rate() -> void:
 
 
 func test_on_delay_adds_output_pick_up() -> void:
-	var doc: SchematicDocument = ExampleCircuits.time_relays()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.time_relays())
 	var sim: Simulator = _sim(doc)
 	var kt1: TimerRelay = doc.circuit.get_coil("KT1") as TimerRelay
 	(doc.circuit.get_component("RB1") as LatchingSwitch).set_switched_on(true)

@@ -2,6 +2,8 @@ extends GutTest
 ## DC supply points + / -, DC braking of three-phase motors and the run-down
 ## of the shaft after switching off.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const K := ThreePhaseMotor.Kind
 const ST := ThreePhaseMotor.State
@@ -146,7 +148,7 @@ func test_dc_on_a_motor_brakes_and_with_a_phase_is_miswired() -> void:
 
 func test_motor_runs_down_after_switching_off() -> void:
 	for realistic: bool in [false, true]:
-		var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
 		var sim: Simulator = _sim(doc, realistic)
 		_press(doc, sim, "SB1")
 		_run(sim, 3.0)
@@ -166,7 +168,7 @@ func test_motor_runs_down_after_switching_off() -> void:
 
 func test_dc_braking_example_stops_the_motor_quickly() -> void:
 	for realistic: bool in [false, true]:
-		var doc: SchematicDocument = ExampleCircuits.dc_braking()
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.dc_braking())
 		var sim: Simulator = _sim(doc, realistic)
 		var m: ThreePhaseMotor = _motor(doc)
 		_press(doc, sim, "SB1")

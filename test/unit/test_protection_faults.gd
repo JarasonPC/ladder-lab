@@ -2,6 +2,8 @@ extends GutTest
 ## Fuses, breakers, overload relays, faults, multi-block buttons, changeover
 ## contacts and custom terminal names.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 
@@ -90,7 +92,7 @@ func test_breaker_trips_resets_and_switches() -> void:
 
 
 func test_overload_relay_trips_after_delay_and_resets() -> void:
-	doc = ExampleCircuits.star_delta()
+	doc = ExamplePower.on(ExampleCircuits.star_delta())
 	sim = Simulator.new(doc.circuit)
 	var relay: OverloadRelay = doc.circuit.get_overload_relay("F1")
 	assert_not_null(relay)
@@ -115,7 +117,7 @@ func test_overload_relay_trips_after_delay_and_resets() -> void:
 
 
 func test_overload_relay_test_button_trips_by_hand() -> void:
-	doc = ExampleCircuits.star_delta()
+	doc = ExamplePower.on(ExampleCircuits.star_delta())
 	sim = Simulator.new(doc.circuit)
 	var relay: OverloadRelay = doc.circuit.get_overload_relay("F1")
 	(doc.circuit.get_component("SB2") as PushButton).press()
@@ -133,7 +135,7 @@ func test_overload_relay_test_button_trips_by_hand() -> void:
 	assert_false(relay.tripped)
 
 func test_contact_faults() -> void:
-	doc = ExampleCircuits.self_holding()
+	doc = ExamplePower.on(ExampleCircuits.self_holding())
 	sim = Simulator.new(doc.circuit)
 	var hold: Contact = doc.circuit.get_component("KM1:13-14") as Contact
 	hold.fault = SwitchingElement.Fault.WELDED
@@ -154,7 +156,7 @@ func test_contact_faults() -> void:
 
 
 func test_coil_faults() -> void:
-	doc = ExampleCircuits.self_holding()
+	doc = ExamplePower.on(ExampleCircuits.self_holding())
 	sim = Simulator.new(doc.circuit)
 	var k1: Coil = doc.circuit.get_coil("KM1")
 	k1.fault = Coil.Fault.OPEN
@@ -174,7 +176,7 @@ func test_coil_faults() -> void:
 
 
 func test_broken_wire() -> void:
-	doc = ExampleCircuits.self_holding()
+	doc = ExamplePower.on(ExampleCircuits.self_holding())
 	sim = Simulator.new(doc.circuit)
 	var lamp_wire: int = -1
 	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
@@ -243,12 +245,12 @@ func test_changeover_contact() -> void:
 
 
 func test_custom_terminals_rename_and_swap_keep_wires() -> void:
-	doc = ExampleCircuits.self_holding()
+	doc = ExamplePower.on(ExampleCircuits.self_holding())
 	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("KM1"))
 	data["terminals"] = ["A2", "A1"]
 	assert_true(doc.replace_component("KM1", DocumentSerializer.component_from_dict(data)))
 	assert_eq(doc.circuit.get_component("KM1").get_terminal_names(), PackedStringArray(["A2", "A1"]))
-	assert_eq(doc.terminal_cell("KM1:A2"), Vector2i(5, 17), "A2 now at the top")
+	assert_eq(doc.terminal_cell("KM1:A2"), Vector2i(16, 22), "A2 now at the top")
 	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
 	assert_true(wires.any(func(w: PackedStringArray) -> bool: return w[0] == "SB1:14" and w[1] == "KM1:A2"), "the top wire stays at the top")
 	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("SB1:13-14"))
@@ -278,7 +280,7 @@ func test_check_reports_overload_contact_without_relay() -> void:
 
 
 func _reversing(realistic: bool) -> void:
-	doc = ExampleCircuits.forward_reverse_buttons()
+	doc = ExamplePower.on(ExampleCircuits.forward_reverse_buttons())
 	sim = Simulator.new(doc.circuit)
 	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
 	var fwd: PushButton = doc.circuit.get_component("SB1") as PushButton

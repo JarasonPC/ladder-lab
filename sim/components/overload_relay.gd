@@ -79,10 +79,11 @@ func test_trip() -> bool:
 	return true
 
 
+## Resets the trip; the heaters keep their heat and cool down on their own,
+## so a motor started again while they are still hot trips sooner.
 func reset() -> void:
 	tripped = false
 	elapsed = 0.0
-	heat.progress = 0.0
 
 
 ## Counts the injected overload; returns true when the relay trips during [param delta].
@@ -115,7 +116,6 @@ func heat_up(dt: float, currents: PackedFloat32Array) -> bool:
 	current = TripCurve.largest(currents)
 	if _heat().advance(dt, current) and not tripped:
 		tripped = true
-		heat.progress = 0.0
 		return true
 	return false
 

@@ -2,6 +2,8 @@ extends GutTest
 ## Phase 7: three-phase supplies, main contacts, three-pole protection and
 ## three-phase motors (direction, star/delta, Dahlander, separate windings).
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const K := ThreePhaseMotor.Kind
 const ST := ThreePhaseMotor.State
@@ -121,7 +123,7 @@ func test_motor_evaluation() -> void:
 
 func test_direct_on_line_runs_clockwise() -> void:
 	for realistic: bool in [false, true]:
-		var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
 		var sim: Simulator = _sim(doc, realistic)
 		assert_eq(_motor(doc).state, ST.STOPPED)
 		_press(doc, sim, "SB1")
@@ -132,7 +134,7 @@ func test_direct_on_line_runs_clockwise() -> void:
 
 
 func test_forward_reverse_turns_both_ways() -> void:
-	var doc: SchematicDocument = ExampleCircuits.forward_reverse_3()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.forward_reverse_3())
 	var sim: Simulator = _sim(doc, true)
 	_press(doc, sim, "SB1")
 	assert_eq(_motor(doc).direction, CW, "KM1 forward")
@@ -146,7 +148,8 @@ func test_forward_reverse_turns_both_ways() -> void:
 
 
 func test_phase_loss_trips_the_overload_relay() -> void:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
+	doc.replace_component("FA1:1-2-3-4-5-6", ThreePoleFuse.new("FU1"))
 	var sim: Simulator = _sim(doc)
 	_press(doc, sim, "SB1")
 	(doc.circuit.get_component("FU1") as ThreePoleFuse).blown[1] = 1
@@ -165,7 +168,7 @@ func test_phase_loss_trips_the_overload_relay() -> void:
 
 
 func test_overloaded_motor_trips_its_relay() -> void:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
 	var sim: Simulator = _sim(doc)
 	_motor(doc).overloaded = true
 	sim.step(10.0)
@@ -180,7 +183,7 @@ func test_overloaded_motor_trips_its_relay() -> void:
 
 
 func test_star_delta_3_switches_without_short() -> void:
-	var doc: SchematicDocument = ExampleCircuits.star_delta_3()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.star_delta_3())
 	var sim: Simulator = _sim(doc, true)
 	var start: PushButton = doc.circuit.get_component("SB2") as PushButton
 	start.press()
@@ -195,7 +198,7 @@ func test_star_delta_3_switches_without_short() -> void:
 
 
 func test_dahlander_speeds() -> void:
-	var doc: SchematicDocument = ExampleCircuits.dahlander()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.dahlander())
 	var sim: Simulator = _sim(doc, true)
 	var texts: PackedStringArray = _press(doc, sim, "SB1")
 	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "low speed")
@@ -209,7 +212,7 @@ func test_dahlander_speeds() -> void:
 
 
 func test_dahlander_both_speeds_is_miswired() -> void:
-	var doc: SchematicDocument = ExampleCircuits.dahlander()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.dahlander())
 	var sim: Simulator = _sim(doc)
 	(doc.circuit.get_component("KM2:1-2-3-4-5-6") as MainContacts).fault = SwitchingElement.Fault.WELDED
 	_press(doc, sim, "SB1")
@@ -220,7 +223,7 @@ func test_dahlander_both_speeds_is_miswired() -> void:
 
 
 func test_two_windings_speeds() -> void:
-	var doc: SchematicDocument = ExampleCircuits.two_windings()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.two_windings())
 	var sim: Simulator = _sim(doc, true)
 	var texts: PackedStringArray = _press(doc, sim, "SB2")
 	assert_eq([_motor(doc).state, _motor(doc).speed], [ST.RUNNING, 1], "SB2 low speed")
@@ -296,14 +299,14 @@ func test_supply_designations_follow_the_conductor() -> void:
 
 func test_examples_have_no_check_errors() -> void:
 	for index: int in range(7, ExampleCircuits.count()):
-		var doc: SchematicDocument = ExampleCircuits.build(index)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index))
 		assert_eq(CircuitCheck.run(doc), [] as Array[Dictionary], doc.title)
 		assert_eq(doc.circuit.get_wires().size(), doc.get_wire_count())
 
 
 func test_three_phase_round_trip() -> void:
 	for index: int in range(7, ExampleCircuits.count()):
-		var doc: SchematicDocument = ExampleCircuits.build(index)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index))
 		var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 		assert_not_null(copy, doc.title)
 		assert_eq(DocumentSerializer.to_dict(copy), DocumentSerializer.to_dict(doc), doc.title)
@@ -313,7 +316,7 @@ func test_motor_pe_terminal() -> void:
 	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M1", K.THREE_WINDINGS)
 	assert_eq(motor.get_terminal_names()[motor.winding_terminal_count()], "PE")
 	assert_eq(motor.winding_terminal_count(), 9)
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
 	assert_eq(doc.terminal_cell("M1:PE"), doc.get_placement("M1").cell + SymbolGeometry.MOTOR_PE_CELL)
 	# PE does not count as a winding: the motor still runs clockwise.
 	var sim: Simulator = _sim(doc)

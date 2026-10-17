@@ -1273,8 +1273,8 @@ msgstr "Stránky projektu"
 msgid "The license text is missing; see %s"
 msgstr "Text licence chybí; viz %s"
 
-msgid "Pick terminals to move them to another strip."
-msgstr "Vyberte svorky a přesuňte je do jiné svorkovnice."
+msgid "Pick terminals to move them along the strip or to another strip."
+msgstr "Vyberte svorky a posuňte je po svorkovnici nebo do jiné svorkovnice."
 
 msgid "Move to…"
 msgstr "Přesunout do…"
@@ -1726,3 +1726,16 @@ msgstr "Sepne na jeden cyklus programu, když se jeho operand změní z 1 na 0."
 
 msgid "Its operand is 0 while the coil gets power, 1 otherwise."
 msgstr "Jeho operand je 0, dokud cívka dostává proud, jinak 1."
+
+msgid "Add a strip terminal here"
+msgstr "Přidat svorku svorkovnice"
+
+#, c-format
+msgid "Remove strip terminal %s"
+msgstr "Odebrat svorku %s"
+
+msgid "Move the picked terminals one place left"
+msgstr "Posunout vybrané svorky o místo doleva"
+
+msgid "Move the picked terminals one place right"
+msgstr "Posunout vybrané svorky o místo doprava"

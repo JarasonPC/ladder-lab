@@ -60,6 +60,11 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		for rail: CabinetRail in doc.cabinet_rails:
 			rails.append(rail.to_data())
 		result["cabinet"] = rails
+	if not doc.strip_orders.is_empty():
+		var orders: Dictionary = {}
+		for strip: String in doc.strip_orders:
+			orders[strip] = Array(doc.strip_orders[strip])
+		result["strip_order"] = orders
 	return result
 
 
@@ -137,6 +142,15 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			var rail: CabinetRail = CabinetRail.from_data(rd)
 			if rail != null:
 				doc.cabinet_rails.append(rail)
+	var raw_orders: Variant = d.get("strip_order", {})
+	if raw_orders is Dictionary:
+		for strip: Variant in raw_orders:
+			if strip is String and raw_orders[strip] is Array:
+				var order: PackedStringArray = PackedStringArray()
+				for label: Variant in raw_orders[strip]:
+					if label is String:
+						order.append(label)
+				doc.strip_orders[strip] = order
 	return doc
 
 

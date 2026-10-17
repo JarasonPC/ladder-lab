@@ -1,5 +1,7 @@
 extends GutTest
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 
 func _filled() -> TitleBlock:
 	var block: TitleBlock = TitleBlock.new()
@@ -14,7 +16,7 @@ func _filled() -> TitleBlock:
 
 
 func test_saved_with_the_document() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_cutoff()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_cutoff())
 	doc.title_block = _filled()
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 	assert_true(copy.title_block.equals(doc.title_block))
@@ -23,14 +25,14 @@ func test_saved_with_the_document() -> void:
 
 
 func test_empty_title_block_is_not_written() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_cutoff()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_cutoff())
 	assert_false(DocumentSerializer.to_dict(doc).has("title_block"))
 	doc.title_block.drawn_by = "J. Novák"
 	assert_eq(DocumentSerializer.to_dict(doc)["title_block"], {"drawn_by": "J. Novák"})
 
 
 func test_older_and_malformed_data_load_empty() -> void:
-	var data: Dictionary = DocumentSerializer.to_dict(ExampleCircuits.self_cutoff())
+	var data: Dictionary = DocumentSerializer.to_dict(ExamplePower.on(ExampleCircuits.self_cutoff()))
 	assert_true(DocumentSerializer.from_dict(data).title_block.is_empty(), "files before version 13 have no title block")
 	data["title_block"] = "nope"
 	assert_true(DocumentSerializer.from_dict(data).title_block.is_empty())
@@ -42,7 +44,7 @@ func test_older_and_malformed_data_load_empty() -> void:
 
 
 func test_set_title_block_reports_changes() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_cutoff()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_cutoff())
 	var title: String = doc.title
 	assert_false(doc.set_title_block(title, TitleBlock.new()), "nothing changed")
 	var block: TitleBlock = _filled()

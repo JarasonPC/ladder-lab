@@ -69,7 +69,7 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ## circuit has no such device. "kind" (Kind), "poles" (breaker, fuse,
 ## contactor: main poles; relay: changeover contacts), "terminals"
 ## (terminal name on the device -> terminal key in the circuit) and the state:
-## - BREAKER: "on"
+## - BREAKER: "on", "rating" (characteristic and rated current, "B2")
 ## - FUSE: "closed", "blown"
 ## - CONTACTOR: "aux" ([first terminal, "NO" / "NC" / "CO", last terminal]
 ##   per auxiliary contact, the built-in ones first),
@@ -93,9 +93,13 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 		Kind.BREAKER:
 			d["poles"] = (c as MotorBreaker).poles if c is MotorBreaker else 1
 			if c is MotorBreaker:
-				d["on"] = (c as MotorBreaker).switched_on and not (c as MotorBreaker).tripped
+				var mb: MotorBreaker = c as MotorBreaker
+				d["on"] = mb.switched_on and not mb.tripped
+				d["rating"] = CircuitBreaker.rating_text(mb.characteristic, mb.rated_current)
 			else:
-				d["on"] = (c as CircuitBreaker).switched_on and not (c as CircuitBreaker).tripped
+				var cb: CircuitBreaker = c as CircuitBreaker
+				d["on"] = cb.switched_on and not cb.tripped
+				d["rating"] = CircuitBreaker.rating_text(cb.characteristic, cb.rated_current)
 			d["terminals"] = _named_keys(c)
 		Kind.FUSE:
 			if c is ThreePoleFuse:
@@ -374,7 +378,9 @@ static func field_device(circuit: Circuit, key: String, net: Dictionary[String, 
 
 # --- Terminal strips -----------------------------------------------------------------
 
-## Terminal strip name -> its terminals in order, each {"label", "kind": "L",
+## Terminal strip name -> its terminals from left to right (the order set in
+## the switchboard, [member SchematicDocument.strip_orders], else by label),
+## each {"label", "kind": "L",
 ## "N" or "PE", "keys": PackedStringArray of the circuit terminals it joins}.
 ## A terminal labelled PE or on a PE wire is a PE terminal, one labelled N
 ## or on an N wire an N terminal (blue).
@@ -400,6 +406,18 @@ static func strips(doc: SchematicDocument) -> Dictionary:
 	for strip: String in names:
 		var labels: Array = (found[strip] as Dictionary).keys()
 		labels.sort_custom(_natural_less)
+		var order: PackedStringArray = doc.strip_orders.get(strip, PackedStringArray())
+		if not order.is_empty():
+			# The order set in the switchboard; terminals it does not list
+			# keep their place after them.
+			var listed: Array = []
+			for label: String in order:
+				if labels.has(label):
+					listed.append(label)
+			for label: String in labels:
+				if not listed.has(label):
+					listed.append(label)
+			labels = listed
 		var terminals: Array = []
 		for label: String in labels:
 			var kind: String = _terminal_kind(label)

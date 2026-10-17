@@ -2,6 +2,8 @@ extends GutTest
 ## Schematics on several pages joined by page connectors, and the export
 ## of the pages (sheet layout, PDF file).
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 
 
@@ -174,7 +176,7 @@ func test_paste_goes_to_the_page_shown() -> void:
 
 
 func test_example_on_three_pages_works_together() -> void:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line_pages()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line_pages())
 	assert_eq(doc.pages.size(), 3)
 	assert_eq(doc.page_of("M1"), 0)
 	assert_eq(doc.page_of("KM1"), 1)

@@ -1,6 +1,8 @@
 extends GutTest
 ## Which terminals and wires are at L potential.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 
@@ -9,7 +11,7 @@ var sim: Simulator
 
 
 func before_each() -> void:
-	doc = ExampleCircuits.self_holding()
+	doc = ExamplePower.on(ExampleCircuits.self_holding())
 	sim = Simulator.new(doc.circuit)
 
 
@@ -23,7 +25,7 @@ func _wire(a: String, b: String) -> int:
 
 func test_voltage_reaches_up_to_open_contacts_at_rest() -> void:
 	var r: StepResult = sim.step()
-	for key: String in ["L", "SB0:11", "SB0:12", "SB1:13", "KM1:13", "KM1:23"]:
+	for key: String in ["L1.2", "SB0:11", "SB0:12", "SB1:13", "KM1:13", "KM1:23"]:
 		assert_has(r.live_terminals, key)
 	for key: String in ["SB1:14", "KM1:14", "KM1:A1", "KM1:A2", "KM1:24", "H1:X1", "N"]:
 		assert_does_not_have(r.live_terminals, key)
@@ -73,7 +75,7 @@ func test_n_reach_through_closed_contact() -> void:
 
 
 func test_short_counts_as_l() -> void:
-	var d: SchematicDocument = ExampleCircuits.short_circuit()
+	var d: SchematicDocument = ExamplePower.on(ExampleCircuits.short_circuit())
 	var s: Simulator = Simulator.new(d.circuit)
 	(d.circuit.get_component("SB1") as PushButton).press()
 	(d.circuit.get_component("SB2") as PushButton).press()

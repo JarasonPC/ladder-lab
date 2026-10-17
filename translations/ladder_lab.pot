@@ -1265,7 +1265,7 @@ msgstr ""
 msgid "The license text is missing; see %s"
 msgstr ""
 
-msgid "Pick terminals to move them to another strip."
+msgid "Pick terminals to move them along the strip or to another strip."
 msgstr ""
 
 msgid "Move to…"
@@ -1716,4 +1716,17 @@ msgid "Closed for one program cycle when its operand goes from 1 to 0."
 msgstr ""
 
 msgid "Its operand is 0 while the coil gets power, 1 otherwise."
+msgstr ""
+
+msgid "Add a strip terminal here"
+msgstr ""
+
+#, c-format
+msgid "Remove strip terminal %s"
+msgstr ""
+
+msgid "Move the picked terminals one place left"
+msgstr ""
+
+msgid "Move the picked terminals one place right"
 msgstr ""
