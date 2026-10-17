@@ -94,7 +94,7 @@ func show_component(component: CircuitComponent) -> void:
 		"fuse", "breaker", "main_contacts":
 			_choice(tr("Poles"), "poles", [1, 2, 3, 4], ["1", "2", "3", "4"])
 			if kind == "breaker":
-				_choice(tr("Characteristic"), "characteristic", ["B", "C", "D"], [tr("B (magnetic release 3-5 In)"), tr("C (magnetic release 5-10 In)"), tr("D (magnetic release 10-20 In)")])
+				_choice(tr("Characteristic"), "characteristic", ["B", "C", "D"], [tr("B (magnetic release 3-5x In)"), tr("C (magnetic release 5-10x In)"), tr("D (magnetic release 10-20x In)")])
 			if kind == "breaker":
 				_breaker_rating()
 			elif kind == "fuse":
