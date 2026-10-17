@@ -17,6 +17,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   terminals stay readable
 - A breaker's rated current is chosen from the ratings sold: 2, 4, 6, 10, 13, 16, 20, 25, 32,
   40, 50 and 63 A
+- The breaker characteristics read as multiples of In (B: magnetic release 3-5x In)
 
 ### Simulation
 - A tripped circuit breaker or overload relay stays hot and cools down slowly; switched on or

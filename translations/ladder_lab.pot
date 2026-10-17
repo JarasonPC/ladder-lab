@@ -1336,13 +1336,13 @@ msgstr ""
 msgid "Characteristic"
 msgstr ""
 
-msgid "B (magnetic release 3-5 In)"
+msgid "B (magnetic release 3-5x In)"
 msgstr ""
 
-msgid "C (magnetic release 5-10 In)"
+msgid "C (magnetic release 5-10x In)"
 msgstr ""
 
-msgid "D (magnetic release 10-20 In)"
+msgid "D (magnetic release 10-20x In)"
 msgstr ""
 
 msgid "Rated current In (A)"

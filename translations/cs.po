@@ -1345,14 +1345,14 @@ msgstr "%s se přepálila"
 msgid "Characteristic"
 msgstr "Charakteristika"
 
-msgid "B (magnetic release 3-5 In)"
-msgstr "B (zkratová spoušť 3–5 In)"
+msgid "B (magnetic release 3-5x In)"
+msgstr "B (zkratová spoušť 3–5x In)"
 
-msgid "C (magnetic release 5-10 In)"
-msgstr "C (zkratová spoušť 5–10 In)"
+msgid "C (magnetic release 5-10x In)"
+msgstr "C (zkratová spoušť 5–10x In)"
 
-msgid "D (magnetic release 10-20 In)"
-msgstr "D (zkratová spoušť 10–20 In)"
+msgid "D (magnetic release 10-20x In)"
+msgstr "D (zkratová spoušť 10–20x In)"
 
 msgid "Rated current In (A)"
 msgstr "Jmenovitý proud In (A)"
