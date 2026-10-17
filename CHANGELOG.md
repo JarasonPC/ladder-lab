@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.3.0 – 2026-10-17
+
 ### Simulation
 - The PLC runs its program in the simulation; clicked while simulating, its window shows the
   running program: signals that are 1, the power flow through the ladder, running times and
