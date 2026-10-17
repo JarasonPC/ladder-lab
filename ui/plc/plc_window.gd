@@ -119,7 +119,7 @@ func _process(delta: float) -> void:
 	for k: int in _output_lamps.size():
 		_light(_output_lamps[k], _sim_plc.output_on(k))
 	for k: int in _analog_outputs.size():
-		_analog_outputs[k].text = "AQ%d  %.2f V" % [k + 1, _sim_plc.analog_output_volts(k)]
+		_analog_outputs[k].text = "%s  %.2f V" % [_sim_plc.address("AQ%d" % (k + 1)).trim_prefix("%"), _sim_plc.analog_output_volts(k)]
 	show_step()
 
 
@@ -261,7 +261,7 @@ func _build_io() -> void:
 		var switch: Button = Button.new()
 		switch.toggle_mode = true
 		switch.focus_mode = Control.FOCUS_NONE
-		switch.text = "I%d" % (k + 1)
+		switch.text = plc.address("I%d" % (k + 1)).trim_prefix("%") if plc != null else "I%d" % (k + 1)
 		switch.custom_minimum_size = Vector2(46, 34)
 		switch.toggled.connect(func(_on: bool) -> void: _feed_inputs())
 		_io.add_child(switch)
@@ -271,7 +271,7 @@ func _build_io() -> void:
 		var lamp: Panel = Panel.new()
 		lamp.custom_minimum_size = Vector2(46, 34)
 		var name: Label = Label.new()
-		name.text = "Q%d" % (k + 1)
+		name.text = plc.address("Q%d" % (k + 1)).trim_prefix("%") if plc != null else "Q%d" % (k + 1)
 		name.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -283,7 +283,7 @@ func _build_io() -> void:
 		_io.add_child(VSeparator.new())
 	for k: int in analog_in:
 		var spin: SpinBox = SpinBox.new()
-		spin.prefix = "AI%d" % (k + 1)
+		spin.prefix = plc.address("AI%d" % (k + 1)).trim_prefix("%") if plc != null else "AI%d" % (k + 1)
 		spin.suffix = "V"
 		spin.min_value = 0.0
 		spin.max_value = Plc.ANALOG_VOLTS
@@ -335,6 +335,9 @@ func _show() -> void:
 	var testing: bool = _sim_plc != null
 	for b: Button in _language_buttons:
 		b.disabled = monitoring or testing
+	if plc != null:
+		_fbd.address = plc.address
+		_lad.address = plc.address
 	_fbd.show_program(_program, _runtime())
 	_lad.show_program(_program, _runtime())
 	title = tr("%s – PLC program – LadderLab") % component_id
@@ -437,7 +440,7 @@ func _build_side() -> void:
 		var option: OptionButton = OptionButton.new()
 		var choices: PackedStringArray = _operand_choices(info["areas"], info["operand"])
 		for op: String in choices:
-			option.add_item(op)
+			option.add_item(plc.address(op) if plc != null else op)
 		option.select(choices.find(info["operand"]))
 		option.disabled = monitoring or _sim_plc != null
 		option.item_selected.connect(func(i: int) -> void: canvas.set_property("operand", choices[i]))
@@ -517,8 +520,7 @@ func _spin(value: float, low: float, high: float, step: float, on_change: Callab
 ## Starts ([param on]) or stops testing the program on its own.
 func _set_test_simulation(on: bool) -> void:
 	if on and not monitoring:
-		_sim_plc = Plc.new(component_id, _program.duplicate_program(), plc.modules if plc != null else [] as Array[Plc.Module])
-		_sim_plc.rating = plc.rating if plc != null else ""
+		_sim_plc = plc.duplicate_plc(_program.duplicate_program()) if plc != null else Plc.new(component_id, _program.duplicate_program())
 		_sim_time = 0.0
 		_canvas().tool = ""
 		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules(), _analog_volts())
@@ -550,6 +552,8 @@ func _operand_choices(areas: String, current: String) -> PackedStringArray:
 
 ## What the inputs and outputs of the PLC are, for the hint in the side panel.
 func _io_note() -> String:
+	if plc is CompactPlc:
+		return tr("24 V DC on L+ and M. Inputs are on with 24 V against their common 1M (from 15 V on), the analog inputs AI0 AI1 read 0-10 V against 2M as 0-27648, the transistor outputs switch the output supply 3L+ to their terminal. The program writes them by address: %I0.0, %Q0.0, %IW64.")
 	var note: String = tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals.")
 	if plc != null and plc.input_count() > Plc.BASE_INPUTS:
 		note += " " + tr("Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N.") % [plc.input_count(), plc.output_count()]

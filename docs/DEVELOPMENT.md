@@ -193,6 +193,25 @@ Architecture and conventions of the code base. Read this before changing the cod
   and the language; beyond 8 in rows of ten marked by their last digit), cursor keys, ESC / OK;
   its expansion modules beside it (two or four modules wide, CabinetParts.plc_size), in the same
   grey with a raised middle, INPUT / OUTPUT print, a RUN/STOP light; it sits on the first rail after the rectifiers
+- Compact PLC (CompactPlc extends Plc, "A1", modelled on the small Siemens controllers in their
+  24 V DC version with transistor outputs, never with maker names or type designations): CPU
+  sizes (CompactPlc.Cpu: 6 DI / 4 DQ, 8 / 6, 14 / 10, each 2 AI; saved "family": "compact",
+  "cpu"), terminals L+ M, 1M I0.0 ..., 2M AI0 AI1 on top, 3L+ 3M Q0.0 ... below; rated
+  "cpu24dc" (24 V DC, inputs on from 15 V against their common, Plc.input_reference); a
+  transistor output (Plc.Role.TQ, one terminal) is a switch path from its group's supply 3L+
+  (Plc._add_transistor_output, 0.5 ms); analog 0-10 V = 0-27648 (Plc.full_scale,
+  PlcRuntime.full_scale). Signal modules (Plc.Module.SM_*: 8 DI, 8 DQ, 8 DI / 8 DQ, 4 AI, 2 AQ; as
+  many as the CPU takes, CompactPlc.CPU_MODULES 0 / 2 / 8, modules_fit_cpu) are named by their
+  slot (2.1M, 2.L+, 2.AI0) with addresses as by default in the programming software: DI / DQ
+  from byte 8, four a slot (I8.0, Q12.0), analog words from 96, sixteen bytes a slot; digital
+  ones work with the CPU (Plc.module_supply -1), analog ones need 24 V on n.L+ n.M. The program
+  keeps I1, Q1, AI1 ...; Plc.address writes them %I0.0, %Q0.0, %IW64, %M0.0 in the PLC window
+  (PlcCanvas.address). A PLC's wires follow their terminal names when the CPU size changes
+  (SchematicDocument.replace_component maps them, Circuit.replace takes the mapping). Symbol:
+  terminals by Plc.terminal_on_bottom, transistor outputs with a light; switchboard
+  (CabinetParts.compact_plc): 90 mm CPU (110 mm the largest), 45 mm modules, 100 mm high, the
+  same grey, open terminal blocks without covers, RUN/STOP ERROR MAINT, channel lights DI a /
+  DQ a, network port X1 P1 with LINK Rx/Tx, memory card slot X50; a module's DIAG light
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
   clicking it while simulating; one per PLC. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
   PlcCanvas, drawn on schematic paper in a ScrollContainer: wheel scrolls, Ctrl+wheel zooms at

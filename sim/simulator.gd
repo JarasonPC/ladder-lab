@@ -101,11 +101,14 @@ var _coil_indices: PackedInt32Array = PackedInt32Array()
 ## inputs have voltage against their N (bit k: input k + 1).
 var _plc_indices: PackedInt32Array = PackedInt32Array()
 var _plc_input_nets: PackedInt32Array = PackedInt32Array()
+## The net each input is on against (N, M, 1M ...), alongside.
+var _plc_input_ref_nets: PackedInt32Array = PackedInt32Array()
 var _plc_input_start: PackedInt32Array = PackedInt32Array()
 var _plc_inputs: PackedInt32Array = PackedInt32Array()
 ## Expansion modules of the PLCs: nets and terminal indices of their L1 and
-## N (from _plc_module_start[p] on, two per module) and, from the last
-## evaluation, which have voltage (bit m: module m).
+## N (from _plc_module_start[p] on, two per module, -1 for a module without
+## a supply of its own) and, from the last evaluation, which have voltage
+## (bit m: module m).
 var _plc_module_nets: PackedInt32Array = PackedInt32Array()
 var _plc_module_terms: PackedInt32Array = PackedInt32Array()
 var _plc_module_start: PackedInt32Array = PackedInt32Array()
@@ -273,6 +276,7 @@ func _build() -> void:
 	_coil_indices.clear()
 	_plc_indices.clear()
 	_plc_input_nets.clear()
+	_plc_input_ref_nets.clear()
 	_plc_input_start.clear()
 	_plc_module_nets.clear()
 	_plc_module_terms.clear()
@@ -322,11 +326,13 @@ func _build() -> void:
 			_plc_input_start.append(_plc_input_nets.size())
 			for k: int in plc.input_count():
 				_plc_input_nets.append(_net_of_key[keys[plc.input_terminal(k)]])
+				_plc_input_ref_nets.append(_net_of_key[keys[plc.input_reference(k)]])
 			_plc_module_start.append(_plc_module_nets.size())
 			for m: int in plc.modules.size():
 				for t: int in 2:
-					_plc_module_nets.append(_net_of_key[keys[plc.module_terminal(m) + t]])
-					_plc_module_terms.append(index[keys[plc.module_terminal(m) + t]])
+					var supply: int = plc.module_supply(m)
+					_plc_module_nets.append(_net_of_key[keys[supply + t]] if supply >= 0 else -1)
+					_plc_module_terms.append(index[keys[supply + t]] if supply >= 0 else -1)
 			_plc_ai_start.append(_plc_ai_nets.size())
 			for k: int in plc.analog_input_count():
 				_plc_ai_nets.append(_net_of_key[keys[plc.analog_input_terminal(k)]])
@@ -904,27 +910,26 @@ func _evaluate() -> PackedByteArray:
 	for p: int in _plc_indices.size():
 		# Expansion modules: on with voltage on their own L1-N.
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
-		var module_n: PackedInt32Array = PackedInt32Array()
 		var on: int = 0
 		var overvoltage: bool = false
 		for m: int in plc.modules.size():
 			var at: int = _plc_module_start[p] + 2 * m
-			module_n.append(masks.get(uf.find(_plc_module_nets[at + 1]), 0))
-			match _rated_state(plc.module_rating(m), masks.get(uf.find(_plc_module_nets[at]), 0), module_n[m]):
+			if _plc_module_nets[at] < 0:
+				# Fed by the PLC.
+				on |= 1 << m
+				continue
+			match _rated_state(plc.module_rating(m), masks.get(uf.find(_plc_module_nets[at]), 0), masks.get(uf.find(_plc_module_nets[at + 1]), 0)):
 				VoltageRating.State.WORKS:
 					on |= 1 << m
 				VoltageRating.State.BURNS:
 					overvoltage = true
 		_plc_modules[p] = on
-		# Inputs: on with voltage against the N terminal of the PLC (of the
-		# module they are on).
-		var n_mask: int = masks.get(uf.find(_load_nets[2 * _plc_indices[p] + 1]), 0)
+		# Inputs: on with voltage against the N (M, 1M) of their group.
 		var bits: int = 0
 		var threshold: float = VoltageRating.input_threshold(plc.rating)
 		for k: int in plc.input_count():
-			var m: int = plc.input_module(k)
 			var input: int = masks.get(uf.find(_plc_input_nets[_plc_input_start[p] + k]), 0)
-			var reference: int = n_mask if m < 0 else module_n[m]
+			var reference: int = masks.get(uf.find(_plc_input_ref_nets[_plc_input_start[p] + k]), 0)
 			if not _powers(input, reference):
 				continue
 			var volts: float = _volts(input, reference)
@@ -1043,7 +1048,7 @@ func _compute_currents() -> void:
 			# Expansion modules that work draw from their own supply.
 			var plc: Plc = _loads[_plc_indices[p]] as Plc
 			for m: int in plc.modules.size():
-				if plc.module_on(m):
+				if plc.module_on(m) and plc.module_supply(m) >= 0:
 					var at: int = _plc_module_start[p] + 2 * m
 					var v: Vector2 = _voltage_between(_plc_module_nets[at], _plc_module_nets[at + 1])
 					draws[_plc_module_terms[at]] += v * Plc.MODULE_DRAW

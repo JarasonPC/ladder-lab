@@ -860,7 +860,7 @@ func _place_at(cell: Vector2i) -> void:
 			return
 	var data: Dictionary = _template.duplicate()
 	data["designation"] = _new_designation(data)
-	var ratings: PackedStringArray = VoltageRating.offered(data["type"])
+	var ratings: PackedStringArray = VoltageRating.offered(data["type"]) if data.get("family", "") != "compact" else PackedStringArray()
 	if not ratings.is_empty() and not data.has("rating"):
 		# New parts have a rated voltage: the first offered, 230 V.
 		data["rating"] = ratings[0]

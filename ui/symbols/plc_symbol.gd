@@ -7,6 +7,8 @@ extends SchematicSymbol
 ## middle is filled while the PLC has power (RUN). Expansion modules follow
 ## on the right, a box each joined to the one before it, with their supply,
 ## inputs and outputs drawn alike and a window filled while they work.
+## A compact CPU ([CompactPlc]) alike: its transistor outputs (and their
+## supply 3L+ 3M) below, a small square over each output lit while it is on.
 
 const G2: float = SymbolGeometry.POLE_SPACING * G
 const BOX := Rect2(-G, G, SymbolGeometry.PLC_WIDTH * G, (SymbolGeometry.PLC_HEIGHT - 2) * G)
@@ -22,9 +24,9 @@ func _draw_shape(color: Color, width: float) -> void:
 		var x: float = cells[i].x * G
 		if cells[i].y == 0:
 			aa_line(Vector2(x, 0), Vector2(x, BOX.position.y), lead_color(i), lead_width(i))
-		elif plc.terminal_role(i) == Plc.Role.AQ:
+		elif plc.terminal_role(i) != Plc.Role.DQ:
 			aa_line(Vector2(x, cells[i].y * G), Vector2(x, BOX.end.y), lead_color(i), lead_width(i))
-	aa_rect(BOX, color, false, width)
+	aa_rect(module_box(plc, -1), color, false, width)
 	for m: int in plc.modules.size():
 		var box: Rect2 = module_box(plc, m)
 		aa_rect(box, color, false, width)
@@ -46,9 +48,17 @@ func _draw_shape(color: Color, width: float) -> void:
 	if plc.energized:
 		aa_rect(DISPLAY, SchematicTheme.COIL_ON)
 	aa_rect(DISPLAY, color, false, 1.2)
-	# Outputs: a lead up from each terminal, the NO contact across.
+	# Outputs: a relay's NO contact across its two terminals, a light over a
+	# transistor output.
 	for k: int in plc.output_count():
 		var a: int = plc.output_terminal(k)
+		if plc.terminal_role(a) == Plc.Role.TQ:
+			var x: float = cells[a].x * G
+			var lamp: Rect2 = Rect2(x - 4.0, BOX.end.y - 11.0, 8.0, 6.0)
+			if plc.output_armatures[k].no_closed:
+				aa_rect(lamp, SchematicTheme.COIL_ON)
+			aa_rect(lamp, color, false, 1.0)
+			continue
 		var cell_a: Vector2 = Vector2(cells[a]) * G
 		var cell_b: Vector2 = Vector2(cells[a + 1]) * G
 		aa_line(cell_a, Vector2(cell_a.x, CONTACT_Y), lead_color(a), lead_width(a))
@@ -62,10 +72,10 @@ func _draw_shape(color: Color, width: float) -> void:
 		draw_blade(pivot, tip, color, width)
 
 
-## Box of expansion module [param m] (local pixels).
+## Box of expansion module [param m] (-1: the PLC itself; local pixels).
 static func module_box(plc: Plc, m: int) -> Rect2:
 	var left: float = (SymbolGeometry.plc_module_origins(plc)[m + 1] - 1) * G
-	return Rect2(left, BOX.position.y, SymbolGeometry.plc_module_width(plc.modules[m]) * G, BOX.size.y)
+	return Rect2(left, BOX.position.y, SymbolGeometry.plc_module_width(plc, m) * G, BOX.size.y)
 
 
 ## Window of expansion module [param m] with its inputs and outputs written
@@ -86,22 +96,25 @@ func _draw_labels() -> void:
 		var cell: Vector2 = Vector2(cells[i])
 		var y: float = 0.5 * G if cell.y == 0.0 else (SymbolGeometry.PLC_HEIGHT - 0.5) * G
 		draw_label(names[i], Vector2(cell.x * G + 0.3 * G, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-	var display: String = "PLC  RUN" if plc.energized else "PLC  " + ("LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD")
+	var kind: String = "CPU" if plc is CompactPlc else "PLC"
+	var display: String = kind + ("  RUN" if plc.energized else "  " + ("LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD"))
 	_centered(display, DISPLAY.get_center(), 11, SchematicTheme.TEXT)
 	for m: int in plc.modules.size():
 		_centered(module_text(plc.modules[m]), module_window(plc, m).get_center(), 11, SchematicTheme.TEXT)
 	for k: int in plc.output_count():
+		if plc.terminal_role(plc.output_terminal(k)) != Plc.Role.DQ:
+			continue
 		var cell_a: Vector2 = Vector2(cells[plc.output_terminal(k)]) * G
 		_centered("Q%d" % (k + 1), Vector2(cell_a.x + G, CONTACT_Y - 0.9 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT)
 
 
 ## What a module is, as written on it: "4 DI  4 DQ", "2 AI", "2 AQ".
 static func module_text(module: Plc.Module) -> String:
-	if Plc.MODULE_ANALOG_INPUTS[module] > 0:
-		return "%d AI" % Plc.MODULE_ANALOG_INPUTS[module]
-	if Plc.MODULE_ANALOG_OUTPUTS[module] > 0:
-		return "%d AQ" % Plc.MODULE_ANALOG_OUTPUTS[module]
-	return "%d DI  %d DQ" % [Plc.MODULE_INPUTS[module], Plc.MODULE_OUTPUTS[module]]
+	var parts: PackedStringArray = PackedStringArray()
+	for count: Array in [[Plc.MODULE_INPUTS[module], "DI"], [Plc.MODULE_OUTPUTS[module], "DQ"], [Plc.MODULE_ANALOG_INPUTS[module], "AI"], [Plc.MODULE_ANALOG_OUTPUTS[module], "AQ"]]:
+		if count[0] > 0:
+			parts.append("%d %s" % count)
+	return "  ".join(parts)
 
 
 ## Upright text centred on local point [param at].

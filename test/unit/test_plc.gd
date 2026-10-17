@@ -504,7 +504,7 @@ func test_insert_row_keeps_links() -> void:
 
 func test_damaged_program_parts_left_out() -> void:
 	var data: Dictionary = {"language": "fbd", "blocks": [
-		{"id": 1, "type": "input", "cell": [0, 0], "operand": "I25"},
+		{"id": 1, "type": "input", "cell": [0, 0], "operand": "I81"},
 		{"id": 1, "type": "and", "cell": [0, 0]},
 		{"id": 2, "type": "frobnicate", "cell": [0, 0]},
 		{"id": 3, "type": "output", "cell": [4, 0], "operand": "Q2", "inputs": [7]},
@@ -522,12 +522,12 @@ func test_damaged_program_parts_left_out() -> void:
 func test_operands() -> void:
 	assert_true(PlcProgram.valid_operand("I8", "IQ"))
 	assert_true(PlcProgram.valid_operand("I24", "IQ"), "inputs of the expansion modules")
-	assert_false(PlcProgram.valid_operand("I25", "IQ"))
+	assert_false(PlcProgram.valid_operand("I81", "IQ"))
 	assert_true(PlcProgram.valid_operand("Q20", "Q"))
-	assert_false(PlcProgram.valid_operand("Q21", "Q"))
+	assert_false(PlcProgram.valid_operand("Q81", "Q"))
 	assert_false(PlcProgram.valid_operand("Q1", "I"))
 	assert_false(PlcProgram.valid_operand("M01", "M"))
-	assert_eq(PlcProgram.operands("Q").size(), 20)
+	assert_eq(PlcProgram.operands("Q").size(), 80)
 	assert_eq(PlcProgram.operands("Q")[3], "Q4")
 
 

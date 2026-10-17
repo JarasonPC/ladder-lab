@@ -944,6 +944,9 @@ const PLC_KEY_MARK := Color("e4e7e5")
 ## inputs on top, outputs below, a RUN light lit while they work.
 ## [param desc]: see [method CabinetDevices.describe].
 static func plc(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> void:
+	if desc.get("family", "") == "compact":
+		compact_plc(p, desc, reach)
+		return
 	var w: float = PLC.x
 	var h: float = PLC.y
 	var size: Vector2 = plc_size(desc)
@@ -1076,6 +1079,11 @@ static func _plc_supply_text(desc: Dictionary) -> String:
 ## Size of the PLC with its expansion modules ([param desc]: see
 ## [method CabinetDevices.describe]).
 static func plc_size(desc: Dictionary) -> Vector2:
+	if desc.get("family", "") == "compact":
+		var cw: float = _cpu_width(desc)
+		for module: Plc.Module in plc_modules(desc):
+			cw += SM_W
+		return Vector2(cw, CPU_H)
 	var w: float = PLC.x
 	for module: Plc.Module in plc_modules(desc):
 		w += PLC_MODULE_W[module]
@@ -1084,7 +1092,151 @@ static func plc_size(desc: Dictionary) -> Vector2:
 
 ## The expansion modules of a described PLC.
 static func plc_modules(desc: Dictionary) -> Array[Plc.Module]:
-	return DocumentSerializer.plc_modules(desc.get("modules", []))
+	return DocumentSerializer.plc_modules(desc.get("modules", []), _cpu(desc))
+
+
+## The described PLC itself (its terminals, modules, addresses).
+static func _plc_of(desc: Dictionary) -> Plc:
+	var cpu: int = _cpu(desc)
+	if cpu >= 0:
+		return CompactPlc.new("A", null, plc_modules(desc), cpu as CompactPlc.Cpu)
+	return Plc.new("A", null, plc_modules(desc))
+
+
+## CPU size of a described compact PLC, -1 for a logic module.
+static func _cpu(desc: Dictionary) -> int:
+	if desc.get("family", "") != "compact":
+		return -1
+	return maxi(CompactPlc.CPU_NAMES.find(str(desc.get("cpu", ""))), 0)
+
+
+# --- Compact PLC ----------------------------------------------------------------
+
+## A compact CPU 90 mm wide (the largest 110 mm), 100 mm high; its signal
+## modules 45 mm.
+const CPU_W: float = 90.0
+const CPU_WIDE: float = 110.0
+const CPU_H: float = 100.0
+const SM_W: float = 45.0
+## Height of the screws of the terminal blocks from the top and the bottom.
+const CPU_SCREW_Y: float = 9.0
+const CPU_BLOCK := Color("26292b")
+
+
+static func _cpu_width(desc: Dictionary) -> float:
+	return CPU_WIDE if _cpu(desc) == CompactPlc.Cpu.DI14_DQ10 else CPU_W
+
+
+## Compact CPU with its signal modules, in the same grey as the logic module,
+## the terminal blocks open (no covers): supply, inputs and analog inputs on
+## top, the output supply and outputs below, the names printed by the
+## screws. On the front the status lights RUN/STOP (green while it works),
+## ERROR and MAINT, a light for each input (DI) and output (DQ) lit while it
+## is on, the network port with its LINK and Rx/Tx lights and the memory
+## card slot; a signal module has its DIAG light and channel lights.
+static func compact_plc(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> void:
+	var plc: Plc = _plc_of(desc)
+	var names: Dictionary = desc.get("names", {})
+	var points: Dictionary = terminal_points(CabinetDevices.Kind.PLC, desc)
+	var standard: PackedStringArray = plc.default_terminal_names()
+	var powered: bool = desc.get("powered", false)
+	var inputs: Array = desc.get("inputs", [])
+	var outputs: Array = desc.get("outputs", [])
+	var working: Array = desc.get("modules_on", [])
+	var left: float = 0.0
+	for m: int in range(-1, plc.modules.size()):
+		var w: float = _cpu_width(desc) if m < 0 else SM_W
+		var q: CabinetPainter = p.shifted(Vector2(left, 0.0))
+		var h: float = CPU_H
+		p.gradient(Rect2(left + 0.3, 0.0, w - 0.6, h), PLC_BODY, PLC_TIER, 0.8, PLC_EDGE, 0.15)
+		# The raised front between the terminal blocks.
+		q.gradient(Rect2(1.2, 22.0, w - 2.4, h - 44.0), PLC_FRONT, PLC_BODY, 0.6, PLC_EDGE, 0.15)
+		q.rect(Rect2(1.2, 22.0 + (h - 44.0), w - 2.4, 0.8), Color(0, 0, 0, 0.12))
+		# Terminal blocks, top and bottom, where the module has terminals.
+		var span: Vector2i = plc.module_terminals(m)
+		var tiers: Vector2i = _plc_tiers(plc, m)
+		if tiers.x > 0:
+			q.rect(Rect2(1.6, 3.0, w - 3.2, 13.0), CPU_BLOCK, 0.6)
+		if tiers.y > 0:
+			q.rect(Rect2(1.6, h - 16.0, w - 3.2, 13.0), CPU_BLOCK, 0.6)
+		for i: int in range(span.x, span.y):
+			var name: String = standard[i]
+			var at: Vector3 = points[name]
+			var on_top: bool = at.y < h * 0.5
+			var pitch: float = (w - 4.0) / maxi(tiers.x if on_top else tiers.y, 1)
+			p.text(Vector2(at.x, 20.4 if on_top else h - 18.0), str(names.get(name, name)), 1.6, PLC_DARK, 0, false, pitch - 0.4)
+			_modular_screw_small(p, Vector2(at.x, at.y), reach.get(name, Color.TRANSPARENT))
+		var on: bool = powered and (m < 0 or (m < working.size() and bool(working[m])))
+		if m < 0:
+			_cpu_front(q, w, h, desc, plc, inputs, outputs, powered)
+		else:
+			_signal_module_front(q, w, h, plc, m, inputs, outputs, on)
+		left += w
+
+
+static func _cpu_front(q: CabinetPainter, w: float, h: float, desc: Dictionary, plc: Plc, inputs: Array, outputs: Array, powered: bool) -> void:
+	# Status lights on the left.
+	var states: Array = [["RUN/STOP", LED_GREEN if powered else LED_OFF], ["ERROR", LED_OFF], ["MAINT", LED_OFF]]
+	for j: int in states.size():
+		var y: float = 30.0 + 5.0 * j
+		q.rect(Rect2(4.0, y - 1.0, 3.0, 2.0), states[j][1], 0.3, PLC_DARK, 0.1)
+		q.text(Vector2(8.4, y + 0.7), states[j][0], 1.5, PLC_DARK, -1, false)
+	q.text(Vector2(w - 5.0, 33.0), "CPU", 2.6, PLC_DARK, 1, true)
+	q.text(Vector2(w - 5.0, 37.0), "DC/DC/DC", 1.7, PLC_DARK, 1, false)
+	# A light for each input and output, in rows of eight by byte.
+	var own_inputs: int = 0
+	var own_outputs: int = 0
+	for k: int in plc.input_count():
+		own_inputs += 1 if plc.input_module(k) < 0 else 0
+	for k: int in plc.output_count():
+		own_outputs += 1 if plc.output_module(k) < 0 else 0
+	_channel_lights(q, Vector2(28.0, 44.0), "DI", inputs.slice(0, own_inputs))
+	_channel_lights(q, Vector2(28.0, 44.0 + ceili(own_inputs / 8.0) * 8.0 + 2.0), "DQ", outputs.slice(0, own_outputs))
+	# Network port with its lights, memory card slot.
+	q.rect(Rect2(4.0, h - 34.0, 13.0, 11.0), PLC_DARK, 0.8)
+	q.rect(Rect2(6.0, h - 32.0, 9.0, 6.5), Color("151718"), 0.4)
+	q.text(Vector2(4.0, h - 36.0), "X1 P1", 1.4, PLC_DARK, -1, false)
+	for j: int in 2:
+		var y: float = h - 41.0 - 4.0 * j
+		q.rect(Rect2(4.0, y - 1.0, 2.4, 1.8), LED_GREEN if powered and j == 0 else LED_OFF, 0.2)
+		q.text(Vector2(7.6, y + 0.6), ["LINK", "Rx/Tx"][j], 1.3, PLC_DARK, -1, false)
+	q.rect(Rect2(w - 7.0, 42.0, 2.4, 14.0), Color("9ba09d"), 0.4, PLC_EDGE, 0.15)
+	q.text(Vector2(w - 9.0, 60.0), "X50", 1.3, PLC_DARK, 1, false)
+	q.text(Vector2(w * 0.5, h - 26.0), "24VDC INPUTS  ·  ANALOG INPUTS", 1.3, PLC_DARK, 0, false, w - 30.0)
+
+
+static func _signal_module_front(q: CabinetPainter, w: float, h: float, plc: Plc, m: int, inputs: Array, outputs: Array, on: bool) -> void:
+	var module: Plc.Module = plc.modules[m]
+	q.rect(Rect2(4.0, 29.0, 3.0, 2.0), LED_GREEN if on else LED_OFF, 0.3, PLC_DARK, 0.1)
+	q.text(Vector2(8.4, 30.7), "DIAG", 1.5, PLC_DARK, -1, false)
+	q.text(Vector2(w * 0.5, h - 30.0), PlcSymbol.module_text(module), 2.2, PLC_DARK, 0, true, w - 6.0)
+	q.text(Vector2(w * 0.5, h - 26.0), "DC 24 V", 1.6, PLC_DARK, 0, false)
+	var di: Array = []
+	var dq: Array = []
+	for k: int in plc.input_count():
+		if plc.input_module(k) == m and k < inputs.size():
+			di.append(inputs[k])
+	for k: int in plc.output_count():
+		if plc.output_module(k) == m and k < outputs.size():
+			dq.append(outputs[k])
+	var y: float = 38.0
+	if not di.is_empty():
+		_channel_lights(q, Vector2(5.0, y), "DI", di)
+		y += 10.0
+	if not dq.is_empty():
+		_channel_lights(q, Vector2(5.0, y), "DQ", dq)
+
+
+## A row of channel lights ".0 .1 ..." under [param caption] ("DI a").
+static func _channel_lights(q: CabinetPainter, at: Vector2, caption: String, states: Array) -> void:
+	for k: int in states.size():
+		var row: int = k / 8
+		var x: float = at.x + (k % 8) * 4.2
+		var y: float = at.y + row * 8.0
+		if k % 8 == 0:
+			q.text(Vector2(at.x - 0.4, y - 2.0), "%s %s" % [caption, ["a", "b", "c", "d"][mini(row, 3)]], 1.4, PLC_DARK, -1, false)
+		q.rect(Rect2(x, y - 0.4, 2.6, 1.8), LED_GREEN if bool(states[k]) else LED_OFF, 0.2)
+		q.text(Vector2(x + 1.3, y + 3.6), ".%d" % (k % 8), 1.2, PLC_DARK, 0, false)
 
 
 ## Room for the name printed by each screw of a PLC (millimetres).
@@ -1114,7 +1266,7 @@ static func _plc_tiers(plc: Plc, m: int) -> Vector2i:
 
 
 static func _plc_on_bottom(plc: Plc, i: int) -> bool:
-	return plc.terminal_role(i) == Plc.Role.DQ or plc.terminal_role(i) == Plc.Role.AQ
+	return plc.terminal_on_bottom(i)
 
 
 ## One input or output on the display: its number, shown dark while it is on.
@@ -1295,6 +1447,24 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 				if row[4]:
 					for j: int in 3:
 						points[row[0][j]] = Vector3(TIMER_X[j], row[3], 2.1)
+		CabinetDevices.Kind.PLC when desc.get("family", "") == "compact":
+			var cplc: Plc = _plc_of(desc)
+			var cnames: PackedStringArray = cplc.default_terminal_names()
+			var cleft: float = 0.0
+			for m: int in range(-1, cplc.modules.size()):
+				var span: Vector2i = cplc.module_terminals(m)
+				var w: float = _cpu_width(desc) if m < 0 else SM_W
+				var counts: Vector2i = _plc_tiers(cplc, m)
+				var top: int = 0
+				var bottom: int = 0
+				for i: int in range(span.x, span.y):
+					if _plc_on_bottom(cplc, i):
+						points[cnames[i]] = Vector3(cleft + 2.0 + (w - 4.0) / counts.y * (bottom + 0.5), CPU_H - CPU_SCREW_Y, 2.1)
+						bottom += 1
+					else:
+						points[cnames[i]] = Vector3(cleft + 2.0 + (w - 4.0) / counts.x * (top + 0.5), CPU_SCREW_Y, 2.1)
+						top += 1
+				cleft += w
 		CabinetDevices.Kind.PLC:
 			var plc: Plc = Plc.new("A", null, plc_modules(desc))
 			var standard: PackedStringArray = plc.default_terminal_names()

@@ -26,17 +26,21 @@ extends Load
 ## resets the program (outputs, flags, timers and counters to 0).
 
 ## Expansion modules: 4 inputs and 4 relay outputs, 8 inputs and 8 relay
-## outputs, 2 analog inputs, 2 analog outputs.
-enum Module { DI4_DQ4, DI8_DQ8, AI2, AQ2 }
-## What a terminal is: the supply of the PLC or of a module, a digital input,
-## one of the two terminals of a relay output, an analog input or output.
-enum Role { SUPPLY, DI, DQ, AI, AQ }
+## outputs, 2 analog inputs, 2 analog outputs; the signal modules of the
+## compact CPUs ([CompactPlc]): 8 inputs, 8 transistor outputs, 8 + 8, 4
+## analog inputs, 2 analog outputs.
+enum Module { DI4_DQ4, DI8_DQ8, AI2, AQ2, SM_DI8, SM_DQ8, SM_DI8_DQ8, SM_AI4, SM_AQ2 }
+## What a terminal is: the supply of the PLC or of a module (or the common
+## of a group of inputs or outputs), a digital input, one of the two
+## terminals of a relay output, an analog input or output, a transistor
+## output (one terminal, switched to the supply of its group).
+enum Role { SUPPLY, DI, DQ, AI, AQ, TQ }
 
-const MODULE_NAMES: PackedStringArray = ["4di4dq", "8di8dq", "2ai", "2aq"]
-const MODULE_INPUTS: PackedInt32Array = [4, 8, 0, 0]
-const MODULE_OUTPUTS: PackedInt32Array = [4, 8, 0, 0]
-const MODULE_ANALOG_INPUTS: PackedInt32Array = [0, 0, 2, 0]
-const MODULE_ANALOG_OUTPUTS: PackedInt32Array = [0, 0, 0, 2]
+const MODULE_NAMES: PackedStringArray = ["4di4dq", "8di8dq", "2ai", "2aq", "sm_di8", "sm_dq8", "sm_di8dq8", "sm_ai4", "sm_aq2"]
+const MODULE_INPUTS: PackedInt32Array = [4, 8, 0, 0, 8, 0, 8, 0, 0]
+const MODULE_OUTPUTS: PackedInt32Array = [4, 8, 0, 0, 0, 8, 8, 0, 0]
+const MODULE_ANALOG_INPUTS: PackedInt32Array = [0, 0, 2, 0, 0, 0, 0, 4, 0]
+const MODULE_ANALOG_OUTPUTS: PackedInt32Array = [0, 0, 0, 2, 0, 0, 0, 0, 2]
 ## Supply of the analog modules (24 V DC on L+ and M).
 const ANALOG_MODULE_RATING: String = "1224rc"
 ## Versions whose inputs I7, I8, I1, I2 are also analog inputs AI1-AI4.
@@ -93,22 +97,57 @@ var _aq_module: PackedInt32Array = PackedInt32Array()
 var _names: PackedStringArray = PackedStringArray()
 var _roles: PackedInt32Array = PackedInt32Array()
 var _role_module: PackedInt32Array = PackedInt32Array()
+## 1 for the terminals on the bottom of the symbol and the device.
+var _bottom: PackedByteArray = PackedByteArray()
+## The terminal each input is on against (N, M, 1M ...), the two terminals
+## each output switches between, the first supply terminal of each module
+## (-1 for a module without a supply of its own).
+var _input_refs: PackedInt32Array = PackedInt32Array()
+var _output_paths: Array[Vector2i] = []
+var _module_supply: PackedInt32Array = PackedInt32Array()
 
 
 func _init(p_designation: String, p_program: PlcProgram = null, p_modules: Array[Module] = []) -> void:
 	super(p_designation, "L1", "N")
 	program = p_program if p_program != null else PlcProgram.new()
 	runtime = PlcRuntime.new(program)
+	runtime.full_scale = full_scale()
 	modules = p_modules.duplicate()
 	_lay_out()
+	var times: Vector2 = _switch_times()
 	for k: int in output_count():
-		output_armatures.append(Armature.new(RELAY_PICK_UP, RELAY_DROP_OUT))
+		output_armatures.append(Armature.new(times.x, times.y))
+
+
+## A PLC like this one (same kind, modules, version) running [param p_program].
+func duplicate_plc(p_program: PlcProgram) -> Plc:
+	var copy: Plc = Plc.new(designation, p_program, modules)
+	copy.rating = rating
+	return copy
+
+
+## The program's value for 10 V on an analog input or output.
+func full_scale() -> float:
+	return PlcBlock.ANALOG_MAX
+
+
+## How operand [param operand] ("I1", "AI2", ...) is written for this PLC.
+func address(operand: String) -> String:
+	return operand
+
+
+## Pick-up and drop-out time of the output switches (seconds).
+func _switch_times() -> Vector2:
+	return Vector2(RELAY_PICK_UP, RELAY_DROP_OUT)
 
 
 ## True when [param list] of modules stays within [constant MAX_INPUTS],
 ## [constant MAX_OUTPUTS] and [constant MAX_ANALOG] analog inputs and outputs
 ## (the PLC's own analog inputs counted for [param version]).
 static func modules_fit(list: Array[Module], version: String = "") -> bool:
+	for m: Module in list:
+		if is_signal_module(m):
+			return false
 	var i: int = BASE_INPUTS
 	var q: int = BASE_OUTPUTS
 	var ai: int = BASE_ANALOG_INPUTS.size() if ANALOG_VERSIONS.has(version) else 0
@@ -119,6 +158,11 @@ static func modules_fit(list: Array[Module], version: String = "") -> bool:
 		ai += MODULE_ANALOG_INPUTS[m]
 		aq += MODULE_ANALOG_OUTPUTS[m]
 	return i <= MAX_INPUTS and q <= MAX_OUTPUTS and ai <= MAX_ANALOG and aq <= MAX_ANALOG
+
+
+## True for the signal modules of the compact CPUs.
+static func is_signal_module(module: Module) -> bool:
+	return module >= Module.SM_DI8
 
 
 ## True for the analog modules.
@@ -179,14 +223,35 @@ func terminal_module(index: int) -> int:
 	return _role_module[index]
 
 
+## True for a terminal on the bottom of the symbol (outputs).
+func terminal_on_bottom(index: int) -> bool:
+	return _bottom[index] != 0
+
+
+## Terminal input I(k + 1) is on against.
+func input_reference(k: int) -> int:
+	return _input_refs[k]
+
+
+## First supply terminal (L1, L+) of module [param m] (its N or M follows
+## it); -1 when the module works with the PLC alone.
+func module_supply(m: int) -> int:
+	return _module_supply[m]
+
+
 ## Analog inputs AI1, AI2 ...: the PLC's own (of an analog version), then the
 ## modules', at most [constant MAX_ANALOG].
 func analog_input_count() -> int:
-	return mini(_base_analog() + _module_ai_terms.size(), MAX_ANALOG)
+	return mini(_base_analog() + _module_ai_terms.size(), _analog_limit())
 
 
 func analog_output_count() -> int:
-	return mini(_aq_terms.size(), MAX_ANALOG)
+	return mini(_aq_terms.size(), _analog_limit())
+
+
+## Most analog inputs and outputs (each).
+func _analog_limit() -> int:
+	return MAX_ANALOG
 
 
 ## Terminal of analog input AI(k + 1) (an input I of the PLC for its own).
@@ -219,7 +284,7 @@ func module_rating(m: int) -> String:
 func analog_output_volts(k: int) -> float:
 	if not energized or not module_on(analog_output_module(k)):
 		return 0.0
-	return clampf(runtime.analog_outputs[k], 0.0, PlcBlock.ANALOG_MAX) * ANALOG_VOLTS / PlcBlock.ANALOG_MAX
+	return clampf(runtime.analog_outputs[k], 0.0, full_scale()) * ANALOG_VOLTS / full_scale()
 
 
 func _base_analog() -> int:
@@ -235,10 +300,7 @@ func module_terminals(m: int) -> Vector2i:
 
 
 func switch_paths() -> Array[Vector2i]:
-	var paths: Array[Vector2i] = []
-	for k: int in output_count():
-		paths.append(Vector2i(output_terminal(k), output_terminal(k) + 1))
-	return paths
+	return _output_paths.duplicate()
 
 
 func is_path_closed(path: int) -> bool:
@@ -362,7 +424,7 @@ func _run() -> void:
 	for k: int in analog_input_count():
 		var m: int = analog_input_module(k)
 		var volts: float = analog_in[k] if k < analog_in.size() and (m < 0 or module_on(m)) else 0.0
-		runtime.analog_inputs[k] = clampf(volts, 0.0, ANALOG_VOLTS) * PlcBlock.ANALOG_MAX / ANALOG_VOLTS
+		runtime.analog_inputs[k] = clampf(volts, 0.0, ANALOG_VOLTS) * full_scale() / ANALOG_VOLTS
 	pending = not runtime.scan_until_stable()
 	_cycle_left = CYCLE_TIME
 
@@ -380,17 +442,18 @@ func _lay_out() -> void:
 	_add("L1", Role.SUPPLY, -1)
 	_add("N", Role.SUPPLY, -1)
 	for k: int in BASE_INPUTS:
-		_add_input(-1)
+		_add_input(-1, 1)
 	for k: int in BASE_OUTPUTS:
 		_add_output(-1)
 	for m: int in modules.size():
 		var module: Module = modules[m]
 		_module_terms.append(_names.size())
+		_module_supply.append(_names.size())
 		var analog: bool = is_analog(module)
 		_add("%d%s" % [m + 2, "L+" if analog else "L1"], Role.SUPPLY, m)
 		_add("%d%s" % [m + 2, "M" if analog else "N"], Role.SUPPLY, m)
 		for k: int in MODULE_INPUTS[module]:
-			_add_input(m)
+			_add_input(m, _module_supply[m] + 1)
 		for k: int in MODULE_OUTPUTS[module]:
 			_add_output(m)
 		for k: int in MODULE_ANALOG_INPUTS[module]:
@@ -403,20 +466,37 @@ func _lay_out() -> void:
 			_add("AQ%d" % _aq_terms.size(), Role.AQ, m)
 
 
-func _add(name: String, role: Role, m: int) -> void:
+## Adds terminal [param name] of [param role] on module [param m] (-1: the
+## PLC); outputs go on the bottom unless [param bottom] says otherwise.
+func _add(name: String, role: Role, m: int, bottom: int = -1) -> void:
 	_names.append(name)
 	_roles.append(role)
 	_role_module.append(m)
+	if bottom < 0:
+		bottom = 1 if role == Role.DQ or role == Role.AQ or role == Role.TQ else 0
+	_bottom.append(bottom)
 
 
-func _add_input(m: int) -> void:
+## An input on module [param m], on against terminal [param reference].
+func _add_input(m: int, reference: int, name: String = "") -> void:
 	_input_terms.append(_names.size())
 	_input_module.append(m)
-	_add("I%d" % _input_terms.size(), Role.DI, m)
+	_input_refs.append(reference)
+	_add(name if not name.is_empty() else "I%d" % _input_terms.size(), Role.DI, m)
 
 
+## A relay output: its contact between its two terminals Qn.1 and Qn.2.
 func _add_output(m: int) -> void:
 	_output_terms.append(_names.size())
 	_output_module.append(m)
+	_output_paths.append(Vector2i(_names.size(), _names.size() + 1))
 	_add("Q%d.1" % _output_terms.size(), Role.DQ, m)
 	_add("Q%d.2" % _output_terms.size(), Role.DQ, m)
+
+
+## A transistor output [param name] switched to terminal [param supply].
+func _add_transistor_output(m: int, supply: int, name: String) -> void:
+	_output_terms.append(_names.size())
+	_output_module.append(m)
+	_output_paths.append(Vector2i(supply, _names.size()))
+	_add(name, Role.TQ, m)

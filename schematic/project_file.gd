@@ -42,7 +42,9 @@ const FORMAT: String = "ladder-lab"
 ## 21: temperature sensors ("temp_sensor": range, start temperature), analog
 ## modules of PLCs ("2ai", "2aq"), analog blocks and ladder elements of PLC
 ## programs (gain, offset, on, off, value).
-const VERSION: int = 21
+## 22: compact CPUs ("plc" with "family": "compact" and "cpu"; missing: a
+## logic module) and their signal modules ("sm_di8" ...).
+const VERSION: int = 22
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

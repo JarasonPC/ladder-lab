@@ -186,30 +186,34 @@ static func motor_terminal_cell(index: int, kind: ThreePhaseMotor.Kind = ThreePh
 
 
 ## Cells of the PLC's terminals: on the PLC and on each expansion module, the
-## supply and the inputs along the top, two cells apart, the two terminals
-## of each output below.
+## supply, the inputs and the analog inputs along the top, two cells apart;
+## below the two terminals of each relay output ([constant PLC_OUTPUT_PITCH]
+## apart), analog outputs ([constant PLC_ANALOG_OUTPUT_PITCH] apart) and
+## the other terminals (transistor outputs, their supply) two cells apart.
 static func plc_terminal_cells(plc: Plc) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 	var origins: PackedInt32Array = plc_module_origins(plc)
 	for m: int in range(-1, plc.modules.size()):
-		var span: Vector2i = plc.module_terminals(m)
 		var x: int = origins[m + 1]
-		# Supply, inputs and analog inputs along the top; relay outputs
-		# (two terminals each) and analog outputs below.
 		var top: int = 0
+		var bottom: int = 0
 		var relay: int = 0
-		var analog: int = 0
+		var span: Vector2i = plc.module_terminals(m)
 		for i: int in range(span.x, span.y):
+			if not plc.terminal_on_bottom(i):
+				cells.append(Vector2i(x + top * POLE_SPACING, 0))
+				top += 1
+				continue
+			cells.append(Vector2i(x + bottom + relay % 2 * POLE_SPACING, PLC_HEIGHT))
 			match plc.terminal_role(i):
 				Plc.Role.DQ:
-					cells.append(Vector2i(x + (relay / 2) * PLC_OUTPUT_PITCH + relay % 2 * POLE_SPACING, PLC_HEIGHT))
 					relay += 1
+					if relay % 2 == 0:
+						bottom += PLC_OUTPUT_PITCH
 				Plc.Role.AQ:
-					cells.append(Vector2i(x + analog * PLC_ANALOG_OUTPUT_PITCH, PLC_HEIGHT))
-					analog += 1
+					bottom += PLC_ANALOG_OUTPUT_PITCH
 				_:
-					cells.append(Vector2i(x + top * POLE_SPACING, 0))
-					top += 1
+					bottom += POLE_SPACING
 	return cells
 
 
@@ -217,29 +221,42 @@ static func plc_terminal_cells(plc: Plc) -> Array[Vector2i]:
 ## a module's box starts a cell left of it, as the PLC's.
 static func plc_module_origins(plc: Plc) -> PackedInt32Array:
 	var origins: PackedInt32Array = PackedInt32Array([0])
-	var x: int = PLC_WIDTH
-	for module: Plc.Module in plc.modules:
+	var x: int = plc_module_width(plc, -1)
+	for m: int in plc.modules.size():
 		x += PLC_MODULE_GAP
 		origins.append(x)
-		x += plc_module_width(module)
+		x += plc_module_width(plc, m)
 	return origins
 
 
-## Width in cells of an expansion module's box: its outputs side by side,
-## or its supply and inputs if they take more room.
-static func plc_module_width(module: Plc.Module) -> int:
-	var top: int = (2 + Plc.MODULE_INPUTS[module] + Plc.MODULE_ANALOG_INPUTS[module]) * POLE_SPACING
-	var bottom: int = maxi(Plc.MODULE_OUTPUTS[module] * PLC_OUTPUT_PITCH, Plc.MODULE_ANALOG_OUTPUTS[module] * PLC_ANALOG_OUTPUT_PITCH)
-	return maxi(maxi(top, bottom), PLC_MODULE_MIN_WIDTH)
+## Width in cells of the box of module [param m] (-1: the PLC itself): its
+## terminals on top or below, whichever take more room; the PLC at least
+## [constant PLC_WIDTH], a module at least [constant PLC_MODULE_MIN_WIDTH].
+static func plc_module_width(plc: Plc, m: int) -> int:
+	var top: int = 0
+	var bottom: int = 0
+	var relay: int = 0
+	var span: Vector2i = plc.module_terminals(m)
+	for i: int in range(span.x, span.y):
+		if not plc.terminal_on_bottom(i):
+			top += POLE_SPACING
+		else:
+			match plc.terminal_role(i):
+				Plc.Role.DQ:
+					relay += 1
+				Plc.Role.AQ:
+					bottom += PLC_ANALOG_OUTPUT_PITCH
+				_:
+					bottom += POLE_SPACING
+	bottom += relay / 2 * PLC_OUTPUT_PITCH
+	return maxi(maxi(top, bottom), PLC_WIDTH if m < 0 else PLC_MODULE_MIN_WIDTH)
 
 
 ## Width in cells of the PLC with its expansion modules, from the left edge
 ## of its box (a cell left of its first terminal).
 static func plc_width(plc: Plc) -> int:
-	if plc.modules.is_empty():
-		return PLC_WIDTH
 	var origins: PackedInt32Array = plc_module_origins(plc)
-	return origins[origins.size() - 1] + plc_module_width(plc.modules[plc.modules.size() - 1])
+	return origins[origins.size() - 1] + plc_module_width(plc, plc.modules.size() - 1)
 
 
 static func _is_three_pole(c: CircuitComponent) -> bool:

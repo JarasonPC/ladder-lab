@@ -309,5 +309,5 @@ static func _valid_coil(d: Variant) -> Dictionary:
 		var p: Variant = data.get("preset", PlcBlock.DEFAULT_PRESET)
 		coil["preset"] = clampi(int(p), 1, PlcCounter.MAX_VALUE) if (p is int or p is float) else PlcBlock.DEFAULT_PRESET
 	elif kind == "analog":
-		coil["value"] = clampf(_value(data), 0.0, PlcBlock.ANALOG_MAX)
+		coil["value"] = clampf(_value(data), 0.0, PlcBlock.MAX_ANALOG)
 	return coil

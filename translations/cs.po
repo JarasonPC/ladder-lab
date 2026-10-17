@@ -1610,6 +1610,42 @@ msgstr "Sepnut, dokud je analogový vstup pod hodnotou (0-1000 = 0-10 V)."
 msgid "Puts the value (0-1000) on the analog output as 0-10 V while it gets power, 0 without."
 msgstr "Dává hodnotu (0-1000) na analogový výstup jako 0-10 V, dokud má napájení, bez něj 0."
 
+msgid "Compact PLC (CPU 24 V DC, transistor outputs)"
+msgstr "Kompaktní PLC (CPU 24 V DC, tranzistorové výstupy)"
+
+msgid "CPU"
+msgstr "CPU"
+
+msgid "6 inputs, 4 outputs, 2 analog inputs (no signal modules)"
+msgstr "6 vstupů, 4 výstupy, 2 analogové vstupy (bez signálových modulů)"
+
+msgid "8 inputs, 6 outputs, 2 analog inputs (2 signal modules)"
+msgstr "8 vstupů, 6 výstupů, 2 analogové vstupy (2 signálové moduly)"
+
+msgid "14 inputs, 10 outputs, 2 analog inputs (8 signal modules)"
+msgstr "14 vstupů, 10 výstupů, 2 analogové vstupy (8 signálových modulů)"
+
+msgid "24 V DC on L+ and M. Inputs are on with 24 V against their common 1M (from 15 V on), the analog inputs AI0 AI1 read 0-10 V against 2M as 0-27648, the transistor outputs switch the output supply 3L+ to their terminal. The program writes them by address: %I0.0, %Q0.0, %IW64."
+msgstr "24 V DC na L+ a M. Vstupy jsou sepnuté s 24 V proti svému společnému 1M (od 15 V), analogové vstupy AI0 AI1 čtou 0-10 V proti 2M jako 0-27648, tranzistorové výstupy spínají napájení výstupů 3L+ na svou svorku. Program je píše adresami: %I0.0, %Q0.0, %IW64."
+
+msgid "Signal modules"
+msgstr "Signálové moduly"
+
+msgid "Clips one more module on to the right (as many as the CPU takes)"
+msgstr "Připojí vpravo další modul (tolik, kolik CPU unese)"
+
+msgid "8 inputs 24 V DC"
+msgstr "8 vstupů 24 V DC"
+
+msgid "8 transistor outputs 24 V DC"
+msgstr "8 tranzistorových výstupů 24 V DC"
+
+msgid "8 inputs, 8 transistor outputs 24 V DC"
+msgstr "8 vstupů, 8 tranzistorových výstupů 24 V DC"
+
+msgid "4 analog inputs 0-10 V"
+msgstr "4 analogové vstupy 0-10 V"
+
 msgid "The PLC runs the program shown here."
 msgstr "PLC vykonává program, který je zde zobrazen."
 
