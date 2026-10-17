@@ -210,9 +210,22 @@ Architecture and conventions of the code base. Read this before changing the cod
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
   wires reached by PE alone are drawn in the PE colour, StepResult.REACH_PE),
   DC supplies + and - (a separate source: loads work between two conductors of the same source;
-  AC joined to DC is a short; the - pole is drawn like N), TB = bridge rectifier (Rectifier, a Load
+  AC joined to DC is a short; the - pole is drawn like N; a + supply has a voltage,
+  PowerSupply.voltage 12/24/48/110/220 V, default 24 V, each a source bit of its own, all sharing
+  the - poles, so two + of different voltages joined are a short), TB = bridge rectifier (Rectifier, a Load
   with terminals ~1 ~2 + -: while its input has voltage its + and - are DC poles, output taken as
-  isolated; its input carries current only while its output does)
+  isolated, 207 V DC, a source bit of its own, BIT_DC_RECTIFIED; its input carries current only
+  while its output does)
+- Voltages: 230 V between a phase and N, 400 V between two phases (PowerSupply.PHASE_VOLTS,
+  Simulator._volts). Coils, time relays, lamps and PLCs have a rated voltage (Load.rating,
+  VoltageRating: "230ac", "24dc", lamps "230v" AC or DC, PLC versions "230rc" 115-240 V AC/DC,
+  "24rc", "1224rc" 12/24 V DC with their input thresholds; saved as "rating"; "" = works on any
+  voltage, parts of older files and parts made in code); new parts from the palette get the first
+  offered (230 V), a coil turned into a time relay keeps it. Below PICK_UP (85 %) a part does not
+  work, above BURN (130 %) it burns out (Load.burnt, simulation state, logged, shown as a fault,
+  "Replace the burnt-out part" in the fault menu), an AC coil on DC burns out from 30 % on, a DC
+  coil on AC does not pull in; a PLC also burns out with too high a voltage on an input or a
+  module supply. The rating is written under the designation, a + supply's voltage beside it
   (supply points of one conductor are the same potential on every page); next to L2 or L3 a plain "L" supply is renamed
   "L1" ("L.2" -> "L1.2", SchematicDocument.name_first_phase, run after every edit)
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"

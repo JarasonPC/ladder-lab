@@ -59,6 +59,13 @@ func show_component(component: CircuitComponent) -> void:
 	match kind:
 		"supply":
 			_choice(tr("Conductor"), "conductor", Array(DocumentSerializer.CONDUCTORS), ["L / L1", "N", "L2", "L3", tr("+ (DC)"), tr("- (DC)"), "PE"])
+			if (component as PowerSupply).conductor == PowerSupply.Conductor.DC_PLUS:
+				var titles: Array = []
+				for v: float in PowerSupply.DC_VOLTAGES:
+					titles.append("%d V" % roundi(v))
+				_choice(tr("Voltage against -"), "voltage", Array(PowerSupply.DC_VOLTAGES), titles)
+			elif (component as PowerSupply).conductor != PowerSupply.Conductor.DC_MINUS:
+				_note(tr("230 V between a phase and N, 400 V between two phases."), "MutedLabel")
 		"junction":
 			_note(tr("Wire junction"), "MutedLabel")
 		"connector":
@@ -123,6 +130,8 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Run-up time (s)"), "run_up_time", 0.0, 600.0, 0.1)
 			_number(tr("Run-down time (s)"), "coast_time", 0.0, 3600.0, 0.1)
 			_number(tr("DC braking time (s)"), "brake_time", 0.0, 3600.0, 0.1)
+	if not VoltageRating.offered(kind).is_empty():
+		_rating(kind)
 	if not (component is Junction):
 		_orientation()
 	_group = null
@@ -350,6 +359,21 @@ func _timer_function_titles(input: String) -> Array:
 func _input_name(timer: TimerRelay) -> String:
 	var names: PackedStringArray = timer.get_terminal_names()
 	return names[2] if names.size() > 2 else "S"
+
+
+## Rated voltage of a coil, time relay, lamp or PLC: below it the part does
+## not work, far above it burns out.
+func _rating(kind: String) -> void:
+	var values: Array = Array(VoltageRating.offered(kind))
+	var titles: Array = []
+	for name: String in values:
+		titles.append(VoltageRating.text(name))
+	if str(_data.get("rating", "")).is_empty():
+		values.push_front("")
+		titles.push_front(tr("Not set (works on any voltage)"))
+	_choice(tr("PLC version (supply and inputs)") if kind == "plc" else tr("Rated voltage"), "rating", values, titles)
+	_group = null
+	_note(tr("Too low a voltage and the part does not work; far too high a voltage (or DC on an AC coil) burns it out while simulating."), "MutedLabel")
 
 
 ## What the PLC runs, with the button that opens its program.

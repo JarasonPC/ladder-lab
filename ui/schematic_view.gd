@@ -465,7 +465,10 @@ func _open_fault_menu() -> void:
 		_fault_menu.add_item(tr("Motor overloaded"), FaultId.OVERLOAD)
 	elif _fault_wire >= 0:
 		_fault_menu.add_item(tr("Broken wire"), FaultId.WIRE_BROKEN)
-	if _fault_menu.item_count > 0:
+	if _fault_target is Load and (_fault_target as Load).burnt and _fault_menu.item_count == 0:
+		_fault_menu.add_item(tr("Replace the burnt-out part"), FaultId.CLEAR)
+		_fault_menu.add_separator()
+	elif _fault_menu.item_count > 0:
 		if _has_fault(_fault_target) or document.circuit.broken_wires.has(_fault_wire):
 			_fault_menu.add_item(tr("Remove fault"), FaultId.CLEAR)
 		_fault_menu.add_separator()
@@ -515,6 +518,8 @@ func _on_fault_menu(id: int) -> void:
 
 
 static func _has_fault(c: CircuitComponent) -> bool:
+	if c is Load and (c as Load).burnt:
+		return true
 	if c is SwitchingElement:
 		return (c as SwitchingElement).fault != SwitchingElement.Fault.NONE
 	if c is ChangeoverContact:
@@ -531,6 +536,8 @@ static func _has_fault(c: CircuitComponent) -> bool:
 
 
 static func _clear_fault(c: CircuitComponent) -> void:
+	if c is Load:
+		(c as Load).burnt = false
 	if c is SwitchingElement:
 		(c as SwitchingElement).fault = SwitchingElement.Fault.NONE
 	elif c is ChangeoverContact:

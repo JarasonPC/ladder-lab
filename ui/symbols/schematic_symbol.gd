@@ -307,6 +307,8 @@ func _draw_labels() -> void:
 
 ## True when a fault is injected into this component (simulation only).
 func has_fault() -> bool:
+	if component is Load and (component as Load).burnt:
+		return true
 	if component is SwitchingElement:
 		return (component as SwitchingElement).fault != SwitchingElement.Fault.NONE
 	if component is ChangeoverContact:
@@ -354,6 +356,14 @@ func _draw_fault_marker(at: Vector2) -> void:
 
 
 ## Local point next to which the designation is written.
+## Writes the rated voltage of a load ("24 V DC") on [param line] beside
+## [param anchor]; nothing for a part without a rating.
+func draw_rating(anchor: Vector2, line: int) -> void:
+	var load: Load = component as Load
+	if load != null and not load.rating.is_empty():
+		draw_label(VoltageRating.text(load.rating), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, line)
+
+
 func _designation_anchor() -> Vector2:
 	return Vector2(-1.3 * G, 1.5 * G)
 

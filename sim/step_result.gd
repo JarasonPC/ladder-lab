@@ -76,10 +76,10 @@ static func reach_code(mask: int) -> int:
 			return REACH_L3
 		PowerSupply.BIT_N:
 			return REACH_N
-		PowerSupply.BIT_DC_PLUS:
-			return REACH_DC_PLUS
 		PowerSupply.BIT_DC_MINUS:
 			return REACH_DC_MINUS
+	if (mask & (mask - 1)) == 0 and (mask & PowerSupply.DC_PLUS_BITS) != 0:
+		return REACH_DC_PLUS
 	return REACH_SEVERAL
 
 

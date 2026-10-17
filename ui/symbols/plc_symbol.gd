@@ -75,6 +75,7 @@ static func module_window(plc: Plc, m: int) -> Rect2:
 
 func _draw_labels() -> void:
 	draw_label(designation_text(), Vector2(-1.4 * G, 3.0 * G), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	draw_rating(Vector2(-1.4 * G, 3.0 * G), 1)
 	var plc: Plc = component as Plc
 	var names: PackedStringArray = component.get_terminal_names()
 	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(plc)

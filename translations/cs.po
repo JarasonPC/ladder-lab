@@ -1479,6 +1479,31 @@ msgstr "%s: rozšiřovací modul %d zapnut"
 msgid "%s: expansion module %d switched off"
 msgstr "%s: rozšiřovací modul %d vypnut"
 
+msgid "Voltage against -"
+msgstr "Napětí proti -"
+
+msgid "230 V between a phase and N, 400 V between two phases."
+msgstr "230 V mezi fází a N, 400 V mezi dvěma fázemi."
+
+msgid "Not set (works on any voltage)"
+msgstr "Nenastaveno (funguje na jakékoli napětí)"
+
+msgid "PLC version (supply and inputs)"
+msgstr "Verze PLC (napájení a vstupy)"
+
+msgid "Rated voltage"
+msgstr "Jmenovité napětí"
+
+msgid "Too low a voltage and the part does not work; far too high a voltage (or DC on an AC coil) burns it out while simulating."
+msgstr "Při příliš nízkém napětí díl nefunguje; při příliš vysokém napětí (nebo stejnosměrném napětí na střídavé cívce) se během simulace spálí."
+
+msgid "Replace the burnt-out part"
+msgstr "Vyměnit spálený díl"
+
+#, c-format
+msgid "%s burnt out: too high a voltage for %s"
+msgstr "%s se spálil: příliš vysoké napětí pro %s"
+
 msgid "The PLC runs the program shown here."
 msgstr "PLC vykonává program, který je zde zobrazen."
 

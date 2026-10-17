@@ -372,6 +372,8 @@ func change_type(component_id: String, template: Dictionary) -> String:
 	var old_data: Dictionary = DocumentSerializer.component_to_dict(old)
 	if old_data.has("poles") and not data.has("poles"):
 		data["poles"] = old_data["poles"]
+	if VoltageRating.offered(template["type"]).has(str(old_data.get("rating", ""))):
+		data["rating"] = old_data["rating"]
 	match _family(template["type"]):
 		"switching":
 			var element: SwitchingElement = old as SwitchingElement
@@ -858,6 +860,10 @@ func _place_at(cell: Vector2i) -> void:
 			return
 	var data: Dictionary = _template.duplicate()
 	data["designation"] = _new_designation(data)
+	var ratings: PackedStringArray = VoltageRating.offered(data["type"])
+	if not ratings.is_empty() and not data.has("rating"):
+		# New parts have a rated voltage: the first offered, 230 V.
+		data["rating"] = ratings[0]
 	if ["contact", "changeover", "push_button", "latching_switch", "limit_switch"].has(data["type"]):
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
 	if data["type"] == "terminal" and str(data.get("label", "")).is_empty():

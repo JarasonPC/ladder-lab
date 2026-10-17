@@ -4,6 +4,10 @@ extends CircuitComponent
 ## other to N through closed switching elements only.
 
 var energized: bool = false
+## Rated voltage ([VoltageRating] name; "" works on any voltage).
+var rating: String = ""
+## Burnt out by too high a voltage (simulation state): works no more.
+var burnt: bool = false
 var _terminals: PackedStringArray
 
 ## Current drawn at the nominal voltage (230 V AC between a phase and N, or

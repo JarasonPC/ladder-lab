@@ -166,6 +166,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	if c is PowerSupply:
 		d["type"] = "supply"
 		d["conductor"] = CONDUCTORS[(c as PowerSupply).conductor]
+		if (c as PowerSupply).conductor == PowerSupply.Conductor.DC_PLUS:
+			d["voltage"] = (c as PowerSupply).voltage
 	elif c is Junction:
 		d["type"] = "junction"
 	elif c is TerminalBlock:
@@ -272,6 +274,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 			d["purpose"] = (c as Lamp).purpose
 	elif c is Motor:
 		d["type"] = "motor"
+	if c is Load and not (c as Load).rating.is_empty():
+		d["rating"] = (c as Load).rating
 	if not c.custom_terminals.is_empty():
 		d["terminals"] = Array(c.custom_terminals)
 	return d
@@ -296,6 +300,8 @@ static func plc_modules(raw: Variant) -> Array[Plc.Module]:
 ## Builds a component, or returns null for unknown or invalid data.
 static func component_from_dict(d: Dictionary) -> CircuitComponent:
 	var c: CircuitComponent = _component_from_dict(d)
+	if c is Load and VoltageRating.is_known(str(d.get("rating", ""))):
+		(c as Load).rating = str(d.get("rating", ""))
 	if c == null or not d.has("terminals"):
 		return c
 	var raw: Variant = d["terminals"]
@@ -324,7 +330,11 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 	match kind:
 		"supply":
 			var conductor: int = maxi(CONDUCTORS.find(str(d.get("conductor", "L"))), 0)
-			return PowerSupply.new(designation, conductor as PowerSupply.Conductor)
+			var supply: PowerSupply = PowerSupply.new(designation, conductor as PowerSupply.Conductor)
+			var volts: float = float(d.get("voltage", PowerSupply.DC_VOLTAGES[0])) if d.get("voltage") is float or d.get("voltage") is int else PowerSupply.DC_VOLTAGES[0]
+			if PowerSupply.DC_VOLTAGES.has(volts):
+				supply.voltage = volts
+			return supply
 		"junction":
 			return Junction.new(designation)
 		"terminal":
