@@ -28,6 +28,6 @@ func _draw_labels() -> void:
 	var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var center: Vector2 = to_upright(CIRCLE)
 	draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.TEXT)
-	if (component as PowerSupply).conductor == PowerSupply.Conductor.DC_PLUS:
+	if (component as PowerSupply).conductor == PowerSupply.Conductor.DC_PLUS and not preview:
 		# Its voltage beside the circle.
 		draw_label("%d V" % roundi((component as PowerSupply).voltage), CIRCLE + Vector2(RADIUS + 3.0, 0.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT)

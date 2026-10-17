@@ -156,17 +156,27 @@ Architecture and conventions of the code base. Read this before changing the cod
   with voltage against its own N, it draws Plc.MODULE_DRAW; the circuit check wants the modules'
   supplies wired. Terminal indices come from the instance (input_terminal, output_terminal,
   module_terminal, module_terminals); the properties add a module after the last one or take
-  the last one off, so the other terminals keep their numbers (names given by hand stay). It runs its PlcProgram
+  the last one off, so the other terminals keep their numbers (names given by hand stay). Analog:
+  the 24 V and 12/24 V versions read I7 I8 I1 I2 also as AI1-AI4 (Plc.ANALOG_VERSIONS); analog
+  modules (Module.AI2: nL+ nM nU1 nU2, AI numbered on after the PLC's own; Module.AQ2: nL+ nM
+  AQ1 AQ2; always 24 V DC, Plc.module_rating) up to Plc.MAX_ANALOG 8 of each; terminal roles
+  (Plc.Role: supply, DI, DQ, AI, AQ) place them on the symbol and in the switchboard. The
+  simulator puts analog volts on nets (sensors with their supply, AQ of working PLCs; a DC +
+  pole reads its voltage) and hands each PLC the volts on its AIs (Plc.analog_in, 0-10 V =
+  0-1000 in PlcRuntime.analog_inputs); Plc.analog_output_volts from PlcRuntime.analog_outputs. It runs its PlcProgram
   (sim/plc/, no nodes) through PlcRuntime: scans when the power or an input changes and when a
   program timer ends, until a scan changes nothing (PlcRuntime.MAX_SCANS; a program that keeps
   changing is scanned again after Plc.CYCLE_TIME and reported as oscillating); losing power
   resets it. A program holds both a function block diagram (PlcBlock: connectors I/Q/M/hi/lo,
   AND OR NOT NAND NOR XOR with 4/4/1/4/4/2 inputs, on-/off-delay, latching relay, pulse relay,
-  up/down counter; numbered B001; worked through in signal order, a feedback loop starting at
+  up/down counter, analog input AI / output AQ connectors, analog threshold trigger, analog
+  comparator (On / Off with hysteresis), analog amplifier (gain, offset; PlcRuntime.analog holds
+  the analog block values, a digital source reads 0 / 1000); numbered B001; worked through in signal order, a feedback loop starting at
   the lowest number) and a ladder diagram (one PlcRung along one power rail, no networks: rows
   of 8 cell columns, cells wire/NO/NC/P/N (edge contacts, closed for one scan) with operands
-  I Q M T C, vertical links at the right side of a cell, a coil per row: assignment, negated,
-  S, R, SD, SF, CU, CD; rows joined by links make a rung (PlcRung.rung_groups, numbered in the
+  I Q M T C, comparing contacts AI >= value / AI < value, vertical links at the right side of a
+  cell, a coil per row: assignment, negated, S, R, SD, SF, CU, CD, AQ (value while powered, 0
+  without); rows joined by links make a rung (PlcRung.rung_groups, numbered in the
   margin), rungs run from the top, power flows column by column, linked rows share it; older
   programs with several networks load as rows one after another);
   language says which one runs. Operands I1-I24, Q1-Q20 (the PLC window offers
@@ -204,7 +214,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: A = PLC, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
+- Device designations: A = PLC, BT = temperature sensor, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
@@ -265,6 +275,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   (ThreePhaseMotor.shaft, simulation state) runs down in coast_time when switched off, in brake_time
   with DC braking; braking force follows the rotor field (rotor_flux, decays with ROTOR_TIME_CONSTANT
   after the AC cut), so DC applied at once brakes best; a star/delta motor running shows a large Y or Δ under "M3~"
+- Temperature sensor (TemperatureSensor, "BT1", a Load on L+-M rated 24 V DC, output U): puts
+  0-10 V on U over its range (range_min..range_max °C, saved with the start temperature);
+  drawn as a converter (box with a diagonal, θ in, U out; TemperatureSensorSymbol), its range,
+  temperature and volts written beside it; while simulating a click opens a slider
+  (SchematicView.set_temperature); outside the switchboard like buttons and lamps
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)

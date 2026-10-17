@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -260,6 +260,12 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["drop_out"] = (c as Coil).drop_out_time
 	elif c is Rectifier:
 		d["type"] = "rectifier"
+	elif c is TemperatureSensor:
+		var sensor: TemperatureSensor = c as TemperatureSensor
+		d["type"] = "temp_sensor"
+		d["range_min"] = sensor.range_min
+		d["range_max"] = sensor.range_max
+		d["temperature"] = sensor.temperature
 	elif c is Plc:
 		d["type"] = "plc"
 		d["program"] = (c as Plc).program.to_data()
@@ -300,8 +306,8 @@ static func plc_modules(raw: Variant) -> Array[Plc.Module]:
 ## Builds a component, or returns null for unknown or invalid data.
 static func component_from_dict(d: Dictionary) -> CircuitComponent:
 	var c: CircuitComponent = _component_from_dict(d)
-	if c is Load and VoltageRating.is_known(str(d.get("rating", ""))):
-		(c as Load).rating = str(d.get("rating", ""))
+	if c is Load and d.has("rating") and VoltageRating.is_known(str(d["rating"])):
+		(c as Load).rating = str(d["rating"])
 	if c == null or not d.has("terminals"):
 		return c
 	var raw: Variant = d["terminals"]
@@ -423,6 +429,15 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			return Rectifier.new(designation)
 		"plc":
 			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", [])))
+		"temp_sensor":
+			var sensor: TemperatureSensor = TemperatureSensor.new(designation)
+			sensor.range_min = clampf(_number_or(d, "range_min", TemperatureSensor.DEFAULT_MIN), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
+			sensor.range_max = clampf(_number_or(d, "range_max", TemperatureSensor.DEFAULT_MAX), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
+			if sensor.range_max <= sensor.range_min:
+				sensor.range_min = TemperatureSensor.DEFAULT_MIN
+				sensor.range_max = TemperatureSensor.DEFAULT_MAX
+			sensor.temperature = clampf(_number_or(d, "temperature", TemperatureSensor.DEFAULT_TEMPERATURE), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
+			return sensor
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)
 			lamp.purpose = str(d.get("purpose", "")).strip_edges()

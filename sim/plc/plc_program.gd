@@ -5,7 +5,8 @@ extends RefCounted
 ## PLCs. Both are kept; [member language] tells which one the PLC runs.
 ##
 ## Operands: inputs I1-I24, outputs Q1-Q20 (those beyond I8 and Q4 are on
-## the expansion modules of the [Plc]), flags M1-M16; the ladder diagram
+## the expansion modules of the [Plc]), flags M1-M16, analog inputs AI1-AI8
+## and analog outputs AQ1-AQ8 (values 0-1000 for 0-10 V); the ladder diagram
 ## also has timers T1-T16 and counters C1-C16 (the function block diagram
 ## has its timers and counters in its blocks). Design data only: the
 ## [PlcRuntime] of the [Plc] runs it.
@@ -15,7 +16,10 @@ enum Language { FBD, LAD }
 const LANGUAGE_NAMES: PackedStringArray = ["fbd", "lad"]
 ## Count of each operand area (I and Q as [constant Plc.MAX_INPUTS] and
 ## [constant Plc.MAX_OUTPUTS]).
-const AREA_SIZES: Dictionary[String, int] = {"I": 24, "Q": 20, "M": 16, "T": 16, "C": 16}
+const AREA_SIZES: Dictionary[String, int] = {"I": 24, "Q": 20, "M": 16, "T": 16, "C": 16, "AI": 8, "AQ": 8}
+## Areas named by two letters: an areas string that is one of them means it
+## alone (else every letter of it is an area).
+const ANALOG_AREAS: PackedStringArray = ["AI", "AQ"]
 ## Most blocks of a function block diagram.
 const MAX_BLOCKS: int = 200
 
@@ -25,29 +29,45 @@ var rungs: Array[PlcRung] = []
 
 
 ## True if [param operand] is an operand of one of the [param areas]
-## ("IQM" ...), e.g. "I3" or "M12".
+## ("IQM" ..., or "AI"), e.g. "I3", "M12" or "AI2".
 static func valid_operand(operand: String, areas: String) -> bool:
-	if operand.length() < 2:
-		return false
-	var area: String = operand.left(1)
-	var number: String = operand.substr(1)
-	if not areas.contains(area) or not AREA_SIZES.has(area) or not number.is_valid_int() or number.begins_with("0"):
+	var area: String = area_of(operand)
+	var number: String = operand.substr(area.length())
+	if area.is_empty() or not area_list(areas).has(area) or not number.is_valid_int() or number.begins_with("0"):
 		return false
 	return int(number) >= 1 and int(number) <= AREA_SIZES[area]
+
+
+## The areas of an areas string: "IQM" -> I, Q, M; "AI" -> AI.
+static func area_list(areas: String) -> PackedStringArray:
+	if ANALOG_AREAS.has(areas):
+		return PackedStringArray([areas])
+	var list: PackedStringArray = PackedStringArray()
+	for area: String in areas:
+		list.append(area)
+	return list
+
+
+## Area of an operand: "I", "Q", "AI" ... ("" when it is none).
+static func area_of(operand: String) -> String:
+	for area: String in ANALOG_AREAS:
+		if operand.begins_with(area):
+			return area
+	return operand.left(1) if AREA_SIZES.has(operand.left(1)) else ""
 
 
 ## Every operand of [param areas], in order: "I1".."I24", "Q1"...
 static func operands(areas: String) -> PackedStringArray:
 	var result: PackedStringArray = PackedStringArray()
-	for area: String in areas:
+	for area: String in area_list(areas):
 		for n: int in AREA_SIZES.get(area, 0):
 			result.append("%s%d" % [area, n + 1])
 	return result
 
 
-## Index (0-based) of an operand within its area: "Q3" -> 2.
+## Index (0-based) of an operand within its area: "Q3" -> 2, "AI2" -> 1.
 static func operand_index(operand: String) -> int:
-	return int(operand.substr(1)) - 1
+	return int(operand.substr(area_of(operand).length())) - 1
 
 
 func block(id: int) -> PlcBlock:

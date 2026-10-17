@@ -110,6 +110,16 @@ var _plc_module_nets: PackedInt32Array = PackedInt32Array()
 var _plc_module_terms: PackedInt32Array = PackedInt32Array()
 var _plc_module_start: PackedInt32Array = PackedInt32Array()
 var _plc_modules: PackedInt32Array = PackedInt32Array()
+## Analog inputs and outputs of the PLCs: their nets (from
+## _plc_ai_start[p] / _plc_aq_start[p] on) and, from the last evaluation,
+## the volts on each analog input.
+var _plc_ai_nets: PackedInt32Array = PackedInt32Array()
+var _plc_ai_start: PackedInt32Array = PackedInt32Array()
+var _plc_aq_nets: PackedInt32Array = PackedInt32Array()
+var _plc_aq_start: PackedInt32Array = PackedInt32Array()
+var _plc_analog: Array[PackedFloat32Array] = []
+## Temperature sensors (load index) and the net of their output U.
+var _sensor_outputs: Dictionary[int, int] = {}
 ## Actuators of push buttons and switches (one per device).
 var _actuators: Array[Armature] = []
 var _overload_relays: Array[OverloadRelay] = []
@@ -267,6 +277,11 @@ func _build() -> void:
 	_plc_module_nets.clear()
 	_plc_module_terms.clear()
 	_plc_module_start.clear()
+	_plc_ai_nets.clear()
+	_plc_ai_start.clear()
+	_plc_aq_nets.clear()
+	_plc_aq_start.clear()
+	_sensor_outputs.clear()
 	_supplies.clear()
 	_rectifiers.clear()
 	_rectifier_out_nets.clear()
@@ -312,6 +327,12 @@ func _build() -> void:
 				for t: int in 2:
 					_plc_module_nets.append(_net_of_key[keys[plc.module_terminal(m) + t]])
 					_plc_module_terms.append(index[keys[plc.module_terminal(m) + t]])
+			_plc_ai_start.append(_plc_ai_nets.size())
+			for k: int in plc.analog_input_count():
+				_plc_ai_nets.append(_net_of_key[keys[plc.analog_input_terminal(k)]])
+			_plc_aq_start.append(_plc_aq_nets.size())
+			for k: int in plc.analog_output_count():
+				_plc_aq_nets.append(_net_of_key[keys[plc.analog_output_terminal(k)]])
 			continue
 		if not paths.is_empty():
 			continue
@@ -331,6 +352,8 @@ func _build() -> void:
 				_rectifier_out_terms.append(index[keys[2]])
 				_rectifier_out_terms.append(index[keys[3]])
 			_loads.append(c as Load)
+			if c is TemperatureSensor:
+				_sensor_outputs[_loads.size() - 1] = _net_of_key[keys[2]]
 			if c is TimerRelay and (c as TimerRelay).control_input and keys.size() > 2:
 				_control_nets[_loads.size() - 1] = _net_of_key[keys[2]]
 				if (c as TimerRelay).a2_index() == 0:
@@ -348,6 +371,8 @@ func _build() -> void:
 	_plc_inputs.fill(0)
 	_plc_modules.resize(_plc_indices.size())
 	_plc_modules.fill(0)
+	_plc_analog.resize(_plc_indices.size())
+	_plc_analog.fill(PackedFloat32Array())
 	_motor_states.resize(_motors.size())
 	_motor_directions.resize(_motors.size())
 	_motor_speeds.resize(_motors.size())
@@ -532,8 +557,8 @@ func _settle_coils(result: StepResult) -> void:
 			for p: int in _plc_indices.size():
 				var plc: Plc = _loads[_plc_indices[p]] as Plc
 				var powered: bool = (desired[_plc_indices[p]] & 1) == 1
-				if plc.energized != powered or plc.inputs != _plc_inputs[p] or plc.module_power != _plc_modules[p]:
-					plc.update(powered, _plc_inputs[p], _plc_modules[p])
+				if plc.energized != powered or plc.inputs != _plc_inputs[p] or plc.module_power != _plc_modules[p] or plc.analog_in != _plc_analog[p]:
+					plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p])
 				elif plc.pending:
 					plc.rescan()
 				else:
@@ -631,7 +656,7 @@ func _apply_power(result: StepResult) -> void:
 				var module_on: bool = powered and (_plc_modules[p] >> m) & 1 == 1
 				if module_on != plc.module_on(m):
 					_log(result, "%s: expansion module %d switched on" if module_on else "%s: expansion module %d switched off", [plc.designation, m + 1])
-			plc.update(powered, _plc_inputs[p], _plc_modules[p])
+			plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p])
 		_apply_outputs(desired, result)
 		if not _instant_trips(result):
 			break
@@ -855,6 +880,7 @@ func _evaluate() -> PackedByteArray:
 			_motor_supply[m] = _unfed_motor(_motors[m])
 		_plc_inputs.fill(0)
 		_plc_modules.fill(0)
+		_plc_analog.fill(PackedFloat32Array())
 		return result
 	for i: int in _loads.size():
 		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
@@ -884,7 +910,7 @@ func _evaluate() -> PackedByteArray:
 		for m: int in plc.modules.size():
 			var at: int = _plc_module_start[p] + 2 * m
 			module_n.append(masks.get(uf.find(_plc_module_nets[at + 1]), 0))
-			match _rated_state(plc.rating, masks.get(uf.find(_plc_module_nets[at]), 0), module_n[m]):
+			match _rated_state(plc.module_rating(m), masks.get(uf.find(_plc_module_nets[at]), 0), module_n[m]):
 				VoltageRating.State.WORKS:
 					on |= 1 << m
 				VoltageRating.State.BURNS:
@@ -909,6 +935,26 @@ func _evaluate() -> PackedByteArray:
 		_plc_inputs[p] = bits
 		if overvoltage and not plc.burnt:
 			result[_plc_indices[p]] = 4
+	# Analog signals: volts put on nets by the sensors that have their
+	# supply and by the analog outputs of the PLCs.
+	var analog: Dictionary[int, float] = {}
+	for i: int in _sensor_outputs:
+		analog[uf.find(_sensor_outputs[i])] = (_loads[i] as TemperatureSensor).output_volts(result[i] & 1 == 1)
+	for p: int in _plc_indices.size():
+		var plc: Plc = _loads[_plc_indices[p]] as Plc
+		for k: int in plc.analog_output_count():
+			var root: int = uf.find(_plc_aq_nets[_plc_aq_start[p] + k])
+			analog[root] = maxf(analog.get(root, 0.0), plc.analog_output_volts(k))
+	for p: int in _plc_indices.size():
+		var plc: Plc = _loads[_plc_indices[p]] as Plc
+		var volts: PackedFloat32Array = PackedFloat32Array()
+		for k: int in plc.analog_input_count():
+			var root: int = uf.find(_plc_ai_nets[_plc_ai_start[p] + k])
+			var mask: int = masks.get(root, 0)
+			# A DC + pole on an analog input reads its voltage.
+			var dc: float = PowerSupply.dc_volts(mask) if _is_single_source(mask) else 0.0
+			volts.append(snappedf(analog.get(root, dc), 0.001))
+		_plc_analog[p] = volts
 	_evaluate_motors(uf, masks)
 	return result
 

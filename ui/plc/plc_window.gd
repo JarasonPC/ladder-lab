@@ -52,6 +52,10 @@ var _io_bar: PanelContainer
 var _io: HFlowContainer
 var _input_switches: Array[Button] = []
 var _output_lamps: Array[Panel] = []
+## Test simulation: the volts set on each analog input, the volts shown of
+## each analog output.
+var _analog_inputs: Array[SpinBox] = []
+var _analog_outputs: Array[Label] = []
 var _sim_clock: Label
 
 
@@ -114,6 +118,8 @@ func _process(delta: float) -> void:
 	_sim_clock.text = "%.1f s" % _sim_time
 	for k: int in _output_lamps.size():
 		_light(_output_lamps[k], _sim_plc.output_on(k))
+	for k: int in _analog_outputs.size():
+		_analog_outputs[k].text = "AQ%d  %.2f V" % [k + 1, _sim_plc.analog_output_volts(k)]
 	show_step()
 
 
@@ -240,13 +246,17 @@ func _build() -> void:
 func _build_io() -> void:
 	var inputs: int = plc.input_count() if plc != null else Plc.BASE_INPUTS
 	var outputs: int = plc.output_count() if plc != null else Plc.BASE_OUTPUTS
-	if _input_switches.size() == inputs and _output_lamps.size() == outputs:
+	var analog_in: int = plc.analog_input_count() if plc != null else 0
+	var analog_out: int = plc.analog_output_count() if plc != null else 0
+	if _input_switches.size() == inputs and _output_lamps.size() == outputs and _analog_inputs.size() == analog_in and _analog_outputs.size() == analog_out:
 		return
 	for child: Node in _io.get_children():
 		_io.remove_child(child)
 		child.queue_free()
 	_input_switches.clear()
 	_output_lamps.clear()
+	_analog_inputs.clear()
+	_analog_outputs.clear()
 	for k: int in inputs:
 		var switch: Button = Button.new()
 		switch.toggle_mode = true
@@ -269,6 +279,28 @@ func _build_io() -> void:
 		_io.add_child(lamp)
 		_output_lamps.append(lamp)
 		_light(lamp, false)
+	if analog_in + analog_out > 0:
+		_io.add_child(VSeparator.new())
+	for k: int in analog_in:
+		var spin: SpinBox = SpinBox.new()
+		spin.prefix = "AI%d" % (k + 1)
+		spin.suffix = "V"
+		spin.min_value = 0.0
+		spin.max_value = Plc.ANALOG_VOLTS
+		spin.step = 0.1
+		spin.custom_minimum_size = Vector2(120, 34)
+		spin.tooltip_text = tr("Volts on the analog input (0-10 V = 0-1000)")
+		spin.value_changed.connect(func(_v: float) -> void: _feed_inputs())
+		_io.add_child(spin)
+		_analog_inputs.append(spin)
+	for k: int in analog_out:
+		var label: Label = Label.new()
+		label.theme_type_variation = "TimeLabel"
+		label.text = "AQ%d  0.00 V" % (k + 1)
+		label.custom_minimum_size = Vector2(110, 34)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_io.add_child(label)
+		_analog_outputs.append(label)
 
 
 func _canvas_scroll(canvas: PlcCanvas, parent: Control) -> ScrollContainer:
@@ -416,6 +448,11 @@ func _build_side() -> void:
 	if info.has("preset"):
 		_caption(tr("Preset (count)"))
 		_side.add_child(_spin(float(info["preset"]), 1.0, 9999.0, 1.0, func(v: float) -> void: canvas.set_property("preset", int(v))))
+	for p: Array in [["gain", tr("Gain"), -PlcBlock.MAX_GAIN, PlcBlock.MAX_GAIN, 0.01], ["offset", tr("Offset"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["on", tr("On threshold"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["off", tr("Off threshold"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["value", tr("Value (0-1000 = 0-10 V)"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0]]:
+		if info.has(p[0]):
+			var key: String = p[0]
+			_caption(p[1])
+			_side.add_child(_spin(float(info[key]), p[2], p[3], p[4], func(v: float) -> void: canvas.set_property(key, v)))
 	if monitoring:
 		_live = Label.new()
 		_live.theme_type_variation = "TimeLabel"
@@ -481,14 +518,17 @@ func _spin(value: float, low: float, high: float, step: float, on_change: Callab
 func _set_test_simulation(on: bool) -> void:
 	if on and not monitoring:
 		_sim_plc = Plc.new(component_id, _program.duplicate_program(), plc.modules if plc != null else [] as Array[Plc.Module])
+		_sim_plc.rating = plc.rating if plc != null else ""
 		_sim_time = 0.0
 		_canvas().tool = ""
-		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules())
+		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules(), _analog_volts())
 		_sim_plc.snap()
 	else:
 		_sim_plc = null
 		for switch: Button in _input_switches:
 			switch.set_pressed_no_signal(false)
+		for spin: SpinBox in _analog_inputs:
+			spin.set_value_no_signal(0.0)
 	_show()
 
 
@@ -501,7 +541,8 @@ func _operand_choices(areas: String, current: String) -> PackedStringArray:
 	var choices: PackedStringArray = PackedStringArray()
 	for op: String in PlcProgram.operands(areas):
 		var n: int = PlcProgram.operand_index(op)
-		var fitted: bool = (op[0] != "I" or n < inputs) and (op[0] != "Q" or n < outputs)
+		var limits: Dictionary[String, int] = {"I": inputs, "Q": outputs, "AI": plc.analog_input_count() if plc != null else 0, "AQ": plc.analog_output_count() if plc != null else 0}
+		var fitted: bool = n < limits.get(PlcProgram.area_of(op), PlcProgram.AREA_SIZES.get(PlcProgram.area_of(op), 0))
 		if fitted or op == current:
 			choices.append(op)
 	return choices
@@ -510,8 +551,10 @@ func _operand_choices(areas: String, current: String) -> PackedStringArray:
 ## What the inputs and outputs of the PLC are, for the hint in the side panel.
 func _io_note() -> String:
 	var note: String = tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals.")
-	if plc != null and not plc.modules.is_empty():
+	if plc != null and plc.input_count() > Plc.BASE_INPUTS:
 		note += " " + tr("Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N.") % [plc.input_count(), plc.output_count()]
+	if plc != null and plc.analog_input_count() + plc.analog_output_count() > 0:
+		note += " " + tr("Analog inputs read 0-10 V as 0-1000 (the 12/24 V and 24 V versions: I7, I8, I1, I2 as AI1-AI4); analog outputs put 0-1000 out as 0-10 V. Analog modules need 24 V DC on L+ and M.")
 	return note
 
 
@@ -524,9 +567,17 @@ func _input_bits() -> int:
 	return bits
 
 
+## Volts set on the analog inputs of the test simulation.
+func _analog_volts() -> PackedFloat32Array:
+	var volts: PackedFloat32Array = PackedFloat32Array()
+	for spin: SpinBox in _analog_inputs:
+		volts.append(spin.value)
+	return volts
+
+
 func _feed_inputs() -> void:
 	if _sim_plc != null:
-		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules())
+		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules(), _analog_volts())
 		_sim_plc.snap()
 		show_step()
 

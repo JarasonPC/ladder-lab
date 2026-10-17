@@ -1504,6 +1504,112 @@ msgstr "Vyměnit spálený díl"
 msgid "%s burnt out: too high a voltage for %s"
 msgstr "%s se spálil: příliš vysoké napětí pro %s"
 
+msgid "Range from (°C)"
+msgstr "Rozsah od (°C)"
+
+msgid "Range to (°C)"
+msgstr "Rozsah do (°C)"
+
+msgid "Temperature at the start (°C)"
+msgstr "Teplota na začátku (°C)"
+
+msgid "Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."
+msgstr "Napájení 24 V DC na L+ a M; na U dává proti M 0-10 V v rozsahu měření. Při simulaci na něj klikněte a nastavte teplotu."
+
+msgid "2 analog inputs 0-10 V"
+msgstr "2 analogové vstupy 0-10 V"
+
+msgid "2 analog outputs 0-10 V"
+msgstr "2 analogové výstupy 0-10 V"
+
+msgid "Analog inputs read 0-10 V as 0-1000 (the 12/24 V and 24 V versions: I7, I8, I1, I2 as AI1-AI4); analog outputs put 0-1000 out as 0-10 V. Analog modules need 24 V DC on L+ and M."
+msgstr "Analogové vstupy čtou 0-10 V jako 0-1000 (verze 12/24 V a 24 V: I7, I8, I1, I2 jako AI1-AI4); analogové výstupy dávají 0-1000 jako 0-10 V. Analogové moduly potřebují 24 V DC na L+ a M."
+
+msgid "Temperature sensor (0-10 V)"
+msgstr "Teplotní snímač (0-10 V)"
+
+msgid "PLC and sensors"
+msgstr "PLC a snímače"
+
+#, c-format
+msgid "Temperature at %s"
+msgstr "Teplota u %s"
+
+msgid "Volts on the analog input (0-10 V = 0-1000)"
+msgstr "Napětí na analogovém vstupu (0-10 V = 0-1000)"
+
+msgid "Gain"
+msgstr "Zesílení"
+
+msgid "Offset"
+msgstr "Posun"
+
+msgid "On threshold"
+msgstr "Práh zapnutí"
+
+msgid "Off threshold"
+msgstr "Práh vypnutí"
+
+msgid "Value (0-1000 = 0-10 V)"
+msgstr "Hodnota (0-1000 = 0-10 V)"
+
+msgid "Analog"
+msgstr "Analogové"
+
+msgid "Analog input AI"
+msgstr "Analogový vstup AI"
+
+msgid "Analog output AQ"
+msgstr "Analogový výstup AQ"
+
+msgid "Analog threshold trigger"
+msgstr "Analogový prahový spínač"
+
+msgid "Analog comparator"
+msgstr "Analogový komparátor"
+
+msgid "Analog amplifier"
+msgstr "Analogový zesilovač"
+
+msgid "Analog input"
+msgstr "Analogový vstup"
+
+msgid "Analog output"
+msgstr "Analogový výstup"
+
+msgid "Brings an analog input into the diagram: 0-10 V as 0-1000."
+msgstr "Přivádí do schématu analogový vstup: 0-10 V jako 0-1000."
+
+msgid "Puts the value at Ax (0-1000) on an analog output as 0-10 V."
+msgstr "Dává hodnotu na Ax (0-1000) na analogový výstup jako 0-10 V."
+
+msgid "Gain x Ax + offset: the output comes on above On and goes off at Off or below (with On below Off: on between them)."
+msgstr "Zesílení x Ax + posun: výstup sepne nad prahem zapnutí a rozepne na prahu vypnutí a pod ním (je-li práh zapnutí pod prahem vypnutí: sepnut mezi nimi)."
+
+msgid "The difference Ax - Ay: the output comes on above On and goes off at Off or below."
+msgstr "Rozdíl Ax - Ay: výstup sepne nad prahem zapnutí a rozepne na prahu vypnutí a pod ním."
+
+msgid "Passes gain x Ax + offset on as an analog value."
+msgstr "Předává dál zesílení x Ax + posun jako analogovou hodnotu."
+
+msgid "Compare: analog input at or above"
+msgstr "Porovnání: analogový vstup nejméně"
+
+msgid "Compare: analog input below"
+msgstr "Porovnání: analogový vstup pod"
+
+msgid "Analog output coil"
+msgstr "Cívka analogového výstupu"
+
+msgid "Closed while the analog input is at the value or above it (0-1000 = 0-10 V)."
+msgstr "Sepnut, dokud je analogový vstup na hodnotě nebo nad ní (0-1000 = 0-10 V)."
+
+msgid "Closed while the analog input is below the value (0-1000 = 0-10 V)."
+msgstr "Sepnut, dokud je analogový vstup pod hodnotou (0-1000 = 0-10 V)."
+
+msgid "Puts the value (0-1000) on the analog output as 0-10 V while it gets power, 0 without."
+msgstr "Dává hodnotu (0-1000) na analogový výstup jako 0-10 V, dokud má napájení, bez něj 0."
+
 msgid "The PLC runs the program shown here."
 msgstr "PLC vykonává program, který je zde zobrazen."
 

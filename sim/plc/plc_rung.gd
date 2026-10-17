@@ -8,17 +8,23 @@ extends RefCounted
 ## one rung ([method rung_groups]). Coils as in Siemens ladder diagrams:
 ## -( )- assignment, -(/)- negated assignment, -(S)- set, -(R)- reset (also of
 ## a timer or counter), -(SD)- on-delay timer, -(SF)- off-delay timer,
-## -(CU)- / -(CD)- counting up and down with the counter's preset.
+## -(CU)- / -(CD)- counting up and down with the counter's preset. Analog:
+## comparing contacts -[AI1 >= v]- and -[AI1 < v]- close while the analog
+## input is at or above / below the value, the coil -(AQ)- puts its value
+## on an analog output while it has power (0 without).
 ##
 ## Cells and coils are Dictionaries: {} for empty, {"kind": "wire"},
-## {"kind": "no" / "nc", "operand": "I1"}; coils {"kind": "coil", "operand":
-## "Q1"} plus "time" (timer coils, seconds) or "preset" (counter coils).
+## {"kind": "no" / "nc", "operand": "I1"}, {"kind": "ge" / "lt", "operand":
+## "AI1", "value": 500}; coils {"kind": "coil", "operand": "Q1"} plus "time"
+## (timer coils, seconds), "preset" (counter coils) or "value" (AQ coils).
 
 const COLUMNS: int = 8
 ## Most rows of a ladder diagram.
 const MAX_ROWS: int = 256
-const CELL_KINDS: PackedStringArray = ["wire", "no", "nc", "pos", "neg"]
-const COIL_KINDS: PackedStringArray = ["coil", "coil_not", "set", "reset", "on_delay", "off_delay", "count_up", "count_down"]
+const CELL_KINDS: PackedStringArray = ["wire", "no", "nc", "pos", "neg", "ge", "lt"]
+const COIL_KINDS: PackedStringArray = ["coil", "coil_not", "set", "reset", "on_delay", "off_delay", "count_up", "count_down", "analog"]
+## Value a new comparing contact or AQ coil starts with.
+const DEFAULT_VALUE: float = 500.0
 
 var _cells: Array[Dictionary] = []
 ## One per cell: 1 where a vertical link joins the right side of the cell
@@ -207,6 +213,10 @@ static func operand_areas(kind: String) -> String:
 			return "T"
 		"count_up", "count_down":
 			return "C"
+		"ge", "lt":
+			return "AI"
+		"analog":
+			return "AQ"
 	return ""
 
 
@@ -267,10 +277,20 @@ static func _valid_cell(d: Variant) -> Dictionary:
 	var kind: String = str((d as Dictionary).get("kind", ""))
 	if kind == "wire":
 		return {"kind": "wire"}
-	if not ["no", "nc", "pos", "neg"].has(kind):
+	if not ["no", "nc", "pos", "neg", "ge", "lt"].has(kind):
 		return {}
 	var op: String = str((d as Dictionary).get("operand", ""))
-	return {"kind": kind, "operand": op} if PlcProgram.valid_operand(op, operand_areas(kind)) else {}
+	if not PlcProgram.valid_operand(op, operand_areas(kind)):
+		return {}
+	var cell: Dictionary = {"kind": kind, "operand": op}
+	if kind == "ge" or kind == "lt":
+		cell["value"] = _value(d as Dictionary)
+	return cell
+
+
+static func _value(d: Dictionary) -> float:
+	var v: Variant = d.get("value", DEFAULT_VALUE)
+	return clampf(float(v), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG) if (v is int or v is float) else DEFAULT_VALUE
 
 
 static func _valid_coil(d: Variant) -> Dictionary:
@@ -288,4 +308,6 @@ static func _valid_coil(d: Variant) -> Dictionary:
 	elif kind == "count_up" or kind == "count_down":
 		var p: Variant = data.get("preset", PlcBlock.DEFAULT_PRESET)
 		coil["preset"] = clampi(int(p), 1, PlcCounter.MAX_VALUE) if (p is int or p is float) else PlcBlock.DEFAULT_PRESET
+	elif kind == "analog":
+		coil["value"] = clampf(_value(data), 0.0, PlcBlock.ANALOG_MAX)
 	return coil

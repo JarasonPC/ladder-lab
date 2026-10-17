@@ -8,11 +8,23 @@ extends RefCounted
 ## counter) work on them. Every block has one output; each of its input pins
 ## takes the output of one block ([member inputs], 0 where nothing is
 ## connected). Outputs and flags pass their value on, so they can be fed back.
+##
+## Analog: connectors AI and AQ bring the analog inputs and outputs (0-1000
+## for 0-10 V); the analog threshold trigger switches its digital output on
+## above On and off at Off (of gain x Ax + offset), the analog comparator
+## the same on the difference Ax - Ay, the analog amplifier passes gain x
+## Ax + offset on. An analog pin fed by a digital block reads 0 or 1000.
 
 ## Saved block types.
-const TYPES: PackedStringArray = ["input", "output", "flag", "hi", "lo", "and", "or", "not", "nand", "nor", "xor", "on_delay", "off_delay", "latch", "pulse_relay", "counter"]
-## Types that bring an operand (I, Q or M) into the diagram.
-const CONNECTORS: PackedStringArray = ["input", "output", "flag", "hi", "lo"]
+const TYPES: PackedStringArray = ["input", "output", "flag", "hi", "lo", "and", "or", "not", "nand", "nor", "xor", "on_delay", "off_delay", "latch", "pulse_relay", "counter", "analog_input", "analog_output", "analog_threshold", "analog_compare", "analog_amplifier"]
+## Types that bring an operand (I, Q, M, AI or AQ) into the diagram.
+const CONNECTORS: PackedStringArray = ["input", "output", "flag", "hi", "lo", "analog_input", "analog_output"]
+## Types whose output is an analog value.
+const ANALOG_OUTPUTS: PackedStringArray = ["analog_input", "analog_output", "analog_amplifier"]
+## Analog values: 0-1000 for 0-10 V.
+const ANALOG_MAX: float = 1000.0
+const MAX_GAIN: float = 10.0
+const MAX_ANALOG: float = 32767.0
 const DEFAULT_TIME: float = 3.0
 const DEFAULT_PRESET: int = 5
 ## Longest set time in seconds.
@@ -31,6 +43,11 @@ var inputs: PackedInt32Array = PackedInt32Array()
 var time: float = DEFAULT_TIME
 ## Count at which a counter's output comes on.
 var preset: int = DEFAULT_PRESET
+## Analog blocks: gain and offset of the value read, thresholds on and off.
+var gain: float = 1.0
+var offset: float = 0.0
+var on: float = 500.0
+var off: float = 400.0
 
 
 func _init(p_id: int, p_type: String, p_cell: Vector2i = Vector2i.ZERO) -> void:
@@ -46,13 +63,17 @@ func _init(p_id: int, p_type: String, p_cell: Vector2i = Vector2i.ZERO) -> void:
 			operand = "Q1"
 		"flag":
 			operand = "M1"
+		"analog_input":
+			operand = "AI1"
+		"analog_output":
+			operand = "AQ1"
 
 
 ## Names of the input pins of a block type ("" for the inputs of basic
 ## functions, which have no names).
 static func pin_names(p_type: String) -> PackedStringArray:
 	match p_type:
-		"output", "flag", "not":
+		"output", "flag", "not", "analog_output":
 			return PackedStringArray([""])
 		"and", "or", "nand", "nor":
 			return PackedStringArray(["", "", "", ""])
@@ -68,6 +89,10 @@ static func pin_names(p_type: String) -> PackedStringArray:
 			return PackedStringArray(["Trg", "S", "R"])
 		"counter":
 			return PackedStringArray(["R", "Cnt", "Dir"])
+		"analog_threshold", "analog_amplifier":
+			return PackedStringArray(["Ax"])
+		"analog_compare":
+			return PackedStringArray(["Ax", "Ay"])
 	return PackedStringArray()
 
 
@@ -80,7 +105,21 @@ static func operand_area(p_type: String) -> String:
 			return "Q"
 		"flag":
 			return "M"
+		"analog_input":
+			return "AI"
+		"analog_output":
+			return "AQ"
 	return ""
+
+
+## True for blocks with gain and offset (threshold trigger, amplifier).
+static func uses_gain(p_type: String) -> bool:
+	return p_type == "analog_threshold" or p_type == "analog_amplifier"
+
+
+## True for blocks switching at thresholds On and Off.
+static func uses_thresholds(p_type: String) -> bool:
+	return p_type == "analog_threshold" or p_type == "analog_compare"
 
 
 static func uses_time(p_type: String) -> bool:
@@ -102,6 +141,12 @@ func to_data() -> Dictionary:
 		d["time"] = time
 	if type == "counter":
 		d["preset"] = preset
+	if uses_gain(type):
+		d["gain"] = gain
+		d["offset"] = offset
+	if uses_thresholds(type):
+		d["on"] = on
+		d["off"] = off
 	return d
 
 
@@ -135,4 +180,13 @@ static func from_data(d: Variant) -> PlcBlock:
 	var raw_preset: Variant = data.get("preset", DEFAULT_PRESET)
 	if raw_preset is int or raw_preset is float:
 		block.preset = clampi(int(raw_preset), 1, PlcCounter.MAX_VALUE)
+	block.gain = _number(data, "gain", 1.0, -MAX_GAIN, MAX_GAIN)
+	block.offset = _number(data, "offset", 0.0, -MAX_ANALOG, MAX_ANALOG)
+	block.on = _number(data, "on", 500.0, -MAX_ANALOG, MAX_ANALOG)
+	block.off = _number(data, "off", 400.0, -MAX_ANALOG, MAX_ANALOG)
 	return block
+
+
+static func _number(data: Dictionary, key: String, fallback: float, low: float, high: float) -> float:
+	var raw: Variant = data.get(key, fallback)
+	return clampf(float(raw), low, high) if raw is int or raw is float else fallback
