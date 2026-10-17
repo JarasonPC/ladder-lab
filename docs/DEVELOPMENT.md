@@ -288,28 +288,30 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Versioning
 
-- Every merge into main that changes the program raises `application/config/version` in
-  project.godot, so no two builds of main share a number. Merges that only touch README,
-  CHANGELOG, docs/, tests, tools/ or .github/ (the program stays the same) keep the version.
-- MAJOR.MINOR.PATCH, raised by the biggest change in the merge:
-  - PATCH (0.2.0 → 0.2.1): bug fixes, translation fixes, small drawing or layout adjustments
-  - MINOR (0.2.1 → 0.3.0, PATCH back to 0): a new feature, part, example, menu item or setting
+- The version in `application/config/version` (project.godot) is raised only when releasing,
+  once per release, not per merge: merges into main keep it and only add their changes to
+  CHANGELOG.md under "Unreleased". Builds of main between two releases carry the version of
+  the last release.
+- MAJOR.MINOR.PATCH, raised by the biggest change since the last release (one step, however
+  many merges it took):
+  - PATCH (0.3.0 → 0.3.1): only bug fixes, translation fixes, small drawing or layout adjustments
+  - MINOR (0.3.1 → 0.4.0, PATCH back to 0): any new feature, part, example, menu item or setting
   - MAJOR stays 0 during development; 1.0.0 is the first stable release. After it, MAJOR rises
     when something is removed or older versions can no longer open the new schematics
-- Raise it once per merge, in the working branch just before merging. If main moved meanwhile
-  and already raised it (a conflict on the version line), start from main's version and raise
-  that again: the number only ever goes up and is never reused.
+- The number only goes up from the last release and a released number is never reused.
+  (Versions 0.3.0-0.9.0 were once raised on main per merge but never released; numbering
+  went on from the last release, 0.2.2, so 0.3.0 is the release after it.)
 - A release is tagged `v<version>` exactly as in project.godot (the update check compares the
-  tag); versions between two releases are simply skipped. Pre-releases use a suffix
-  (`0.3.0-beta1`), are published as GitHub pre-releases and are older than `0.3.0`.
+  tag). Pre-releases use a suffix (`0.4.0-beta1`), are published as GitHub pre-releases and
+  are older than `0.4.0`.
 - The program version is independent of ProjectFile.VERSION (the .ladder file format number).
-- CHANGELOG.md: every merge that raises the version adds its changes under "Unreleased", as
+- CHANGELOG.md: every merge that changes the program adds its changes under "Unreleased", as
   short lines a user understands (what they can do now, what works better), in the matching
   group (Schematic editor, Simulation, Panels, Files and export, Application; "Fixed" for bug
   fixes).
-- Releasing (.github/workflows/release.yml): on main, "Unreleased" becomes
-  "<version> – <date>" with the version in project.godot and a new empty "Unreleased" above
-  it; commit, push, then push the tag `v<version>` on that commit. The workflow runs the
+- Releasing (.github/workflows/release.yml): on main, raise the version in project.godot (see
+  above), "Unreleased" becomes "<version> – <date>" with that version and a new empty
+  "Unreleased" above it; commit, push, then push the tag `v<version>` on that commit. The workflow runs the
   tests, exports the Windows build on Linux (Godot GODOT_VERSION, only the Windows template),
   zips LadderLab.exe with LICENSE.txt as LadderLab-<version>-win64.zip and publishes the
   release with that changelog section as its text (the update dialog shows it); it refuses a
