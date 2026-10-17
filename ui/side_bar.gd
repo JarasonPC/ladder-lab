@@ -44,6 +44,10 @@ var title: String = "":
 			_tab.custom_minimum_size.y = _tab_height()
 			_tab.queue_redraw()
 
+## The content is shown in a window of its own ([PanelWindow]); the bar is
+## kept hidden meanwhile.
+var detached: bool = false
+
 var _grip: Control
 var _tab: Button
 ## The grip is on the left (panels at the right of the window).
@@ -80,6 +84,23 @@ func _init(p_content: Control, grip_left: bool, p_width: float = 250.0) -> void:
 		add_child(_grip)
 	add_child(_tab)
 	width = p_width
+
+
+## Takes the content out to show it elsewhere (see [member detached]).
+func detach() -> Control:
+	zoom_box.remove_child(content)
+	detached = true
+	rolled = false
+	return content
+
+
+## Puts the content back after [method detach].
+func attach() -> void:
+	if content.get_parent() != null:
+		content.get_parent().remove_child(content)
+	zoom_box.add_child(content)
+	detached = false
+	changed.emit()
 
 
 func retranslate() -> void:
