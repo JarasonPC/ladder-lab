@@ -1277,6 +1277,84 @@ static func _lcd_bit(p: CabinetPainter, at: Vector2, digit: String, on: bool, si
 	p.text_centered(at - Vector2(0.0, 0.4) * scale, digit, size_mm, LCD_ON if on else LCD_INK, true)
 
 
+# --- Frequency inverter ------------------------------------------------------------
+
+## A small frequency inverter, 90 mm wide and 150 mm high, dark as the real
+## ones: heat sink fins on top over the supply terminals L1 L2 L3 PE, the
+## keypad with its display, the warning label, the control terminals in a
+## row at the bottom of the front and the motor terminals U V W below.
+const VFD := Vector2(90.0, 150.0)
+const VFD_BODY := Color("3b3f42")
+const VFD_DARK := Color("26292b")
+const VFD_FIN := Color("6c7175")
+const VFD_PRINT := Color("d8dcde")
+const VFD_LCD_ON := Color("c9d6c0")
+const VFD_LCD_OFF := Color("4d5550")
+const VFD_LCD_INK := Color("1d2a22")
+const VFD_KEY_RUN := Color("2f9d4b")
+const VFD_KEY_STOP := Color("c8352b")
+const VFD_KEY := Color("e9ecee")
+const VFD_ARROW := Color("4877bd")
+const VFD_WARN := Color("f2c230")
+## Heights of the supply, control and motor terminals.
+const VFD_SUPPLY_Y: float = 24.0
+const VFD_CONTROL_Y: float = 118.0
+const VFD_MOTOR_Y: float = 141.0
+
+
+## [param desc]: see [method CabinetDevices.describe].
+static func vfd(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> void:
+	var w: float = VFD.x
+	var h: float = VFD.y
+	var powered: bool = desc.get("powered", false)
+	var output: bool = desc.get("output", false)
+	var hz: float = float(desc.get("frequency", 0.0))
+	p.rect(Rect2(0.6, 0.0, w - 1.2, h), VFD_BODY, 1.4, VFD_DARK, 0.3)
+	# Heat sink fins and the supply terminals under them.
+	for k: int in 7:
+		var x: float = 10.0 + k * 11.0
+		p.rect(Rect2(x, 1.0, 5.0, 14.0), VFD_FIN, 0.6, VFD_DARK, 0.2)
+	p.rect(Rect2(14.0, 16.0, 62.0, 14.0), VFD_DARK, 1.0)
+	# The keypad: display, O I M OK, arrows.
+	p.rect(Rect2(4.0, 34.0, w - 8.0, 56.0), Color("33373a"), 1.2, VFD_DARK, 0.2)
+	var lcd: Rect2 = Rect2(12.0, 40.0, 50.0, 18.0)
+	p.rect(lcd.grow(1.0), VFD_DARK, 1.0)
+	p.rect(lcd, VFD_LCD_ON if powered else VFD_LCD_OFF, 0.6)
+	if powered:
+		var shown: String = "%.1f Hz" % absf(hz) if output else "0.0 Hz"
+		p.text(Vector2(lcd.end.x - 3.0, lcd.position.y + 11.0), shown, 5.0, VFD_LCD_INK, 1, true)
+		p.text(Vector2(lcd.position.x + 2.5, lcd.position.y + 16.0), ("RUN" if output else "STOP") + ("  REV" if output and hz < 0.0 else ""), 2.2, VFD_LCD_INK, -1, true)
+	var keys: Array = [["O", VFD_KEY_STOP, VFD_PRINT], ["I", VFD_KEY_RUN, VFD_PRINT], ["M", VFD_KEY, VFD_DARK], ["OK", VFD_KEY, VFD_DARK]]
+	for k: int in keys.size():
+		var at: Rect2 = Rect2(12.0 + k * 13.0, 66.0, 10.0, 8.0)
+		p.rect(at, keys[k][1], 1.0, VFD_DARK, 0.2)
+		p.text_centered(at.get_center(), keys[k][0], 3.0, keys[k][2], true)
+	for k: int in 2:
+		var at: Rect2 = Rect2(68.0, 42.0 + k * 16.0, 10.0, 12.0)
+		p.rect(at, VFD_ARROW, 1.0, VFD_DARK, 0.2)
+		var c: Vector2 = at.get_center()
+		var dir: float = -1.0 if k == 0 else 1.0
+		p.polygon(PackedVector2Array([c + Vector2(0.0, 3.0 * dir), c + Vector2(-2.6, -2.0 * dir), c + Vector2(2.6, -2.0 * dir)]), VFD_PRINT)
+	# Warning label: three triangles over its text.
+	p.rect(Rect2(28.0, 92.0, 56.0, 14.0), VFD_DARK, 0.4)
+	for k: int in 3:
+		var c: Vector2 = Vector2(64.0 + k * 6.5, 96.0)
+		p.polygon(PackedVector2Array([c + Vector2(0.0, -2.6), c + Vector2(-2.8, 2.2), c + Vector2(2.8, 2.2)]), VFD_WARN)
+	p.text(Vector2(30.0, 97.5), "DANGER", 2.6, VFD_PRINT, -1, true)
+	p.text(Vector2(30.0, 103.0), "3 AC 400 V  wait 5 min", 1.6, VFD_PRINT, -1, false, 52.0)
+	# Control terminals, motor terminals.
+	p.rect(Rect2(4.0, 110.0, w - 8.0, 14.0), Color("8f9497"), 0.8, VFD_DARK, 0.2)
+	p.rect(Rect2(14.0, 132.0, 62.0, 16.0), VFD_DARK, 1.0)
+	var points: Dictionary = terminal_points(CabinetDevices.Kind.VFD, desc)
+	for name: String in points:
+		var at: Vector3 = points[name]
+		var label_y: float = at.y - 4.4 if at.y < VFD_CONTROL_Y + 1.0 else at.y + 5.4
+		if at.y < VFD_SUPPLY_Y + 1.0:
+			label_y = at.y + 5.0
+		p.text(Vector2(at.x, label_y), name, 1.5, VFD_PRINT if at.y < VFD_SUPPLY_Y + 1.0 or at.y > VFD_CONTROL_Y + 1.0 else VFD_DARK, 0, false, 7.4)
+		_modular_screw_small(p, Vector2(at.x, at.y), reach.get(name, Color.TRANSPARENT))
+
+
 # --- Terminal blocks ----------------------------------------------------------------
 
 ## A strip of push-in terminal blocks (svorkovnice) between two end stops
@@ -1447,6 +1525,15 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 				if row[4]:
 					for j: int in 3:
 						points[row[0][j]] = Vector3(TIMER_X[j], row[3], 2.1)
+		CabinetDevices.Kind.VFD:
+			for t: int in 4:
+				points[Vfd.TERMINALS[t]] = Vector3(24.0 + 14.0 * t, VFD_SUPPLY_Y, 2.1)
+			for t: int in range(Vfd.REF_10V, Vfd.FIRST_BOTTOM):
+				points[Vfd.TERMINALS[t]] = Vector3(8.0 + 6.6 * (t - Vfd.REF_10V), VFD_CONTROL_Y, 2.1)
+			for t: int in 2:
+				points[Vfd.TERMINALS[Vfd.DO2C + t]] = Vector3(8.0 + 6.6 * (9 + t), VFD_CONTROL_Y, 2.1)
+			for t: int in 3:
+				points[Vfd.TERMINALS[Vfd.U + t]] = Vector3(31.0 + 14.0 * t, VFD_MOTOR_Y, 2.1)
 		CabinetDevices.Kind.PLC when desc.get("family", "") == "compact":
 			var cplc: Plc = _plc_of(desc)
 			var cnames: PackedStringArray = cplc.default_terminal_names()

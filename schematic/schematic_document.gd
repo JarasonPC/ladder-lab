@@ -1713,7 +1713,7 @@ func fill_cabinet() -> int:
 		var kind: CabinetDevices.Kind = CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation))
 		groups[1 if kind == CabinetDevices.Kind.CONTACTOR or kind == CabinetDevices.Kind.OVERLOAD else 0].append(item)
 	# Protection first, then time relays, relays, rectifiers and PLCs; each keeps circuit order.
-	var order: Array[CabinetDevices.Kind] = [CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC]
+	var order: Array[CabinetDevices.Kind] = [CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC, CabinetDevices.Kind.VFD]
 	var rank: Callable = func(item: CabinetItem) -> int:
 		return order.find(CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation)))
 	var first: Array = groups[0]

@@ -61,6 +61,9 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 		if c is ThreePhaseMotor:
 			# The PE terminal of the frame may stay open on the drawing.
 			keys = keys.slice(0, (c as ThreePhaseMotor).winding_terminal_count())
+		if c is Vfd:
+			# Its supply and motor output must be wired, the rest may stay open.
+			keys = PackedStringArray([keys[Vfd.L1], keys[Vfd.L1 + 1], keys[Vfd.L1 + 2], keys[Vfd.U], keys[Vfd.U + 1], keys[Vfd.U + 2]])
 		if c is Plc:
 			# Inputs and outputs the circuit does not use may stay open, the
 			# supply of the PLC and of its expansion modules not.

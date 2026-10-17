@@ -78,6 +78,12 @@ static func reach_code(mask: int) -> int:
 			return REACH_N
 		PowerSupply.BIT_DC_MINUS:
 			return REACH_DC_MINUS
+		PowerSupply.BIT_VFD_U:
+			return REACH_L1
+		PowerSupply.BIT_VFD_V:
+			return REACH_L2
+		PowerSupply.BIT_VFD_W:
+			return REACH_L3
 	if (mask & (mask - 1)) == 0 and (mask & PowerSupply.DC_PLUS_BITS) != 0:
 		return REACH_DC_PLUS
 	return REACH_SEVERAL

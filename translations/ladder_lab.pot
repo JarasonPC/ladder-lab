@@ -1637,6 +1637,81 @@ msgstr ""
 msgid "4 analog inputs 0-10 V"
 msgstr ""
 
+msgid "Frequency inverter (VFD) 3~ 400 V"
+msgstr ""
+
+msgid "Run and stop"
+msgstr ""
+
+msgid "Terminals (DI1 run, DI2 reverse)"
+msgstr ""
+
+msgid "Keypad (I / O)"
+msgstr ""
+
+msgid "Setpoint"
+msgstr ""
+
+msgid "Analog input AI1 (0-10 V)"
+msgstr ""
+
+msgid "Keypad"
+msgstr ""
+
+msgid "Maximum frequency (Hz)"
+msgstr ""
+
+msgid "Ramp-up time (s)"
+msgstr ""
+
+msgid "Ramp-down time (s)"
+msgstr ""
+
+msgid "Fixed frequency, DI3 (Hz)"
+msgstr ""
+
+msgid "Keypad setpoint (Hz)"
+msgstr ""
+
+msgid "Supply 3 x 400 V on L1 L2 L3, the motor on U V W. DI1 runs, DI2 reverses, DI3 runs at the fixed frequency, DI4 stops the output at once (coast stop); the inputs are on with 24 V against DIC, from its own 24V-0V. AI1 takes 0-10 V (from its 10V reference, a PLC or a sensor) for 0 to the maximum frequency. DO2 closes while the motor runs. While simulating, click it for its keypad."
+msgstr ""
+
+#, c-format
+msgid "Keypad of %s"
+msgstr ""
+
+msgid "Reverse"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+#, c-format
+msgid "Setpoint %.1f Hz"
+msgstr ""
+
+msgid "Set in its properties what the keypad takes: run and stop, the setpoint."
+msgstr ""
+
+msgid "Frequency inverter"
+msgstr ""
+
+#, c-format
+msgid "%s: output off"
+msgstr ""
+
+#, c-format
+msgid "%s: stopping"
+msgstr ""
+
+#, c-format
+msgid "%s: runs forward at %.1f Hz"
+msgstr ""
+
+#, c-format
+msgid "%s: runs reverse at %.1f Hz"
+msgstr ""
+
 msgid "The PLC runs the program shown here."
 msgstr ""
 

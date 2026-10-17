@@ -44,7 +44,9 @@ const FORMAT: String = "ladder-lab"
 ## programs (gain, offset, on, off, value).
 ## 22: compact CPUs ("plc" with "family": "compact" and "cpu"; missing: a
 ## logic module) and their signal modules ("sm_di8" ...).
-const VERSION: int = 22
+## 23: frequency inverters ("vfd": control, setpoint, maximum frequency,
+## ramps, fixed and keypad frequency).
+const VERSION: int = 23
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

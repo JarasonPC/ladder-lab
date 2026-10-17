@@ -95,6 +95,16 @@ func show_component(component: CircuitComponent) -> void:
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"plc":
 			_plc_program(component as Plc)
+		"vfd":
+			_choice(tr("Run and stop"), "control", Array(Vfd.CONTROL_NAMES), [tr("Terminals (DI1 run, DI2 reverse)"), tr("Keypad (I / O)")])
+			_choice(tr("Setpoint"), "setpoint", Array(Vfd.SETPOINT_NAMES), [tr("Analog input AI1 (0-10 V)"), tr("Keypad")])
+			_number(tr("Maximum frequency (Hz)"), "max_frequency", 1.0, Vfd.HIGHEST_FREQUENCY, 1.0)
+			_number(tr("Ramp-up time (s)"), "ramp_up", 0.0, Vfd.LONGEST_RAMP, 0.1)
+			_number(tr("Ramp-down time (s)"), "ramp_down", 0.0, Vfd.LONGEST_RAMP, 0.1)
+			_number(tr("Fixed frequency, DI3 (Hz)"), "fixed_frequency", 0.0, Vfd.HIGHEST_FREQUENCY, 0.5)
+			_number(tr("Keypad setpoint (Hz)"), "keypad_frequency", 0.0, Vfd.HIGHEST_FREQUENCY, 0.5)
+			_group = null
+			_note(tr("Supply 3 x 400 V on L1 L2 L3, the motor on U V W. DI1 runs, DI2 reverses, DI3 runs at the fixed frequency, DI4 stops the output at once (coast stop); the inputs are on with 24 V against DIC, from its own 24V-0V. AI1 takes 0-10 V (from its 10V reference, a PLC or a sensor) for 0 to the maximum frequency. DO2 closes while the motor runs. While simulating, click it for its keypad."), "MutedLabel")
 		"temp_sensor":
 			_number(tr("Range from (°C)"), "range_min", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 1.0)
 			_number(tr("Range to (°C)"), "range_max", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 1.0)

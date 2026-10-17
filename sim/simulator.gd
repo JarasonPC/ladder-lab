@@ -123,6 +123,17 @@ var _plc_aq_start: PackedInt32Array = PackedInt32Array()
 var _plc_analog: Array[PackedFloat32Array] = []
 ## Temperature sensors (load index) and the net of their output U.
 var _sensor_outputs: Dictionary[int, int] = {}
+## Frequency inverters, the net and terminal index of each of their
+## terminals ([constant Vfd.TERMINALS] per drive) and, from the last
+## evaluation, whether their supply has the three phases, their inputs
+## DI1-DI4 and the volts on AI1; the drive feeding each motor (-1: none).
+var _drives: Array[Vfd] = []
+var _drive_nets: PackedInt32Array = PackedInt32Array()
+var _drive_terms: PackedInt32Array = PackedInt32Array()
+var _drive_powered: PackedByteArray = PackedByteArray()
+var _drive_inputs: PackedInt32Array = PackedInt32Array()
+var _drive_ai: PackedFloat32Array = PackedFloat32Array()
+var _motor_drive: PackedInt32Array = PackedInt32Array()
 ## Actuators of push buttons and switches (one per device).
 var _actuators: Array[Armature] = []
 var _overload_relays: Array[OverloadRelay] = []
@@ -286,6 +297,9 @@ func _build() -> void:
 	_plc_aq_nets.clear()
 	_plc_aq_start.clear()
 	_sensor_outputs.clear()
+	_drives.clear()
+	_drive_nets.clear()
+	_drive_terms.clear()
 	_supplies.clear()
 	_rectifiers.clear()
 	_rectifier_out_nets.clear()
@@ -314,6 +328,12 @@ func _build() -> void:
 			_device_paths[c] = PackedInt32Array(range(_switches.size(), _switches.size() + paths.size()))
 		for p: int in paths.size():
 			_add_switch_path(c, p, keys[paths[p].x], keys[paths[p].y])
+		if c is Vfd:
+			_drives.append(c as Vfd)
+			for t: int in keys.size():
+				_drive_nets.append(_net_of_key[keys[t]])
+				_drive_terms.append(index[keys[t]])
+			continue
 		if c is Plc:
 			# A load on L1-N with inputs, besides its output contacts.
 			_plc_indices.append(_loads.size())
@@ -379,12 +399,20 @@ func _build() -> void:
 	_plc_modules.fill(0)
 	_plc_analog.resize(_plc_indices.size())
 	_plc_analog.fill(PackedFloat32Array())
+	_drive_powered.resize(_drives.size())
+	_drive_powered.fill(0)
+	_drive_inputs.resize(_drives.size())
+	_drive_inputs.fill(0)
+	_drive_ai.resize(_drives.size())
+	_drive_ai.fill(0.0)
 	_motor_states.resize(_motors.size())
 	_motor_directions.resize(_motors.size())
 	_motor_speeds.resize(_motors.size())
 	_motor_phases.resize(_motors.size() * MOTOR_TERMINALS)
 	_motor_phases.fill(0)
 	_motor_supply.clear()
+	_motor_drive.resize(_motors.size())
+	_motor_drive.fill(-1)
 	for m: int in _motors.size():
 		_motor_supply.append(_unfed_motor(_motors[m]))
 	_path_current.resize(_switches.size())
@@ -438,7 +466,39 @@ func _root_masks(uf: UnionFind) -> Dictionary[int, int]:
 				var minus: int = uf.find(_rectifier_out_nets[2 * r + 1])
 				masks[plus] = masks.get(plus, 0) | PowerSupply.BIT_DC_RECTIFIED
 				masks[minus] = masks.get(minus, 0) | PowerSupply.BIT_DC_MINUS
+	# Frequency inverters with the three phases on their supply: their 24 V
+	# for the inputs, and their output while it is on (V and W swapped in
+	# reverse).
+	for d: int in _drives.size():
+		var seen: Dictionary[int, bool] = {}
+		for t: int in 3:
+			seen[_phase_of(masks.get(uf.find(_drive_net(d, Vfd.L1 + t)), 0))] = true
+		var powered: bool = seen.has(1) and seen.has(2) and seen.has(3)
+		_drive_powered[d] = 1 if powered else 0
+		if not powered:
+			continue
+		_add_mask(masks, uf.find(_drive_net(d, Vfd.SUPPLY_24V)), PowerSupply.BIT_DC_PLUS)
+		_add_mask(masks, uf.find(_drive_net(d, Vfd.ZERO_V)), PowerSupply.BIT_DC_MINUS)
+		var drive: Vfd = _drives[d]
+		if drive.output:
+			var reverse: bool = drive.frequency < 0.0 or (drive.frequency == 0.0 and drive.target < 0.0)
+			_add_mask(masks, uf.find(_drive_net(d, Vfd.U)), PowerSupply.BIT_VFD_U)
+			_add_mask(masks, uf.find(_drive_net(d, Vfd.U + 1)), PowerSupply.BIT_VFD_W if reverse else PowerSupply.BIT_VFD_V)
+			_add_mask(masks, uf.find(_drive_net(d, Vfd.U + 2)), PowerSupply.BIT_VFD_V if reverse else PowerSupply.BIT_VFD_W)
 	return masks
+
+
+static func _add_mask(masks: Dictionary[int, int], root: int, bit: int) -> void:
+	masks[root] = masks.get(root, 0) | bit
+
+
+## Net of terminal [param t] of drive [param d].
+func _drive_net(d: int, t: int) -> int:
+	return _drive_nets[d * Vfd.TERMINALS.size() + t]
+
+
+func _drive_term(d: int, t: int) -> int:
+	return _drive_terms[d * Vfd.TERMINALS.size() + t]
 
 
 ## Points where a supply enters the circuit, as [net, source bit, name]: the
@@ -453,6 +513,11 @@ func _source_points() -> Array[Array]:
 			var keys: PackedStringArray = _loads[_rectifiers[r]].get_terminal_keys()
 			points.append([_rectifier_out_nets[2 * r], PowerSupply.BIT_DC_RECTIFIED, keys[2]])
 			points.append([_rectifier_out_nets[2 * r + 1], PowerSupply.BIT_DC_MINUS, keys[3]])
+	for d: int in _drives.size():
+		if _drive_powered[d] == 1:
+			var keys: PackedStringArray = _drives[d].get_terminal_keys()
+			points.append([_drive_net(d, Vfd.SUPPLY_24V), PowerSupply.BIT_DC_PLUS, keys[Vfd.SUPPLY_24V]])
+			points.append([_drive_net(d, Vfd.ZERO_V), PowerSupply.BIT_DC_MINUS, keys[Vfd.ZERO_V]])
 	return points
 
 
@@ -460,14 +525,15 @@ static func _is_single_source(mask: int) -> bool:
 	return mask != 0 and (mask & (mask - 1)) == 0
 
 
-## 1-3 for a single phase L1-L3, 0 for none, N or several.
+## 1-3 for a single phase L1-L3 (or a frequency inverter's U V W), 0 for
+## none, N or several.
 static func _phase_of(mask: int) -> int:
 	match mask:
-		PowerSupply.BIT_L1:
+		PowerSupply.BIT_L1, PowerSupply.BIT_VFD_U:
 			return 1
-		PowerSupply.BIT_L2:
+		PowerSupply.BIT_L2, PowerSupply.BIT_VFD_V:
 			return 2
-		PowerSupply.BIT_L3:
+		PowerSupply.BIT_L3, PowerSupply.BIT_VFD_W:
 			return 3
 	return 0
 
@@ -504,6 +570,7 @@ func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
 		motor.direction = _motor_directions[m] as ThreePhaseMotor.Direction
 		motor.speed = _motor_speeds[m]
 		var supply: Array = _motor_supply[m]
+		motor.frequency = _drives[_motor_drive[m]].frequency_factor() if _motor_drive[m] >= 0 else 1.0
 		motor.set_supply(supply[0], supply[1], supply[2], supply[3])
 		if mode == Mode.IDEAL:
 			# Instant switching: at the final speed at once.
@@ -573,6 +640,16 @@ func _settle_coils(result: StepResult) -> void:
 				switched = true
 				break
 		if not switched:
+			for d: int in _drives.size():
+				var drive: Vfd = _drives[d]
+				var before: Array = _drive_state(drive)
+				drive.update(_drive_powered[d] == 1, _drive_inputs[d], _drive_ai[d])
+				drive.snap()
+				if _drive_state(drive) != before:
+					_log_drive(result, drive)
+					switched = true
+					break
+		if not switched:
 			settled = true
 			break
 
@@ -615,6 +692,8 @@ func _step_realistic(delta: float) -> StepResult:
 			dt = minf(dt, actuator.time_to_next_event())
 		for relay: OverloadRelay in _overload_relays:
 			dt = minf(dt, relay.time_to_trip())
+		for drive: Vfd in _drives:
+			dt = minf(dt, drive.time_to_next_event())
 		for motor: ThreePhaseMotor in _motors:
 			dt = minf(dt, motor.time_to_standstill())
 			if not motor.is_settled():
@@ -663,6 +742,12 @@ func _apply_power(result: StepResult) -> void:
 				if module_on != plc.module_on(m):
 					_log(result, "%s: expansion module %d switched on" if module_on else "%s: expansion module %d switched off", [plc.designation, m + 1])
 			plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p])
+		for d: int in _drives.size():
+			var drive: Vfd = _drives[d]
+			var before: Array = _drive_state(drive)
+			drive.update(_drive_powered[d] == 1, _drive_inputs[d], _drive_ai[d])
+			if _drive_state(drive) != before:
+				_log_drive(result, drive)
 		_apply_outputs(desired, result)
 		if not _instant_trips(result):
 			break
@@ -679,6 +764,9 @@ func _advance_armatures(dt: float, result: StepResult) -> void:
 	for actuator: Armature in _actuators:
 		actuator.advance(dt)
 	_advance_protection(dt, result)
+	for drive: Vfd in _drives:
+		drive.advance(dt)
+	_follow_drives()
 	_advance_motors(dt, result)
 	for i: int in _coil_indices:
 		var coil: Coil = _loads[i] as Coil
@@ -752,6 +840,16 @@ func _instant_trips(result: StepResult) -> bool:
 ## Moves the shafts on by [param dt] seconds: motors fed with AC run up or
 ## slow down (in realistic timing; with instant switching they already are at
 ## their speed), switched-off motors run down.
+## Motors fed by a frequency inverter run at its frequency.
+func _follow_drives() -> void:
+	for m: int in _motors.size():
+		var d: int = _motor_drive[m]
+		var f: float = _drives[d].frequency_factor() if d >= 0 else 1.0
+		if _motors[m].frequency != f:
+			_motors[m].frequency = f
+			_motors[m].update_currents()
+
+
 func _advance_motors(dt: float, result: StepResult) -> void:
 	for motor: ThreePhaseMotor in _motors:
 		if motor.ac_powered and mode == Mode.IDEAL:
@@ -783,6 +881,20 @@ func _evaluate_protected(result: StepResult) -> PackedByteArray:
 			break
 		desired = _evaluate()
 	return desired
+
+
+## What of a drive is logged when it changes: its output and where it heads.
+static func _drive_state(drive: Vfd) -> Array:
+	return [drive.powered, drive.output, drive.target]
+
+
+func _log_drive(result: StepResult, drive: Vfd) -> void:
+	if not drive.output:
+		_log(result, "%s: output off", [drive.designation])
+	elif drive.target == 0.0:
+		_log(result, "%s: stopping", [drive.designation])
+	else:
+		_log(result, "%s: runs reverse at %.1f Hz" if drive.target < 0.0 else "%s: runs forward at %.1f Hz", [drive.designation, absf(drive.target)])
 
 
 ## Loads with too high a voltage across them (bit 2 of [param desired]) burn
@@ -845,6 +957,9 @@ func _record_trace() -> void:
 		elif load is Plc:
 			for k: int in (load as Plc).output_count():
 				trace.record("%s/Q%d" % [load.designation, k + 1], time, (load as Plc).output_armatures[k].position, true)
+	for drive: Vfd in _drives:
+		trace.record(drive.designation, time, 1.0 if drive.output else 0.0)
+		trace.record(drive.designation + "/frequency", time, absf(drive.frequency) / maxf(drive.max_frequency, 1.0), true)
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
 		trace.record(motor.designation, time, 1.0 if motor.is_running() else 0.0)
@@ -950,6 +1065,9 @@ func _evaluate() -> PackedByteArray:
 		for k: int in plc.analog_output_count():
 			var root: int = uf.find(_plc_aq_nets[_plc_aq_start[p] + k])
 			analog[root] = maxf(analog.get(root, 0.0), plc.analog_output_volts(k))
+	for d: int in _drives.size():
+		if _drive_powered[d] == 1:
+			analog[uf.find(_drive_net(d, Vfd.REF_10V))] = Vfd.ANALOG_VOLTS
 	for p: int in _plc_indices.size():
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		var volts: PackedFloat32Array = PackedFloat32Array()
@@ -960,6 +1078,19 @@ func _evaluate() -> PackedByteArray:
 			var dc: float = PowerSupply.dc_volts(mask) if _is_single_source(mask) else 0.0
 			volts.append(snappedf(analog.get(root, dc), 0.001))
 		_plc_analog[p] = volts
+	# Frequency inverters: DI1-DI4 on with 24 V against DIC, the volts on AI1.
+	for d: int in _drives.size():
+		var common: int = masks.get(uf.find(_drive_net(d, Vfd.DIC)), 0)
+		var bits: int = 0
+		for k: int in 4:
+			var input: int = masks.get(uf.find(_drive_net(d, Vfd.DI1 + k)), 0)
+			if _powers(input, common) and (input & PowerSupply.AC_BITS) == 0 and _volts(input, common) >= Vfd.INPUT_THRESHOLD:
+				bits |= 1 << k
+		_drive_inputs[d] = bits if _drive_powered[d] == 1 else 0
+		var ai_root: int = uf.find(_drive_net(d, Vfd.AI1))
+		var ai_mask: int = masks.get(ai_root, 0)
+		var ai_dc: float = PowerSupply.dc_volts(ai_mask) if _is_single_source(ai_mask) else 0.0
+		_drive_ai[d] = snappedf(analog.get(ai_root, ai_dc), 0.001)
 	_evaluate_motors(uf, masks)
 	return result
 
@@ -1066,6 +1197,14 @@ func _compute_currents() -> void:
 			if _rectifier_on[r] == 1:
 				sources.append(_rectifier_out_terms[2 * r])
 				sources.append(_rectifier_out_terms[2 * r + 1])
+		for d: int in _drives.size():
+			if _drive_powered[d] == 1:
+				sources.append(_drive_term(d, Vfd.SUPPLY_24V))
+				sources.append(_drive_term(d, Vfd.ZERO_V))
+				_drive_input_draws(d, draws)
+				if _drives[d].output:
+					for t: int in 3:
+						sources.append(_drive_term(d, Vfd.U + t))
 	_flow.solve(draws, paths, sources)
 	# A working rectifier draws on its input what its output delivers.
 	var feeding: bool = false
@@ -1088,6 +1227,22 @@ func _compute_currents() -> void:
 			relay.current = TripCurve.largest(_device_currents(relay))
 	for m: int in _motors.size():
 		_motors[m].line_currents = motor_line_currents(m)
+
+
+## Adds what drive [param d] draws from its supply to [param draws]: the
+## power its motors take (at the output frequency, as V/f) over its
+## efficiency, balanced on the three phases.
+func _drive_input_draws(d: int, draws: PackedVector2Array) -> void:
+	var drive: Vfd = _drives[d]
+	var amps: float = Vfd.IDLE_CURRENT
+	for m: int in _motors.size():
+		if _motor_drive[m] == d:
+			var motor: ThreePhaseMotor = _motors[m]
+			amps += drive.frequency_factor() * motor.max_current() * motor.power_factor / (Vfd.EFFICIENCY * Vfd.INPUT_POWER_FACTOR)
+	for t: int in 3:
+		var phase: int = _phase_of(_eval_masks.get(_eval_uf.find(_drive_net(d, Vfd.L1 + t)), 0))
+		if phase > 0:
+			draws[_drive_term(d, Vfd.L1 + t)] += Phasor.phase(phase) * amps
 
 
 ## Voltage across load [param i] (first terminal against the second) from the
@@ -1148,6 +1303,12 @@ func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 			groups.append(roots[t])
 			_motor_phases[MOTOR_TERMINALS * m + t] = phases[t]
 		_motor_supply[m] = [potentials, fixed, groups, polarity.slice(0, count)]
+		# Fed by a frequency inverter: the one whose output is on its windings.
+		_motor_drive[m] = -1
+		for d: int in _drives.size():
+			for t: int in count:
+				if roots[t] >= 0 and (masks.get(roots[t], 0) & PowerSupply.VFD_BITS) != 0 and _drives[d].output and (roots[t] == uf.find(_drive_net(d, Vfd.U)) or roots[t] == uf.find(_drive_net(d, Vfd.U + 1)) or roots[t] == uf.find(_drive_net(d, Vfd.U + 2))):
+					_motor_drive[m] = d
 
 
 ## One byte per coil (bit 0 coil power, bit 1 timed output), then one per
@@ -1173,6 +1334,8 @@ func _signature() -> PackedByteArray:
 		sig.append(device.protection_state())
 	for i: int in _plc_indices:
 		sig.append_array((_loads[i] as Plc).state_signature())
+	for drive: Vfd in _drives:
+		sig.append_array(var_to_bytes(_drive_state(drive)))
 	return sig
 
 

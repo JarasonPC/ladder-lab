@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -260,6 +260,16 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["drop_out"] = (c as Coil).drop_out_time
 	elif c is Rectifier:
 		d["type"] = "rectifier"
+	elif c is Vfd:
+		var drive: Vfd = c as Vfd
+		d["type"] = "vfd"
+		d["control"] = Vfd.CONTROL_NAMES[drive.control]
+		d["setpoint"] = Vfd.SETPOINT_NAMES[drive.setpoint]
+		d["max_frequency"] = drive.max_frequency
+		d["ramp_up"] = drive.ramp_up
+		d["ramp_down"] = drive.ramp_down
+		d["fixed_frequency"] = drive.fixed_frequency
+		d["keypad_frequency"] = drive.keypad_frequency
 	elif c is TemperatureSensor:
 		var sensor: TemperatureSensor = c as TemperatureSensor
 		d["type"] = "temp_sensor"
@@ -439,6 +449,16 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 					cpu = CompactPlc.Cpu.DI8_DQ6
 				return CompactPlc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), cpu), cpu as CompactPlc.Cpu)
 			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", [])))
+		"vfd":
+			var drive: Vfd = Vfd.new(designation)
+			drive.control = maxi(Vfd.CONTROL_NAMES.find(str(d.get("control", ""))), 0) as Vfd.Command
+			drive.setpoint = maxi(Vfd.SETPOINT_NAMES.find(str(d.get("setpoint", ""))), 0) as Vfd.Setpoint
+			drive.max_frequency = clampf(_number_or(d, "max_frequency", Vfd.DEFAULT_MAX_FREQUENCY), 1.0, Vfd.HIGHEST_FREQUENCY)
+			drive.ramp_up = clampf(_number_or(d, "ramp_up", Vfd.DEFAULT_RAMP), 0.0, Vfd.LONGEST_RAMP)
+			drive.ramp_down = clampf(_number_or(d, "ramp_down", Vfd.DEFAULT_RAMP), 0.0, Vfd.LONGEST_RAMP)
+			drive.fixed_frequency = clampf(_number_or(d, "fixed_frequency", Vfd.DEFAULT_FIXED), 0.0, drive.max_frequency)
+			drive.keypad_frequency = clampf(_number_or(d, "keypad_frequency", Vfd.DEFAULT_MAX_FREQUENCY), 0.0, drive.max_frequency)
+			return drive
 		"temp_sensor":
 			var sensor: TemperatureSensor = TemperatureSensor.new(designation)
 			sensor.range_min = clampf(_number_or(d, "range_min", TemperatureSensor.DEFAULT_MIN), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)

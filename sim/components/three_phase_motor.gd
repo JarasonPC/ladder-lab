@@ -107,6 +107,9 @@ var terminal_currents: PackedVector2Array = PackedVector2Array()
 var line_currents: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0])
 ## Fed with AC: the windings have voltage (set by [method set_supply]).
 var ac_powered: bool = false
+## Supply frequency as a fraction of the mains' (a frequency inverter's
+## output, else 1), the voltage in proportion (V/f). Set by the simulator.
+var frequency: float = 1.0
 ## Torque at the present speed (multiples of the rated torque).
 var torque: float = 0.0
 ## Rated speed of the speed step it last ran at: [member shaft] is the speed
@@ -333,7 +336,7 @@ func set_supply(potentials: PackedVector2Array, fixed: PackedByteArray, groups: 
 func update_currents() -> void:
 	var count: int = winding_terminal_count()
 	if ac_powered:
-		var solved: Array = model().solve(_potentials, _fixed, _groups, rotor_speed, rated_current)
+		var solved: Array = _solve(rotor_speed)
 		terminal_currents = solved[0]
 		torque = solved[1]
 		return
@@ -365,7 +368,7 @@ func snap_speed() -> void:
 	if not ac_powered:
 		return
 	var at: Callable = func(n: float) -> float:
-		var solved: Array = model().solve(_potentials, _fixed, _groups, n, rated_current)
+		var solved: Array = _solve(n)
 		return solved[1]
 	var load: float = load_factor()
 	var n: float = rotor_speed
@@ -423,9 +426,22 @@ func is_settled() -> bool:
 	return absf(accel) < 1e-4
 
 
+## Currents and torque at speed [param n] (see [method MotorModel.solve]). At
+## another frequency with the voltage in proportion the torque and the
+## currents depend on the slip frequency alone (the stator resistance
+## left aside), so they are those at mains frequency at the speed with the
+## same slip frequency: shifted by (1 - frequency) in the field's direction.
+func _solve(n: float) -> Array:
+	var shift: float = 0.0
+	if frequency != 1.0:
+		var field: float = -1.0 if direction == Direction.COUNTERCLOCKWISE else 1.0
+		shift = field * (1.0 - frequency)
+	return model().solve(_potentials, _fixed, _groups, n + shift, rated_current)
+
+
 ## One step of the run-up: torque against load and inertia.
 func _accelerate(h: float) -> void:
-	var solved: Array = model().solve(_potentials, _fixed, _groups, rotor_speed, rated_current)
+	var solved: Array = _solve(rotor_speed)
 	var drive: float = solved[1]
 	var load: float = model().load_torque(rotor_speed, load_factor())
 	var inertia: float = maxf(run_up_time, 0.01) / model().run_up_per_inertia

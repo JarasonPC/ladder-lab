@@ -11,7 +11,7 @@ extends RefCounted
 ## of strip X2, a plain label "4" is terminal 4 of strip X1. Terminals with the
 ## same strip and label are one terminal.
 
-enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER, PLC }
+enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER, PLC, VFD }
 ## Conductor a net is wired with in the switchboard (see [method conductors]):
 ## the phase of the control circuit (red), the neutral (light blue), the
 ## main power circuit (grey) and the protective conductor.
@@ -39,6 +39,8 @@ static func kind_of(c: CircuitComponent) -> Kind:
 		return Kind.RECTIFIER
 	if c is Plc:
 		return Kind.PLC
+	if c is Vfd:
+		return Kind.VFD
 	return Kind.NONE
 
 
@@ -86,6 +88,8 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ##   per output relay closed), "language" ("FBD" / "LAD"), "modules"
 ##   ([constant Plc.MODULE_NAMES]), "modules_on" (one bool per module working)
 ##   and "rating" (its version, see [VoltageRating])
+## - VFD: "terminals", "powered", "output" (switched on), "frequency" (Hz,
+##   negative in reverse)
 static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 	var c: CircuitComponent = device(doc.circuit, designation)
 	if c == null:
@@ -128,6 +132,12 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 			d["terminals"] = _named_keys(c)
 		Kind.PLC:
 			_describe_plc(c as Plc, d)
+		Kind.VFD:
+			var drive: Vfd = c as Vfd
+			d["terminals"] = _named_keys(c)
+			d["powered"] = drive.powered
+			d["output"] = drive.output
+			d["frequency"] = drive.frequency
 	return d
 
 
@@ -342,6 +352,11 @@ static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictio
 			count = (c as ThreePhaseMotor).winding_terminal_count()
 		elif c is OverloadRelay or c is MainContacts or (c is PoleDevice and (c as PoleDevice).poles > 1):
 			count = keys.size()
+		elif c is Vfd:
+			for t: int in [Vfd.L1, Vfd.L1 + 1, Vfd.L1 + 2, Vfd.U, Vfd.U + 1, Vfd.U + 2]:
+				power[net[keys[t]]] = true
+			if net.has(keys[Vfd.PE]):
+				pe[net[keys[Vfd.PE]]] = true
 		for k: int in mini(count, keys.size()):
 			power[net[keys[k]]] = true
 	var result: Dictionary[int, Conductor] = {}
