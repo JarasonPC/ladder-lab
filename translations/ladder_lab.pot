@@ -1495,6 +1495,112 @@ msgstr ""
 msgid "%s burnt out: too high a voltage for %s"
 msgstr ""
 
+msgid "Range from (°C)"
+msgstr ""
+
+msgid "Range to (°C)"
+msgstr ""
+
+msgid "Temperature at the start (°C)"
+msgstr ""
+
+msgid "Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."
+msgstr ""
+
+msgid "2 analog inputs 0-10 V"
+msgstr ""
+
+msgid "2 analog outputs 0-10 V"
+msgstr ""
+
+msgid "Analog inputs read 0-10 V as 0-1000 (the 12/24 V and 24 V versions: I7, I8, I1, I2 as AI1-AI4); analog outputs put 0-1000 out as 0-10 V. Analog modules need 24 V DC on L+ and M."
+msgstr ""
+
+msgid "Temperature sensor (0-10 V)"
+msgstr ""
+
+msgid "PLC and sensors"
+msgstr ""
+
+#, c-format
+msgid "Temperature at %s"
+msgstr ""
+
+msgid "Volts on the analog input (0-10 V = 0-1000)"
+msgstr ""
+
+msgid "Gain"
+msgstr ""
+
+msgid "Offset"
+msgstr ""
+
+msgid "On threshold"
+msgstr ""
+
+msgid "Off threshold"
+msgstr ""
+
+msgid "Value (0-1000 = 0-10 V)"
+msgstr ""
+
+msgid "Analog"
+msgstr ""
+
+msgid "Analog input AI"
+msgstr ""
+
+msgid "Analog output AQ"
+msgstr ""
+
+msgid "Analog threshold trigger"
+msgstr ""
+
+msgid "Analog comparator"
+msgstr ""
+
+msgid "Analog amplifier"
+msgstr ""
+
+msgid "Analog input"
+msgstr ""
+
+msgid "Analog output"
+msgstr ""
+
+msgid "Brings an analog input into the diagram: 0-10 V as 0-1000."
+msgstr ""
+
+msgid "Puts the value at Ax (0-1000) on an analog output as 0-10 V."
+msgstr ""
+
+msgid "Gain x Ax + offset: the output comes on above On and goes off at Off or below (with On below Off: on between them)."
+msgstr ""
+
+msgid "The difference Ax - Ay: the output comes on above On and goes off at Off or below."
+msgstr ""
+
+msgid "Passes gain x Ax + offset on as an analog value."
+msgstr ""
+
+msgid "Compare: analog input at or above"
+msgstr ""
+
+msgid "Compare: analog input below"
+msgstr ""
+
+msgid "Analog output coil"
+msgstr ""
+
+msgid "Closed while the analog input is at the value or above it (0-1000 = 0-10 V)."
+msgstr ""
+
+msgid "Closed while the analog input is below the value (0-1000 = 0-10 V)."
+msgstr ""
+
+msgid "Puts the value (0-1000) on the analog output as 0-10 V while it gets power, 0 without."
+msgstr ""
+
 msgid "The PLC runs the program shown here."
 msgstr ""
 

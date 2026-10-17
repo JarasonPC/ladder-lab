@@ -95,6 +95,12 @@ func show_component(component: CircuitComponent) -> void:
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"plc":
 			_plc_program(component as Plc)
+		"temp_sensor":
+			_number(tr("Range from (°C)"), "range_min", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 1.0)
+			_number(tr("Range to (°C)"), "range_max", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 1.0)
+			_number(tr("Temperature at the start (°C)"), "temperature", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 0.5)
+			_group = null
+			_note(tr("Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."), "MutedLabel")
 		"changeover":
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")
@@ -395,8 +401,10 @@ func _plc_program(plc: Plc) -> void:
 	_plc_modules(plc)
 	_group = null
 	var note: String = tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals.")
-	if not plc.modules.is_empty():
+	if plc.input_count() > Plc.BASE_INPUTS:
 		note += " " + tr("Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N.") % [plc.input_count(), plc.output_count()]
+	if plc.analog_input_count() + plc.analog_output_count() > 0:
+		note += " " + tr("Analog inputs read 0-10 V as 0-1000 (the 12/24 V and 24 V versions: I7, I8, I1, I2 as AI1-AI4); analog outputs put 0-1000 out as 0-10 V. Analog modules need 24 V DC on L+ and M.")
 	_note(note, "MutedLabel")
 
 
@@ -411,14 +419,9 @@ func _plc_modules(plc: Plc) -> void:
 		none.text = tr("None: inputs I1-I8, outputs Q1-Q4")
 		_add(none)
 	for m: int in plc.modules.size():
-		var span: Vector2i = plc.module_terminals(m)
-		var names: PackedStringArray = plc.default_terminal_names()
-		var first_input: int = span.x + 2
-		var inputs: int = Plc.MODULE_INPUTS[plc.modules[m]]
-		var outputs: int = Plc.MODULE_OUTPUTS[plc.modules[m]]
 		var row: Label = Label.new()
 		row.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		row.text = "%d: %s (%s-%s, %s-%s)" % [m + 2, _module_title(plc.modules[m]), names[first_input], names[first_input + inputs - 1], names[first_input + inputs].get_slice(".", 0), names[span.y - 1].get_slice(".", 0)]
+		row.text = "%d: %s (%s)" % [m + 2, _module_title(plc.modules[m]), ", ".join(_module_operands(plc, m))]
 		_add(row)
 	var buttons: HBoxContainer = HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 6)
@@ -433,7 +436,7 @@ func _plc_modules(plc: Plc) -> void:
 		var longer: Array[Plc.Module] = plc.modules.duplicate()
 		longer.append(kind as Plc.Module)
 		popup.add_item(_module_title(kind as Plc.Module), kind)
-		popup.set_item_disabled(popup.get_item_count() - 1, not Plc.modules_fit(longer))
+		popup.set_item_disabled(popup.get_item_count() - 1, not Plc.modules_fit(longer, plc.rating))
 	popup.id_pressed.connect(func(kind: int) -> void:
 		var list: Array[Plc.Module] = plc.modules.duplicate()
 		list.append(kind as Plc.Module)
@@ -456,8 +459,34 @@ func _module_title(module: Plc.Module) -> String:
 	match module:
 		Plc.Module.DI4_DQ4:
 			return tr("4 inputs, 4 relay outputs")
-		_:
+		Plc.Module.DI8_DQ8:
 			return tr("8 inputs, 8 relay outputs")
+		Plc.Module.AI2:
+			return tr("2 analog inputs 0-10 V")
+	return tr("2 analog outputs 0-10 V")
+
+
+## Ranges of the operands of module [param m]: "I9-I12", "Q5-Q8", "AI5-AI6".
+static func _module_operands(plc: Plc, m: int) -> PackedStringArray:
+	var found: Dictionary[String, PackedInt32Array] = {"I": PackedInt32Array(), "Q": PackedInt32Array(), "AI": PackedInt32Array(), "AQ": PackedInt32Array()}
+	for k: int in plc.input_count():
+		if plc.input_module(k) == m:
+			found["I"].append(k + 1)
+	for k: int in plc.output_count():
+		if plc.output_module(k) == m:
+			found["Q"].append(k + 1)
+	for k: int in plc.analog_input_count():
+		if plc.analog_input_module(k) == m:
+			found["AI"].append(k + 1)
+	for k: int in plc.analog_output_count():
+		if plc.analog_output_module(k) == m:
+			found["AQ"].append(k + 1)
+	var ranges: PackedStringArray = PackedStringArray()
+	for area: String in found:
+		var numbers: PackedInt32Array = found[area]
+		if not numbers.is_empty():
+			ranges.append("%s%d-%s%d" % [area, numbers[0], area, numbers[numbers.size() - 1]])
+	return ranges
 
 
 ## Emits the PLC with expansion modules [param list]; terminal names given

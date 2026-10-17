@@ -21,6 +21,8 @@ var warning: bool = false
 var hovered: bool = false
 ## False for palette previews.
 var show_labels: bool = true
+## True for palette previews (supplies there show their name only).
+var preview: bool = false
 ## Markings written at the last draw, for editing them in place:
 ## [kind, index, Rect2 in node coordinates]; kind is "designation",
 ## "terminal" (index = terminal index), "purpose" (lamp) or "label" (terminal

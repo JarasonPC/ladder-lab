@@ -19,9 +19,11 @@ func _draw_shape(color: Color, width: float) -> void:
 	var plc: Plc = component as Plc
 	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(plc)
 	for i: int in cells.size():
+		var x: float = cells[i].x * G
 		if cells[i].y == 0:
-			var x: float = cells[i].x * G
 			aa_line(Vector2(x, 0), Vector2(x, BOX.position.y), lead_color(i), lead_width(i))
+		elif plc.terminal_role(i) == Plc.Role.AQ:
+			aa_line(Vector2(x, cells[i].y * G), Vector2(x, BOX.end.y), lead_color(i), lead_width(i))
 	aa_rect(BOX, color, false, width)
 	for m: int in plc.modules.size():
 		var box: Rect2 = module_box(plc, m)
@@ -70,7 +72,8 @@ static func module_box(plc: Plc, m: int) -> Rect2:
 ## in it, filled while the module works.
 static func module_window(plc: Plc, m: int) -> Rect2:
 	var box: Rect2 = module_box(plc, m)
-	return Rect2(box.get_center().x - 3.0 * G, DISPLAY.position.y, 6.0 * G, DISPLAY.size.y)
+	var w: float = minf(6.0 * G, box.size.x - 2.0 * G)
+	return Rect2(box.get_center().x - w * 0.5, DISPLAY.position.y, w, DISPLAY.size.y)
 
 
 func _draw_labels() -> void:
@@ -86,11 +89,19 @@ func _draw_labels() -> void:
 	var display: String = "PLC  RUN" if plc.energized else "PLC  " + ("LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD")
 	_centered(display, DISPLAY.get_center(), 11, SchematicTheme.TEXT)
 	for m: int in plc.modules.size():
-		var module: Plc.Module = plc.modules[m]
-		_centered("%d DI  %d DQ" % [Plc.MODULE_INPUTS[module], Plc.MODULE_OUTPUTS[module]], module_window(plc, m).get_center(), 11, SchematicTheme.TEXT)
+		_centered(module_text(plc.modules[m]), module_window(plc, m).get_center(), 11, SchematicTheme.TEXT)
 	for k: int in plc.output_count():
 		var cell_a: Vector2 = Vector2(cells[plc.output_terminal(k)]) * G
 		_centered("Q%d" % (k + 1), Vector2(cell_a.x + G, CONTACT_Y - 0.9 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT)
+
+
+## What a module is, as written on it: "4 DI  4 DQ", "2 AI", "2 AQ".
+static func module_text(module: Plc.Module) -> String:
+	if Plc.MODULE_ANALOG_INPUTS[module] > 0:
+		return "%d AI" % Plc.MODULE_ANALOG_INPUTS[module]
+	if Plc.MODULE_ANALOG_OUTPUTS[module] > 0:
+		return "%d AQ" % Plc.MODULE_ANALOG_OUTPUTS[module]
+	return "%d DI  %d DQ" % [Plc.MODULE_INPUTS[module], Plc.MODULE_OUTPUTS[module]]
 
 
 ## Upright text centred on local point [param at].

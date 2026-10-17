@@ -338,6 +338,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif c is Plc:
 				plc_requested.emit(c.id)
 				get_viewport().set_input_as_handled()
+			elif c is TemperatureSensor:
+				_open_temperature(c as TemperatureSensor)
+				get_viewport().set_input_as_handled()
 			elif c is PageConnector:
 				var targets: Array[Dictionary] = document.connector_targets(c.id)
 				if not targets.is_empty():
@@ -392,6 +395,52 @@ func toggle_switch(designation: String) -> void:
 		return
 	(c as LatchingSwitch).toggle()
 	_apply(simulator.step())
+
+
+## Sets the temperature at sensor [param designation] (while simulating).
+func set_temperature(designation: String, celsius: float) -> void:
+	var sensor: TemperatureSensor = document.circuit.get_component(designation) as TemperatureSensor if document != null else null
+	if not simulating or sensor == null:
+		return
+	sensor.temperature = clampf(celsius, TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
+	_apply(simulator.step())
+
+
+## A slider under the mouse setting the temperature at [param sensor], a
+## fifth of its range beyond each end.
+func _open_temperature(sensor: TemperatureSensor) -> void:
+	var popup: PopupPanel = PopupPanel.new()
+	popup.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	var box: VBoxContainer = VBoxContainer.new()
+	box.custom_minimum_size = Vector2(260, 0)
+	popup.add_child(box)
+	var caption: Label = Label.new()
+	caption.text = tr("Temperature at %s") % sensor.designation
+	box.add_child(caption)
+	var margin: float = (sensor.range_max - sensor.range_min) * 0.2
+	var slider: HSlider = HSlider.new()
+	slider.min_value = maxf(sensor.range_min - margin, TemperatureSensor.LOWEST)
+	slider.max_value = minf(sensor.range_max + margin, TemperatureSensor.HIGHEST)
+	slider.step = 0.5
+	slider.value = sensor.temperature
+	box.add_child(slider)
+	var spin: SpinBox = SpinBox.new()
+	spin.min_value = TemperatureSensor.LOWEST
+	spin.max_value = TemperatureSensor.HIGHEST
+	spin.step = 0.1
+	spin.suffix = "°C"
+	spin.value = sensor.temperature
+	box.add_child(spin)
+	var designation: String = sensor.designation
+	slider.value_changed.connect(func(v: float) -> void:
+		spin.set_value_no_signal(v)
+		set_temperature(designation, v))
+	spin.value_changed.connect(func(v: float) -> void:
+		slider.set_value_no_signal(v)
+		set_temperature(designation, v))
+	popup.popup_hide.connect(popup.queue_free)
+	add_child(popup)
+	popup.popup(Rect2i(Vector2i(get_viewport().get_mouse_position()) + Vector2i(12, 12), Vector2i.ZERO))
 
 
 ## Operates breaker, fuse holder or overload relay [param designation] as a

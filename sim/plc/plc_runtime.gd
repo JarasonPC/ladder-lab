@@ -18,6 +18,10 @@ extends RefCounted
 ## what reaches the end of its row. Coils act at once, so the rungs below see
 ## the new values in the same scan. Edge contacts -|P|- / -|N|- close for one
 ## scan when their operand went from 0 to 1 / from 1 to 0.
+##
+## Analog values run 0-1000 for 0-10 V: [member analog_inputs] are read,
+## [member analog_outputs] written by the AQ connectors and AQ coils; the
+## comparing contacts read the analog inputs.
 
 ## Scans [method scan_until_stable] makes at most.
 const MAX_SCANS: int = 32
@@ -27,8 +31,13 @@ var program: PlcProgram
 var inputs: PackedByteArray = PackedByteArray()
 var outputs: PackedByteArray = PackedByteArray()
 var flags: PackedByteArray = PackedByteArray()
-## Function block diagram: output of every block after the last scan.
+## Analog inputs AI1-AI8 (0-1000 for 0-10 V) and outputs AQ1-AQ8.
+var analog_inputs: PackedFloat32Array = PackedFloat32Array()
+var analog_outputs: PackedFloat32Array = PackedFloat32Array()
+## Function block diagram: output of every block after the last scan, and
+## the value of blocks with an analog output.
 var values: Dictionary[int, bool] = {}
+var analog: Dictionary[int, float] = {}
 ## Timers: "T1".. of the ladder diagram, "B3" (the block) of the function
 ## block diagram; counters alike.
 var timers: Dictionary[String, PlcTimer] = {}
@@ -63,7 +72,12 @@ func reset() -> void:
 	outputs.fill(0)
 	flags.resize(PlcProgram.AREA_SIZES["M"])
 	flags.fill(0)
+	analog_inputs.resize(PlcProgram.AREA_SIZES["AI"])
+	analog_inputs.fill(0.0)
+	analog_outputs.resize(PlcProgram.AREA_SIZES["AQ"])
+	analog_outputs.fill(0.0)
 	values.clear()
+	analog.clear()
 	timers.clear()
 	counters.clear()
 	_states.clear()
@@ -125,7 +139,10 @@ func snapshot() -> Array:
 		edges.append(1 if _edges[id] else 0)
 	for key: String in _cell_edges:
 		edges.append(1 if _cell_edges[key] else 0)
-	return [outputs.duplicate(), flags.duplicate(), block_values, timer_states, counts, edges]
+	var analog_values: PackedFloat32Array = PackedFloat32Array()
+	for id: int in _order:
+		analog_values.append(analog.get(id, 0.0))
+	return [outputs.duplicate(), flags.duplicate(), block_values, timer_states, counts, edges, analog_outputs.duplicate(), analog_values]
 
 
 ## Value of operand [param operand] ("I1", "Q2", "M3", "T4", "C5").
@@ -143,6 +160,17 @@ func operand_value(operand: String) -> bool:
 		"C":
 			return counters.has(operand) and counters[operand].output()
 	return false
+
+
+## Value of analog operand [param operand] ("AI1", "AQ2").
+func analog_value(operand: String) -> float:
+	var i: int = PlcProgram.operand_index(operand)
+	match PlcProgram.area_of(operand):
+		"AI":
+			return analog_inputs[i] if i >= 0 and i < analog_inputs.size() else 0.0
+		"AQ":
+			return analog_outputs[i] if i >= 0 and i < analog_outputs.size() else 0.0
+	return 0.0
 
 
 # --- Function block diagram ------------------------------------------------------
@@ -203,6 +231,31 @@ func _evaluate_block(b: PlcBlock) -> bool:
 	match b.type:
 		"input":
 			return operand_value(b.operand)
+		"analog_input":
+			analog[b.id] = analog_value(b.operand)
+			return analog[b.id] > 0.0
+		"analog_output":
+			var value: float = clampf(_analog_pin(b, 0), 0.0, PlcBlock.ANALOG_MAX)
+			analog_outputs[PlcProgram.operand_index(b.operand)] = value
+			analog[b.id] = value
+			return value > 0.0
+		"analog_amplifier":
+			analog[b.id] = clampf(b.gain * _analog_pin(b, 0) + b.offset, -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG)
+			return analog[b.id] > 0.0
+		"analog_threshold", "analog_compare":
+			var x: float = b.gain * _analog_pin(b, 0) + b.offset if b.type == "analog_threshold" else _analog_pin(b, 0) - _analog_pin(b, 1)
+			var state: bool = _states.get(b.id, false)
+			if b.on >= b.off:
+				# Comes on above On, goes off at Off and below.
+				if x > b.on:
+					state = true
+				elif x <= b.off:
+					state = false
+			else:
+				# On between On and Off.
+				state = x >= b.on and x < b.off
+			_states[b.id] = state
+			return state
 		"hi":
 			return true
 		"lo":
@@ -275,6 +328,17 @@ func _evaluate_block(b: PlcBlock) -> bool:
 func _pin(b: PlcBlock, pin: int, unconnected: bool) -> bool:
 	var source: int = b.inputs[pin] if pin < b.inputs.size() else 0
 	return values.get(source, false) if source > 0 else unconnected
+
+
+## Analog value at input pin [param pin] of [param b]: that of an analog
+## block, 1000 or 0 from a digital one, 0 when nothing is connected.
+func _analog_pin(b: PlcBlock, pin: int) -> float:
+	var source: int = b.inputs[pin] if pin < b.inputs.size() else 0
+	if source <= 0:
+		return 0.0
+	if analog.has(source):
+		return analog[source]
+	return PlcBlock.ANALOG_MAX if values.get(source, false) else 0.0
 
 
 func _timer(key: String, kind: PlcTimer.Kind) -> PlcTimer:
@@ -353,6 +417,10 @@ func _conducts(cell: Dictionary, place: String) -> bool:
 			var before: bool = _cell_edges.get(place, now)
 			_cell_edges[place] = now
 			return now and not before if cell["kind"] == "pos" else before and not now
+		"ge":
+			return analog_value(cell["operand"]) >= float(cell.get("value", PlcRung.DEFAULT_VALUE))
+		"lt":
+			return analog_value(cell["operand"]) < float(cell.get("value", PlcRung.DEFAULT_VALUE))
 	return false
 
 
@@ -382,6 +450,9 @@ func _apply_coil(coil: Dictionary, power: bool) -> void:
 			var timer: PlcTimer = _timer(operand, PlcTimer.Kind.ON_DELAY if coil["kind"] == "on_delay" else PlcTimer.Kind.OFF_DELAY)
 			timer.preset = float(coil.get("time", PlcBlock.DEFAULT_TIME))
 			timer.update(power)
+		"analog":
+			var i: int = PlcProgram.operand_index(operand)
+			analog_outputs[i] = float(coil.get("value", PlcRung.DEFAULT_VALUE)) if power else 0.0
 		"count_up", "count_down":
 			var counter: PlcCounter = _counter(operand)
 			counter.preset = int(coil.get("preset", PlcBlock.DEFAULT_PRESET))

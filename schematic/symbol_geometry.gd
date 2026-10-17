@@ -22,6 +22,11 @@ const PLC_OUTPUT_PITCH: int = 5
 ## Width in cells of the PLC's box; expansion modules follow it one cell apart.
 const PLC_WIDTH: int = 20
 const PLC_MODULE_GAP: int = 1
+## Narrowest expansion module, and the distance between analog outputs.
+const PLC_MODULE_MIN_WIDTH: int = 10
+const PLC_ANALOG_OUTPUT_PITCH: int = 4
+## Temperature sensor: its output U beside L+.
+const SENSOR_OUTPUT_CELL := Vector2i(2, 0)
 
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
@@ -48,6 +53,11 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		var cells: Array[Vector2i] = plc_terminal_cells(c as Plc)
 		for i: int in names.size():
 			result[names[i]] = cells[i]
+		return result
+	if c is TemperatureSensor:
+		result[names[0]] = Vector2i.ZERO
+		result[names[1]] = Vector2i(0, SPAN)
+		result[names[2]] = SENSOR_OUTPUT_CELL
 		return result
 	if c is Rectifier:
 		# AC input ~1 ~2 on top, DC output + - below.
@@ -91,6 +101,8 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		var i: int = names.find(terminal_name)
 		return DIR_DOWN if i >= 0 and plc_terminal_cells(c as Plc)[i].y == 0 else DIR_UP
 	if c is TimerRelay and names.size() == 3:
+		return DIR_UP if terminal_name == names[1] else DIR_DOWN
+	if c is TemperatureSensor:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if names.size() == 3:
 		return DIR_UP if terminal_name == names[0] else DIR_DOWN
@@ -154,6 +166,8 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.3, 0.4, 2.6, 2.2)
 	if c is Plc:
 		return Rect2(-1.1, 0.9, plc_width(c as Plc) + 0.2, PLC_HEIGHT - 1.8)
+	if c is TemperatureSensor:
+		return Rect2(-0.95, 0.75, 3.9, 1.5)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
 
 
@@ -179,14 +193,23 @@ static func plc_terminal_cells(plc: Plc) -> Array[Vector2i]:
 	var origins: PackedInt32Array = plc_module_origins(plc)
 	for m: int in range(-1, plc.modules.size()):
 		var span: Vector2i = plc.module_terminals(m)
-		var first_output: int = plc.output_terminal(0) if m < 0 else plc.module_terminal(m) + 2 + Plc.MODULE_INPUTS[plc.modules[m]]
+		var x: int = origins[m + 1]
+		# Supply, inputs and analog inputs along the top; relay outputs
+		# (two terminals each) and analog outputs below.
+		var top: int = 0
+		var relay: int = 0
+		var analog: int = 0
 		for i: int in range(span.x, span.y):
-			var x: int = origins[m + 1]
-			if i < first_output:
-				cells.append(Vector2i(x + (i - span.x) * POLE_SPACING, 0))
-			else:
-				var k: int = (i - first_output) / 2
-				cells.append(Vector2i(x + k * PLC_OUTPUT_PITCH + (i - first_output) % 2 * POLE_SPACING, PLC_HEIGHT))
+			match plc.terminal_role(i):
+				Plc.Role.DQ:
+					cells.append(Vector2i(x + (relay / 2) * PLC_OUTPUT_PITCH + relay % 2 * POLE_SPACING, PLC_HEIGHT))
+					relay += 1
+				Plc.Role.AQ:
+					cells.append(Vector2i(x + analog * PLC_ANALOG_OUTPUT_PITCH, PLC_HEIGHT))
+					analog += 1
+				_:
+					cells.append(Vector2i(x + top * POLE_SPACING, 0))
+					top += 1
 	return cells
 
 
@@ -205,7 +228,9 @@ static func plc_module_origins(plc: Plc) -> PackedInt32Array:
 ## Width in cells of an expansion module's box: its outputs side by side,
 ## or its supply and inputs if they take more room.
 static func plc_module_width(module: Plc.Module) -> int:
-	return maxi((2 + Plc.MODULE_INPUTS[module]) * POLE_SPACING, Plc.MODULE_OUTPUTS[module] * PLC_OUTPUT_PITCH)
+	var top: int = (2 + Plc.MODULE_INPUTS[module] + Plc.MODULE_ANALOG_INPUTS[module]) * POLE_SPACING
+	var bottom: int = maxi(Plc.MODULE_OUTPUTS[module] * PLC_OUTPUT_PITCH, Plc.MODULE_ANALOG_OUTPUTS[module] * PLC_ANALOG_OUTPUT_PITCH)
+	return maxi(maxi(top, bottom), PLC_MODULE_MIN_WIDTH)
 
 
 ## Width in cells of the PLC with its expansion modules, from the left edge

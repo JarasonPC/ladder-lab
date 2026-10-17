@@ -912,7 +912,7 @@ static func _bridge_symbol(p: CabinetPainter, c: Vector2, r: float, ink: Color) 
 ## Size of a PLC (logic module with relay outputs): four modules; its
 ## expansion modules ([enum Plc.Module]) are two and four modules wide.
 const PLC := Vector2(72.0, 90.0)
-const PLC_MODULE_W: PackedFloat32Array = [36.0, 72.0]
+const PLC_MODULE_W: PackedFloat32Array = [36.0, 72.0, 36.0, 36.0]
 ## Height of its screws from the top and the bottom.
 const PLC_SCREW_Y: float = 8.6
 ## Pitch of the screws on the top tier (L1 N I1-I8).
@@ -1032,11 +1032,19 @@ static func _plc_module(p: CabinetPainter, left: float, module: Plc.Module, on: 
 	q.line(Vector2(0.0, 0.6), Vector2(0.0, h - 0.6), PLC_EDGE, 0.3)
 	var inputs: int = Plc.MODULE_INPUTS[module]
 	var outputs: int = Plc.MODULE_OUTPUTS[module]
-	q.text(Vector2(mw * 0.5, 18.4), "%s  INPUT %d×" % [supply, inputs], 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
+	var top: String = "%s  INPUT %d×" % [supply, inputs]
+	var bottom: String = "OUTPUT %d× RELAY" % outputs
+	if Plc.MODULE_ANALOG_INPUTS[module] > 0:
+		top = "DC 24 V  INPUT %d× 0-10 V" % Plc.MODULE_ANALOG_INPUTS[module]
+		bottom = ""
+	elif Plc.MODULE_ANALOG_OUTPUTS[module] > 0:
+		top = "DC 24 V"
+		bottom = "OUTPUT %d× 0-10 V" % Plc.MODULE_ANALOG_OUTPUTS[module]
+	q.text(Vector2(mw * 0.5, 18.4), top, 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
 	q.circle(Vector2(mw * 0.2 + 3.0, 30.0), 1.2, Color("46c35a") if on else Color("3c4a40"), PLC_DARK, 0.15)
 	q.text(Vector2(mw * 0.2 + 5.0, 30.9), "RUN/STOP", 1.4, PLC_DARK, -1, false)
-	q.text(Vector2(mw * 0.5, 40.0), "%d DI  %d DQ" % [inputs, outputs], 2.0, PLC_DARK, 0, true, mw * 0.6 - 1.0)
-	q.text(Vector2(mw * 0.5, 64.0), "OUTPUT %d× RELAY" % outputs, 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
+	q.text(Vector2(mw * 0.5, 40.0), PlcSymbol.module_text(module), 2.0, PLC_DARK, 0, true, mw * 0.6 - 1.0)
+	q.text(Vector2(mw * 0.5, 64.0), bottom, 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
 
 
 ## Every output marked over its screws: its name and an NO contact.
@@ -1085,12 +1093,28 @@ static func _plc_print_widths(desc: Dictionary) -> Dictionary:
 	var plc: Plc = Plc.new("A", null, plc_modules(desc))
 	var names: PackedStringArray = plc.default_terminal_names()
 	for m: int in plc.modules.size():
+		var counts: Vector2i = _plc_tiers(plc, m)
+		var mw: float = PLC_MODULE_W[plc.modules[m]]
 		var span: Vector2i = plc.module_terminals(m)
-		var module: Plc.Module = plc.modules[m]
-		var top: int = 2 + Plc.MODULE_INPUTS[module]
 		for i: int in range(span.x, span.y):
-			widths[names[i]] = PLC_MODULE_W[module] / top if i - span.x < top else PLC_MODULE_W[module] / Plc.MODULE_OUTPUTS[module] * 0.5
+			widths[names[i]] = mw / counts.y if _plc_on_bottom(plc, i) else mw / counts.x
 	return widths
+
+
+## Screws of module [param m] (-1: the PLC) on the top and on the bottom tier.
+static func _plc_tiers(plc: Plc, m: int) -> Vector2i:
+	var span: Vector2i = plc.module_terminals(m)
+	var counts: Vector2i = Vector2i.ZERO
+	for i: int in range(span.x, span.y):
+		if _plc_on_bottom(plc, i):
+			counts.y += 1
+		else:
+			counts.x += 1
+	return counts
+
+
+static func _plc_on_bottom(plc: Plc, i: int) -> bool:
+	return plc.terminal_role(i) == Plc.Role.DQ or plc.terminal_role(i) == Plc.Role.AQ
 
 
 ## One input or output on the display: its number, shown dark while it is on.
@@ -1278,19 +1302,26 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 			for m: int in range(-1, plc.modules.size()):
 				var span: Vector2i = plc.module_terminals(m)
 				var width: float = PLC.x if m < 0 else PLC_MODULE_W[plc.modules[m]]
-				var top: int = plc.output_terminal(0) if m < 0 else 2 + Plc.MODULE_INPUTS[plc.modules[m]]
-				var slot: float = width / (Plc.BASE_OUTPUTS if m < 0 else Plc.MODULE_OUTPUTS[plc.modules[m]])
+				var counts: Vector2i = _plc_tiers(plc, m)
+				var top: int = 0
+				var bottom: int = 0
 				for i: int in range(span.x, span.y):
-					var j: int = i - span.x
 					var x: float
 					var y: float = PLC_SCREW_Y
-					if j < top:
-						x = width / top * (j + 0.5)
-					else:
-						var k: int = (j - top) / 2
-						# The PLC's outputs a module (18 mm) each, a module's two to a module.
-						x = slot * k + slot * ((0.3 if (j - top) % 2 == 0 else 0.7) if m < 0 else (0.25 if (j - top) % 2 == 0 else 0.75))
+					if not _plc_on_bottom(plc, i):
+						x = width / counts.x * (top + 0.5)
+						top += 1
+					elif plc.terminal_role(i) == Plc.Role.AQ:
+						x = width / counts.y * (bottom + 0.5)
 						y = PLC.y - PLC_SCREW_Y
+						bottom += 1
+					else:
+						# The PLC's outputs a module (18 mm) each, a module's two to a module.
+						var slot: float = width * 2.0 / counts.y
+						var k: int = bottom / 2
+						x = slot * k + slot * ((0.3 if bottom % 2 == 0 else 0.7) if m < 0 else (0.25 if bottom % 2 == 0 else 0.75))
+						y = PLC.y - PLC_SCREW_Y
+						bottom += 1
 					points[standard[i]] = Vector3(left + x, y, 2.1)
 				left += width
 		CabinetDevices.Kind.RECTIFIER:

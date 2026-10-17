@@ -39,7 +39,10 @@ const FORMAT: String = "ladder-lab"
 ## 20: rated voltages of coils, time relays, lamps and PLCs ("rating", see
 ## VoltageRating; missing: works on any voltage), the voltage of + supplies
 ## ("voltage"; missing before: 24 V).
-const VERSION: int = 20
+## 21: temperature sensors ("temp_sensor": range, start temperature), analog
+## modules of PLCs ("2ai", "2aq"), analog blocks and ladder elements of PLC
+## programs (gain, offset, on, off, value).
+const VERSION: int = 21
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

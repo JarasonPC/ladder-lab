@@ -45,6 +45,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Motor 3~ two windings", "template": {"type": "motor3", "motor_kind": "two_windings"}},
 	{"title": "Motor 3~ three windings", "template": {"type": "motor3", "motor_kind": "three_windings"}},
 	{"title": "PLC (logic module, 8 inputs, 4 relay outputs)", "template": {"type": "plc"}},
+	{"title": "Temperature sensor (0-10 V)", "template": {"type": "temp_sensor"}},
 ]
 
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
@@ -87,7 +88,7 @@ static func group_of(template: Dictionary) -> String:
 			return "loads"
 		"fuse", "breaker", "overload_relay", "overload_contact":
 			return "protection"
-		"plc":
+		"plc", "temp_sensor":
 			return "plc"
 	return "power"
 
@@ -107,7 +108,7 @@ func _group_title(group: String) -> String:
 		"protection":
 			return tr("Protection")
 		"plc":
-			return tr("PLC")
+			return tr("PLC and sensors")
 	return tr("Power circuit")
 
 
@@ -248,6 +249,7 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)
 	var symbol: SchematicSymbol = SymbolFactory.create(component, placement)
 	symbol.show_labels = supply
+	symbol.preview = true
 	# Symbols are drawn for the light schematic paper, so give them a tile of it.
 	var paper: Panel = Panel.new()
 	_tiles.append(paper)

@@ -23,6 +23,12 @@ What changed in each LadderLab version. Version numbers follow the rules in
   and taken off in the PLC's properties and drawn beside it, each with its own L1-N supply
 - The rated voltage of coils, time relays, lamps and PLCs and the voltage of DC supplies are set
   in the properties and written on the drawing
+- Temperature sensor (0-10 V transmitter, BT1) in the parts library, with its measuring range
+- Analog modules for the PLC: 2 analog inputs or 2 analog outputs 0-10 V each, up to 8 of
+  each; the 12/24 V and 24 V PLCs read I7, I8, I1 and I2 also as analog inputs AI1-AI4
+- PLC programs with analog signals: analog inputs and outputs, analog threshold trigger,
+  comparator and amplifier in the function block diagram, comparing contacts and an analog
+  output coil in the ladder diagram
 
 ### Simulation
 - Supplies of different voltages: 230 V between a phase and N, 400 V between two phases, and DC
@@ -32,6 +38,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   replaced from the right-click menu. New parts are rated 230 V; parts of older schematics work
   on any voltage as before
 - A bridge rectifier gives 207 V DC, a source of its own: joined to a DC supply it is a short
+- Analog signals: the temperature sensor puts 0-10 V on its output over its range, the PLC
+  reads it on its analog inputs and puts its analog outputs out as 0-10 V; while simulating, a
+  click on the sensor sets the temperature. The PLC window tests analog inputs and outputs too
 - Expansion modules work while their own supply has voltage; their inputs (I9…) and outputs
   (Q5…) are used in the program like those of the PLC, and the PLC window tests them too
 - A tripped circuit breaker or overload relay stays hot and cools down slowly; switched on or

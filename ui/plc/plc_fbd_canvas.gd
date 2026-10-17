@@ -25,7 +25,7 @@ const LEAD: float = 0.6
 const PIN_RADIUS: float = 0.45
 
 ## Text written in a block, by type.
-const SYMBOLS: Dictionary[String, String] = {"hi": "hi", "lo": "lo", "and": "&", "or": "≥1", "not": "1", "nand": "&", "nor": "≥1", "xor": "=1", "on_delay": "TON", "off_delay": "TOF", "latch": "RS", "pulse_relay": "TT", "counter": "CTUD"}
+const SYMBOLS: Dictionary[String, String] = {"hi": "hi", "lo": "lo", "and": "&", "or": "≥1", "not": "1", "nand": "&", "nor": "≥1", "xor": "=1", "on_delay": "TON", "off_delay": "TOF", "latch": "RS", "pulse_relay": "TT", "counter": "CTUD", "analog_threshold": "A→", "analog_compare": "AΔ", "analog_amplifier": "A▷"}
 const NEGATED: PackedStringArray = ["not", "nand", "nor"]
 
 ## Number of the selected block shown in the side panel, 0 for none.
@@ -55,6 +55,7 @@ func tools() -> Array[Dictionary]:
 	var connectors: String = "Connectors"
 	var basic: String = "Basic functions"
 	var special: String = "Special functions"
+	var analog: String = "Analog"
 	return [
 		{"id": "", "title": "Select and connect", "symbol": "↖", "group": ""},
 		{"id": "input", "title": "Input I", "symbol": "I", "group": connectors},
@@ -73,6 +74,11 @@ func tools() -> Array[Dictionary]:
 		{"id": "latch", "title": "Latching relay", "symbol": "RS", "group": special},
 		{"id": "pulse_relay", "title": "Pulse relay", "symbol": "TT", "group": special},
 		{"id": "counter", "title": "Up/down counter", "symbol": "CTUD", "group": special},
+		{"id": "analog_input", "title": "Analog input AI", "symbol": "AI", "group": analog},
+		{"id": "analog_output", "title": "Analog output AQ", "symbol": "AQ", "group": analog},
+		{"id": "analog_threshold", "title": "Analog threshold trigger", "symbol": "A→", "group": analog},
+		{"id": "analog_compare", "title": "Analog comparator", "symbol": "AΔ", "group": analog},
+		{"id": "analog_amplifier", "title": "Analog amplifier", "symbol": "A▷", "group": analog},
 	]
 
 
@@ -101,6 +107,16 @@ static func type_title(type: String) -> String:
 			return "Pulse relay"
 		"counter":
 			return "Up/down counter"
+		"analog_input":
+			return "Analog input"
+		"analog_output":
+			return "Analog output"
+		"analog_threshold":
+			return "Analog threshold trigger"
+		"analog_compare":
+			return "Analog comparator"
+		"analog_amplifier":
+			return "Analog amplifier"
 	return type
 
 
@@ -137,6 +153,16 @@ static func type_help(type: String) -> String:
 			return "Every rising edge on Trg switches the output over; S sets it, R resets it (R wins)."
 		"counter":
 			return "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
+		"analog_input":
+			return "Brings an analog input into the diagram: 0-10 V as 0-1000."
+		"analog_output":
+			return "Puts the value at Ax (0-1000) on an analog output as 0-10 V."
+		"analog_threshold":
+			return "Gain x Ax + offset: the output comes on above On and goes off at Off or below (with On below Off: on between them)."
+		"analog_compare":
+			return "The difference Ax - Ay: the output comes on above On and goes off at Off or below."
+		"analog_amplifier":
+			return "Passes gain x Ax + offset on as an analog value."
 	return ""
 
 
@@ -212,6 +238,12 @@ func selection_info() -> Dictionary:
 		info["time"] = b.time
 	if b.type == "counter":
 		info["preset"] = b.preset
+	if PlcBlock.uses_gain(b.type):
+		info["gain"] = b.gain
+		info["offset"] = b.offset
+	if PlcBlock.uses_thresholds(b.type):
+		info["on"] = b.on
+		info["off"] = b.off
 	if runtime != null:
 		info["live"] = _live_text(b)
 	return info
@@ -228,6 +260,14 @@ func set_property(key: String, value: Variant) -> void:
 			b.time = clampf(float(value), 0.0, PlcBlock.MAX_TIME)
 		"preset":
 			b.preset = clampi(int(value), 1, PlcCounter.MAX_VALUE)
+		"gain":
+			b.gain = clampf(float(value), -PlcBlock.MAX_GAIN, PlcBlock.MAX_GAIN)
+		"offset":
+			b.offset = clampf(float(value), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG)
+		"on":
+			b.on = clampf(float(value), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG)
+		"off":
+			b.off = clampf(float(value), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG)
 	queue_redraw()
 	changed.emit()
 
@@ -251,6 +291,8 @@ func delete_selection() -> void:
 func _live_text(b: PlcBlock) -> String:
 	var key: String = "B%d" % b.id
 	var parts: PackedStringArray = PackedStringArray(["%s = %d" % [tr("Output"), 1 if runtime.values.get(b.id, false) else 0]])
+	if runtime.analog.has(b.id):
+		parts[0] = "%s = %d" % [tr("Output"), roundi(runtime.analog[b.id])]
 	if runtime.timers.has(key) and runtime.timers[key].running:
 		parts.append("Ta = %s" % seconds(runtime.timers[key].elapsed))
 	if runtime.counters.has(key):
@@ -623,6 +665,16 @@ func _draw_block(b: PlcBlock, tint: Color) -> void:
 		below = "T = " + seconds(b.time)
 	elif b.type == "counter":
 		below = "On = %d" % b.preset
+	# Analog blocks: their parameters and value under the block.
+	var under: PackedStringArray = PackedStringArray()
+	if PlcBlock.uses_thresholds(b.type):
+		under.append("On %s  Off %s" % [_number(b.on), _number(b.off)])
+	if PlcBlock.uses_gain(b.type):
+		under.append("A %s  B %s" % [_number(b.gain), _number(b.offset)])
+	if runtime != null and runtime.analog.has(b.id):
+		under.append("Ax = %d" % roundi(runtime.analog[b.id]))
+	for i: int in under.size():
+		text(under[i], Vector2(r.position.x, r.end.y + (8.0 + 11.0 * i) * zoom), 9, SchematicTheme.TEXT * tint, -1)
 	if runtime != null:
 		var key: String = "B%d" % b.id
 		if runtime.timers.has(key) and runtime.timers[key].running:
@@ -632,3 +684,7 @@ func _draw_block(b: PlcBlock, tint: Color) -> void:
 	if not below.is_empty():
 		# Above the block on the right, clear of the lines below it.
 		text(below, Vector2(r.end.x, r.position.y - 7.0 * zoom), 9, SchematicTheme.TEXT * tint, 1)
+
+
+static func _number(value: float) -> String:
+	return str(roundi(value)) if is_equal_approx(value, roundf(value)) else "%.2f" % value

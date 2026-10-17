@@ -42,6 +42,7 @@ func tools() -> Array[Dictionary]:
 	var contacts: String = "Contacts"
 	var coils: String = "Coils"
 	var timers: String = "Timers and counters"
+	var analog: String = "Analog"
 	return [
 		{"id": "", "title": "Select", "symbol": "↖", "group": ""},
 		{"id": "no", "title": "NO contact", "symbol": "-| |-", "group": contacts},
@@ -58,6 +59,9 @@ func tools() -> Array[Dictionary]:
 		{"id": "off_delay", "title": "Off-delay timer", "symbol": "-(SF)-", "group": timers},
 		{"id": "count_up", "title": "Count up", "symbol": "-(CU)-", "group": timers},
 		{"id": "count_down", "title": "Count down", "symbol": "-(CD)-", "group": timers},
+		{"id": "ge", "title": "Compare: analog input at or above", "symbol": "-|≥|-", "group": analog},
+		{"id": "lt", "title": "Compare: analog input below", "symbol": "-|<|-", "group": analog},
+		{"id": "analog", "title": "Analog output coil", "symbol": "-(AQ)-", "group": analog},
 		{"id": "erase", "title": "Erase", "symbol": "✕", "group": ""},
 	]
 
@@ -91,6 +95,12 @@ static func kind_title(kind: String) -> String:
 			return "Count up"
 		"count_down":
 			return "Count down"
+		"ge":
+			return "Compare: analog input at or above"
+		"lt":
+			return "Compare: analog input below"
+		"analog":
+			return "Analog output coil"
 	return kind
 
 
@@ -120,6 +130,12 @@ static func kind_help(kind: String) -> String:
 			return "The timer T is on with the power and goes off the time after the power went off."
 		"count_up", "count_down":
 			return "Counts each time the coil gets power. The counter's contacts C close when the count has reached the preset."
+		"ge":
+			return "Closed while the analog input is at the value or above it (0-1000 = 0-10 V)."
+		"lt":
+			return "Closed while the analog input is below the value (0-1000 = 0-10 V)."
+		"analog":
+			return "Puts the value (0-1000) on the analog output as 0-10 V while it gets power, 0 without."
 	return ""
 
 
@@ -140,6 +156,8 @@ static func coil_letters(kind: String) -> String:
 			return "CU"
 		"count_down":
 			return "CD"
+		"analog":
+			return "AQ"
 	return ""
 
 
@@ -214,9 +232,13 @@ func selection_info() -> Dictionary:
 		info["time"] = element["time"]
 	if element.has("preset"):
 		info["preset"] = element["preset"]
+	if element.has("value"):
+		info["value"] = element["value"]
 	if runtime != null and element.has("operand"):
 		var op: String = element["operand"]
 		var lines: PackedStringArray = PackedStringArray(["%s = %d" % [op, 1 if runtime.operand_value(op) else 0]])
+		if PlcProgram.ANALOG_AREAS.has(PlcProgram.area_of(op)):
+			lines[0] = "%s = %d" % [op, roundi(runtime.analog_value(op))]
 		if runtime.timers.has(op) and runtime.timers[op].running:
 			lines.append("Ta = %s" % seconds(runtime.timers[op].elapsed))
 		if runtime.counters.has(op):
@@ -255,6 +277,8 @@ func set_property(key: String, value: Variant) -> void:
 			element["time"] = clampf(float(value), 0.0, PlcBlock.MAX_TIME)
 		"preset":
 			element["preset"] = clampi(int(value), 1, PlcCounter.MAX_VALUE)
+		"value":
+			element["value"] = clampf(float(value), 0.0 if element["kind"] == "analog" else -PlcBlock.MAX_ANALOG, PlcBlock.ANALOG_MAX if element["kind"] == "analog" else PlcBlock.MAX_ANALOG)
 	queue_redraw()
 	changed.emit()
 
@@ -374,14 +398,18 @@ func _apply(what: String, r: int, c: int, select: bool) -> void:
 		return
 	var at_coil: bool = c >= PlcRung.COLUMNS
 	match what:
-		"no", "nc", "pos", "neg":
+		"no", "nc", "pos", "neg", "ge", "lt":
 			if at_coil:
 				return
 			var old: Dictionary = rung.get_cell(r, c)
 			var operand: String = str(old.get("operand", ""))
-			if not PlcProgram.valid_operand(operand, PlcRung.operand_areas(what)):
-				operand = "I1"
-			rung.set_cell(r, c, {"kind": what, "operand": operand})
+			var areas: String = PlcRung.operand_areas(what)
+			if not PlcProgram.valid_operand(operand, areas):
+				operand = PlcProgram.operands(areas)[0]
+			var cell: Dictionary = {"kind": what, "operand": operand}
+			if what == "ge" or what == "lt":
+				cell["value"] = old.get("value", PlcRung.DEFAULT_VALUE)
+			rung.set_cell(r, c, cell)
 		"wire":
 			if at_coil:
 				return
@@ -404,11 +432,13 @@ func _apply(what: String, r: int, c: int, select: bool) -> void:
 			var coil: Dictionary = {"kind": what}
 			var areas: String = PlcRung.operand_areas(what)
 			var operand: String = str(old_coil.get("operand", ""))
-			coil["operand"] = operand if PlcProgram.valid_operand(operand, areas) else _free_operand(areas.left(1))
+			coil["operand"] = operand if PlcProgram.valid_operand(operand, areas) else _free_operand(PlcProgram.area_list(areas)[0])
 			if what == "on_delay" or what == "off_delay":
 				coil["time"] = old_coil.get("time", PlcBlock.DEFAULT_TIME)
 			elif what == "count_up" or what == "count_down":
 				coil["preset"] = old_coil.get("preset", PlcBlock.DEFAULT_PRESET)
+			elif what == "analog":
+				coil["value"] = old_coil.get("value", PlcRung.DEFAULT_VALUE)
 			rung.set_coil(r, coil)
 			rung.wire_to_coil(r)
 			c = PlcRung.COLUMNS
@@ -504,7 +534,20 @@ func _draw_cell(cell: Dictionary, x0: float, x1: float, y: float, left_on: bool,
 			text("P", Vector2(cx, y), 10, SchematicTheme.TEXT)
 		"neg":
 			text("N", Vector2(cx, y), 10, SchematicTheme.TEXT)
+		"ge", "lt":
+			text("≥" if kind == "ge" else "<", Vector2(cx, y), 10, SchematicTheme.TEXT)
+			text(_value_text(cell), Vector2(cx, y + bar + 9.0 * z), 10, SchematicTheme.TEXT)
 	text(cell.get("operand", ""), Vector2(cx, y - bar - 9.0 * z), 11, SchematicTheme.DESIGNATION)
+
+
+## The value of a comparing contact or AQ coil, and while running the
+## present one of its operand.
+func _value_text(element: Dictionary) -> String:
+	var value: float = float(element.get("value", PlcRung.DEFAULT_VALUE))
+	var shown: String = str(roundi(value))
+	if runtime != null:
+		shown = "%d / %s" % [roundi(runtime.analog_value(element["operand"])), shown]
+	return shown
 
 
 ## True when contact [param cell] is closed in the running program (edge
@@ -517,6 +560,10 @@ func _closed(cell: Dictionary) -> bool:
 			return runtime.operand_value(cell["operand"])
 		"nc":
 			return not runtime.operand_value(cell["operand"])
+		"ge":
+			return runtime.analog_value(cell["operand"]) >= float(cell.get("value", PlcRung.DEFAULT_VALUE))
+		"lt":
+			return runtime.analog_value(cell["operand"]) < float(cell.get("value", PlcRung.DEFAULT_VALUE))
 	return false
 
 
@@ -546,5 +593,7 @@ func _draw_coil(r: int, coil: Dictionary, y: float, on: bool) -> void:
 		below = "PV %d" % coil["preset"]
 		if runtime != null and runtime.counters.has(op):
 			below = "CV %d / %d" % [runtime.counters[op].value, coil["preset"]]
+	elif coil.has("value"):
+		below = _value_text(coil)
 	if not below.is_empty():
 		text(below, Vector2(cx, y + BAR * z + 9.0 * z), 10, SchematicTheme.TEXT)
