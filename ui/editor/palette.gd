@@ -45,6 +45,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Motor 3~ two windings", "template": {"type": "motor3", "motor_kind": "two_windings"}},
 	{"title": "Motor 3~ three windings", "template": {"type": "motor3", "motor_kind": "three_windings"}},
 	{"title": "PLC (logic module, 8 inputs, 4 relay outputs)", "template": {"type": "plc"}},
+	{"title": "Compact PLC (CPU 24 V DC, transistor outputs)", "template": {"type": "plc", "family": "compact", "cpu": "8di6dq"}},
 	{"title": "Temperature sensor (0-10 V)", "template": {"type": "temp_sensor"}},
 ]
 

@@ -832,18 +832,35 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 	if old == null:
 		return false
 	old_id = old.id
-	# Wires on terminals the new component no longer has go away.
+	# Terminals keep their wires by position; a PLC's by their standard name
+	# (another CPU size moves its outputs). Wires on terminals the new
+	# component no longer has go away.
 	var new_count: int = new_component.get_terminal_keys().size()
 	var old_keys: PackedStringArray = old.get_terminal_keys()
+	var mapping: PackedInt32Array = PackedInt32Array(range(old_keys.size()))
+	for k: int in old_keys.size():
+		if k >= new_count:
+			mapping[k] = -1
+	if old is Plc and new_component is Plc:
+		var new_names: PackedStringArray = new_component.default_terminal_names()
+		var old_names: PackedStringArray = old.default_terminal_names()
+		for k: int in old_keys.size():
+			mapping[k] = new_names.find(old_names[k])
 	for i: int in range(circuit.get_wires().size() - 1, -1, -1):
 		var wire: PackedStringArray = circuit.get_wires()[i]
-		for k: int in range(new_count, old_keys.size()):
-			if wire.has(old_keys[k]):
+		for k: int in old_keys.size():
+			if mapping[k] < 0 and wire.has(old_keys[k]):
 				remove_wire(i)
 				break
 	var p: Placement = _placements[old_id]
-	if not circuit.replace(old, new_component):
+	if not circuit.replace(old, new_component, mapping):
 		return false
+	# Strip terminals on its leads follow their terminal.
+	var strips: Dictionary[int, String] = {}
+	for index: int in p.strips:
+		if index < mapping.size() and mapping[index] >= 0:
+			strips[mapping[index]] = p.strips[index]
+	p.strips = strips
 	_placements.erase(old_id)
 	_placements[new_component.id] = p
 	_reroute_component(new_component.id)

@@ -41,6 +41,8 @@ var tool: String = "":
 	set(value):
 		tool = value
 		queue_redraw()
+## Writes an operand as the PLC names it ([method Plc.address]).
+var address: Callable = func(operand: String) -> String: return operand
 
 ## Moving the view: the button doing it (MOUSE_BUTTON_NONE when not), where
 ## it went down, whether it moved far enough.

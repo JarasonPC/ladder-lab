@@ -268,6 +268,9 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["temperature"] = sensor.temperature
 	elif c is Plc:
 		d["type"] = "plc"
+		if c is CompactPlc:
+			d["family"] = "compact"
+			d["cpu"] = CompactPlc.CPU_NAMES[(c as CompactPlc).cpu]
 		d["program"] = (c as Plc).program.to_data()
 		if not (c as Plc).modules.is_empty():
 			var modules: Array[String] = []
@@ -288,8 +291,9 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 
 
 ## Expansion modules of a PLC from saved data: unknown ones are left out,
-## and those beyond what the PLC takes ([method Plc.modules_fit]).
-static func plc_modules(raw: Variant) -> Array[Plc.Module]:
+## and those beyond what the PLC takes ([method Plc.modules_fit]; the signal
+## modules of compact CPU [param cpu], see [method CompactPlc.modules_fit_cpu]).
+static func plc_modules(raw: Variant, cpu: int = -1) -> Array[Plc.Module]:
 	var modules: Array[Plc.Module] = []
 	if not (raw is Array):
 		return modules
@@ -298,7 +302,8 @@ static func plc_modules(raw: Variant) -> Array[Plc.Module]:
 		if kind < 0:
 			continue
 		modules.append(kind as Plc.Module)
-		if not Plc.modules_fit(modules):
+		var fits: bool = Plc.modules_fit(modules) if cpu < 0 else CompactPlc.modules_fit_cpu(modules, cpu as CompactPlc.Cpu)
+		if not fits:
 			modules.pop_back()
 	return modules
 
@@ -306,7 +311,7 @@ static func plc_modules(raw: Variant) -> Array[Plc.Module]:
 ## Builds a component, or returns null for unknown or invalid data.
 static func component_from_dict(d: Dictionary) -> CircuitComponent:
 	var c: CircuitComponent = _component_from_dict(d)
-	if c is Load and d.has("rating") and VoltageRating.is_known(str(d["rating"])):
+	if c is Load and d.has("rating") and VoltageRating.is_known(str(d["rating"])) and not (c is CompactPlc):
 		(c as Load).rating = str(d["rating"])
 	if c == null or not d.has("terminals"):
 		return c
@@ -428,6 +433,11 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"rectifier":
 			return Rectifier.new(designation)
 		"plc":
+			if str(d.get("family", "")) == "compact":
+				var cpu: int = CompactPlc.CPU_NAMES.find(str(d.get("cpu", "")))
+				if cpu < 0:
+					cpu = CompactPlc.Cpu.DI8_DQ6
+				return CompactPlc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), cpu), cpu as CompactPlc.Cpu)
 			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", [])))
 		"temp_sensor":
 			var sensor: TemperatureSensor = TemperatureSensor.new(designation)

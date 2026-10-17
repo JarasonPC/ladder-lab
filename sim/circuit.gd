@@ -50,14 +50,22 @@ func remove(component: CircuitComponent) -> PackedInt32Array:
 ## e.g. an NO contact 13-14 replaced by an NC contact 11-12 keeps its wiring.
 ## Fails if a terminal the new component lacks still has wires, or an id or
 ## terminal is taken.
-func replace(old: CircuitComponent, new_component: CircuitComponent) -> bool:
+func replace(old: CircuitComponent, new_component: CircuitComponent, mapping: PackedInt32Array = PackedInt32Array()) -> bool:
 	var index: int = _components.find(old)
 	var old_keys: PackedStringArray = old.get_terminal_keys()
 	var new_keys: PackedStringArray = new_component.get_terminal_keys()
-	# Terminals beyond the new count must have no wires (see
-	# SchematicDocument.replace_component); the others keep theirs by position.
+	# Terminals beyond the new count (or mapped to none, -1, by [param
+	# mapping]: old terminal index -> new one) must have no wires (see
+	# SchematicDocument.replace_component); the others keep theirs by
+	# position, or as mapped.
+	if mapping.is_empty():
+		mapping = PackedInt32Array(range(old_keys.size()))
+		for i: int in range(new_keys.size(), old_keys.size()):
+			mapping[i] = -1
 	var dropped: bool = false
-	for i: int in range(new_keys.size(), old_keys.size()):
+	for i: int in old_keys.size():
+		if mapping[i] >= 0:
+			continue
 		for wire: PackedStringArray in _wires:
 			if wire.has(old_keys[i]):
 				dropped = true
@@ -79,7 +87,7 @@ func replace(old: CircuitComponent, new_component: CircuitComponent) -> bool:
 		for end: int in 2:
 			var k: int = old_keys.find(wire[end])
 			if k >= 0:
-				wire[end] = new_keys[k]
+				wire[end] = new_keys[mapping[k]]
 		_wires[i] = wire
 	topology_version += 1
 	return true

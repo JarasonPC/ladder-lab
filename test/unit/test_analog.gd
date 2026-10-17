@@ -57,14 +57,14 @@ func test_sensor_output() -> void:
 
 func test_operands() -> void:
 	assert_true(PlcProgram.valid_operand("AI8", "AI"))
-	assert_false(PlcProgram.valid_operand("AI9", "AI"))
+	assert_false(PlcProgram.valid_operand("AI41", "AI"))
 	assert_false(PlcProgram.valid_operand("AI1", "IQM"), "not an input I")
 	assert_false(PlcProgram.valid_operand("I1", "AI"))
 	assert_true(PlcProgram.valid_operand("AQ2", "AQ"))
 	assert_eq(PlcProgram.operand_index("AI3"), 2)
 	assert_eq(PlcProgram.area_of("AQ1"), "AQ")
 	assert_eq(PlcProgram.area_of("Q1"), "Q")
-	assert_eq(PlcProgram.operands("AI").size(), 8)
+	assert_eq(PlcProgram.operands("AI").size(), 40)
 
 
 func test_plc_reads_the_sensor_with_hysteresis() -> void:

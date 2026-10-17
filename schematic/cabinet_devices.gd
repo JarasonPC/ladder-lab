@@ -158,6 +158,9 @@ static func _describe_plc(plc: Plc, d: Dictionary) -> void:
 	d["modules"] = modules
 	d["modules_on"] = working
 	d["rating"] = plc.rating
+	if plc is CompactPlc:
+		d["family"] = "compact"
+		d["cpu"] = CompactPlc.CPU_NAMES[(plc as CompactPlc).cpu]
 	d["inputs"] = inputs
 	d["outputs"] = outputs
 	d["language"] = "LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD"

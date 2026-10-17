@@ -236,9 +236,9 @@ func selection_info() -> Dictionary:
 		info["value"] = element["value"]
 	if runtime != null and element.has("operand"):
 		var op: String = element["operand"]
-		var lines: PackedStringArray = PackedStringArray(["%s = %d" % [op, 1 if runtime.operand_value(op) else 0]])
+		var lines: PackedStringArray = PackedStringArray(["%s = %d" % [address.call(op), 1 if runtime.operand_value(op) else 0]])
 		if PlcProgram.ANALOG_AREAS.has(PlcProgram.area_of(op)):
-			lines[0] = "%s = %d" % [op, roundi(runtime.analog_value(op))]
+			lines[0] = "%s = %d" % [address.call(op), roundi(runtime.analog_value(op))]
 		if runtime.timers.has(op) and runtime.timers[op].running:
 			lines.append("Ta = %s" % seconds(runtime.timers[op].elapsed))
 		if runtime.counters.has(op):
@@ -278,7 +278,7 @@ func set_property(key: String, value: Variant) -> void:
 		"preset":
 			element["preset"] = clampi(int(value), 1, PlcCounter.MAX_VALUE)
 		"value":
-			element["value"] = clampf(float(value), 0.0 if element["kind"] == "analog" else -PlcBlock.MAX_ANALOG, PlcBlock.ANALOG_MAX if element["kind"] == "analog" else PlcBlock.MAX_ANALOG)
+			element["value"] = clampf(float(value), 0.0 if element["kind"] == "analog" else -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG)
 	queue_redraw()
 	changed.emit()
 
@@ -537,7 +537,7 @@ func _draw_cell(cell: Dictionary, x0: float, x1: float, y: float, left_on: bool,
 		"ge", "lt":
 			text("≥" if kind == "ge" else "<", Vector2(cx, y), 10, SchematicTheme.TEXT)
 			text(_value_text(cell), Vector2(cx, y + bar + 9.0 * z), 10, SchematicTheme.TEXT)
-	text(cell.get("operand", ""), Vector2(cx, y - bar - 9.0 * z), 11, SchematicTheme.DESIGNATION)
+	text(address.call(cell.get("operand", "")), Vector2(cx, y - bar - 9.0 * z), 11, SchematicTheme.DESIGNATION)
 
 
 ## The value of a comparing contact or AQ coil, and while running the
@@ -583,7 +583,7 @@ func _draw_coil(r: int, coil: Dictionary, y: float, on: bool) -> void:
 	var kind: String = coil["kind"]
 	text(coil_letters(kind), Vector2(cx, y), 10, SchematicTheme.TEXT)
 	var op: String = coil["operand"]
-	text(op, Vector2(cx, y - BAR * z - 9.0 * z), 11, SchematicTheme.DESIGNATION)
+	text(address.call(op), Vector2(cx, y - BAR * z - 9.0 * z), 11, SchematicTheme.DESIGNATION)
 	var below: String = ""
 	if coil.has("time"):
 		below = seconds(coil["time"])

@@ -19,7 +19,7 @@ extends RefCounted
 ## the new values in the same scan. Edge contacts -|P|- / -|N|- close for one
 ## scan when their operand went from 0 to 1 / from 1 to 0.
 ##
-## Analog values run 0-1000 for 0-10 V: [member analog_inputs] are read,
+## Analog values run 0-[member full_scale] for 0-10 V: [member analog_inputs] are read,
 ## [member analog_outputs] written by the AQ connectors and AQ coils; the
 ## comparing contacts read the analog inputs.
 
@@ -34,6 +34,8 @@ var flags: PackedByteArray = PackedByteArray()
 ## Analog inputs AI1-AI8 (0-1000 for 0-10 V) and outputs AQ1-AQ8.
 var analog_inputs: PackedFloat32Array = PackedFloat32Array()
 var analog_outputs: PackedFloat32Array = PackedFloat32Array()
+## Value for 10 V (1000 for the logic modules, 27648 for the compact CPUs).
+var full_scale: float = PlcBlock.ANALOG_MAX
 ## Function block diagram: output of every block after the last scan, and
 ## the value of blocks with an analog output.
 var values: Dictionary[int, bool] = {}
@@ -235,7 +237,7 @@ func _evaluate_block(b: PlcBlock) -> bool:
 			analog[b.id] = analog_value(b.operand)
 			return analog[b.id] > 0.0
 		"analog_output":
-			var value: float = clampf(_analog_pin(b, 0), 0.0, PlcBlock.ANALOG_MAX)
+			var value: float = clampf(_analog_pin(b, 0), 0.0, full_scale)
 			analog_outputs[PlcProgram.operand_index(b.operand)] = value
 			analog[b.id] = value
 			return value > 0.0
@@ -338,7 +340,7 @@ func _analog_pin(b: PlcBlock, pin: int) -> float:
 		return 0.0
 	if analog.has(source):
 		return analog[source]
-	return PlcBlock.ANALOG_MAX if values.get(source, false) else 0.0
+	return full_scale if values.get(source, false) else 0.0
 
 
 func _timer(key: String, kind: PlcTimer.Kind) -> PlcTimer:

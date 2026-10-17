@@ -653,7 +653,7 @@ func _draw_block(b: PlcBlock, tint: Color) -> void:
 		out_start.x += 2.0 * radius
 	draw_line(out_start, out, signal_color(on) * tint, 1.5 * zoom, true)
 	# Name in the block, number above, parameter below.
-	var symbol: String = b.operand if not PlcBlock.operand_area(b.type).is_empty() else SYMBOLS.get(b.type, "")
+	var symbol: String = address.call(b.operand) if not PlcBlock.operand_area(b.type).is_empty() else SYMBOLS.get(b.type, "")
 	var centre: Vector2 = r.get_center()
 	if b.inputs.size() > 1 and not connector:
 		centre.y = r.position.y + 0.6 * U * zoom

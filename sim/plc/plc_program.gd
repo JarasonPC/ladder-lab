@@ -4,9 +4,10 @@ extends RefCounted
 ## ladder diagram (LAD), as in the programming software of small Siemens
 ## PLCs. Both are kept; [member language] tells which one the PLC runs.
 ##
-## Operands: inputs I1-I24, outputs Q1-Q20 (those beyond I8 and Q4 are on
-## the expansion modules of the [Plc]), flags M1-M16, analog inputs AI1-AI8
-## and analog outputs AQ1-AQ8 (values 0-1000 for 0-10 V); the ladder diagram
+## Operands: inputs I1-I80, outputs Q1-Q80 (as many as the [Plc] has with its
+## modules), flags M1-M16, analog inputs AI1-AI40 and analog outputs
+## AQ1-AQ16 (values 0-1000 for 0-10 V, 0-27648 on the compact CPUs); the
+## ladder diagram
 ## also has timers T1-T16 and counters C1-C16 (the function block diagram
 ## has its timers and counters in its blocks). Design data only: the
 ## [PlcRuntime] of the [Plc] runs it.
@@ -14,9 +15,10 @@ extends RefCounted
 enum Language { FBD, LAD }
 
 const LANGUAGE_NAMES: PackedStringArray = ["fbd", "lad"]
-## Count of each operand area (I and Q as [constant Plc.MAX_INPUTS] and
-## [constant Plc.MAX_OUTPUTS]).
-const AREA_SIZES: Dictionary[String, int] = {"I": 24, "Q": 20, "M": 16, "T": 16, "C": 16, "AI": 8, "AQ": 8}
+## Count of each operand area: enough for the largest compact CPU with all
+## its signal modules ([constant CompactPlc.CPU_MAX_INPUTS] ...); a PLC uses
+## those it has.
+const AREA_SIZES: Dictionary[String, int] = {"I": 80, "Q": 80, "M": 16, "T": 16, "C": 16, "AI": 40, "AQ": 16}
 ## Areas named by two letters: an areas string that is one of them means it
 ## alone (else every letter of it is an area).
 const ANALOG_AREAS: PackedStringArray = ["AI", "AQ"]

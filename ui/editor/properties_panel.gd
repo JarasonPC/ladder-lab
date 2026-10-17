@@ -136,7 +136,7 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Run-up time (s)"), "run_up_time", 0.0, 600.0, 0.1)
 			_number(tr("Run-down time (s)"), "coast_time", 0.0, 3600.0, 0.1)
 			_number(tr("DC braking time (s)"), "brake_time", 0.0, 3600.0, 0.1)
-	if not VoltageRating.offered(kind).is_empty():
+	if not VoltageRating.offered(kind).is_empty() and not (component is CompactPlc):
 		_rating(kind)
 	if not (component is Junction):
 		_orientation()
@@ -398,8 +398,13 @@ func _plc_program(plc: Plc) -> void:
 	var id: String = plc.id
 	button.pressed.connect(func() -> void: plc_requested.emit(id))
 	_add(button)
+	if plc is CompactPlc:
+		_choice(tr("CPU"), "cpu", Array(CompactPlc.CPU_NAMES), [tr("6 inputs, 4 outputs, 2 analog inputs (no signal modules)"), tr("8 inputs, 6 outputs, 2 analog inputs (2 signal modules)"), tr("14 inputs, 10 outputs, 2 analog inputs (8 signal modules)")])
 	_plc_modules(plc)
 	_group = null
+	if plc is CompactPlc:
+		_note(tr("24 V DC on L+ and M. Inputs are on with 24 V against their common 1M (from 15 V on), the analog inputs AI0 AI1 read 0-10 V against 2M as 0-27648, the transistor outputs switch the output supply 3L+ to their terminal. The program writes them by address: %I0.0, %Q0.0, %IW64."), "MutedLabel")
+		return
 	var note: String = tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals.")
 	if plc.input_count() > Plc.BASE_INPUTS:
 		note += " " + tr("Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N.") % [plc.input_count(), plc.output_count()]
@@ -412,11 +417,14 @@ func _plc_program(plc: Plc) -> void:
 ## a module is added after the last one and the last one taken off (the
 ## inputs and outputs of the others keep their numbers).
 func _plc_modules(plc: Plc) -> void:
-	_label(tr("Expansion modules"))
+	var compact: bool = plc is CompactPlc
+	if compact and CompactPlc.CPU_MODULES[(plc as CompactPlc).cpu] == 0:
+		return
+	_label(tr("Signal modules") if compact else tr("Expansion modules"))
 	if plc.modules.is_empty():
 		var none: Label = Label.new()
 		none.theme_type_variation = "MutedLabel"
-		none.text = tr("None: inputs I1-I8, outputs Q1-Q4")
+		none.text = tr("None") if compact else tr("None: inputs I1-I8, outputs Q1-Q4")
 		_add(none)
 	for m: int in plc.modules.size():
 		var row: Label = Label.new()
@@ -429,14 +437,17 @@ func _plc_modules(plc: Plc) -> void:
 	add.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	add.flat = false
 	add.text = tr("Add module")
-	add.tooltip_text = tr("Clips one more module on to the right (up to 24 inputs and 20 outputs in all)")
+	add.tooltip_text = tr("Clips one more module on to the right (as many as the CPU takes)") if compact else tr("Clips one more module on to the right (up to 24 inputs and 20 outputs in all)")
 	var popup: PopupMenu = add.get_popup()
 	popup.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	for kind: int in Plc.MODULE_NAMES.size():
+		if Plc.is_signal_module(kind as Plc.Module) != compact:
+			continue
 		var longer: Array[Plc.Module] = plc.modules.duplicate()
 		longer.append(kind as Plc.Module)
 		popup.add_item(_module_title(kind as Plc.Module), kind)
-		popup.set_item_disabled(popup.get_item_count() - 1, not Plc.modules_fit(longer, plc.rating))
+		var fits: bool = CompactPlc.modules_fit_cpu(longer, (plc as CompactPlc).cpu) if compact else Plc.modules_fit(longer, plc.rating)
+		popup.set_item_disabled(popup.get_item_count() - 1, not fits)
 	popup.id_pressed.connect(func(kind: int) -> void:
 		var list: Array[Plc.Module] = plc.modules.duplicate()
 		list.append(kind as Plc.Module)
@@ -463,6 +474,14 @@ func _module_title(module: Plc.Module) -> String:
 			return tr("8 inputs, 8 relay outputs")
 		Plc.Module.AI2:
 			return tr("2 analog inputs 0-10 V")
+		Plc.Module.SM_DI8:
+			return tr("8 inputs 24 V DC")
+		Plc.Module.SM_DQ8:
+			return tr("8 transistor outputs 24 V DC")
+		Plc.Module.SM_DI8_DQ8:
+			return tr("8 inputs, 8 transistor outputs 24 V DC")
+		Plc.Module.SM_AI4:
+			return tr("4 analog inputs 0-10 V")
 	return tr("2 analog outputs 0-10 V")
 
 
@@ -485,7 +504,9 @@ static func _module_operands(plc: Plc, m: int) -> PackedStringArray:
 	for area: String in found:
 		var numbers: PackedInt32Array = found[area]
 		if not numbers.is_empty():
-			ranges.append("%s%d-%s%d" % [area, numbers[0], area, numbers[numbers.size() - 1]])
+			var first: String = "%s%d" % [area, numbers[0]]
+			var last: String = "%s%d" % [area, numbers[numbers.size() - 1]]
+			ranges.append("%s-%s" % [plc.address(first), plc.address(last)])
 	return ranges
 
 
@@ -499,7 +520,9 @@ func _emit_modules(list: Array[Plc.Module]) -> void:
 	data["modules"] = names
 	if data.has("terminals"):
 		var custom: Array = data["terminals"]
-		var merged: PackedStringArray = Plc.standard_terminal_names(list)
+		var plain: Dictionary = data.duplicate()
+		plain.erase("terminals")
+		var merged: PackedStringArray = DocumentSerializer.component_from_dict(plain).default_terminal_names()
 		for i: int in mini(custom.size(), merged.size()):
 			merged[i] = str(custom[i])
 		if CircuitComponent.valid_terminal_names(merged):
