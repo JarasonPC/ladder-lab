@@ -84,7 +84,8 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ##   the expansion modules' 2L1, 2N, I9...), "names" (standard name -> name in
 ##   the schematic), "powered", "inputs" and "outputs" (one bool per input,
 ##   per output relay closed), "language" ("FBD" / "LAD"), "modules"
-##   ([constant Plc.MODULE_NAMES]) and "modules_on" (one bool per module working)
+##   ([constant Plc.MODULE_NAMES]), "modules_on" (one bool per module working)
+##   and "rating" (its version, see [VoltageRating])
 static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 	var c: CircuitComponent = device(doc.circuit, designation)
 	if c == null:
@@ -156,6 +157,7 @@ static func _describe_plc(plc: Plc, d: Dictionary) -> void:
 		working.append(plc.module_on(m))
 	d["modules"] = modules
 	d["modules_on"] = working
+	d["rating"] = plc.rating
 	d["inputs"] = inputs
 	d["outputs"] = outputs
 	d["language"] = "LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD"

@@ -1008,18 +1008,18 @@ static func plc(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> 
 		p.text_centered(b[0], b[1], 1.5, PLC_KEY_MARK, true)
 	p.text(Vector2(5.0, 51.0), "PLC", 2.6, PLC_DARK, -1, true)
 	p.text(Vector2(5.0, 54.6), "8 DI  4 DQ", 1.6, PLC_DARK, -1, false)
-	p.text(Vector2(w - 5.0, 51.0), "230 V~", 1.8, PLC_DARK, 1, false)
+	p.text(Vector2(w - 5.0, 51.0), _plc_supply_text(desc), 1.8, PLC_DARK, 1, false)
 	var working: Array = desc.get("modules_on", [])
 	left = w
 	for m: int in modules.size():
-		_plc_module(p, left, modules[m], m < working.size() and bool(working[m]))
+		_plc_module(p, left, modules[m], m < working.size() and bool(working[m]), _plc_supply_text(desc))
 		left += PLC_MODULE_W[modules[m]]
 	_plc_output_marks(p, points, desc, h)
 
 
 ## Front of an expansion module of [param module] kind whose left edge is at
 ## [param left]: its inputs and outputs printed, the RUN light.
-static func _plc_module(p: CabinetPainter, left: float, module: Plc.Module, on: bool) -> void:
+static func _plc_module(p: CabinetPainter, left: float, module: Plc.Module, on: bool, supply: String) -> void:
 	var mw: float = PLC_MODULE_W[module]
 	var h: float = PLC.y
 	var q: CabinetPainter = p.shifted(Vector2(left, 0.0))
@@ -1032,7 +1032,7 @@ static func _plc_module(p: CabinetPainter, left: float, module: Plc.Module, on: 
 	q.line(Vector2(0.0, 0.6), Vector2(0.0, h - 0.6), PLC_EDGE, 0.3)
 	var inputs: int = Plc.MODULE_INPUTS[module]
 	var outputs: int = Plc.MODULE_OUTPUTS[module]
-	q.text(Vector2(mw * 0.5, 18.4), "AC 230 V  INPUT %d×" % inputs, 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
+	q.text(Vector2(mw * 0.5, 18.4), "%s  INPUT %d×" % [supply, inputs], 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
 	q.circle(Vector2(mw * 0.2 + 3.0, 30.0), 1.2, Color("46c35a") if on else Color("3c4a40"), PLC_DARK, 0.15)
 	q.text(Vector2(mw * 0.2 + 5.0, 30.9), "RUN/STOP", 1.4, PLC_DARK, -1, false)
 	q.text(Vector2(mw * 0.5, 40.0), "%d DI  %d DQ" % [inputs, outputs], 2.0, PLC_DARK, 0, true, mw * 0.6 - 1.0)
@@ -1053,6 +1053,16 @@ static func _plc_output_marks(p: CabinetPainter, points: Dictionary, desc: Dicti
 		p.line(Vector2(b.x - bend, y), Vector2(b.x, y), PLC_DARK, 0.25)
 		p.line(Vector2(a.x, y), Vector2(a.x, y + 2.5), PLC_DARK, 0.25)
 		p.line(Vector2(b.x, y), Vector2(b.x, y + 2.5), PLC_DARK, 0.25)
+
+
+## Supply of a described PLC as printed on it, after its version.
+static func _plc_supply_text(desc: Dictionary) -> String:
+	match str(desc.get("rating", "")):
+		"24rc":
+			return "24 V AC/DC"
+		"1224rc":
+			return "12/24 V DC"
+	return "115-240 V~"
 
 
 ## Size of the PLC with its expansion modules ([param desc]: see

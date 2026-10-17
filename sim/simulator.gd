@@ -405,7 +405,7 @@ func _root_masks(uf: UnionFind) -> Dictionary[int, int]:
 				changed = true
 				var plus: int = uf.find(_rectifier_out_nets[2 * r])
 				var minus: int = uf.find(_rectifier_out_nets[2 * r + 1])
-				masks[plus] = masks.get(plus, 0) | PowerSupply.BIT_DC_PLUS
+				masks[plus] = masks.get(plus, 0) | PowerSupply.BIT_DC_RECTIFIED
 				masks[minus] = masks.get(minus, 0) | PowerSupply.BIT_DC_MINUS
 	return masks
 
@@ -420,7 +420,7 @@ func _source_points() -> Array[Array]:
 	for r: int in _rectifiers.size():
 		if _rectifier_on[r] == 1:
 			var keys: PackedStringArray = _loads[_rectifiers[r]].get_terminal_keys()
-			points.append([_rectifier_out_nets[2 * r], PowerSupply.BIT_DC_PLUS, keys[2]])
+			points.append([_rectifier_out_nets[2 * r], PowerSupply.BIT_DC_RECTIFIED, keys[2]])
 			points.append([_rectifier_out_nets[2 * r + 1], PowerSupply.BIT_DC_MINUS, keys[3]])
 	return points
 
@@ -737,6 +737,8 @@ func _advance_motors(dt: float, result: StepResult) -> void:
 ## fault current of a short circuit trip.
 func _evaluate_protected(result: StepResult) -> PackedByteArray:
 	var desired: PackedByteArray = _evaluate()
+	while _burn_out(desired, result):
+		desired = _evaluate()
 	while _short:
 		var probe: StepResult = StepResult.new()
 		_find_current_paths(probe, false)
@@ -750,6 +752,19 @@ func _evaluate_protected(result: StepResult) -> PackedByteArray:
 			break
 		desired = _evaluate()
 	return desired
+
+
+## Loads with too high a voltage across them (bit 2 of [param desired]) burn
+## out; true when any did.
+func _burn_out(desired: PackedByteArray, result: StepResult) -> bool:
+	var any: bool = false
+	for i: int in _loads.size():
+		if desired[i] & 4 != 0 and not _loads[i].burnt:
+			_loads[i].burnt = true
+			any = true
+			var rated: String = VoltageRating.text(_loads[i].rating)
+			_log(result, "%s burnt out: too high a voltage for %s", [_loads[i].designation, rated])
+	return any
 
 
 func _note_toggle(designation: String) -> void:
@@ -844,8 +859,14 @@ func _evaluate() -> PackedByteArray:
 	for i: int in _loads.size():
 		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
 		var b: int = masks.get(uf.find(_load_nets[2 * i + 1]), 0)
-		if _powers(a, b):
-			result[i] = 1
+		match _rated_state(_loads[i].rating, a, b):
+			VoltageRating.State.WORKS:
+				result[i] = 1
+			VoltageRating.State.BURNS:
+				# Too high a voltage (bit 2): burns out (see _burn_out).
+				result[i] = 4
+		if _loads[i].burnt:
+			result[i] = 0
 		if _loads[i] is Coil and (_loads[i] as Coil).fault == Coil.Fault.OPEN:
 			# A broken winding has voltage but draws no current.
 			result[i] = 0
@@ -859,21 +880,35 @@ func _evaluate() -> PackedByteArray:
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		var module_n: PackedInt32Array = PackedInt32Array()
 		var on: int = 0
+		var overvoltage: bool = false
 		for m: int in plc.modules.size():
 			var at: int = _plc_module_start[p] + 2 * m
 			module_n.append(masks.get(uf.find(_plc_module_nets[at + 1]), 0))
-			if _powers(masks.get(uf.find(_plc_module_nets[at]), 0), module_n[m]):
-				on |= 1 << m
+			match _rated_state(plc.rating, masks.get(uf.find(_plc_module_nets[at]), 0), module_n[m]):
+				VoltageRating.State.WORKS:
+					on |= 1 << m
+				VoltageRating.State.BURNS:
+					overvoltage = true
 		_plc_modules[p] = on
 		# Inputs: on with voltage against the N terminal of the PLC (of the
 		# module they are on).
 		var n_mask: int = masks.get(uf.find(_load_nets[2 * _plc_indices[p] + 1]), 0)
 		var bits: int = 0
+		var threshold: float = VoltageRating.input_threshold(plc.rating)
 		for k: int in plc.input_count():
 			var m: int = plc.input_module(k)
-			if _powers(masks.get(uf.find(_plc_input_nets[_plc_input_start[p] + k]), 0), n_mask if m < 0 else module_n[m]):
+			var input: int = masks.get(uf.find(_plc_input_nets[_plc_input_start[p] + k]), 0)
+			var reference: int = n_mask if m < 0 else module_n[m]
+			if not _powers(input, reference):
+				continue
+			var volts: float = _volts(input, reference)
+			if VoltageRating.state(plc.rating, volts, (input & PowerSupply.AC_BITS) == 0) == VoltageRating.State.BURNS:
+				overvoltage = true
+			elif volts >= threshold and (VoltageRating.kind(plc.rating) != VoltageRating.Kind.DC or (input & PowerSupply.AC_BITS) == 0):
 				bits |= 1 << k
 		_plc_inputs[p] = bits
+		if overvoltage and not plc.burnt:
+			result[_plc_indices[p]] = 4
 	_evaluate_motors(uf, masks)
 	return result
 
@@ -910,9 +945,25 @@ static func _potential_of(mask: int) -> Vector2:
 			return Phasor.phase(2)
 		PowerSupply.BIT_L3:
 			return Phasor.phase(3)
-		PowerSupply.BIT_DC_PLUS:
-			return Phasor.ONE
+	if _is_single_source(mask) and (mask & PowerSupply.DC_PLUS_BITS) != 0:
+		return Phasor.ONE
 	return Vector2.ZERO
+
+
+## Volts between groups reached by supply bits [param a] and [param b] (one
+## supply each, of the same source).
+static func _volts(a: int, b: int) -> float:
+	if (a & PowerSupply.AC_BITS) != 0:
+		return (_potential_of(a) - _potential_of(b)).length() * PowerSupply.PHASE_VOLTS
+	return absf(PowerSupply.dc_volts(a) - PowerSupply.dc_volts(b))
+
+
+## What a load rated [param rating] does between supply bits [param a] and
+## [param b] (see [method _powers]).
+static func _rated_state(rating: String, a: int, b: int) -> VoltageRating.State:
+	if not _powers(a, b):
+		return VoltageRating.State.OFF
+	return VoltageRating.state(rating, _volts(a, b), (a & PowerSupply.AC_BITS) == 0)
 
 
 ## Currents in the lines L1, L2, L3 feeding motor [param m] (amperes): the
@@ -1016,7 +1067,7 @@ func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 			roots.append(uf.find(net) if net >= 0 else -1)
 			var mask: int = masks.get(roots[t], 0) if net >= 0 else 0
 			phases.append(_phase_of(mask))
-			polarity.append(1 if mask == PowerSupply.BIT_DC_PLUS else (-1 if mask == PowerSupply.BIT_DC_MINUS else 0))
+			polarity.append(1 if _is_single_source(mask) and (mask & PowerSupply.DC_PLUS_BITS) != 0 else (-1 if mask == PowerSupply.BIT_DC_MINUS else 0))
 			any_phase = any_phase or phases[t] != 0
 			any_dc = any_dc or polarity[t] != 0
 		# For each group of three terminals: joined in a point with no phase on it?
@@ -1106,7 +1157,9 @@ func _find_short_path() -> PackedStringArray:
 	for source: Array in sources:
 		if not bits.has(source[1]):
 			bits.append(source[1])
-	bits.sort()
+	# From a phase or a + pole first, the return conductors N and - last.
+	var returns: int = PowerSupply.BIT_N | PowerSupply.BIT_DC_MINUS
+	bits.sort_custom(func(x: int, y: int) -> bool: return (x & returns == 0 and y & returns != 0) or ((x & returns == 0) == (y & returns == 0) and x < y))
 	for bit: int in bits:
 		var path: PackedStringArray = _short_path_from(bit, sources, adjacency)
 		if not path.is_empty():
@@ -1295,7 +1348,7 @@ func _current_graph(include_loads: bool, feeding: Dictionary[int, bool]) -> Dict
 	for r: int in _rectifiers.size():
 		if _rectifier_on[r] == 1:
 			var keys: PackedStringArray = _loads[_rectifiers[r]].get_terminal_keys()
-			add.call(vertex_of.call(PowerSupply.BIT_DC_PLUS), _terminal_index[keys[2]], _EDGE_OUTPUT, r)
+			add.call(vertex_of.call(PowerSupply.BIT_DC_RECTIFIED), _terminal_index[keys[2]], _EDGE_OUTPUT, r)
 			add.call(vertex_of.call(PowerSupply.BIT_DC_MINUS), _terminal_index[keys[3]], _EDGE_OUTPUT, r)
 	return {"a": edge_a, "b": edge_b, "kind": edge_kind, "ref": edge_ref, "hub": hub, "hub_edges": hub_edges, "vertices": terminal_count + 1 + conductor_vertex.size()}
 

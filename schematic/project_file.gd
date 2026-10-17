@@ -36,7 +36,10 @@ const FORMAT: String = "ladder-lab"
 ## 18: order of the terminals of a terminal strip set in the switchboard
 ## ("strip_order"; missing before: in the order of their labels).
 ## 19: expansion modules of PLCs ("modules"; missing before: none).
-const VERSION: int = 19
+## 20: rated voltages of coils, time relays, lamps and PLCs ("rating", see
+## VoltageRating; missing: works on any voltage), the voltage of + supplies
+## ("voltage"; missing before: 24 V).
+const VERSION: int = 20
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

@@ -1470,6 +1470,31 @@ msgstr ""
 msgid "%s: expansion module %d switched off"
 msgstr ""
 
+msgid "Voltage against -"
+msgstr ""
+
+msgid "230 V between a phase and N, 400 V between two phases."
+msgstr ""
+
+msgid "Not set (works on any voltage)"
+msgstr ""
+
+msgid "PLC version (supply and inputs)"
+msgstr ""
+
+msgid "Rated voltage"
+msgstr ""
+
+msgid "Too low a voltage and the part does not work; far too high a voltage (or DC on an AC coil) burns it out while simulating."
+msgstr ""
+
+msgid "Replace the burnt-out part"
+msgstr ""
+
+#, c-format
+msgid "%s burnt out: too high a voltage for %s"
+msgstr ""
+
 msgid "The PLC runs the program shown here."
 msgstr ""
 

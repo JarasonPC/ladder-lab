@@ -42,6 +42,7 @@ func _draw_labels() -> void:
 	var a1_x: float = -0.35 * G if names.size() > 2 else 0.35 * G
 	draw_label(names[0], Vector2(a1_x, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	draw_rating(anchor, 2 if component is TimerRelay else 1)
 	if component is TimerRelay:
 		var timer: TimerRelay = component as TimerRelay
 		var remaining: float = timer.get_remaining()

@@ -6,7 +6,9 @@ extends CircuitComponent
 ## L1); PE, the protective conductor, is joined to N at the source (TN
 ## system), so it has the potential of N and a phase touching it is a short
 ## that the fuse clears; + and - are the poles of a separate DC source (e.g. a
-## rectifier for DC braking of motors).
+## rectifier for DC braking of motors). The AC source has 230 V between a
+## phase and N (400 V between two phases); a + supply has its [member voltage]
+## (12, 24, 48, 110 or 220 V) against the - poles, which all DC supplies share.
 
 enum Conductor { L, N, L2, L3, DC_PLUS, DC_MINUS, PE }
 
@@ -15,14 +17,31 @@ const BIT_L1: int = 1
 const BIT_L2: int = 2
 const BIT_L3: int = 4
 const BIT_N: int = 8
+## The + pole of 24 V; of the other voltages and of rectifiers below.
 const BIT_DC_PLUS: int = 16
 const BIT_DC_MINUS: int = 32
+const BIT_DC_12: int = 64
+const BIT_DC_48: int = 128
+const BIT_DC_110: int = 256
+const BIT_DC_220: int = 512
+## The + of a bridge rectifier ([constant RECTIFIED_VOLTS]).
+const BIT_DC_RECTIFIED: int = 1024
+const DC_PLUS_BITS: int = BIT_DC_PLUS | BIT_DC_12 | BIT_DC_48 | BIT_DC_110 | BIT_DC_220 | BIT_DC_RECTIFIED
 ## Bits of the AC source and of the DC source: a load works between two
 ## conductors of the same source only.
 const AC_BITS: int = BIT_L1 | BIT_L2 | BIT_L3 | BIT_N
-const DC_BITS: int = BIT_DC_PLUS | BIT_DC_MINUS
+const DC_BITS: int = DC_PLUS_BITS | BIT_DC_MINUS
+## Volts between a phase and N.
+const PHASE_VOLTS: float = 230.0
+## Voltages a + supply can have, the first the default.
+const DC_VOLTAGES: PackedFloat32Array = [24.0, 12.0, 48.0, 110.0, 220.0]
+const DC_VOLTAGE_BITS: PackedInt32Array = [BIT_DC_PLUS, BIT_DC_12, BIT_DC_48, BIT_DC_110, BIT_DC_220]
+## Mean DC of a bridge rectifier fed with 230 V AC (0.9 x 230 V).
+const RECTIFIED_VOLTS: float = 207.0
 
 var conductor: Conductor
+## Volts of a + supply against the - poles (one of [constant DC_VOLTAGES]).
+var voltage: float = DC_VOLTAGES[0]
 
 
 func _init(p_designation: String, p_conductor: Conductor) -> void:
@@ -39,10 +58,19 @@ func source_bit() -> int:
 		Conductor.L3:
 			return BIT_L3
 		Conductor.DC_PLUS:
-			return BIT_DC_PLUS
+			var level: int = DC_VOLTAGES.find(voltage)
+			return DC_VOLTAGE_BITS[maxi(level, 0)]
 		Conductor.DC_MINUS:
 			return BIT_DC_MINUS
 	return BIT_L1
+
+
+## Volts of DC supply bit [param bit] against the - poles (0 for -).
+static func dc_volts(bit: int) -> float:
+	if bit == BIT_DC_RECTIFIED:
+		return RECTIFIED_VOLTS
+	var level: int = DC_VOLTAGE_BITS.find(bit)
+	return DC_VOLTAGES[level] if level >= 0 else 0.0
 
 
 func is_dc() -> bool:

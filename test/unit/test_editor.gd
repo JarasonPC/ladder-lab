@@ -698,3 +698,24 @@ func test_plc_expansion_modules_added_and_taken_off() -> void:
 	assert_eq(a1.get_terminal_names()[a1.input_terminal(1)], "STOP")
 	editor.undo()
 	assert_eq((editor.document().circuit.get_component("A1") as Plc).modules.size(), 1, "undoable")
+
+
+func test_new_parts_have_a_rated_voltage() -> void:
+	_place({"type": "coil"}, Vector2i(5, 3))
+	_place({"type": "lamp"}, Vector2i(9, 3))
+	_place({"type": "plc"}, Vector2i(14, 3))
+	var doc: SchematicDocument = editor.document()
+	assert_eq((doc.circuit.get_component("KM1") as Load).rating, "230ac")
+	assert_eq((doc.circuit.get_component("H1") as Load).rating, "230v")
+	assert_eq((doc.circuit.get_component("A1") as Load).rating, "230rc")
+	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("KM1"))
+	data["rating"] = "24dc"
+	assert_eq(editor.apply_properties("KM1", data), "")
+	assert_eq((editor.document().circuit.get_component("KM1") as Load).rating, "24dc")
+	assert_eq(editor.change_type("KM1", {"type": "timer", "mode": "on_delay", "delay": 3.0}), "")
+	var timer: CircuitComponent = null
+	for c: CircuitComponent in editor.document().circuit.get_components():
+		if c is TimerRelay:
+			timer = c
+	assert_not_null(timer)
+	assert_eq((timer as Load).rating, "24dc", "a coil turned into a time relay keeps its voltage")

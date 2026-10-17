@@ -21,6 +21,8 @@ func _draw_shape(color: Color, width: float) -> void:
 
 func _draw_labels() -> void:
 	super()
+	var side: bool = is_side_label(_designation_anchor())
+	draw_rating(_designation_anchor(), 1 if side or (component as Lamp).purpose.is_empty() else 2)
 	var purpose: String = (component as Lamp).purpose
 	if not purpose.is_empty():
 		# Above the designation, as in the guide ("Chod" over "-H3").
