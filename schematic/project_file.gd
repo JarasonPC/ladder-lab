@@ -35,7 +35,8 @@ const FORMAT: String = "ladder-lab"
 ## diagram).
 ## 18: order of the terminals of a terminal strip set in the switchboard
 ## ("strip_order"; missing before: in the order of their labels).
-const VERSION: int = 18
+## 19: expansion modules of PLCs ("modules"; missing before: none).
+const VERSION: int = 19
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

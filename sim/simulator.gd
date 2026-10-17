@@ -96,12 +96,20 @@ var _control_nets: Dictionary[int, int] = {}
 var _control_a2_first: Dictionary[int, bool] = {}
 ## Indices into [member _loads] of the coils, in the order they were added.
 var _coil_indices: PackedInt32Array = PackedInt32Array()
-## Indices into [member _loads] of the PLCs, the nets of their inputs
-## ([constant Plc.INPUTS] per PLC) and, from the last evaluation, which
+## Indices into [member _loads] of the PLCs, the nets of their inputs (from
+## _plc_input_start[p] on for PLC p) and, from the last evaluation, which
 ## inputs have voltage against their N (bit k: input k + 1).
 var _plc_indices: PackedInt32Array = PackedInt32Array()
 var _plc_input_nets: PackedInt32Array = PackedInt32Array()
+var _plc_input_start: PackedInt32Array = PackedInt32Array()
 var _plc_inputs: PackedInt32Array = PackedInt32Array()
+## Expansion modules of the PLCs: nets and terminal indices of their L1 and
+## N (from _plc_module_start[p] on, two per module) and, from the last
+## evaluation, which have voltage (bit m: module m).
+var _plc_module_nets: PackedInt32Array = PackedInt32Array()
+var _plc_module_terms: PackedInt32Array = PackedInt32Array()
+var _plc_module_start: PackedInt32Array = PackedInt32Array()
+var _plc_modules: PackedInt32Array = PackedInt32Array()
 ## Actuators of push buttons and switches (one per device).
 var _actuators: Array[Armature] = []
 var _overload_relays: Array[OverloadRelay] = []
@@ -255,6 +263,10 @@ func _build() -> void:
 	_coil_indices.clear()
 	_plc_indices.clear()
 	_plc_input_nets.clear()
+	_plc_input_start.clear()
+	_plc_module_nets.clear()
+	_plc_module_terms.clear()
+	_plc_module_start.clear()
 	_supplies.clear()
 	_rectifiers.clear()
 	_rectifier_out_nets.clear()
@@ -291,8 +303,15 @@ func _build() -> void:
 			_load_nets.append(_net_of_key[keys[1]])
 			_load_terms.append(index[keys[0]])
 			_load_terms.append(index[keys[1]])
-			for k: int in Plc.INPUTS:
-				_plc_input_nets.append(_net_of_key[keys[Plc.input_terminal(k)]])
+			var plc: Plc = c as Plc
+			_plc_input_start.append(_plc_input_nets.size())
+			for k: int in plc.input_count():
+				_plc_input_nets.append(_net_of_key[keys[plc.input_terminal(k)]])
+			_plc_module_start.append(_plc_module_nets.size())
+			for m: int in plc.modules.size():
+				for t: int in 2:
+					_plc_module_nets.append(_net_of_key[keys[plc.module_terminal(m) + t]])
+					_plc_module_terms.append(index[keys[plc.module_terminal(m) + t]])
 			continue
 		if not paths.is_empty():
 			continue
@@ -327,6 +346,8 @@ func _build() -> void:
 	_rectifier_on.fill(0)
 	_plc_inputs.resize(_plc_indices.size())
 	_plc_inputs.fill(0)
+	_plc_modules.resize(_plc_indices.size())
+	_plc_modules.fill(0)
 	_motor_states.resize(_motors.size())
 	_motor_directions.resize(_motors.size())
 	_motor_speeds.resize(_motors.size())
@@ -511,8 +532,8 @@ func _settle_coils(result: StepResult) -> void:
 			for p: int in _plc_indices.size():
 				var plc: Plc = _loads[_plc_indices[p]] as Plc
 				var powered: bool = (desired[_plc_indices[p]] & 1) == 1
-				if plc.energized != powered or plc.inputs != _plc_inputs[p]:
-					plc.update(powered, _plc_inputs[p])
+				if plc.energized != powered or plc.inputs != _plc_inputs[p] or plc.module_power != _plc_modules[p]:
+					plc.update(powered, _plc_inputs[p], _plc_modules[p])
 				elif plc.pending:
 					plc.rescan()
 				else:
@@ -606,7 +627,11 @@ func _apply_power(result: StepResult) -> void:
 			var powered: bool = (desired[_plc_indices[p]] & 1) == 1
 			if powered != plc.energized:
 				_log(result, "%s switched on" if powered else "%s switched off", [plc.designation])
-			plc.update(powered, _plc_inputs[p])
+			for m: int in plc.modules.size():
+				var module_on: bool = powered and (_plc_modules[p] >> m) & 1 == 1
+				if module_on != plc.module_on(m):
+					_log(result, "%s: expansion module %d switched on" if module_on else "%s: expansion module %d switched off", [plc.designation, m + 1])
+			plc.update(powered, _plc_inputs[p], _plc_modules[p])
 		_apply_outputs(desired, result)
 		if not _instant_trips(result):
 			break
@@ -645,7 +670,7 @@ func _advance_armatures(dt: float, result: StepResult) -> void:
 			closed_before.append(1 if a.no_closed else 0)
 		plc.move_armatures(dt)
 		plc.advance(dt)
-		for k: int in Plc.OUTPUTS:
+		for k: int in plc.output_count():
 			var closed: bool = plc.output_armatures[k].no_closed
 			if closed != (closed_before[k] == 1):
 				_log(result, "%s: output Q%d on" if closed else "%s: output Q%d off", [plc.designation, k + 1], time + dt)
@@ -772,7 +797,7 @@ func _record_trace() -> void:
 			if load is TimerRelay:
 				trace.record(load.designation + "/output", time, (load as TimerRelay).output_armature.position, true)
 		elif load is Plc:
-			for k: int in Plc.OUTPUTS:
+			for k: int in (load as Plc).output_count():
 				trace.record("%s/Q%d" % [load.designation, k + 1], time, (load as Plc).output_armatures[k].position, true)
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
@@ -814,6 +839,7 @@ func _evaluate() -> PackedByteArray:
 		for m: int in _motors.size():
 			_motor_supply[m] = _unfed_motor(_motors[m])
 		_plc_inputs.fill(0)
+		_plc_modules.fill(0)
 		return result
 	for i: int in _loads.size():
 		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
@@ -829,11 +855,23 @@ func _evaluate() -> PackedByteArray:
 			if _powers(s, a if _control_a2_first.has(i) else b):
 				result[i] |= 2
 	for p: int in _plc_indices.size():
-		# Inputs: on with voltage against the N terminal of the PLC.
+		# Expansion modules: on with voltage on their own L1-N.
+		var plc: Plc = _loads[_plc_indices[p]] as Plc
+		var module_n: PackedInt32Array = PackedInt32Array()
+		var on: int = 0
+		for m: int in plc.modules.size():
+			var at: int = _plc_module_start[p] + 2 * m
+			module_n.append(masks.get(uf.find(_plc_module_nets[at + 1]), 0))
+			if _powers(masks.get(uf.find(_plc_module_nets[at]), 0), module_n[m]):
+				on |= 1 << m
+		_plc_modules[p] = on
+		# Inputs: on with voltage against the N terminal of the PLC (of the
+		# module they are on).
 		var n_mask: int = masks.get(uf.find(_load_nets[2 * _plc_indices[p] + 1]), 0)
 		var bits: int = 0
-		for k: int in Plc.INPUTS:
-			if _powers(masks.get(uf.find(_plc_input_nets[Plc.INPUTS * p + k]), 0), n_mask):
+		for k: int in plc.input_count():
+			var m: int = plc.input_module(k)
+			if _powers(masks.get(uf.find(_plc_input_nets[_plc_input_start[p] + k]), 0), n_mask if m < 0 else module_n[m]):
 				bits |= 1 << k
 		_plc_inputs[p] = bits
 	_evaluate_motors(uf, masks)
@@ -904,6 +942,15 @@ func _compute_currents() -> void:
 				var v: Vector2 = _load_voltage(i)
 				draws[_load_terms[2 * i]] += v * _loads[i].rated_draw()
 				draws[_load_terms[2 * i + 1]] -= v * _loads[i].rated_draw()
+		for p: int in _plc_indices.size():
+			# Expansion modules that work draw from their own supply.
+			var plc: Plc = _loads[_plc_indices[p]] as Plc
+			for m: int in plc.modules.size():
+				if plc.module_on(m):
+					var at: int = _plc_module_start[p] + 2 * m
+					var v: Vector2 = _voltage_between(_plc_module_nets[at], _plc_module_nets[at + 1])
+					draws[_plc_module_terms[at]] += v * Plc.MODULE_DRAW
+					draws[_plc_module_terms[at + 1]] -= v * Plc.MODULE_DRAW
 		for m: int in _motors.size():
 			var motor: ThreePhaseMotor = _motors[m]
 			for t: int in mini(motor.terminal_currents.size(), MOTOR_TERMINALS):
@@ -944,9 +991,14 @@ func _compute_currents() -> void:
 ## Voltage across load [param i] (first terminal against the second) from the
 ## last evaluation, in phase voltages.
 func _load_voltage(i: int) -> Vector2:
-	var a: int = _eval_masks.get(_eval_uf.find(_load_nets[2 * i]), 0)
-	var b: int = _eval_masks.get(_eval_uf.find(_load_nets[2 * i + 1]), 0)
-	return _potential_of(a) - _potential_of(b)
+	return _voltage_between(_load_nets[2 * i], _load_nets[2 * i + 1])
+
+
+## Voltage of net [param a] against net [param b] from the last evaluation.
+func _voltage_between(a: int, b: int) -> Vector2:
+	var mask_a: int = _eval_masks.get(_eval_uf.find(a), 0)
+	var mask_b: int = _eval_masks.get(_eval_uf.find(b), 0)
+	return _potential_of(mask_a) - _potential_of(mask_b)
 
 
 func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
@@ -1011,7 +1063,7 @@ func _signature() -> PackedByteArray:
 	for i: int in _plc_indices:
 		var plc: Plc = _loads[i] as Plc
 		var outputs: int = 1 if plc.energized else 0
-		for k: int in Plc.OUTPUTS:
+		for k: int in plc.output_count():
 			if plc.output_on(k):
 				outputs |= 2 << k
 		sig.append(outputs)

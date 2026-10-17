@@ -1443,6 +1443,42 @@ msgstr "%s: výstup Q%d sepnut"
 msgid "%s: output Q%d off"
 msgstr "%s: výstup Q%d rozepnut"
 
+msgid "Expansion modules"
+msgstr "Rozšiřovací moduly"
+
+msgid "None: inputs I1-I8, outputs Q1-Q4"
+msgstr "Žádné: vstupy I1-I8, výstupy Q1-Q4"
+
+msgid "Add module"
+msgstr "Přidat modul"
+
+msgid "Clips one more module on to the right (up to 24 inputs and 20 outputs in all)"
+msgstr "Připojí vpravo další modul (celkem nejvýše 24 vstupů a 20 výstupů)"
+
+msgid "Remove last"
+msgstr "Odebrat poslední"
+
+msgid "Takes off the module on the far right; wires on its terminals go with it"
+msgstr "Odebere modul úplně vpravo; vodiče na jeho svorkách zmizí s ním"
+
+msgid "4 inputs, 4 relay outputs"
+msgstr "4 vstupy, 4 reléové výstupy"
+
+msgid "8 inputs, 8 relay outputs"
+msgstr "8 vstupů, 8 reléových výstupů"
+
+#, c-format
+msgid "Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N."
+msgstr "Rozšiřovací moduly: vstupy I9-I%d a výstupy Q5-Q%d; každý modul pracuje, když mají jeho vlastní L1-N napětí, a jeho vstupy jsou sepnuté s napětím proti jeho vlastnímu N."
+
+#, c-format
+msgid "%s: expansion module %d switched on"
+msgstr "%s: rozšiřovací modul %d zapnut"
+
+#, c-format
+msgid "%s: expansion module %d switched off"
+msgstr "%s: rozšiřovací modul %d vypnut"
+
 msgid "The PLC runs the program shown here."
 msgstr "PLC vykonává program, který je zde zobrazen."
 

@@ -909,8 +909,10 @@ static func _bridge_symbol(p: CabinetPainter, c: Vector2, r: float, ink: Color) 
 
 # --- PLC --------------------------------------------------------------------------
 
-## Size of a PLC (logic module with relay outputs): four modules.
+## Size of a PLC (logic module with relay outputs): four modules; its
+## expansion modules ([enum Plc.Module]) are two and four modules wide.
 const PLC := Vector2(72.0, 90.0)
+const PLC_MODULE_W: PackedFloat32Array = [36.0, 72.0]
 ## Height of its screws from the top and the bottom.
 const PLC_SCREW_Y: float = 8.6
 ## Pitch of the screws on the top tier (L1 N I1-I8).
@@ -938,22 +940,34 @@ const PLC_KEY_MARK := Color("e4e7e5")
 ## state of the inputs and outputs (backlit while the PLC has power, RUN
 ## with the language of its program), the cursor keys and ESC / OK beside
 ## it, and the outputs Q1-Q4 marked with a contact over their screws.
+## Expansion modules clip on to its right, alike in look: their supply and
+## inputs on top, outputs below, a RUN light lit while they work.
 ## [param desc]: see [method CabinetDevices.describe].
 static func plc(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> void:
 	var w: float = PLC.x
 	var h: float = PLC.y
+	var size: Vector2 = plc_size(desc)
 	for t: Array in [[0.0, 14.0], [h - 14.0, 14.0]]:
 		p.gradient(Rect2(0.3, t[0], w - 0.6, t[1]), PLC_BODY, PLC_TIER, 0.6, PLC_EDGE, 0.15)
+	var modules: Array[Plc.Module] = plc_modules(desc)
+	var left: float = w
+	for m: int in modules.size():
+		var mw: float = PLC_MODULE_W[modules[m]]
+		var q: CabinetPainter = p.shifted(Vector2(left, 0.0))
+		for t: Array in [[0.0, 14.0], [h - 14.0, 14.0]]:
+			q.gradient(Rect2(0.3, t[0], mw - 0.6, t[1]), PLC_BODY, PLC_TIER, 0.6, PLC_EDGE, 0.15)
+		left += mw
 	var names: Dictionary = desc.get("names", {})
 	var points: Dictionary = terminal_points(CabinetDevices.Kind.PLC, desc)
+	var pitches: Dictionary = _plc_print_widths(desc)
 	for name: String in points:
 		var at: Vector3 = points[name]
 		var on_top: bool = at.y < h * 0.5
 		var shown: String = str(names.get(name, name))
-		p.text(Vector2(at.x, 3.6 if on_top else h - 1.6), shown, 1.8, PLC_DARK, 0, false, PLC_TOP_PITCH - 0.6)
+		p.text(Vector2(at.x, 3.6 if on_top else h - 1.6), shown, 1.8, PLC_DARK, 0, false, pitches.get(name, PLC_TOP_PITCH) - 0.6)
 		_modular_screw_small(p, Vector2(at.x, at.y), reach.get(name, Color.TRANSPARENT))
 	var front: Rect2 = Rect2(0.3, 14.0, w - 0.6, h - 28.0)
-	p.rect(Rect2(front.position.x, front.end.y, front.size.x, 0.8), Color(0, 0, 0, 0.12))
+	p.rect(Rect2(front.position.x, front.end.y, size.x - 0.6, 0.8), Color(0, 0, 0, 0.12))
 	p.gradient(front, PLC_FRONT, PLC_BODY, 0.6, PLC_EDGE, 0.15)
 	var powered: bool = desc.get("powered", false)
 	# Display: a dark frame, the glass, the input and output states.
@@ -964,13 +978,23 @@ static func plc(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> 
 		var outputs: Array = desc.get("outputs", [])
 		var x0: float = PLC_DISPLAY.position.x + 2.0
 		var y0: float = PLC_DISPLAY.position.y
-		p.text(Vector2(x0, y0 + 5.2), "I", 2.6, LCD_INK, -1)
-		p.text(Vector2(x0, y0 + 12.6), "Q", 2.6, LCD_INK, -1)
-		for k: int in inputs.size():
-			_lcd_bit(p, Vector2(x0 + 5.0 + k * 3.8, y0 + 4.2), str(k + 1), inputs[k])
-		for k: int in outputs.size():
-			_lcd_bit(p, Vector2(x0 + 5.0 + k * 3.8, y0 + 11.6), str(k + 1), outputs[k])
-		p.text(Vector2(x0, y0 + 20.4), "RUN  " + str(desc.get("language", "")), 2.2, LCD_INK, -1)
+		if inputs.size() <= 8 and outputs.size() <= 8:
+			p.text(Vector2(x0, y0 + 5.2), "I", 2.6, LCD_INK, -1)
+			p.text(Vector2(x0, y0 + 12.6), "Q", 2.6, LCD_INK, -1)
+			for k: int in inputs.size():
+				_lcd_bit(p, Vector2(x0 + 5.0 + k * 3.8, y0 + 4.2), str(k + 1), inputs[k])
+			for k: int in outputs.size():
+				_lcd_bit(p, Vector2(x0 + 5.0 + k * 3.8, y0 + 11.6), str(k + 1), outputs[k])
+		else:
+			# Rows of ten, each marked by its last digit, as on the real display.
+			var y: float = y0 + 3.0
+			for area: Array in [["I", inputs], ["Q", outputs]]:
+				var bits: Array = area[1]
+				p.text(Vector2(x0, y + 1.2), area[0], 2.2, LCD_INK, -1)
+				for k: int in bits.size():
+					_lcd_bit(p, Vector2(x0 + 4.0 + (k % 10) * 3.0, y + (k / 10) * 3.4), str((k + 1) % 10), bits[k], 1.8)
+				y += ceili(bits.size() / 10.0) * 3.4 + 0.6
+		p.text(Vector2(x0, y0 + 21.4), "RUN  " + str(desc.get("language", "")), 2.2, LCD_INK, -1)
 	# Cursor keys, ESC and OK.
 	var keys: Vector2 = Vector2(57.5, 30.0)
 	for step: Vector2 in [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]:
@@ -983,26 +1007,88 @@ static func plc(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> 
 		p.rect(Rect2(b[0] - Vector2(3.6, 1.8), Vector2(7.2, 3.6)), PLC_KEY, 1.2, PLC_DARK, 0.15)
 		p.text_centered(b[0], b[1], 1.5, PLC_KEY_MARK, true)
 	p.text(Vector2(5.0, 51.0), "PLC", 2.6, PLC_DARK, -1, true)
-	p.text(Vector2(5.0, 54.6), "8 DI  4 DO", 1.6, PLC_DARK, -1, false)
+	p.text(Vector2(5.0, 54.6), "8 DI  4 DQ", 1.6, PLC_DARK, -1, false)
 	p.text(Vector2(w - 5.0, 51.0), "230 V~", 1.8, PLC_DARK, 1, false)
-	# The outputs over their screws: name and an NO contact.
-	for k: int in Plc.OUTPUTS:
+	var working: Array = desc.get("modules_on", [])
+	left = w
+	for m: int in modules.size():
+		_plc_module(p, left, modules[m], m < working.size() and bool(working[m]))
+		left += PLC_MODULE_W[modules[m]]
+	_plc_output_marks(p, points, desc, h)
+
+
+## Front of an expansion module of [param module] kind whose left edge is at
+## [param left]: its inputs and outputs printed, the RUN light.
+static func _plc_module(p: CabinetPainter, left: float, module: Plc.Module, on: bool) -> void:
+	var mw: float = PLC_MODULE_W[module]
+	var h: float = PLC.y
+	var q: CabinetPainter = p.shifted(Vector2(left, 0.0))
+	var front: Rect2 = Rect2(0.3, 14.0, mw - 0.6, h - 28.0)
+	q.gradient(front, PLC_FRONT, PLC_BODY, 0.6, PLC_EDGE, 0.15)
+	# The raised middle of the front.
+	q.rect(Rect2(mw * 0.2 + 0.4, front.position.y + 0.4, mw * 0.6, front.size.y), Color(0, 0, 0, 0.1), 0.6)
+	q.gradient(Rect2(mw * 0.2, front.position.y, mw * 0.6, front.size.y), PLC_FRONT.lightened(0.08), PLC_FRONT, 0.6, PLC_EDGE, 0.15)
+	# The joint to the device on its left.
+	q.line(Vector2(0.0, 0.6), Vector2(0.0, h - 0.6), PLC_EDGE, 0.3)
+	var inputs: int = Plc.MODULE_INPUTS[module]
+	var outputs: int = Plc.MODULE_OUTPUTS[module]
+	q.text(Vector2(mw * 0.5, 18.4), "AC 230 V  INPUT %d×" % inputs, 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
+	q.circle(Vector2(mw * 0.2 + 3.0, 30.0), 1.2, Color("46c35a") if on else Color("3c4a40"), PLC_DARK, 0.15)
+	q.text(Vector2(mw * 0.2 + 5.0, 30.9), "RUN/STOP", 1.4, PLC_DARK, -1, false)
+	q.text(Vector2(mw * 0.5, 40.0), "%d DI  %d DQ" % [inputs, outputs], 2.0, PLC_DARK, 0, true, mw * 0.6 - 1.0)
+	q.text(Vector2(mw * 0.5, 64.0), "OUTPUT %d× RELAY" % outputs, 1.5, PLC_DARK, 0, false, mw * 0.6 - 1.0)
+
+
+## Every output marked over its screws: its name and an NO contact.
+static func _plc_output_marks(p: CabinetPainter, points: Dictionary, desc: Dictionary, h: float) -> void:
+	var outputs: int = (desc.get("outputs", []) as Array).size()
+	for k: int in outputs:
 		var a: Vector3 = points.get("Q%d.1" % (k + 1), Vector3.ZERO)
 		var b: Vector3 = points.get("Q%d.2" % (k + 1), Vector3.ZERO)
 		var y: float = h - 17.0
+		var bend: float = minf(1.6, (b.x - a.x) * 0.3)
 		p.text(Vector2((a.x + b.x) * 0.5, y - 3.0), "Q%d" % (k + 1), 1.8, PLC_DARK, 0, true)
-		p.line(Vector2(a.x, y), Vector2(a.x + 1.6, y), PLC_DARK, 0.25)
-		p.line(Vector2(a.x + 1.6, y), Vector2(b.x - 1.6, y - 1.5), PLC_DARK, 0.25)
-		p.line(Vector2(b.x - 1.6, y), Vector2(b.x, y), PLC_DARK, 0.25)
+		p.line(Vector2(a.x, y), Vector2(a.x + bend, y), PLC_DARK, 0.25)
+		p.line(Vector2(a.x + bend, y), Vector2(b.x - bend, y - 1.5), PLC_DARK, 0.25)
+		p.line(Vector2(b.x - bend, y), Vector2(b.x, y), PLC_DARK, 0.25)
 		p.line(Vector2(a.x, y), Vector2(a.x, y + 2.5), PLC_DARK, 0.25)
 		p.line(Vector2(b.x, y), Vector2(b.x, y + 2.5), PLC_DARK, 0.25)
 
 
+## Size of the PLC with its expansion modules ([param desc]: see
+## [method CabinetDevices.describe]).
+static func plc_size(desc: Dictionary) -> Vector2:
+	var w: float = PLC.x
+	for module: Plc.Module in plc_modules(desc):
+		w += PLC_MODULE_W[module]
+	return Vector2(w, PLC.y)
+
+
+## The expansion modules of a described PLC.
+static func plc_modules(desc: Dictionary) -> Array[Plc.Module]:
+	return DocumentSerializer.plc_modules(desc.get("modules", []))
+
+
+## Room for the name printed by each screw of a PLC (millimetres).
+static func _plc_print_widths(desc: Dictionary) -> Dictionary:
+	var widths: Dictionary = {}
+	var plc: Plc = Plc.new("A", null, plc_modules(desc))
+	var names: PackedStringArray = plc.default_terminal_names()
+	for m: int in plc.modules.size():
+		var span: Vector2i = plc.module_terminals(m)
+		var module: Plc.Module = plc.modules[m]
+		var top: int = 2 + Plc.MODULE_INPUTS[module]
+		for i: int in range(span.x, span.y):
+			widths[names[i]] = PLC_MODULE_W[module] / top if i - span.x < top else PLC_MODULE_W[module] / Plc.MODULE_OUTPUTS[module] * 0.5
+	return widths
+
+
 ## One input or output on the display: its number, shown dark while it is on.
-static func _lcd_bit(p: CabinetPainter, at: Vector2, digit: String, on: bool) -> void:
+static func _lcd_bit(p: CabinetPainter, at: Vector2, digit: String, on: bool, size_mm: float = 2.2) -> void:
+	var scale: float = size_mm / 2.2
 	if on:
-		p.rect(Rect2(at - Vector2(1.6, 2.2), Vector2(3.2, 3.6)), LCD_INK, 0.3)
-	p.text_centered(at - Vector2(0.0, 0.4), digit, 2.2, LCD_ON if on else LCD_INK, true)
+		p.rect(Rect2(at - Vector2(1.6, 2.2) * scale, Vector2(3.2, 3.6) * scale), LCD_INK, 0.3)
+	p.text_centered(at - Vector2(0.0, 0.4) * scale, digit, size_mm, LCD_ON if on else LCD_INK, true)
 
 
 # --- Terminal blocks ----------------------------------------------------------------
@@ -1176,17 +1262,27 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 					for j: int in 3:
 						points[row[0][j]] = Vector3(TIMER_X[j], row[3], 2.1)
 		CabinetDevices.Kind.PLC:
-			var standard: PackedStringArray = Plc.standard_terminal_names()
-			for i: int in standard.size():
-				var x: float
-				var y: float = PLC_SCREW_Y
-				if i < Plc.output_terminal(0):
-					x = PLC_TOP_PITCH * (i + 0.5)
-				else:
-					var k: int = (i - Plc.output_terminal(0)) / 2
-					x = MODULE_W * k + (5.4 if (i - Plc.output_terminal(0)) % 2 == 0 else 12.6)
-					y = PLC.y - PLC_SCREW_Y
-				points[standard[i]] = Vector3(x, y, 2.1)
+			var plc: Plc = Plc.new("A", null, plc_modules(desc))
+			var standard: PackedStringArray = plc.default_terminal_names()
+			var left: float = 0.0
+			for m: int in range(-1, plc.modules.size()):
+				var span: Vector2i = plc.module_terminals(m)
+				var width: float = PLC.x if m < 0 else PLC_MODULE_W[plc.modules[m]]
+				var top: int = plc.output_terminal(0) if m < 0 else 2 + Plc.MODULE_INPUTS[plc.modules[m]]
+				var slot: float = width / (Plc.BASE_OUTPUTS if m < 0 else Plc.MODULE_OUTPUTS[plc.modules[m]])
+				for i: int in range(span.x, span.y):
+					var j: int = i - span.x
+					var x: float
+					var y: float = PLC_SCREW_Y
+					if j < top:
+						x = width / top * (j + 0.5)
+					else:
+						var k: int = (j - top) / 2
+						# The PLC's outputs a module (18 mm) each, a module's two to a module.
+						x = slot * k + slot * ((0.3 if (j - top) % 2 == 0 else 0.7) if m < 0 else (0.25 if (j - top) % 2 == 0 else 0.75))
+						y = PLC.y - PLC_SCREW_Y
+					points[standard[i]] = Vector3(left + x, y, 2.1)
+				left += width
 		CabinetDevices.Kind.RECTIFIER:
 			var xs: Array[float] = [RECTIFIER.x * 0.28, RECTIFIER.x * 0.72]
 			var top: PackedStringArray = ["~1", "~2"]

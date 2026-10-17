@@ -662,3 +662,39 @@ func test_new_wire_does_not_join_its_own_net() -> void:
 	assert_null(doc.circuit.get_component("J1"), "no junction on the wire of L")
 	assert_eq(doc.get_wire_count(), 2)
 	assert_eq(doc.circuit.get_wires()[1], PackedStringArray(["L", "H2:X1"]))
+
+
+func test_plc_expansion_modules_added_and_taken_off() -> void:
+	var doc: SchematicDocument = editor.document()
+	doc.add(Plc.new("A1"), Vector2i(10, 4))
+	var corner: Array[Vector2i] = [Vector2i(14, 1)]
+	assert_true(doc.connect_terminals("L", "A1:I1", corner))
+	var panel: PropertiesPanel = autofree(PropertiesPanel.new())
+	add_child(panel)
+	var emitted: Array[Dictionary] = []
+	panel.changed.connect(func(_id: String, data: Dictionary) -> void: emitted.append(data))
+	var a1: Plc = doc.circuit.get_component("A1") as Plc
+	var names: PackedStringArray = a1.default_terminal_names()
+	names[a1.input_terminal(1)] = "STOP"
+	a1.custom_terminals = names
+	panel.show_component(a1)
+	var one: Array[Plc.Module] = [Plc.Module.DI4_DQ4]
+	panel._emit_modules(one)
+	assert_eq(emitted.size(), 1)
+	assert_eq(editor.apply_properties("A1", emitted[0]), "")
+	a1 = doc.circuit.get_component("A1") as Plc
+	assert_eq(a1.modules, one)
+	assert_eq(a1.get_terminal_names()[a1.input_terminal(1)], "STOP", "names given by hand stay")
+	assert_true(doc.circuit.has_terminal("A1:I9"))
+	corner = [Vector2i(31, 1)]
+	assert_true(doc.connect_terminals("L", "A1:2L1", corner))
+	assert_eq(doc.get_wire_count(), 2)
+	panel.show_component(a1)
+	panel._emit_modules([] as Array[Plc.Module])
+	assert_eq(editor.apply_properties("A1", emitted[1]), "")
+	a1 = doc.circuit.get_component("A1") as Plc
+	assert_true(a1.modules.is_empty())
+	assert_eq(doc.get_wire_count(), 1, "the wire on the module went with it, the one on I1 stayed")
+	assert_eq(a1.get_terminal_names()[a1.input_terminal(1)], "STOP")
+	editor.undo()
+	assert_eq((editor.document().circuit.get_component("A1") as Plc).modules.size(), 1, "undoable")

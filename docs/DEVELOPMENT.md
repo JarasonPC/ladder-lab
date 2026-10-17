@@ -147,7 +147,16 @@ Architecture and conventions of the code base. Read this before changing the cod
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
-  (Q1.1-Q1.2, switch paths with an Armature per output, 10/8 ms). It runs its PlcProgram
+  (Q1.1-Q1.2, switch paths with an Armature per output, 10/8 ms). Expansion modules
+  (Plc.modules, Plc.Module: 4 inputs + 4 relay outputs or 8 + 8, saved as "modules"; at most
+  Plc.MAX_INPUTS 24 inputs and MAX_OUTPUTS 20 outputs in all, Plc.modules_fit) clip on to its
+  right as on the real ones: their terminals follow the PLC's (its own never move), each module
+  its own supply 2L1-2N, 3L1-3N ..., inputs and outputs numbered on (I9.., Q5..); a module works
+  while its own L1-N has voltage and the PLC works (Plc.module_power, logged), its inputs are on
+  with voltage against its own N, it draws Plc.MODULE_DRAW; the circuit check wants the modules'
+  supplies wired. Terminal indices come from the instance (input_terminal, output_terminal,
+  module_terminal, module_terminals); the properties add a module after the last one or take
+  the last one off, so the other terminals keep their numbers (names given by hand stay). It runs its PlcProgram
   (sim/plc/, no nodes) through PlcRuntime: scans when the power or an input changes and when a
   program timer ends, until a scan changes nothing (PlcRuntime.MAX_SCANS; a program that keeps
   changing is scanned again after Plc.CYCLE_TIME and reported as oscillating); losing power
@@ -160,15 +169,20 @@ Architecture and conventions of the code base. Read this before changing the cod
   S, R, SD, SF, CU, CD; rows joined by links make a rung (PlcRung.rung_groups, numbered in the
   margin), rungs run from the top, power flows column by column, linked rows share it; older
   programs with several networks load as rows one after another);
-  language says which one runs. Operands I1-I8, Q1-Q4, M1-M16, T1-T16, C1-C16. Saved with
+  language says which one runs. Operands I1-I24, Q1-Q20 (the PLC window offers
+  those the PLC has with its modules), M1-M16, T1-T16, C1-C16. Saved with
   the component ("program"); damaged parts of a program are left out, never refusing the file.
   The symbol (PlcSymbol): a box with L1 N I1-I8 on top, the output contacts below (moving),
-  input lights and a RUN display. In the switchboard (CabinetDevices.Kind.PLC, CabinetParts.plc)
+  input lights and a RUN display; each expansion module a box of its own one cell to the right
+  (SymbolGeometry.plc_terminal_cells / plc_module_origins), joined by a plug, its window filled
+  while it works. In the switchboard (CabinetDevices.Kind.PLC, CabinetParts.plc)
   a four-module device in Siemens light grey (RAL 7035) with anthracite (RAL 7016) keys, print and
   display frame and a white backlit display: L1 N I1-I8 screws on top, the two screws of each output under
   its module below (CabinetParts.terminal_points by the standard marking, the schematic's names
   printed), a display with the inputs and output relays that are on (backlit while powered, RUN
-  and the language), cursor keys, ESC / OK; it sits on the first rail after the rectifiers
+  and the language; beyond 8 in rows of ten marked by their last digit), cursor keys, ESC / OK;
+  its expansion modules beside it (two or four modules wide, CabinetParts.plc_size), in the same
+  grey with a raised middle, INPUT / OUTPUT print, a RUN/STOP light; it sits on the first rail after the rectifiers
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
   clicking it while simulating; one per PLC. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
   PlcCanvas, drawn on schematic paper in a ScrollContainer: wheel scrolls, Ctrl+wheel zooms at

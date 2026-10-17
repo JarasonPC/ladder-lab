@@ -19,6 +19,9 @@ const MOTOR_PE_CELL := Vector2i(-2, 4)
 ## one output to the next (each output's two terminals are POLE_SPACING apart).
 const PLC_HEIGHT: int = 6
 const PLC_OUTPUT_PITCH: int = 5
+## Width in cells of the PLC's box; expansion modules follow it one cell apart.
+const PLC_WIDTH: int = 20
+const PLC_MODULE_GAP: int = 1
 
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
@@ -42,8 +45,9 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 			result[names[i]] = motor_terminal_cell(i, (c as ThreePhaseMotor).kind) if i < windings else MOTOR_PE_CELL
 		return result
 	if c is Plc:
+		var cells: Array[Vector2i] = plc_terminal_cells(c as Plc)
 		for i: int in names.size():
-			result[names[i]] = plc_terminal_cell(i)
+			result[names[i]] = cells[i]
 		return result
 	if c is Rectifier:
 		# AC input ~1 ~2 on top, DC output + - below.
@@ -84,7 +88,8 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 	if c is Rectifier:
 		return DIR_DOWN if names.find(terminal_name) < 2 else DIR_UP
 	if c is Plc:
-		return DIR_DOWN if names.find(terminal_name) < Plc.output_terminal(0) else DIR_UP
+		var i: int = names.find(terminal_name)
+		return DIR_DOWN if i >= 0 and plc_terminal_cells(c as Plc)[i].y == 0 else DIR_UP
 	if c is TimerRelay and names.size() == 3:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if names.size() == 3:
@@ -148,7 +153,7 @@ static func local_body(c: CircuitComponent) -> Rect2:
 	if c is Rectifier:
 		return Rect2(-0.3, 0.4, 2.6, 2.2)
 	if c is Plc:
-		return Rect2(-1.1, 0.9, 20.2, PLC_HEIGHT - 1.8)
+		return Rect2(-1.1, 0.9, plc_width(c as Plc) + 0.2, PLC_HEIGHT - 1.8)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)
 
 
@@ -166,14 +171,50 @@ static func motor_terminal_cell(index: int, kind: ThreePhaseMotor.Kind = ThreePh
 	return Vector2i(3 * POLE_SPACING, index - 5)
 
 
-## Cell of PLC terminal [param index]: supply L1 N and inputs I1-I8 along the
-## top, two cells apart; the two terminals of each output Q1-Q4 below.
-static func plc_terminal_cell(index: int) -> Vector2i:
-	var first_output: int = Plc.output_terminal(0)
-	if index < first_output:
-		return Vector2i(index * POLE_SPACING, 0)
-	var k: int = (index - first_output) / 2
-	return Vector2i(k * PLC_OUTPUT_PITCH + (index - first_output) % 2 * POLE_SPACING, PLC_HEIGHT)
+## Cells of the PLC's terminals: on the PLC and on each expansion module, the
+## supply and the inputs along the top, two cells apart, the two terminals
+## of each output below.
+static func plc_terminal_cells(plc: Plc) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	var origins: PackedInt32Array = plc_module_origins(plc)
+	for m: int in range(-1, plc.modules.size()):
+		var span: Vector2i = plc.module_terminals(m)
+		var first_output: int = plc.output_terminal(0) if m < 0 else plc.module_terminal(m) + 2 + Plc.MODULE_INPUTS[plc.modules[m]]
+		for i: int in range(span.x, span.y):
+			var x: int = origins[m + 1]
+			if i < first_output:
+				cells.append(Vector2i(x + (i - span.x) * POLE_SPACING, 0))
+			else:
+				var k: int = (i - first_output) / 2
+				cells.append(Vector2i(x + k * PLC_OUTPUT_PITCH + (i - first_output) % 2 * POLE_SPACING, PLC_HEIGHT))
+	return cells
+
+
+## Cell of the first terminal of the PLC (0) and of each expansion module:
+## a module's box starts a cell left of it, as the PLC's.
+static func plc_module_origins(plc: Plc) -> PackedInt32Array:
+	var origins: PackedInt32Array = PackedInt32Array([0])
+	var x: int = PLC_WIDTH
+	for module: Plc.Module in plc.modules:
+		x += PLC_MODULE_GAP
+		origins.append(x)
+		x += plc_module_width(module)
+	return origins
+
+
+## Width in cells of an expansion module's box: its outputs side by side,
+## or its supply and inputs if they take more room.
+static func plc_module_width(module: Plc.Module) -> int:
+	return maxi((2 + Plc.MODULE_INPUTS[module]) * POLE_SPACING, Plc.MODULE_OUTPUTS[module] * PLC_OUTPUT_PITCH)
+
+
+## Width in cells of the PLC with its expansion modules, from the left edge
+## of its box (a cell left of its first terminal).
+static func plc_width(plc: Plc) -> int:
+	if plc.modules.is_empty():
+		return PLC_WIDTH
+	var origins: PackedInt32Array = plc_module_origins(plc)
+	return origins[origins.size() - 1] + plc_module_width(plc.modules[plc.modules.size() - 1])
 
 
 static func _is_three_pole(c: CircuitComponent) -> bool:

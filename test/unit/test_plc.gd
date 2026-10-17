@@ -84,10 +84,115 @@ func test_terminals_and_paths() -> void:
 	assert_eq(names.size(), 18)
 	assert_eq(names[0], "L1")
 	assert_eq(names[1], "N")
-	assert_eq(names[Plc.input_terminal(0)], "I1")
-	assert_eq(names[Plc.output_terminal(3)], "Q4.1")
-	assert_eq(names[Plc.output_terminal(3) + 1], "Q4.2")
+	assert_eq(names[a1.input_terminal(0)], "I1")
+	assert_eq(names[a1.output_terminal(3)], "Q4.1")
+	assert_eq(names[a1.output_terminal(3) + 1], "Q4.2")
 	assert_eq(a1.switch_paths().size(), 4)
+
+
+func test_expansion_module_terminals() -> void:
+	var modules: Array[Plc.Module] = [Plc.Module.DI4_DQ4, Plc.Module.DI8_DQ8]
+	var a1: Plc = Plc.new("A1", null, modules)
+	var names: PackedStringArray = a1.get_terminal_names()
+	assert_eq(names.slice(0, 18), Plc.standard_terminal_names(), "the PLC's own terminals first, unchanged")
+	assert_eq(names.slice(18, 26), PackedStringArray(["2L1", "2N", "I9", "I10", "I11", "I12", "Q5.1", "Q5.2"]))
+	assert_eq(names[a1.module_terminal(1)], "3L1")
+	assert_eq(a1.input_count(), 20)
+	assert_eq(a1.output_count(), 16)
+	assert_eq(names[a1.input_terminal(19)], "I20")
+	assert_eq(names[a1.output_terminal(15) + 1], "Q16.2")
+	assert_eq(a1.input_module(7), -1)
+	assert_eq(a1.input_module(8), 0)
+	assert_eq(a1.output_module(8), 1)
+	assert_eq(a1.switch_paths().size(), 16)
+	assert_eq(a1.output_armatures.size(), 16)
+	assert_eq(a1.module_terminals(0), Vector2i(18, 32))
+	assert_eq(a1.module_terminals(1).y, names.size())
+
+
+func test_modules_fit_up_to_24_inputs_and_20_outputs() -> void:
+	var two_large: Array[Plc.Module] = [Plc.Module.DI8_DQ8, Plc.Module.DI8_DQ8]
+	assert_true(Plc.modules_fit(two_large), "24 inputs, 20 outputs")
+	var four_small: Array[Plc.Module] = [Plc.Module.DI4_DQ4, Plc.Module.DI4_DQ4, Plc.Module.DI4_DQ4, Plc.Module.DI4_DQ4]
+	assert_true(Plc.modules_fit(four_small))
+	four_small.append(Plc.Module.DI4_DQ4)
+	assert_false(Plc.modules_fit(four_small))
+	two_large.append(Plc.Module.DI4_DQ4)
+	assert_false(Plc.modules_fit(two_large))
+	var saved: Array = ["8di8dq", "8di8dq", "4di4dq", "nonsense"]
+	assert_eq(DocumentSerializer.plc_modules(saved).size(), 2, "modules beyond what the PLC takes are left out")
+
+
+## L - Q - A1 L1 / N as in _build; L - Q2 (switch) - A1 2L1, A1 2N - N;
+## L - S1 - A1 I9; L - A1 Q5.1, A1 Q5.2 - H1 - N. Program: Q5 = I9.
+func _build_module(realistic: bool = false) -> LatchingSwitch:
+	var p: PlcProgram = PlcProgram.new()
+	var i9: PlcBlock = p.add_block("input", Vector2i(0, 0))
+	i9.operand = "I9"
+	var q5: PlcBlock = p.add_block("output", Vector2i(4, 0))
+	q5.operand = "Q5"
+	q5.inputs[0] = i9.id
+	circuit = Circuit.new()
+	circuit.add(PowerSupply.new("L", PowerSupply.Conductor.L))
+	circuit.add(PowerSupply.new("N", PowerSupply.Conductor.N))
+	power = circuit.add(LatchingSwitch.new("Q", NO)) as LatchingSwitch
+	var module_power: LatchingSwitch = circuit.add(LatchingSwitch.new("Q2", NO)) as LatchingSwitch
+	var modules: Array[Plc.Module] = [Plc.Module.DI4_DQ4]
+	plc = circuit.add(Plc.new("A1", p, modules)) as Plc
+	s1 = circuit.add(PushButton.new("S1", NO)) as PushButton
+	h1 = circuit.add(Lamp.new("H1")) as Lamp
+	circuit.connect_terminals("L", "Q:13")
+	circuit.connect_terminals("Q:14", "A1:L1")
+	circuit.connect_terminals("A1:N", "N")
+	circuit.connect_terminals("L", "Q2:13")
+	circuit.connect_terminals("Q2:14", "A1:2L1")
+	circuit.connect_terminals("A1:2N", "N")
+	circuit.connect_terminals("L", "S1:13")
+	circuit.connect_terminals("S1:14", "A1:I9")
+	circuit.connect_terminals("L", "A1:Q5.1")
+	circuit.connect_terminals("A1:Q5.2", "H1:X1")
+	circuit.connect_terminals("H1:X2", "N")
+	sim = Simulator.new(circuit)
+	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
+	power.set_switched_on(true)
+	module_power.set_switched_on(true)
+	sim.step()
+	return module_power
+
+
+func test_expansion_module_inputs_and_outputs() -> void:
+	var module_power: LatchingSwitch = _build_module()
+	assert_true(plc.module_on(0))
+	assert_false(h1.energized)
+	s1.press()
+	sim.step()
+	assert_eq(plc.inputs, 1 << 8, "I9 is on")
+	assert_true(h1.energized, "Q5 on the module switches the lamp")
+	module_power.set_switched_on(false)
+	sim.step()
+	assert_false(plc.module_on(0))
+	assert_true(plc.energized, "the PLC goes on working")
+	assert_false(h1.energized, "a module without its supply switches nothing")
+	module_power.set_switched_on(true)
+	sim.step()
+	assert_true(h1.energized)
+	power.set_switched_on(false)
+	sim.step()
+	assert_false(plc.module_on(0), "a module works only with the PLC")
+	assert_false(h1.energized)
+
+
+func test_expansion_module_draws_current_and_logs() -> void:
+	var module_power: LatchingSwitch = _build_module(true)
+	_run(0.2)
+	var key: String = "A1:2L1"
+	assert_almost_eq(sim.last_result.terminal_currents.get(key, 0.0), Plc.MODULE_DRAW, 0.001, "the module draws from its own supply")
+	module_power.set_switched_on(false)
+	var logged: bool = false
+	for i: int in 4:
+		for e: Dictionary in sim.step(0.05).events:
+			logged = logged or (str(e["text"]) % e["args"]) == "A1: expansion module 1 switched off"
+	assert_true(logged, "switching off is logged")
 
 
 func test_fbd_start_stop_self_holding() -> void:
@@ -399,7 +504,7 @@ func test_insert_row_keeps_links() -> void:
 
 func test_damaged_program_parts_left_out() -> void:
 	var data: Dictionary = {"language": "fbd", "blocks": [
-		{"id": 1, "type": "input", "cell": [0, 0], "operand": "I9"},
+		{"id": 1, "type": "input", "cell": [0, 0], "operand": "I25"},
 		{"id": 1, "type": "and", "cell": [0, 0]},
 		{"id": 2, "type": "frobnicate", "cell": [0, 0]},
 		{"id": 3, "type": "output", "cell": [4, 0], "operand": "Q2", "inputs": [7]},
@@ -416,10 +521,14 @@ func test_damaged_program_parts_left_out() -> void:
 
 func test_operands() -> void:
 	assert_true(PlcProgram.valid_operand("I8", "IQ"))
-	assert_false(PlcProgram.valid_operand("I9", "IQ"))
+	assert_true(PlcProgram.valid_operand("I24", "IQ"), "inputs of the expansion modules")
+	assert_false(PlcProgram.valid_operand("I25", "IQ"))
+	assert_true(PlcProgram.valid_operand("Q20", "Q"))
+	assert_false(PlcProgram.valid_operand("Q21", "Q"))
 	assert_false(PlcProgram.valid_operand("Q1", "I"))
 	assert_false(PlcProgram.valid_operand("M01", "M"))
-	assert_eq(PlcProgram.operands("Q"), PackedStringArray(["Q1", "Q2", "Q3", "Q4"]))
+	assert_eq(PlcProgram.operands("Q").size(), 20)
+	assert_eq(PlcProgram.operands("Q")[3], "Q4")
 
 
 func test_example_runs_in_both_languages() -> void:
@@ -443,3 +552,37 @@ func test_example_runs_in_both_languages() -> void:
 		example_sim.step(0.2)
 		assert_true(lamp2.energized, "language %d" % language)
 		assert_eq(CircuitCheck.run(doc), [] as Array[Dictionary])
+
+
+func test_expansion_modules_saved_and_loaded() -> void:
+	var modules: Array[Plc.Module] = [Plc.Module.DI8_DQ8, Plc.Module.DI4_DQ4]
+	var a1: Plc = Plc.new("A1", null, modules)
+	var names: PackedStringArray = a1.default_terminal_names()
+	names[a1.input_terminal(8)] = "LEVEL"
+	a1.custom_terminals = names
+	var d: Dictionary = DocumentSerializer.component_to_dict(a1)
+	assert_eq(d["modules"], ["8di8dq", "4di4dq"])
+	var loaded: Plc = DocumentSerializer.component_from_dict(JSON.parse_string(JSON.stringify(d))) as Plc
+	assert_eq(loaded.modules, modules)
+	assert_eq(loaded.get_terminal_names()[loaded.input_terminal(8)], "LEVEL")
+	assert_false(DocumentSerializer.component_to_dict(Plc.new("A2")).has("modules"), "nothing saved without modules")
+	assert_true((DocumentSerializer.component_from_dict({"type": "plc", "designation": "A3"}) as Plc).modules.is_empty(), "older files: no modules")
+
+
+func test_symbol_grows_with_its_modules() -> void:
+	var modules: Array[Plc.Module] = [Plc.Module.DI4_DQ4, Plc.Module.DI8_DQ8]
+	var a1: Plc = Plc.new("A1", null, modules)
+	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(a1)
+	assert_eq(cells.size(), a1.get_terminal_names().size())
+	var plain: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(Plc.new("A2"))
+	assert_eq(cells.slice(0, plain.size()), plain, "the PLC's own terminals stay put")
+	assert_eq(cells[a1.module_terminal(0)], Vector2i(21, 0), "the first module a cell right of the PLC's box")
+	assert_eq(cells[a1.output_terminal(4)], Vector2i(21, SymbolGeometry.PLC_HEIGHT))
+	assert_eq(cells[a1.module_terminal(1)], Vector2i(42, 0))
+	assert_eq(SymbolGeometry.plc_width(a1), 82)
+	var seen: Dictionary[Vector2i, bool] = {}
+	for cell: Vector2i in cells:
+		assert_false(seen.has(cell), "one terminal per cell: %s" % cell)
+		seen[cell] = true
+	assert_eq(SymbolGeometry.local_lead_direction(a1, "2L1"), SymbolGeometry.DIR_DOWN)
+	assert_eq(SymbolGeometry.local_lead_direction(a1, "Q16.2"), SymbolGeometry.DIR_UP)

@@ -368,8 +368,92 @@ func _plc_program(plc: Plc) -> void:
 	var id: String = plc.id
 	button.pressed.connect(func() -> void: plc_requested.emit(id))
 	_add(button)
+	_plc_modules(plc)
 	_group = null
-	_note(tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals."), "MutedLabel")
+	var note: String = tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals.")
+	if not plc.modules.is_empty():
+		note += " " + tr("Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N.") % [plc.input_count(), plc.output_count()]
+	_note(note, "MutedLabel")
+
+
+## Expansion modules clipped on to the right of the PLC, as on the real one:
+## a module is added after the last one and the last one taken off (the
+## inputs and outputs of the others keep their numbers).
+func _plc_modules(plc: Plc) -> void:
+	_label(tr("Expansion modules"))
+	if plc.modules.is_empty():
+		var none: Label = Label.new()
+		none.theme_type_variation = "MutedLabel"
+		none.text = tr("None: inputs I1-I8, outputs Q1-Q4")
+		_add(none)
+	for m: int in plc.modules.size():
+		var span: Vector2i = plc.module_terminals(m)
+		var names: PackedStringArray = plc.default_terminal_names()
+		var first_input: int = span.x + 2
+		var inputs: int = Plc.MODULE_INPUTS[plc.modules[m]]
+		var outputs: int = Plc.MODULE_OUTPUTS[plc.modules[m]]
+		var row: Label = Label.new()
+		row.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		row.text = "%d: %s (%s-%s, %s-%s)" % [m + 2, _module_title(plc.modules[m]), names[first_input], names[first_input + inputs - 1], names[first_input + inputs].get_slice(".", 0), names[span.y - 1].get_slice(".", 0)]
+		_add(row)
+	var buttons: HBoxContainer = HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 6)
+	var add: MenuButton = MenuButton.new()
+	add.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	add.flat = false
+	add.text = tr("Add module")
+	add.tooltip_text = tr("Clips one more module on to the right (up to 24 inputs and 20 outputs in all)")
+	var popup: PopupMenu = add.get_popup()
+	popup.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	for kind: int in Plc.MODULE_NAMES.size():
+		var longer: Array[Plc.Module] = plc.modules.duplicate()
+		longer.append(kind as Plc.Module)
+		popup.add_item(_module_title(kind as Plc.Module), kind)
+		popup.set_item_disabled(popup.get_item_count() - 1, not Plc.modules_fit(longer))
+	popup.id_pressed.connect(func(kind: int) -> void:
+		var list: Array[Plc.Module] = plc.modules.duplicate()
+		list.append(kind as Plc.Module)
+		_emit_modules(list))
+	buttons.add_child(add)
+	var remove: Button = Button.new()
+	remove.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	remove.text = tr("Remove last")
+	remove.tooltip_text = tr("Takes off the module on the far right; wires on its terminals go with it")
+	remove.disabled = plc.modules.is_empty()
+	remove.pressed.connect(func() -> void:
+		var list: Array[Plc.Module] = plc.modules.duplicate()
+		list.pop_back()
+		_emit_modules(list))
+	buttons.add_child(remove)
+	_add(buttons)
+
+
+func _module_title(module: Plc.Module) -> String:
+	match module:
+		Plc.Module.DI4_DQ4:
+			return tr("4 inputs, 4 relay outputs")
+		_:
+			return tr("8 inputs, 8 relay outputs")
+
+
+## Emits the PLC with expansion modules [param list]; terminal names given
+## by hand stay on the terminals that are left.
+func _emit_modules(list: Array[Plc.Module]) -> void:
+	var data: Dictionary = _data.duplicate()
+	var names: Array[String] = []
+	for module: Plc.Module in list:
+		names.append(Plc.MODULE_NAMES[module])
+	data["modules"] = names
+	if data.has("terminals"):
+		var custom: Array = data["terminals"]
+		var merged: PackedStringArray = Plc.standard_terminal_names(list)
+		for i: int in mini(custom.size(), merged.size()):
+			merged[i] = str(custom[i])
+		if CircuitComponent.valid_terminal_names(merged):
+			data["terminals"] = Array(merged)
+		else:
+			data.erase("terminals")
+	changed.emit(_component_id, data)
 
 
 ## Time-current characteristic of a protective device.

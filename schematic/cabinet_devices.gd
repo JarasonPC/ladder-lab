@@ -80,10 +80,11 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ##   control input), "powered", "output"
 ## - OVERLOAD: "tripped"
 ## - RECTIFIER: "on" (its input has voltage)
-## - PLC: "terminals" by the standard marking (L1, N, I1-I8, Q1.1-Q4.2),
-##   "names" (standard name -> name in the schematic), "powered", "inputs"
-##   and "outputs" (one bool per input, per output relay closed), "language"
-##   ("FBD" / "LAD")
+## - PLC: "terminals" by the standard marking (L1, N, I1-I8, Q1.1-Q4.2, then
+##   the expansion modules' 2L1, 2N, I9...), "names" (standard name -> name in
+##   the schematic), "powered", "inputs" and "outputs" (one bool per input,
+##   per output relay closed), "language" ("FBD" / "LAD"), "modules"
+##   ([constant Plc.MODULE_NAMES]) and "modules_on" (one bool per module working)
 static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 	var c: CircuitComponent = device(doc.circuit, designation)
 	if c == null:
@@ -130,7 +131,7 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 
 
 static func _describe_plc(plc: Plc, d: Dictionary) -> void:
-	var standard: PackedStringArray = Plc.standard_terminal_names()
+	var standard: PackedStringArray = plc.default_terminal_names()
 	var names: PackedStringArray = plc.get_terminal_names()
 	var keys: PackedStringArray = plc.get_terminal_keys()
 	var terminals: Dictionary = {}
@@ -142,11 +143,19 @@ static func _describe_plc(plc: Plc, d: Dictionary) -> void:
 	d["names"] = shown
 	d["powered"] = plc.energized
 	var inputs: Array[bool] = []
-	for k: int in Plc.INPUTS:
-		inputs.append(plc.energized and plc.input_on(k))
+	for k: int in plc.input_count():
+		var m: int = plc.input_module(k)
+		inputs.append(plc.energized and plc.input_on(k) and (m < 0 or plc.module_on(m)))
 	var outputs: Array[bool] = []
 	for a: Armature in plc.output_armatures:
 		outputs.append(a.no_closed)
+	var modules: Array[String] = []
+	var working: Array[bool] = []
+	for m: int in plc.modules.size():
+		modules.append(Plc.MODULE_NAMES[plc.modules[m]])
+		working.append(plc.module_on(m))
+	d["modules"] = modules
+	d["modules_on"] = working
 	d["inputs"] = inputs
 	d["outputs"] = outputs
 	d["language"] = "LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD"
