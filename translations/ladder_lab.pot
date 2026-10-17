@@ -580,6 +580,19 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
+msgid "Recover unsaved changes"
+msgstr ""
+
+msgid "Restore"
+msgstr ""
+
+msgid "Discard"
+msgstr ""
+
+#, c-format
+msgid "LadderLab did not close properly. Restore the unsaved changes to %s from %s?"
+msgstr ""
+
 msgid "New"
 msgstr ""
 

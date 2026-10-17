@@ -583,6 +583,19 @@ msgstr "Neukládat"
 msgid "Error"
 msgstr "Chyba"
 
+msgid "Recover unsaved changes"
+msgstr "Obnovit neuložené změny"
+
+msgid "Restore"
+msgstr "Obnovit"
+
+msgid "Discard"
+msgstr "Zahodit"
+
+#, c-format
+msgid "LadderLab did not close properly. Restore the unsaved changes to %s from %s?"
+msgstr "LadderLab nebyl řádně ukončen. Obnovit neuložené změny ve schématu %s (stav z %s)?"
+
 msgid "New"
 msgstr "Nový"
 

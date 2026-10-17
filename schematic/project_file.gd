@@ -38,7 +38,7 @@ const VERSION: int = 17
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.
 static func save(doc: SchematicDocument, path: String) -> Error:
-	var data: Dictionary = {"format": FORMAT, "version": VERSION, "document": DocumentSerializer.to_dict(doc)}
+	var data: Dictionary = to_dict(doc)
 	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
@@ -63,7 +63,16 @@ static func parse(text: String) -> Dictionary:
 	var json: JSON = JSON.new()
 	if json.parse(text) != OK or not (json.data is Dictionary):
 		return {"error": "%s is not a LadderLab file."}
-	var data: Dictionary = json.data
+	return from_dict(json.data)
+
+
+## The file contents of [param doc] before they are turned into JSON.
+static func to_dict(doc: SchematicDocument) -> Dictionary:
+	return {"format": FORMAT, "version": VERSION, "document": DocumentSerializer.to_dict(doc)}
+
+
+## Reads parsed file contents; see [method load_file].
+static func from_dict(data: Dictionary) -> Dictionary:
 	if data.get("format", "") != FORMAT:
 		return {"error": "%s is not a LadderLab file."}
 	var version: Variant = data.get("version", 0)

@@ -233,7 +233,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
-  ExampleCircuits, SheetLayout, PdfWriter) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
+  ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
@@ -262,7 +262,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP
   pixels, so a click never moves anything; parts are dragged from the state at the press
   (SchematicDocument.drag_start / drag_components), so wires are re-routed from their routes at
-  the press, never from those of an earlier mouse position. A re-routed wire (normalize_route)
+  the press, never from those of an earlier mouse position; turning or mirroring the parts
+  mid-drag takes a new drag start where they are (and ends a wire segment drag). A re-routed wire (normalize_route)
   never runs over itself, across the two symbols or over terminals of another net when a clean
   route exists. Branch dots join wires of one net only
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
@@ -280,6 +281,13 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION on
   format changes and keep older versions loading
+- Recovery (RecoveryFile, no nodes, in user://recovery): main.gd writes a copy of the edited
+  schematic and the file it came from after every edit (_mark_dirty; written to a .tmp first),
+  removed when it is saved, replaced (new, open, example) and on quit. Each run of the program is
+  a session with a copy of its own and an alive mark rewritten every RecoveryFile.BEAT seconds;
+  at start, copies of sessions not marked alive for STALE seconds (crashed, killed or still
+  frozen) are offered, the newest first: Restore (opened unsaved, Save writes to its file),
+  Discard, Later (offered again at the next start)
 - File association (FileAssociation): an exported Windows build registers .ladder for the current
   user (HKCU via `reg import`, redone only when the exe moved); a .ladder path among the
   command-line arguments is opened at start

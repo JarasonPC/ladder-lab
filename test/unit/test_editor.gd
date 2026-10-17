@@ -170,6 +170,33 @@ func test_rotate_selection_turns_component() -> void:
 	assert_true(editor.document().get_placement("H1").mirrored)
 
 
+func test_turning_parts_while_dragging_them_keeps_wires_straight() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_place({"type": "lamp"}, Vector2i(9, 4))
+	_wire([Vector2(5, 7), Vector2(5, 8), Vector2(9, 8), Vector2(9, 7)])
+	var doc: SchematicDocument = editor.document()
+	editor.selected_components["H1"] = true
+	editor.selected_components["H2"] = true
+	_at(Vector2(5, 5.5))
+	editor._on_left_pressed(false)
+	_at(Vector2(7, 5.5))
+	editor._on_mouse_moved()
+	editor.rotate_selection()
+	editor.mirror_selection()
+	editor.flip_selection()
+	# Moving on used to shift the wire between the two parts from its route at
+	# the press, which no longer fit the turned parts: a slanted segment that
+	# hung the program when its cells were walked.
+	for cell: Vector2 in [Vector2(8, 6.5), Vector2(7, 5.5), Vector2(5, 5.5), Vector2(4, 9.5)]:
+		_at(cell)
+		editor._on_mouse_moved()
+		var points: Array[Vector2i] = doc.wire_points(0)
+		for s: int in range(1, points.size()):
+			assert_true(points[s].x == points[s - 1].x or points[s].y == points[s - 1].y, "wire stays orthogonal at %s" % cell)
+	editor._on_left_released(false)
+	assert_eq(doc.get_placement("H1").rotation, 3, "turned and mirrored twice")
+
+
 func _press_key(code: Key) -> void:
 	var e: InputEventKey = InputEventKey.new()
 	e.keycode = code
