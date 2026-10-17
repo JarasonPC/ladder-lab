@@ -162,6 +162,12 @@ var _file_dialog: FileDialog
 var _unsaved_dialog: ConfirmationDialog
 var _discard_button: Button
 var _error_dialog: AcceptDialog
+## Offers back the unsaved changes of a LadderLab that did not close properly
+## (see [RecoveryFile]).
+var _recovery_dialog: ConfirmationDialog
+var _recovery_discard_button: Button
+## The recovery file offered in [member _recovery_dialog].
+var _recovery_path: String = ""
 
 
 func _ready() -> void:
@@ -232,6 +238,15 @@ func _ready() -> void:
 	var start_file: String = FileAssociation.file_from_args(OS.get_cmdline_args())
 	if not start_file.is_empty():
 		open_file(start_file)
+	# Marked alive while running, so another LadderLab started meanwhile does
+	# not offer this one's unsaved changes.
+	RecoveryFile.beat()
+	var heartbeat: Timer = Timer.new()
+	heartbeat.wait_time = RecoveryFile.BEAT
+	heartbeat.autostart = true
+	heartbeat.timeout.connect(func() -> void: RecoveryFile.beat())
+	add_child(heartbeat)
+	_offer_recovery()
 
 
 func _process(_delta: float) -> void:
@@ -247,7 +262,7 @@ func _process(_delta: float) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		_confirm_discard(func() -> void: get_tree().quit())
+		_confirm_discard(_quit)
 
 
 ## Space runs or pauses the simulation, unless a text field is being typed in
@@ -305,7 +320,7 @@ func _shortcut(event: InputEvent) -> bool:
 		KEY_N when ctrl:
 			_confirm_discard(_new_document)
 		KEY_Q when ctrl:
-			_confirm_discard(func() -> void: get_tree().quit())
+			_confirm_discard(_quit)
 		_:
 			handled = false
 	return handled
@@ -580,6 +595,14 @@ func _build_dialogs() -> void:
 	add_child(_export_preview)
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
+	_recovery_dialog = ConfirmationDialog.new()
+	_recovery_discard_button = _recovery_dialog.add_button("", true, "discard")
+	_recovery_dialog.confirmed.connect(_restore_recovery)
+	_recovery_dialog.custom_action.connect(func(_action: StringName) -> void:
+		_recovery_dialog.hide()
+		RecoveryFile.remove(_recovery_path)
+		_offer_recovery())
+	add_child(_recovery_dialog)
 	_rename_dialog = ConfirmationDialog.new()
 	_rename_field = LineEdit.new()
 	_rename_field.custom_minimum_size = Vector2(280, 0)
@@ -746,6 +769,10 @@ func _retranslate_dialogs() -> void:
 	_unsaved_dialog.cancel_button_text = tr("Cancel")
 	_discard_button.text = tr("Don't save")
 	_error_dialog.title = tr("Error")
+	_recovery_dialog.title = tr("Recover unsaved changes")
+	_recovery_dialog.ok_button_text = tr("Restore")
+	_recovery_dialog.cancel_button_text = tr("Later")
+	_recovery_discard_button.text = tr("Discard")
 	_rename_dialog.title = tr("Rename page")
 	_rename_dialog.ok_button_text = tr("Rename")
 	_rename_dialog.cancel_button_text = tr("Cancel")
@@ -1133,6 +1160,7 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 	_show_document(doc, true)
 	_file_path = path
 	_dirty = false
+	RecoveryFile.remove()
 	_update_title()
 
 
@@ -1174,6 +1202,9 @@ func _mark_dirty() -> void:
 	if not _dirty:
 		_dirty = true
 		_update_title()
+	# Kept after every edit, so a crash or freeze loses no more than the edit
+	# under way.
+	RecoveryFile.write(edit_doc, _file_path)
 	if _check_panel.visible:
 		_check_panel.run(edit_doc)
 
@@ -1281,12 +1312,52 @@ func _on_file_menu(id: int) -> void:
 		FileMenuId.TITLE_BLOCK:
 			_show_title_block_dialog()
 		FileMenuId.QUIT:
-			_confirm_discard(func() -> void: get_tree().quit())
+			_confirm_discard(_quit)
 
 
 func _on_recent_pressed(index: int) -> void:
 	var path: String = _recent[index]
 	_confirm_discard(func() -> void: open_file(path))
+
+
+## Quits; unsaved changes were saved or given up by then.
+func _quit() -> void:
+	RecoveryFile.forget()
+	get_tree().quit()
+
+
+## Offers the unsaved changes kept by a LadderLab that did not close properly
+## (crashed, froze or was killed; also one still frozen), the newest first.
+## "Later" keeps them for the next start.
+func _offer_recovery() -> void:
+	var found: PackedStringArray = RecoveryFile.orphans()
+	if found.is_empty():
+		return
+	_recovery_path = found[0]
+	var result: Dictionary = RecoveryFile.read(_recovery_path)
+	if result.has("error"):
+		RecoveryFile.remove(_recovery_path)
+		_offer_recovery()
+		return
+	var file: String = result["file"]
+	var name: String = file.get_file() if not file.is_empty() else tr("Untitled")
+	var bias: int = int(Time.get_time_zone_from_system().get("bias", 0)) * 60
+	var when: String = Time.get_datetime_string_from_unix_time(FileAccess.get_modified_time(_recovery_path) + bias, true)
+	_recovery_dialog.dialog_text = tr("LadderLab did not close properly. Restore the unsaved changes to %s from %s?") % [name, when]
+	_recovery_dialog.popup_centered()
+
+
+## Opens the offered recovery file as the edited schematic, with its changes
+## still unsaved (Save writes them to the file they were made to).
+func _restore_recovery() -> void:
+	var result: Dictionary = RecoveryFile.read(_recovery_path)
+	if result.has("error"):
+		_show_error(tr(result["error"]) % _recovery_path.get_file())
+		RecoveryFile.remove(_recovery_path)
+		return
+	_replace_document(result["document"], result["file"])
+	_mark_dirty()
+	RecoveryFile.remove(_recovery_path)
 
 
 ## Runs [param action] right away, or after asking what to do with unsaved
@@ -1371,6 +1442,7 @@ func save_file(path: String) -> bool:
 		return false
 	_file_path = path
 	_dirty = false
+	RecoveryFile.remove()
 	_remember_recent(path)
 	_update_title()
 	return true

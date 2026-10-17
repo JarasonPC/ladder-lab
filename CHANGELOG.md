@@ -11,10 +11,18 @@ What changed in each LadderLab version. Version numbers follow the rules in
   the right of their title), e.g. on a second monitor; closing the window puts them back beside
   the schematic
 
+### Files and export
+- Unsaved work is no longer lost when LadderLab crashes, freezes or is killed: a copy is kept
+  after every edit, and the next start offers to restore it (also while the frozen window is
+  still open); several LadderLab windows each keep their own copy
+
 ### Application
 - A tidier start: an empty page and the parts library only. The properties appear while
   something is selected; at the first start the control panel is off and the timing chart and
   event log are rolled in while simulating
+
+### Fixed
+- Turning or mirroring parts while dragging them could freeze the program
 
 ## 0.3.0 – 2026-10-17
 

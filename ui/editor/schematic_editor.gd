@@ -243,6 +243,7 @@ func rotate_selection() -> void:
 	_record()
 	for id: String in selected_components:
 		document().rotate_component(id)
+	_turned_while_dragging()
 	_changed()
 
 
@@ -259,6 +260,7 @@ func mirror_selection() -> void:
 	_record()
 	for id: String in selected_components:
 		document().mirror_component(id)
+	_turned_while_dragging()
 	_changed()
 
 
@@ -275,7 +277,21 @@ func flip_selection() -> void:
 	_record()
 	for id: String in selected_components:
 		document().flip_component(id)
+	_turned_while_dragging()
 	_changed()
+
+
+## The selection was turned or mirrored with the mouse button held: a drag of
+## parts goes on from where they are now and a wire segment drag ends, since
+## the routes they started from no longer fit the turned parts (a wire between
+## two dragged parts would be shifted along with a stale corner, leaving a
+## slanted segment).
+func _turned_while_dragging() -> void:
+	if _dragging and _drag_recorded:
+		_drag_start = document().drag_start(PackedStringArray(selected_components.keys()))
+		_press_point += Vector2(_drag_applied)
+		_drag_applied = Vector2i.ZERO
+	_wire_drag = -1
 
 
 ## Applies properties edited in the [PropertiesPanel]. Returns an error text,
