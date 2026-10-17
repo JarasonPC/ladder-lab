@@ -261,6 +261,11 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	elif c is Plc:
 		d["type"] = "plc"
 		d["program"] = (c as Plc).program.to_data()
+		if not (c as Plc).modules.is_empty():
+			var modules: Array[String] = []
+			for module: Plc.Module in (c as Plc).modules:
+				modules.append(Plc.MODULE_NAMES[module])
+			d["modules"] = modules
 	elif c is Lamp:
 		d["type"] = "lamp"
 		if not (c as Lamp).purpose.is_empty():
@@ -270,6 +275,22 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	if not c.custom_terminals.is_empty():
 		d["terminals"] = Array(c.custom_terminals)
 	return d
+
+
+## Expansion modules of a PLC from saved data: unknown ones are left out,
+## and those beyond what the PLC takes ([method Plc.modules_fit]).
+static func plc_modules(raw: Variant) -> Array[Plc.Module]:
+	var modules: Array[Plc.Module] = []
+	if not (raw is Array):
+		return modules
+	for name: Variant in raw:
+		var kind: int = Plc.MODULE_NAMES.find(str(name))
+		if kind < 0:
+			continue
+		modules.append(kind as Plc.Module)
+		if not Plc.modules_fit(modules):
+			modules.pop_back()
+	return modules
 
 
 ## Builds a component, or returns null for unknown or invalid data.
@@ -391,7 +412,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"rectifier":
 			return Rectifier.new(designation)
 		"plc":
-			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})))
+			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", [])))
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)
 			lamp.purpose = str(d.get("purpose", "")).strip_edges()

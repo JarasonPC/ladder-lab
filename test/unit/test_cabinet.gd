@@ -219,7 +219,7 @@ func test_plc() -> void:
 	assert_eq(plc["kind"], CabinetDevices.Kind.PLC)
 	assert_false(plc["powered"])
 	assert_eq(plc["terminals"]["Q4.2"], "A1:Q4.2")
-	assert_eq((plc["outputs"] as Array).size(), Plc.OUTPUTS)
+	assert_eq((plc["outputs"] as Array).size(), Plc.BASE_OUTPUTS)
 	var points: Dictionary = CabinetParts.terminal_points(CabinetDevices.Kind.PLC, plc)
 	assert_eq(points.size(), Plc.standard_terminal_names().size(), "a screw for every terminal")
 	for name: String in points:
@@ -230,6 +230,36 @@ func test_plc() -> void:
 	for item: CabinetItem in doc.cabinet_rails[0].items:
 		first.append(item.designation)
 	assert_eq(first, PackedStringArray(["FA1", "FU1", "KT1", "KA1", "TB1", "A1"]), "PLCs after the rectifiers")
+
+
+func test_plc_with_expansion_modules() -> void:
+	var doc: SchematicDocument = _doc()
+	var modules: Array[Plc.Module] = [Plc.Module.DI4_DQ4, Plc.Module.DI8_DQ8]
+	doc.add(Plc.new("A1", null, modules), Vector2i(100, 10))
+	var plc: Dictionary = CabinetDevices.describe(doc, "A1")
+	assert_eq(plc["modules"], ["4di4dq", "8di8dq"])
+	assert_eq((plc["inputs"] as Array).size(), 20)
+	assert_eq((plc["outputs"] as Array).size(), 16)
+	assert_eq(plc["terminals"]["3L1"], "A1:3L1")
+	var size: Vector2 = CabinetParts.plc_size(plc)
+	assert_eq(size, Vector2(CabinetParts.PLC.x + 36.0 + 72.0, CabinetParts.PLC.y), "two and four modules wide beside the PLC")
+	var points: Dictionary = CabinetParts.terminal_points(CabinetDevices.Kind.PLC, plc)
+	assert_eq(points.size(), Plc.standard_terminal_names(modules).size(), "a screw for every terminal")
+	var seen: Dictionary[Vector2, String] = {}
+	for name: String in points:
+		var at: Vector3 = points[name]
+		assert_true(Rect2(Vector2.ZERO, size).has_point(Vector2(at.x, at.y)), name)
+		assert_false(seen.has(Vector2(at.x, at.y)), "%s apart from %s" % [name, seen.get(Vector2(at.x, at.y), "")])
+		seen[Vector2(at.x, at.y)] = name
+	assert_true(points["2L1"].x > CabinetParts.PLC.x and points["2L1"].x < CabinetParts.PLC.x + 36.0, "the first module's supply on it")
+	assert_true(points["Q9.1"].x > CabinetParts.PLC.x + 36.0, "the second module's outputs on it")
+	assert_eq(points["Q4.2"], CabinetParts.terminal_points(CabinetDevices.Kind.PLC, CabinetDevices.describe(_plain_plc_doc(), "A1"))["Q4.2"], "the PLC's own screws stay where they were")
+
+
+func _plain_plc_doc() -> SchematicDocument:
+	var doc: SchematicDocument = _doc()
+	doc.add(Plc.new("A1"), Vector2i(100, 10))
+	return doc
 
 
 func test_plc_terminals_keep_their_marking_when_renamed() -> void:

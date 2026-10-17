@@ -62,8 +62,12 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 			# The PE terminal of the frame may stay open on the drawing.
 			keys = keys.slice(0, (c as ThreePhaseMotor).winding_terminal_count())
 		if c is Plc:
-			# Inputs and outputs the circuit does not use may stay open.
-			keys = keys.slice(0, 2)
+			# Inputs and outputs the circuit does not use may stay open, the
+			# supply of the PLC and of its expansion modules not.
+			var supply: PackedStringArray = keys.slice(0, 2)
+			for m: int in (c as Plc).modules.size():
+				supply.append_array(keys.slice((c as Plc).module_terminal(m), (c as Plc).module_terminal(m) + 2))
+			keys = supply
 		if c is TimerRelay and keys.size() > 2 and not TimerRelay.uses_control((c as TimerRelay).mode):
 			# The control input of a function that does not use it may stay open.
 			keys = keys.slice(0, 2)

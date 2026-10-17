@@ -8,7 +8,8 @@ extends Window
 ## In Edit mode the program is edited on a copy; every finished change goes
 ## to the schematic through [signal program_edited] (undoable there). The
 ## Simulation button tests the program on its own, as in the programming
-## software: a switch for each input I1-I8, a lamp for each output Q1-Q4, the
+## software: a switch for each input I1-I8, a lamp for each output Q1-Q4
+## (and those of the expansion modules), the
 ## time running; the diagram shows the signals while nothing can be edited.
 ## While the schematic is simulated it shows the running PLC (online view):
 ## the signals that are 1, the power flow, running times and counts.
@@ -48,6 +49,7 @@ var _sim_plc: Plc = null
 var _sim_time: float = 0.0
 var _sim_button: Button
 var _io_bar: PanelContainer
+var _io: HFlowContainer
 var _input_switches: Array[Button] = []
 var _output_lamps: Array[Panel] = []
 var _sim_clock: Label
@@ -110,7 +112,7 @@ func _process(delta: float) -> void:
 	_sim_plc.advance(delta)
 	_sim_plc.snap()
 	_sim_clock.text = "%.1f s" % _sim_time
-	for k: int in Plc.OUTPUTS:
+	for k: int in _output_lamps.size():
 		_light(_output_lamps[k], _sim_plc.output_on(k))
 	show_step()
 
@@ -211,31 +213,11 @@ func _build() -> void:
 	var io: HBoxContainer = HBoxContainer.new()
 	io.add_theme_constant_override("separation", 6)
 	_io_bar.add_child(io)
-	for k: int in Plc.INPUTS:
-		var switch: Button = Button.new()
-		switch.toggle_mode = true
-		switch.focus_mode = Control.FOCUS_NONE
-		switch.text = "I%d" % (k + 1)
-		switch.custom_minimum_size = Vector2(46, 34)
-		switch.toggled.connect(func(_on: bool) -> void: _feed_inputs())
-		io.add_child(switch)
-		_input_switches.append(switch)
-	io.add_child(VSeparator.new())
-	for k: int in Plc.OUTPUTS:
-		var lamp: Panel = Panel.new()
-		lamp.custom_minimum_size = Vector2(46, 34)
-		var name: Label = Label.new()
-		name.text = "Q%d" % (k + 1)
-		name.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		lamp.add_child(name)
-		io.add_child(lamp)
-		_output_lamps.append(lamp)
-		_light(lamp, false)
-	var spacer: Control = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	io.add_child(spacer)
+	_io = HFlowContainer.new()
+	_io.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_io.add_theme_constant_override("h_separation", 6)
+	_io.add_theme_constant_override("v_separation", 6)
+	io.add_child(_io)
 	_sim_clock = Label.new()
 	_sim_clock.theme_type_variation = "TimeLabel"
 	io.add_child(_sim_clock)
@@ -251,6 +233,42 @@ func _build() -> void:
 	var keys: KeyCatcher = KeyCatcher.new()
 	keys.window = self
 	add_child(keys)
+
+
+## A switch for each input and a lamp for each output of the PLC (with its
+## expansion modules), made again when their count changed.
+func _build_io() -> void:
+	var inputs: int = plc.input_count() if plc != null else Plc.BASE_INPUTS
+	var outputs: int = plc.output_count() if plc != null else Plc.BASE_OUTPUTS
+	if _input_switches.size() == inputs and _output_lamps.size() == outputs:
+		return
+	for child: Node in _io.get_children():
+		_io.remove_child(child)
+		child.queue_free()
+	_input_switches.clear()
+	_output_lamps.clear()
+	for k: int in inputs:
+		var switch: Button = Button.new()
+		switch.toggle_mode = true
+		switch.focus_mode = Control.FOCUS_NONE
+		switch.text = "I%d" % (k + 1)
+		switch.custom_minimum_size = Vector2(46, 34)
+		switch.toggled.connect(func(_on: bool) -> void: _feed_inputs())
+		_io.add_child(switch)
+		_input_switches.append(switch)
+	_io.add_child(VSeparator.new())
+	for k: int in outputs:
+		var lamp: Panel = Panel.new()
+		lamp.custom_minimum_size = Vector2(46, 34)
+		var name: Label = Label.new()
+		name.text = "Q%d" % (k + 1)
+		name.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lamp.add_child(name)
+		_io.add_child(lamp)
+		_output_lamps.append(lamp)
+		_light(lamp, false)
 
 
 func _canvas_scroll(canvas: PlcCanvas, parent: Control) -> ScrollContainer:
@@ -292,6 +310,7 @@ func _show() -> void:
 	_sim_button.set_pressed_no_signal(testing)
 	_sim_button.text = tr("Stop simulation") if testing else tr("Simulation")
 	_sim_button.tooltip_text = tr("Test the program on its own: switch the inputs and watch the outputs")
+	_build_io()
 	_io_bar.visible = testing
 	if monitoring:
 		_mode_label.text = tr("Online: the program running in the simulation (switch to Edit to change it)")
@@ -377,14 +396,14 @@ func _build_side() -> void:
 	if info.is_empty():
 		caption.text = tr("Properties")
 		_note(tr("Select a block or an element to see and set its operand, time or preset.") if _canvas() == _fbd else tr("Select a contact or coil to see and set its operand, time or preset."))
-		_note(tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals."))
+		_note(_io_note())
 		return
 	caption.text = tr(info["title"]) + ("  " + str(info["label"]) if not str(info.get("label", "")).is_empty() else "")
 	var canvas: PlcCanvas = _canvas()
 	if info.has("operand"):
 		_caption(tr("Operand"))
 		var option: OptionButton = OptionButton.new()
-		var choices: PackedStringArray = PlcProgram.operands(info["areas"])
+		var choices: PackedStringArray = _operand_choices(info["areas"], info["operand"])
 		for op: String in choices:
 			option.add_item(op)
 		option.select(choices.find(info["operand"]))
@@ -461,16 +480,39 @@ func _spin(value: float, low: float, high: float, step: float, on_change: Callab
 ## Starts ([param on]) or stops testing the program on its own.
 func _set_test_simulation(on: bool) -> void:
 	if on and not monitoring:
-		_sim_plc = Plc.new(component_id, _program.duplicate_program())
+		_sim_plc = Plc.new(component_id, _program.duplicate_program(), plc.modules if plc != null else [] as Array[Plc.Module])
 		_sim_time = 0.0
 		_canvas().tool = ""
-		_sim_plc.update(true, _input_bits())
+		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules())
 		_sim_plc.snap()
 	else:
 		_sim_plc = null
 		for switch: Button in _input_switches:
 			switch.set_pressed_no_signal(false)
 	_show()
+
+
+## Operands of [param areas] to choose from: the inputs and outputs the PLC
+## has (with its expansion modules), the others all; [param current] stays
+## among them.
+func _operand_choices(areas: String, current: String) -> PackedStringArray:
+	var inputs: int = plc.input_count() if plc != null else Plc.BASE_INPUTS
+	var outputs: int = plc.output_count() if plc != null else Plc.BASE_OUTPUTS
+	var choices: PackedStringArray = PackedStringArray()
+	for op: String in PlcProgram.operands(areas):
+		var n: int = PlcProgram.operand_index(op)
+		var fitted: bool = (op[0] != "I" or n < inputs) and (op[0] != "Q" or n < outputs)
+		if fitted or op == current:
+			choices.append(op)
+	return choices
+
+
+## What the inputs and outputs of the PLC are, for the hint in the side panel.
+func _io_note() -> String:
+	var note: String = tr("Inputs I1-I8 are on with voltage against N. Each output Q1-Q4 is a relay contact between its two terminals.")
+	if plc != null and not plc.modules.is_empty():
+		note += " " + tr("Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N.") % [plc.input_count(), plc.output_count()]
+	return note
 
 
 ## Bits of the input switches that are on.
@@ -484,7 +526,7 @@ func _input_bits() -> int:
 
 func _feed_inputs() -> void:
 	if _sim_plc != null:
-		_sim_plc.update(true, _input_bits())
+		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules())
 		_sim_plc.snap()
 		show_step()
 

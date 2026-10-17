@@ -23,7 +23,7 @@ extends RefCounted
 const MAX_SCANS: int = 32
 
 var program: PlcProgram
-## Process image of the inputs I1-I8 (1 = voltage on the input).
+## Process image of the inputs I1-I24 (1 = voltage on the input).
 var inputs: PackedByteArray = PackedByteArray()
 var outputs: PackedByteArray = PackedByteArray()
 var flags: PackedByteArray = PackedByteArray()

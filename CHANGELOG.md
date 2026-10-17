@@ -18,12 +18,18 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A breaker's rated current is chosen from the ratings sold: 2, 4, 6, 10, 13, 16, 20, 25, 32,
   40, 50 and 63 A
 - The breaker characteristics read as multiples of In (B: magnetic release 3-5x In)
+- The PLC takes expansion modules, as the real logic modules do: 4 inputs and 4 relay outputs
+  or 8 inputs and 8 relay outputs each, up to 24 inputs and 20 outputs in all. They are added
+  and taken off in the PLC's properties and drawn beside it, each with its own L1-N supply
 
 ### Simulation
+- Expansion modules work while their own supply has voltage; their inputs (I9…) and outputs
+  (Q5…) are used in the program like those of the PLC, and the PLC window tests them too
 - A tripped circuit breaker or overload relay stays hot and cools down slowly; switched on or
   reset too soon, it trips again sooner
 
 ### Panels
+- The switchboard shows the PLC's expansion modules clipped on beside it, wired like the rest
 - The switchboard prints each breaker's characteristic and rating (B2, C16, …)
 - Terminals can be moved along their terminal strip in the switchboard
 - The incoming supply lands on the supply's strip terminals

@@ -4,7 +4,8 @@ extends RefCounted
 ## ladder diagram (LAD), as in the programming software of small Siemens
 ## PLCs. Both are kept; [member language] tells which one the PLC runs.
 ##
-## Operands: inputs I1-I8, outputs Q1-Q4, flags M1-M16; the ladder diagram
+## Operands: inputs I1-I24, outputs Q1-Q20 (those beyond I8 and Q4 are on
+## the expansion modules of the [Plc]), flags M1-M16; the ladder diagram
 ## also has timers T1-T16 and counters C1-C16 (the function block diagram
 ## has its timers and counters in its blocks). Design data only: the
 ## [PlcRuntime] of the [Plc] runs it.
@@ -12,8 +13,9 @@ extends RefCounted
 enum Language { FBD, LAD }
 
 const LANGUAGE_NAMES: PackedStringArray = ["fbd", "lad"]
-## Count of each operand area.
-const AREA_SIZES: Dictionary[String, int] = {"I": 8, "Q": 4, "M": 16, "T": 16, "C": 16}
+## Count of each operand area (I and Q as [constant Plc.MAX_INPUTS] and
+## [constant Plc.MAX_OUTPUTS]).
+const AREA_SIZES: Dictionary[String, int] = {"I": 24, "Q": 20, "M": 16, "T": 16, "C": 16}
 ## Most blocks of a function block diagram.
 const MAX_BLOCKS: int = 200
 
@@ -34,7 +36,7 @@ static func valid_operand(operand: String, areas: String) -> bool:
 	return int(number) >= 1 and int(number) <= AREA_SIZES[area]
 
 
-## Every operand of [param areas], in order: "I1".."I8", "Q1"...
+## Every operand of [param areas], in order: "I1".."I24", "Q1"...
 static func operands(areas: String) -> PackedStringArray:
 	var result: PackedStringArray = PackedStringArray()
 	for area: String in areas:

@@ -70,8 +70,8 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 			for wire: PackedStringArray in doc.circuit.get_wires():
 				wired[wire[0]] = true
 				wired[wire[1]] = true
-			for k: int in Plc.OUTPUTS:
-				var t: int = Plc.output_terminal(k)
+			for k: int in (c as Plc).output_count():
+				var t: int = (c as Plc).output_terminal(k)
 				if wired.has(keys[t]) or wired.has(keys[t + 1]):
 					_rows.append({"label": "%s Q%d" % [c.designation, k + 1], "band": "", "line": "%s/Q%d" % [c.designation, k + 1], "step": ""})
 	for c: CircuitComponent in doc.circuit.get_components():

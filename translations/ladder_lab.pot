@@ -1434,6 +1434,42 @@ msgstr ""
 msgid "%s: output Q%d off"
 msgstr ""
 
+msgid "Expansion modules"
+msgstr ""
+
+msgid "None: inputs I1-I8, outputs Q1-Q4"
+msgstr ""
+
+msgid "Add module"
+msgstr ""
+
+msgid "Clips one more module on to the right (up to 24 inputs and 20 outputs in all)"
+msgstr ""
+
+msgid "Remove last"
+msgstr ""
+
+msgid "Takes off the module on the far right; wires on its terminals go with it"
+msgstr ""
+
+msgid "4 inputs, 4 relay outputs"
+msgstr ""
+
+msgid "8 inputs, 8 relay outputs"
+msgstr ""
+
+#, c-format
+msgid "Expansion modules: inputs I9-I%d and outputs Q5-Q%d, each module working while its own L1-N has voltage; its inputs are on with voltage against its own N."
+msgstr ""
+
+#, c-format
+msgid "%s: expansion module %d switched on"
+msgstr ""
+
+#, c-format
+msgid "%s: expansion module %d switched off"
+msgstr ""
+
 msgid "The PLC runs the program shown here."
 msgstr ""
 

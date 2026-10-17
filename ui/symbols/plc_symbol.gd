@@ -4,10 +4,12 @@ extends SchematicSymbol
 ## and the relay outputs Q1-Q4 below, each drawn as the NO contact it closes
 ## between its two terminals (moving with the output relay). A small square
 ## under each input lights up while the input is on; the display in the
-## middle is filled while the PLC has power (RUN).
+## middle is filled while the PLC has power (RUN). Expansion modules follow
+## on the right, a box each joined to the one before it, with their supply,
+## inputs and outputs drawn alike and a window filled while they work.
 
 const G2: float = SymbolGeometry.POLE_SPACING * G
-const BOX := Rect2(-G, G, 20.0 * G, (SymbolGeometry.PLC_HEIGHT - 2) * G)
+const BOX := Rect2(-G, G, SymbolGeometry.PLC_WIDTH * G, (SymbolGeometry.PLC_HEIGHT - 2) * G)
 const DISPLAY := Rect2(7.0 * G, 2.0 * G, 6.0 * G, 1.2 * G)
 ## Height of the output contacts.
 const CONTACT_Y: float = 4.3 * G
@@ -15,25 +17,38 @@ const CONTACT_Y: float = 4.3 * G
 
 func _draw_shape(color: Color, width: float) -> void:
 	var plc: Plc = component as Plc
-	var top: int = Plc.output_terminal(0)
-	for i: int in top:
-		aa_line(Vector2(i * G2, 0), Vector2(i * G2, BOX.position.y), lead_color(i), lead_width(i))
+	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(plc)
+	for i: int in cells.size():
+		if cells[i].y == 0:
+			var x: float = cells[i].x * G
+			aa_line(Vector2(x, 0), Vector2(x, BOX.position.y), lead_color(i), lead_width(i))
 	aa_rect(BOX, color, false, width)
+	for m: int in plc.modules.size():
+		var box: Rect2 = module_box(plc, m)
+		aa_rect(box, color, false, width)
+		# The plug joining it to the module before it.
+		var plug: Rect2 = Rect2(box.position.x - SymbolGeometry.PLC_MODULE_GAP * G, box.get_center().y - 0.3 * G, SymbolGeometry.PLC_MODULE_GAP * G, 0.6 * G)
+		aa_rect(plug, color, false, 1.0)
+		var window: Rect2 = module_window(plc, m)
+		if plc.module_on(m):
+			aa_rect(window, SchematicTheme.COIL_ON)
+		aa_rect(window, color, false, 1.2)
 	# Input lights.
-	for k: int in Plc.INPUTS:
-		var x: float = Plc.input_terminal(k) * G2
+	for k: int in plc.input_count():
+		var x: float = cells[plc.input_terminal(k)].x * G
 		var light: Rect2 = Rect2(x - 4.0, BOX.position.y + 5.0, 8.0, 6.0)
-		if plc.energized and plc.input_on(k):
+		var m: int = plc.input_module(k)
+		if plc.energized and plc.input_on(k) and (m < 0 or plc.module_on(m)):
 			aa_rect(light, SchematicTheme.COIL_ON)
 		aa_rect(light, color, false, 1.0)
 	if plc.energized:
 		aa_rect(DISPLAY, SchematicTheme.COIL_ON)
 	aa_rect(DISPLAY, color, false, 1.2)
 	# Outputs: a lead up from each terminal, the NO contact across.
-	for k: int in Plc.OUTPUTS:
-		var cell_a: Vector2 = Vector2(SymbolGeometry.plc_terminal_cell(Plc.output_terminal(k))) * G
-		var cell_b: Vector2 = Vector2(SymbolGeometry.plc_terminal_cell(Plc.output_terminal(k) + 1)) * G
-		var a: int = Plc.output_terminal(k)
+	for k: int in plc.output_count():
+		var a: int = plc.output_terminal(k)
+		var cell_a: Vector2 = Vector2(cells[a]) * G
+		var cell_b: Vector2 = Vector2(cells[a + 1]) * G
 		aa_line(cell_a, Vector2(cell_a.x, CONTACT_Y), lead_color(a), lead_width(a))
 		aa_line(cell_b, Vector2(cell_b.x, CONTACT_Y), lead_color(a + 1), lead_width(a + 1))
 		var pivot: Vector2 = Vector2(cell_a.x + 9.0, CONTACT_Y)
@@ -45,18 +60,35 @@ func _draw_shape(color: Color, width: float) -> void:
 		draw_blade(pivot, tip, color, width)
 
 
+## Box of expansion module [param m] (local pixels).
+static func module_box(plc: Plc, m: int) -> Rect2:
+	var left: float = (SymbolGeometry.plc_module_origins(plc)[m + 1] - 1) * G
+	return Rect2(left, BOX.position.y, SymbolGeometry.plc_module_width(plc.modules[m]) * G, BOX.size.y)
+
+
+## Window of expansion module [param m] with its inputs and outputs written
+## in it, filled while the module works.
+static func module_window(plc: Plc, m: int) -> Rect2:
+	var box: Rect2 = module_box(plc, m)
+	return Rect2(box.get_center().x - 3.0 * G, DISPLAY.position.y, 6.0 * G, DISPLAY.size.y)
+
+
 func _draw_labels() -> void:
 	draw_label(designation_text(), Vector2(-1.4 * G, 3.0 * G), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	var plc: Plc = component as Plc
 	var names: PackedStringArray = component.get_terminal_names()
+	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(plc)
 	for i: int in names.size():
-		var cell: Vector2 = Vector2(SymbolGeometry.plc_terminal_cell(i))
+		var cell: Vector2 = Vector2(cells[i])
 		var y: float = 0.5 * G if cell.y == 0.0 else (SymbolGeometry.PLC_HEIGHT - 0.5) * G
 		draw_label(names[i], Vector2(cell.x * G + 0.3 * G, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	var display: String = "PLC  RUN" if plc.energized else "PLC  " + ("LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD")
 	_centered(display, DISPLAY.get_center(), 11, SchematicTheme.TEXT)
-	for k: int in Plc.OUTPUTS:
-		var cell_a: Vector2 = Vector2(SymbolGeometry.plc_terminal_cell(Plc.output_terminal(k))) * G
+	for m: int in plc.modules.size():
+		var module: Plc.Module = plc.modules[m]
+		_centered("%d DI  %d DQ" % [Plc.MODULE_INPUTS[module], Plc.MODULE_OUTPUTS[module]], module_window(plc, m).get_center(), 11, SchematicTheme.TEXT)
+	for k: int in plc.output_count():
+		var cell_a: Vector2 = Vector2(cells[plc.output_terminal(k)]) * G
 		_centered("Q%d" % (k + 1), Vector2(cell_a.x + G, CONTACT_Y - 0.9 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT)
 
 
