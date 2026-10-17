@@ -15,6 +15,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Right click on a terminal of a part adds or removes its strip terminal
 - Strip terminals of other strips than X1 show the strip above their number, so neighbouring
   terminals stay readable
+- A breaker's rated current is chosen from the ratings sold: 2, 4, 6, 10, 13, 16, 20, 25, 32,
+  40, 50 and 63 A
 
 ### Simulation
 - A tripped circuit breaker or overload relay stays hot and cools down slowly; switched on or

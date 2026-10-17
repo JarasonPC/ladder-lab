@@ -280,7 +280,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   simulation-only state (never saved). Overcurrent: every fuse, breaker and 3-pole overload
   relay has rated_current (relay: setting Ir) and TripCurve heat (simulation state): progress +=
   dt / trip time of the curve (breakers B/C/D thermal per ČSN EN 60898 with magnetic release at
-  5/10/20 In tripping at once; fuses gG; overload relays class 10), cooling below the lowest
+  5/10/20 In tripping at once, rated current chosen from CircuitBreaker.STANDARD_RATINGS
+  2-63 A as sold; fuses gG; overload relays class 10), cooling below the lowest
   point; a trip keeps the heat, which cools down from there (a breaker switched on or an
   overload relay reset while still hot trips sooner; a replaced fuse is cold); CircuitComponent.heat_up / time_to_heat_trip / trips_instantly, driven by the
   Simulator with the path currents of the last evaluation (event-driven in REALISTIC). Breakers

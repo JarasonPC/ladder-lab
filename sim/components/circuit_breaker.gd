@@ -9,6 +9,8 @@ extends ProtectiveDevice
 enum Characteristic { B, C, D }
 
 const DEFAULT_RATED_CURRENT: float = 6.0
+## Rated currents breakers are sold in, amperes (offered in the properties).
+const STANDARD_RATINGS: Array[float] = [2.0, 4.0, 6.0, 10.0, 13.0, 16.0, 20.0, 25.0, 32.0, 40.0, 50.0, 63.0]
 
 var switched_on: bool = false
 var characteristic: Characteristic = Characteristic.C
