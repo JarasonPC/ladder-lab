@@ -7,9 +7,11 @@ extends PanelContainer
 ## colour, plate text and a signal lamp inside it (illuminated button). Every change is emitted as
 ## one undoable edit of the document (see [method SchematicEditor.edit_control_panel]).
 
-## A push button was pressed (true) or let go (false) on a control box.
 ## The title was clicked: the panel rolls in to a tab.
 signal roll_in_requested
+## The window button was clicked: the panel moves to a window of its own.
+signal window_requested
+## A push button was pressed (true) or let go (false) on a control box.
 signal button_held(designation: String, pressed: bool)
 ## A switch was turned over on a control box.
 signal switch_toggled(designation: String)
@@ -24,6 +26,14 @@ var _editing: bool = false
 var _selected_box: int = -1
 var _selected_item: int = -1
 var _title: Button
+var _header: HBoxContainer
+var _window_button: Button
+## Shown in a window of its own ([PanelWindow]): no title row, the window has it.
+var in_window: bool = false:
+	set(value):
+		in_window = value
+		if _header != null:
+			_header.visible = not value
 var _list: VBoxContainer
 var _views: Array[ControlBoxView] = []
 var _rebuild_queued: bool = false
@@ -38,8 +48,16 @@ func _ready() -> void:
 	# The title rolls the panel in to a tab (see [member SideBar.rolled]).
 	_title = TimingPanel.rollout_button()
 	_title.icon = AppTheme.icon("chevron_down", 16)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.pressed.connect(func() -> void: roll_in_requested.emit())
-	outer.add_child(_title)
+	_header = HBoxContainer.new()
+	_header.add_theme_constant_override("separation", 2)
+	_header.visible = not in_window
+	_header.add_child(_title)
+	_window_button = _tool("window", "")
+	_window_button.pressed.connect(func() -> void: window_requested.emit())
+	_header.add_child(_window_button)
+	outer.add_child(_header)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -100,6 +118,7 @@ func _rebuild() -> void:
 	_views.clear()
 	_title.text = tr("Control panel")
 	_title.tooltip_text = tr("Roll the panel in")
+	_window_button.tooltip_text = tr("Open in a new window")
 	if _document == null:
 		return
 	if _document.control_boxes.is_empty():

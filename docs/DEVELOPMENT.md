@@ -57,8 +57,16 @@ Architecture and conventions of the code base. Read this before changing the cod
   SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
   so text stays sharp); the control panel and the switchboard roll in to a narrow tab with their
   title by a click on the title (SideBar.rolled, saved), a click on the tab rolls them out; the
+  window button beside their title moves them into a window of their own (PanelWindow: the panel
+  itself leaves its SideBar, SideBar.detach / attach, the bar stays hidden; closing the window or
+  turning the panel off puts it back; keys it does not use go to main.gd's shortcuts); the
   palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved); the timing panel is resized by its top edge and the grip before the
   event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
+- The program starts with as little as possible: an empty schematic of one page (no example
+  loaded; the example list reads "Example circuits…") and the palette; the properties panel
+  (with the check results) shows in Edit mode only while something is selected or the check
+  results are shown; by default (no settings saved yet) the control panel and the switchboard
+  are off and the timing chart and event log rolled in
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,

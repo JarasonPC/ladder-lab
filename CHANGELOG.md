@@ -6,6 +6,16 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Panels
+- The control panel and the switchboard open in a window of their own (the window button at
+  the right of their title), e.g. on a second monitor; closing the window puts them back beside
+  the schematic
+
+### Application
+- A tidier start: an empty page and the parts library only. The properties appear while
+  something is selected; at the first start the control panel is off and the timing chart and
+  event log are rolled in while simulating
+
 ## 0.3.0 – 2026-10-17
 
 ### Simulation

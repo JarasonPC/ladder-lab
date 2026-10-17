@@ -8,9 +8,11 @@ extends PanelContainer
 ## are added and filled here; every change is emitted as one undoable edit
 ## of the document (see [method SchematicEditor.edit_cabinet]).
 
-## A breaker, fuse holder or overload relay was clicked while simulating.
 ## The title was clicked: the panel rolls in to a tab.
 signal roll_in_requested
+## The window button was clicked: the panel moves to a window of its own.
+signal window_requested
+## A breaker, fuse holder or overload relay was clicked while simulating.
 signal operate_requested(designation: String)
 ## A change of the switchboard: [param change] is called with the document.
 signal edit_requested(change: Callable)
@@ -24,6 +26,14 @@ var _selected: Vector2i = Vector2i(-1, -1)
 ## Terminals (by label) of the selected terminal strip picked to move to another strip.
 var _picked: Dictionary[String, bool] = {}
 var _title: Button
+var _header: HBoxContainer
+var _window_button: Button
+## Shown in a window of its own ([PanelWindow]): no title row, the window has it.
+var in_window: bool = false:
+	set(value):
+		in_window = value
+		if _header != null:
+			_header.visible = not value
 var _list: VBoxContainer
 var _view: CabinetView
 ## Scrolls the zoomed switchboard sideways.
@@ -40,8 +50,16 @@ func _ready() -> void:
 	# The title rolls the panel in to a tab (see [member SideBar.rolled]).
 	_title = TimingPanel.rollout_button()
 	_title.icon = AppTheme.icon("chevron_down", 16)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title.pressed.connect(func() -> void: roll_in_requested.emit())
-	outer.add_child(_title)
+	_header = HBoxContainer.new()
+	_header.add_theme_constant_override("separation", 2)
+	_header.visible = not in_window
+	_header.add_child(_title)
+	_window_button = _tool("window", "")
+	_window_button.pressed.connect(func() -> void: window_requested.emit())
+	_header.add_child(_window_button)
+	outer.add_child(_header)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -116,6 +134,7 @@ func _rebuild() -> void:
 		child.queue_free()
 	_title.text = tr("Switchboard")
 	_title.tooltip_text = tr("Roll the panel in")
+	_window_button.tooltip_text = tr("Open in a new window")
 	if _document == null:
 		return
 	if _selected.x >= _document.cabinet_rails.size() or (_selected.x >= 0 and _selected.y >= _document.cabinet_rails[_selected.x].items.size()):

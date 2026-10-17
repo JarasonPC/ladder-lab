@@ -130,7 +130,7 @@ var _properties: PropertiesPanel
 ## Control boxes with the buttons, switches and lamps (both modes).
 var _control_panel: ControlPanel
 var _panel_toggle: Button
-var _show_control_panel: bool = true
+var _show_control_panel: bool = false
 ## Switchboard with the DIN rails (both modes).
 var _cabinet_panel: CabinetPanel
 var _cabinet_bar: SideBar
@@ -141,8 +141,8 @@ var _status_label: Label
 var _hint_label: Label
 var _editor_hint: String = ""
 ## Timing chart and event log rolled out in Simulate mode (remembered).
-var _show_chart: bool = true
-var _show_log: bool = true
+var _show_chart: bool = false
+var _show_log: bool = false
 var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
 ## Keep the schematic on white paper in the dark theme.
 var _white_paper: bool = false
@@ -211,11 +211,13 @@ func _ready() -> void:
 	_control_panel.edit_requested.connect(editor.edit_control_panel)
 	_control_panel.button_held.connect(view.hold_button)
 	_control_panel.switch_toggled.connect(view.toggle_switch)
+	_control_panel.window_requested.connect(func() -> void: open_panel_window(_control_bar))
 	view.loaded.connect(func() -> void: _cabinet_panel.set_document(view.document, mode == Mode.EDIT))
 	view.stepped.connect(_cabinet_panel.show_step)
 	editor.edited.connect(_cabinet_panel.refresh)
 	_cabinet_panel.edit_requested.connect(editor.edit_cabinet)
 	_cabinet_panel.operate_requested.connect(view.operate_device)
+	_cabinet_panel.window_requested.connect(func() -> void: open_panel_window(_cabinet_bar))
 	editor.plc_requested.connect(open_plc_window)
 	view.plc_requested.connect(open_plc_window)
 	_properties.plc_requested.connect(open_plc_window)
@@ -225,7 +227,7 @@ func _ready() -> void:
 		for window: PlcWindow in _plc_windows():
 			window.show_step())
 	editor.active = true
-	_load_example()
+	_start_blank()
 	# A schematic double-clicked in the file manager comes as an argument.
 	var start_file: String = FileAssociation.file_from_args(OS.get_cmdline_args())
 	if not start_file.is_empty():
@@ -240,6 +242,7 @@ func _process(_delta: float) -> void:
 	_mirror_button.disabled = _rotate_button.disabled
 	_flip_button.disabled = _rotate_button.disabled
 	_delete_button.disabled = not has_selection and editor.selected_wires.is_empty()
+	_update_side_bar()
 
 
 func _notification(what: int) -> void:
@@ -677,6 +680,8 @@ func _retranslate() -> void:
 	_circuit_select.tooltip_text = tr("Example circuit")
 	for i: int in ExampleCircuits.count():
 		_circuit_select.set_item_text(i, tr(ExampleCircuits.TITLES[i]))
+	if _circuit_select.selected < 0:
+		_circuit_select.text = tr("Example circuits…")
 	_layout_select.tooltip_text = tr("Direction of the current paths")
 	_layout_select.set_item_text(0, tr("Vertical"))
 	_layout_select.set_item_text(1, tr("Horizontal"))
@@ -721,6 +726,8 @@ func _retranslate() -> void:
 	_cabinet_panel.retranslate()
 	_control_bar.title = tr("Control panel")
 	_cabinet_bar.title = tr("Switchboard")
+	for window: PanelWindow in _panel_windows():
+		window.retranslate()
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
@@ -947,6 +954,8 @@ func _apply_ui_scale() -> void:
 		window.content_scale_factor = factor
 	for window: PlcWindow in _plc_windows():
 		window.content_scale_factor = factor
+	for window: PanelWindow in _panel_windows():
+		window.content_scale_factor = factor
 
 
 ## Puts [param content] into a resizable, zoomable [SideBar] added to
@@ -968,7 +977,9 @@ func _side_panel(parent: Control, content: Control, key: String, grip_left: bool
 func _set_control_panel(on: bool) -> void:
 	_show_control_panel = on
 	_panel_toggle.set_pressed_no_signal(on)
-	_control_bar.visible = on
+	if not on:
+		_close_panel_window(_control_bar)
+	_update_panel_bars()
 	_save_settings()
 	_fit_camera_later()
 
@@ -976,9 +987,24 @@ func _set_control_panel(on: bool) -> void:
 func _set_cabinet(on: bool) -> void:
 	_show_cabinet = on
 	_cabinet_toggle.set_pressed_no_signal(on)
-	_cabinet_bar.visible = on
+	if not on:
+		_close_panel_window(_cabinet_bar)
+	_update_panel_bars()
 	_save_settings()
 	_fit_camera_later()
+
+
+## The control panel and the switchboard beside the schematic: shown when
+## turned on and not moved to a window of their own.
+func _update_panel_bars() -> void:
+	_control_bar.visible = _show_control_panel and not _control_bar.detached
+	_cabinet_bar.visible = _show_cabinet and not _cabinet_bar.detached
+
+
+## The properties (and check results) beside the schematic: only in Edit
+## mode while something is selected or the check results are shown.
+func _update_side_bar() -> void:
+	_side_bar.visible = mode == Mode.EDIT and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible)
 
 
 ## Shows the simulation as currents ([param on]) or as voltages.
@@ -1017,9 +1043,8 @@ func _update_mode_ui() -> void:
 	_view_select.select(1 if _current_view else 0)
 	_edit_tools.visible = editing
 	_palette_bar.visible = editing
-	_side_bar.visible = editing
-	_control_bar.visible = _show_control_panel
-	_cabinet_bar.visible = _show_cabinet
+	_update_side_bar()
+	_update_panel_bars()
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
@@ -1111,6 +1136,14 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 	_update_title()
 
 
+## An empty schematic of one page, as the program starts.
+func _start_blank() -> void:
+	_example_index = -1
+	_circuit_select.select(-1)
+	_circuit_select.text = tr("Example circuits…")
+	_replace_document(SchematicDocument.new(tr("New schematic")), "")
+
+
 func _load_example() -> void:
 	_example_index = _circuit_select.selected
 	_replace_document(ExampleCircuits.build(_example_index, _layout_select.selected == 1), "")
@@ -1148,6 +1181,9 @@ func _mark_dirty() -> void:
 func _fit_camera() -> void:
 	# Path numbers are drawn outside the bounds, above or left of the drawing.
 	var b: Rect2 = view.document.bounds().grow_individual(2.5, 2.5, 0.0, 0.0)
+	if view.document.components_on_page(-1).is_empty():
+		# An empty page: the top left part of the paper, where drawing starts.
+		b = Rect2(-2.5, -2.5, 32.0, 20.0)
 	camera.fit(Rect2(b.position * SymbolGeometry.GRID, b.size * SymbolGeometry.GRID), _canvas_area.get_global_rect())
 
 
@@ -1584,6 +1620,33 @@ func open_page_window(index: int) -> PageWindow:
 	return window
 
 
+## Moves the panel of [param bar] (the control panel or the switchboard) into
+## a window of its own, or brings its window to the front; closing the window
+## puts the panel back beside the schematic. Returns the window.
+func open_panel_window(bar: SideBar) -> PanelWindow:
+	for open: PanelWindow in _panel_windows():
+		if open.bar == bar:
+			open.grab_focus()
+			return open
+	var window: PanelWindow = PanelWindow.new(bar, Vector2(960, 760) if bar == _cabinet_bar else Vector2(480, 680))
+	window.content_scale_factor = get_window().content_scale_factor
+	window.key_pressed.connect(_on_window_key)
+	window.closing.connect(func() -> void:
+		bar.content.set("in_window", false)
+		_update_panel_bars())
+	add_child(window)
+	bar.content.set("in_window", true)
+	_update_panel_bars()
+	return window
+
+
+## Puts the panel of [param bar] back from its window, if it has one.
+func _close_panel_window(bar: SideBar) -> void:
+	for window: PanelWindow in _panel_windows():
+		if window.bar == bar:
+			window.put_back()
+
+
 ## Opens the program of PLC [param component_id] in its window (or brings
 ## its window to the front): editable in Edit mode, running while simulating.
 func open_plc_window(component_id: String) -> PlcWindow:
@@ -1640,6 +1703,15 @@ func _plc_windows() -> Array[PlcWindow]:
 	return windows
 
 
+## The panel windows that are open.
+func _panel_windows() -> Array[PanelWindow]:
+	var windows: Array[PanelWindow] = []
+	for child: Node in get_children():
+		if child is PanelWindow and not child.is_queued_for_deletion():
+			windows.append(child as PanelWindow)
+	return windows
+
+
 ## The page windows that are open.
 func _page_windows() -> Array[PageWindow]:
 	var windows: Array[PageWindow] = []
@@ -1681,8 +1753,8 @@ func _load_settings() -> void:
 	var config: ConfigFile = ConfigFile.new()
 	if config.load(SETTINGS_PATH) == OK:
 		_recent = config.get_value("files", "recent", PackedStringArray())
-		_show_chart = config.get_value("view", "timing_chart", true)
-		_show_log = config.get_value("view", "event_log", true)
+		_show_chart = config.get_value("view", "timing_chart", false)
+		_show_log = config.get_value("view", "event_log", false)
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
 		_white_paper = bool(config.get_value("view", "white_paper", false))
 		_edit_grid = bool(config.get_value("view", "grid", false))
@@ -1690,7 +1762,7 @@ func _load_settings() -> void:
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
 		_current_view = bool(config.get_value("view", "current_view", false))
-		_show_control_panel = bool(config.get_value("view", "control_panel", true))
+		_show_control_panel = bool(config.get_value("view", "control_panel", false))
 		_show_cabinet = bool(config.get_value("view", "cabinet", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
 		for key: String in ["palette", "properties", "control_panel"]:
