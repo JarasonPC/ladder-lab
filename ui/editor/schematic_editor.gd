@@ -29,7 +29,7 @@ enum Tool { SELECT, PLACE, WIRE }
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, GO_TO = 100 }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 
@@ -83,6 +83,8 @@ var _inline_target: Dictionary = {}
 var _inline_layer: CanvasLayer = null
 ## The marking clicked last, highlighted: {"component": id, "kind": ..., "index": ...}.
 var selected_marking: Dictionary = {}
+## Lead terminal the context menu was opened on (see [method _strip_place_at]).
+var _menu_strip: Dictionary = {}
 ## Dragging the selected marking.
 var _marking_drag: bool = false
 var _marking_drag_origin: Vector2 = Vector2.ZERO
@@ -589,7 +591,10 @@ func _on_key(key: InputEventKey) -> void:
 
 func _open_context_menu() -> void:
 	var doc: SchematicDocument = document()
+	var strip: Dictionary = _strip_place_at(_mouse_point)
 	var hit: CircuitComponent = doc.component_at(_mouse_point)
+	if hit == null and not strip.is_empty():
+		hit = doc.circuit.get_component(strip["component"])
 	if hit != null and not selected_components.has(hit.id):
 		_clear_selection()
 		selected_components[hit.id] = true
@@ -605,6 +610,15 @@ func _open_context_menu() -> void:
 		for i: int in _go_to_targets.size():
 			var target: Dictionary = _go_to_targets[i]
 			_menu.add_item(tr("Go to page %d (%s)") % [target["page"] + 1, tr(doc.page_name(target["page"], tr("Page %d")))], MenuId.GO_TO + i)
+		_menu.add_separator()
+	_menu_strip = strip
+	if not strip.is_empty():
+		# A terminal of a terminal strip on this lead: add or remove it.
+		var label: String = doc.get_placement(strip["component"]).strips.get(strip["index"], "")
+		if label.is_empty():
+			_menu.add_item(tr("Add a strip terminal here"), MenuId.ADD_STRIP)
+		else:
+			_menu.add_item(tr("Remove strip terminal %s") % label, MenuId.REMOVE_STRIP)
 		_menu.add_separator()
 	if hit != null and selected_components.size() == 1:
 		_change_options = type_options(hit)
@@ -653,6 +667,28 @@ func _on_menu_id(id: int) -> void:
 			delete_selection()
 		MenuId.SELECT_ALL:
 			select_all()
+		MenuId.ADD_STRIP, MenuId.REMOVE_STRIP:
+			if _menu_strip.is_empty() or not document().circuit.has_component_id(_menu_strip["component"]):
+				return
+			_record()
+			var label: String = document().next_strip_label() if id == MenuId.ADD_STRIP else ""
+			document().set_strip_terminal(_menu_strip["component"], _menu_strip["index"], label)
+			selected_marking = {}
+			_changed()
+
+
+## The lead terminal at [param point] that can carry a strip terminal (or
+## whose strip terminal label is there): {"component": id, "index": i}, or {}.
+func _strip_place_at(point: Vector2) -> Dictionary:
+	var marking: Dictionary = _marking_at(point)
+	if not marking.is_empty() and marking["kind"] == "strip":
+		return {"component": marking["component"], "index": marking["index"]}
+	var doc: SchematicDocument = document()
+	var key: String = doc.terminal_at(point, 0.3)
+	var owner: CircuitComponent = doc.circuit.get_terminal_owner(key) if not key.is_empty() else null
+	if owner == null or owner is Junction or owner is TerminalBlock or owner is PageConnector:
+		return {}
+	return {"component": owner.id, "index": Array(owner.get_terminal_keys()).find(key)}
 
 
 func _update_mouse() -> void:
@@ -813,7 +849,7 @@ func _place_at(cell: Vector2i) -> void:
 		# On a component's lead the terminal takes the place of its square.
 		var key: String = doc.terminal_at(Vector2(cell), 0.3)
 		var owner: CircuitComponent = doc.circuit.get_terminal_owner(key) if not key.is_empty() else null
-		if owner != null and not (owner is Junction or owner is TerminalBlock or owner is PowerSupply):
+		if owner != null and not (owner is Junction or owner is TerminalBlock or owner is PageConnector):
 			var index: int = Array(owner.get_terminal_keys()).find(key)
 			if not doc.get_placement(owner.id).strips.has(index):
 				_record()
@@ -1196,7 +1232,7 @@ func _marking_at(point: Vector2) -> Dictionary:
 
 
 func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
-	if c is Junction or c is PowerSupply or kind == "plate":
+	if c is Junction or (c is PowerSupply and kind != "strip") or kind == "plate":
 		return false
 	var text: String = c.designation
 	match kind:

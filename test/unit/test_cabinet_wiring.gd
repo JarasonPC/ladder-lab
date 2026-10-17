@@ -2,6 +2,8 @@ extends GutTest
 ## Wiring of the switchboard (rozvaděč): the conductor each net is wired
 ## with and the wires led from terminal to terminal through the ducts.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 
 
@@ -132,7 +134,7 @@ func test_power_wire_between_rails_takes_a_side_duct() -> void:
 
 
 func test_wires_go_beside_the_overload_relay() -> void:
-	var doc: SchematicDocument = ExampleCircuits.build(9)
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(9))
 	if doc.cabinet_rails.is_empty():
 		doc.fill_cabinet()
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
@@ -256,7 +258,7 @@ func test_field_cables_leave_through_the_bottom() -> void:
 
 
 func test_plc_example_is_wired() -> void:
-	var doc: SchematicDocument = ExampleCircuits.build(14)
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(14))
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	var kinds: Array = []
 	for place: Dictionary in layout.places:
@@ -268,3 +270,17 @@ func test_plc_example_is_wired() -> void:
 		if str(wire["from"]).begins_with("A1:") or str(wire["to"]).begins_with("A1:"):
 			to_plc = true
 	assert_true(to_plc, "the fuse feeds the PLC in the switchboard")
+
+
+func test_supply_lands_on_the_strip_terminal_of_its_supply_point() -> void:
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(7))
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var cores: Dictionary[String, String] = {}
+	for wire: Dictionary in wiring.wires:
+		if wire["external"] and wire["cable"] == "AC":
+			cores[wire["from"]] = wire["to"]
+	assert_eq(cores.size(), 5, "L1 L2 L3 N PE")
+	for conductor: String in cores:
+		assert_true(doc.circuit.get_terminal_owner(cores[conductor]) is PowerSupply, conductor + " lands on the terminal X1:" + conductor)
+

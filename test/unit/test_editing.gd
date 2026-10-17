@@ -1,6 +1,8 @@
 extends GutTest
 ## Editing operations on SchematicDocument and Circuit.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 
@@ -28,7 +30,7 @@ func _lamp_doc() -> SchematicDocument:
 
 
 func test_remove_component_removes_its_wires() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	var wires_before: int = doc.get_wire_count()
 	doc.remove_component("SB1")
 	assert_null(doc.circuit.get_component("SB1"))
@@ -38,7 +40,7 @@ func test_remove_component_removes_its_wires() -> void:
 
 
 func test_replace_no_with_nc_keeps_wiring() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	assert_true(doc.replace_component("KM1:23-24", Contact.new("KM1", NC, 2)))
 	assert_true(doc.circuit.has_terminal("KM1:21"))
 	assert_false(doc.circuit.has_terminal("KM1:23"))
@@ -49,7 +51,7 @@ func test_replace_no_with_nc_keeps_wiring() -> void:
 
 
 func test_renaming_coil_relinks_contacts() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	assert_true(doc.replace_component("KM1", Coil.new("K5")))
 	assert_null((doc.circuit.get_component("KM1:13-14") as Contact).linked_coil)
 	assert_true(doc.replace_component("KM1:13-14", Contact.new("K5", NO, 1)))
@@ -57,7 +59,7 @@ func test_renaming_coil_relinks_contacts() -> void:
 
 
 func test_replace_rejects_taken_designation() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	assert_false(doc.replace_component("SB1", PushButton.new("SB0", NC)))
 	assert_push_error("duplicate component id")
 	assert_not_null(doc.circuit.get_component("SB1"))
@@ -193,22 +195,23 @@ func test_hit_queries() -> void:
 
 
 func test_designation_helpers() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	assert_eq(doc.next_designation("SB"), "SB2")
 	assert_eq(doc.next_designation("KM"), "KM2")
 	assert_eq(doc.next_designation("KT"), "KT1")
 	assert_eq(doc.next_contact_sequence("KM1"), 3)
-	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L.2")
+	assert_eq(doc.next_supply_designation(PowerSupply.Conductor.L), "L1.3")
 
 
 func test_serializer_round_trip() -> void:
 	for index: int in ExampleCircuits.count() * 2:
-		var doc: SchematicDocument = ExampleCircuits.build(index / 2, index % 2 == 1)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(index / 2, index % 2 == 1))
 		var data: Dictionary = DocumentSerializer.to_dict(doc)
 		var copy: SchematicDocument = DocumentSerializer.from_dict(data)
 		assert_eq(DocumentSerializer.to_dict(copy), data, "%s survives a round trip" % doc.title)
-	var original: SchematicDocument = ExampleCircuits.self_holding()
-	var restored: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(original))
+	var original: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
+	# Breakers are not saved switched on: a restored copy starts with them off.
+	var restored: SchematicDocument = ExamplePower.on(DocumentSerializer.from_dict(DocumentSerializer.to_dict(original)))
 	var sim: Simulator = Simulator.new(restored.circuit)
 	(restored.circuit.get_component("SB1") as PushButton).press()
 	sim.step()
@@ -232,7 +235,7 @@ func test_undo_history() -> void:
 
 func test_rotated_symbol_wires_do_not_cross_own_terminals() -> void:
 	for horizontal: bool in [false, true]:
-		var doc: SchematicDocument = ExampleCircuits.build(1, horizontal)
+		var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(1, horizontal))
 		for turn: int in 4:
 			doc.rotate_component("H1")
 			_assert_routes_valid(doc)
@@ -266,7 +269,7 @@ func test_drag_wire_segment_sideways() -> void:
 
 
 func test_terminal_block_on_a_wire() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	var w: int = -1
 	for i: int in doc.circuit.get_wires().size():
 		if doc.circuit.get_wires()[i] == PackedStringArray(["KM1:A2", "N"]):
@@ -294,14 +297,14 @@ func _wire_of(doc: SchematicDocument, a: String, b: String) -> int:
 
 
 func test_wire_numbers_follow_the_net() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	doc.number_wires()
 	var hold: int = _wire_of(doc, "SB1:14", "KM1:14")
 	var coil: int = _wire_of(doc, "SB1:14", "KM1:A1")
 	assert_ne(doc.get_route(hold).number, "")
 	assert_eq(doc.get_route(hold).number, doc.get_route(coil).number, "one net, one number")
 	assert_ne(doc.get_route(_wire_of(doc, "SB0:12", "SB1:13")).number, doc.get_route(hold).number, "another net")
-	assert_eq(doc.get_route(_wire_of(doc, "L", "FU1:1")).number, "", "supply nets stay unnumbered")
+	assert_eq(doc.get_route(_wire_of(doc, "L1.2", "FA2:1")).number, "", "supply nets stay unnumbered")
 	assert_eq(doc.get_route(_wire_of(doc, "KM1:A2", "N")).number, "")
 	doc.set_wire_number(coil, "208")
 	assert_eq(doc.get_route(hold).number, "208", "renaming one wire renames its net")
@@ -313,7 +316,7 @@ func test_wire_numbers_follow_the_net() -> void:
 
 
 func test_wire_number_places_and_offsets() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	doc.number_wires()
 	var ends: Array[Vector2i] = doc.wire_number_ends()
 	var seen: Dictionary[String, bool] = {}

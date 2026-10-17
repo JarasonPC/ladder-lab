@@ -24,6 +24,10 @@ var control_boxes: Array[ControlBox] = []
 ## Switchboard (rozvaděč): DIN rails with the devices and terminal strips of
 ## the circuit, top to bottom (see [CabinetRail]).
 var cabinet_rails: Array[CabinetRail] = []
+## Order of the terminals of terminal strips set in the switchboard: strip
+## -> terminal labels from left to right. Terminals not listed follow in the
+## order of their labels (see [method CabinetDevices.strips]).
+var strip_orders: Dictionary[String, PackedStringArray] = {}
 ## Titles of the pages, e.g. "Power section" (shown translated, like
 ## [member title]); "" for an untitled page.
 var pages: PackedStringArray = PackedStringArray([""])
@@ -1777,6 +1781,33 @@ func move_strip_terminals(strip: String, labels: PackedStringArray, target: Stri
 				rail.items.remove_at(i)
 			return renamed.size()
 	return renamed.size()
+
+
+## Moves terminals [param labels] of strip [param strip] one place along it,
+## to the left when [param step] is negative; a terminal does not pass
+## another one being moved. Returns true when one moved.
+func move_strip_terminals_along(strip: String, labels: PackedStringArray, step: int) -> bool:
+	var order: PackedStringArray = PackedStringArray()
+	for t: Dictionary in CabinetDevices.strips(self).get(strip, []):
+		order.append(t["label"])
+	var indices: Array[int] = []
+	for i: int in order.size():
+		if labels.has(order[i]):
+			indices.append(i)
+	if step > 0:
+		indices.reverse()
+	var moved: bool = false
+	for i: int in indices:
+		var j: int = i + signi(step)
+		if j < 0 or j >= order.size() or labels.has(order[j]):
+			continue
+		var label: String = order[i]
+		order[i] = order[j]
+		order[j] = label
+		moved = true
+	if moved:
+		strip_orders[strip] = order
+	return moved
 
 
 ## Name for a new terminal strip: the first "X<n>" no terminal uses.

@@ -184,7 +184,7 @@ func _draw_labels() -> void:
 			var stud: Vector2 = _stud(motor, i)
 			var anchor: Vector2 = stud + (Vector2(7.0, -8.0) if i < 3 else (Vector2(7.0, 10.0) if i < 6 else Vector2(6.0, -7.0)))
 			draw_label(box_names[i], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-		draw_label(box_names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label(box_names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(0.3 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		var box_status: String = _status(motor)
 		if not box_status.is_empty():
 			var faulty: bool = motor.state in [ThreePhaseMotor.State.PHASE_LOSS, ThreePhaseMotor.State.MISWIRED]
@@ -199,13 +199,13 @@ func _draw_labels() -> void:
 			draw_label(names[i], Vector2(x + 7.0, FEED_ROW - 8.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 			# Above the stud: below it the star bar would cross the text.
 			draw_label(ends[i], Vector2(x + 7.0, END_ROW - 13.0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-		draw_label(names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label(names[motor.winding_terminal_count()], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(0.3 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label("Δ" if motor.delta_bridges else "Y", _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
 		_draw_current(motor, 2)
 		return
 	var names: PackedStringArray = motor.get_terminal_names()
 	var windings: int = motor.winding_terminal_count()
-	draw_label(names[windings], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(-0.3 * G, 0.3 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	draw_label(names[windings], Vector2(SymbolGeometry.MOTOR_PE_CELL) * G + Vector2(0.3 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	for i: int in windings:
 		var cell: Vector2 = Vector2(SymbolGeometry.motor_terminal_cell(i, motor.kind)) * G
 		# Beside the lead, clear of its bend toward the circle: upper ones

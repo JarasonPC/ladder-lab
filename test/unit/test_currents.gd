@@ -3,6 +3,8 @@ extends GutTest
 ## three-phase motors draw what their windings and speed give, protective
 ## devices trip after their time-current characteristic.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 const NO := SwitchingElement.ContactType.NO
 const ST := ThreePhaseMotor.State
 const K := ThreePhaseMotor.Kind
@@ -83,7 +85,7 @@ func test_lamp_current_flows_in_every_wire_of_its_path() -> void:
 
 
 func test_parallel_contacts_share_the_current() -> void:
-	var doc: SchematicDocument = ExampleCircuits.self_holding()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
 	var sim: Simulator = _sim(doc)
 	var start: PushButton = doc.circuit.get_component("SB1") as PushButton
 	start.press()
@@ -115,7 +117,7 @@ func test_coil_between_two_phases_draws_more() -> void:
 # --- Motors -------------------------------------------------------------------------
 
 func test_motor_draws_rated_current_at_rated_speed() -> void:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
 	var sim: Simulator = _sim(doc)
 	_press(doc, sim, "SB1")
 	var m: ThreePhaseMotor = _motor(doc)
@@ -123,13 +125,13 @@ func test_motor_draws_rated_current_at_rated_speed() -> void:
 		assert_almost_eq(m.line_currents[p], m.rated_current, 0.01)
 	assert_almost_eq(m.rpm(), m.rated_speed, 1.0)
 	var r: StepResult = sim.last_result
-	for key: String in ["FU1:1", "KM1:2", "F1:5", "M1:U1"]:
+	for key: String in ["FA1:1", "KM1:2", "F1:5", "M1:U1"]:
 		assert_almost_eq(r.terminal_currents[key], m.rated_current, 0.01, key)
 	assert_almost_eq(doc.circuit.get_overload_relay("F1").current, m.rated_current, 0.01)
 
 
 func test_starting_current_until_up_to_speed() -> void:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
 	var sim: Simulator = _sim(doc, true)
 	var m: ThreePhaseMotor = _motor(doc)
 	var start: PushButton = doc.circuit.get_component("SB1") as PushButton
@@ -159,7 +161,7 @@ func test_star_draws_a_third_of_delta() -> void:
 
 
 func test_star_delta_example_relay_sees_the_winding_current() -> void:
-	var doc: SchematicDocument = ExampleCircuits.star_delta_3()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.star_delta_3())
 	var sim: Simulator = _sim(doc)
 	_press(doc, sim, "SB2")
 	assert_eq(_motor(doc).state, ST.DELTA)
@@ -208,7 +210,7 @@ func test_reversing_while_running_draws_more_than_starting() -> void:
 
 
 func test_dc_braking_current() -> void:
-	var doc: SchematicDocument = ExampleCircuits.dc_braking()
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.dc_braking())
 	var sim: Simulator = _sim(doc)
 	_press(doc, sim, "SB1")
 	_press(doc, sim, "SB0")
@@ -269,14 +271,20 @@ func test_heat_accumulates_and_cools() -> void:
 	assert_true(heat.advance(1000.0, 30.0))
 
 
-## DOL power circuit with FU1 replaced by a three-pole breaker of
+## DOL power circuit with its three-pole breaker FA1 set to
 ## [param characteristic] and [param amperes].
 func _dol_with_breaker(characteristic: CircuitBreaker.Characteristic, amperes: float) -> SchematicDocument:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
-	var breaker: MotorBreaker = MotorBreaker.new("FU1")
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
+	var breaker: MotorBreaker = doc.circuit.get_component("FA1:1-2-3-4-5-6") as MotorBreaker
 	breaker.characteristic = characteristic
 	breaker.rated_current = amperes
-	doc.replace_component("FU1:1-2-3-4-5-6", breaker)
+	return doc
+
+
+## DOL power circuit with fuses FU1 instead of breaker FA1.
+func _dol_with_fuses() -> SchematicDocument:
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
+	doc.replace_component("FA1:1-2-3-4-5-6", ThreePoleFuse.new("FU1"))
 	return doc
 
 
@@ -284,8 +292,8 @@ func test_b_breaker_trips_on_the_starting_current() -> void:
 	var doc: SchematicDocument = _dol_with_breaker(CircuitBreaker.Characteristic.B, 6.0)
 	var sim: Simulator = _sim(doc, true)
 	var texts: PackedStringArray = _press(doc, sim, "SB1")
-	assert_has(texts, "FU1 tripped (short-circuit release)")
-	assert_true((doc.circuit.get_component("FU1:1-2-3-4-5-6") as MotorBreaker).tripped)
+	assert_has(texts, "FA1 tripped (short-circuit release)")
+	assert_true((doc.circuit.get_component("FA1:1-2-3-4-5-6") as MotorBreaker).tripped)
 	assert_false(_motor(doc).is_running())
 
 
@@ -294,15 +302,55 @@ func test_d_breaker_lets_the_motor_start() -> void:
 	var sim: Simulator = _sim(doc, true)
 	_press(doc, sim, "SB1")
 	_run(sim, 2.0)
-	assert_false((doc.circuit.get_component("FU1:1-2-3-4-5-6") as MotorBreaker).tripped, "48 A is below 20 x 6 A, too short for the thermal release")
+	assert_false((doc.circuit.get_component("FA1:1-2-3-4-5-6") as MotorBreaker).tripped, "48 A is below 20 x 6 A, too short for the thermal release")
 	assert_true(_motor(doc).is_running())
 	assert_lt(_motor(doc).max_line_current(), 1.1 * _motor(doc).rated_current)
 	sim.step(4000.0)
-	assert_true((doc.circuit.get_component("FU1:1-2-3-4-5-6") as MotorBreaker).tripped, "8 A on a 6 A breaker trips in the end")
+	assert_true((doc.circuit.get_component("FA1:1-2-3-4-5-6") as MotorBreaker).tripped, "8 A on a 6 A breaker trips in the end")
+
+
+func test_tripped_breaker_keeps_its_heat_and_cools_down() -> void:
+	var doc: SchematicDocument = _dol_with_breaker(CircuitBreaker.Characteristic.D, 6.0)
+	var breaker: MotorBreaker = doc.circuit.get_component("FA1:1-2-3-4-5-6") as MotorBreaker
+	var sim: Simulator = _sim(doc, true)
+	_press(doc, sim, "SB1")
+	_run(sim, 2.0)
+	var guard: int = 0
+	while not breaker.tripped and guard < 1000:
+		sim.step(10.0)
+		guard += 1
+	assert_true(breaker.tripped)
+	assert_gt(breaker.heat.progress, 0.85, "the bimetal is still hot after the trip")
+	var hot: float = breaker.heat.progress
+	sim.step(TripCurve.COOLING_TIME[TripCurve.Kind.BREAKER_D])
+	assert_almost_eq(breaker.heat.progress, hot * exp(-1.0), 0.05, "and cools down slowly")
+	breaker.toggle()
+	assert_false(breaker.tripped)
+	assert_gt(breaker.heat.progress, 0.3, "switching on does not cool it")
+
+
+func test_overload_relay_keeps_its_heat_after_reset() -> void:
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.direct_on_line())
+	var relay: OverloadRelay = doc.circuit.get_overload_relay("F1")
+	relay.setting = _motor(doc).rated_current / 1.5
+	var sim: Simulator = _sim(doc, true)
+	_press(doc, sim, "SB1")
+	var guard: int = 0
+	while not relay.tripped and guard < 100:
+		sim.step(10.0)
+		guard += 1
+	assert_true(relay.tripped)
+	assert_gt(relay.heat.progress, 0.9, "the heaters are still hot after the trip")
+	relay.reset()
+	assert_false(relay.tripped)
+	assert_gt(relay.heat.progress, 0.9, "the reset button does not cool them")
+	var hot: float = relay.heat.progress
+	sim.step(TripCurve.COOLING_TIME[TripCurve.Kind.OVERLOAD])
+	assert_almost_eq(relay.heat.progress, hot * exp(-1.0), 0.05, "they cool down slowly")
 
 
 func test_small_fuse_blows_during_the_start() -> void:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var doc: SchematicDocument = _dol_with_fuses()
 	(doc.circuit.get_component("FU1:1-2-3-4-5-6") as ThreePoleFuse).rated_current = 6.0
 	var sim: Simulator = _sim(doc, true)
 	var start: PushButton = doc.circuit.get_component("SB1") as PushButton
@@ -313,7 +361,7 @@ func test_small_fuse_blows_during_the_start() -> void:
 
 
 func test_ratings_saved() -> void:
-	var doc: SchematicDocument = ExampleCircuits.direct_on_line()
+	var doc: SchematicDocument = _dol_with_fuses()
 	var m: ThreePhaseMotor = _motor(doc)
 	m.rated_current = 15.5
 	m.start_ratio = 7.5
@@ -325,18 +373,17 @@ func test_ratings_saved() -> void:
 	doc.get_placement("M1").labels["plate"] = Vector2(2, -1)
 	(doc.circuit.get_component("FU1:1-2-3-4-5-6") as ThreePoleFuse).rated_current = 25.0
 	doc.circuit.get_overload_relay("F1").setting = 15.5
-	doc.replace_component("FU2", CircuitBreaker.new("FU2"))
-	var breaker: CircuitBreaker = doc.circuit.get_component("FU2") as CircuitBreaker
-	breaker.characteristic = CircuitBreaker.Characteristic.B
-	breaker.rated_current = 2.0
+	var breaker: CircuitBreaker = doc.circuit.get_component("FA2") as CircuitBreaker
+	breaker.characteristic = CircuitBreaker.Characteristic.D
+	breaker.rated_current = 4.0
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 	var m2: ThreePhaseMotor = _motor(copy)
 	assert_eq([m2.rated_current, m2.start_ratio, m2.run_up_time, m2.rated_power, m2.rated_speed, m2.power_factor, m2.show_plate], [15.5, 7.5, 2.5, 7.5, 2900.0, 0.86, true])
 	assert_eq(copy.get_placement("M1").labels.get("plate"), Vector2(2, -1))
 	assert_eq((copy.circuit.get_component("FU1:1-2-3-4-5-6") as ThreePoleFuse).rated_current, 25.0)
 	assert_eq(copy.circuit.get_overload_relay("F1").setting, 15.5)
-	var b2: CircuitBreaker = copy.circuit.get_component("FU2") as CircuitBreaker
-	assert_eq([b2.characteristic, b2.rated_current], [CircuitBreaker.Characteristic.B, 2.0])
+	var b2: CircuitBreaker = copy.circuit.get_component("FA2") as CircuitBreaker
+	assert_eq([b2.characteristic, b2.rated_current], [CircuitBreaker.Characteristic.D, 4.0])
 	var old: Dictionary = DocumentSerializer.to_dict(doc)
 	for c: Dictionary in old["components"]:
 		for key: String in ["rated_current", "start_ratio", "run_up_time", "rated_power", "rated_speed", "power_factor", "setting", "characteristic"]:

@@ -276,14 +276,24 @@ func _draw_terminals() -> void:
 			aa_rect(Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), fill)
 
 
-## Labels of the strip terminals on the leads, left of the lead.
+## Labels of the strip terminals on the leads, left of the lead; a terminal
+## of another strip than X1 ("X2:4") has the strip over its number, so
+## terminals two cells apart keep their labels apart.
 func _draw_strip_labels() -> void:
 	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
 	var names: PackedStringArray = component.get_terminal_names()
 	for i: int in placement.strips:
 		if i < names.size():
-			var at: Vector2 = Vector2(cells[names[i]]) * G
-			draw_label(placement.strips[i], at + Vector2(-0.55 * G, 0.0), SchematicTheme.TERMINAL_SIZE + 2, SchematicTheme.DESIGNATION, 0, ["strip", i])
+			var at: Vector2 = Vector2(cells[names[i]]) * G + Vector2(-0.55 * G, 0.0)
+			var label: String = placement.strips[i]
+			var colon: int = label.find(":")
+			if colon > 0:
+				# Up on the drawing, however the symbol is turned.
+				var up: Vector2 = SymbolGeometry.draw_transform(placement).affine_inverse().basis_xform(Vector2.UP).normalized()
+				draw_label(label.left(colon), at + up * 0.6 * G, SchematicTheme.TERMINAL_SIZE + 1, SchematicTheme.DESIGNATION, 0, ["strip", i])
+				draw_label(label.substr(colon + 1), at + up * 0.1 * G, SchematicTheme.TERMINAL_SIZE + 2, SchematicTheme.DESIGNATION, 0, ["strip", i])
+			else:
+				draw_label(label, at, SchematicTheme.TERMINAL_SIZE + 2, SchematicTheme.DESIGNATION, 0, ["strip", i])
 
 
 ## Draws designation and terminal numbers. Override to add more.
@@ -416,12 +426,14 @@ func _marking_of(text: String) -> Array:
 ## moved to where its offset puts it now (it may have been dragged since),
 ## or an empty Rect2.
 func marking_rect(kind: String, index: int = -1) -> Rect2:
+	var result: Rect2 = Rect2()
 	for m: Array in marking_rects:
 		if m[0] == kind and m[1] == index:
+			# A marking written on two lines covers both.
 			var now: Vector2 = placement.labels.get(marking_key(kind, index), Vector2.ZERO)
-			var r: Rect2 = m[2]
-			return Rect2(r.position + (now - (m[3] as Vector2)) * G, r.size)
-	return Rect2()
+			var r: Rect2 = Rect2((m[2] as Rect2).position + (now - (m[3] as Vector2)) * G, (m[2] as Rect2).size)
+			result = r if not result.has_area() else result.merge(r)
+	return result
 
 
 ## True when a label at [param local_anchor] is written beside the symbol

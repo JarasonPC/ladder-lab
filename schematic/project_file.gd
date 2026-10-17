@@ -33,7 +33,9 @@ const FORMAT: String = "ladder-lab"
 ## run-up time, whether the plate is drawn; missing before: defaults).
 ## 17: PLCs ("plc") with their program (function block diagram and ladder
 ## diagram).
-const VERSION: int = 17
+## 18: order of the terminals of a terminal strip set in the switchboard
+## ("strip_order"; missing before: in the order of their labels).
+const VERSION: int = 18
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

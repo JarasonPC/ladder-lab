@@ -295,9 +295,10 @@ func _strip_split(fields: VBoxContainer, strip: String) -> void:
 	hint.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	hint.theme_type_variation = "MutedLabel"
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.text = tr("Pick terminals to move them to another strip.")
+	hint.text = tr("Pick terminals to move them along the strip or to another strip.")
 	fields.add_child(hint)
 	var move: OptionButton = OptionButton.new()
+	var along: Array[Button] = []
 	var flow: HFlowContainer = HFlowContainer.new()
 	flow.add_theme_constant_override("h_separation", 2)
 	flow.add_theme_constant_override("v_separation", 2)
@@ -315,8 +316,21 @@ func _strip_split(fields: VBoxContainer, strip: String) -> void:
 				_picked[label] = true
 			else:
 				_picked.erase(label)
-			move.disabled = _picked.is_empty())
+			move.disabled = _picked.is_empty()
+			for button: Button in along:
+				button.disabled = _picked.is_empty())
 		flow.add_child(pick)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	fields.add_child(row)
+	for step: int in [-1, 1]:
+		var shift: Button = _tool("arrow_left" if step < 0 else "arrow_right", tr("Move the picked terminals one place left") if step < 0 else tr("Move the picked terminals one place right"))
+		shift.disabled = _picked.is_empty()
+		shift.pressed.connect(func() -> void:
+			var picked: PackedStringArray = PackedStringArray(_picked.keys())
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_strip_terminals_along(strip, picked, step)))
+		row.add_child(shift)
+		along.append(shift)
 	var targets: PackedStringArray = PackedStringArray()
 	for other: String in CabinetDevices.strips(_document):
 		if other != strip:
@@ -330,6 +344,7 @@ func _strip_split(fields: VBoxContainer, strip: String) -> void:
 		move.add_item(tr("Terminal strip") + " -" + other)
 	move.add_item(tr("New strip -%s") % fresh)
 	targets.append(fresh)
+	move.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	move.select(0)
 	move.disabled = _picked.is_empty()
 	move.tooltip_text = tr("Move the picked terminals to another terminal strip")
@@ -340,7 +355,7 @@ func _strip_split(fields: VBoxContainer, strip: String) -> void:
 		var target: String = targets[k - 1]
 		_picked.clear()
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_strip_terminals(strip, picked, target)))
-	fields.add_child(move)
+	row.add_child(move)
 
 
 ## "Contactor -KM1", "Terminal strip -X1".

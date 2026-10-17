@@ -16,9 +16,6 @@ signal place_clicked(rail: int, index: int)
 ## The drawing was zoomed.
 signal zoom_changed
 
-## Rating printed on the breakers (the circuit does not model it).
-const BREAKER_RATING: String = "C16"
-
 var document: SchematicDocument
 ## Operate the circuit (true) or select places for editing (false).
 var simulating: bool = false
@@ -257,7 +254,7 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 	var desc: Dictionary = place["desc"]
 	match place["kind"]:
 		CabinetDevices.Kind.BREAKER:
-			CabinetParts.breaker(q, desc["poles"], desc["on"], BREAKER_RATING if desc["poles"] > 1 else "B10", _pole_reach(desc))
+			CabinetParts.breaker(q, desc["poles"], desc["on"], desc["rating"], _pole_reach(desc))
 		CabinetDevices.Kind.FUSE:
 			CabinetParts.fuse_holder(q, desc["poles"], desc["closed"], desc["blown"], _pole_reach(desc))
 		CabinetDevices.Kind.CONTACTOR:

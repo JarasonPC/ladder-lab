@@ -12,7 +12,8 @@ extends RefCounted
 ## Wires sharing a duct lie side by side. The supply comes in from outside:
 ## one cable per source (AC, DC) through a gland in the top of the
 ## enclosure, each core of a supply conductor (L1, L2, L3, N, PE; +, -)
-## straight into the top duct and on to the first terminal it feeds. The
+## straight into the top duct and on to the first terminal it feeds, or to
+## the field side of the strip terminal on its supply point's lead. The
 ## colour follows the conductor of the net
 ## ([method CabinetDevices.conductors]). Terminals of the strips that lead
 ## to parts outside (buttons, lamps, motors) send their field wires out:
@@ -53,6 +54,9 @@ var glands: Array[Dictionary] = []
 # Field side of the strip terminals leading to parts outside, like the
 # points of [method _terminals] with "field" (the part).
 var _field: Array[Dictionary] = []
+# Field side of the strip terminals on the leads of supply points, where the
+# incoming cores land: conductor -> point like those of [method _terminals].
+var _entries: Dictionary[PowerSupply.Conductor, Dictionary] = {}
 # Where the cores of the field cables leave the plate (mm from its top).
 var _bottom: float = 0.0
 
@@ -87,10 +91,14 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float) -> Ca
 	var edges: Array[Dictionary] = []
 	for n: int in by_net:
 		var points: Array = by_net[n]
-		if cores.has(n):
-			points.push_front(cores[n])
 		var c: CabinetDevices.Conductor = conductor.get(n, CabinetDevices.Conductor.CONTROL)
-		for pair: Vector2i in wiring._tree(points, cores.has(n)):
+		var entry: Dictionary = wiring._entries.get(cores[n]["conductor"], {}) if cores.has(n) else {}
+		if not entry.is_empty():
+			# The core lands on the supply's strip terminal from below.
+			edges.append({"net": n, "conductor": c, "a": cores[n], "b": entry, "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
+		elif cores.has(n):
+			points.push_front(cores[n])
+		for pair: Vector2i in wiring._tree(points, cores.has(n) and entry.is_empty()):
 			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
 	wiring._field_cables(edges, net, conductor)
@@ -199,7 +207,7 @@ func _feed(circuit: Circuit, net: Dictionary[String, int], conductor: Dictionary
 			x += 3.0 * (CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT)
 		if not fed.has(which):
 			continue
-		result[fed[which]] = {"key": keys[which], "at": Vector2(x, CabinetLayout.FRAME), "duct": 0, "up": false, "id": id, "external": true, "cable": "DC" if k >= CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS) else "AC"}
+		result[fed[which]] = {"key": keys[which], "at": Vector2(x, CabinetLayout.FRAME), "duct": 0, "up": false, "id": id, "external": true, "cable": "DC" if k >= CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS) else "AC", "conductor": which}
 		x += CORE
 		id += 1
 	return result
@@ -246,6 +254,12 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 						if net.has(key) and not nets.has(net[key]):
 							nets[net[key]] = true
 							result.append({"key": key, "at": at, "duct": rail, "up": true})
+							var owner: CircuitComponent = _circuit.get_terminal_owner(key)
+							if owner is PowerSupply:
+								# The supply comes in on the field side.
+								if not _entries.has((owner as PowerSupply).conductor):
+									_entries[(owner as PowerSupply).conductor] = {"key": key, "at": below, "duct": rail + 1, "up": false}
+								continue
 							# The field side: the wire out to the part outside.
 							var part: String = CabinetDevices.field_device(_circuit, key, net)
 							if not part.is_empty():
@@ -263,6 +277,10 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 		result[i]["id"] = i
 	for i: int in _field.size():
 		_field[i]["id"] = result.size() + i
+	var next: int = result.size() + _field.size()
+	for which: PowerSupply.Conductor in _entries:
+		_entries[which]["id"] = next
+		next += 1
 	return result
 
 

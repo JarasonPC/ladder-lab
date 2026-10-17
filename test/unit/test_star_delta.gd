@@ -1,6 +1,8 @@
 extends GutTest
 ## Star/delta start (built-in example 5), in both switching modes.
 
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
 var doc: SchematicDocument
 var sim: Simulator
 var stop: PushButton
@@ -11,7 +13,7 @@ var km3: Coil
 
 
 func _setup(realistic: bool) -> void:
-	doc = ExampleCircuits.star_delta()
+	doc = ExamplePower.on(ExampleCircuits.star_delta())
 	sim = Simulator.new(doc.circuit)
 	sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
 	stop = doc.circuit.get_component("SB1") as PushButton
@@ -95,4 +97,4 @@ func test_too_short_tap_starts_nothing() -> void:
 
 
 func test_example_passes_check() -> void:
-	assert_eq(CircuitCheck.run(ExampleCircuits.star_delta()), [] as Array[Dictionary])
+	assert_eq(CircuitCheck.run(ExamplePower.on(ExampleCircuits.star_delta())), [] as Array[Dictionary])

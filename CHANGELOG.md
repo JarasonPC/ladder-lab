@@ -6,7 +6,24 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- Every example has a power circuit with a motor and its control circuit, protected by circuit
+  breakers (C16 for the motor, B2 for the control circuit), with everything outside the
+  switchboard wired through terminal strips: the supply on X1, buttons and lamps on X2, motors
+  with their PE on X3
+- Supply points can have a strip terminal on their lead
+- Right click on a terminal of a part adds or removes its strip terminal
+- Strip terminals of other strips than X1 show the strip above their number, so neighbouring
+  terminals stay readable
+
+### Simulation
+- A tripped circuit breaker or overload relay stays hot and cools down slowly; switched on or
+  reset too soon, it trips again sooner
+
 ### Panels
+- The switchboard prints each breaker's characteristic and rating (B2, C16, …)
+- Terminals can be moved along their terminal strip in the switchboard
+- The incoming supply lands on the supply's strip terminals
 - The control panel and the switchboard open in a window of their own (the window button at
   the right of their title), e.g. on a second monitor; closing the window puts them back beside
   the schematic

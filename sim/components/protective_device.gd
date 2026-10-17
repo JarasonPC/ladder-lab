@@ -2,7 +2,8 @@ class_name ProtectiveDevice
 extends SwitchingElement
 ## Fuse or circuit breaker in a conductor (terminals 1-2). A short circuit
 ## whose fault current flows through it trips it (see [Simulator]); it then
-## stays open until reset.
+## stays open until reset. A trip keeps the heat of the thermal release, which
+## cools down from there; a new fuse ([method reset]) is cold.
 
 var tripped: bool = false
 ## Rated current in amperes.
@@ -30,7 +31,6 @@ func heat_up(dt: float, currents: PackedFloat32Array) -> bool:
 	var current: float = currents[0] if is_closed() else 0.0
 	if _heat().advance(dt, current) and is_closed():
 		tripped = true
-		heat.progress = 0.0
 		return true
 	return false
 
@@ -42,7 +42,6 @@ func time_to_heat_trip(currents: PackedFloat32Array) -> float:
 func trips_instantly(currents: PackedFloat32Array) -> bool:
 	if is_closed() and _heat().is_instant(currents[0]):
 		tripped = true
-		heat.progress = 0.0
 		return true
 	return false
 

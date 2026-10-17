@@ -5,7 +5,9 @@ extends PoleDevice
 ## It starts switched off. Fault current through any pole trips all poles, as
 ## does an overcurrent in any pole (thermal release after the time of its
 ## characteristic, magnetic release at once; see [TripCurve]); it is switched
-## off and on by hand, and switching on resets a trip.
+## off and on by hand, and switching on resets a trip. The thermal release
+## keeps its heat after a trip and cools down from there, so switched on again
+## while still hot it trips sooner.
 
 const DEFAULT_RATED_CURRENT: float = 16.0
 
@@ -43,7 +45,6 @@ func heat_up(dt: float, currents: PackedFloat32Array) -> bool:
 	var closed: bool = is_path_closed(0)
 	if _heat().advance(dt, TripCurve.largest(currents) if closed else 0.0) and closed:
 		tripped = true
-		heat.progress = 0.0
 		return true
 	return false
 
@@ -55,7 +56,6 @@ func time_to_heat_trip(currents: PackedFloat32Array) -> float:
 func trips_instantly(currents: PackedFloat32Array) -> bool:
 	if is_path_closed(0) and _heat().is_instant(TripCurve.largest(currents)):
 		tripped = true
-		heat.progress = 0.0
 		return true
 	return false
 
