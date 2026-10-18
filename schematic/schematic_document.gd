@@ -105,9 +105,18 @@ func terminal_cell(key: String) -> Vector2i:
 ## Full polyline of a wire: start terminal, corners, end terminal.
 func wire_points(wire_index: int) -> Array[Vector2i]:
 	var wire: PackedStringArray = circuit.get_wires()[wire_index]
-	var points: Array[Vector2i] = [terminal_cell(wire[0])]
-	points.append_array(_routes[wire_index].corners)
-	points.append(terminal_cell(wire[1]))
+	var given: Array[Vector2i] = [terminal_cell(wire[0])]
+	given.append_array(_routes[wire_index].corners)
+	given.append(terminal_cell(wire[1]))
+	# Wires run across and down only: a step that goes both ways (a route
+	# made without its corners) turns at a corner, across first.
+	var points: Array[Vector2i] = [given[0]]
+	for k: int in range(1, given.size()):
+		var a: Vector2i = points[points.size() - 1]
+		var b: Vector2i = given[k]
+		if a.x != b.x and a.y != b.y:
+			points.append(Vector2i(b.x, a.y))
+		points.append(b)
 	return points
 
 

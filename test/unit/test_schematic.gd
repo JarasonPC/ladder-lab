@@ -170,3 +170,20 @@ func test_examples_have_a_motor_and_field_terminals() -> void:
 				assert_eq(doc.get_placement(c.id).strips.size(), c.get_terminal_names().size(), "%s: every terminal of %s on a strip terminal" % [doc.title, c.id])
 		assert_gt(motors, 0, doc.title + ": power circuit with a motor")
 		assert_gt(coils, 0, doc.title + ": control circuit")
+
+
+func test_wire_without_its_corners_runs_across_and_down() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
+	doc.add(Lamp.new("H1"), Vector2i(12, 4))
+	doc.add(Lamp.new("H2"), Vector2i(20, 4))
+	assert_true(doc.connect_terminals("L", "H1:X1"), "no corners: a diagonal from (2, 1) to (12, 4)")
+	var bend: Array[Vector2i] = [Vector2i(5, 9)]
+	assert_true(doc.connect_terminals("H1:X2", "H2:X2", bend))
+	assert_eq(doc.wire_points(0), [Vector2i(2, 1), Vector2i(12, 1), Vector2i(12, 4)] as Array[Vector2i], "across first, then down")
+	for w: int in doc.get_wire_count():
+		var points: Array[Vector2i] = doc.wire_points(w)
+		for k: int in range(1, points.size()):
+			assert_true(points[k].x == points[k - 1].x or points[k].y == points[k - 1].y, "wire %d step %d is straight" % [w, k])
+	assert_eq(doc.junction_cells(0), [] as Array[Vector2i], "worked out (no endless loop)")
+	DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc)).junction_cells(0)
