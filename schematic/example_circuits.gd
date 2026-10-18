@@ -71,8 +71,11 @@ static func build(index: int, horizontal: bool = false) -> SchematicDocument:
 		_field_terminals(doc)
 	if doc != null and doc.control_boxes.is_empty():
 		doc.add_control_box_for_all()
-	if doc != null and doc.cabinet_rails.is_empty():
-		doc.fill_cabinet()
+	if doc != null and doc.switchboards.is_empty():
+		doc.add_switchboard(Vector2.ZERO)
+		doc.fill_cabinet(0)
+		for box: ControlBox in doc.control_boxes:
+			box.position = doc.free_spot()
 	if doc != null and horizontal:
 		doc.transpose()
 	return doc

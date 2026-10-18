@@ -71,12 +71,12 @@ func test_move_remove_and_set_items() -> void:
 	doc.remove_control_item(0, 0)
 	assert_eq(doc.control_boxes[0].items.size(), 1)
 	doc.add_control_box("second")
-	doc.move_control_box(1, -1)
-	assert_eq(doc.control_boxes[0].title, "second")
-	doc.set_control_box(0, "  Main  ", 9)
-	assert_eq([doc.control_boxes[0].title, doc.control_boxes[0].columns], ["Main", ControlBox.MAX_COLUMNS])
-	doc.remove_control_box(0)
+	assert_eq(doc.control_boxes[1].name, "ST2", "stations are named in turn")
+	doc.set_control_box(1, "  Main  ", 9)
+	assert_eq([doc.control_boxes[1].title, doc.control_boxes[1].columns], ["Main", ControlBox.MAX_COLUMNS])
+	doc.remove_place(Workspace.Place.STATION, 0)
 	assert_eq(doc.control_boxes.size(), 1)
+	assert_eq(doc.control_boxes[0].title, "Main")
 
 
 func test_lamp_items_have_no_lamp_under_them_or_black_lens() -> void:

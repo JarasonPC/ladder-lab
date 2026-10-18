@@ -830,41 +830,8 @@ msgstr "Sledovat"
 msgid "Drag to look back, wheel zooms"
 msgstr "Tažením se vrátíte zpět, kolečkem přiblížíte"
 
-msgid "Show the control panel: boxes with the push buttons, switches and signal lamps"
-msgstr "Zobrazit ovládací panel: skříňky s tlačítky, přepínači a signálkami"
-
-msgid "Control panel"
-msgstr "Ovládací panel"
-
-msgid "No control boxes yet. Add a box and put the push buttons, switches and signal lamps of the schematic on it."
-msgstr "Zatím žádné ovládací skříňky. Přidejte skříňku a umístěte na ni tlačítka, přepínače a signálky ze schématu."
-
-msgid "No control boxes yet. Add them in Edit mode."
-msgstr "Zatím žádné ovládací skříňky. Přidejte je v režimu Úpravy."
-
-msgid "Add box"
-msgstr "Přidat skříňku"
-
-msgid "Add an empty control box"
-msgstr "Přidat prázdnou ovládací skříňku"
-
-msgid "Box with all devices"
-msgstr "Skříňka se všemi prvky"
-
-msgid "Add a control box with every push button, switch and signal lamp that is not on the panel yet"
-msgstr "Přidat ovládací skříňku se všemi tlačítky, přepínači a signálkami, které ještě nejsou na panelu"
-
-msgid "Text on the box"
-msgstr "Nápis na skříňce"
-
 msgid "Items in a row"
 msgstr "Prvků v řadě"
-
-msgid "Move the box up"
-msgstr "Posunout skříňku nahoru"
-
-msgid "Delete the box"
-msgstr "Smazat skříňku"
 
 msgid "Button"
 msgstr "Tlačítko"
@@ -1148,14 +1115,8 @@ msgstr "Zobrazí stránku ve vlastním okně, např. na druhém monitoru; při s
 msgid "Switchboard"
 msgstr "Rozvaděč"
 
-msgid "Show the switchboard: DIN rails with the breakers, fuses, contactors, relays and terminals"
-msgstr "Zobrazit rozvaděč: DIN lišty s jističi, pojistkami, stykači, relé a svorkami"
-
 msgid "No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it."
 msgstr "Zatím žádné DIN lišty. Naplňte rozvaděč ze schématu, nebo přidejte lištu a umístěte na ni přístroje."
-
-msgid "No switchboard yet. Make it in Edit mode."
-msgstr "Zatím žádný rozvaděč. Vytvořte ho v režimu Úpravy."
 
 msgid "Add rail"
 msgstr "Přidat lištu"
@@ -1165,9 +1126,6 @@ msgstr "Přidat dolů prázdnou DIN lištu"
 
 msgid "Fill from the schematic"
 msgstr "Naplnit ze schématu"
-
-msgid "Add rails with every device and terminal strip of the schematic that is not in the switchboard yet"
-msgstr "Přidat lišty se všemi přístroji a svorkovnicemi schématu, které v rozvaděči ještě nejsou"
 
 #, c-format
 msgid "Rail %d"
@@ -1298,9 +1256,6 @@ msgstr "Nová svorkovnice -%s"
 
 msgid "Move the picked terminals to another terminal strip"
 msgstr "Přesunout vybrané svorky do jiné svorkovnice"
-
-msgid "Roll the panel in"
-msgstr "Sbalit panel"
 
 msgid "Current path numbers"
 msgstr "Čísla proudových drah"
@@ -2030,3 +1985,151 @@ msgstr "Posunout vybrané svorky o místo doleva"
 
 msgid "Move the picked terminals one place right"
 msgstr "Posunout vybrané svorky o místo doprava"
+
+msgid "A switchboard's devices and a station's buttons lose their place, a group's parts stay where they are (Ctrl+Z brings it back)"
+msgstr "Přístroje rozvaděče a tlačítka skříňky ztratí své místo, díly skupiny zůstanou, kde jsou (Ctrl+Z vrátí zpět)"
+
+msgid "Add a control station"
+msgstr "Přidat ovládací skříňku"
+
+msgid "Add a control station here"
+msgstr "Přidat sem ovládací skříňku"
+
+msgid "Add a group here"
+msgstr "Přidat sem skupinu"
+
+msgid "Add a group: a frame for parts in the field that belong together, e.g. a gate with its motor and limit switches"
+msgstr "Přidat skupinu: rámeček pro díly v poli, které patří k sobě, např. bránu s motorem a koncovými spínači"
+
+msgid "Add a switchboard"
+msgstr "Přidat rozvaděč"
+
+msgid "Add a switchboard here"
+msgstr "Přidat sem rozvaděč"
+
+msgid "Add a switchboard or a control station with the buttons above."
+msgstr "Přidejte rozvaděč nebo ovládací skříňku tlačítky nahoře."
+
+msgid "Add all the others"
+msgstr "Přidat všechny ostatní"
+
+msgid "Add rails with every device and terminal strip of the schematic that is not in a switchboard yet"
+msgstr "Přidat lišty se všemi přístroji a svorkovnicemi schématu, které ještě nejsou v žádném rozvaděči"
+
+msgid "Back to the workspace"
+msgstr "Zpět na pracovní plochu"
+
+msgid "Click a switchboard or control station to open it, right click for more."
+msgstr "Kliknutím rozvaděč nebo ovládací skříňku otevřete, pravým tlačítkem další volby."
+
+msgid "Control station"
+msgstr "Ovládací skříňka"
+
+msgid "Designation"
+msgstr "Označení"
+
+msgid "Devices and terminal strips not in a switchboard, buttons, switches and lamps not on a control station"
+msgstr "Přístroje a svorkovnice mimo rozvaděč, tlačítka, přepínače a signálky mimo ovládací skříňku"
+
+msgid "Drag parts into a group's frame to put them in it."
+msgstr "Přetažením do rámečku skupiny do ní díly zařadíte."
+
+msgid "Find a device…"
+msgstr "Najít přístroj…"
+
+msgid "Group"
+msgstr "Skupina"
+
+msgid "In the field"
+msgstr "V poli"
+
+msgid "Limit switch"
+msgstr "Koncový spínač"
+
+msgid "No DIN rails yet. Make them in Edit mode."
+msgstr "Zatím žádné DIN lišty. Vytvořte je v režimu Úpravy."
+
+msgid "No push buttons, switches or lamps on this station yet."
+msgstr "Na této skříňce zatím nejsou žádná tlačítka, přepínače ani signálky."
+
+msgid "No push buttons, switches or lamps on this station yet. Add them in Edit mode."
+msgstr "Na této skříňce zatím nejsou žádná tlačítka, přepínače ani signálky. Přidejte je v režimu Úpravy."
+
+msgid "Open"
+msgstr "Otevřít"
+
+msgid "Open a control station to press its buttons, a switchboard to switch its breakers."
+msgstr "Otevřete ovládací skříňku a mačkejte její tlačítka, nebo rozvaděč a zapínejte jističe."
+
+msgid "Put every push button, switch and signal lamp that is not on a station yet on this one"
+msgstr "Umístit na tuto skříňku všechna tlačítka, přepínače a signálky, které ještě nejsou na žádné skříňce"
+
+msgid "Schematic"
+msgstr "Schéma"
+
+msgid "Sensor"
+msgstr "Snímač"
+
+msgid "Show everything"
+msgstr "Zobrazit vše"
+
+msgid "Show in the schematic"
+msgstr "Ukázat ve schématu"
+
+msgid "Shows it in a window of its own, e.g. on a second monitor; while simulating, it works there too"
+msgstr "Zobrazí ve vlastním okně, např. na druhém monitoru; při simulaci tam vše funguje také"
+
+msgid "Switchboards, control stations and the motors, limit switches and sensors in the field"
+msgstr "Rozvaděče, ovládací skříňky a motory, koncové spínače a snímače v poli"
+
+msgid "Take out of the group"
+msgstr "Vyjmout ze skupiny"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Text on the station"
+msgstr "Nápis na skříňce"
+
+msgid "The circuit diagram, page by page"
+msgstr "Schéma zapojení, stránku po stránce"
+
+msgid "The workspace is empty. Add switchboards and control stations in Edit mode."
+msgstr "Pracovní plocha je prázdná. Rozvaděče a ovládací skříňky přidáte v režimu Úpravy."
+
+#, c-format
+msgid "Unplaced (%d)"
+msgstr "Bez místa (%d)"
+
+msgid "Use a designation without spaces or colons that no other switchboard, station or group has."
+msgstr "Použijte označení bez mezer a dvojteček, které nemá žádný jiný rozvaděč, skříňka ani skupina."
+
+msgid "Wheel zooms, right or middle drag pans."
+msgstr "Kolečkem přiblížíte, tažením pravým nebo prostředním tlačítkem posunete pohled."
+
+msgid "Workspace"
+msgstr "Pracovní plocha"
+
+msgid "e.g. Gate, inside"
+msgstr "např. Brána, uvnitř"
+
+#, c-format
+msgid "%d device"
+msgid_plural "%d devices"
+msgstr[0] "%d přístroj"
+msgstr[1] "%d přístroje"
+msgstr[2] "%d přístrojů"
+
+#, c-format
+msgid "%d terminal strip"
+msgid_plural "%d terminal strips"
+msgstr[0] "%d svorkovnice"
+msgstr[1] "%d svorkovnice"
+msgstr[2] "%d svorkovnic"
+
+#, c-format
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] "%d prvek"
+msgstr[1] "%d prvky"
+msgstr[2] "%d prvků"

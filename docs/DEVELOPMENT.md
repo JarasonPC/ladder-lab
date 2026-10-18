@@ -54,20 +54,16 @@ Architecture and conventions of the code base. Read this before changing the cod
   removes it, a right click on a lead adds or removes one); wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal right next to its square,
   a short wire once at its upper/left end, draggable offsets) via the
-  numbering tool or double click; side panels (palette, properties + check, control panel) are
-  SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with oversampling_with_scale,
-  so text stays sharp); the control panel and the switchboard roll in to a narrow tab with their
-  title by a click on the title (SideBar.rolled, saved), a click on the tab rolls them out; the
-  window button beside their title moves them into a window of their own (PanelWindow: the panel
-  itself leaves its SideBar, SideBar.detach / attach, the bar stays hidden; closing the window or
-  turning the panel off puts it back; keys it does not use go to main.gd's shortcuts); the
+  numbering tool or double click; side panels (palette, properties + check, the workspace tree)
+  are SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with
+  oversampling_with_scale, so text stays sharp); the
   palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved); the timing panel is resized by its top edge and the grip before the
   event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
 - The program starts with as little as possible: an empty schematic of one page (no example
   loaded; the example list reads "Example circuits…") and the palette; the properties panel
   (with the check results) shows in Edit mode only while something is selected or the check
-  results are shown; by default (no settings saved yet) the control panel and the switchboard
-  are off and the timing chart and event log rolled in
+  results are shown; it starts on the schematic (Schematic | Workspace); by default (no
+  settings saved yet) the timing chart and event log are rolled in
 - Built-in examples (ExampleCircuits): each has a power circuit with a motor on the left (L1 L2
   L3 on top) and its control circuit on the right; circuit breakers FA1 (C16, three poles) for
   the power circuit and FA2 (B2) for the control circuit; everything outside the switchboard on
@@ -99,13 +95,47 @@ Architecture and conventions of the code base. Read this before changing the cod
   title block texts (company, project, drawing no., revision, drawn by, checked by, date; empty
   date = export date) are SchematicDocument.title_block (TitleBlock, saved), edited in
   File > Title block… together with the schematic title (undoable)
-- Control panel (sidebar, both modes, toolbar toggle): control boxes (SchematicDocument.control_boxes,
+- Workspace (ui/workspace/, Schematic | Workspace in the toolbar, a segmented switch like Edit |
+  Simulate; both modes, the simulation runs on whichever is shown): WorkspaceView in place of the
+  page tabs and the schematic (SchematicView hidden, editor inactive), its WorkspaceTree in a
+  SideBar on the left. Places with location designations (ČSN EN 81346 "+"; Workspace.Place):
+  switchboards (Switchboard "RA1": title, rails, position; SchematicDocument.switchboards),
+  control stations (ControlBox "ST1" with title and position), groups (WorkspaceGroup "G1":
+  title, members, position while empty; SchematicDocument.groups); names unique over all places
+  (next_place_name, rename_place), new places at a free spot right of the others (free_spot)
+  or where the menu was opened. Parts in the field (Workspace.field_devices: motors, limit
+  switches, temperature sensors; VFDs and PLCs sit in switchboards) stand on the workspace by
+  themselves: where they were put (SchematicDocument.field_positions), else in a row under
+  everything (Workspace.field_positions); a group's frame is round its members
+  (Workspace.group_rect), dragging it moves them (move_place), a part dropped into a frame
+  joins the group, dropped outside leaves it (place_field_device); renamed parts keep both.
+  WorkspaceCanvas draws on schematic paper (SchematicTheme, follows White schematic paper)
+  solid tiles (WorkspaceTile: switchboard teal, station blue, field grey, white signs; also the
+  tree's icons): the place's tile with "+RA1", its title and what it holds, a part's tile with
+  "-M1"; wheel zooms at the mouse, right / middle drag pans, a right click without a drag asks
+  for a menu (Open, Open in a new window, Rename…, Delete; on parts Show in the schematic, Take
+  out of the group; on empty paper Add … here), left drag moves (Edit mode, one undoable edit
+  at the drop, SchematicEditor.edit_workspace), a click on a switchboard or station opens it:
+  map + detail, the CabinetPanel / StationPanel takes the canvas's room with a bar above (back,
+  rename, window, close; Esc goes back) and the tree stays as the map (a click on a device in
+  it opens its place with the device selected). The tree lists switchboards with their devices
+  and strips, stations with their items, groups with their parts, the parts in the field and
+  what has no place yet (Workspace.unplaced: devices and strips in no switchboard, buttons,
+  switches and lamps on no station); its search field filters it. PlaceWindow shows a
+  switchboard or station in a window of its own (follows the shown document, closes when its
+  place is gone; keys it does not use go to main.gd's shortcuts). While simulating only the
+  opened place shows the circuit's state; the workspace stays plain. Older files: the rails of
+  "cabinet" become switchboard RA1, control boxes become stations ST1, ST2, … side by side
+  (SchematicDocument.name_places)
+- Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
-  renames; edited in the sidebar in Edit mode (undoable), operate the simulation in Simulate mode
-- Switchboard (rozvaděč, sidebar, both modes, toolbar toggle): DIN rails (SchematicDocument.cabinet_rails,
-  CabinetRail / CabinetItem: a device by designation or a terminal strip by name, saved as "cabinet")
+  renames; opened from the workspace (StationPanel: the box drawn large, ZoomBox, the editing
+  tools beside it in Edit mode, undoable), operate the simulation in Simulate mode
+- Switchboards (rozvaděč, opened from the workspace, both modes): DIN rails (Switchboard.rails,
+  CabinetRail / CabinetItem: a device by designation or a terminal strip by name; a device or
+  strip has one place in all switchboards, SchematicDocument.cabinet_has; saved in "switchboards")
   drawn by CabinetView / CabinetLayout / CabinetParts in millimetres (CabinetPainter), real sizes, after
   photos of real devices but never with maker names or type designations; approved look: white plate,
   slotted TS35 rails, open slotted ducts, white labels, push-in terminals, orange glow on energized
@@ -140,10 +170,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminals. A strip is split in the sidebar: picked terminals move to another strip or a new
   one (SchematicDocument.move_strip_terminals relabels them, "5" -> "X2:5", a taken number
   becomes the next free one; a new strip gets a place right after the old one). The drawing
-  zooms (CabinetView.zoom over fitting the width: buttons, Ctrl+wheel over it; right or middle
-  drag moves it). Edited in the sidebar (undoable, "Fill from the
-  schematic"), breakers, fuse holders and overload relays operated there while simulating.
-  tools/screenshot_cabinet.gd screenshots the app (xvfb) for visual review
+  zooms (CabinetView.zoom over fitting the width and the height, CabinetView.fit_height, centred
+  across: buttons, Ctrl+wheel over it; right or middle drag moves it); each switchboard is laid out
+  and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Edited in
+  CabinetPanel beside the drawing (undoable, "Fill from the schematic" fills the opened
+  switchboard), breakers, fuse holders and overload relays operated there while simulating.
+  tools/screenshot_workspace.gd screenshots the app's workspace, a switchboard and a station
+  (xvfb) for visual review
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
@@ -321,7 +354,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
-  ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
+  ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile; the workspace: Workspace,
+  Switchboard, WorkspaceGroup, ControlBox) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
@@ -343,8 +377,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   ExportPreview (dialog)
 - `sim/plc/` PlcProgram, PlcBlock, PlcRung, PlcRuntime, PlcTimer, PlcCounter (PLC programs)
 - `ui/plc/` PlcWindow, PlcCanvas, PlcFbdCanvas, PlcLadCanvas (PLC program window)
-- `ui/control_panel/` ControlPanel (sidebar), ControlBoxView (one box drawn with _draw())
-- `ui/cabinet/` CabinetPanel (sidebar), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
+- `ui/workspace/` WorkspaceView, WorkspaceCanvas, WorkspaceTree, WorkspaceTile, PlaceWindow
+- `ui/control_panel/` StationPanel (one opened station), ControlBoxView (one box drawn with _draw())
+- `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP

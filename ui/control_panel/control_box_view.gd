@@ -1,6 +1,6 @@
 class_name ControlBoxView
 extends Control
-## Draws one [ControlBox] of the operator panel like the real thing: a grey
+## Draws one [ControlBox] (a control station) like the real thing: a grey
 ## housing with black label plates, coloured push buttons, selector switches
 ## (0 / I) and signal lamps. While simulating, a push button is held with the
 ## left mouse button, a switch turns over on click and a lamp lights while its
@@ -189,7 +189,7 @@ func _get_tooltip(at_position: Vector2) -> String:
 	if index < 0:
 		return ""
 	var item: ControlBoxItem = box().items[index]
-	var text: String = tr(ControlPanel.KIND_TITLES[item.kind])
+	var text: String = tr(StationPanel.KIND_TITLES[item.kind])
 	if item.designation.is_empty():
 		text += " – " + tr("no device chosen")
 	else:

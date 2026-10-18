@@ -71,9 +71,19 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The switchboard prints each breaker's characteristic and rating (B2, C16, …)
 - Terminals can be moved along their terminal strip in the switchboard
 - The incoming supply lands on the supply's strip terminals
-- The control panel and the switchboard open in a window of their own (the window button at
-  the right of their title), e.g. on a second monitor; closing the window puts them back beside
-  the schematic
+- The workspace (Schematic | Workspace in the toolbar) takes the place of the control panel
+  and switchboard sidebars: as many switchboards (+RA1, +RA2, …) and control stations (+ST1,
+  +ST2, …) as you like, placed and dragged around on schematic paper, with the motors, limit
+  switches and temperature sensors of the schematic standing in the field beside them
+- A click on a switchboard or control station opens it in place of the workspace, with the
+  tree of everything kept beside it as the map; a right click opens it in a window of its own,
+  e.g. on a second monitor, renames it or deletes it
+- Groups (+G1) keep parts in the field that belong together, e.g. a gate with its motor and
+  limit switches: drag a part into a group's frame to put it in, drag the frame to move them all
+- The tree beside the workspace lists every switchboard with its devices and terminal strips,
+  every station with its buttons and lamps, the groups and what has no place yet; a search
+  field finds a device, a click opens its switchboard or station with it selected
+- Schematics saved before keep their switchboard as +RA1 and each control box as a station
 
 ### Files and export
 - Unsaved work is no longer lost when LadderLab crashes, freezes or is killed: a copy is kept
@@ -82,8 +92,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ### Application
 - A tidier start: an empty page and the parts library only. The properties appear while
-  something is selected; at the first start the control panel is off and the timing chart and
-  event log are rolled in while simulating
+  something is selected; at the first start the timing chart and event log are rolled in
+  while simulating
 
 ### Fixed
 - A wire without its corners (from a file edited by hand or made by another program) froze the

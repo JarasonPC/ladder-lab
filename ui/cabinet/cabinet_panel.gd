@@ -1,17 +1,14 @@
 class_name CabinetPanel
-extends PanelContainer
-## Switchboard (rozvaděč) beside the schematic: the DIN rails of the document
-## ([CabinetRail]) with its circuit breakers, fuse holders, contactors and
-## overload relays, relays, time relays, bridge rectifiers, PLCs and terminal strips, drawn by a
-## [CabinetView]. While simulating they show the circuit and breakers, fuse
-## holders and overload relays are operated on them. While editing, rails
-## are added and filled here; every change is emitted as one undoable edit
-## of the document (see [method SchematicEditor.edit_cabinet]).
+extends HBoxContainer
+## One switchboard (rozvaděč) of the workspace, opened from it: its DIN rails
+## ([CabinetRail]) with circuit breakers, fuse holders, contactors and
+## overload relays, relays, time relays, bridge rectifiers, PLCs, frequency
+## inverters and terminal strips, drawn by a [CabinetView]. While simulating
+## they show the circuit and breakers, fuse holders and overload relays are
+## operated on them. While editing, the tools beside the drawing add and fill
+## rails; every change is emitted as one undoable edit of the document (see
+## [method SchematicEditor.edit_cabinet]).
 
-## The title was clicked: the panel rolls in to a tab.
-signal roll_in_requested
-## The window button was clicked: the panel moves to a window of its own.
-signal window_requested
 ## A breaker, fuse holder or overload relay was clicked while simulating.
 signal operate_requested(designation: String)
 ## A change of the switchboard: [param change] is called with the document.
@@ -20,21 +17,17 @@ signal edit_requested(change: Callable)
 ## English names of [enum CabinetDevices.Kind] (translated with tr()).
 const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay", "Bridge rectifier", "PLC", "Frequency inverter"]
 
+## Name of the switchboard shown ([member Switchboard.name]).
+var board_name: String = ""
 var _document: SchematicDocument
 var _editing: bool = false
 var _selected: Vector2i = Vector2i(-1, -1)
 ## Terminals (by label) of the selected terminal strip picked to move to another strip.
 var _picked: Dictionary[String, bool] = {}
-var _title: Button
-var _header: HBoxContainer
-var _window_button: Button
-## Shown in a window of its own ([PanelWindow]): no title row, the window has it.
-var in_window: bool = false:
-	set(value):
-		in_window = value
-		if _header != null:
-			_header.visible = not value
+## Editing tools beside the drawing (Edit mode only).
+var _tools: PanelContainer
 var _list: VBoxContainer
+var _note: Label
 var _view: CabinetView
 ## Scrolls the zoomed switchboard sideways.
 var _across: ScrollContainer
@@ -43,38 +36,35 @@ var _rebuild_queued: bool = false
 
 
 func _ready() -> void:
-	theme_type_variation = "RightPanel"
-	var outer: VBoxContainer = VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 10)
-	add_child(outer)
-	# The title rolls the panel in to a tab (see [member SideBar.rolled]).
-	_title = TimingPanel.rollout_button()
-	_title.icon = AppTheme.icon("chevron_down", 16)
-	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title.pressed.connect(func() -> void: roll_in_requested.emit())
-	_header = HBoxContainer.new()
-	_header.add_theme_constant_override("separation", 2)
-	_header.visible = not in_window
-	_header.add_child(_title)
-	_window_button = _tool("window", "")
-	_window_button.pressed.connect(func() -> void: window_requested.emit())
-	_header.add_child(_window_button)
-	outer.add_child(_header)
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer.add_child(scroll)
-	_list = VBoxContainer.new()
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_list.add_theme_constant_override("separation", 8)
-	scroll.add_child(_list)
+	add_theme_constant_override("separation", 0)
+	var margin: MarginContainer = MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for side: String in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	add_child(margin)
+	var left: VBoxContainer = VBoxContainer.new()
+	left.add_theme_constant_override("separation", 6)
+	margin.add_child(left)
+	_zoom_row = HBoxContainer.new()
+	_zoom_row.add_theme_constant_override("separation", 2)
+	_zoom_row.alignment = BoxContainer.ALIGNMENT_END
+	left.add_child(_zoom_row)
+	_note = Label.new()
+	_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_note.theme_type_variation = "MutedLabel"
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(_note)
+	var down: ScrollContainer = ScrollContainer.new()
+	down.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	down.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(down)
 	_across = ScrollContainer.new()
 	_across.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_across.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_across.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_zoom_row = HBoxContainer.new()
-	_zoom_row.add_theme_constant_override("separation", 2)
-	_zoom_row.alignment = BoxContainer.ALIGNMENT_END
+	down.add_child(_across)
+	# Opened from the workspace, the whole switchboard fits in sight at first.
+	down.resized.connect(func() -> void: _view.fit_height = maxf(down.size.y - 2.0, 0.0))
 	_view = CabinetView.new()
 	_across.add_child(_view)
 	_view.zoom_changed.connect(_fill_zoom_row)
@@ -87,11 +77,23 @@ func _ready() -> void:
 			_picked.clear()
 		_selected = Vector2i(rail, index)
 		_rebuild_queued = true)
+	_tools = PanelContainer.new()
+	_tools.theme_type_variation = "RightPanel"
+	_tools.custom_minimum_size.x = 300.0
+	add_child(_tools)
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_tools.add_child(scroll)
+	_list = VBoxContainer.new()
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_theme_constant_override("separation", 8)
+	scroll.add_child(_list)
 	_rebuild()
 
 
-## Shows the switchboard of [param doc]; [param editing] offers the editing
-## tools, otherwise it shows and operates the simulation of [param doc].
+## Shows switchboard [member board_name] of [param doc]; [param editing]
+## offers the editing tools, otherwise it shows and operates the simulation
+## of [param doc].
 func set_document(doc: SchematicDocument, editing: bool) -> void:
 	_document = doc
 	_editing = editing
@@ -109,6 +111,21 @@ func retranslate() -> void:
 	_rebuild()
 
 
+## Selects the place of device or terminal strip [param designation] (Edit mode).
+func select_item(kind: CabinetItem.Kind, designation: String) -> void:
+	var b: int = _board()
+	if b < 0 or not _editing:
+		return
+	var rails: Array[CabinetRail] = _document.switchboards[b].rails
+	for r: int in rails.size():
+		for i: int in rails[r].items.size():
+			if rails[r].items[i].kind == kind and rails[r].items[i].designation == designation:
+				_picked.clear()
+				_selected = Vector2i(r, i)
+				_rebuild()
+				return
+
+
 ## Voltage reach of the last simulation step (terminal key -> reach code).
 func show_step(result: StepResult) -> void:
 	_view.reach = result.terminal_reach
@@ -123,50 +140,59 @@ func _process(_delta: float) -> void:
 		_view.queue_redraw()
 
 
+## Index of the switchboard shown, -1 when the document has none of that name.
+func _board() -> int:
+	if _document == null:
+		return -1
+	for b: int in _document.switchboards.size():
+		if _document.switchboards[b].name == board_name:
+			return b
+	return -1
+
+
 func _rebuild() -> void:
 	if _list == null:
 		return
-	for kept: Control in [_zoom_row, _across]:
-		if kept.get_parent() == _list:
-			_list.remove_child(kept)
 	for child: Node in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()
-	_title.text = tr("Switchboard")
-	_title.tooltip_text = tr("Roll the panel in")
-	_window_button.tooltip_text = tr("Open in a new window")
-	if _document == null:
+	var b: int = _board()
+	_tools.visible = _editing and b >= 0
+	if b < 0:
+		_note.visible = false
+		_view.document = null
+		_view.refresh()
 		return
-	if _selected.x >= _document.cabinet_rails.size() or (_selected.x >= 0 and _selected.y >= _document.cabinet_rails[_selected.x].items.size()):
+	var rails: Array[CabinetRail] = _document.switchboards[b].rails
+	if _selected.x >= rails.size() or (_selected.x >= 0 and _selected.y >= rails[_selected.x].items.size()):
 		_selected = Vector2i(-1, -1)
-	if _document.cabinet_rails.is_empty():
-		_note(tr("No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it.") if _editing else tr("No switchboard yet. Make it in Edit mode."))
+	_note.visible = rails.is_empty()
+	_note.text = tr("No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it.") if _editing else tr("No DIN rails yet. Make them in Edit mode.")
 	_view.document = _document
+	_view.board = b
 	_view.simulating = not _editing
 	_view.selected = _selected
 	_fill_zoom_row()
-	_list.add_child(_zoom_row)
-	_list.add_child(_across)
 	_view.refresh()
 	if not _editing:
 		return
 	if _selected.x >= 0:
-		_place_editor(_selected.x, _selected.y)
-	for r: int in _document.cabinet_rails.size():
-		_rail_row(r)
+		_place_editor(b, _selected.x, _selected.y)
+	for r: int in rails.size():
+		_rail_row(b, r)
 	_list.add_child(HSeparator.new())
 	var add_rail: Button = _button(tr("Add rail"), "plus")
 	add_rail.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	add_rail.tooltip_text = tr("Add an empty DIN rail at the bottom")
 	add_rail.pressed.connect(func() -> void:
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_rail()))
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_rail(b)))
 	_list.add_child(add_rail)
 	var fill: Button = _button(tr("Fill from the schematic"), "cabinet")
 	fill.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	fill.tooltip_text = tr("Add rails with every device and terminal strip of the schematic that is not in the switchboard yet")
+	fill.tooltip_text = tr("Add rails with every device and terminal strip of the schematic that is not in a switchboard yet")
 	fill.disabled = _document.cabinet_unplaced().is_empty()
 	fill.pressed.connect(func() -> void:
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet()))
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet(b)))
 	_list.add_child(fill)
 
 
@@ -195,7 +221,7 @@ func _zoom_by(factor: float) -> void:
 
 
 ## Rail [param r]: its name, a menu that adds a device or strip, move up, delete.
-func _rail_row(r: int) -> void:
+func _rail_row(b: int, r: int) -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
 	var name_label: Label = Label.new()
@@ -219,26 +245,27 @@ func _rail_row(r: int) -> void:
 		if k == 0:
 			return
 		var item: CabinetItem = unplaced[k - 1]
-		_selected = Vector2i(r, _document.cabinet_rails[r].items.size())
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_item(r, item.kind, item.designation)))
+		_selected = Vector2i(r, _document.switchboards[b].rails[r].items.size())
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_item(b, r, item.kind, item.designation)))
 	row.add_child(add)
 	var up: Button = _tool("arrow_up", tr("Move the rail up"))
 	up.disabled = r == 0
 	up.pressed.connect(func() -> void:
 		_selected = Vector2i(-1, -1)
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_rail(r, -1)))
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_rail(b, r, -1)))
 	row.add_child(up)
 	var remove: Button = _tool("delete", tr("Delete the rail"))
 	remove.pressed.connect(func() -> void:
 		_selected = Vector2i(-1, -1)
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_rail(r)))
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_rail(b, r)))
 	row.add_child(remove)
 	_list.add_child(row)
 
 
 ## The selected place: what it is, move it along its rail or to another rail, remove it.
-func _place_editor(r: int, i: int) -> void:
-	var item: CabinetItem = _document.cabinet_rails[r].items[i]
+func _place_editor(b: int, r: int, i: int) -> void:
+	var rails: Array[CabinetRail] = _document.switchboards[b].rails
+	var item: CabinetItem = rails[r].items[i]
 	var card: PanelContainer = PanelContainer.new()
 	card.theme_type_variation = "FunctionCard"
 	_list.add_child(card)
@@ -252,20 +279,20 @@ func _place_editor(r: int, i: int) -> void:
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 2)
 	fields.add_child(actions)
-	var count: int = _document.cabinet_rails[r].items.size()
+	var count: int = rails[r].items.size()
 	for step: int in [-1, 1]:
 		var move: Button = _tool("arrow_left" if step < 0 else "arrow_right", tr("Move it one place left") if step < 0 else tr("Move it one place right"))
 		move.disabled = i + step < 0 or i + step >= count
 		move.pressed.connect(func() -> void:
 			_selected = Vector2i(r, i + step)
-			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_item(r, i, step)))
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_item(b, r, i, step)))
 		actions.add_child(move)
 	for step: int in [-1, 1]:
 		var to_rail: Button = _tool("arrow_up" if step < 0 else "arrow_down", tr("Move it to the rail above") if step < 0 else tr("Move it to the rail below"))
-		to_rail.disabled = r + step < 0 or r + step >= _document.cabinet_rails.size()
+		to_rail.disabled = r + step < 0 or r + step >= rails.size()
 		to_rail.pressed.connect(func() -> void:
-			_selected = Vector2i(r + step, _document.cabinet_rails[r + step].items.size())
-			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_item_to_rail(r, i, step)))
+			_selected = Vector2i(r + step, rails[r + step].items.size())
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.move_cabinet_item_to_rail(b, r, i, step)))
 		actions.add_child(to_rail)
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -273,7 +300,7 @@ func _place_editor(r: int, i: int) -> void:
 	var remove: Button = _button(tr("Remove"), "delete")
 	remove.pressed.connect(func() -> void:
 		_selected = Vector2i(-1, -1)
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_item(r, i)))
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_item(b, r, i)))
 	actions.add_child(remove)
 	if item.kind == CabinetItem.Kind.STRIP:
 		_strip_split(fields, item.designation)
@@ -369,15 +396,6 @@ func _item_title(item: CabinetItem) -> String:
 
 
 # --- Controls ---------------------------------------------------------------------
-
-func _note(text: String) -> void:
-	var label: Label = Label.new()
-	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	label.theme_type_variation = "MutedLabel"
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.text = text
-	_list.add_child(label)
-
 
 func _button(text: String, icon_name: String) -> Button:
 	var button: Button = Button.new()

@@ -424,15 +424,15 @@ func change_type(component_id: String, template: Dictionary) -> String:
 	return apply_properties(component_id, data)
 
 
-## Applies [param change] (called with the document) to the control panel as
-## one undoable edit.
-func edit_control_panel(change: Callable) -> void:
+## Applies [param change] (called with the document) to the workspace or a
+## control station as one undoable edit.
+func edit_workspace(change: Callable) -> void:
 	_record()
 	change.call(document())
 	edited.emit()
 
 
-## Applies [param change] (called with the document) to the switchboard as
+## Applies [param change] (called with the document) to a switchboard as
 ## one undoable edit.
 func edit_cabinet(change: Callable) -> void:
 	_record()

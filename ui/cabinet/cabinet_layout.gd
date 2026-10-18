@@ -4,8 +4,8 @@ extends RefCounted
 ## with its mounting plate, the wire ducts (across above, between and below
 ## the rails, down both sides), the DIN rails and every place on them with
 ## its device's drawing, label and the area that answers clicks. Built from
-## [member SchematicDocument.cabinet_rails] and the circuit (see
-## [CabinetDevices]); the plate grows with the longest rail.
+## the rails of one of [member SchematicDocument.switchboards] and the
+## circuit (see [CabinetDevices]); the plate grows with the longest rail.
 
 ## Frame of the enclosure around the plate.
 const FRAME: float = 6.0
@@ -35,7 +35,7 @@ const MISSING_DEVICE: int = 101
 var size: Vector2 = Vector2.ZERO
 ## Ducts: {"rect": Rect2, "vertical": bool}.
 var ducts: Array[Dictionary] = []
-## DIN rails, one per [member SchematicDocument.cabinet_rails].
+## DIN rails, one per [member Switchboard.rails].
 var rails: Array[Rect2] = []
 ## Places on the rails: {"rail", "index", "kind" (CabinetDevices.Kind, STRIP or
 ## MISSING_DEVICE), "designation", "desc" (see [method CabinetDevices.describe];
@@ -47,16 +47,18 @@ var rails: Array[Rect2] = []
 var places: Array[Dictionary] = []
 
 
-## Lays out the switchboard of [param doc]; [param k] (pixels per mm) makes
-## the terminal strips as wide as they are drawn.
-static func build(doc: SchematicDocument, k: float) -> CabinetLayout:
+## Lays out switchboard [param board] of [param doc] (empty when there is no
+## such switchboard); [param k] (pixels per mm) makes the terminal strips as
+## wide as they are drawn.
+static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLayout:
 	var layout: CabinetLayout = CabinetLayout.new()
 	var strips: Dictionary = CabinetDevices.strips(doc)
+	var board_rails: Array[CabinetRail] = doc.switchboards[board].rails if board >= 0 and board < doc.switchboards.size() else ([] as Array[CabinetRail])
 	# Each rail: its places relative to the rail's centre line and its extent.
 	var rows: Array[Dictionary] = []
 	var content: float = MIN_CONTENT
-	for r: int in doc.cabinet_rails.size():
-		var rail: CabinetRail = doc.cabinet_rails[r]
+	for r: int in board_rails.size():
+		var rail: CabinetRail = board_rails[r]
 		var row: Dictionary = {"places": [], "top": -EMPTY_ROW * 0.5, "bottom": EMPTY_ROW * 0.5}
 		var x: float = 0.0
 		for i: int in rail.items.size():

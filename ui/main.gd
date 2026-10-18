@@ -1,10 +1,13 @@
 extends Node
 ## Main window: toolbar, palette, schematic view, properties, check results and
-## status bar. Edit mode edits the schematic; Simulate mode runs a copy of it,
-## so the simulation never changes the design.
+## status bar, or the workspace with its switchboards and control stations
+## (Schematic | Workspace). Edit mode edits the schematic; Simulate mode runs
+## a copy of it, so the simulation never changes the design.
 ## All user-facing text is English source text passed through tr().
 
 enum Mode { EDIT, SIMULATE }
+## What the window shows: the schematic or the workspace.
+enum Area { SCHEMATIC, WORKSPACE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
@@ -26,6 +29,7 @@ const SETTINGS_PATH: String = "user://settings.cfg"
 const MAX_RECENT: int = 8
 
 var mode: Mode = Mode.EDIT
+var area: Area = Area.SCHEMATIC
 ## The schematic being designed (the simulation runs on a copy).
 var edit_doc: SchematicDocument
 var view: SchematicView
@@ -62,6 +66,8 @@ var _offering_download: bool = false
 var _about_dialog: AboutDialog
 var _edit_button: Button
 var _simulate_button: Button
+var _schematic_button: Button
+var _workspace_button: Button
 var _circuit_select: OptionButton
 var _layout_select: OptionButton
 var _edit_tools: HBoxContainer
@@ -87,14 +93,12 @@ var _time_label: Label
 var _palette: Palette
 var _side: VBoxContainer
 ## Resizable and zoomable side panels: palette (left), properties with the
-## check results and the control panel (right).
+## check results (right), the tree of the workspace (left).
 var _palette_bar: SideBar
 var _side_bar: SideBar
-var _control_bar: SideBar
+var _tree_bar: SideBar
 ## Width and zoom of each side panel by its settings name, as loaded.
 var _bar_settings: Dictionary[String, Vector2] = {}
-## Side panels rolled in to their tabs, by settings name.
-var _bar_rolled: Dictionary[String, bool] = {}
 ## Event log width and timing panel height, as loaded.
 var _timing_size: Vector2 = Vector2(340.0, 220.0)
 ## Part of the window where the schematic is visible (between the panels).
@@ -103,6 +107,7 @@ var _canvas_area: Control
 var _page_tabs: TabBar
 var _page_add: MenuButton
 var _page_row: HBoxContainer
+var _page_bar: Control
 ## Right click menu of a page tab, for page [member _menu_page].
 var _page_menu: PopupMenu
 var _menu_page: int = -1
@@ -127,15 +132,10 @@ var _export_render: int = 0
 ## Big red warning over the schematic during an unprotected short circuit.
 var _short_banner: Label
 var _properties: PropertiesPanel
-## Control boxes with the buttons, switches and lamps (both modes).
-var _control_panel: ControlPanel
-var _panel_toggle: Button
-var _show_control_panel: bool = false
-## Switchboard with the DIN rails (both modes).
-var _cabinet_panel: CabinetPanel
-var _cabinet_bar: SideBar
-var _cabinet_toggle: Button
-var _show_cabinet: bool = false
+## Switchboards, control stations and parts in the field (both modes).
+var _workspace: WorkspaceView
+## The next document shown fits the whole workspace into view (a new schematic).
+var _workspace_fit: bool = true
 var _check_panel: CheckPanel
 var _status_label: Label
 var _hint_label: Label
@@ -212,18 +212,22 @@ func _ready() -> void:
 	_properties.type_changed.connect(_on_type_changed)
 	_palette.template_chosen.connect(func(t: Dictionary) -> void: editor.begin_place(t))
 	_check_panel.issue_selected.connect(_on_issue_selected)
-	view.loaded.connect(func() -> void: _control_panel.set_document(view.document, mode == Mode.EDIT))
-	editor.edited.connect(_control_panel.refresh)
-	_control_panel.edit_requested.connect(editor.edit_control_panel)
-	_control_panel.button_held.connect(view.hold_button)
-	_control_panel.switch_toggled.connect(view.toggle_switch)
-	_control_panel.window_requested.connect(func() -> void: open_panel_window(_control_bar))
-	view.loaded.connect(func() -> void: _cabinet_panel.set_document(view.document, mode == Mode.EDIT))
-	view.stepped.connect(_cabinet_panel.show_step)
-	editor.edited.connect(_cabinet_panel.refresh)
-	_cabinet_panel.edit_requested.connect(editor.edit_cabinet)
-	_cabinet_panel.operate_requested.connect(view.operate_device)
-	_cabinet_panel.window_requested.connect(func() -> void: open_panel_window(_cabinet_bar))
+	view.loaded.connect(_on_view_loaded)
+	editor.edited.connect(_workspace.refresh)
+	view.stepped.connect(_workspace.show_step)
+	_workspace.edit_requested.connect(editor.edit_workspace)
+	_workspace.cabinet_edit_requested.connect(editor.edit_cabinet)
+	_workspace.button_held.connect(view.hold_button)
+	_workspace.switch_toggled.connect(view.toggle_switch)
+	_workspace.operate_requested.connect(view.operate_device)
+	_workspace.window_requested.connect(open_place_window)
+	_workspace.schematic_requested.connect(_show_in_schematic)
+	editor.edited.connect(func() -> void:
+		for window: PlaceWindow in _place_windows():
+			window.refresh())
+	view.stepped.connect(func(result: StepResult) -> void:
+		for window: PlaceWindow in _place_windows():
+			window.show_step(result))
 	editor.plc_requested.connect(open_plc_window)
 	view.plc_requested.connect(open_plc_window)
 	_properties.plc_requested.connect(open_plc_window)
@@ -369,6 +373,23 @@ func _build_ui() -> void:
 	_update_button.visible = false
 	bar.add_child(VSeparator.new())
 
+	# Schematic | Workspace as one segmented switch.
+	var area_track: PanelContainer = PanelContainer.new()
+	area_track.theme_type_variation = "SegmentTrack"
+	bar.add_child(area_track)
+	var area_segments: HBoxContainer = HBoxContainer.new()
+	area_segments.add_theme_constant_override("separation", 2)
+	area_track.add_child(area_segments)
+	var area_group: ButtonGroup = ButtonGroup.new()
+	_schematic_button = _button(area_segments, func() -> void: _set_area(Area.SCHEMATIC), "schematic")
+	_workspace_button = _button(area_segments, func() -> void: _set_area(Area.WORKSPACE), "workspace")
+	for b: Button in [_schematic_button, _workspace_button]:
+		b.theme_type_variation = "SegmentButton"
+		b.toggle_mode = true
+		b.button_group = area_group
+	_schematic_button.button_pressed = true
+	bar.add_child(_spacer(4))
+
 	# Edit | Simulate as one segmented switch.
 	var track: PanelContainer = PanelContainer.new()
 	track.theme_type_variation = "SegmentTrack"
@@ -400,12 +421,6 @@ func _build_ui() -> void:
 	_numbers_toggle = _tool(bar, func() -> void: _set_wire_numbers(_numbers_toggle.button_pressed), "wire_numbers")
 	_numbers_toggle.toggle_mode = true
 	_numbers_toggle.button_pressed = _wire_numbers
-	_panel_toggle = _tool(bar, func() -> void: _set_control_panel(_panel_toggle.button_pressed), "panel")
-	_panel_toggle.toggle_mode = true
-	_panel_toggle.button_pressed = _show_control_panel
-	_cabinet_toggle = _tool(bar, func() -> void: _set_cabinet(_cabinet_toggle.button_pressed), "cabinet")
-	_cabinet_toggle.toggle_mode = true
-	_cabinet_toggle.button_pressed = _show_cabinet
 	bar.add_child(VSeparator.new())
 
 	_edit_tools = HBoxContainer.new()
@@ -464,16 +479,21 @@ func _build_ui() -> void:
 		_palette_grid = on
 		_save_settings())
 	_palette_bar = _side_panel(middle, _palette, "palette", false)
+	_workspace = WorkspaceView.new()
+	_tree_bar = _side_panel(middle, _workspace.tree, "workspace_tree", false)
 	var canvas_column: VBoxContainer = VBoxContainer.new()
 	canvas_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	canvas_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas_column.add_theme_constant_override("separation", 0)
 	middle.add_child(canvas_column)
-	canvas_column.add_child(_build_page_bar())
+	_page_bar = _build_page_bar()
+	canvas_column.add_child(_page_bar)
 	_canvas_area = Control.new()
 	_canvas_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_canvas_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas_column.add_child(_canvas_area)
+	_workspace.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_canvas_area.add_child(_workspace)
 	_short_banner = Label.new()
 	_short_banner.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_short_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -499,10 +519,6 @@ func _build_ui() -> void:
 	_check_panel = CheckPanel.new()
 	_side.add_child(_check_panel)
 	_side_bar = _side_panel(middle, _side, "properties", true)
-	_control_panel = ControlPanel.new()
-	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
-	_cabinet_panel = CabinetPanel.new()
-	_cabinet_bar = _side_panel(middle, _cabinet_panel, "cabinet", true)
 
 	_timing_panel = TimingPanel.new()
 	_timing_panel.panel_height = _timing_size.y
@@ -698,6 +714,10 @@ func _retranslate() -> void:
 	_view_menu.text = tr("View")
 	_help_menu.text = tr("Help")
 	_update_new_release_button()
+	_schematic_button.text = tr("Schematic")
+	_schematic_button.tooltip_text = tr("The circuit diagram, page by page")
+	_workspace_button.text = tr("Workspace")
+	_workspace_button.tooltip_text = tr("Switchboards, control stations and the motors, limit switches and sensors in the field")
 	_edit_button.text = tr("Edit")
 	_simulate_button.text = tr("Simulate")
 	_circuit_select.tooltip_text = tr("Example circuit")
@@ -715,8 +735,6 @@ func _retranslate() -> void:
 	_flip_button.tooltip_text = tr("Mirror top-bottom: the upper and lower terminals swap") + "  (Shift+F)"
 	_delete_button.tooltip_text = tr("Delete") + "  (Del)"
 	_numbers_toggle.tooltip_text = tr("Show wire numbers (drag a number to move it)")
-	_panel_toggle.tooltip_text = tr("Show the control panel: boxes with the push buttons, switches and signal lamps")
-	_cabinet_toggle.tooltip_text = tr("Show the switchboard: DIN rails with the breakers, fuses, contactors, relays and terminals")
 	_number_button.tooltip_text = tr("Number the wires: every net gets its own number, all wire ends of a net the same")
 	_check_button.text = tr("Check")
 	_check_button.tooltip_text = tr("Look for unconnected terminals, contacts without a coil and other mistakes")
@@ -743,13 +761,10 @@ func _retranslate() -> void:
 	_page_tabs.tooltip_text = tr("Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more (also: open a page in a new window)")
 	_refresh_pages()
 	_palette.retranslate()
-	for bar: SideBar in [_palette_bar, _side_bar, _control_bar, _cabinet_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar]:
 		bar.retranslate()
-	_control_panel.retranslate()
-	_cabinet_panel.retranslate()
-	_control_bar.title = tr("Control panel")
-	_cabinet_bar.title = tr("Switchboard")
-	for window: PanelWindow in _panel_windows():
+	_workspace.retranslate()
+	for window: PlaceWindow in _place_windows():
 		window.retranslate()
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
@@ -981,7 +996,7 @@ func _apply_ui_scale() -> void:
 		window.content_scale_factor = factor
 	for window: PlcWindow in _plc_windows():
 		window.content_scale_factor = factor
-	for window: PanelWindow in _panel_windows():
+	for window: PlaceWindow in _place_windows():
 		window.content_scale_factor = factor
 
 
@@ -990,48 +1005,18 @@ func _apply_ui_scale() -> void:
 func _side_panel(parent: Control, content: Control, key: String, grip_left: bool) -> SideBar:
 	var bar: SideBar = SideBar.new(content, grip_left)
 	bar.name = key
-	var saved: Vector2 = _bar_settings.get(key, Vector2(340.0 if key == "cabinet" else 250.0, 1.0))
+	var saved: Vector2 = _bar_settings.get(key, Vector2(250.0, 1.0))
 	bar.width = saved.x
 	bar.zoom = saved.y
-	bar.rolled = _bar_rolled.get(key, false)
-	if content.has_signal("roll_in_requested"):
-		content.connect("roll_in_requested", func() -> void: bar.rolled = true)
 	bar.changed.connect(_save_settings)
 	parent.add_child(bar)
 	return bar
 
 
-func _set_control_panel(on: bool) -> void:
-	_show_control_panel = on
-	_panel_toggle.set_pressed_no_signal(on)
-	if not on:
-		_close_panel_window(_control_bar)
-	_update_panel_bars()
-	_save_settings()
-	_fit_camera_later()
-
-
-func _set_cabinet(on: bool) -> void:
-	_show_cabinet = on
-	_cabinet_toggle.set_pressed_no_signal(on)
-	if not on:
-		_close_panel_window(_cabinet_bar)
-	_update_panel_bars()
-	_save_settings()
-	_fit_camera_later()
-
-
-## The control panel and the switchboard beside the schematic: shown when
-## turned on and not moved to a window of their own.
-func _update_panel_bars() -> void:
-	_control_bar.visible = _show_control_panel and not _control_bar.detached
-	_cabinet_bar.visible = _show_cabinet and not _cabinet_bar.detached
-
-
 ## The properties (and check results) beside the schematic: only in Edit
 ## mode while something is selected or the check results are shown.
 func _update_side_bar() -> void:
-	_side_bar.visible = mode == Mode.EDIT and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible)
+	_side_bar.visible = area == Area.SCHEMATIC and mode == Mode.EDIT and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible)
 
 
 ## Shows the simulation as currents ([param on]) or as voltages.
@@ -1063,15 +1048,23 @@ func _set_path_numbers(on: bool) -> void:
 
 func _update_mode_ui() -> void:
 	var editing: bool = mode == Mode.EDIT
+	var schematic: bool = area == Area.SCHEMATIC
 	view.set_grid_visible(editing and _edit_grid)
 	view.set_wire_numbers_visible(_wire_numbers)
 	view.set_path_numbers_visible(_path_numbers)
 	view.set_current_view(_current_view)
 	_view_select.select(1 if _current_view else 0)
-	_edit_tools.visible = editing
-	_palette_bar.visible = editing
+	view.visible = schematic
+	editor.active = editing and schematic
+	_page_bar.visible = schematic
+	_workspace.visible = not schematic
+	_tree_bar.visible = not schematic
+	_edit_tools.visible = editing and schematic
+	_numbers_toggle.visible = schematic
+	_layout_select.visible = schematic
+	_clamp_toggle.visible = schematic
+	_palette_bar.visible = editing and schematic
 	_update_side_bar()
-	_update_panel_bars()
 	_sim_tools.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
@@ -1096,13 +1089,47 @@ func _update_title() -> void:
 
 func _set_mode(new_mode: Mode) -> void:
 	mode = new_mode
-	editor.active = mode == Mode.EDIT
 	if mode == Mode.SIMULATE:
 		_start_simulation()
 	else:
 		view.load_document(edit_doc, false)
 	_update_mode_ui()
 	_fit_camera_later()
+
+
+## Shows the schematic or the workspace; the simulation runs on in both.
+func _set_area(new_area: Area) -> void:
+	area = new_area
+	_schematic_button.set_pressed_no_signal(area == Area.SCHEMATIC)
+	_workspace_button.set_pressed_no_signal(area == Area.WORKSPACE)
+	_update_mode_ui()
+	_on_stepped(view.last_result)
+	if area == Area.SCHEMATIC:
+		_fit_camera_later()
+
+
+## Part [param designation] of the workspace shown in the schematic: its page,
+## centred on it (selected while editing).
+func _show_in_schematic(designation: String) -> void:
+	var c: CircuitComponent = Workspace.field_component(edit_doc.circuit, designation)
+	if c == null:
+		return
+	_set_area(Area.SCHEMATIC)
+	await get_tree().process_frame
+	_show_page(edit_doc.page_of(c.id), c.id)
+	if mode == Mode.EDIT:
+		editor._clear_selection()
+		editor.selected_components[c.id] = true
+		editor._selection_updated()
+
+
+## The schematic or simulation shown was (re)loaded: the workspace and its
+## windows follow it.
+func _on_view_loaded() -> void:
+	_workspace.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
+	_workspace_fit = false
+	for window: PlaceWindow in _place_windows():
+		window.set_document(view.document, mode == Mode.EDIT)
 
 
 ## Fits the view once the panels have their new sizes (after this frame).
@@ -1155,6 +1182,7 @@ func _show_document(doc: SchematicDocument, fit: bool) -> void:
 
 ## Replaces the edited schematic with a new one that has no file yet.
 func _replace_document(doc: SchematicDocument, path: String) -> void:
+	_workspace_fit = true
 	editor.history.clear()
 	editor._clear_selection()
 	_show_document(doc, true)
@@ -1692,31 +1720,25 @@ func open_page_window(index: int) -> PageWindow:
 	return window
 
 
-## Moves the panel of [param bar] (the control panel or the switchboard) into
-## a window of its own, or brings its window to the front; closing the window
-## puts the panel back beside the schematic. Returns the window.
-func open_panel_window(bar: SideBar) -> PanelWindow:
-	for open: PanelWindow in _panel_windows():
-		if open.bar == bar:
+## Opens switchboard or control station [param place_name] of the workspace
+## in a window of its own (or brings its window to the front), showing the
+## same schematic or simulation. Returns the window.
+func open_place_window(kind: Workspace.Place, place_name: String) -> PlaceWindow:
+	for open: PlaceWindow in _place_windows():
+		if open.kind == kind and open.place_name == place_name:
 			open.grab_focus()
 			return open
-	var window: PanelWindow = PanelWindow.new(bar, Vector2(960, 760) if bar == _cabinet_bar else Vector2(480, 680))
+	var window: PlaceWindow = PlaceWindow.new(kind, place_name)
 	window.content_scale_factor = get_window().content_scale_factor
 	window.key_pressed.connect(_on_window_key)
-	window.closing.connect(func() -> void:
-		bar.content.set("in_window", false)
-		_update_panel_bars())
+	window.edit_requested.connect(editor.edit_workspace)
+	window.cabinet_edit_requested.connect(editor.edit_cabinet)
+	window.button_held.connect(view.hold_button)
+	window.switch_toggled.connect(view.toggle_switch)
+	window.operate_requested.connect(view.operate_device)
 	add_child(window)
-	bar.content.set("in_window", true)
-	_update_panel_bars()
+	window.set_document(view.document, mode == Mode.EDIT)
 	return window
-
-
-## Puts the panel of [param bar] back from its window, if it has one.
-func _close_panel_window(bar: SideBar) -> void:
-	for window: PanelWindow in _panel_windows():
-		if window.bar == bar:
-			window.put_back()
 
 
 ## Opens the program of PLC [param component_id] in its window (or brings
@@ -1775,12 +1797,12 @@ func _plc_windows() -> Array[PlcWindow]:
 	return windows
 
 
-## The panel windows that are open.
-func _panel_windows() -> Array[PanelWindow]:
-	var windows: Array[PanelWindow] = []
+## The windows of switchboards and control stations that are open.
+func _place_windows() -> Array[PlaceWindow]:
+	var windows: Array[PlaceWindow] = []
 	for child: Node in get_children():
-		if child is PanelWindow and not child.is_queued_for_deletion():
-			windows.append(child as PanelWindow)
+		if child is PlaceWindow and not child.is_queued_for_deletion():
+			windows.append(child as PlaceWindow)
 	return windows
 
 
@@ -1834,14 +1856,9 @@ func _load_settings() -> void:
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
 		_current_view = bool(config.get_value("view", "current_view", false))
-		_show_control_panel = bool(config.get_value("view", "control_panel", false))
-		_show_cabinet = bool(config.get_value("view", "cabinet", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
-		for key: String in ["palette", "properties", "control_panel"]:
+		for key: String in ["palette", "properties", "workspace_tree"]:
 			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", 250.0)), float(config.get_value("view", key + "_zoom", 1.0)))
-		_bar_settings["cabinet"] = Vector2(float(config.get_value("view", "cabinet_width", 340.0)), float(config.get_value("view", "cabinet_zoom", 1.0)))
-		for key: String in ["control_panel", "cabinet"]:
-			_bar_rolled[key] = bool(config.get_value("view", key + "_rolled", false))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 		_check_updates = bool(config.get_value("updates", "check_at_start", true))
@@ -1861,17 +1878,13 @@ func _save_settings() -> void:
 	config.set_value("view", "path_numbers", _path_numbers)
 	config.set_value("view", "palette_grid", _palette_grid)
 	config.set_value("view", "current_view", _current_view)
-	config.set_value("view", "control_panel", _show_control_panel)
-	config.set_value("view", "cabinet", _show_cabinet)
 	if _timing_panel != null:
 		config.set_value("view", "timing_height", _timing_panel.panel_height)
 		config.set_value("view", "event_log_width", _timing_panel.log_width)
-	for bar: SideBar in [_palette_bar, _side_bar, _control_bar, _cabinet_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar]:
 		if bar != null:
 			config.set_value("view", bar.name + "_width", bar.width)
 			config.set_value("view", bar.name + "_zoom", bar.zoom)
-			if bar == _control_bar or bar == _cabinet_bar:
-				config.set_value("view", bar.name + "_rolled", bar.rolled)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.set_value("updates", "check_at_start", _check_updates)
 	config.save(SETTINGS_PATH)
@@ -1912,7 +1925,7 @@ func _motor_trouble() -> String:
 
 func _on_editor_hint(text: String) -> void:
 	_editor_hint = text
-	if mode == Mode.EDIT and _status_label != null:
+	if mode == Mode.EDIT and area == Area.SCHEMATIC and _status_label != null:
 		_status_label.text = text
 
 
@@ -1923,11 +1936,12 @@ func _on_stepped(result: StepResult) -> void:
 	if _short_banner.visible:
 		_short_banner.text = tr("NO FUSE and SHORT CIRCUIT!")
 	if mode == Mode.EDIT:
-		_status_label.text = _editor_hint
+		# The workspace has its hints in its own bar.
+		_status_label.text = _editor_hint if area == Area.SCHEMATIC else ""
 		_status_label.remove_theme_color_override("font_color")
-		_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
+		_hint_label.text = tr("Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else ""
 		return
-	_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.")
+	_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else tr("Open a control station to press its buttons, a switchboard to switch its breakers.")
 	_time_label.text = "%.3f s" % view.sim_time
 	_timing_panel.chart.set_time(view.sim_time)
 	_timing_panel.event_log.add_events(result.events)

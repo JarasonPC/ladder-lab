@@ -55,11 +55,23 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		result["control_boxes"] = boxes
 	if not doc.title_block.is_empty():
 		result["title_block"] = doc.title_block.to_data()
-	if not doc.cabinet_rails.is_empty():
-		var rails: Array[Dictionary] = []
-		for rail: CabinetRail in doc.cabinet_rails:
-			rails.append(rail.to_data())
-		result["cabinet"] = rails
+	if not doc.switchboards.is_empty():
+		var boards: Array[Dictionary] = []
+		for board: Switchboard in doc.switchboards:
+			boards.append(board.to_data())
+		result["switchboards"] = boards
+	if not doc.groups.is_empty():
+		var list: Array[Dictionary] = []
+		for group: WorkspaceGroup in doc.groups:
+			list.append(group.to_data())
+		result["groups"] = list
+	var field: Dictionary = {}
+	for designation: String in Workspace.field_devices(doc.circuit):
+		if doc.field_positions.has(designation):
+			var at: Vector2 = doc.field_positions[designation]
+			field[designation] = [at.x, at.y]
+	if not field.is_empty():
+		result["field"] = field
 	if not doc.strip_orders.is_empty():
 		var orders: Dictionary = {}
 		for strip: String in doc.strip_orders:
@@ -135,13 +147,42 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			if box != null:
 				doc.control_boxes.append(box)
 	doc.title_block = TitleBlock.from_data(d.get("title_block", {}))
-	# So is the switchboard: malformed rails and items are left out.
+	# So are the switchboards: malformed ones, rails and items are left out.
+	var raw_boards: Variant = d.get("switchboards", [])
+	if raw_boards is Array:
+		for sd: Variant in raw_boards:
+			var board: Switchboard = Switchboard.from_data(sd)
+			if board != null:
+				doc.switchboards.append(board)
+	# Files before version 24 have one switchboard, its rails as "cabinet".
 	var raw_rails: Variant = d.get("cabinet", [])
-	if raw_rails is Array:
+	if raw_rails is Array and not (raw_rails as Array).is_empty() and doc.switchboards.is_empty():
+		var old_board: Switchboard = Switchboard.new()
 		for rd: Variant in raw_rails:
 			var rail: CabinetRail = CabinetRail.from_data(rd)
 			if rail != null:
-				doc.cabinet_rails.append(rail)
+				old_board.rails.append(rail)
+		doc.switchboards.append(old_board)
+	var raw_groups: Variant = d.get("groups", [])
+	if raw_groups is Array:
+		for gd: Variant in raw_groups:
+			var group: WorkspaceGroup = WorkspaceGroup.from_data(gd)
+			if group != null:
+				doc.groups.append(group)
+	var raw_field: Variant = d.get("field", {})
+	if raw_field is Dictionary:
+		for designation: Variant in raw_field:
+			if designation is String and Workspace.field_component(doc.circuit, designation) != null:
+				doc.field_positions[designation] = Workspace.position_from(raw_field[designation])
+	# Places of older files (and damaged names) get names and spots; a name
+	# used twice is given anew.
+	var seen: Dictionary[String, bool] = {}
+	for place: RefCounted in doc.places():
+		if seen.has(place.get("name")):
+			place.set("name", "")
+		elif not str(place.get("name")).is_empty():
+			seen[place.get("name")] = true
+	doc.name_places()
 	var raw_orders: Variant = d.get("strip_order", {})
 	if raw_orders is Dictionary:
 		for strip: Variant in raw_orders:

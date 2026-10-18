@@ -1,6 +1,6 @@
 class_name CabinetView
 extends Control
-## Draws the switchboard (rozvaděč) of a document like the real thing (see
+## Draws a switchboard (rozvaděč) of a document like the real thing (see
 ## [CabinetLayout], [CabinetParts]) with its wiring ([CabinetWiring]), as
 ## wide as the panel it sits in. While
 ## simulating, the devices show the circuit's state, terminals are ringed in
@@ -17,6 +17,8 @@ signal place_clicked(rail: int, index: int)
 signal zoom_changed
 
 var document: SchematicDocument
+## Index of the switchboard drawn in [member SchematicDocument.switchboards].
+var board: int = 0
 ## Operate the circuit (true) or select places for editing (false).
 var simulating: bool = false
 ## Terminal key -> reach code of the last simulation step (see [StepResult]).
@@ -33,6 +35,14 @@ var zoom: float = 1.0:
 		queue_redraw()
 		if not is_equal_approx(was, zoom):
 			zoom_changed.emit()
+
+## Height the plate fits into at zoom 1 too (0: the width alone); the
+## drawing is then centred across.
+var fit_height: float = 0.0:
+	set(value):
+		fit_height = value
+		update_minimum_size()
+		queue_redraw()
 
 ## Most zoom over fitting the width; one wheel step.
 const MAX_ZOOM: float = 8.0
@@ -52,7 +62,7 @@ func _ready() -> void:
 
 ## Lays the switchboard out again (after edits or a new document).
 func refresh() -> void:
-	_layout = CabinetLayout.build(document, _k()) if document != null else null
+	_layout = CabinetLayout.build(document, _k(), board) if document != null else null
 	_wiring = null
 	update_minimum_size()
 	queue_redraw()
@@ -63,7 +73,18 @@ func refresh() -> void:
 func _k() -> float:
 	if _layout == null or _layout.size.x <= 0.0:
 		return 2.0
-	return clampf(_fit_width() / _layout.size.x, 0.6, 6.0) * zoom
+	var fit: float = _fit_width() / _layout.size.x
+	if fit_height > 0.0 and _layout.size.y > 0.0:
+		fit = minf(fit, fit_height / _layout.size.y)
+	return clampf(fit, 0.6, 6.0) * zoom
+
+
+## Where the plate's top-left corner is drawn: centred across while it is
+## narrower than the view.
+func _origin() -> Vector2:
+	if _layout == null:
+		return Vector2.ZERO
+	return Vector2(maxf(0.0, floorf((size.x - _layout.size.x * _k()) * 0.5)), 0.0)
 
 
 ## Width the plate fills at zoom 1: the scrolling parent's, else its own.
@@ -134,7 +155,7 @@ func _notification(what: int) -> void:
 func _place_at(position_px: Vector2, under: Array = []) -> int:
 	if _layout == null:
 		return -1
-	return _layout.place_at(position_px / _k(), under)
+	return _layout.place_at((position_px - _origin()) / _k(), under)
 
 
 ## Designation a click at the place operates while simulating, "" for none.
@@ -211,10 +232,10 @@ func _draw() -> void:
 	# Laid out again on every frame: the devices show the simulation state.
 	var k: float = _k()
 	var height: float = _layout.size.y if _layout != null else 0.0
-	_layout = CabinetLayout.build(document, k)
+	_layout = CabinetLayout.build(document, k, board)
 	if not is_equal_approx(height, _layout.size.y):
 		update_minimum_size.call_deferred()
-	var p: CabinetPainter = CabinetPainter.new(self, k, Vector2.ZERO)
+	var p: CabinetPainter = CabinetPainter.new(self, k, _origin())
 	CabinetParts.plate(p, _layout.size)
 	for rail: Rect2 in _layout.rails:
 		CabinetParts.din_rail(p.shifted(rail.position), rail.size.x)

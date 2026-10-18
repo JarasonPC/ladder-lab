@@ -37,7 +37,8 @@ func _doc() -> SchematicDocument:
 	doc.connect_terminals("KM1:14", "KM1:A1")
 	doc.connect_terminals("KM1:A2", "X5")
 	doc.connect_terminals("X5", "N")
-	doc.fill_cabinet()
+	doc.add_switchboard()
+	doc.fill_cabinet(0)
 	return doc
 
 
@@ -135,8 +136,9 @@ func test_power_wire_between_rails_takes_a_side_duct() -> void:
 
 func test_wires_go_beside_the_overload_relay() -> void:
 	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(9))
-	if doc.cabinet_rails.is_empty():
-		doc.fill_cabinet()
+	if doc.switchboards.is_empty():
+		doc.add_switchboard()
+		doc.fill_cabinet(0)
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
 	var relays: Array[Rect2] = []
@@ -210,7 +212,7 @@ func test_split_a_terminal_strip() -> void:
 	assert_eq((doc.circuit.get_component("X5") as TerminalBlock).label, "X3:5", "a terminal on a wire")
 	assert_eq(doc.get_placement(motor).strips[0], "X2:1", "the others stay")
 	var names: PackedStringArray = PackedStringArray()
-	for rail: CabinetRail in doc.cabinet_rails:
+	for rail: CabinetRail in doc.switchboards[0].rails:
 		for item: CabinetItem in rail.items:
 			if item.kind == CabinetItem.Kind.STRIP:
 				names.append(item.designation)

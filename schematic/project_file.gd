@@ -46,7 +46,11 @@ const FORMAT: String = "ladder-lab"
 ## logic module) and their signal modules ("sm_di8" ...).
 ## 23: frequency inverters ("vfd": control, setpoint, maximum frequency,
 ## ramps, fixed and keypad frequency).
-const VERSION: int = 23
+## 24: the workspace: several switchboards ("switchboards": name, title,
+## position, rails; the "cabinet" rails of older files become switchboard
+## RA1), control stations with a name and position, groups of parts in the
+## field ("groups") and where those parts stand ("field").
+const VERSION: int = 24
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

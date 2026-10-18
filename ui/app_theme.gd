@@ -87,6 +87,9 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"arrow_down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
 	"download": '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
 	"window": '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M6 6.5h.01"/><path d="M9 6.5h.01"/>',
+	"search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+	"schematic": '<path d="M5 3v18"/><path d="M19 3v18"/><path d="M5 8h4"/><path d="M15 8h4"/><path d="M9 6v4"/><path d="M15 6v4"/><path d="M5 16h14"/>',
+	"workspace": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="8.5" y="14" width="7" height="7" rx="1.5"/><path d="M6.5 10v2h11v-2"/><path d="M12 12v2"/>',
 	"cabinet": '<rect x="3" y="2" width="18" height="20" rx="2"/><path d="M3 9h18"/><path d="M3 16h18"/><path d="M7 4.5v3"/><path d="M10 4.5v3"/><path d="M13 4.5v3"/><path d="M7 11.5v3"/><path d="M12 11.5v3"/>',
 }
 

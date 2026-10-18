@@ -827,40 +827,7 @@ msgstr ""
 msgid "Drag to look back, wheel zooms"
 msgstr ""
 
-msgid "Show the control panel: boxes with the push buttons, switches and signal lamps"
-msgstr ""
-
-msgid "Control panel"
-msgstr ""
-
-msgid "No control boxes yet. Add a box and put the push buttons, switches and signal lamps of the schematic on it."
-msgstr ""
-
-msgid "No control boxes yet. Add them in Edit mode."
-msgstr ""
-
-msgid "Add box"
-msgstr ""
-
-msgid "Add an empty control box"
-msgstr ""
-
-msgid "Box with all devices"
-msgstr ""
-
-msgid "Add a control box with every push button, switch and signal lamp that is not on the panel yet"
-msgstr ""
-
-msgid "Text on the box"
-msgstr ""
-
 msgid "Items in a row"
-msgstr ""
-
-msgid "Move the box up"
-msgstr ""
-
-msgid "Delete the box"
 msgstr ""
 
 msgid "Button"
@@ -1129,13 +1096,7 @@ msgid "portrait"
 msgid "Switchboard"
 msgstr ""
 
-msgid "Show the switchboard: DIN rails with the breakers, fuses, contactors, relays and terminals"
-msgstr ""
-
 msgid "No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it."
-msgstr ""
-
-msgid "No switchboard yet. Make it in Edit mode."
 msgstr ""
 
 msgid "Add rail"
@@ -1145,9 +1106,6 @@ msgid "Add an empty DIN rail at the bottom"
 msgstr ""
 
 msgid "Fill from the schematic"
-msgstr ""
-
-msgid "Add rails with every device and terminal strip of the schematic that is not in the switchboard yet"
 msgstr ""
 
 #, c-format
@@ -1289,9 +1247,6 @@ msgid "New strip -%s"
 msgstr ""
 
 msgid "Move the picked terminals to another terminal strip"
-msgstr ""
-
-msgid "Roll the panel in"
 msgstr ""
 
 msgid "Current path numbers"
@@ -2021,3 +1976,151 @@ msgstr ""
 
 msgid "Move the picked terminals one place right"
 msgstr ""
+
+msgid "A switchboard's devices and a station's buttons lose their place, a group's parts stay where they are (Ctrl+Z brings it back)"
+msgstr ""
+
+msgid "Add a control station"
+msgstr ""
+
+msgid "Add a control station here"
+msgstr ""
+
+msgid "Add a group here"
+msgstr ""
+
+msgid "Add a group: a frame for parts in the field that belong together, e.g. a gate with its motor and limit switches"
+msgstr ""
+
+msgid "Add a switchboard"
+msgstr ""
+
+msgid "Add a switchboard here"
+msgstr ""
+
+msgid "Add a switchboard or a control station with the buttons above."
+msgstr ""
+
+msgid "Add all the others"
+msgstr ""
+
+msgid "Add rails with every device and terminal strip of the schematic that is not in a switchboard yet"
+msgstr ""
+
+msgid "Back to the workspace"
+msgstr ""
+
+msgid "Click a switchboard or control station to open it, right click for more."
+msgstr ""
+
+msgid "Control station"
+msgstr ""
+
+msgid "Designation"
+msgstr ""
+
+msgid "Devices and terminal strips not in a switchboard, buttons, switches and lamps not on a control station"
+msgstr ""
+
+msgid "Drag parts into a group's frame to put them in it."
+msgstr ""
+
+msgid "Find a device…"
+msgstr ""
+
+msgid "Group"
+msgstr ""
+
+msgid "In the field"
+msgstr ""
+
+msgid "Limit switch"
+msgstr ""
+
+msgid "No DIN rails yet. Make them in Edit mode."
+msgstr ""
+
+msgid "No push buttons, switches or lamps on this station yet."
+msgstr ""
+
+msgid "No push buttons, switches or lamps on this station yet. Add them in Edit mode."
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Open a control station to press its buttons, a switchboard to switch its breakers."
+msgstr ""
+
+msgid "Put every push button, switch and signal lamp that is not on a station yet on this one"
+msgstr ""
+
+msgid "Schematic"
+msgstr ""
+
+msgid "Sensor"
+msgstr ""
+
+msgid "Show everything"
+msgstr ""
+
+msgid "Show in the schematic"
+msgstr ""
+
+msgid "Shows it in a window of its own, e.g. on a second monitor; while simulating, it works there too"
+msgstr ""
+
+msgid "Switchboards, control stations and the motors, limit switches and sensors in the field"
+msgstr ""
+
+msgid "Take out of the group"
+msgstr ""
+
+msgid "Text"
+msgstr ""
+
+msgid "Text on the station"
+msgstr ""
+
+msgid "The circuit diagram, page by page"
+msgstr ""
+
+msgid "The workspace is empty. Add switchboards and control stations in Edit mode."
+msgstr ""
+
+#, c-format
+msgid "Unplaced (%d)"
+msgstr ""
+
+msgid "Use a designation without spaces or colons that no other switchboard, station or group has."
+msgstr ""
+
+msgid "Wheel zooms, right or middle drag pans."
+msgstr ""
+
+msgid "Workspace"
+msgstr ""
+
+msgid "e.g. Gate, inside"
+msgstr ""
+
+#, c-format
+msgid "%d device"
+msgid_plural "%d devices"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, c-format
+msgid "%d terminal strip"
+msgid_plural "%d terminal strips"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, c-format
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
