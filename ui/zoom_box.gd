@@ -73,12 +73,22 @@ func _input(event: InputEvent) -> void:
 
 
 ## Wheel steps that nothing in the panel used (a list scrolled to its end)
-## stop here, so they do not reach the schematic behind it.
+## stop here, so they do not reach the schematic behind it. A box inside a
+## scroll container (a datasheet, a station) leaves them to the container.
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
+	if event is InputEventMouseButton and not _in_scroll():
 		match (event as InputEventMouseButton).button_index:
 			MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT:
 				accept_event()
+
+
+func _in_scroll() -> bool:
+	var node: Node = get_parent()
+	while node is Control:
+		if node is ScrollContainer:
+			return true
+		node = node.get_parent()
+	return false
 
 
 ## Symbols drawn for the screen scale (see [SchematicSymbol]) are drawn again.

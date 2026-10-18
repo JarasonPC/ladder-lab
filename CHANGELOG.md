@@ -6,6 +6,12 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Fixed
+- The PLC, compact PLC and frequency inverter are readable in the palette (drawn smaller there),
+  and no palette symbol has lines too thin to see
+- The mouse wheel scrolls a datasheet or an opened control station with the pointer over the
+  sheet or the station, not only beside it
+
 ## 0.4.0 – 2026-10-18
 
 ### Schematic editor

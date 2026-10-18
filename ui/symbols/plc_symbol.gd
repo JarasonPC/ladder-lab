@@ -15,9 +15,15 @@ const BOX := Rect2(-G, G, SymbolGeometry.PLC_WIDTH * G, (SymbolGeometry.PLC_HEIG
 const DISPLAY := Rect2(7.0 * G, 2.0 * G, 6.0 * G, 1.2 * G)
 ## Height of the output contacts.
 const CONTACT_Y: float = 4.3 * G
+## The palette's smaller PLC: four terminals on top, two outputs below.
+const PREVIEW_BOX := Rect2(-G, G, 8.0 * G, (SymbolGeometry.PLC_HEIGHT - 2) * G)
+const PREVIEW_DISPLAY := Rect2(G, 2.0 * G, 4.0 * G, 1.2 * G)
 
 
 func _draw_shape(color: Color, width: float) -> void:
+	if preview:
+		_draw_preview(color, width)
+		return
 	var plc: Plc = component as Plc
 	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(plc)
 	for i: int in cells.size():
@@ -63,13 +69,46 @@ func _draw_shape(color: Color, width: float) -> void:
 		var cell_b: Vector2 = Vector2(cells[a + 1]) * G
 		aa_line(cell_a, Vector2(cell_a.x, CONTACT_Y), lead_color(a), lead_width(a))
 		aa_line(cell_b, Vector2(cell_b.x, CONTACT_Y), lead_color(a + 1), lead_width(a + 1))
-		var pivot: Vector2 = Vector2(cell_a.x + 9.0, CONTACT_Y)
-		var fixed: Vector2 = Vector2(cell_b.x - 9.0, CONTACT_Y)
-		aa_line(Vector2(cell_a.x, CONTACT_Y), pivot, color, width)
-		aa_line(fixed, Vector2(cell_b.x, CONTACT_Y), color, width)
-		var travel: float = shown("Q%d" % k, plc.output_armatures[k].position)
-		var tip: Vector2 = blade_tip(pivot, fixed + Vector2(2.0, -9.0), fixed + Vector2(2.0, 0.0), travel)
-		draw_blade(pivot, tip, color, width)
+		_draw_output_contact(cell_a.x, cell_b.x, shown("Q%d" % k, plc.output_armatures[k].position), color, width)
+
+
+## A relay output's NO contact between its leads at [param left] and
+## [param right], closed by [param travel] (0..1).
+func _draw_output_contact(left: float, right: float, travel: float, color: Color, width: float) -> void:
+	var pivot: Vector2 = Vector2(left + 9.0, CONTACT_Y)
+	var fixed: Vector2 = Vector2(right - 9.0, CONTACT_Y)
+	aa_line(Vector2(left, CONTACT_Y), pivot, color, width)
+	aa_line(fixed, Vector2(right, CONTACT_Y), color, width)
+	var tip: Vector2 = blade_tip(pivot, fixed + Vector2(2.0, -9.0), fixed + Vector2(2.0, 0.0), travel)
+	draw_blade(pivot, tip, color, width)
+
+
+## The palette shows a smaller PLC: the whole module is too wide to read on
+## a tile.
+func preview_rect() -> Rect2:
+	return Rect2(PREVIEW_BOX.position.x, 0.0, PREVIEW_BOX.size.x, SymbolGeometry.PLC_HEIGHT * G)
+
+
+## A box with four terminals on top and the display; below two relay
+## outputs, or four transistor outputs with their lights (compact CPU).
+func _draw_preview(color: Color, width: float) -> void:
+	var bottom: float = SymbolGeometry.PLC_HEIGHT * G
+	for i: int in 4:
+		var x: float = i * SymbolGeometry.POLE_SPACING * G
+		aa_line(Vector2(x, 0.0), Vector2(x, PREVIEW_BOX.position.y), color, width)
+	aa_rect(PREVIEW_BOX, color, false, width)
+	aa_rect(PREVIEW_DISPLAY, color, false, 1.2)
+	if component is CompactPlc:
+		for i: int in 4:
+			var x: float = i * SymbolGeometry.POLE_SPACING * G
+			aa_line(Vector2(x, bottom), Vector2(x, PREVIEW_BOX.end.y), color, width)
+			aa_rect(Rect2(x - 4.0, PREVIEW_BOX.end.y - 11.0, 8.0, 6.0), color, false, 1.0)
+		return
+	for left: float in [0.0, 4.0 * G]:
+		var right: float = left + SymbolGeometry.POLE_SPACING * G
+		aa_line(Vector2(left, bottom), Vector2(left, CONTACT_Y), color, width)
+		aa_line(Vector2(right, bottom), Vector2(right, CONTACT_Y), color, width)
+		_draw_output_contact(left, right, 0.0, color, width)
 
 
 ## Box of expansion module [param m] (-1: the PLC itself; local pixels).
