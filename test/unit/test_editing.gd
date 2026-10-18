@@ -380,3 +380,166 @@ func test_flip_swaps_the_ends_in_place() -> void:
 	assert_eq([doc.terminal_cell("KM1:13"), doc.terminal_cell("KM1:14")], [b, a])
 	doc.flip_component("KM1:13-14")
 	assert_eq([doc.terminal_cell("KM1:13"), doc.terminal_cell("KM1:14")], [b, a], "top-bottom keeps the ends")
+
+
+## Wires that would look connected to something they are not: through a
+## symbol, over a terminal of another net, along a wire of another net.
+func _misleading_wires(doc: SchematicDocument) -> PackedStringArray:
+	var found: PackedStringArray = PackedStringArray()
+	var nets: Dictionary[String, int] = doc._terminal_nets()
+	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
+	var edges: Dictionary[Vector4i, int] = {}
+	for w: int in doc.get_wire_count():
+		var net: int = nets[wires[w][0]]
+		var points: Array[Vector2i] = doc.wire_points(w)
+		for s: int in range(1, points.size()):
+			var unit: Vector2i = (points[s] - points[s - 1]).sign()
+			var cell: Vector2i = points[s - 1]
+			while cell != points[s]:
+				var edge: Vector4i = Vector4i(mini(cell.x, cell.x + unit.x), mini(cell.y, cell.y + unit.y), maxi(cell.x, cell.x + unit.x), maxi(cell.y, cell.y + unit.y))
+				if edges.get(edge, net) != net:
+					found.append("wire %d runs along another net at %s" % [w, edge])
+				edges[edge] = net
+				cell += unit
+			for c: CircuitComponent in doc.components_on_page(doc.wire_page(w)):
+				var body: Rect2 = doc._obstacle(c)
+				if body.has_area() and SchematicDocument._crosses(points[s - 1], points[s], body):
+					found.append("wire %d crosses %s" % [w, c.id])
+				for key: String in c.get_terminal_keys():
+					if nets.get(key, -1) != net and SchematicDocument._on_segment(doc.terminal_cell(key), points[s - 1], points[s]):
+						found.append("wire %d runs over %s" % [w, key])
+	return found
+
+
+func test_moved_wire_keeps_off_other_symbols() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(0, 9))
+	# H3 lies across the straight way from H1:X2 (0, 3) down to H2:X1 (0, 9).
+	doc.add(Lamp.new("H3"), Vector2i(2, 6), 1)
+	doc.connect_terminals("H1:X2", "H2:X1")
+	doc.normalize_route(0)
+	_assert_routes_valid(doc)
+	assert_eq(_misleading_wires(doc), PackedStringArray())
+	assert_true(SchematicDocument._route_simple(doc.wire_points(0)))
+
+
+func test_moved_wire_keeps_off_wires_of_other_nets() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	for x: int in [0, 2, 4, 6]:
+		doc.add(Lamp.new("H%d" % x), Vector2i(x, 0))
+	doc.connect_terminals("H0:X2", "H6:X2", [Vector2i(0, 5), Vector2i(6, 5)] as Array[Vector2i])
+	# Drawn along the first wire for a stretch: re-routed beside it.
+	doc.connect_terminals("H2:X2", "H4:X2", [Vector2i(2, 5), Vector2i(4, 5)] as Array[Vector2i])
+	assert_eq(_misleading_wires(doc).size(), 2)
+	doc.normalize_route(1)
+	_assert_routes_valid(doc)
+	assert_eq(_misleading_wires(doc), PackedStringArray())
+	assert_eq(doc.wire_points(0), [Vector2i(0, 3), Vector2i(0, 5), Vector2i(6, 5), Vector2i(6, 3)] as Array[Vector2i], "the other wire stays")
+
+
+func test_part_dropped_on_a_wire_moves_the_wire_aside() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(0, 10))
+	doc.add(Lamp.new("H3"), Vector2i(6, 5))
+	doc.connect_terminals("H1:X2", "H2:X1")
+	var start: Dictionary = doc.drag_start(PackedStringArray(["H3"]))
+	# H3 lands with its terminals on the wire, which is not its own.
+	doc.drag_components(start, Vector2i(-6, 0))
+	_assert_routes_valid(doc)
+	assert_eq(_misleading_wires(doc), PackedStringArray())
+	doc.drag_components(start, Vector2i.ZERO)
+	assert_eq(doc.wire_points(0), [Vector2i(0, 3), Vector2i(0, 10)] as Array[Vector2i], "dragged away again: straight as before")
+
+
+func test_hemmed_in_terminal_is_left_sideways() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(0, 4))
+	doc.add(Lamp.new("H3"), Vector2i(4, 9))
+	# H2:X1 sits right below H1:X2, where its wire would leave.
+	doc.connect_terminals("H1:X2", "H3:X1")
+	doc.normalize_route(0)
+	_assert_routes_valid(doc)
+	assert_eq(_misleading_wires(doc), PackedStringArray())
+
+
+func test_rerouted_wire_without_corners_takes_no_hook() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	# Lying, its X1 at (6, 6) facing right.
+	doc.add(Lamp.new("H2"), Vector2i(6, 6), 1)
+	doc.connect_terminals("H1:X2", "H2:X1")
+	doc.normalize_route(0)
+	var points: Array[Vector2i] = doc.wire_points(0)
+	assert_true(SchematicDocument._route_simple(points))
+	# Down from H1:X2 (0, 3), across beyond H2:X1, down and back into it.
+	assert_eq(points.size(), 5, "three corners: %s" % [points])
+	var length: int = 0
+	for s: int in range(1, points.size()):
+		length += (points[s] - points[s - 1]).abs().x + (points[s] - points[s - 1]).abs().y
+	assert_eq(length, 11, "no detour: %s" % [points])
+
+
+func test_parts_turned_together_keep_their_places() -> void:
+	var doc: SchematicDocument = _lamp_doc()
+	var ids: PackedStringArray = PackedStringArray(["S1", "H1"])
+	var cells: Array = []
+	for w: int in doc.get_wire_count():
+		cells.append(doc.wire_points(w))
+	doc.rotate_components(ids)
+	# The column S1 - H1 becomes a row: all four terminals on one line, the
+	# wire between them straight.
+	var row: int = doc.terminal_cell("S1:13").y
+	for key: String in ["S1:14", "H1:X1", "H1:X2"]:
+		assert_eq(doc.terminal_cell(key).y, row, key)
+	assert_eq(doc.wire_points(1).size(), 2, "S1 - H1 still straight")
+	assert_eq(doc.get_placement("S1").rotation, 1)
+	assert_eq(doc.get_placement("H1").rotation, 1)
+	_assert_routes_valid(doc)
+	assert_eq(_misleading_wires(doc), PackedStringArray())
+	for turn: int in 3:
+		doc.rotate_components(ids)
+	assert_eq(doc.get_placement("S1").cell, Vector2i(5, 2), "four turns: back in place")
+	assert_eq(doc.get_placement("H1").cell, Vector2i(5, 7))
+	assert_eq(doc.wire_points(1), cells[1])
+
+
+func test_parts_mirrored_together_swap_places() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Coil.new("KM1"), Vector2i(4, 0))
+	doc.connect_terminals("H1:X2", "KM1:A2", [Vector2i(0, 5), Vector2i(4, 5)] as Array[Vector2i])
+	var ids: PackedStringArray = PackedStringArray(["H1", "KM1"])
+	doc.mirror_components(ids)
+	assert_eq(doc.terminal_cell("H1:X1"), Vector2i(4, 0), "left to right")
+	assert_eq(doc.terminal_cell("KM1:A1"), Vector2i(0, 0))
+	assert_eq(doc.wire_points(0), [Vector2i(4, 3), Vector2i(4, 5), Vector2i(0, 5), Vector2i(0, 3)] as Array[Vector2i], "the wire between them is mirrored too")
+	doc.flip_components(ids)
+	assert_eq(doc.terminal_cell("H1:X1"), Vector2i(4, 3), "top to bottom")
+	assert_eq(doc.terminal_cell("H1:X2"), Vector2i(4, 0))
+	assert_eq(doc.wire_points(0), [Vector2i(4, 0), Vector2i(4, -2), Vector2i(0, -2), Vector2i(0, 0)] as Array[Vector2i])
+	doc.flip_components(ids)
+	doc.mirror_components(ids)
+	assert_eq(doc.get_placement("H1").cell, Vector2i(0, 0), "mirrored twice: as before")
+	assert_eq(doc.get_placement("KM1").cell, Vector2i(4, 0))
+	assert_eq(doc.wire_points(0), [Vector2i(0, 3), Vector2i(0, 5), Vector2i(4, 5), Vector2i(4, 3)] as Array[Vector2i])
+
+
+func test_examples_stay_clean_when_parts_move_and_turn() -> void:
+	# Every part of an example nudged, and the control column of the first
+	# one turned: no wire ends up looking connected where it is not, as long
+	# as the parts themselves do not overlap.
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.self_holding())
+	doc.rotate_components(PackedStringArray(["SB0", "SB1", "KM1:13-14", "KM1"]))
+	_assert_routes_valid(doc)
+	assert_eq(_misleading_wires(doc), PackedStringArray())
+	for w: int in doc.get_wire_count():
+		assert_true(SchematicDocument._route_simple(doc.wire_points(w)), "wire %d" % w)
+	doc = ExamplePower.on(ExampleCircuits.self_holding())
+	var start: Dictionary = doc.drag_start(PackedStringArray(["H1"]))
+	for delta: Vector2i in [Vector2i(-1, 0), Vector2i(-2, 1), Vector2i(-3, 2), Vector2i(-6, 2)]:
+		doc.drag_components(start, delta)
+		_assert_routes_valid(doc)
+		assert_eq(_misleading_wires(doc), PackedStringArray(), "H1 moved by %s" % delta)

@@ -37,6 +37,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   motor on U V W, control terminals DI1-DI4, 24V-0V, 10V and AI1, relay output DO2; maximum
   frequency, ramp times, fixed frequency and where run and the setpoint come from are set in
   its properties
+- Wires of moved or turned parts find their way around the other symbols, never over a
+  terminal of another circuit or along one of its wires, with few corners and crossings; a part
+  dropped on a wire that is not its own moves the wire aside
+- Several selected parts turn and mirror together, keeping their places to each other (a
+  column of parts turned becomes a row), with the wires between them
 
 ### Simulation
 - Supplies of different voltages: 230 V between a phase and N, 400 V between two phases, and DC
@@ -89,6 +94,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A wire without its corners (from a file edited by hand or made by another program) froze the
   program; it now runs across and down
 - Turning or mirroring parts while dragging them could freeze the program
+- A straight wire whose end was moved off its line took a hook back over itself
 
 ## 0.3.0 – 2026-10-17
 

@@ -243,8 +243,7 @@ func rotate_selection() -> void:
 	if selected_components.is_empty():
 		return
 	_record()
-	for id: String in selected_components:
-		document().rotate_component(id)
+	document().rotate_components(PackedStringArray(selected_components.keys()))
 	_turned_while_dragging()
 	_changed()
 
@@ -260,8 +259,7 @@ func mirror_selection() -> void:
 	if selected_components.is_empty():
 		return
 	_record()
-	for id: String in selected_components:
-		document().mirror_component(id)
+	document().mirror_components(PackedStringArray(selected_components.keys()))
 	_turned_while_dragging()
 	_changed()
 
@@ -277,8 +275,7 @@ func flip_selection() -> void:
 	if selected_components.is_empty():
 		return
 	_record()
-	for id: String in selected_components:
-		document().flip_component(id)
+	document().flip_components(PackedStringArray(selected_components.keys()))
 	_turned_while_dragging()
 	_changed()
 

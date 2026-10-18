@@ -40,6 +40,10 @@ var page: int = 0:
 
 var _placements: Dictionary[String, Placement] = {}
 var _routes: Array[WireRoute] = []
+## Terminal cells remembered while wires are re-routed (nothing moves
+## meanwhile), see [method _reroute].
+var _cell_cache: Dictionary[String, Vector2i] = {}
+var _caching: bool = false
 
 
 func _init(p_title: String = "") -> void:
@@ -96,10 +100,15 @@ func get_wire_count() -> int:
 
 ## Grid cell of a terminal.
 func terminal_cell(key: String) -> Vector2i:
+	if _caching and _cell_cache.has(key):
+		return _cell_cache[key]
 	var owner: CircuitComponent = circuit.get_terminal_owner(key)
 	var p: Placement = _placements[owner.id]
 	var local: Vector2i = SymbolGeometry.local_terminals(owner)[_terminal_name(owner, key)]
-	return p.cell + SymbolGeometry.transform_cell(local, p)
+	var cell: Vector2i = p.cell + SymbolGeometry.transform_cell(local, p)
+	if _caching:
+		_cell_cache[key] = cell
+	return cell
 
 
 ## Full polyline of a wire: start terminal, corners, end terminal.
@@ -439,6 +448,9 @@ func next_connector_label() -> String:
 const AXIS_NONE: int = -1
 const AXIS_HORIZONTAL: int = 0
 const AXIS_VERTICAL: int = 1
+## How much worse (in [WireRouter] costs) than the best route a re-routed
+## wire's own shape may be before the best route replaces it.
+const RESHAPE: int = 3 * WireRouter.STEP + WireRouter.BEND
 
 
 func remove_wire(index: int) -> void:
@@ -697,14 +709,18 @@ func remove_component(component_id: String) -> void:
 
 
 ## Moves components by [param delta] cells. Wires between two moved
-## components move along; wires with one moved end are re-routed.
+## components move along; wires with one moved end are re-routed, and so are
+## wires the moved components now cover (see [method _reroute]).
 func move_components(ids: PackedStringArray, delta: Vector2i) -> void:
+	var moved: Dictionary[String, bool] = {}
 	var moved_keys: Dictionary[String, bool] = {}
 	for given: String in ids:
 		var id: String = _id(given)
 		_placements[id].cell += delta
+		moved[id] = true
 		for key: String in circuit.get_component(id).get_terminal_keys():
 			moved_keys[key] = true
+	var rerouted: PackedInt32Array = PackedInt32Array()
 	var wires: Array[PackedStringArray] = circuit.get_wires()
 	for i: int in wires.size():
 		var a: bool = moved_keys.has(wires[i][0])
@@ -713,7 +729,8 @@ func move_components(ids: PackedStringArray, delta: Vector2i) -> void:
 			for k: int in _routes[i].corners.size():
 				_routes[i].corners[k] += delta
 		elif a or b:
-			normalize_route(i)
+			rerouted.append(i)
+	_reroute(rerouted, moved)
 
 
 ## Where components [param ids] and all wire corners are before a drag, for
@@ -748,12 +765,111 @@ func drag_components(start: Dictionary, delta: Vector2i) -> void:
 		move_components(PackedStringArray(cells.keys()), delta)
 
 
-## Turns a component a quarter turn clockwise (or counterclockwise).
+## Turns a component a quarter turn clockwise (or counterclockwise) about
+## its first terminal.
 func rotate_component(component_id: String, clockwise: bool = true) -> void:
 	component_id = _id(component_id)
+	_turn(component_id, clockwise)
+	_reroute_component(component_id)
+
+
+func _turn(component_id: String, clockwise: bool) -> void:
 	var p: Placement = _placements[component_id]
 	p.rotation = posmod(p.rotation + (1 if clockwise else -1), 4)
-	_reroute_component(component_id)
+
+
+## Turns components [param ids] together a quarter turn clockwise (or
+## counterclockwise) about the middle of their terminals, so they keep their
+## places to each other: wires between them turn along, the others are
+## re-routed. A single component turns as in [method rotate_component].
+func rotate_components(ids: PackedStringArray, clockwise: bool = true) -> void:
+	if ids.size() == 1:
+		rotate_component(ids[0], clockwise)
+		return
+	var span: Rect2i = _terminal_span(ids)
+	# Twice the pivot; turning about it must land on cells, so its x and y
+	# are both whole or both halves.
+	var twice: Vector2i = span.position * 2 + span.size
+	if (twice.x + twice.y) % 2 != 0:
+		twice.y -= 1
+	var sum: int = (twice.x + twice.y) / 2
+	var difference: int = (twice.y - twice.x) / 2
+	var map: Callable = func(v: Vector2i) -> Vector2i:
+		return Vector2i(sum - v.y, difference + v.x) if clockwise else Vector2i(v.y - difference, sum - v.x)
+	_transform_components(ids, func(id: String) -> void: _turn(id, clockwise), map)
+
+
+## Mirrors components [param ids] together left to right as seen on the
+## drawing (each symbol mirrored, their order reversed); a single component
+## as in [method mirror_component].
+func mirror_components(ids: PackedStringArray) -> void:
+	if ids.size() == 1:
+		mirror_component(ids[0])
+		return
+	var span: Rect2i = _terminal_span(ids)
+	var twice: int = span.position.x * 2 + span.size.x
+	_transform_components(ids, _mirror, func(v: Vector2i) -> Vector2i: return Vector2i(twice - v.x, v.y))
+
+
+## Mirrors components [param ids] together top to bottom as seen on the
+## drawing; a single component as in [method flip_component].
+func flip_components(ids: PackedStringArray) -> void:
+	if ids.size() == 1:
+		flip_component(ids[0])
+		return
+	var span: Rect2i = _terminal_span(ids)
+	var twice: int = span.position.y * 2 + span.size.y
+	_transform_components(ids, _flip, func(v: Vector2i) -> Vector2i: return Vector2i(v.x, twice - v.y))
+
+
+## Cells spanned by the terminals of components [param ids].
+func _terminal_span(ids: PackedStringArray) -> Rect2i:
+	var span: Rect2i = Rect2i()
+	var first: bool = true
+	for given: String in ids:
+		for key: String in circuit.get_component(given).get_terminal_keys():
+			var cell: Vector2i = terminal_cell(key)
+			span = Rect2i(cell, Vector2i.ZERO) if first else span.expand(cell)
+			first = false
+	return span
+
+
+## Turns or mirrors each of components [param ids] in place ([param change]
+## on its id), then moves it so its terminals land where [param map] takes
+## them; corners of wires between them are mapped too, the other wires of
+## the components re-routed.
+func _transform_components(ids: PackedStringArray, change: Callable, map: Callable) -> void:
+	var moved: Dictionary[String, bool] = {}
+	var keys: Dictionary[String, bool] = {}
+	for given: String in ids:
+		var c: CircuitComponent = circuit.get_component(given)
+		moved[c.id] = true
+		for k: String in c.get_terminal_keys():
+			keys[k] = true
+	# Wires between them keep the shape they are drawn in (also where a
+	# route without its corners is drawn across first).
+	var rerouted: PackedInt32Array = PackedInt32Array()
+	var along: Dictionary[int, Array] = {}
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		var a: bool = keys.has(wires[i][0])
+		var b: bool = keys.has(wires[i][1])
+		if a and b:
+			var points: Array[Vector2i] = wire_points(i)
+			along[i] = points.slice(1, points.size() - 1)
+		elif a or b:
+			rerouted.append(i)
+	for id: String in moved:
+		var key: String = circuit.get_component(id).get_terminal_keys()[0]
+		var target: Vector2i = map.call(terminal_cell(key))
+		change.call(id)
+		_placements[id].cell += target - terminal_cell(key)
+	for i: int in along:
+		var corners: Array[Vector2i] = []
+		for corner: Vector2i in along[i]:
+			corners.append(map.call(corner))
+		_routes[i].corners = corners
+	_reroute(rerouted, moved)
 
 
 ## Makes lead [param index] of a component end in a strip terminal labelled
@@ -795,6 +911,11 @@ func set_label_offset(component_id: String, key: String, offset: Vector2) -> voi
 ## terminals stay); a horizontal one swaps its ends in place.
 func mirror_component(component_id: String) -> void:
 	component_id = _id(component_id)
+	_mirror(component_id)
+	_reroute_component(component_id)
+
+
+func _mirror(component_id: String) -> void:
 	if _placements[component_id].rotation % 2 == 0:
 		_mirror_across_axis(component_id)
 	else:
@@ -806,6 +927,11 @@ func mirror_component(component_id: String) -> void:
 ## mirrored across its own axis.
 func flip_component(component_id: String) -> void:
 	component_id = _id(component_id)
+	_flip(component_id)
+	_reroute_component(component_id)
+
+
+func _flip(component_id: String) -> void:
 	if _placements[component_id].rotation % 2 == 0:
 		_swap_ends(component_id)
 	else:
@@ -817,7 +943,6 @@ func _mirror_across_axis(component_id: String) -> void:
 	# The mirror flips local x before rotation, so the symbol axis (local y)
 	# and both terminals stay where they are; only the side marks swap.
 	p.mirrored = not p.mirrored
-	_reroute_component(component_id)
 
 
 ## Mirrors local y about the symbol's middle, so its first and last
@@ -831,7 +956,6 @@ func _swap_ends(component_id: String) -> void:
 	p.cell += SymbolGeometry.transform_cell(Vector2i(0, height), p)
 	p.mirrored = not p.mirrored
 	p.rotation = (p.rotation + 2) % 4
-	_reroute_component(component_id)
 
 
 ## Replaces a component (e.g. after its properties were edited) keeping its
@@ -942,121 +1066,220 @@ func cleanup_junctions() -> void:
 
 ## Re-routes a wire so all segments are horizontal or vertical. Each end that
 ## belongs to a symbol first leaves one cell straight out along the symbol
-## axis. If that route would cross one of the two symbols (e.g. after turning
-## a symbol by 180 degrees), run over a terminal of another net or run over
-## itself (a corner left behind by the moved end), the shortest clean route
-## (direct or around the symbols) is used instead.
+## axis. If that route would cross a symbol (e.g. after turning a symbol by
+## 180 degrees), run over a terminal of another net or along a wire of
+## another net, run over itself (a corner left behind by the moved end) or
+## is clearly worse than the best route, the cheapest route a [WireRouter]
+## finds is used instead: clean, with few corners and few crossings.
 func normalize_route(index: int) -> void:
+	_reroute(PackedInt32Array([index]))
+
+
+## Re-routes wires [param indices] one after another (see
+## [method normalize_route]): each keeps off those routed before it, while
+## the old routes of those still to come are no obstacle. After them come
+## the other wires that now run through one of components [param moved]
+## (just moved or turned) or over its terminals, and those moved along with
+## them: each is re-routed if its route is no longer clear.
+func _reroute(indices: PackedInt32Array, moved: Dictionary[String, bool] = {}) -> void:
+	if _caching:
+		_route_all(indices, moved)
+		return
+	_caching = true
+	_route_all(indices, moved)
+	_caching = false
+	_cell_cache.clear()
+
+
+func _route_all(indices: PackedInt32Array, moved: Dictionary[String, bool]) -> void:
+	var order: PackedInt32Array = indices.duplicate()
+	if not moved.is_empty():
+		order.append_array(_covered_wires(indices, moved))
+	if order.is_empty():
+		return
+	var nets: Dictionary[String, int] = _terminal_nets()
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	var pending: Dictionary[int, bool] = {}
+	for i: int in order:
+		pending[i] = true
+	var routers: Dictionary[int, WireRouter] = {}
+	for k: int in order.size():
+		var i: int = order[k]
+		if not pending.has(i):
+			continue
+		var on: int = wire_page(i)
+		if not routers.has(on):
+			routers[on] = _router(on, nets, pending)
+		var net: int = nets[wires[i][0]]
+		_route_wire(i, routers[on], net, k < indices.size())
+		pending.erase(i)
+		routers[on].add_wire(wire_points(i), net)
+
+
+## Wires but [param skip] that have both ends on components [param moved],
+## or run through one of them or over one of its terminals.
+func _covered_wires(skip: PackedInt32Array, moved: Dictionary[String, bool]) -> PackedInt32Array:
+	var keys: Dictionary[String, bool] = {}
+	var cells: Dictionary[Vector2i, String] = {}
+	var bodies: Array[Rect2] = []
+	var pages: Dictionary[int, bool] = {}
+	for id: String in moved:
+		var c: CircuitComponent = circuit.get_component(id)
+		pages[_placements[id].page] = true
+		for key: String in c.get_terminal_keys():
+			keys[key] = true
+			cells[terminal_cell(key)] = key
+		var obstacle: Rect2 = _obstacle(c)
+		if obstacle.has_area():
+			bodies.append(obstacle)
+	var result: PackedInt32Array = PackedInt32Array()
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		if skip.has(i) or not pages.has(wire_page(i)):
+			continue
+		var wire: PackedStringArray = wires[i]
+		if keys.has(wire[0]) and keys.has(wire[1]):
+			result.append(i)
+			continue
+		var points: Array[Vector2i] = wire_points(i)
+		var covered: bool = false
+		for s: int in range(1, points.size()):
+			var a: Vector2i = points[s - 1]
+			var b: Vector2i = points[s]
+			for body: Rect2 in bodies:
+				if _crosses(a, b, body):
+					covered = true
+			for cell: Vector2i in cells:
+				if _on_segment(cell, a, b) and not wire.has(cells[cell]):
+					covered = true
+			if covered:
+				result.append(i)
+				break
+	return result
+
+
+## True if the straight segment [param a]-[param b] crosses the inside of
+## [param body].
+static func _crosses(a: Vector2i, b: Vector2i, body: Rect2) -> bool:
+	if a.x == b.x:
+		return float(a.x) > body.position.x and float(a.x) < body.end.x and float(maxi(a.y, b.y)) > body.position.y and float(mini(a.y, b.y)) < body.end.y
+	return float(a.y) > body.position.y and float(a.y) < body.end.y and float(maxi(a.x, b.x)) > body.position.x and float(mini(a.x, b.x)) < body.end.x
+
+
+## Re-routes wire [param index]: its shape stays while clean (and, if
+## [param reshape], about as good as the best route).
+func _route_wire(index: int, router: WireRouter, net: int, reshape: bool) -> void:
 	var wire: PackedStringArray = circuit.get_wires()[index]
 	var points: Array[Vector2i] = wire_points(index)
 	var start: Vector2i = points[0]
 	var end: Vector2i = points[points.size() - 1]
+	if start == end:
+		_routes[index].corners = []
+		return
 	var out_a: Vector2i = terminal_outward(wire[0])
 	var out_b: Vector2i = terminal_outward(wire[1])
+	# The corners it has, not the ones wire_points adds to a route without
+	# them, which only fit where its ends were.
 	var path: Array[Vector2i] = [start]
 	if out_a != Vector2i.ZERO:
 		path.append(start + out_a)
-	path.append_array(points.slice(1, points.size() - 1))
+	path.append_array(_routes[index].corners)
 	if out_b != Vector2i.ZERO:
 		path.append(end + out_b)
 	path.append(end)
 	var best: Array[Vector2i] = orthogonalize(path, terminal_axis(wire[0]), terminal_axis(wire[1]))
-
-	var bodies: Array[Rect2] = []
-	for key: String in [wire[0], wire[1]]:
-		var owner: CircuitComponent = circuit.get_terminal_owner(key)
-		if owner.get_terminal_keys().size() == 2:
-			bodies.append(component_body(owner))
-	# A wire running over a terminal of another net would look connected to it.
-	var own: Dictionary[String, bool] = {}
-	var wires: Array[PackedStringArray] = circuit.get_wires()
-	for w: int in wire_net(index):
-		own[wires[w][0]] = true
-		own[wires[w][1]] = true
-	var cells: Dictionary[Vector2i, bool] = {}
-	for c: CircuitComponent in components_on_page(wire_page(index)):
-		for other: String in c.get_terminal_keys():
-			if not own.has(other):
-				cells[terminal_cell(other)] = true
-	cells.erase(start)
-	cells.erase(end)
-	if not (_route_clear(best, bodies, cells) and _route_simple(best)):
-		var best_length: int = 1 << 30
-		# Without a clean route, at least one that does not run over itself.
-		var fallback: Array[Vector2i] = []
-		var fallback_length: int = 1 << 30
-		for candidate: Array[Vector2i] in _detours(start, end, out_a, out_b, bodies):
-			var clean: Array[Vector2i] = orthogonalize(candidate, terminal_axis(wire[0]), terminal_axis(wire[1]))
-			if not _route_simple(clean):
-				continue
-			var length: int = _route_length(clean)
-			if length < best_length and _route_clear(clean, bodies, cells):
-				best = clean
-				best_length = length
-			elif length < fallback_length:
-				fallback = clean
-				fallback_length = length
-		if best_length == 1 << 30 and not fallback.is_empty() and not _route_simple(best):
-			best = fallback
+	var clear: bool = _route_simple(best) and router.is_clear(best, net)
+	if not clear or reshape:
+		var found: Array[Vector2i] = router.find(start, end, out_a, out_b, net)
+		if not found.is_empty():
+			found = _simplify_path(found)
+			if not clear or router.cost(best, net, out_a, out_b) > router.cost(found, net, out_a, out_b) + RESHAPE:
+				best = found
 	_routes[index].corners = best.slice(1, best.size() - 1)
 
 
-## Candidate routes: direct, or around [param bodies] via one or two corners
-## of each body grown by a cell, with and without the straight lead-out at
-## each end.
-func _detours(start: Vector2i, end: Vector2i, out_a: Vector2i, out_b: Vector2i, bodies: Array[Rect2]) -> Array:
-	var vias: Array = [[]]
-	for body: Rect2 in bodies:
-		var left: int = floori(body.position.x) - 1
-		var right: int = ceili(body.end.x) + 1
-		var top: int = floori(body.position.y) - 1
-		var bottom: int = ceili(body.end.y) + 1
-		var corners: Array[Vector2i] = [Vector2i(left, top), Vector2i(right, top), Vector2i(right, bottom), Vector2i(left, bottom)]
-		for i: int in 4:
-			vias.append([corners[i]])
-			vias.append([corners[i], corners[(i + 1) % 4]])
-			vias.append([corners[(i + 1) % 4], corners[i]])
-	var heads: Array = [[start]]
-	if out_a != Vector2i.ZERO:
-		heads.append([start, start + out_a])
-	var tails: Array = [[end]]
-	if out_b != Vector2i.ZERO:
-		tails.append([end + out_b, end])
-	var result: Array = []
-	for head: Array in heads:
-		for tail: Array in tails:
-			for via: Array in vias:
-				var path: Array[Vector2i] = []
-				for p: Vector2i in head + via + tail:
-					path.append(p)
-				result.append(path)
+## A [WireRouter] for page [param on_page] knowing its symbols, terminals
+## and wires (but those of [param pending]).
+func _router(on_page: int, nets: Dictionary[String, int], pending: Dictionary[int, bool]) -> WireRouter:
+	var components: Array[CircuitComponent] = components_on_page(on_page)
+	var on: PackedInt32Array = wires_on_page(on_page)
+	var area: Rect2i = Rect2i()
+	var first: bool = true
+	for c: CircuitComponent in components:
+		var body: Rect2 = component_body(c)
+		var cells: Rect2i = Rect2i(Vector2i(body.position.floor()), Vector2i.ZERO).expand(Vector2i(body.end.ceil()))
+		area = cells if first else area.merge(cells)
+		first = false
+		for key: String in c.get_terminal_keys():
+			area = area.expand(terminal_cell(key))
+	for w: int in on:
+		for p: Vector2i in wire_points(w):
+			area = area.expand(p)
+	var router: WireRouter = WireRouter.new(area)
+	# Terminals without wires are nets of their own.
+	var single: int = circuit.get_wires().size()
+	for c: CircuitComponent in components:
+		for key: String in c.get_terminal_keys():
+			router.add_terminal(terminal_cell(key), nets.get(key, single))
+			if not nets.has(key):
+				single += 1
+		var obstacle: Rect2 = _obstacle(c)
+		if obstacle.has_area():
+			router.add_body(obstacle)
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for w: int in on:
+		if not pending.has(w):
+			router.add_wire(wire_points(w), nets[wires[w][0]])
+	return router
+
+
+## What wires keep off of a component: its body. Junctions and terminals on a
+## wire have none (wires keep off their terminal); supplies and page
+## connectors only the part beyond their terminal (their circle or tag).
+func _obstacle(c: CircuitComponent) -> Rect2:
+	if c is Junction or c is TerminalBlock:
+		return Rect2()
+	var body: Rect2 = component_body(c)
+	if not (c is PowerSupply or c is PageConnector):
+		return body
+	var at: Vector2 = Vector2(terminal_cell(c.get_terminal_keys()[0]))
+	# Cut the body off half a cell before the terminal, on the side the
+	# terminal is nearest to.
+	var gaps: Array[float] = [at.x - body.position.x, body.end.x - at.x, at.y - body.position.y, body.end.y - at.y]
+	var side: int = gaps.find(gaps.min())
+	match side:
+		0:
+			body = Rect2(Vector2(at.x + 0.5, body.position.y), Vector2(body.end.x - at.x - 0.5, body.size.y))
+		1:
+			body = Rect2(body.position, Vector2(at.x - 0.5 - body.position.x, body.size.y))
+		2:
+			body = Rect2(Vector2(body.position.x, at.y + 0.5), Vector2(body.size.x, body.end.y - at.y - 0.5))
+		_:
+			body = Rect2(body.position, Vector2(body.size.x, at.y - 0.5 - body.position.y))
+	return body if body.size.x > 0.0 and body.size.y > 0.0 else Rect2()
+
+
+## Net number of every terminal on a wire: wires joined at shared terminals
+## or by page connectors have the same one.
+func _terminal_nets() -> Dictionary[String, int]:
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	var nets: UnionFind = UnionFind.new(wires.size())
+	var first: Dictionary[String, int] = {}
+	for i: int in wires.size():
+		for key: String in wires[i]:
+			if first.has(key):
+				nets.union(i, first[key])
+			else:
+				first[key] = i
+	for link: PackedStringArray in circuit.get_links():
+		if first.has(link[0]) and first.has(link[1]):
+			nets.union(first[link[0]], first[link[1]])
+	var result: Dictionary[String, int] = {}
+	for key: String in first:
+		result[key] = nets.find(first[key])
 	return result
 
 
-## True if no segment crosses the inside of [param bodies] or runs over one
-## of [param cells].
-static func _route_clear(points: Array[Vector2i], bodies: Array[Rect2], cells: Dictionary[Vector2i, bool]) -> bool:
-	for s: int in range(1, points.size()):
-		var a: Vector2i = points[s - 1]
-		var b: Vector2i = points[s]
-		var unit: Vector2i = (b - a).sign()
-		var cell: Vector2i = a
-		while true:
-			if cells.has(cell):
-				return false
-			if cell == b:
-				break
-			cell += unit
-		for body: Rect2 in bodies:
-			if a.x == b.x:
-				if float(a.x) > body.position.x and float(a.x) < body.end.x and float(maxi(a.y, b.y)) > body.position.y and float(mini(a.y, b.y)) < body.end.y:
-					return false
-			elif float(a.y) > body.position.y and float(a.y) < body.end.y and float(maxi(a.x, b.x)) > body.position.x and float(mini(a.x, b.x)) < body.end.x:
-				return false
-	return true
-
-
-## True if the route never runs over or across itself.
 static func _route_simple(points: Array[Vector2i]) -> bool:
 	var seen: Dictionary[Vector2i, bool] = {points[0]: true}
 	for s: int in range(1, points.size()):
@@ -1068,15 +1291,6 @@ static func _route_simple(points: Array[Vector2i]) -> bool:
 				return false
 			seen[cell] = true
 	return true
-
-
-static func _route_length(points: Array[Vector2i]) -> int:
-	var length: int = 0
-	for s: int in range(1, points.size()):
-		var d: Vector2i = (points[s] - points[s - 1]).abs()
-		length += d.x + d.y
-	# Each corner costs a little, so straighter routes win ties.
-	return length * 4 + points.size()
 
 
 ## Axis along which wires should leave a terminal, or AXIS_NONE.
@@ -1448,8 +1662,9 @@ static func _designation_prefix(designation: String) -> String:
 
 
 func _reroute_component(component_id: String) -> void:
-	for i: int in circuit.wires_of(circuit.get_component(component_id)):
-		normalize_route(i)
+	var wires: PackedInt32Array = circuit.wires_of(circuit.get_component(component_id))
+	wires.reverse()
+	_reroute(wires, {component_id: true} as Dictionary[String, bool])
 
 
 func _merge_at_junction(junction: Junction, unordered: PackedInt32Array) -> void:
