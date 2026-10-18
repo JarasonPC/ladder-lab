@@ -274,9 +274,11 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 		draw_rect(cell.grow(-1.0), Color(COVER, 0.55))
 	var key: String = document.key_bindings.get(item.designation, "") if item.kind != ControlBoxItem.Kind.LAMP else ""
 	if not key.is_empty():
-		# The key that operates it, on the cover at the top right of the bezel.
+		# The key that operates it, on the cover under the label plate (clear
+		# of the button and the next row).
 		var held: bool = simulating and item.kind == ControlBoxItem.Kind.BUTTON and _travel(item.designation) > 0.5
-		Keycap.draw(self, center + Vector2(BEZEL_R * 0.55, -BEZEL_R - 6.0), key, KEY_FONT_SIZE, held)
+		var cap: Vector2 = Keycap.size_of(key, KEY_FONT_SIZE)
+		Keycap.draw(self, Vector2(plate.get_center().x - cap.x * 0.5, plate.end.y + 1.0), key, KEY_FONT_SIZE, held)
 
 
 ## Label plate: the text in white with the designations in teal under it;

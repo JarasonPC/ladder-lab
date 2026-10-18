@@ -53,8 +53,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Keys of the keyboard operate push buttons and switches: right click on one in Edit mode (on
   the schematic, an opened control station or the workspace tree), Bind a key…, and press the
   key. While simulating a held key holds the button, a press flips a switch. The key shows as
-  a keycap beside the symbol, on the station's button and on the station's tile, lit while
-  held; a strip above the timing chart lists every key with what it operates
+  a keycap beside the designation on the schematic (on the side away from the symbol), under
+  the label plate on the station and on the station's tile, lit while held; a strip above the timing chart lists every key with what it operates
 - Mechanical links: in a group, a motor moves a part such as a gate from one end to the other
   in the time you set, and the part operates the group's limit switches where they are (at the
   ends, or as it passes one in between); the workspace shows the way with the switches on it

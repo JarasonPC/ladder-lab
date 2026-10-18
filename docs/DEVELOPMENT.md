@@ -192,8 +192,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   the key off). While simulating main.gd's _bound_key runs before the shortcuts (no Ctrl/Alt/
   Meta): a push button is held while its key is down (released on focus loss), a switch flips
   on a press; also from PlaceWindows. Keycap draws a key; SchematicSymbol.key (SchematicView
-  sets it when show_keys, off for exports), ControlBoxView and the station's tile draw them,
-  lit while a button is held. KeyStrip above the timing panel (Simulate, when there are keys)
+  sets it when show_keys, off for exports; drawn beside the designation on the side away from
+  the symbol, after it when the designation is above or below), ControlBoxView (under the
+  label plate) and the station's tile draw them, lit while a button is held. KeyStrip above the timing panel (Simulate, when there are keys)
   lists every key, what it operates and where, rolled in or out (user settings "keys_rolled")
 - Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
