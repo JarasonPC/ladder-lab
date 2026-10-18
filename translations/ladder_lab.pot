@@ -1019,8 +1019,6 @@ msgstr ""
 msgid "Export page as PNG…"
 msgstr ""
 
-msgid "Export all pages as PDF…"
-msgstr ""
 
 msgid "Export PDF"
 msgstr ""
@@ -3194,3 +3192,33 @@ msgstr ""
 
 msgid "Take the key off"
 msgstr ""
+
+msgid "Cable"
+msgstr ""
+
+msgid "Control stations"
+msgstr ""
+
+msgid "Data"
+msgstr ""
+
+msgid "Export as PDF…"
+msgstr ""
+
+msgid "Not placed"
+msgstr ""
+
+msgid "Nothing to export: tick what the PDF is to hold."
+msgstr ""
+
+msgid "Parts list"
+msgstr ""
+
+msgid "Switchboards"
+msgstr ""
+
+#, c-format
+msgid "%d terminal"
+msgid_plural "%d terminals"
+msgstr[0] ""
+msgstr[1] ""

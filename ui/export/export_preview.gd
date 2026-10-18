@@ -2,16 +2,26 @@ class_name ExportPreview
 extends ConfirmationDialog
 ## Shows the sheets about to be exported (PNG: the page shown, PDF: every
 ## page) as they will be saved, one at a time with page buttons, and the
-## paper each is on. The wire numbers can be left out. OK asks where to save.
+## paper each is on. The wire numbers can be left out; a PDF holds, as
+## ticked, the schematic, the control stations, the switchboards, the
+## workspace and the parts list. OK asks where to save.
 
 ## Wire numbers were switched on or off: render the sheets again.
 signal wire_numbers_toggled(on: bool)
+## What the PDF holds was changed ([method contents]): render the sheets again.
+signal contents_changed
+
+## What a PDF can hold, in order (keys of [method contents]).
+const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "workspace", "parts_list"]
+const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "Workspace", "Parts list"]
 
 var _picture: TextureRect
 var _status: Label
 var _previous: Button
 var _next: Button
 var _numbers: CheckBox
+var _contents_row: HBoxContainer
+var _contents: Dictionary[String, CheckBox] = {}
 var _images: Array[Image] = []
 var _layouts: Array[SheetLayout] = []
 var _index: int = 0
@@ -51,21 +61,64 @@ func _init() -> void:
 	_numbers.button_pressed = true
 	_numbers.toggled.connect(func(on: bool) -> void: wire_numbers_toggled.emit(on))
 	bar.add_child(_numbers)
+	_contents_row = HBoxContainer.new()
+	_contents_row.add_theme_constant_override("separation", 12)
+	box.add_child(_contents_row)
+	for key: String in CONTENTS:
+		var check: CheckBox = CheckBox.new()
+		check.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		check.button_pressed = true
+		check.toggled.connect(func(_on: bool) -> void:
+			_update_numbers()
+			contents_changed.emit())
+		_contents_row.add_child(check)
+		_contents[key] = check
 
 
 ## Opens the preview for a PNG ([param pdf] false) or PDF export, empty
-## until [method show_sheets] fills it.
-func open(pdf: bool) -> void:
+## until [method show_sheets] fills it. A PDF holds what [param chosen] says
+## (see [method contents]); what [param available] has false is greyed out
+## (the schematic has nothing of it).
+func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}) -> void:
 	title = tr("Export PDF") if pdf else tr("Export PNG")
 	ok_button_text = tr("Save PDF…") if pdf else tr("Save PNG…")
 	cancel_button_text = tr("Cancel")
 	_numbers.text = tr("Wire numbers")
+	_contents_row.visible = pdf
+	for i: int in CONTENTS.size():
+		var check: CheckBox = _contents[CONTENTS[i]]
+		check.text = tr(CONTENT_TITLES[i])
+		check.set_pressed_no_signal(bool(chosen.get(CONTENTS[i], true)))
+		check.disabled = not bool(available.get(CONTENTS[i], true))
+	_update_numbers()
 	_images.clear()
 	_layouts.clear()
 	_picture.texture = null
 	_status.text = tr("Rendering…")
 	_update_buttons()
 	popup_centered_ratio(0.75)
+
+
+## What the PDF is to hold, by the keys of [constant CONTENTS]; what has
+## nothing to show is left out.
+func contents() -> Dictionary[String, bool]:
+	var result: Dictionary[String, bool] = {}
+	for key: String in CONTENTS:
+		result[key] = _contents[key].button_pressed and not _contents[key].disabled
+	return result
+
+
+## The ticks as they are, also of what has nothing to show (to remember them).
+func ticks() -> Dictionary[String, bool]:
+	var result: Dictionary[String, bool] = {}
+	for key: String in CONTENTS:
+		result[key] = _contents[key].button_pressed
+	return result
+
+
+## Wire numbers only matter with the schematic in.
+func _update_numbers() -> void:
+	_numbers.disabled = _contents_row.visible and not _contents["schematic"].button_pressed
 
 
 ## True when the wire numbers are to be drawn.
@@ -82,6 +135,9 @@ func show_sheets(images: Array[Image], layouts: Array[SheetLayout]) -> void:
 
 func _show(index: int) -> void:
 	if _images.is_empty():
+		_picture.texture = null
+		_status.text = tr("Nothing to export: tick what the PDF is to hold.")
+		_update_buttons()
 		return
 	_index = clampi(index, 0, _images.size() - 1)
 	var image: Image = _images[_index]

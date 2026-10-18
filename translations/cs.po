@@ -1024,8 +1024,6 @@ msgstr "Název stránky %d:"
 msgid "Export page as PNG…"
 msgstr "Exportovat stránku jako PNG…"
 
-msgid "Export all pages as PDF…"
-msgstr "Exportovat všechny stránky jako PDF…"
 
 msgid "Export PDF"
 msgstr "Exportovat PDF"
@@ -3203,3 +3201,34 @@ msgstr "Mezerník spouští a pozastavuje simulaci a F11 přepíná celou obrazo
 
 msgid "Take the key off"
 msgstr "Odebrat klávesu"
+
+msgid "Cable"
+msgstr "Kabel"
+
+msgid "Control stations"
+msgstr "Ovládací skříňky"
+
+msgid "Data"
+msgstr "Údaje"
+
+msgid "Export as PDF…"
+msgstr "Exportovat jako PDF…"
+
+msgid "Not placed"
+msgstr "Neumístěno"
+
+msgid "Nothing to export: tick what the PDF is to hold."
+msgstr "Není co exportovat: zaškrtněte, co má PDF obsahovat."
+
+msgid "Parts list"
+msgstr "Seznam přístrojů"
+
+msgid "Switchboards"
+msgstr "Rozvaděče"
+
+#, c-format
+msgid "%d terminal"
+msgid_plural "%d terminals"
+msgstr[0] "%d svorka"
+msgstr[1] "%d svorky"
+msgstr[2] "%d svorek"

@@ -125,6 +125,8 @@ var _updating_pages: bool = false
 var _sheet_renderer: SheetRenderer
 ## Shows the sheets before they are exported; what it shows is saved.
 var _export_preview: ExportPreview
+## What a PDF export holds (see [method ExportPreview.contents]), remembered.
+var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "workspace": true, "parts_list": true}
 var _export_pdf: bool = false
 var _export_images: Array[Image] = []
 var _export_layouts: Array[SheetLayout] = []
@@ -670,6 +672,10 @@ func _build_dialogs() -> void:
 	_export_preview.confirmed.connect(func() -> void:
 		_show_file_dialog(DialogPurpose.EXPORT_PDF if _export_pdf else DialogPurpose.EXPORT_PNG))
 	_export_preview.wire_numbers_toggled.connect(func(_on: bool) -> void: _render_preview())
+	_export_preview.contents_changed.connect(func() -> void:
+		_export_contents = _export_preview.ticks()
+		_save_settings()
+		_render_preview())
 	add_child(_export_preview)
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
@@ -881,7 +887,7 @@ func _rebuild_file_menu() -> void:
 	popup.add_item(tr("Save"), FileMenuId.SAVE, KEY_MASK_CTRL | KEY_S)
 	popup.add_item(tr("Save as…"), FileMenuId.SAVE_AS, KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_S)
 	popup.add_item(tr("Export page as PNG…"), FileMenuId.EXPORT_PNG)
-	popup.add_item(tr("Export all pages as PDF…"), FileMenuId.EXPORT_PDF)
+	popup.add_item(tr("Export as PDF…"), FileMenuId.EXPORT_PDF)
 	popup.add_item(tr("Title block…"), FileMenuId.TITLE_BLOCK)
 	popup.set_item_tooltip(popup.item_count - 1, tr("Texts of the title block on exported sheets: drawn by, checked by, company, ..."))
 	popup.add_separator()
@@ -1601,13 +1607,14 @@ func open_file(path: String) -> bool:
 ## Saves the page shown as a PNG image: the drawing at rest on white paper,
 ## on a sheet with a frame and title block (see [SheetRenderer]).
 func export_png(path: String) -> void:
-	_prepare_export()
+	_prepare_export({})
 	_save_png(path, await _sheet_renderer.render(edit_doc, PackedInt32Array([edit_doc.page])))
 
 
-## Saves every page as one page of a PDF document.
+## Saves every page as one page of a PDF document, with the sheets chosen
+## for a PDF (stations, switchboards, workspace, parts list).
 func export_pdf(path: String) -> void:
-	_prepare_export()
+	_prepare_export(_export_contents)
 	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages())
 	_save_pdf(path, images, _sheet_renderer.layouts.duplicate())
 
@@ -1642,7 +1649,11 @@ func _open_export_preview(pdf: bool) -> void:
 	_export_pdf = pdf
 	_export_images.clear()
 	_export_layouts.clear()
-	_export_preview.open(pdf)
+	_export_preview.open(pdf, _export_contents, {
+		"stations": not edit_doc.control_boxes.is_empty(),
+		"switchboards": not edit_doc.switchboards.is_empty(),
+		"workspace": not (edit_doc.places().is_empty() and Workspace.field_devices(edit_doc.circuit).is_empty()),
+	})
 	_render_preview()
 
 
@@ -1651,7 +1662,7 @@ func _render_preview() -> void:
 	_export_render += 1
 	var ticket: int = _export_render
 	var pdf: bool = _export_pdf
-	_prepare_export()
+	_prepare_export(_export_preview.contents() if pdf else {})
 	_sheet_renderer.wire_numbers = _export_preview.wire_numbers()
 	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages() if pdf else PackedInt32Array([edit_doc.page]))
 	if ticket != _export_render:
@@ -1661,8 +1672,15 @@ func _render_preview() -> void:
 	_export_preview.show_sheets(_export_images, _export_layouts)
 
 
-## Texts of the title block and what to draw, as chosen in the window.
-func _prepare_export() -> void:
+## Texts of the title block and what to draw, as chosen in the window; a
+## PDF holds what [param contents] says (see [method ExportPreview.contents]),
+## the schematic alone when it is empty.
+func _prepare_export(contents: Dictionary) -> void:
+	_sheet_renderer.schematic = contents.get("schematic", true)
+	_sheet_renderer.stations = contents.get("stations", false)
+	_sheet_renderer.switchboards = contents.get("switchboards", false)
+	_sheet_renderer.workspace = contents.get("workspace", false)
+	_sheet_renderer.parts_list = contents.get("parts_list", false)
 	_sheet_renderer.wire_numbers = _wire_numbers
 	_sheet_renderer.path_numbers = _path_numbers
 	_sheet_renderer.file_name = _file_path.get_file()
@@ -1986,6 +2004,8 @@ func _load_settings() -> void:
 		_show_chart = config.get_value("view", "timing_chart", false)
 		_show_log = config.get_value("view", "event_log", false)
 		_keys_rolled = bool(config.get_value("view", "keys_rolled", false))
+		for key: String in ExportPreview.CONTENTS:
+			_export_contents[key] = bool(config.get_value("export", key, true))
 		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if config.get_value("view", "cable_types", "czech") == "harmonised" else WorkspaceCables.Naming.CZECH
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
 		_white_paper = bool(config.get_value("view", "white_paper", false))
@@ -2009,6 +2029,8 @@ func _save_settings() -> void:
 	config.set_value("view", "timing_chart", _show_chart)
 	config.set_value("view", "event_log", _show_log)
 	config.set_value("view", "keys_rolled", _keys_rolled)
+	for key: String in _export_contents:
+		config.set_value("export", key, _export_contents[key])
 	config.set_value("view", "cable_types", "harmonised" if WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED else "czech")
 	config.set_value("view", "theme", "light" if _theme_variant == AppTheme.Variant.LIGHT else "dark")
 	config.set_value("view", "ui_scale", _ui_scale)
