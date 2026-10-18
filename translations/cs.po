@@ -2994,9 +2994,6 @@ msgstr "Přidat lišty se všemi přístroji a svorkovnicemi schématu, které j
 msgid "Back to the workspace"
 msgstr "Zpět na pracovní plochu"
 
-msgid "Click a switchboard or control station to open it, right click for more."
-msgstr "Kliknutím rozvaděč nebo ovládací skříňku otevřete, pravým tlačítkem další volby."
-
 msgid "Control station"
 msgstr "Ovládací skříňka"
 
@@ -3108,3 +3105,31 @@ msgid_plural "%d items"
 msgstr[0] "%d prvek"
 msgstr[1] "%d prvky"
 msgstr[2] "%d prvků"
+
+msgid "Cables"
+msgstr "Kabely"
+
+msgid "Click a switchboard, control station or cable to open it, right click for more."
+msgstr "Kliknutím rozvaděč, ovládací skříňku nebo kabel otevřete, pravým tlačítkem další volby."
+
+msgid "Core"
+msgstr "Žíla"
+
+msgid "Show the cores"
+msgstr "Zobrazit žíly"
+
+msgid "Use a name without spaces or colons that no other cable has."
+msgstr "Použijte název bez mezer a dvojteček, který nemá žádný jiný kabel."
+
+msgid "Wire number"
+msgstr "Číslo vodiče"
+
+msgid "Worked out from the wiring: the cores between each two places"
+msgstr "Odvozeno ze zapojení: žíly mezi každými dvěma místy"
+
+#, c-format
+msgid "%d core between %s and %s, worked out from the wiring of the schematic."
+msgid_plural "%d cores between %s and %s, worked out from the wiring of the schematic."
+msgstr[0] "%d žíla mezi %s a %s, odvozeno ze zapojení schématu."
+msgstr[1] "%d žíly mezi %s a %s, odvozeno ze zapojení schématu."
+msgstr[2] "%d žil mezi %s a %s, odvozeno ze zapojení schématu."

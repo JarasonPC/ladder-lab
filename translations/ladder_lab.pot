@@ -2985,9 +2985,6 @@ msgstr ""
 msgid "Back to the workspace"
 msgstr ""
 
-msgid "Click a switchboard or control station to open it, right click for more."
-msgstr ""
-
 msgid "Control station"
 msgstr ""
 
@@ -3096,6 +3093,34 @@ msgstr[2] ""
 #, c-format
 msgid "%d item"
 msgid_plural "%d items"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Cables"
+msgstr ""
+
+msgid "Click a switchboard, control station or cable to open it, right click for more."
+msgstr ""
+
+msgid "Core"
+msgstr ""
+
+msgid "Show the cores"
+msgstr ""
+
+msgid "Use a name without spaces or colons that no other cable has."
+msgstr ""
+
+msgid "Wire number"
+msgstr ""
+
+msgid "Worked out from the wiring: the cores between each two places"
+msgstr ""
+
+#, c-format
+msgid "%d core between %s and %s, worked out from the wiring of the schematic."
+msgid_plural "%d cores between %s and %s, worked out from the wiring of the schematic."
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""

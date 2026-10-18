@@ -235,14 +235,14 @@ func test_field_cables_leave_through_the_bottom() -> void:
 	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
 	var to_motor: Dictionary[String, Dictionary] = {}
 	for wire: Dictionary in wiring.wires:
-		if wire["external"] and wire["cable"] == "M1":
+		if wire["external"] and wire["cable"] == "W1":
 			to_motor[wire["to"]] = wire
 	assert_eq(to_motor.keys().size(), 4, "a core to each terminal of the motor's strip X2")
 	assert_eq(to_motor["M1:U1"]["conductor"], CabinetDevices.Conductor.POWER)
 	assert_eq(to_motor["M1:PE"]["conductor"], CabinetDevices.Conductor.PE)
 	var gland: Dictionary = {}
 	for g: Dictionary in wiring.glands:
-		if g["cable"] == "M1":
+		if g["cable"] == "W1":
 			gland = g
 	assert_true(gland["bottom"], "the motor cable leaves through the bottom of the enclosure")
 	var strip: Dictionary = {}
@@ -255,7 +255,7 @@ func test_field_cables_leave_through_the_bottom() -> void:
 		assert_true(is_equal_approx(path[path.size() - 1].y, (strip["origin"] as Vector2).y + CabinetParts.TERMINAL.y - CabinetParts.TERMINAL_ENTRY), "and goes into the bottom of the strip terminal")
 	# Terminals of strip X1 lead to nothing outside: no cable for them.
 	for g: Dictionary in wiring.glands:
-		assert_true(g["cable"] in ["AC", "M1"], "only the supply and the motor cable")
+		assert_true(g["cable"] in ["AC", "W1"], "only the supply and the motor cable, named like on the workspace")
 	assert_eq(CabinetDevices.field_device(doc.circuit, "X5", CabinetDevices.nets(doc.circuit)), "", "the N terminal joins only devices inside")
 
 

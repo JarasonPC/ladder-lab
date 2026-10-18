@@ -2,20 +2,21 @@ class_name WorkspaceTree
 extends VBoxContainer
 ## The tree beside the workspace: every switchboard with its devices and
 ## terminal strips, every control station with its buttons, switches and
-## lamps, every group with its parts, the parts in the field outside groups
-## and what has no place yet. A search field above it filters by name. It
+## lamps, every group with its parts, the parts in the field outside groups,
+## the cables and what has no place yet. A search field above it filters by name. It
 ## stays while a switchboard or station is opened, as the map of the workspace.
 
 ## An entry was clicked: [param entry] is {"place" ([enum Workspace.Place] or
 ## -1), "name" (the place's name, ""), "designation" (a device, strip or part
-## in the field; "" for the place itself), "kind" ("place", "device",
-## "strip", "control", "field", "")}.
+## in the field; "" for the place itself; for a cable its key in "name"),
+## "kind" ("place", "device", "strip", "control", "field", "cable", "")}.
 signal chosen(entry: Dictionary)
 ## An entry was right-clicked at [param at] (screen position).
 signal menu_requested(entry: Dictionary, at: Vector2)
 
 var document: SchematicDocument
-## Name of the opened place, shown selected ("" for none).
+## Name of the opened place, or "=" and the key of the opened cable, shown
+## selected ("" for none).
 var opened: String = ""
 
 var _search: LineEdit
@@ -109,6 +110,15 @@ func _fill(root: TreeItem) -> void:
 		var head: TreeItem = _heading(root, "field", tr("In the field"))
 		for designation: String in loose:
 			_field(head, designation, filter)
+		_finish(head, filter)
+	var cables: Array[Dictionary] = WorkspaceCables.cables(document)
+	if not cables.is_empty():
+		var head: TreeItem = _heading(root, "cables", tr("Cables"))
+		head.set_tooltip_text(0, tr("Worked out from the wiring: the cores between each two places"))
+		for cable: Dictionary in cables:
+			var item: TreeItem = _entry(head, cable["name"], "%s – %s  (%s)" % [cable["a"], cable["b"], WorkspaceCables.cores_text(cable)], {"place": -1, "name": cable["key"], "designation": "", "kind": "cable"}, filter)
+			if item != null and opened == "=" + str(cable["key"]):
+				item.select(0)
 		_finish(head, filter)
 	var missing: Array[Dictionary] = Workspace.unplaced(document)
 	if not missing.is_empty():

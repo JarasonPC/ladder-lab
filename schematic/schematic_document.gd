@@ -29,6 +29,9 @@ var groups: Array[WorkspaceGroup] = []
 ## Workspace: where the parts in the field were put (designation -> position;
 ## see [method Workspace.field_positions] for those not put anywhere).
 var field_positions: Dictionary[String, Vector2] = {}
+## Workspace: names of the cables between places (cable key "+RA1|+ST1" ->
+## name, see [WorkspaceCables]), kept so a cable keeps its name.
+var cable_names: Dictionary[String, String] = {}
 ## Order of the terminals of terminal strips set in the switchboard: strip
 ## -> terminal labels from left to right. Terminals not listed follow in the
 ## order of their labels (see [method CabinetDevices.strips]).
@@ -1816,6 +1819,7 @@ func rename_place(kind: Workspace.Place, index: int, place_name: String, place_t
 		return false
 	if new_name != place.get("name") and place_taken(new_name):
 		return false
+	_rename_cable_end("+" + str(place.get("name")), "+" + new_name)
 	place.set("name", new_name)
 	place.set("title", place_title.strip_edges())
 	return true
@@ -1878,6 +1882,7 @@ func name_places() -> void:
 ## Points the place and group of part [param old_designation] in the field
 ## to [param new_designation].
 func rename_field_device(old_designation: String, new_designation: String) -> void:
+	_rename_cable_end("-" + old_designation, "-" + new_designation)
 	if field_positions.has(old_designation):
 		field_positions[new_designation] = field_positions[old_designation]
 		field_positions.erase(old_designation)
@@ -1894,6 +1899,50 @@ func places() -> Array[RefCounted]:
 	result.append_array(control_boxes)
 	result.append_array(groups)
 	return result
+
+
+## Keeps the name of every cable of the workspace (see [WorkspaceCables]):
+## a new cable gets the first free "W<n>", the names of cables that are gone
+## are dropped. Run after every edit.
+func name_cables() -> void:
+	var kept: Dictionary[String, String] = {}
+	for cable: Dictionary in WorkspaceCables.cables(self):
+		kept[cable["key"]] = cable["name"]
+	cable_names = kept
+
+
+## Cables with end [param old_end] ("+ST1", "-M1") keep their names when
+## the end is renamed to [param new_end].
+func _rename_cable_end(old_end: String, new_end: String) -> void:
+	if old_end == new_end:
+		return
+	var renamed: Dictionary[String, String] = {}
+	for key: String in cable_names:
+		var ends: PackedStringArray = key.split("|")
+		for i: int in ends.size():
+			if ends[i] == old_end:
+				ends[i] = new_end
+		renamed["|".join(ends)] = cable_names[key]
+	cable_names = renamed
+
+
+## Renames cable [param key] ("+RA1|+ST1") to [param cable_name]. Returns
+## false when the name is unusable (empty, spaces, colons) or another cable
+## has it.
+func rename_cable(key: String, cable_name: String) -> bool:
+	var new_name: String = WorkspaceCables.cable_name(cable_name)
+	if new_name.is_empty() or new_name != cable_name.strip_edges():
+		return false
+	var found: bool = false
+	for cable: Dictionary in WorkspaceCables.cables(self):
+		if cable["key"] == key:
+			found = true
+		elif cable["name"] == new_name:
+			return false
+	if not found:
+		return false
+	cable_names[key] = new_name
+	return true
 
 
 ## Place [param index] of [param kind], or null.

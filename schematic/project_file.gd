@@ -50,7 +50,9 @@ const FORMAT: String = "ladder-lab"
 ## position, rails; the "cabinet" rails of older files become switchboard
 ## RA1), control stations with a name and position, groups of parts in the
 ## field ("groups") and where those parts stand ("field").
-const VERSION: int = 24
+## 25: names of the cables of the workspace ("cables": "+RA1|+ST1" -> "W1";
+## missing before: named in turn).
+const VERSION: int = 25
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

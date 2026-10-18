@@ -1,8 +1,8 @@
 class_name WorkspaceView
 extends VBoxContainer
 ## The workspace (Schematic | Workspace in the toolbar): a bar with the tools
-## above the [WorkspaceCanvas], or above the switchboard or control station
-## opened from it ([CabinetPanel], [StationPanel]), which then takes the
+## above the [WorkspaceCanvas], or above the switchboard, control station or
+## cable opened from it ([CabinetPanel], [StationPanel], [CablePanel]), which then takes the
 ## canvas's room. Its [WorkspaceTree] (put beside it by the main window)
 ## stays meanwhile, as the map. A right click offers more: open in a new
 ## window, rename, delete; in Edit mode places are added here. Every change
@@ -29,6 +29,8 @@ var _editing: bool = false
 ## The opened place: its kind and name ("" while the canvas shows).
 var _opened_kind: Workspace.Place = Workspace.Place.SWITCHBOARD
 var _opened: String = ""
+## Key of the opened cable ("" for none, see [WorkspaceCables]).
+var _opened_cable: String = ""
 var _panel: Control
 var _body: Control
 var _bar: HBoxContainer
@@ -67,6 +69,7 @@ func _ready() -> void:
 	canvas = WorkspaceCanvas.new()
 	canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	canvas.open_requested.connect(func(kind: Workspace.Place, place_name: String) -> void: open(kind, place_name))
+	canvas.cable_requested.connect(open_cable)
 	canvas.menu_requested.connect(func(item: Dictionary, at: Vector2) -> void:
 		_open_menu(_entry_of(item), at, get_viewport().get_mouse_position()))
 	canvas.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
@@ -98,7 +101,10 @@ func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> v
 			canvas.fit()
 		else:
 			_fit_pending = true
+	canvas.invalidate()
 	if not _opened.is_empty() and _index(_opened_kind, _opened) < 0:
+		close()
+	if not _opened_cable.is_empty() and _cable(_opened_cable).is_empty():
 		close()
 	if _panel != null:
 		_panel.call("set_document", doc, editing)
@@ -107,9 +113,12 @@ func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> v
 
 ## Shows the document again after an edit.
 func refresh() -> void:
-	tree.opened = _opened
+	canvas.invalidate()
+	if not _opened_cable.is_empty() and _cable(_opened_cable).is_empty():
+		close()
+		return
+	tree.opened = _opened if _opened_cable.is_empty() else "=" + _opened_cable
 	tree.refresh()
-	canvas.queue_redraw()
 	if _panel != null:
 		_panel.call("refresh")
 	_update_bar()
@@ -154,13 +163,31 @@ func open(kind: Workspace.Place, place_name: String, designation: String = "", i
 	refresh()
 
 
-## Shows the canvas again in place of the opened switchboard or station.
+## Lists the cores of cable [param key] ("+RA1|+ST1") in place of the canvas.
+func open_cable(key: String) -> void:
+	if _cable(key).is_empty():
+		return
+	close()
+	_opened_cable = key
+	var cores: CablePanel = CablePanel.new()
+	cores.cable_key = key
+	_panel = cores
+	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_body.add_child(_panel)
+	cores.set_document(_document, _editing)
+	canvas.visible = false
+	canvas.selected = "=" + key
+	refresh()
+
+
+## Shows the canvas again in place of the opened switchboard, station or cable.
 func close() -> void:
 	if _panel != null:
 		_body.remove_child(_panel)
 		_panel.queue_free()
 		_panel = null
 	_opened = ""
+	_opened_cable = ""
 	if canvas != null:
 		canvas.visible = true
 	if tree != null and is_inside_tree():
@@ -168,7 +195,15 @@ func close() -> void:
 
 
 func is_open() -> bool:
-	return not _opened.is_empty()
+	return not _opened.is_empty() or not _opened_cable.is_empty()
+
+
+## Cable [param key] of the document shown, {} for none.
+func _cable(key: String) -> Dictionary:
+	for cable: Dictionary in canvas.cables():
+		if cable["key"] == key:
+			return cable
+	return {}
 
 
 ## The panel that opens switchboard or station [param place_name].
@@ -228,6 +263,26 @@ func _update_bar() -> void:
 	for child: Node in _bar.get_children():
 		_bar.remove_child(child)
 		child.queue_free()
+	if not _opened_cable.is_empty():
+		var cable: Dictionary = _cable(_opened_cable)
+		var back_to: Button = _tool("chevron_left", tr("Back to the workspace") + "  (Esc)")
+		back_to.pressed.connect(close)
+		_bar.add_child(back_to)
+		var cable_label: Label = _label(str(cable.get("name", "")))
+		cable_label.add_theme_font_override("font", AppTheme.bold_font())
+		_bar.add_child(cable_label)
+		var ends: Label = _label("%s – %s" % [cable.get("a", ""), cable.get("b", "")])
+		ends.theme_type_variation = "MutedLabel"
+		ends.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_bar.add_child(ends)
+		if _editing:
+			var rename_cable: Button = _tool("edit", tr("Rename…"))
+			rename_cable.pressed.connect(func() -> void: _rename({"place": -1, "name": _opened_cable, "designation": "", "kind": "cable"}))
+			_bar.add_child(rename_cable)
+		var shut_cable: Button = _tool("close", tr("Back to the workspace") + "  (Esc)")
+		shut_cable.pressed.connect(close)
+		_bar.add_child(shut_cable)
+		return
 	if is_open():
 		var place: RefCounted = _place_of(_opened_kind, _opened)
 		var back: Button = _tool("chevron_left", tr("Back to the workspace") + "  (Esc)")
@@ -273,7 +328,7 @@ func _update_bar() -> void:
 			var kind: Workspace.Place = add[0]
 			button.pressed.connect(func() -> void: _add(kind, null))
 			_bar.add_child(button)
-	var hint: Label = _label(tr("Click a switchboard or control station to open it, right click for more."))
+	var hint: Label = _label(tr("Click a switchboard, control station or cable to open it, right click for more."))
 	hint.tooltip_text = tr("Wheel zooms, right or middle drag pans.") + ("\n" + tr("Drag parts into a group's frame to put them in it.") if _editing else "")
 	hint.mouse_filter = Control.MOUSE_FILTER_PASS
 	hint.theme_type_variation = "MutedLabel"
@@ -317,6 +372,8 @@ func _entry_of(item: Dictionary) -> Dictionary:
 			return {"place": Workspace.Place.STATION, "name": item["name"], "designation": "", "kind": "place"}
 		"group":
 			return {"place": Workspace.Place.GROUP, "name": item["name"], "designation": "", "kind": "place"}
+		"cable":
+			return {"place": -1, "name": item["name"], "designation": "", "kind": "cable"}
 	return {"place": -1, "name": "", "designation": item["name"], "kind": "field"}
 
 
@@ -330,6 +387,8 @@ func _on_tree_chosen(entry: Dictionary) -> void:
 	elif entry.get("kind", "") == "field":
 		close()
 		canvas.show_item("-" + str(entry["designation"]))
+	elif entry.get("kind", "") == "cable":
+		open_cable(entry["name"])
 
 
 ## The menu for [param entry] ({} on empty paper at workspace position
@@ -344,6 +403,10 @@ func _open_menu(entry: Dictionary, at: Vector2, screen: Vector2) -> void:
 		_menu.add_item(tr("Open"), MenuId.OPEN)
 		_menu.add_item(tr("Open in a new window"), MenuId.WINDOW)
 		_menu.set_item_tooltip(_menu.item_count - 1, tr("Shows it in a window of its own, e.g. on a second monitor; while simulating, it works there too"))
+	if kind == "cable":
+		_menu.add_item(tr("Show the cores"), MenuId.OPEN)
+		if _editing:
+			_menu.add_item(tr("Rename…"), MenuId.RENAME)
 	if kind == "field":
 		_menu.add_item(tr("Show in the schematic"), MenuId.SCHEMATIC)
 		if _editing and Workspace.group_of(_document, entry["designation"]) >= 0:
@@ -368,7 +431,10 @@ func _on_menu(id: int) -> void:
 	var entry: Dictionary = _menu_entry
 	match id:
 		MenuId.OPEN:
-			open(entry["place"], entry["name"])
+			if entry["kind"] == "cable":
+				open_cable(entry["name"])
+			else:
+				open(entry["place"], entry["name"])
 		MenuId.WINDOW:
 			if _opened == entry["name"]:
 				close()
@@ -474,12 +540,17 @@ func _retranslate_dialog() -> void:
 
 
 func _rename(entry: Dictionary) -> void:
-	var place: RefCounted = _place_of(entry["place"], entry["name"])
-	if place == null:
+	var cable: bool = entry.get("kind", "") == "cable"
+	var place: RefCounted = null if cable else _place_of(entry["place"], entry["name"])
+	if place == null and (not cable or _cable(entry["name"]).is_empty()):
 		return
 	_renaming = entry
-	_rename_name.text = "+" + str(place.get("name"))
-	_rename_title.text = str(place.get("title"))
+	# A cable has a name only.
+	_rename_labels[1].visible = not cable
+	_rename_title.visible = not cable
+	_rename_labels[0].text = tr("Name") if cable else tr("Designation")
+	_rename_name.text = str(_cable(entry["name"])["name"]) if cable else "+" + str(place.get("name"))
+	_rename_title.text = "" if cable else str(place.get("title"))
 	_rename_error.text = ""
 	_rename_error.visible = false
 	_rename_dialog.reset_size()
@@ -490,6 +561,9 @@ func _rename(entry: Dictionary) -> void:
 
 func _apply_rename() -> void:
 	var entry: Dictionary = _renaming
+	if entry.get("kind", "") == "cable":
+		_apply_cable_rename(entry["name"], _rename_name.text.strip_edges())
+		return
 	var index: int = _index(entry["place"], entry["name"])
 	if index < 0:
 		return
@@ -513,4 +587,18 @@ func _apply_rename() -> void:
 			(_panel as CabinetPanel).board_name = new_name
 		elif _panel is StationPanel:
 			(_panel as StationPanel).station_name = new_name
+	refresh()
+
+
+func _apply_cable_rename(key: String, new_name: String) -> void:
+	if _cable(key).get("name", "") == new_name:
+		return
+	var probe: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(_document))
+	if probe == null or not probe.rename_cable(key, new_name):
+		_rename_error.text = tr("Use a name without spaces or colons that no other cable has.")
+		_rename_error.visible = true
+		_rename_dialog.reset_size()
+		_rename_dialog.popup_centered.call_deferred()
+		return
+	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.rename_cable(key, new_name))
 	refresh()

@@ -3,13 +3,17 @@ extends Control
 ## The workspace on schematic paper: switchboards and control stations as
 ## solid tiles with their names, parts in the field (motors, limit switches,
 ## temperature sensors) as smaller tiles, groups as frames round their
-## members. A click on a switchboard or station opens it; in Edit mode
+## members, the cables between them (see [WorkspaceCables]) as lines with
+## their name, bent round tiles in their way. A click on a switchboard or
+## station opens it, a click on a cable lists its cores; in Edit mode
 ## everything is dragged around (a part dropped into a group's frame joins
 ## the group, dropped outside leaves it). The wheel zooms at the mouse, a
 ## right or middle drag pans, a right click (no drag) asks for a menu.
 
 ## Switchboard or station [param place_name] was clicked: open it.
 signal open_requested(kind: Workspace.Place, place_name: String)
+## Cable [param key] ("+RA1|+ST1") was clicked: list its cores.
+signal cable_requested(key: String)
 ## A right click: [param item] is the one under the mouse ({} for none, else
 ## like those of [method items]) at [param at] (workspace position).
 signal menu_requested(item: Dictionary, at: Vector2)
@@ -24,6 +28,9 @@ const SNAP: float = 4.0
 const NAME_SIZE: int = 15
 const TEXT_SIZE: int = 12
 const SMALL_SIZE: int = 11
+const CABLE_WIDTH: float = 2.5
+## Room kept round tiles a cable passes by.
+const CABLE_CLEARANCE: float = 8.0
 
 var document: SchematicDocument
 ## Things are dragged only while editing.
@@ -42,6 +49,113 @@ var _dragging: bool = false
 var _pan_button: MouseButton = MOUSE_BUTTON_NONE
 var _pan_from: Vector2 = Vector2.ZERO
 var _panned: bool = false
+## Cables of the document, worked out again after it changed.
+var _cables: Array[Dictionary] = []
+var _cables_dirty: bool = true
+
+
+## The document changed: its cables are worked out again.
+func invalidate() -> void:
+	_cables_dirty = true
+	queue_redraw()
+
+
+func cables() -> Array[Dictionary]:
+	if _cables_dirty:
+		_cables = WorkspaceCables.cables(document) if document != null else ([] as Array[Dictionary])
+		_cables_dirty = false
+	return _cables
+
+
+## Where each cable is drawn: {"cable" (see [method WorkspaceCables.cables]),
+## "points" (polyline, workspace units), "tag" (Rect2 of its name tag),
+## "text"}; straight from tile to tile, bent when a tile is in its way.
+func cable_paths() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if document == null:
+		return result
+	var tiles: Dictionary[String, Rect2] = {}
+	# The whole place with its texts, which a cable keeps clear of.
+	var areas: Dictionary[String, Rect2] = {}
+	for item: Dictionary in items():
+		if item["kind"] != "group":
+			tiles[item["key"]] = _tile_rect(item)
+			areas[item["key"]] = item["rect"]
+	var font: Font = AppTheme.schematic_font()
+	for cable: Dictionary in cables():
+		if not tiles.has(cable["a"]) or not tiles.has(cable["b"]):
+			continue
+		var a: Vector2 = tiles[cable["a"]].get_center()
+		var b: Vector2 = tiles[cable["b"]].get_center()
+		var others: Array[Rect2] = []
+		for key: String in areas:
+			if key != cable["a"] and key != cable["b"]:
+				others.append(areas[key].grow(CABLE_CLEARANCE))
+		var points: PackedVector2Array = PackedVector2Array([a, b])
+		if _blocked(points, others) > 0:
+			# Bent to the side where fewer tiles are in the way.
+			var normal: Vector2 = (b - a).orthogonal().normalized()
+			var bend: float = clampf(a.distance_to(b) * 0.35, 40.0, 180.0)
+			var best: int = 1 << 20
+			for side: float in [-1.0, 1.0, -2.0, 2.0]:
+				var curve: PackedVector2Array = _curve(a, b, (a + b) * 0.5 + normal * bend * side)
+				var hits: int = _blocked(curve, others)
+				if hits < best:
+					best = hits
+					points = curve
+				if hits == 0:
+					break
+		var middle: Vector2 = points[int(points.size() / 2.0)] if points.size() > 2 else _middle_between(a, b, areas[cable["a"]], areas[cable["b"]])
+		var text: String = "%s · %s" % [cable["name"], WorkspaceCables.cores_text(cable)]
+		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
+		result.append({"cable": cable, "points": points, "tag": Rect2(middle - Vector2(w, 16.0) * 0.5, Vector2(w, 16.0)), "text": text})
+	return result
+
+
+## The middle of the part of the line [param a]-[param b] outside both
+## places [param area_a] and [param area_b] (where its tag goes).
+static func _middle_between(a: Vector2, b: Vector2, area_a: Rect2, area_b: Rect2) -> Vector2:
+	var from: float = 0.0
+	var to: float = 1.0
+	for k: int in 65:
+		var t: float = k / 64.0
+		if area_a.has_point(a.lerp(b, t)):
+			from = t
+	for k: int in range(64, -1, -1):
+		var t: float = k / 64.0
+		if area_b.has_point(a.lerp(b, t)):
+			to = t
+	if to <= from:
+		return (a + b) * 0.5
+	return a.lerp(b, (from + to) * 0.5)
+
+
+## How many points of [param points] (sampled along it) lie in [param rects].
+static func _blocked(points: PackedVector2Array, rects: Array[Rect2]) -> int:
+	var hits: int = 0
+	for i: int in points.size() - 1:
+		for k: int in 8:
+			var at: Vector2 = points[i].lerp(points[i + 1], k / 8.0)
+			for rect: Rect2 in rects:
+				if rect.has_point(at):
+					hits += 1
+	return hits
+
+
+static func _curve(a: Vector2, b: Vector2, control: Vector2) -> PackedVector2Array:
+	var points: PackedVector2Array = PackedVector2Array()
+	for i: int in 25:
+		var t: float = i / 24.0
+		points.append(a.lerp(control, t).lerp(control.lerp(b, t), t))
+	return points
+
+
+## The tile of a place or part (not its texts).
+static func _tile_rect(item: Dictionary) -> Rect2:
+	var rect: Rect2 = item["rect"]
+	if item["kind"] == "field":
+		return Rect2(rect.position + Vector2((rect.size.x - Workspace.FIELD_TILE) * 0.5, 0.0), Vector2(Workspace.FIELD_TILE, Workspace.FIELD_TILE))
+	return Rect2(rect.position, Vector2(Workspace.TILE, Workspace.TILE))
 
 
 func _ready() -> void:
@@ -79,6 +193,29 @@ func items() -> Array[Dictionary]:
 ## field before places before groups).
 func item_at(point: Vector2) -> Dictionary:
 	var at: Vector2 = to_workspace(point)
+	var paths: Array[Dictionary] = cable_paths()
+	for path: Dictionary in paths:
+		if (path["tag"] as Rect2).has_point(at):
+			return _cable_item(path)
+	var found: Dictionary = _place_at(at)
+	if not found.is_empty():
+		return found
+	# Near a cable's line (a few pixels on the screen).
+	var reach: float = 5.0 / zoom
+	for path: Dictionary in paths:
+		var points: PackedVector2Array = path["points"]
+		for i: int in points.size() - 1:
+			if Geometry2D.get_closest_point_to_segment(at, points[i], points[i + 1]).distance_to(at) <= reach:
+				return _cable_item(path)
+	return {}
+
+
+func _cable_item(path: Dictionary) -> Dictionary:
+	return {"key": "=" + str(path["cable"]["key"]), "kind": "cable", "index": -1, "name": path["cable"]["key"], "rect": path["tag"], "tile": -1}
+
+
+## The place, part or group at workspace point [param at], {} for none.
+func _place_at(at: Vector2) -> Dictionary:
 	var list: Array[Dictionary] = items()
 	for i: int in range(list.size() - 1, -1, -1):
 		var rect: Rect2 = list[i]["rect"]
@@ -147,14 +284,14 @@ func _gui_input(event: InputEvent) -> void:
 			offset += motion.relative
 			queue_redraw()
 	elif not _press.is_empty():
-		if not _dragging and editing and motion.position.distance_to(_press_at) >= SchematicEditor.CLICK_SLOP:
+		if not _dragging and editing and _press["kind"] != "cable" and motion.position.distance_to(_press_at) >= SchematicEditor.CLICK_SLOP:
 			_dragging = true
 		if _dragging:
 			_drag = ((motion.position - _press_at) / zoom).snappedf(SNAP)
 			queue_redraw()
 	else:
 		var hover: Dictionary = item_at(motion.position)
-		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not hover.is_empty() and (hover["kind"] in ["switchboard", "station"] or editing) else Control.CURSOR_ARROW
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not hover.is_empty() and (hover["kind"] in ["switchboard", "station", "cable"] or editing) else Control.CURSOR_ARROW
 	accept_event()
 
 
@@ -191,6 +328,8 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_press = {}
 				if item["kind"] == "switchboard" or item["kind"] == "station":
 					open_requested.emit(Workspace.Place.SWITCHBOARD if item["kind"] == "switchboard" else Workspace.Place.STATION, item["name"])
+				elif item["kind"] == "cable":
+					cable_requested.emit(item["name"])
 
 
 func _zoom_at(point: Vector2, factor: float) -> void:
@@ -274,13 +413,32 @@ func _draw() -> void:
 		return
 	draw_set_transform(offset, 0.0, Vector2(zoom, zoom))
 	for item: Dictionary in list:
+		if item["kind"] == "group":
+			_draw_group(item)
+	var paths: Array[Dictionary] = cable_paths()
+	for path: Dictionary in paths:
+		var on: bool = selected == "=" + str(path["cable"]["key"])
+		draw_polyline(path["points"], SchematicTheme.SELECTED if on else SchematicTheme.LINE, CABLE_WIDTH + (1.0 if on else 0.0), true)
+	for item: Dictionary in list:
 		match item["kind"]:
 			"group":
-				_draw_group(item)
+				pass
 			"field":
 				_draw_field(item)
 			_:
 				_draw_place(item)
+	var font: Font = AppTheme.schematic_font()
+	for path: Dictionary in paths:
+		var on: bool = selected == "=" + str(path["cable"]["key"])
+		var tag: Rect2 = path["tag"]
+		var box: StyleBoxFlat = StyleBoxFlat.new()
+		box.bg_color = SchematicTheme.BACKGROUND
+		box.border_color = SchematicTheme.SELECTED if on else SchematicTheme.LINE
+		box.set_border_width_all(2 if on else 1)
+		box.set_corner_radius_all(4)
+		box.anti_aliasing = true
+		box.draw(get_canvas_item(), tag)
+		draw_string(font, Vector2(tag.position.x, tag.position.y + 12.0), path["text"], HORIZONTAL_ALIGNMENT_CENTER, tag.size.x, SMALL_SIZE, SchematicTheme.TEXT)
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -328,6 +486,8 @@ func _draw_place(item: Dictionary) -> void:
 		var box: ControlBox = document.control_boxes[item["index"]]
 		title = box.title if not box.title.is_empty() else tr("Control station")
 		summary = tr_n("%d item", "%d items", box.items.size()) % box.items.size()
+	# The texts on paper, over any cable passing behind them.
+	draw_rect(Rect2(tile.end.x + 4.0, rect.position.y, rect.end.x - tile.end.x - 4.0, rect.size.y), SchematicTheme.BACKGROUND)
 	draw_string(font, Vector2(x, rect.position.y + 17.0), "+" + str(item["name"]), HORIZONTAL_ALIGNMENT_LEFT, w, NAME_SIZE, SchematicTheme.DESIGNATION)
 	draw_string(font, Vector2(x, rect.position.y + 34.0), title, HORIZONTAL_ALIGNMENT_LEFT, w, TEXT_SIZE, SchematicTheme.TEXT)
 	draw_string(font, Vector2(x, rect.position.y + 50.0), summary, HORIZONTAL_ALIGNMENT_LEFT, w, SMALL_SIZE, SchematicTheme.PATH_TEXT)
