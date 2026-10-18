@@ -1,9 +1,11 @@
 extends SceneTree
-## Takes screenshots of the app with the switchboard sidebar open: one in
-## Edit mode, one while simulating with the breakers and fuse holders
-## switched on and the first start button pressed. Needs a display
-## (xvfb-run on a server):
-##   xvfb-run -a godot --rendering-driver opengl3 --path . -s res://tools/screenshot_cabinet.gd -- <out_dir> [example index] [sidebar width]
+## Takes screenshots of the app's workspace for visual review: the workspace
+## of a built-in example in Edit mode, its first switchboard opened (a place
+## selected, so the editing tools show), and while simulating with the
+## breakers and fuse holders switched on and the first start button pressed:
+## the switchboard and the first control station. Needs a display (xvfb-run
+## on a server):
+##   xvfb-run -a godot --rendering-driver opengl3 --path . -s res://tools/screenshot_workspace.gd -- <out_dir> [example index]
 
 var out_dir: String = "user://screenshots/"
 
@@ -20,18 +22,24 @@ func _initialize() -> void:
 	await _frames(5)
 	main.get("_circuit_select").select(example)
 	main.call("_load_example")
-	main.call("_set_cabinet", true)
-	if args.size() > 2:
-		(main.get("_cabinet_bar") as SideBar).width = float(args[2])
+	main.call("_set_area", 1)
 	await _frames(10)
+	await _save("workspace_edit")
+	var workspace: WorkspaceView = main.get("_workspace")
+	var view: SchematicView = main.get("view")
+	if view.document.switchboards.is_empty():
+		quit()
+		return
+	var board: String = view.document.switchboards[0].name
+	workspace.open(Workspace.Place.SWITCHBOARD, board)
+	await _frames(5)
 	# Select the first contactor's place, so the editing card shows too.
-	var panel: CabinetPanel = main.get("_cabinet_panel")
+	var panel: CabinetPanel = workspace.get("_panel")
 	(panel.get("_view") as CabinetView).place_clicked.emit(1, 0)
 	await _frames(10)
-	await _save("app_edit")
+	await _save("switchboard_edit")
 	main.call("_set_mode", 1)
 	await _frames(5)
-	var view: SchematicView = main.get("view")
 	for designation: String in CabinetDevices.devices(view.document):
 		var c: CircuitComponent = CabinetDevices.device(view.document.circuit, designation)
 		if c is CircuitBreaker or c is MotorBreaker or (c is Fuse and (c as Fuse).holder) or (c is ThreePoleFuse and (c as ThreePoleFuse).holder):
@@ -46,7 +54,11 @@ func _initialize() -> void:
 		await _frames(30)
 		view.hold_button(start, false)
 	await _frames(90)
-	await _save("app_simulate")
+	await _save("switchboard_simulate")
+	if not view.document.control_boxes.is_empty():
+		workspace.open(Workspace.Place.STATION, view.document.control_boxes[0].name)
+		await _frames(10)
+		await _save("station_simulate")
 	quit()
 
 

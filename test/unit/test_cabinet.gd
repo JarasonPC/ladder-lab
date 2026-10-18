@@ -9,6 +9,7 @@ const NC := SwitchingElement.ContactType.NC
 
 func _doc() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new("cabinet")
+	doc.add_switchboard()
 	var breaker: MotorBreaker = MotorBreaker.new("FA1")
 	doc.add(breaker, Vector2i(0, 0))
 	var fuse: Fuse = Fuse.new("FU1")
@@ -108,9 +109,9 @@ func test_terminal_strips() -> void:
 
 func test_fill_cabinet() -> void:
 	var doc: SchematicDocument = _doc()
-	assert_eq(doc.fill_cabinet(), 3)
+	assert_eq(doc.fill_cabinet(0), 3)
 	var rails: Array[PackedStringArray] = []
-	for rail: CabinetRail in doc.cabinet_rails:
+	for rail: CabinetRail in doc.switchboards[0].rails:
 		var names: PackedStringArray = PackedStringArray()
 		for item: CabinetItem in rail.items:
 			names.append(item.designation)
@@ -118,55 +119,58 @@ func test_fill_cabinet() -> void:
 	assert_eq(rails[0], PackedStringArray(["FA1", "FU1", "KT1", "KA1"]), "protection, then time relays, then relays")
 	assert_eq(rails[1], PackedStringArray(["KM1"]), "contactors, the overload relay under its contactor")
 	assert_eq(rails[2], PackedStringArray(["X1", "X2"]))
-	assert_eq(doc.cabinet_rails[2].items[0].kind, CabinetItem.Kind.STRIP)
-	assert_eq(doc.fill_cabinet(), 0, "everything has a place already")
+	assert_eq(doc.switchboards[0].rails[2].items[0].kind, CabinetItem.Kind.STRIP)
+	assert_eq(doc.fill_cabinet(0), 0, "everything has a place already")
 	assert_true(doc.cabinet_unplaced().is_empty())
 
 
 func test_edit_rails_and_items() -> void:
 	var doc: SchematicDocument = _doc()
-	doc.add_cabinet_rail()
-	doc.add_cabinet_rail()
-	assert_not_null(doc.add_cabinet_item(0, CabinetItem.Kind.DEVICE, "KM1"))
-	assert_null(doc.add_cabinet_item(1, CabinetItem.Kind.DEVICE, "KM1"), "one place per device")
-	assert_null(doc.add_cabinet_item(5, CabinetItem.Kind.DEVICE, "KA1"), "no such rail")
-	doc.add_cabinet_item(0, CabinetItem.Kind.DEVICE, "KA1")
-	doc.move_cabinet_item(0, 1, -1)
-	assert_eq(doc.cabinet_rails[0].items[0].designation, "KA1")
-	assert_true(doc.move_cabinet_item_to_rail(0, 0, 1))
-	assert_eq(doc.cabinet_rails[1].items[0].designation, "KA1")
-	assert_false(doc.move_cabinet_item_to_rail(1, 0, 1), "no rail below")
-	doc.move_cabinet_rail(1, -1)
-	assert_eq(doc.cabinet_rails[0].items[0].designation, "KA1")
-	doc.remove_cabinet_item(0, 0)
-	assert_true(doc.cabinet_rails[0].items.is_empty())
-	doc.remove_cabinet_rail(0)
-	assert_eq(doc.cabinet_rails.size(), 1)
+	doc.add_cabinet_rail(0)
+	doc.add_cabinet_rail(0)
+	assert_not_null(doc.add_cabinet_item(0, 0, CabinetItem.Kind.DEVICE, "KM1"))
+	assert_null(doc.add_cabinet_item(0, 1, CabinetItem.Kind.DEVICE, "KM1"), "one place per device")
+	assert_null(doc.add_cabinet_item(0, 5, CabinetItem.Kind.DEVICE, "KA1"), "no such rail")
+	doc.add_cabinet_item(0, 0, CabinetItem.Kind.DEVICE, "KA1")
+	doc.move_cabinet_item(0, 0, 1, -1)
+	assert_eq(doc.switchboards[0].rails[0].items[0].designation, "KA1")
+	assert_true(doc.move_cabinet_item_to_rail(0, 0, 0, 1))
+	assert_eq(doc.switchboards[0].rails[1].items[0].designation, "KA1")
+	assert_false(doc.move_cabinet_item_to_rail(0, 1, 0, 1), "no rail below")
+	doc.move_cabinet_rail(0, 1, -1)
+	assert_eq(doc.switchboards[0].rails[0].items[0].designation, "KA1")
+	doc.remove_cabinet_item(0, 0, 0)
+	assert_true(doc.switchboards[0].rails[0].items.is_empty())
+	doc.remove_cabinet_rail(0, 0)
+	assert_eq(doc.switchboards[0].rails.size(), 1)
 
 
 func test_renamed_device_keeps_its_place() -> void:
 	var doc: SchematicDocument = _doc()
-	doc.fill_cabinet()
+	doc.fill_cabinet(0)
 	doc.rename_cabinet_device("KA1", "KA7")
-	assert_eq(doc.cabinet_rails[0].items[3].designation, "KA7")
+	assert_eq(doc.switchboards[0].rails[0].items[3].designation, "KA7")
 
 
 func test_saved_and_loaded() -> void:
 	var doc: SchematicDocument = _doc()
-	doc.fill_cabinet()
+	doc.fill_cabinet(0)
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 	assert_eq(DocumentSerializer.to_dict(copy), DocumentSerializer.to_dict(doc))
-	assert_eq(copy.cabinet_rails.size(), 3)
+	assert_eq(copy.switchboards[0].rails.size(), 3)
 	var data: Dictionary = DocumentSerializer.to_dict(doc)
+	data.erase("switchboards")
 	data["cabinet"] = [{"items": [{"kind": "device", "designation": "KM1"}, {"kind": "rocket", "designation": "R1"}, "x"]}, 5]
 	var loaded: SchematicDocument = DocumentSerializer.from_dict(data)
-	assert_eq(loaded.cabinet_rails.size(), 1, "malformed rails and items are left out")
-	assert_eq(loaded.cabinet_rails[0].items.size(), 1)
+	assert_eq(loaded.switchboards.size(), 1, "the rails of an older file are switchboard RA1")
+	assert_eq(loaded.switchboards[0].name, "RA1")
+	assert_eq(loaded.switchboards[0].rails.size(), 1, "malformed rails and items are left out")
+	assert_eq(loaded.switchboards[0].rails[0].items.size(), 1)
 
 
 func test_layout_places_and_clicks() -> void:
 	var doc: SchematicDocument = _doc()
-	doc.fill_cabinet()
+	doc.fill_cabinet(0)
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	assert_eq(layout.rails.size(), 3)
 	assert_eq(layout.places.size(), 7)
@@ -186,9 +190,9 @@ func test_layout_places_and_clicks() -> void:
 
 func test_layout_marks_missing_devices() -> void:
 	var doc: SchematicDocument = _doc()
-	doc.add_cabinet_rail()
-	doc.cabinet_rails[0].items.append(CabinetItem.new(CabinetItem.Kind.DEVICE, "KM9"))
-	doc.cabinet_rails[0].items.append(CabinetItem.new(CabinetItem.Kind.STRIP, "X7"))
+	doc.add_cabinet_rail(0)
+	doc.switchboards[0].rails[0].items.append(CabinetItem.new(CabinetItem.Kind.DEVICE, "KM9"))
+	doc.switchboards[0].rails[0].items.append(CabinetItem.new(CabinetItem.Kind.STRIP, "X7"))
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	assert_eq(layout.places[0]["kind"], CabinetLayout.MISSING_DEVICE)
 	assert_eq(layout.places[1]["kind"], CabinetLayout.MISSING_DEVICE, "a strip without terminals")
@@ -202,9 +206,9 @@ func test_bridge_rectifier() -> void:
 	assert_eq(rectifier["kind"], CabinetDevices.Kind.RECTIFIER)
 	assert_false(rectifier["on"], "no voltage on its input")
 	assert_eq(rectifier["terminals"]["+"], "TB1:+")
-	doc.fill_cabinet()
+	doc.fill_cabinet(0)
 	var first: PackedStringArray = PackedStringArray()
-	for item: CabinetItem in doc.cabinet_rails[0].items:
+	for item: CabinetItem in doc.switchboards[0].rails[0].items:
 		first.append(item.designation)
 	assert_eq(first, PackedStringArray(["FA1", "FU1", "KT1", "KA1", "TB1"]), "rectifiers after the relays")
 
@@ -225,9 +229,9 @@ func test_plc() -> void:
 	for name: String in points:
 		var at: Vector3 = points[name]
 		assert_true(Rect2(Vector2.ZERO, CabinetParts.PLC).has_point(Vector2(at.x, at.y)), name)
-	doc.fill_cabinet()
+	doc.fill_cabinet(0)
 	var first: PackedStringArray = PackedStringArray()
-	for item: CabinetItem in doc.cabinet_rails[0].items:
+	for item: CabinetItem in doc.switchboards[0].rails[0].items:
 		first.append(item.designation)
 	assert_eq(first, PackedStringArray(["FA1", "FU1", "KT1", "KA1", "TB1", "A1"]), "PLCs after the rectifiers")
 
