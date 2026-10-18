@@ -155,8 +155,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   SchematicDocument.cable_names (saved as "cables"; name_cables after every edit gives new
   cables the first free number and drops the names of cables that are gone; renaming a place
   or a part keeps its cables' names; rename_cable). WorkspaceCanvas draws them under the tiles
-  from tile centre to tile centre, bent to the side with fewer places in the way, the name and
-  core count on a tag where the line is clear of both places (place texts sit on paper over
+  as tracks: the sides of both ends are chosen by trying every pair from the sides' middles
+  (fewest places in the way, then shortest, then fewest bends; a right side starts past the
+  place's texts, a bottom side under a part's name), each cable leaves from a point of its own
+  in line with its other end's port (two rounds), a lane apart from the others on that side,
+  runs out STUB, then at right angles (Z or L) with CORNER-rounded bends, the middle run moved
+  by its lane; a dot at both ports; power cables (with a power core) thicker and darker; the
+  name and core count on a tag on the longest straight run (place texts sit on paper over
   lines passing behind); a click on a cable (tag or line) or on it in the tree ("Cables")
   opens CablePanel in place of the canvas: a row per core, wire number, both ends
 - Mechanical links (Travel in sim/, no nodes): a group's member motor (WorkspaceGroup.drive)

@@ -3,8 +3,8 @@ extends Control
 ## The workspace on schematic paper: switchboards and control stations as
 ## solid tiles with their names, parts in the field (motors, limit switches,
 ## temperature sensors) as smaller tiles, groups as frames round their
-## members, the cables between them (see [WorkspaceCables]) as lines with
-## their name, bent round tiles in their way. A click on a switchboard or
+## members, the cables between them (see [WorkspaceCables]) as tracks with
+## their name, power cables thicker. A click on a switchboard or
 ## station opens it, a click on a cable lists its cores; in Edit mode
 ## everything is dragged around (a part dropped into a group's frame joins
 ## the group, dropped outside leaves it). The wheel zooms at the mouse, a
@@ -28,9 +28,20 @@ const SNAP: float = 4.0
 const NAME_SIZE: int = 15
 const TEXT_SIZE: int = 12
 const SMALL_SIZE: int = 11
-const CABLE_WIDTH: float = 2.5
+const CABLE_WIDTH: float = 2.0
+const POWER_WIDTH: float = 3.5
 ## Room kept round tiles a cable passes by.
 const CABLE_CLEARANCE: float = 8.0
+## How far a cable runs straight out of its tile, the room between cables
+## leaving one side, the radius of the corners.
+const STUB: float = 14.0
+const LANE: float = 8.0
+const CORNER: float = 10.0
+## Sides of a tile, clockwise from the left.
+const SIDE_LEFT: int = 0
+const SIDE_TOP: int = 1
+const SIDE_RIGHT: int = 2
+const SIDE_BOTTOM: int = 3
 
 var document: SchematicDocument
 ## Things are dragged only while editing.
@@ -72,7 +83,10 @@ func cables() -> Array[Dictionary]:
 
 ## Where each cable is drawn: {"cable" (see [method WorkspaceCables.cables]),
 ## "points" (polyline, workspace units), "tag" (Rect2 of its name tag),
-## "text"}; straight from tile to tile, bent when a tile is in its way.
+## "text", "power" (it carries power cores), "ports" (where it leaves its two
+## ends)}. Cables run as tracks: out of the side of each end facing the
+## other, each from a point of its own along that side, at right angles with
+## rounded corners, round the places in their way where they can.
 func cable_paths() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if document == null:
@@ -84,53 +98,196 @@ func cable_paths() -> Array[Dictionary]:
 		if item["kind"] != "group":
 			tiles[item["key"]] = _tile_rect(item)
 			areas[item["key"]] = item["rect"]
-	var font: Font = AppTheme.schematic_font()
+	var shown: Array[Dictionary] = []
 	for cable: Dictionary in cables():
-		if not tiles.has(cable["a"]) or not tiles.has(cable["b"]):
-			continue
-		var a: Vector2 = tiles[cable["a"]].get_center()
-		var b: Vector2 = tiles[cable["b"]].get_center()
-		var others: Array[Rect2] = []
-		for key: String in areas:
-			if key != cable["a"] and key != cable["b"]:
-				others.append(areas[key].grow(CABLE_CLEARANCE))
-		var points: PackedVector2Array = PackedVector2Array([a, b])
-		if _blocked(points, others) > 0:
-			# Bent to the side where fewer tiles are in the way.
-			var normal: Vector2 = (b - a).orthogonal().normalized()
-			var bend: float = clampf(a.distance_to(b) * 0.35, 40.0, 180.0)
-			var best: int = 1 << 20
-			for side: float in [-1.0, 1.0, -2.0, 2.0]:
-				var curve: PackedVector2Array = _curve(a, b, (a + b) * 0.5 + normal * bend * side)
-				var hits: int = _blocked(curve, others)
-				if hits < best:
-					best = hits
-					points = curve
-				if hits == 0:
-					break
-		var middle: Vector2 = points[int(points.size() / 2.0)] if points.size() > 2 else _middle_between(a, b, areas[cable["a"]], areas[cable["b"]])
+		if tiles.has(cable["a"]) and tiles.has(cable["b"]):
+			shown.append(cable)
+	# The sides each cable leaves its ends by: the shortest clear route from
+	# the middles of the sides, preferring the sides facing each other.
+	var sides: Array[Vector2i] = []
+	var on_side: Dictionary[String, Array] = {}
+	for c: int in shown.size():
+		var ta: Rect2 = tiles[shown[c]["a"]]
+		var tb: Rect2 = tiles[shown[c]["b"]]
+		var aa: Rect2 = areas[shown[c]["a"]]
+		var ab: Rect2 = areas[shown[c]["b"]]
+		var others: Array[Rect2] = _obstacles(areas, shown[c])
+		var best: Vector2i = Vector2i(SIDE_RIGHT, SIDE_LEFT)
+		var best_score: float = INF
+		for side_a: int in 4:
+			for side_b: int in 4:
+				var route: PackedVector2Array = _route(_port(ta, aa, side_a, 0.5), side_a, _port(tb, ab, side_b, 0.5), side_b, 0.0, others)
+				if route.is_empty():
+					continue
+				var score: float = _blocked(route, others) * 10000.0 + _length(route) + route.size() * 20.0
+				if score < best_score:
+					best_score = score
+					best = Vector2i(side_a, side_b)
+		sides.append(best)
+		for end: int in 2:
+			var key: String = "%s/%d" % [shown[c][["a", "b"][end]], [best.x, best.y][end]]
+			if not on_side.has(key):
+				on_side[key] = []
+			on_side[key].append(Vector2i(c, end))
+	# Points along each side: in line with where each cable goes, as far as
+	# the side reaches, kept a lane apart.
+	var port_at: Dictionary[Vector2i, Vector2] = {}
+	var lane: Dictionary[Vector2i, float] = {}
+	# Twice: the second time each side lines up with the ports of the first.
+	for round: int in 2:
+		for key: String in on_side:
+			var list: Array = on_side[key]
+			var side: int = int(key.get_slice("/", 1))
+			var across: bool = side == SIDE_LEFT or side == SIDE_RIGHT
+			var owner: String = key.get_slice("/", 0)
+			var tile: Rect2 = tiles[owner]
+			var low: float = (tile.position.y if across else tile.position.x) + 6.0
+			var high: float = (tile.end.y if across else tile.end.x) - 6.0
+			var wanted: Dictionary[Vector2i, float] = {}
+			for end: Vector2i in list:
+				# First towards the other place, then towards its port.
+				var other: Vector2 = port_at.get(Vector2i(end.x, 1 - end.y), tiles[shown[end.x][["b", "a"][end.y]]].get_center())
+				wanted[end] = clampf(other.y if across else other.x, low, high)
+			list.sort_custom(func(p: Vector2i, q: Vector2i) -> bool: return wanted[p] < wanted[q])
+			var at: PackedFloat32Array = PackedFloat32Array()
+			for i: int in list.size():
+				at.append(wanted[list[i]] if i == 0 else maxf(wanted[list[i]], at[i - 1] + LANE))
+			for i: int in range(list.size() - 1, -1, -1):
+				at[i] = minf(at[i], high if i == list.size() - 1 else at[i + 1] - LANE)
+			for i: int in list.size():
+				var t: float = (at[i] - (tile.position.y if across else tile.position.x)) / (tile.size.y if across else tile.size.x)
+				port_at[list[i]] = _port(tile, areas[owner], side, t)
+				lane[list[i]] = (i - (list.size() - 1) * 0.5) * LANE
+	var font: Font = AppTheme.schematic_font()
+	for c: int in shown.size():
+		var cable: Dictionary = shown[c]
+		var pa: Vector2 = port_at[Vector2i(c, 0)]
+		var pb: Vector2 = port_at[Vector2i(c, 1)]
+		var best: PackedVector2Array = _route(pa, sides[c].x, pb, sides[c].y, lane[Vector2i(c, 0)], _obstacles(areas, cable))
+		if best.is_empty():
+			best = PackedVector2Array([pa, pb])
+		var corners: PackedVector2Array = _straightened(best)
+		# The tag on the longest straight run.
+		var longest: int = 0
+		for i: int in corners.size() - 1:
+			if corners[i].distance_to(corners[i + 1]) > corners[longest].distance_to(corners[longest + 1]):
+				longest = i
+		var middle: Vector2 = (corners[longest] + corners[longest + 1]) * 0.5
 		var text: String = "%s · %s" % [cable["name"], WorkspaceCables.cores_text(cable)]
 		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
-		result.append({"cable": cable, "points": points, "tag": Rect2(middle - Vector2(w, 16.0) * 0.5, Vector2(w, 16.0)), "text": text})
+		var power: bool = false
+		for core: Dictionary in cable["cores"]:
+			power = power or core["conductor"] == CabinetDevices.Conductor.POWER
+		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": Rect2(middle - Vector2(w, 16.0) * 0.5, Vector2(w, 16.0)), "text": text, "power": power, "ports": PackedVector2Array([pa, pb])})
 	return result
 
 
-## The middle of the part of the line [param a]-[param b] outside both
-## places [param area_a] and [param area_b] (where its tag goes).
-static func _middle_between(a: Vector2, b: Vector2, area_a: Rect2, area_b: Rect2) -> Vector2:
-	var from: float = 0.0
-	var to: float = 1.0
-	for k: int in 65:
-		var t: float = k / 64.0
-		if area_a.has_point(a.lerp(b, t)):
-			from = t
-	for k: int in range(64, -1, -1):
-		var t: float = k / 64.0
-		if area_b.has_point(a.lerp(b, t)):
-			to = t
-	if to <= from:
-		return (a + b) * 0.5
-	return a.lerp(b, (from + to) * 0.5)
+## The places a cable keeps clear of: all but its own ends.
+func _obstacles(areas: Dictionary[String, Rect2], cable: Dictionary) -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	for key: String in areas:
+		if key != cable["a"] and key != cable["b"]:
+			result.append(areas[key].grow(CABLE_CLEARANCE))
+	return result
+
+
+## A right-angled route from [param pa] leaving by [param side_a] to
+## [param pb] coming in by [param side_b], its middle run moved by
+## [param shift]; of the ways it can go, the one with fewest places of
+## [param others] in its way. Empty when the sides cannot be joined going
+## outwards from both.
+static func _route(pa: Vector2, side_a: int, pb: Vector2, side_b: int, shift: float, others: Array[Rect2]) -> PackedVector2Array:
+	var na: Vector2 = _normal(side_a)
+	var nb: Vector2 = _normal(side_b)
+	var sa: Vector2 = pa + na * STUB
+	var sb: Vector2 = pb + nb * STUB
+	var a_across: bool = side_a == SIDE_LEFT or side_a == SIDE_RIGHT
+	var b_across: bool = side_b == SIDE_LEFT or side_b == SIDE_RIGHT
+	var routes: Array[PackedVector2Array] = []
+	if a_across and b_across:
+		for share: float in [0.5, 0.3, 0.7, 0.15, 0.85]:
+			var mx: float = lerpf(sa.x, sb.x, share) + shift
+			if (mx - sa.x) * na.x >= 0.0 and (mx - sb.x) * nb.x >= 0.0:
+				routes.append(PackedVector2Array([pa, sa, Vector2(mx, sa.y), Vector2(mx, sb.y), sb, pb]))
+	elif not a_across and not b_across:
+		for share: float in [0.5, 0.3, 0.7, 0.15, 0.85]:
+			var my: float = lerpf(sa.y, sb.y, share) + shift
+			if (my - sa.y) * na.y >= 0.0 and (my - sb.y) * nb.y >= 0.0:
+				routes.append(PackedVector2Array([pa, sa, Vector2(sa.x, my), Vector2(sb.x, my), sb, pb]))
+	else:
+		var corner: Vector2 = Vector2(sb.x, sa.y) if a_across else Vector2(sa.x, sb.y)
+		if (corner - sa).dot(na) >= 0.0 and (corner - sb).dot(nb) >= 0.0:
+			routes.append(PackedVector2Array([pa, sa, corner, sb, pb]))
+	var best: PackedVector2Array = PackedVector2Array()
+	var fewest: int = 1 << 20
+	for route: PackedVector2Array in routes:
+		var hits: int = _blocked(route, others)
+		if hits < fewest:
+			fewest = hits
+			best = route
+		if hits == 0:
+			break
+	return best
+
+
+static func _length(points: PackedVector2Array) -> float:
+	var total: float = 0.0
+	for i: int in points.size() - 1:
+		total += points[i].distance_to(points[i + 1])
+	return total
+
+
+## Where a cable leaves a tile on [param side] at [param t] (0-1) along it:
+## on the right past the place's texts, at the bottom under a part's name.
+static func _port(tile: Rect2, area: Rect2, side: int, t: float) -> Vector2:
+	match side:
+		SIDE_LEFT:
+			return Vector2(tile.position.x, tile.position.y + tile.size.y * t)
+		SIDE_RIGHT:
+			return Vector2(area.end.x, tile.position.y + tile.size.y * t)
+		SIDE_TOP:
+			return Vector2(tile.position.x + tile.size.x * t, tile.position.y)
+	return Vector2(tile.position.x + tile.size.x * t, area.end.y)
+
+
+static func _normal(side: int) -> Vector2:
+	return [Vector2.LEFT, Vector2.UP, Vector2.RIGHT, Vector2.DOWN][side]
+
+
+## [param points] without repeated points and points on a straight line.
+static func _straightened(points: PackedVector2Array) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	for p: Vector2 in points:
+		if not result.is_empty() and result[result.size() - 1].distance_to(p) < 0.01:
+			continue
+		if result.size() >= 2:
+			var a: Vector2 = result[result.size() - 2]
+			var b: Vector2 = result[result.size() - 1]
+			if absf((b - a).cross(p - b)) < 0.01:
+				result[result.size() - 1] = p
+				continue
+		result.append(p)
+	return result
+
+
+## [param corners] with every corner rounded off by [param radius] (less
+## where the runs beside it are short).
+static func _rounded(corners: PackedVector2Array, radius: float) -> PackedVector2Array:
+	if corners.size() < 3:
+		return corners
+	var result: PackedVector2Array = PackedVector2Array([corners[0]])
+	for i: int in range(1, corners.size() - 1):
+		var p: Vector2 = corners[i]
+		var a: Vector2 = corners[i - 1]
+		var b: Vector2 = corners[i + 1]
+		var r: float = minf(radius, minf(p.distance_to(a), p.distance_to(b)) * 0.5)
+		var from: Vector2 = p + (a - p).normalized() * r
+		var to: Vector2 = p + (b - p).normalized() * r
+		for k: int in 7:
+			var t: float = k / 6.0
+			result.append(from.lerp(p, t).lerp(p.lerp(to, t), t))
+	result.append(corners[corners.size() - 1])
+	return result
 
 
 ## How many points of [param points] (sampled along it) lie in [param rects].
@@ -143,14 +300,6 @@ static func _blocked(points: PackedVector2Array, rects: Array[Rect2]) -> int:
 				if rect.has_point(at):
 					hits += 1
 	return hits
-
-
-static func _curve(a: Vector2, b: Vector2, control: Vector2) -> PackedVector2Array:
-	var points: PackedVector2Array = PackedVector2Array()
-	for i: int in 25:
-		var t: float = i / 24.0
-		points.append(a.lerp(control, t).lerp(control.lerp(b, t), t))
-	return points
 
 
 ## The tile of a place or part (not its texts).
@@ -419,9 +568,14 @@ func _draw() -> void:
 		if item["kind"] == "group":
 			_draw_group(item)
 	var paths: Array[Dictionary] = cable_paths()
+	var control: Color = SchematicTheme.LINE.lerp(SchematicTheme.BACKGROUND, 0.3)
 	for path: Dictionary in paths:
 		var on: bool = selected == "=" + str(path["cable"]["key"])
-		draw_polyline(path["points"], SchematicTheme.SELECTED if on else SchematicTheme.LINE, CABLE_WIDTH + (1.0 if on else 0.0), true)
+		var color: Color = SchematicTheme.SELECTED if on else (SchematicTheme.LINE if path["power"] else control)
+		draw_polyline(path["points"], color, (POWER_WIDTH if path["power"] else CABLE_WIDTH) + (1.0 if on else 0.0), true)
+		# A dot where it leaves each end, like a gland.
+		for port: Vector2 in path["ports"]:
+			draw_circle(port, 2.5, color, true, -1.0, true)
 	_draw_links(list)
 	for item: Dictionary in list:
 		match item["kind"]:
