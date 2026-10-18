@@ -155,7 +155,10 @@ func aa_polygon(points: PackedVector2Array, color: Color) -> void:
 
 
 func _px(width: float) -> float:
-	return width * _k if width > 0.0 else 1.0
+	if width <= 0.0:
+		return 1.0
+	# Palette previews are drawn small: no line thinner than a pixel there.
+	return maxf(width * _k, 1.0) if preview else width * _k
 
 
 func _scaled(points: PackedVector2Array) -> PackedVector2Array:
@@ -249,6 +252,14 @@ static func blade_tip(pivot: Vector2, from_tip: Vector2, to_tip: Vector2, t: flo
 	var to_arm: Vector2 = to_tip - pivot
 	var angle: float = from_arm.angle() + angle_difference(from_arm.angle(), to_arm.angle()) * t
 	return pivot + Vector2.from_angle(angle) * lerpf(from_arm.length(), to_arm.length(), t)
+
+
+## Part of the drawing a palette preview shows (local pixels, unturned); an
+## empty rect for the body with its terminals. Symbols too wide for a
+## palette tile draw a smaller version of themselves while [member preview]
+## is set and give its extent here.
+func preview_rect() -> Rect2:
+	return Rect2()
 
 
 ## Draws the symbol in local coordinates. Override.

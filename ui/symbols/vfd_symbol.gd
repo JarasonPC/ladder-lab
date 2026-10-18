@@ -15,6 +15,9 @@ const CONTACT_Y: float = 4.3 * G
 
 
 func _draw_shape(color: Color, width: float) -> void:
+	if preview:
+		_draw_power_part(color)
+		return
 	var drive: Vfd = component as Vfd
 	for i: int in Vfd.TERMINALS.size():
 		var cell: Vector2 = Vector2(SymbolGeometry.vfd_terminal_cell(i)) * G
@@ -43,6 +46,24 @@ func _draw_shape(color: Color, width: float) -> void:
 	aa_line(fixed, Vector2(b.x, CONTACT_Y), color, width)
 	var travel: float = shown("DO2", 1.0 if drive.is_path_closed(0) else 0.0)
 	draw_blade(pivot, blade_tip(pivot, fixed + Vector2(2.0, -9.0), fixed + Vector2(2.0, 0.0), travel), color, width)
+
+
+## The palette shows the power part alone: the whole drive is too wide to
+## read on a tile.
+func preview_rect() -> Rect2:
+	return Rect2(POWER.position.x, 0.0, POWER.size.x, SymbolGeometry.VFD_HEIGHT * G)
+
+
+## The power part with its supply leads (L1 L2 L3 PE) and motor leads (U V W).
+func _draw_power_part(color: Color) -> void:
+	for i: int in 4:
+		var top: Vector2 = Vector2(SymbolGeometry.vfd_terminal_cell(i)) * G
+		aa_line(top, Vector2(top.x, POWER.position.y), color)
+	for i: int in range(Vfd.FIRST_BOTTOM, Vfd.DO2C):
+		var bottom: Vector2 = Vector2(SymbolGeometry.vfd_terminal_cell(i)) * G
+		aa_line(bottom, Vector2(bottom.x, POWER.end.y), color)
+	aa_rect(POWER, color, false)
+	aa_line(Vector2(POWER.position.x, POWER.end.y), Vector2(POWER.end.x, POWER.position.y), color)
 
 
 func _draw_labels() -> void:

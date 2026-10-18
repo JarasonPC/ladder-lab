@@ -262,12 +262,16 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	paper.clip_contents = true
 	button.add_child(paper)
-	# Extent of the drawing: body and terminals, turned like the placement.
+	# Extent of the drawing: body and terminals (or the smaller version a
+	# wide symbol draws here), turned like the placement.
 	var g: float = float(SymbolGeometry.GRID)
-	var local: Rect2 = SymbolGeometry.local_body(component)
-	for cell: Vector2i in SymbolGeometry.local_terminals(component).values():
-		local = local.expand(Vector2(cell))
-	local = Rect2(local.position * g, local.size * g).grow(2.0 if supply else 6.0)
+	var local: Rect2 = symbol.preview_rect()
+	if not local.has_area():
+		local = SymbolGeometry.local_body(component)
+		for cell: Vector2i in SymbolGeometry.local_terminals(component).values():
+			local = local.expand(Vector2(cell))
+		local = Rect2(local.position * g, local.size * g)
+	local = local.grow(2.0 if supply else 6.0)
 	var t: Transform2D = SymbolGeometry.draw_transform(placement)
 	var extent: Rect2 = Rect2(t * local.position, Vector2.ZERO)
 	for corner: Vector2 in [local.end, Vector2(local.position.x, local.end.y), Vector2(local.end.x, local.position.y)]:
