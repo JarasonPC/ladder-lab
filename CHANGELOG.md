@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.4.0 – 2026-10-18
+
 ### Schematic editor
 - Every part has a datasheet, laid out like a manufacturer's: what it does, every terminal with
   its name and function, technical data, the timing diagram or time-current characteristic,
