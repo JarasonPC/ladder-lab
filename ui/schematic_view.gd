@@ -85,6 +85,8 @@ func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 	simulator.mode = Simulator.Mode.REALISTIC if doc.realistic_timing else Simulator.Mode.IDEAL
 	trace = TraceRecorder.new()
 	simulator.trace = trace
+	# Parts moved by motors operate their limit switches (the groups' mechanical links).
+	simulator.travels = Workspace.travels(doc)
 	rebuild()
 	if simulating:
 		_apply(simulator.step())
@@ -392,6 +394,15 @@ func hold_button(designation: String, pressed: bool) -> void:
 
 
 ## Turns switch [param designation] over, as from a control box.
+## Where each part moved by a motor is (group name -> 0-1), while simulating.
+func travel_positions() -> Dictionary[String, float]:
+	var result: Dictionary[String, float] = {}
+	if simulating and simulator != null:
+		for travel: Travel in simulator.travels:
+			result[travel.name] = travel.position
+	return result
+
+
 func toggle_switch(designation: String) -> void:
 	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating or not (c is LatchingSwitch):

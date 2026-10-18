@@ -216,6 +216,7 @@ func _ready() -> void:
 	view.loaded.connect(_on_view_loaded)
 	editor.edited.connect(_workspace.refresh)
 	view.stepped.connect(_workspace.show_step)
+	view.stepped.connect(func(_result: StepResult) -> void: _workspace.show_travels(view.travel_positions()))
 	_workspace.edit_requested.connect(editor.edit_workspace)
 	_workspace.cabinet_edit_requested.connect(editor.edit_cabinet)
 	_workspace.button_held.connect(view.hold_button)
@@ -1146,6 +1147,7 @@ func _show_in_schematic(designation: String) -> void:
 ## windows follow it.
 func _on_view_loaded() -> void:
 	_workspace.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
+	_workspace.show_travels(view.travel_positions())
 	_workspace_fit = false
 	for window: PlaceWindow in _place_windows():
 		window.set_document(view.document, mode == Mode.EDIT)

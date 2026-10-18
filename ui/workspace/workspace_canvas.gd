@@ -40,6 +40,9 @@ var zoom: float = 1.0
 var offset: Vector2 = Vector2(40.0, 40.0)
 ## Key of the selected item (see [method items]), "" for none.
 var selected: String = ""
+## Where each part moved by a motor is while simulating (group name -> 0-1;
+## empty while editing).
+var travel_positions: Dictionary[String, float] = {}
 
 ## Item under the left press, its press position (screen) and how far it was dragged (workspace units).
 var _press: Dictionary = {}
@@ -419,6 +422,7 @@ func _draw() -> void:
 	for path: Dictionary in paths:
 		var on: bool = selected == "=" + str(path["cable"]["key"])
 		draw_polyline(path["points"], SchematicTheme.SELECTED if on else SchematicTheme.LINE, CABLE_WIDTH + (1.0 if on else 0.0), true)
+	_draw_links(list)
 	for item: Dictionary in list:
 		match item["kind"]:
 			"group":
@@ -442,6 +446,21 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO)
 
 
+## The mechanical links of groups: a dashed line (IEC mechanical link) from
+## the motor to each limit switch its part operates.
+func _draw_links(list: Array[Dictionary]) -> void:
+	var tiles: Dictionary[String, Rect2] = {}
+	for item: Dictionary in list:
+		if item["kind"] == "field":
+			tiles[item["name"]] = _tile_rect(item)
+	for group: WorkspaceGroup in document.groups:
+		if group.drive.is_empty() or not tiles.has(group.drive):
+			continue
+		for designation: String in group.stops:
+			if tiles.has(designation):
+				draw_dashed_line(tiles[group.drive].get_center(), tiles[designation].get_center(), SchematicTheme.LINE, 1.5, 6.0, true, true)
+
+
 func _draw_group(item: Dictionary) -> void:
 	var group: WorkspaceGroup = document.groups[item["index"]]
 	var rect: Rect2 = item["rect"]
@@ -457,6 +476,21 @@ func _draw_group(item: Dictionary) -> void:
 	draw_string(font, at, "+" + group.name, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE + 1, SchematicTheme.DESIGNATION)
 	at.x += font.get_string_size("+" + group.name, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE + 1).x + 8.0
 	draw_string(font, at, group.title if not group.title.is_empty() else tr("Group"), HORIZONTAL_ALIGNMENT_LEFT, rect.end.x - at.x - 8.0, TEXT_SIZE, SchematicTheme.PATH_TEXT)
+	if not group.drive.is_empty():
+		# The way the part travels along the bottom of the frame: a tick for
+		# each limit switch, the part where it starts (or is, while simulating).
+		var from: Vector2 = Vector2(rect.position.x + 14.0, rect.end.y - 9.0)
+		var length: float = rect.size.x - 28.0
+		draw_line(from, from + Vector2(length, 0.0), SchematicTheme.GROUP_EDGE, 4.0, true)
+		for designation: String in group.stops:
+			var x: float = from.x + length * group.stops[designation]
+			draw_line(Vector2(x, from.y - 5.0), Vector2(x, from.y + 5.0), SchematicTheme.LINE, 1.5, true)
+		var simulating: bool = travel_positions.has(group.name)
+		var at_x: float = from.x + length * (travel_positions[group.name] if simulating else group.start)
+		if simulating:
+			draw_line(from, Vector2(at_x, from.y), SchematicTheme.SELECTED, 4.0, true)
+		draw_circle(Vector2(at_x, from.y), 4.5, SchematicTheme.SELECTED if simulating else SchematicTheme.BACKGROUND, true, -1.0, true)
+		draw_circle(Vector2(at_x, from.y), 4.5, SchematicTheme.SELECTED, false, 1.5, true)
 
 
 func _draw_place(item: Dictionary) -> void:

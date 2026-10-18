@@ -50,6 +50,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   back exactly where they were
 
 ### Simulation
+- Mechanical links: in a group, a motor moves a part such as a gate from one end to the other
+  in the time you set, and the part operates the group's limit switches where they are (at the
+  ends, or as it passes one in between); the workspace shows the way with the switches on it
+  and where the part is while simulating
 - Supplies of different voltages: 230 V between a phase and N, 400 V between two phases, and DC
   supplies of 12, 24, 48, 110 or 220 V. Coils, time relays, lamps and PLCs have a rated voltage
   (230 V AC, 24 V DC, …; PLCs in 115-240 V, 24 V and 12/24 V versions): with too low a voltage

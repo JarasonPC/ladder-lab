@@ -159,6 +159,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   core count on a tag where the line is clear of both places (place texts sit on paper over
   lines passing behind); a click on a cable (tag or line) or on it in the tree ("Cables")
   opens CablePanel in place of the canvas: a row per core, wire number, both ends
+- Mechanical links (Travel in sim/, no nodes): a group's member motor (WorkspaceGroup.drive)
+  moves its part, e.g. a gate, from 0 to 1 in travel_time at full speed, forwards (clockwise;
+  a plain Motor while it has power) towards 1; it starts at start; member limit switches
+  (stops: designation -> 0-1) are operated at an end while the part is there, between the ends
+  within Travel.BAND (both blocks of a switch, through its actuator); the part stops at the
+  ends (no stall modelled). Set in the group's menu, "Mechanical link…"
+  (SchematicDocument.set_group_link, undoable; saved with the group). Workspace.travels builds
+  them for a simulation (SchematicView.load_document gives them to Simulator.travels); the
+  simulator moves them with the motors (IDEAL: every step; REALISTIC: an event where the part
+  reaches an end or a switch's band, Travel.time_to_next_event) and logs "SQ1 actuated" /
+  "let go". The canvas draws the link as dashed lines from the motor to the switches and the
+  way along the bottom of the group's frame: a tick per switch, the start (Edit) or where the
+  part is (Simulate, SchematicView.travel_positions)
 - Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
@@ -301,7 +314,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
 - Device designations: A = PLC, BT = temperature sensor, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
-  button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off),
+  button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
+  or operated by a mechanical link),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
   wires reached by PE alone are drawn in the PE colour, StepResult.REACH_PE),
