@@ -1468,6 +1468,56 @@ static func strip_entry(index: int, k: float, bottom: bool = false) -> Vector2:
 	return Vector2(snap.call(END_STOP_W) + pitch * (index + 0.5), TERMINAL.y - TERMINAL_ENTRY if bottom else TERMINAL_ENTRY)
 
 
+# --- Devices --------------------------------------------------------------------------
+
+## Size of a device described by [param desc] (see [method CabinetDevices.describe]),
+## millimetres; zero for a kind that is not a device.
+static func device_size(desc: Dictionary) -> Vector2:
+	match int(desc.get("kind", CabinetDevices.Kind.NONE)):
+		CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE:
+			return Vector2(MODULE_W * int(desc["poles"]), MODULE_H)
+		CabinetDevices.Kind.TIMER:
+			return Vector2(MODULE_W, MODULE_H)
+		CabinetDevices.Kind.RELAY:
+			return relay_size(int(desc["poles"]))
+		CabinetDevices.Kind.CONTACTOR:
+			return CONTACTOR
+		CabinetDevices.Kind.OVERLOAD:
+			return OVERLOAD
+		CabinetDevices.Kind.RECTIFIER:
+			return RECTIFIER
+		CabinetDevices.Kind.PLC:
+			return plc_size(desc)
+		CabinetDevices.Kind.VFD:
+			return VFD
+	return Vector2.ZERO
+
+
+## Draws the device described by [param desc] with its top-left corner at
+## the painter's origin: [param reach] voltage colours by terminal name,
+## [param pole_reach] those of terminals 1, 2, 3 ... of breakers and fuses.
+static func device(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}, pole_reach: Array = []) -> void:
+	match int(desc.get("kind", CabinetDevices.Kind.NONE)):
+		CabinetDevices.Kind.BREAKER:
+			breaker(p, desc["poles"], desc["on"], desc["rating"], pole_reach)
+		CabinetDevices.Kind.FUSE:
+			fuse_holder(p, desc["poles"], desc["closed"], desc["blown"], pole_reach)
+		CabinetDevices.Kind.CONTACTOR:
+			contactor(p, desc["on"], desc["energized"], desc["aux"], reach, desc["poles"])
+		CabinetDevices.Kind.RELAY:
+			relay(p, desc["on"], desc["energized"], reach, desc["poles"])
+		CabinetDevices.Kind.TIMER:
+			timer(p, desc["powered"], desc["output"], desc["code"], desc["control"], reach, desc["contacts"])
+		CabinetDevices.Kind.OVERLOAD:
+			overload_relay(p, desc["tripped"], "5", reach)
+		CabinetDevices.Kind.RECTIFIER:
+			rectifier(p, desc["on"], reach)
+		CabinetDevices.Kind.PLC:
+			plc(p, desc, reach)
+		CabinetDevices.Kind.VFD:
+			vfd(p, desc, reach)
+
+
 # --- Terminals and wires -----------------------------------------------------------
 
 ## Where the wires go into a device of [param kind] ([enum CabinetDevices.Kind])

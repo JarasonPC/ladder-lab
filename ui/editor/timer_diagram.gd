@@ -33,6 +33,11 @@ var row_height: float = 24.0:
 		row_height = value
 		update_minimum_size()
 		queue_redraw()
+## Drawn on the schematic paper (a datasheet) instead of in the panel colours.
+var paper: bool = false:
+	set(value):
+		paper = value
+		queue_redraw()
 ## Name of the control input on the drawing ("S", "TL", ...).
 var input_name: String = "S":
 	set(value):
@@ -107,12 +112,15 @@ func _compute() -> void:
 
 func _draw() -> void:
 	var font: Font = AppTheme.ui_font()
-	draw_rect(Rect2(Vector2.ZERO, size), AppTheme.chart_bg)
-	draw_rect(Rect2(Vector2.ZERO, size), AppTheme.border, false, 1.0)
-	var rows: Array = [["U", _power, AppTheme.text_muted]]
+	var text: Color = SchematicTheme.TEXT if paper else AppTheme.text
+	var muted: Color = SchematicTheme.PATH_TEXT if paper else AppTheme.text_muted
+	var grid: Color = Color(SchematicTheme.TEXT, 0.12) if paper else AppTheme.chart_grid
+	draw_rect(Rect2(Vector2.ZERO, size), SchematicTheme.BACKGROUND if paper else AppTheme.chart_bg)
+	draw_rect(Rect2(Vector2.ZERO, size), Color(SchematicTheme.TEXT, 0.28) if paper else AppTheme.border, false, 1.0)
+	var rows: Array = [["U", _power, SchematicTheme.LINE if paper else AppTheme.text_muted]]
 	if TimerRelay.uses_control(mode):
-		rows.append([input_name, _input, AppTheme.warning])
-	rows.append(["R", _output, AppTheme.accent])
+		rows.append([input_name, _input, SchematicTheme.WARNING if paper else AppTheme.warning])
+	rows.append(["R", _output, SchematicTheme.DESIGNATION if paper else AppTheme.accent])
 	var plot_x: float = LABEL_WIDTH
 	var plot_w: float = size.x - LABEL_WIDTH - 10.0
 	var top_y: float = 6.0
@@ -128,13 +136,13 @@ func _draw() -> void:
 				edges[i] = true
 	for i: int in edges:
 		var x: float = x_of.call(float(i) * STEP)
-		_dashed_vertical(x, top_y, bottom_y, Color(AppTheme.text_muted, 0.7))
+		_dashed_vertical(x, top_y, bottom_y, Color(muted, 0.7))
 	for r: int in rows.size():
 		var top: float = top_y + r * row_height + 5.0
 		var base: float = top_y + (r + 1) * row_height - 3.0
 		var name: String = rows[r][0]
-		draw_string(font, Vector2(8.0, base - 1.0), name, HORIZONTAL_ALIGNMENT_LEFT, LABEL_WIDTH - 10.0, FONT_SIZE, AppTheme.text)
-		draw_line(Vector2(plot_x, base), Vector2(plot_x + plot_w, base), AppTheme.chart_grid, 1.0)
+		draw_string(font, Vector2(8.0, base - 1.0), name, HORIZONTAL_ALIGNMENT_LEFT, LABEL_WIDTH - 10.0, FONT_SIZE, text)
+		draw_line(Vector2(plot_x, base), Vector2(plot_x + plot_w, base), grid, 1.0)
 		_draw_signal(rows[r][1], rows[r][2], top, base, x_of)
 	# Dimensions of the timed intervals.
 	var dim_y: float = bottom_y + 7.0
@@ -144,24 +152,24 @@ func _draw() -> void:
 		var x1: float = x_of.call(run.y)
 		# Only full timings are dimensioned (a timing cut short is not).
 		var length: float = run.y - run.x
-		var text: String = ""
+		var dimension: String = ""
 		if absf(length - 1.0) < 0.05:
-			text = "t1" if two_times else "t"
+			dimension = "t1" if two_times else "t"
 		elif two_times and absf(length - T2) < 0.05:
-			text = "t2"
+			dimension = "t2"
 		elif mode == TimerRelay.Mode.PULSE_GENERATOR and absf(length - TimerRelay.GENERATOR_PULSE) < 0.05:
-			text = "%s s" % str(TimerRelay.GENERATOR_PULSE)
-		if text.is_empty() or x1 - x0 < 4.0:
+			dimension = "%s s" % str(TimerRelay.GENERATOR_PULSE)
+		if dimension.is_empty() or x1 - x0 < 4.0:
 			continue
-		var color: Color = AppTheme.text_muted
+		var color: Color = muted
 		draw_line(Vector2(x0, dim_y - 4.0), Vector2(x0, dim_y + 4.0), color, 1.0)
 		draw_line(Vector2(x1, dim_y - 4.0), Vector2(x1, dim_y + 4.0), color, 1.0)
 		draw_line(Vector2(x0, dim_y), Vector2(x1, dim_y), color, 1.0)
 		_arrow(Vector2(x0, dim_y), 1.0, color)
 		_arrow(Vector2(x1, dim_y), -1.0, color)
-		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1).x
+		var w: float = font.get_string_size(dimension, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1).x
 		var label_pos: Vector2 = Vector2((x0 + x1) * 0.5 - w * 0.5, dim_y + 12.0)
-		draw_string(font, label_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1, AppTheme.text_muted)
+		draw_string(font, label_pos, dimension, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1, muted)
 
 
 ## Step curve of one signal with a soft fill under its high parts.

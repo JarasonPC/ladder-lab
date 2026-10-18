@@ -17,6 +17,11 @@ const X_MAX: float = 50.0
 const Y_MIN: float = 0.005
 const Y_MAX: float = 10000.0
 
+## Drawn on the schematic paper (a datasheet) instead of in the panel colours.
+var paper: bool = false:
+	set(value):
+		paper = value
+		queue_redraw()
 var kind: TripCurve.Kind = TripCurve.Kind.BREAKER_C:
 	set(value):
 		kind = value
@@ -38,36 +43,42 @@ func _get_minimum_size() -> Vector2:
 
 func _draw() -> void:
 	var font: Font = AppTheme.ui_font()
+	var grid: Color = Color(SchematicTheme.TEXT, 0.12) if paper else AppTheme.chart_grid
+	var faint: Color = SchematicTheme.PATH_TEXT if paper else AppTheme.text_faint
+	var muted: Color = SchematicTheme.PATH_TEXT if paper else AppTheme.text_muted
+	var accent: Color = SchematicTheme.DESIGNATION if paper else AppTheme.accent
 	var plot: Rect2 = Rect2(LEFT, TOP, size.x - LEFT - RIGHT, size.y - TOP - BOTTOM)
-	draw_rect(plot, AppTheme.chart_bg)
+	draw_rect(plot, SchematicTheme.BACKGROUND if paper else AppTheme.chart_bg)
+	if paper:
+		draw_rect(plot, Color(SchematicTheme.TEXT, 0.28), false, 1.0)
 	var x_of: Callable = func(m: float) -> float:
 		return plot.position.x + log(m / X_MIN) / log(X_MAX / X_MIN) * plot.size.x
 	var y_of: Callable = func(t: float) -> float:
 		return plot.end.y - log(clampf(t, Y_MIN, Y_MAX) / Y_MIN) / log(Y_MAX / Y_MIN) * plot.size.y
 	for m: float in [1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0]:
 		var x: float = x_of.call(m)
-		draw_line(Vector2(x, plot.position.y), Vector2(x, plot.end.y), AppTheme.chart_grid)
+		draw_line(Vector2(x, plot.position.y), Vector2(x, plot.end.y), grid)
 		var text: String = str(int(m))
 		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
-		draw_string(font, Vector2(x - w * 0.5, size.y - 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, AppTheme.text_faint)
-	draw_string(font, Vector2(plot.end.x - 22.0, plot.end.y - 4.0), "× In", HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, AppTheme.text_faint)
+		draw_string(font, Vector2(x - w * 0.5, size.y - 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, faint)
+	draw_string(font, Vector2(plot.end.x - 22.0, plot.end.y - 4.0), "× In", HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, faint)
 	for t: float in [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]:
 		var y: float = y_of.call(t)
-		draw_line(Vector2(plot.position.x, y), Vector2(plot.end.x, y), AppTheme.chart_grid)
+		draw_line(Vector2(plot.position.x, y), Vector2(plot.end.x, y), grid)
 		var label: String = ("%s s" % str(t)) if t < 1.0 else ("%d s" % int(t))
 		if t >= 1000.0:
 			label = "%dk s" % int(t / 1000.0)
 		var w: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
-		draw_string(font, Vector2(LEFT - w - 3.0, y + 4.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, AppTheme.text_faint)
+		draw_string(font, Vector2(LEFT - w - 3.0, y + 4.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, faint)
 	if TripCurve.MAGNETIC.has(kind):
 		for other: TripCurve.Kind in TripCurve.MAGNETIC:
 			if other != kind:
-				_draw_curve(other, x_of, y_of, Color(AppTheme.text_muted, 0.35), 1.0)
+				_draw_curve(other, x_of, y_of, Color(muted, 0.35), 1.0)
 		var band: Vector2 = TripCurve.MAGNETIC_BAND[kind]
 		var x0: float = x_of.call(band.x)
 		var x1: float = x_of.call(minf(band.y, X_MAX))
-		draw_rect(Rect2(x0, plot.position.y, x1 - x0, plot.size.y), Color(AppTheme.accent, 0.12))
-	_draw_curve(kind, x_of, y_of, AppTheme.accent, 2.0)
+		draw_rect(Rect2(x0, plot.position.y, x1 - x0, plot.size.y), Color(accent, 0.12))
+	_draw_curve(kind, x_of, y_of, accent, 2.0)
 
 
 func _draw_curve(k: TripCurve.Kind, x_of: Callable, y_of: Callable, color: Color, width: float) -> void:

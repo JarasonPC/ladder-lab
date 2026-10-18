@@ -2030,3 +2030,978 @@ msgstr "Posunout vybrané svorky o místo doleva"
 
 msgid "Move the picked terminals one place right"
 msgstr "Posunout vybrané svorky o místo doprava"
+
+msgid "Overload relay contact"
+msgstr "Kontakt nadproudového relé"
+
+#, c-format
+msgid "%d poles"
+msgstr "%d póly"
+
+#, c-format
+msgid "from %s (85 %%)"
+msgstr "od %s (85 %%)"
+
+msgid "Burns out"
+msgstr "Shoří"
+
+#, c-format
+msgid "above %s (130 %%)"
+msgstr "nad %s (130 %%)"
+
+msgid "On DC"
+msgstr "Na DC"
+
+#, c-format
+msgid "burns out from %s (30 %%)"
+msgstr "shoří od %s (30 %%)"
+
+msgid "On AC"
+msgstr "Na AC"
+
+msgid "does not pull in"
+msgstr "nepřitáhne"
+
+#, c-format
+msgid "output R of time relay %s is on"
+msgstr "je sepnut výstup R časového relé %s"
+
+#, c-format
+msgid "coil %s has pulled in"
+msgstr "je cívka %s přitažená"
+
+#, c-format
+msgid "limit switch %s is operated"
+msgstr "je koncový spínač %s ovládán"
+
+#, c-format
+msgid "switch %s is on"
+msgstr "je spínač %s zapnut"
+
+#, c-format
+msgid "button %s is pressed"
+msgstr "je tlačítko %s stisknuto"
+
+#, c-format
+msgid "circuit breaker %s is on"
+msgstr "je jistič %s zapnut"
+
+#, c-format
+msgid "its device %s is operated"
+msgstr "je jeho přístroj %s ovládán"
+
+#, c-format
+msgid "Closed to %s while %s."
+msgstr "Spojen s %s, dokud %s."
+
+#, c-format
+msgid "Closed to %s at rest; open while %s."
+msgstr "V klidu spojen s %s; rozpojen, dokud %s."
+
+msgid "Terminal marking"
+msgstr "Značení svorek"
+
+msgid "1st digit: contact block; 2nd: function (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO)"
+msgstr "1. číslice: kontaktní blok; 2.: funkce (1-2 NC, 3-4 NO, 5-6 zpožděný NC, 7-8 zpožděný NO)"
+
+msgid "Contacts (parts of their own)"
+msgstr "Kontakty (samostatné součástky)"
+
+msgid "the coil has pulled in"
+msgstr "je cívka přitažená"
+
+msgid "output R is on"
+msgstr "je sepnut výstup R"
+
+#, c-format
+msgid "Main contact, pole %d"
+msgstr "Hlavní kontakt, pól %d"
+
+#, c-format
+msgid "Supply side; closed to %s while %s."
+msgstr "Strana napájení; spojen s %s, dokud %s."
+
+#, c-format
+msgid "Load side; closed to %s while %s."
+msgstr "Strana zátěže; spojen s %s, dokud %s."
+
+#, c-format
+msgid "Contacts drawn as -%s"
+msgstr "Kontakty nakreslené jako -%s"
+
+msgid "Common"
+msgstr "Společný"
+
+#, c-format
+msgid "Switched between %s and %s."
+msgstr "Přepíná mezi %s a %s."
+
+msgid "NC side"
+msgstr "Strana NC"
+
+#, c-format
+msgid "Closed to %s at rest; breaks first when %s."
+msgstr "V klidu spojen s %s; rozpojí se jako první, když %s."
+
+msgid "NO side"
+msgstr "Strana NO"
+
+#, c-format
+msgid "Closed to %s while %s; makes after %s has broken."
+msgstr "Spojen s %s, dokud %s; sepne až po rozpojení %s."
+
+#, c-format
+msgid "Pole %d, line side"
+msgstr "Pól %d, strana napájení"
+
+#, c-format
+msgid "Pole %d, load side"
+msgstr "Pól %d, strana zátěže"
+
+msgid "Phase of the three-phase source, 230 V against N, 400 V against another phase"
+msgstr "Fáze trojfázového zdroje, 230 V proti N, 400 V proti jiné fázi"
+
+#, c-format
+msgid "Supply point of phase %s of the three-phase source. Loads work between a phase and N (230 V) or between two phases (400 V). Supply points of the same conductor are the same potential on every page."
+msgstr "Napájecí bod fáze %s trojfázového zdroje. Spotřebiče pracují mezi fází a N (230 V) nebo mezi dvěma fázemi (400 V). Napájecí body téhož vodiče mají stejný potenciál na všech stránkách."
+
+msgid "Voltage"
+msgstr "Napětí"
+
+msgid "230 V against N, 400 V against another phase, 50 Hz"
+msgstr "230 V proti N, 400 V proti jiné fázi, 50 Hz"
+
+msgid "Neutral conductor of the three-phase source"
+msgstr "Střední vodič trojfázového zdroje"
+
+msgid "Supply point of the neutral conductor N. Loads work between a phase and N. Supply points of the same conductor are the same potential on every page."
+msgstr "Napájecí bod středního vodiče N. Spotřebiče pracují mezi fází a N. Napájecí body téhož vodiče mají stejný potenciál na všech stránkách."
+
+msgid "0 V (the reference of the phases)"
+msgstr "0 V (vztažný bod fází)"
+
+msgid "Protective conductor, joined to N at the source"
+msgstr "Ochranný vodič, u zdroje spojený s N"
+
+msgid "Supply point of the protective conductor PE. It is joined to N at the source (TN system), so a phase touching it is a short circuit that the fuse or circuit breaker clears. The PE terminals of motors take no part in the simulation."
+msgstr "Napájecí bod ochranného vodiče PE. U zdroje je spojen s N (soustava TN), takže fáze, která se ho dotkne, je zkrat, který vypne pojistka nebo jistič. Svorky PE motorů se simulace neúčastní."
+
+msgid "0 V (joined to N at the source)"
+msgstr "0 V (u zdroje spojen s N)"
+
+msgid "Positive pole of a DC source"
+msgstr "Kladný pól stejnosměrného zdroje"
+
+#, c-format
+msgid "Positive pole of a DC source of %s against the - poles. DC and AC are separate sources: a load works between two conductors of the same source, and AC joined to DC is a short circuit. Two + supplies of different voltages joined are a short circuit too."
+msgstr "Kladný pól stejnosměrného zdroje %s proti pólům -. DC a AC jsou samostatné zdroje: spotřebič pracuje mezi dvěma vodiči téhož zdroje a spojení AC s DC je zkrat. Zkrat je i spojení dvou napájení + s různým napětím."
+
+#, c-format
+msgid "%s DC against -"
+msgstr "%s DC proti -"
+
+msgid "Negative pole shared by every DC source"
+msgstr "Záporný pól společný všem stejnosměrným zdrojům"
+
+msgid "Negative pole of the DC sources: every + supply and every bridge rectifier output works against it."
+msgstr "Záporný pól stejnosměrných zdrojů: každé napájení + i výstup každého můstkového usměrňovače pracuje proti němu."
+
+msgid "0 V of the DC sources"
+msgstr "0 V stejnosměrných zdrojů"
+
+msgid "Supply point"
+msgstr "Napájecí bod"
+
+msgid "Wire the circuit to it; it is named by its conductor."
+msgstr "Připojte k němu obvod; jmenuje se podle svého vodiče."
+
+msgid "Connection point of a terminal strip"
+msgstr "Připojovací bod svorkovnice"
+
+msgid "Terminal of a terminal strip, placed on a wire or on a part's lead. Electrically it only joins its wires. Its label puts it on a strip in the switchboard: \"4\" is terminal 4 of strip X1, \"X2:4\" terminal 4 of strip X2."
+msgstr "Svorka svorkovnice, umístěná na vodiči nebo na vývodu součástky. Elektricky jen spojuje své vodiče. Její popis ji zařadí do svorkovnice v rozvaděči: „4“ je svorka 4 svorkovnice X1, „X2:4“ svorka 4 svorkovnice X2."
+
+msgid "Strip terminal"
+msgstr "Svorka svorkovnice"
+
+msgid "Joins the wires drawn to it."
+msgstr "Spojuje k ní nakreslené vodiče."
+
+msgid "Strip"
+msgstr "Svorkovnice"
+
+msgid "Continues a wire on another page"
+msgstr "Pokračování vodiče na jiné stránce"
+
+msgid "Link"
+msgstr "Propojení"
+
+msgid "Joined to every page connector with the same label."
+msgstr "Spojen se všemi spojkami stránek se stejným popisem."
+
+msgid "Label"
+msgstr "Popis"
+
+msgid "none (joins nothing)"
+msgstr "žádný (nic nespojuje)"
+
+msgid "Full bridge rectifier: AC in, DC out"
+msgstr "Můstkový usměrňovač: vstup AC, výstup DC"
+
+#, c-format
+msgid "Full bridge rectifier (Graetz bridge). While its input ~1-~2 has voltage, its + and - are the poles of a DC source of %s, e.g. for DC braking of a motor. The output is isolated from the input, as behind a transformer."
+msgstr "Můstkový usměrňovač (Graetzův můstek). Dokud má jeho vstup ~1-~2 napětí, jsou jeho + a - póly stejnosměrného zdroje %s, např. pro brzdění motoru stejnosměrným proudem. Výstup je od vstupu oddělený jako za transformátorem."
+
+msgid "AC input"
+msgstr "Vstup AC"
+
+#, c-format
+msgid "Input between two conductors of one source (AC, or DC of either polarity), with %s."
+msgstr "Vstup mezi dvěma vodiči jednoho zdroje (AC nebo DC libovolné polarity), spolu s %s."
+
+msgid "Other input terminal."
+msgstr "Druhá vstupní svorka."
+
+msgid "DC output +"
+msgstr "Výstup DC +"
+
+msgid "Positive pole of the output while the input has voltage."
+msgstr "Kladný pól výstupu, dokud má vstup napětí."
+
+msgid "DC output -"
+msgstr "Výstup DC -"
+
+msgid "Negative pole of the output."
+msgstr "Záporný pól výstupu."
+
+msgid "Output voltage"
+msgstr "Výstupní napětí"
+
+#, c-format
+msgid "%s DC"
+msgstr "%s DC"
+
+msgid "Current drawn"
+msgstr "Odebíraný proud"
+
+msgid "what its output delivers"
+msgstr "podle toho, co dodává výstup"
+
+msgid "Operated by a moving part of the machine"
+msgstr "Ovládaný pohyblivou částí stroje"
+
+msgid "Limit switch, operated by a moving part of the machine. While simulating, a click operates or releases it; it stays until clicked again. Blocks drawn with the same designation are one switch."
+msgstr "Koncový spínač ovládaný pohyblivou částí stroje. Při simulaci ho kliknutí ovládne nebo uvolní; zůstane tak až do dalšího kliknutí. Bloky nakreslené se stejným označením jsou jeden spínač."
+
+msgid "it is operated"
+msgstr "je ovládán"
+
+msgid "Actuator"
+msgstr "Ovládání"
+
+msgid "latching (operated or released by a click)"
+msgstr "aretační (kliknutím ovládnut nebo uvolněn)"
+
+msgid "Keeps its position until operated again"
+msgstr "Drží polohu až do dalšího ovládnutí"
+
+msgid "Switch that keeps its position until operated again (click it while simulating). It snaps over almost at once. Blocks drawn with the same designation are one switch."
+msgstr "Spínač, který drží svou polohu až do dalšího ovládnutí (při simulaci na něj klikněte). Přeskočí téměř okamžitě. Bloky nakreslené se stejným označením jsou jeden spínač."
+
+msgid "it is on"
+msgstr "je zapnut"
+
+msgid "latching, snap action"
+msgstr "aretační, skokový"
+
+msgid "Momentary: operated only while held"
+msgstr "Bez aretace: ovládán jen po dobu držení"
+
+msgid "Momentary push button: operated only while held (press and hold it while simulating). Blocks drawn with the same designation are one button: pressing it moves them all, and its NC blocks break before its NO blocks make."
+msgstr "Tlačítko bez aretace: ovládáno jen po dobu držení (při simulaci ho stiskněte a držte). Bloky nakreslené se stejným označením jsou jedno tlačítko: stisk pohne všemi a jeho bloky NC rozpojí dříve, než bloky NO sepnou."
+
+msgid "it is pressed"
+msgstr "je stisknuto"
+
+msgid "momentary"
+msgstr "bez aretace"
+
+msgid "Travel time"
+msgstr "Doba přestavení"
+
+msgid "Delayed contact of a time relay"
+msgstr "Zpožděný kontakt časového relé"
+
+msgid "Delayed contact of the time relay with the same designation: it follows the relay's output R, set by its time function, not the supply."
+msgstr "Zpožděný kontakt časového relé se stejným označením: sleduje výstup R relé, řízený jeho časovou funkcí, ne napájení."
+
+msgid "Auxiliary contact of a relay, contactor or device"
+msgstr "Pomocný kontakt relé, stykače nebo přístroje"
+
+msgid "Auxiliary contact of the relay or contactor with the same designation: it follows the armature of its coil. Named like a push button, switch or limit switch it is one more block of it; named like a circuit breaker it is its auxiliary contact (NO closed while the breaker is on). Without such a device it stays at rest."
+msgstr "Pomocný kontakt relé nebo stykače se stejným označením: sleduje kotvu jeho cívky. Označený jako tlačítko, spínač nebo koncový spínač je jeho dalším blokem; označený jako jistič je jeho pomocným kontaktem (NO sepnutý, dokud je jistič zapnut). Bez takového přístroje zůstává v klidu."
+
+msgid "NC contacts break at 30 % of the armature travel, NO contacts make at its end."
+msgstr "Kontakty NC rozpojí ve 30 % zdvihu kotvy, kontakty NO sepnou na jeho konci."
+
+msgid "Belongs to"
+msgstr "Patří k"
+
+msgid "Common switched between an NC and an NO side"
+msgstr "Společná svorka přepínaná mezi stranou NC a NO"
+
+msgid "Changeover contact of the relay, contactor or time relay with the same designation: a common terminal switched between an NC side and an NO side. Operated, it first breaks common-NC, then makes common-NO."
+msgstr "Přepínací kontakt relé, stykače nebo časového relé se stejným označením: společná svorka přepínaná mezi stranou NC a stranou NO. Při ovládnutí nejprve rozpojí společná-NC, potom sepne společná-NO."
+
+msgid "Delayed (15-16-18): it follows output R of the time relay, not the supply."
+msgstr "Zpožděný (15-16-18): sleduje výstup R časového relé, ne napájení."
+
+msgid "common-NC-NO: x1-x2-x4, delayed x5-x6-x8"
+msgstr "společná-NC-NO: x1-x2-x4, zpožděný x5-x6-x8"
+
+msgid "Contact of a thermal overload relay"
+msgstr "Kontakt tepelného nadproudového relé"
+
+msgid "Auxiliary contact of the thermal overload relay with the same designation: NC 95-96 opens and NO 97-98 closes when the relay has tripped, until it is reset."
+msgstr "Pomocný kontakt tepelného nadproudového relé se stejným označením: po vybavení relé rozpojí NC 95-96 a sepne NO 97-98, dokud relé není odblokováno."
+
+#, c-format
+msgid "overload relay %s has tripped"
+msgstr "je nadproudové relé %s vybavené"
+
+msgid "NC 95-96, NO 97-98"
+msgstr "NC 95-96, NO 97-98"
+
+msgid "Power contacts of a contactor"
+msgstr "Silové kontakty stykače"
+
+msgid "Main (power) contacts of the contactor with the same designation. They make together with its NO contacts, at the end of the armature travel, and carry the current of the motor or load. Named like a push button or switch, they follow its actuator."
+msgstr "Hlavní (silové) kontakty stykače se stejným označením. Spínají spolu s jeho kontakty NO na konci zdvihu kotvy a vedou proud motoru nebo zátěže. Označené jako tlačítko nebo spínač sledují jeho ovládání."
+
+#, c-format
+msgid "Rated voltage against %s pulls the armature in."
+msgstr "Jmenovité napětí proti %s přitáhne kotvu."
+
+#, c-format
+msgid "Other end of the coil. %s and %s can be swapped."
+msgstr "Druhý konec cívky. %s a %s lze zaměnit."
+
+msgid "Contactor coil (KM)"
+msgstr "Cívka stykače (KM)"
+
+msgid "Auxiliary relay coil (KA)"
+msgstr "Cívka pomocného relé (KA)"
+
+msgid "Coil of a contactor (KM) or an auxiliary relay (KA). Every contact drawn with its designation (auxiliary, changeover and main contacts) follows its armature. It pulls in from 85 % of its rated voltage; far too much voltage, or DC on an AC coil, burns it out."
+msgstr "Cívka stykače (KM) nebo pomocného relé (KA). Každý kontakt nakreslený s jejím označením (pomocné, přepínací i hlavní kontakty) sleduje její kotvu. Přitáhne od 85 % jmenovitého napětí; příliš vysoké napětí nebo DC na cívce pro AC ji spálí."
+
+msgid "Switching times differ by up to ±5 % between coils, so two relays started together never stay in step."
+msgstr "Spínací časy se mezi cívkami liší až o ±5 %, takže dvě současně spuštěná relé nikdy nespínají přesně spolu."
+
+msgid "Pulls in"
+msgstr "Přitáhne"
+
+msgid "Pick-up time"
+msgstr "Doba přítahu"
+
+msgid "Drop-out time"
+msgstr "Doba odpadu"
+
+msgid "12 time functions F1-F12 plus a true off-delay"
+msgstr "12 časových funkcí F1-F12 a skutečné zpoždění odpadu"
+
+msgid "Multifunction time relay. Powered on A1-A2; the function set decides when its output R switches. R moves the delayed contacts (5-6, 7-8, changeover 15-16-18); other contacts drawn with its designation switch with the supply."
+msgstr "Multifunkční časové relé. Napájení na A1-A2; nastavená funkce určuje, kdy přepne jeho výstup R. R ovládá zpožděné kontakty (5-6, 7-8, přepínací 15-16-18); ostatní kontakty nakreslené s jeho označením spínají s napájením."
+
+msgid "Functions F1-F12 as on real multifunction relays, plus a true off-delay"
+msgstr "Funkce F1-F12 jako u skutečných multifunkčních relé a skutečné zpoždění odpadu"
+
+msgid "Two times t1 and t2 for F10, F11 and F12"
+msgstr "Dva časy t1 a t2 pro F10, F11 a F12"
+
+msgid "Losing the supply resets every function except the off-delay"
+msgstr "Ztráta napájení vynuluje každou funkci kromě zpoždění odpadu"
+
+msgid "Supply"
+msgstr "Napájení"
+
+#, c-format
+msgid "Rated voltage against %s powers the relay and starts the function."
+msgstr "Jmenovité napětí proti %s napájí relé a spustí funkci."
+
+msgid "Supply, reference"
+msgstr "Napájení, vztažná svorka"
+
+#, c-format
+msgid "Other end of the supply and the reference of %s."
+msgstr "Druhý konec napájení a vztažná svorka pro %s."
+
+msgid "Control input"
+msgstr "Řídicí vstup"
+
+#, c-format
+msgid "Counts as pressed while it has voltage against %s, like the button input of a real relay. Used by F3, F4, F5, F6, F8 and F12."
+msgstr "Platí za stisknutý, dokud má napětí proti %s, jako tlačítkový vstup skutečného relé. Používají ho F3, F4, F5, F6, F8 a F12."
+
+#, c-format
+msgid "Optional (Control input in the properties): counts as pressed while it has voltage against %s. Used by F3, F4, F5, F6, F8 and F12."
+msgstr "Volitelný (Řídicí vstup ve vlastnostech): platí za stisknutý, dokud má napětí proti %s. Používají ho F3, F4, F5, F6, F8 a F12."
+
+msgid "Works"
+msgstr "Pracuje"
+
+msgid "Times t1 / t2"
+msgstr "Časy t1 / t2"
+
+msgid "Time t"
+msgstr "Čas t"
+
+msgid "Pulse of F7"
+msgstr "Impulz F7"
+
+msgid "Time functions"
+msgstr "Časové funkce"
+
+#, c-format
+msgid "Function diagram: %s"
+msgstr "Funkční diagram: %s"
+
+msgid "Signal lamp, AC or DC"
+msgstr "Signální svítidlo, AC nebo DC"
+
+msgid "Signal lamp. It lights while it has voltage between two conductors of one source, AC or DC alike; far too much voltage burns it out. A purpose written above it says what it signals."
+msgstr "Signální svítidlo. Svítí, dokud má napětí mezi dvěma vodiči jednoho zdroje, AC i DC; příliš vysoké napětí ho spálí. Účel napsaný nad ním říká, co signalizuje."
+
+#, c-format
+msgid "Lights with its rated voltage against %s."
+msgstr "Svítí se jmenovitým napětím proti %s."
+
+msgid "Other end of the lamp."
+msgstr "Druhý konec svítidla."
+
+msgid "Lights"
+msgstr "Svítí"
+
+msgid "Purpose"
+msgstr "Účel"
+
+msgid "Motor as a simple load"
+msgstr "Motor jako jednoduchý spotřebič"
+
+msgid "Motor drawn as a simple load between two terminals: it runs while it has voltage across them. For three-phase motors with currents, run-up and braking use the 3~ motors."
+msgstr "Motor nakreslený jako jednoduchý spotřebič mezi dvěma svorkami: běží, dokud má mezi nimi napětí. Pro trojfázové motory s proudy, rozběhem a brzděním použijte motory 3~."
+
+msgid "Winding"
+msgstr "Vinutí"
+
+#, c-format
+msgid "Supply against %s."
+msgstr "Napájení proti %s."
+
+msgid "Other end of the winding."
+msgstr "Druhý konec vinutí."
+
+#, c-format
+msgid "Circuit breaker %s"
+msgstr "Jistič %s"
+
+msgid "Circuit breaker with thermal and magnetic release: it trips on an overcurrent after the time of its thermal release, at once above the current of its magnetic release, and on a short circuit. It is switched off and on by hand (click it while simulating); switching on resets a trip. It starts switched off."
+msgstr "Jistič s tepelnou a zkratovou spouští: vypne při nadproudu po době tepelné spouště, okamžitě nad proudem zkratové spouště a při zkratu. Vypíná a zapíná se ručně (při simulaci na něj klikněte); zapnutím se vybavení zruší. Na začátku je vypnutý."
+
+msgid "The thermal release keeps its heat after a trip: switched on again while still hot, it trips sooner."
+msgstr "Tepelná spoušť si po vybavení drží teplo: zapnutý znovu, dokud je teplý, vypne dříve."
+
+msgid "An overcurrent or fault current in any pole trips all poles."
+msgstr "Nadproud nebo poruchový proud v kterémkoli pólu vypne všechny póly."
+
+msgid "Contacts drawn with its designation are its auxiliary contacts (NO closed while it is on)."
+msgstr "Kontakty nakreslené s jeho označením jsou jeho pomocné kontakty (NO sepnutý, dokud je zapnut)."
+
+#, c-format
+msgid "Supply side; joined to %s while the breaker is on."
+msgstr "Strana napájení; spojen s %s, dokud je jistič zapnut."
+
+#, c-format
+msgid "Load side; joined to %s while the breaker is on."
+msgstr "Strana zátěže; spojen s %s, dokud je jistič zapnut."
+
+msgid "Rated current In"
+msgstr "Jmenovitý proud In"
+
+msgid "Magnetic release"
+msgstr "Zkratová spoušť"
+
+#, c-format
+msgid "%s-%s × In"
+msgstr "%s-%s × In"
+
+msgid "Standard"
+msgstr "Norma"
+
+#, c-format
+msgid "Fuse gG %s A"
+msgstr "Pojistka gG %s A"
+
+msgid "Fuse gG. It blows when the fault current of a short circuit flows through it, or when an overcurrent lasts as long as its characteristic allows. While simulating, a blown fuse is replaced from its menu; a new fuse is cold."
+msgstr "Pojistka gG. Přepálí se, když jí teče poruchový proud zkratu, nebo když nadproud trvá tak dlouho, jak dovolí její charakteristika. Při simulaci se přepálená pojistka vymění z její nabídky; nová pojistka je studená."
+
+msgid "In a fuse holder (fuse disconnector): opened and closed by a click; holders start open."
+msgstr "V pojistkovém odpojovači: otvírá a zavírá se kliknutím; odpojovače jsou na začátku otevřené."
+
+msgid "Each pole blows on its own; a holder opens all poles together."
+msgstr "Každý pól se přepálí samostatně; odpojovač otevírá všechny póly společně."
+
+#, c-format
+msgid "Supply side; joined to %s through the fuse."
+msgstr "Strana napájení; spojen s %s přes pojistku."
+
+#, c-format
+msgid "Load side; joined to %s through the fuse."
+msgstr "Strana zátěže; spojen s %s přes pojistku."
+
+msgid "yes"
+msgstr "ano"
+
+msgid "no"
+msgstr "ne"
+
+msgid "Thermal overload relay, trip class 10"
+msgstr "Tepelné nadproudové relé, vypínací třída 10"
+
+msgid "Thermal overload relay. With three poles its heaters carry the motor current (1-2, 3-4, 5-6) and it trips after the time of trip class 10 when the largest heater current is above its setting Ir: an overloaded motor, a lost phase, a start that lasts too long. Without poles it trips only with the injected fault \"Motor overloaded\", after its trip delay."
+msgstr "Tepelné nadproudové relé. Se třemi póly vedou jeho topné články proud motoru (1-2, 3-4, 5-6) a vybaví po době vypínací třídy 10, když je největší proud článkem nad nastaveným Ir: přetížený motor, výpadek fáze, příliš dlouhý rozběh. Bez pólů vybaví jen s vloženou poruchou „Přetížený motor“, po svém zpoždění vybavení."
+
+msgid "Its contacts NC 95-96 and NO 97-98 are drawn as parts of their own with its designation."
+msgstr "Jeho kontakty NC 95-96 a NO 97-98 se kreslí jako samostatné součástky s jeho označením."
+
+msgid "Test button and reset as on the real one, from its menu or in the switchboard; the heaters keep their heat after a reset."
+msgstr "Testovací tlačítko a odblokování jako na skutečném, z jeho nabídky nebo v rozvaděči; topné články si po odblokování drží teplo."
+
+#, c-format
+msgid "From the contactor; the heater carries the current to %s."
+msgstr "Od stykače; topný článek vede proud do %s."
+
+#, c-format
+msgid "To the motor; the heater carries the current from %s."
+msgstr "K motoru; topný článek vede proud z %s."
+
+msgid "Setting Ir"
+msgstr "Nastavení Ir"
+
+msgid "Trip class"
+msgstr "Vypínací třída"
+
+msgid "Trip delay"
+msgstr "Zpoždění vybavení"
+
+msgid "the relay has tripped"
+msgstr "je relé vybavené"
+
+#, c-format
+msgid "Three-phase induction motor 3 x 400 V, %s kW"
+msgstr "Trojfázový asynchronní motor 3 x 400 V, %s kW"
+
+msgid "Three-phase induction motor. It runs when all three phases reach the right terminals: L1-L2-L3 on U-V-W turns it clockwise, two phases swapped reverse it. Two phases only is a phase loss (it hums and overheats). + and - of a DC source across a winding brake it (DC braking)."
+msgstr "Trojfázový asynchronní motor. Běží, když všechny tři fáze dojdou na správné svorky: L1-L2-L3 na U-V-W ho točí doprava, prohozením dvou fází se otočí. Jen dvě fáze jsou výpadek fáze (bručí a přehřívá se). + a - stejnosměrného zdroje na vinutí ho brzdí (brzdění DC)."
+
+msgid "Windings U1-U2, V1-V2, W1-W2 brought out for a star/delta start: U2 V2 W2 joined is star, each end joined to the start of the next winding is delta. Started in star it draws a third of the current."
+msgstr "Vinutí U1-U2, V1-V2, W1-W2 vyvedená pro rozběh hvězda/trojúhelník: spojené U2 V2 W2 jsou hvězda, každý konec spojený se začátkem dalšího vinutí je trojúhelník. Při rozběhu do hvězdy odebírá třetinu proudu."
+
+msgid "Dahlander motor (two speeds, one winding): low speed in delta on 1U 1V 1W, high speed in double star on 2U 2V 2W with 1U 1V 1W joined."
+msgstr "Motor Dahlander (dvě rychlosti, jedno vinutí): nízké otáčky v trojúhelníku na 1U 1V 1W, vysoké ve dvojité hvězdě na 2U 2V 2W se spojenými 1U 1V 1W."
+
+msgid "A separate star-connected winding for each speed. Feeding two speeds at once is miswired and overheats it."
+msgstr "Samostatné vinutí do hvězdy pro každou rychlost. Napájení dvou rychlostí naráz je chybné zapojení a motor přehřívá."
+
+msgid "After switching off, it runs down in its coast time; with DC braking in its brake time."
+msgstr "Po vypnutí doběhne za svou dobu doběhu, při brzdění DC za dobu brzdění."
+
+msgid "Its rating plate can be shown beside it (properties)."
+msgstr "Vedle něj lze zobrazit jeho výrobní štítek (vlastnosti)."
+
+msgid "Protective earth"
+msgstr "Ochranné uzemnění"
+
+msgid "Frame of the motor; takes no part in the simulation."
+msgstr "Kostra motoru; simulace se neúčastní."
+
+#, c-format
+msgid "End of winding %s"
+msgstr "Konec vinutí %s"
+
+msgid "Joined to the other ends for star, to the start of the next winding for delta."
+msgstr "Pro hvězdu spojený s ostatními konci, pro trojúhelník se začátkem dalšího vinutí."
+
+#, c-format
+msgid "Winding %s"
+msgstr "Vinutí %s"
+
+#, c-format
+msgid "Phase %s for clockwise rotation."
+msgstr "Fáze %s pro otáčení doprava."
+
+msgid "Low speed (delta)"
+msgstr "Nízké otáčky (trojúhelník)"
+
+msgid "High speed (double star)"
+msgstr "Vysoké otáčky (dvojitá hvězda)"
+
+#, c-format
+msgid "Winding of speed %s"
+msgstr "Vinutí rychlosti %s"
+
+msgid "Rated power"
+msgstr "Jmenovitý výkon"
+
+msgid "Rated speed"
+msgstr "Jmenovité otáčky"
+
+msgid "Run-up time"
+msgstr "Doba rozběhu"
+
+msgid "Coast time / brake time"
+msgstr "Doba doběhu / brzdění"
+
+msgid "Frequency inverter for a 3~ motor, 3 x 400 V"
+msgstr "Frekvenční měnič pro motor 3~, 3 x 400 V"
+
+msgid "The output frequency follows the target along the ramps; reversing goes through 0 Hz."
+msgstr "Výstupní frekvence sleduje cíl po rampách; reverzace prochází přes 0 Hz."
+
+msgid "V/f: the motor's voltage in proportion to the frequency."
+msgstr "U/f: napětí motoru úměrné frekvenci."
+
+msgid "Without all three phases on its supply it does nothing."
+msgstr "Bez všech tří fází na napájení nedělá nic."
+
+msgid "Phase L1 of the supply, 3 x 400 V."
+msgstr "Fáze L1 napájení, 3 x 400 V."
+
+msgid "Phase L2 of the supply."
+msgstr "Fáze L2 napájení."
+
+msgid "Phase L3 of the supply."
+msgstr "Fáze L3 napájení."
+
+msgid "Frame of the device; not simulated."
+msgstr "Kostra přístroje; nesimuluje se."
+
+msgid "Reference"
+msgstr "Reference"
+
+#, c-format
+msgid "10 V against %s, for a setpoint potentiometer on %s."
+msgstr "10 V proti %s, pro potenciometr žádané hodnoty na %s."
+
+#, c-format
+msgid "0-10 V against %s: 0 Hz up to the maximum frequency."
+msgstr "0-10 V proti %s: 0 Hz až maximální frekvence."
+
+msgid "0 V"
+msgstr "0 V"
+
+msgid "0 V of the control terminals."
+msgstr "0 V řídicích svorek."
+
+msgid "ON/OFF1: on runs the motor, off stops it along the ramp."
+msgstr "ON/OFF1: zapnutý spustí motor, vypnutý ho zastaví po rampě."
+
+msgid "On reverses the direction (through 0 Hz)."
+msgstr "Zapnutý obrátí směr (přes 0 Hz)."
+
+msgid "Fixed frequency"
+msgstr "Pevná frekvence"
+
+msgid "On runs at the fixed frequency instead of the setpoint."
+msgstr "Zapnutý jede pevnou frekvencí místo žádané hodnoty."
+
+msgid "Coast stop"
+msgstr "Volný doběh"
+
+msgid "OFF2: on switches the output off at once; the motor runs down."
+msgstr "OFF2: zapnutý okamžitě vypne výstup; motor volně doběhne."
+
+#, c-format
+msgid "Common of the digital inputs: they are on with 24 V against it (join it to %s to use the %s supply)."
+msgstr "Společná svorka digitálních vstupů: vstupy jsou zapnuté s 24 V proti ní (spojte ji s %s, chcete-li použít napájení %s)."
+
+msgid "24 V"
+msgstr "24 V"
+
+#, c-format
+msgid "24 V for the digital inputs, against %s."
+msgstr "24 V pro digitální vstupy, proti %s."
+
+msgid "Motor output"
+msgstr "Výstup na motor"
+
+msgid "Phase U of the motor."
+msgstr "Fáze U motoru."
+
+msgid "Phase V of the motor."
+msgstr "Fáze V motoru."
+
+msgid "Phase W of the motor."
+msgstr "Fáze W motoru."
+
+msgid "Relay output DO2"
+msgstr "Reléový výstup DO2"
+
+msgid "Common of the relay contact."
+msgstr "Společná svorka kontaktu relé."
+
+#, c-format
+msgid "NO: closed to %s while the motor runs."
+msgstr "NO: spojen s %s, dokud motor běží."
+
+msgid "Control terminals"
+msgstr "Řídicí svorky"
+
+msgid "Relay output"
+msgstr "Reléový výstup"
+
+msgid "3 x 400 V, 50 Hz"
+msgstr "3 x 400 V, 50 Hz"
+
+#, c-format
+msgid "3 x 0-400 V, 0-%s Hz (V/f)"
+msgstr "3 x 0-400 V, 0-%s Hz (U/f)"
+
+msgid "Ramp-up / ramp-down time"
+msgstr "Doba rozběhu / doběhu rampy"
+
+msgid "Digital inputs"
+msgstr "Digitální vstupy"
+
+#, c-format
+msgid "on from %s against DIC"
+msgstr "zapnuté od %s proti DIC"
+
+msgid "Compact PLC, 24 V DC, transistor outputs"
+msgstr "Kompaktní PLC, 24 V DC, tranzistorové výstupy"
+
+msgid "Logic module with relay outputs"
+msgstr "Logický modul s reléovými výstupy"
+
+msgid "Logic module with relay outputs: supply on L1 and N, inputs I1-I8 on with voltage against N, relay outputs Q1-Q4 each a free contact (Qn.1-Qn.2). Expansion modules clip on to its right, each with its own supply."
+msgstr "Logický modul s reléovými výstupy: napájení na L1 a N, vstupy I1-I8 zapnuté s napětím proti N, reléové výstupy Q1-Q4, každý volný kontakt (Qn.1-Qn.2). Rozšiřovací moduly se přicvaknou vpravo, každý s vlastním napájením."
+
+msgid "It runs its program (function block or ladder diagram; double-click it) whenever an input changes or a timer of the program ends, until the program settles. Losing power resets the program."
+msgstr "Svůj program (funkční bloky nebo kontaktní schéma; otevřete ho dvojklikem) vykoná pokaždé, když se změní vstup nebo skončí časovač programu, dokud se program neustálí. Ztráta napájení program vynuluje."
+
+#, c-format
+msgid "Module %d: %s"
+msgstr "Modul %d: %s"
+
+msgid "Inputs on from"
+msgstr "Vstupy zapnuté od"
+
+msgid "Inputs / outputs"
+msgstr "Vstupy / výstupy"
+
+msgid "Analog inputs / outputs"
+msgstr "Analogové vstupy / výstupy"
+
+#, c-format
+msgid "%d / %d, 0-10 V = 0-%s"
+msgstr "%d / %d, 0-10 V = 0-%s"
+
+msgid "Output switching"
+msgstr "Spínání výstupů"
+
+#, c-format
+msgid "transistor, %s ms"
+msgstr "tranzistorem, %s ms"
+
+#, c-format
+msgid "relay, pick-up %s ms, drop-out %s ms"
+msgstr "relé, přítah %s ms, odpad %s ms"
+
+#, c-format
+msgid "%d inputs"
+msgstr "vstupy: %d"
+
+#, c-format
+msgid "%d outputs"
+msgstr "výstupy: %d"
+
+#, c-format
+msgid "%d analog inputs"
+msgstr "analogové vstupy: %d"
+
+#, c-format
+msgid "%d analog outputs"
+msgstr "analogové výstupy: %d"
+
+#, c-format
+msgid "1 while it has voltage against %s."
+msgstr "1, dokud má napětí proti %s."
+
+#, c-format
+msgid "Also analog input AI%d: 0-10 V = 0-%s."
+msgstr "Zároveň analogový vstup AI%d: 0-10 V = 0-%s."
+
+#, c-format
+msgid "Input %s"
+msgstr "Vstup %s"
+
+#, c-format
+msgid "Relay output Q%d"
+msgstr "Reléový výstup Q%d"
+
+#, c-format
+msgid "Free contact: closed to %s while the program sets Q%d."
+msgstr "Volný kontakt: spojen s %s, dokud program nastaví Q%d."
+
+#, c-format
+msgid "Output %s"
+msgstr "Výstup %s"
+
+msgid "Transistor output: switched to the output supply while the program sets it."
+msgstr "Tranzistorový výstup: připojen k napájení výstupů, dokud ho program nastaví."
+
+#, c-format
+msgid "Analog input %s"
+msgstr "Analogový vstup %s"
+
+#, c-format
+msgid "0-10 V = 0-%s in the program."
+msgstr "0-10 V = 0-%s v programu."
+
+#, c-format
+msgid "Analog output %s"
+msgstr "Analogový výstup %s"
+
+#, c-format
+msgid "0-10 V for 0-%s in the program; 0 V while it does not work."
+msgstr "0-10 V pro 0-%s v programu; 0 V, dokud nepracuje."
+
+msgid "+24 V DC supply of the CPU."
+msgstr "Napájení CPU +24 V DC."
+
+msgid "0 V of the CPU supply."
+msgstr "0 V napájení CPU."
+
+msgid "Common of the inputs: they are on with 24 V against it."
+msgstr "Společná svorka vstupů: vstupy jsou zapnuté s 24 V proti ní."
+
+msgid "Reference of the analog inputs."
+msgstr "Vztažná svorka analogových vstupů."
+
+msgid "+24 V supply of the transistor outputs."
+msgstr "Napájení +24 V tranzistorových výstupů."
+
+msgid "0 V of the output supply."
+msgstr "0 V napájení výstupů."
+
+msgid "+24 V DC supply of the analog module."
+msgstr "Napájení analogového modulu +24 V DC."
+
+msgid "0 V of the analog module, reference of its values."
+msgstr "0 V analogového modulu, vztažná svorka jeho hodnot."
+
+#, c-format
+msgid "Supply of the PLC (%s)."
+msgstr "Napájení PLC (%s)."
+
+#, c-format
+msgid "Supply of module %d (%s); it works only together with the PLC."
+msgstr "Napájení modulu %d (%s); pracuje jen spolu s PLC."
+
+msgid "Other supply terminal; the inputs of the PLC are on against it."
+msgstr "Druhá napájecí svorka; vstupy PLC jsou zapnuté proti ní."
+
+#, c-format
+msgid "Other supply terminal of module %d; its inputs are on against it."
+msgstr "Druhá napájecí svorka modulu %d; jeho vstupy jsou zapnuté proti ní."
+
+msgid "Temperature transmitter, output 0-10 V"
+msgstr "Převodník teploty, výstup 0-10 V"
+
+#, c-format
+msgid "+24 V DC against %s."
+msgstr "+24 V DC proti %s."
+
+msgid "0 V of the supply and the reference of the output."
+msgstr "0 V napájení a vztažná svorka výstupu."
+
+#, c-format
+msgid "0 V at %s °C up to 10 V at %s °C, against %s."
+msgstr "0 V při %s °C až 10 V při %s °C, proti %s."
+
+msgid "Measuring range"
+msgstr "Rozsah měření"
+
+msgid "0-10 V, held within it"
+msgstr "0-10 V, drženo v tomto rozsahu"
+
+msgid "Terminal assignment"
+msgstr "Zapojení svorek"
+
+msgid "Terminal"
+msgstr "Svorka"
+
+msgid "Name"
+msgstr "Název"
+
+msgid "Code"
+msgstr "Kód"
+
+msgid "Symbol"
+msgstr "Značka"
+
+msgid "Symbol as drawn in the schematic (IEC 60617)."
+msgstr "Značka, jak je nakreslena ve schématu (IEC 60617)."
+
+msgid "Description"
+msgstr "Popis"
+
+msgid "Features"
+msgstr "Vlastnosti"
+
+msgid "(continued)"
+msgstr "(pokračování)"
+
+msgid "Technical data"
+msgstr "Technické údaje"
+
+msgid "Device front and terminals"
+msgstr "Čelní pohled a svorky"
+
+msgid "The device as drawn in the switchboard view, with the marking of every terminal. Wires go into the terminals from the duct above or below the rail."
+msgstr "Přístroj, jak je nakreslen v pohledu na rozvaděč, se značením každé svorky. Vodiče vedou do svorek z kanálu nad nebo pod lištou."
+
+msgid "Part datasheet"
+msgstr "Katalogový list"
+
+#, c-format
+msgid "sheet %d / %d"
+msgstr "list %d / %d"
+
+msgid "Values are those of the LadderLab simulation, not of a real product."
+msgstr "Hodnoty jsou hodnotami simulace LadderLab, ne skutečného výrobku."
+
+msgid "Export PDF…"
+msgstr "Exportovat PDF…"
+
+msgid "Save the datasheet as a PDF document"
+msgstr "Uložit katalogový list jako dokument PDF"
+
+msgid "In the schematic"
+msgstr "Ve schématu"
+
+#, c-format
+msgid "Datasheet – %s"
+msgstr "Katalogový list – %s"
+
+msgid "datasheet"
+msgstr "katalogovy-list"
+
+msgid "Part datasheets…"
+msgstr "Katalogové listy součástek…"
+
+msgid "Datasheet"
+msgstr "Katalogový list"
+
+msgid "Terminals, technical data and device front of this part"
+msgstr "Svorky, technické údaje a čelní pohled této součástky"

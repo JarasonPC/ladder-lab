@@ -12,6 +12,8 @@ signal mirror_requested
 signal flip_requested
 ## The program of the PLC should be shown.
 signal plc_requested(component_id: String)
+## The datasheet of the shown part was asked for.
+signal datasheet_requested(component_id: String)
 
 var _component_id: String = ""
 var _data: Dictionary = {}
@@ -81,7 +83,7 @@ func show_component(component: CircuitComponent) -> void:
 			_milliseconds(tr("Pick-up time (ms)"), "pick_up")
 			_milliseconds(tr("Drop-out time (ms)"), "drop_out")
 		"timer":
-			_choice(tr("Function"), "mode", Array(TimerRelay.MODE_NAMES), _timer_function_titles(_input_name(component as TimerRelay)))
+			_choice(tr("Function"), "mode", Array(TimerRelay.MODE_NAMES), TimerFunctionsPopup.function_titles(_input_name(component as TimerRelay)))
 			_all_functions_button(component as TimerRelay)
 			if TimerRelay.uses_two_times((component as TimerRelay).mode):
 				_number(tr("Time t1 (s)"), "delay", 0.1, 3600.0, 0.1)
@@ -150,6 +152,7 @@ func show_component(component: CircuitComponent) -> void:
 		_rating(kind)
 	if not (component is Junction):
 		_orientation()
+		_datasheet_button()
 	_group = null
 	_note(tr("Double-click a marking on the drawing (designation, terminal number, label) to edit it."), "MutedLabel")
 	_message = _note("", "MutedLabel")
@@ -302,6 +305,19 @@ func _orientation() -> void:
 	_add(row)
 
 
+## Button opening the datasheet of the part.
+func _datasheet_button() -> void:
+	var button: Button = Button.new()
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.text = tr("Datasheet")
+	button.icon = AppTheme.icon("datasheet")
+	button.tooltip_text = tr("Terminals, technical data and device front of this part") + "  (F1)"
+	var id: String = _component_id
+	button.pressed.connect(func() -> void: datasheet_requested.emit(id))
+	_group = null
+	_add(button)
+
+
 ## Button swapping the names A1 and A2 of a coil (A2 on top).
 func _swap_coil_terminals(coil: CircuitComponent) -> void:
 	var names: PackedStringArray = coil.get_terminal_names()
@@ -334,7 +350,7 @@ func _all_functions_button(timer: TimerRelay) -> void:
 		popup.popup_hide.connect(popup.queue_free)
 		add_child(popup)
 		var names: PackedStringArray = timer.get_terminal_names()
-		popup.setup(_timer_function_titles(_input_name(timer)), timer.mode, _input_name(timer))
+		popup.setup(TimerFunctionsPopup.function_titles(_input_name(timer)), timer.mode, _input_name(timer))
 		popup.function_chosen.connect(func(mode_name: String) -> void: _emit("mode", mode_name))
 		popup.popup_centered(popup.size))
 	row.add_child(button)
@@ -349,26 +365,6 @@ func _check(caption: String, key: String) -> void:
 	box.toggled.connect(func(on: bool) -> void: _emit(key, on))
 	_group = null
 	_box.add_child(box)
-
-
-## Titles of the time relay functions, in [constant TimerRelay.MODE_NAMES] order.
-## [param input]: name of the control input (S, TL, ...) written in the titles.
-func _timer_function_titles(input: String) -> Array:
-	return [
-		tr("F2 – On-delay"),
-		tr("Off-delay (on power loss)"),
-		tr("F1 – Pulse after power on"),
-		tr("F3 – Pulse when %s is pressed") % input,
-		tr("F4 – On-delay after %s is released") % input,
-		tr("F5 – Pulse after %s is released") % input,
-		tr("F6 – Impulse relay (no memory)"),
-		tr("F7 – Pulse generator"),
-		tr("F8 – Shifted pulse"),
-		tr("F9 – Test (always on)"),
-		tr("F10 – Cycler starting with the pause (t2 off, t1 on)"),
-		tr("F11 – Cycler starting with the pulse (t1 on, t2 off)"),
-		tr("F12 – On-delay t1 and off-delay t2 with %s") % input,
-	]
 
 
 ## Name of the control input of [param timer] ("S" unless renamed).

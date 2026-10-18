@@ -253,27 +253,14 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 	var q: CabinetPainter = p.shifted(place["origin"])
 	var desc: Dictionary = place["desc"]
 	match place["kind"]:
-		CabinetDevices.Kind.BREAKER:
-			CabinetParts.breaker(q, desc["poles"], desc["on"], desc["rating"], _pole_reach(desc))
-		CabinetDevices.Kind.FUSE:
-			CabinetParts.fuse_holder(q, desc["poles"], desc["closed"], desc["blown"], _pole_reach(desc))
-		CabinetDevices.Kind.CONTACTOR:
-			CabinetParts.contactor(q, desc["on"], desc["energized"], desc["aux"], _named_reach(desc), desc["poles"])
+		CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE:
+			CabinetParts.device(q, desc, {}, _pole_reach(desc))
+		CabinetDevices.Kind.CONTACTOR, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.OVERLOAD, \
+				CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC, CabinetDevices.Kind.VFD:
+			CabinetParts.device(q, desc, _named_reach(desc))
 			if place.has("under_origin"):
 				var under: Dictionary = place["under_desc"]
 				CabinetParts.overload_relay(p.shifted(place["under_origin"]), under.get("tripped", false), "5", _named_reach(under))
-		CabinetDevices.Kind.RELAY:
-			CabinetParts.relay(q, desc["on"], desc["energized"], _named_reach(desc), desc["poles"])
-		CabinetDevices.Kind.TIMER:
-			CabinetParts.timer(q, desc["powered"], desc["output"], desc["code"], desc["control"], _named_reach(desc), desc["contacts"])
-		CabinetDevices.Kind.OVERLOAD:
-			CabinetParts.overload_relay(q, desc["tripped"], "5", _named_reach(desc))
-		CabinetDevices.Kind.RECTIFIER:
-			CabinetParts.rectifier(q, desc["on"], _named_reach(desc))
-		CabinetDevices.Kind.PLC:
-			CabinetParts.plc(q, desc, _named_reach(desc))
-		CabinetDevices.Kind.VFD:
-			CabinetParts.vfd(q, desc, _named_reach(desc))
 		CabinetLayout.STRIP:
 			var items: Array = []
 			for t: Dictionary in desc["terminals"]:
