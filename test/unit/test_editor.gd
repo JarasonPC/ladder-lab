@@ -721,3 +721,17 @@ func test_new_parts_have_a_rated_voltage() -> void:
 			timer = c
 	assert_not_null(timer)
 	assert_eq((timer as Load).rating, "24dc", "a coil turned into a time relay keeps its voltage")
+
+
+func test_rotate_selection_turns_several_parts_together() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_place({"type": "lamp"}, Vector2i(5, 9))
+	_wire([Vector2(5, 7), Vector2(5, 9)])
+	editor.selected_components["H1"] = true
+	editor.selected_components["H2"] = true
+	editor.rotate_selection()
+	var doc: SchematicDocument = editor.document()
+	assert_eq(doc.terminal_cell("H1:X1").y, doc.terminal_cell("H2:X2").y, "the column became a row")
+	assert_eq(doc.wire_points(0).size(), 2, "the wire between them stays straight")
+	editor.undo()
+	assert_eq(editor.document().terminal_cell("H2:X1"), Vector2i(5, 9))

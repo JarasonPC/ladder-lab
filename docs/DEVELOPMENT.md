@@ -334,7 +334,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
   documents default to realistic)
-- `schematic/` drawing data (SchematicDocument, Placement, WireRoute, SymbolGeometry,
+- `schematic/` drawing data (SchematicDocument, Placement, WireRoute, WireRouter, SymbolGeometry,
   ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
@@ -365,9 +365,17 @@ Architecture and conventions of the code base. Read this before changing the cod
   pixels, so a click never moves anything; parts are dragged from the state at the press
   (SchematicDocument.drag_start / drag_components), so wires are re-routed from their routes at
   the press, never from those of an earlier mouse position; turning or mirroring the parts
-  mid-drag takes a new drag start where they are (and ends a wire segment drag). A re-routed wire (normalize_route)
-  never runs over itself, across the two symbols or over terminals of another net when a clean
-  route exists. Branch dots join wires of one net only
+  mid-drag takes a new drag start where they are (and ends a wire segment drag). A re-routed wire
+  (normalize_route) keeps its shape while that is clean and about as good as the best route,
+  else WireRouter (A* on the grid of its page, near the wire's ends first) finds one: never
+  across a symbol (supplies and page connectors: beyond their terminal), over a terminal of
+  another net or along a wire of another net when a clean route exists, leaving terminals along
+  their lead, few corners and crossings. The wires of moved or turned parts are routed one after
+  another, each keeping off those before; then wires the parts now cover and wires between two
+  moved parts are re-routed if no longer clean. Several selected parts turn and mirror together
+  (rotate_components, mirror_components, flip_components: about the middle of their terminals,
+  wires between them turned along); a single part turns about its first terminal. Branch dots
+  join wires of one net only
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
   through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are
   simulation-only state (never saved). Overcurrent: every fuse, breaker and 3-pole overload
