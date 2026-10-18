@@ -312,15 +312,22 @@ func _draw_labels() -> void:
 		draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 
 
-## The keycap of [member key] right after the designation, lit while the
-## device is operated.
+## The keycap of [member key] beside the designation on the side away from
+## the symbol (after it when the designation is above or below the symbol),
+## lit while the device is operated.
 func _draw_keycap() -> void:
 	for entry: Array in marking_rects:
 		if entry[0] == "designation":
 			var rect: Rect2 = entry[2]
 			var cap: Vector2 = Keycap.size_of(key, SchematicTheme.TERMINAL_SIZE)
 			var lit: bool = component is SwitchingElement and (component as SwitchingElement).get_travel() > 0.5
-			Keycap.draw(self, Vector2(rect.end.x + 4.0, rect.get_center().y - cap.y * 0.5), key, SchematicTheme.TERMINAL_SIZE, lit and not (component is LatchingSwitch))
+			var transform: Transform2D = SymbolGeometry.draw_transform(placement)
+			var centre: Vector2 = rect.get_center()
+			var away: Vector2 = centre - transform * Vector2(0.0, (transform.affine_inverse() * centre).y)
+			var x: float = rect.end.x + 4.0
+			if absf(away.x) >= absf(away.y) and away.x < 0.0:
+				x = rect.position.x - 4.0 - cap.x
+			Keycap.draw(self, Vector2(x, centre.y - cap.y * 0.5), key, SchematicTheme.TERMINAL_SIZE, lit and not (component is LatchingSwitch))
 			return
 
 
