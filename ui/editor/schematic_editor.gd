@@ -23,13 +23,15 @@ signal hint_changed(text: String)
 signal page_requested(index: int, focus_id: String)
 ## A PLC was double-clicked: open its program.
 signal plc_requested(component_id: String)
+## The datasheet of a part was asked for (right click menu).
+signal datasheet_requested(component_id: String)
 
 enum Tool { SELECT, PLACE, WIRE }
 
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, GO_TO = 100 }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 
@@ -152,7 +154,7 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 	for key: String in template:
 		if key == "delay":
 			continue
-		if d.get(key, false) != template[key]:
+		if not d.has(key) or d[key] != template[key]:
 			return false
 	if d.get("holder", false) != template.get("holder", false):
 		return false
@@ -622,6 +624,9 @@ func _open_context_menu() -> void:
 		else:
 			_menu.add_item(tr("Remove strip terminal %s") % label, MenuId.REMOVE_STRIP)
 		_menu.add_separator()
+	if hit != null and selected_components.size() == 1 and not (hit is Junction):
+		_menu.add_item(tr("Datasheet"), MenuId.DATASHEET, KEY_F1)
+		_menu.add_separator()
 	if hit != null and selected_components.size() == 1:
 		_change_options = type_options(hit)
 		if _change_options.size() > 1:
@@ -669,6 +674,9 @@ func _on_menu_id(id: int) -> void:
 			delete_selection()
 		MenuId.SELECT_ALL:
 			select_all()
+		MenuId.DATASHEET:
+			if selected_components.size() == 1:
+				datasheet_requested.emit(selected_components.keys()[0])
 		MenuId.ADD_STRIP, MenuId.REMOVE_STRIP:
 			if _menu_strip.is_empty() or not document().circuit.has_component_id(_menu_strip["component"]):
 				return

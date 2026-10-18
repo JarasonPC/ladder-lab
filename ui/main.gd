@@ -9,7 +9,7 @@ enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK,
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
-enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT }
+enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS }
 ## Titles offered for a new page (English source text: saved like that and
 ## shown translated, as every page title).
 const PAGE_PRESETS: PackedStringArray = ["Power section", "Control section", "Signalling section"]
@@ -127,6 +127,7 @@ var _export_render: int = 0
 ## Big red warning over the schematic during an unprotected short circuit.
 var _short_banner: Label
 var _properties: PropertiesPanel
+var _datasheet_window: DatasheetWindow = null
 ## Control boxes with the buttons, switches and lamps (both modes).
 var _control_panel: ControlPanel
 var _panel_toggle: Button
@@ -227,6 +228,8 @@ func _ready() -> void:
 	editor.plc_requested.connect(open_plc_window)
 	view.plc_requested.connect(open_plc_window)
 	_properties.plc_requested.connect(open_plc_window)
+	editor.datasheet_requested.connect(open_datasheet)
+	_properties.datasheet_requested.connect(open_datasheet)
 	view.loaded.connect(_rebind_plc_windows)
 	editor.edited.connect(_rebind_plc_windows)
 	view.stepped.connect(func(_result: StepResult) -> void:
@@ -311,6 +314,12 @@ func _shortcut(event: InputEvent) -> bool:
 	match key.keycode:
 		KEY_F11:
 			_toggle_fullscreen()
+		KEY_F1:
+			var part: CircuitComponent = _single_selected() if mode == Mode.EDIT else null
+			if part != null and not (part is Junction):
+				open_datasheet(part.id)
+			else:
+				open_datasheets()
 		KEY_S when ctrl and key.shift_pressed:
 			_save_as()
 		KEY_S when ctrl:
@@ -751,6 +760,8 @@ func _retranslate() -> void:
 	_cabinet_bar.title = tr("Switchboard")
 	for window: PanelWindow in _panel_windows():
 		window.retranslate()
+	if _datasheet_window != null:
+		_datasheet_window.retranslate()
 	_timing_panel.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
@@ -878,6 +889,8 @@ func _on_view_menu(id: int) -> void:
 func _rebuild_help_menu() -> void:
 	var popup: PopupMenu = _help_menu.get_popup()
 	popup.clear()
+	popup.add_item(tr("Part datasheets…"), HelpMenuId.DATASHEETS, KEY_F1)
+	popup.add_separator()
 	popup.add_item(tr("Check for updates…"), HelpMenuId.CHECK_UPDATES)
 	popup.add_check_item(tr("Check for updates at startup"), HelpMenuId.CHECK_AT_START)
 	popup.set_item_checked(popup.item_count - 1, _check_updates)
@@ -909,6 +922,8 @@ func _on_help_menu(id: int) -> void:
 			OS.shell_open(ReleaseCheck.ISSUES_PAGE)
 		HelpMenuId.ABOUT:
 			_about_dialog.open()
+		HelpMenuId.DATASHEETS:
+			open_datasheets()
 
 
 ## The answer of a check: a newer version shows the toolbar button; a check
@@ -964,6 +979,8 @@ func _apply_theme() -> void:
 	RenderingServer.set_default_clear_color(SchematicTheme.BACKGROUND)
 	if _palette != null:
 		_palette.refresh_paper()
+	if _datasheet_window != null:
+		_datasheet_window.refresh_paper()
 
 
 ## Interface size: the chosen one, or the screen's scale (HiDPI and Windows
@@ -983,6 +1000,8 @@ func _apply_ui_scale() -> void:
 		window.content_scale_factor = factor
 	for window: PanelWindow in _panel_windows():
 		window.content_scale_factor = factor
+	if _datasheet_window != null:
+		_datasheet_window.content_scale_factor = factor
 
 
 ## Puts [param content] into a resizable, zoomable [SideBar] added to
@@ -1717,6 +1736,35 @@ func _close_panel_window(bar: SideBar) -> void:
 	for window: PanelWindow in _panel_windows():
 		if window.bar == bar:
 			window.put_back()
+
+
+## Shows the datasheet of part [param component_id] of the schematic shown
+## (in the datasheet window, opened if needed).
+func open_datasheet(component_id: String) -> DatasheetWindow:
+	var part: CircuitComponent = view.document.circuit.get_component(component_id)
+	var window: DatasheetWindow = _datasheet()
+	if part != null:
+		window.show_part(part, view.document)
+	return window
+
+
+## Shows the datasheets of the palette parts, at the first one unless one is shown.
+func open_datasheets() -> DatasheetWindow:
+	var window: DatasheetWindow = _datasheet()
+	if window.sheet == null:
+		window.show_entry(0)
+	return window
+
+
+func _datasheet() -> DatasheetWindow:
+	if _datasheet_window == null:
+		_datasheet_window = DatasheetWindow.new()
+		_datasheet_window.content_scale_factor = get_window().content_scale_factor
+		_datasheet_window.key_pressed.connect(_on_window_key)
+		add_child(_datasheet_window)
+	_datasheet_window.show()
+	_datasheet_window.grab_focus()
+	return _datasheet_window
 
 
 ## Opens the program of PLC [param component_id] in its window (or brings

@@ -2021,3 +2021,978 @@ msgstr ""
 
 msgid "Move the picked terminals one place right"
 msgstr ""
+
+msgid "Overload relay contact"
+msgstr ""
+
+#, c-format
+msgid "%d poles"
+msgstr ""
+
+#, c-format
+msgid "from %s (85 %%)"
+msgstr ""
+
+msgid "Burns out"
+msgstr ""
+
+#, c-format
+msgid "above %s (130 %%)"
+msgstr ""
+
+msgid "On DC"
+msgstr ""
+
+#, c-format
+msgid "burns out from %s (30 %%)"
+msgstr ""
+
+msgid "On AC"
+msgstr ""
+
+msgid "does not pull in"
+msgstr ""
+
+#, c-format
+msgid "output R of time relay %s is on"
+msgstr ""
+
+#, c-format
+msgid "coil %s has pulled in"
+msgstr ""
+
+#, c-format
+msgid "limit switch %s is operated"
+msgstr ""
+
+#, c-format
+msgid "switch %s is on"
+msgstr ""
+
+#, c-format
+msgid "button %s is pressed"
+msgstr ""
+
+#, c-format
+msgid "circuit breaker %s is on"
+msgstr ""
+
+#, c-format
+msgid "its device %s is operated"
+msgstr ""
+
+#, c-format
+msgid "Closed to %s while %s."
+msgstr ""
+
+#, c-format
+msgid "Closed to %s at rest; open while %s."
+msgstr ""
+
+msgid "Terminal marking"
+msgstr ""
+
+msgid "1st digit: contact block; 2nd: function (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO)"
+msgstr ""
+
+msgid "Contacts (parts of their own)"
+msgstr ""
+
+msgid "the coil has pulled in"
+msgstr ""
+
+msgid "output R is on"
+msgstr ""
+
+#, c-format
+msgid "Main contact, pole %d"
+msgstr ""
+
+#, c-format
+msgid "Supply side; closed to %s while %s."
+msgstr ""
+
+#, c-format
+msgid "Load side; closed to %s while %s."
+msgstr ""
+
+#, c-format
+msgid "Contacts drawn as -%s"
+msgstr ""
+
+msgid "Common"
+msgstr ""
+
+#, c-format
+msgid "Switched between %s and %s."
+msgstr ""
+
+msgid "NC side"
+msgstr ""
+
+#, c-format
+msgid "Closed to %s at rest; breaks first when %s."
+msgstr ""
+
+msgid "NO side"
+msgstr ""
+
+#, c-format
+msgid "Closed to %s while %s; makes after %s has broken."
+msgstr ""
+
+#, c-format
+msgid "Pole %d, line side"
+msgstr ""
+
+#, c-format
+msgid "Pole %d, load side"
+msgstr ""
+
+msgid "Phase of the three-phase source, 230 V against N, 400 V against another phase"
+msgstr ""
+
+#, c-format
+msgid "Supply point of phase %s of the three-phase source. Loads work between a phase and N (230 V) or between two phases (400 V). Supply points of the same conductor are the same potential on every page."
+msgstr ""
+
+msgid "Voltage"
+msgstr ""
+
+msgid "230 V against N, 400 V against another phase, 50 Hz"
+msgstr ""
+
+msgid "Neutral conductor of the three-phase source"
+msgstr ""
+
+msgid "Supply point of the neutral conductor N. Loads work between a phase and N. Supply points of the same conductor are the same potential on every page."
+msgstr ""
+
+msgid "0 V (the reference of the phases)"
+msgstr ""
+
+msgid "Protective conductor, joined to N at the source"
+msgstr ""
+
+msgid "Supply point of the protective conductor PE. It is joined to N at the source (TN system), so a phase touching it is a short circuit that the fuse or circuit breaker clears. The PE terminals of motors take no part in the simulation."
+msgstr ""
+
+msgid "0 V (joined to N at the source)"
+msgstr ""
+
+msgid "Positive pole of a DC source"
+msgstr ""
+
+#, c-format
+msgid "Positive pole of a DC source of %s against the - poles. DC and AC are separate sources: a load works between two conductors of the same source, and AC joined to DC is a short circuit. Two + supplies of different voltages joined are a short circuit too."
+msgstr ""
+
+#, c-format
+msgid "%s DC against -"
+msgstr ""
+
+msgid "Negative pole shared by every DC source"
+msgstr ""
+
+msgid "Negative pole of the DC sources: every + supply and every bridge rectifier output works against it."
+msgstr ""
+
+msgid "0 V of the DC sources"
+msgstr ""
+
+msgid "Supply point"
+msgstr ""
+
+msgid "Wire the circuit to it; it is named by its conductor."
+msgstr ""
+
+msgid "Connection point of a terminal strip"
+msgstr ""
+
+msgid "Terminal of a terminal strip, placed on a wire or on a part's lead. Electrically it only joins its wires. Its label puts it on a strip in the switchboard: \"4\" is terminal 4 of strip X1, \"X2:4\" terminal 4 of strip X2."
+msgstr ""
+
+msgid "Strip terminal"
+msgstr ""
+
+msgid "Joins the wires drawn to it."
+msgstr ""
+
+msgid "Strip"
+msgstr ""
+
+msgid "Continues a wire on another page"
+msgstr ""
+
+msgid "Link"
+msgstr ""
+
+msgid "Joined to every page connector with the same label."
+msgstr ""
+
+msgid "Label"
+msgstr ""
+
+msgid "none (joins nothing)"
+msgstr ""
+
+msgid "Full bridge rectifier: AC in, DC out"
+msgstr ""
+
+#, c-format
+msgid "Full bridge rectifier (Graetz bridge). While its input ~1-~2 has voltage, its + and - are the poles of a DC source of %s, e.g. for DC braking of a motor. The output is isolated from the input, as behind a transformer."
+msgstr ""
+
+msgid "AC input"
+msgstr ""
+
+#, c-format
+msgid "Input between two conductors of one source (AC, or DC of either polarity), with %s."
+msgstr ""
+
+msgid "Other input terminal."
+msgstr ""
+
+msgid "DC output +"
+msgstr ""
+
+msgid "Positive pole of the output while the input has voltage."
+msgstr ""
+
+msgid "DC output -"
+msgstr ""
+
+msgid "Negative pole of the output."
+msgstr ""
+
+msgid "Output voltage"
+msgstr ""
+
+#, c-format
+msgid "%s DC"
+msgstr ""
+
+msgid "Current drawn"
+msgstr ""
+
+msgid "what its output delivers"
+msgstr ""
+
+msgid "Operated by a moving part of the machine"
+msgstr ""
+
+msgid "Limit switch, operated by a moving part of the machine. While simulating, a click operates or releases it; it stays until clicked again. Blocks drawn with the same designation are one switch."
+msgstr ""
+
+msgid "it is operated"
+msgstr ""
+
+msgid "Actuator"
+msgstr ""
+
+msgid "latching (operated or released by a click)"
+msgstr ""
+
+msgid "Keeps its position until operated again"
+msgstr ""
+
+msgid "Switch that keeps its position until operated again (click it while simulating). It snaps over almost at once. Blocks drawn with the same designation are one switch."
+msgstr ""
+
+msgid "it is on"
+msgstr ""
+
+msgid "latching, snap action"
+msgstr ""
+
+msgid "Momentary: operated only while held"
+msgstr ""
+
+msgid "Momentary push button: operated only while held (press and hold it while simulating). Blocks drawn with the same designation are one button: pressing it moves them all, and its NC blocks break before its NO blocks make."
+msgstr ""
+
+msgid "it is pressed"
+msgstr ""
+
+msgid "momentary"
+msgstr ""
+
+msgid "Travel time"
+msgstr ""
+
+msgid "Delayed contact of a time relay"
+msgstr ""
+
+msgid "Delayed contact of the time relay with the same designation: it follows the relay's output R, set by its time function, not the supply."
+msgstr ""
+
+msgid "Auxiliary contact of a relay, contactor or device"
+msgstr ""
+
+msgid "Auxiliary contact of the relay or contactor with the same designation: it follows the armature of its coil. Named like a push button, switch or limit switch it is one more block of it; named like a circuit breaker it is its auxiliary contact (NO closed while the breaker is on). Without such a device it stays at rest."
+msgstr ""
+
+msgid "NC contacts break at 30 % of the armature travel, NO contacts make at its end."
+msgstr ""
+
+msgid "Belongs to"
+msgstr ""
+
+msgid "Common switched between an NC and an NO side"
+msgstr ""
+
+msgid "Changeover contact of the relay, contactor or time relay with the same designation: a common terminal switched between an NC side and an NO side. Operated, it first breaks common-NC, then makes common-NO."
+msgstr ""
+
+msgid "Delayed (15-16-18): it follows output R of the time relay, not the supply."
+msgstr ""
+
+msgid "common-NC-NO: x1-x2-x4, delayed x5-x6-x8"
+msgstr ""
+
+msgid "Contact of a thermal overload relay"
+msgstr ""
+
+msgid "Auxiliary contact of the thermal overload relay with the same designation: NC 95-96 opens and NO 97-98 closes when the relay has tripped, until it is reset."
+msgstr ""
+
+#, c-format
+msgid "overload relay %s has tripped"
+msgstr ""
+
+msgid "NC 95-96, NO 97-98"
+msgstr ""
+
+msgid "Power contacts of a contactor"
+msgstr ""
+
+msgid "Main (power) contacts of the contactor with the same designation. They make together with its NO contacts, at the end of the armature travel, and carry the current of the motor or load. Named like a push button or switch, they follow its actuator."
+msgstr ""
+
+#, c-format
+msgid "Rated voltage against %s pulls the armature in."
+msgstr ""
+
+#, c-format
+msgid "Other end of the coil. %s and %s can be swapped."
+msgstr ""
+
+msgid "Contactor coil (KM)"
+msgstr ""
+
+msgid "Auxiliary relay coil (KA)"
+msgstr ""
+
+msgid "Coil of a contactor (KM) or an auxiliary relay (KA). Every contact drawn with its designation (auxiliary, changeover and main contacts) follows its armature. It pulls in from 85 % of its rated voltage; far too much voltage, or DC on an AC coil, burns it out."
+msgstr ""
+
+msgid "Switching times differ by up to ±5 % between coils, so two relays started together never stay in step."
+msgstr ""
+
+msgid "Pulls in"
+msgstr ""
+
+msgid "Pick-up time"
+msgstr ""
+
+msgid "Drop-out time"
+msgstr ""
+
+msgid "12 time functions F1-F12 plus a true off-delay"
+msgstr ""
+
+msgid "Multifunction time relay. Powered on A1-A2; the function set decides when its output R switches. R moves the delayed contacts (5-6, 7-8, changeover 15-16-18); other contacts drawn with its designation switch with the supply."
+msgstr ""
+
+msgid "Functions F1-F12 as on real multifunction relays, plus a true off-delay"
+msgstr ""
+
+msgid "Two times t1 and t2 for F10, F11 and F12"
+msgstr ""
+
+msgid "Losing the supply resets every function except the off-delay"
+msgstr ""
+
+msgid "Supply"
+msgstr ""
+
+#, c-format
+msgid "Rated voltage against %s powers the relay and starts the function."
+msgstr ""
+
+msgid "Supply, reference"
+msgstr ""
+
+#, c-format
+msgid "Other end of the supply and the reference of %s."
+msgstr ""
+
+msgid "Control input"
+msgstr ""
+
+#, c-format
+msgid "Counts as pressed while it has voltage against %s, like the button input of a real relay. Used by F3, F4, F5, F6, F8 and F12."
+msgstr ""
+
+#, c-format
+msgid "Optional (Control input in the properties): counts as pressed while it has voltage against %s. Used by F3, F4, F5, F6, F8 and F12."
+msgstr ""
+
+msgid "Works"
+msgstr ""
+
+msgid "Times t1 / t2"
+msgstr ""
+
+msgid "Time t"
+msgstr ""
+
+msgid "Pulse of F7"
+msgstr ""
+
+msgid "Time functions"
+msgstr ""
+
+#, c-format
+msgid "Function diagram: %s"
+msgstr ""
+
+msgid "Signal lamp, AC or DC"
+msgstr ""
+
+msgid "Signal lamp. It lights while it has voltage between two conductors of one source, AC or DC alike; far too much voltage burns it out. A purpose written above it says what it signals."
+msgstr ""
+
+#, c-format
+msgid "Lights with its rated voltage against %s."
+msgstr ""
+
+msgid "Other end of the lamp."
+msgstr ""
+
+msgid "Lights"
+msgstr ""
+
+msgid "Purpose"
+msgstr ""
+
+msgid "Motor as a simple load"
+msgstr ""
+
+msgid "Motor drawn as a simple load between two terminals: it runs while it has voltage across them. For three-phase motors with currents, run-up and braking use the 3~ motors."
+msgstr ""
+
+msgid "Winding"
+msgstr ""
+
+#, c-format
+msgid "Supply against %s."
+msgstr ""
+
+msgid "Other end of the winding."
+msgstr ""
+
+#, c-format
+msgid "Circuit breaker %s"
+msgstr ""
+
+msgid "Circuit breaker with thermal and magnetic release: it trips on an overcurrent after the time of its thermal release, at once above the current of its magnetic release, and on a short circuit. It is switched off and on by hand (click it while simulating); switching on resets a trip. It starts switched off."
+msgstr ""
+
+msgid "The thermal release keeps its heat after a trip: switched on again while still hot, it trips sooner."
+msgstr ""
+
+msgid "An overcurrent or fault current in any pole trips all poles."
+msgstr ""
+
+msgid "Contacts drawn with its designation are its auxiliary contacts (NO closed while it is on)."
+msgstr ""
+
+#, c-format
+msgid "Supply side; joined to %s while the breaker is on."
+msgstr ""
+
+#, c-format
+msgid "Load side; joined to %s while the breaker is on."
+msgstr ""
+
+msgid "Rated current In"
+msgstr ""
+
+msgid "Magnetic release"
+msgstr ""
+
+#, c-format
+msgid "%s-%s × In"
+msgstr ""
+
+msgid "Standard"
+msgstr ""
+
+#, c-format
+msgid "Fuse gG %s A"
+msgstr ""
+
+msgid "Fuse gG. It blows when the fault current of a short circuit flows through it, or when an overcurrent lasts as long as its characteristic allows. While simulating, a blown fuse is replaced from its menu; a new fuse is cold."
+msgstr ""
+
+msgid "In a fuse holder (fuse disconnector): opened and closed by a click; holders start open."
+msgstr ""
+
+msgid "Each pole blows on its own; a holder opens all poles together."
+msgstr ""
+
+#, c-format
+msgid "Supply side; joined to %s through the fuse."
+msgstr ""
+
+#, c-format
+msgid "Load side; joined to %s through the fuse."
+msgstr ""
+
+msgid "yes"
+msgstr ""
+
+msgid "no"
+msgstr ""
+
+msgid "Thermal overload relay, trip class 10"
+msgstr ""
+
+msgid "Thermal overload relay. With three poles its heaters carry the motor current (1-2, 3-4, 5-6) and it trips after the time of trip class 10 when the largest heater current is above its setting Ir: an overloaded motor, a lost phase, a start that lasts too long. Without poles it trips only with the injected fault \"Motor overloaded\", after its trip delay."
+msgstr ""
+
+msgid "Its contacts NC 95-96 and NO 97-98 are drawn as parts of their own with its designation."
+msgstr ""
+
+msgid "Test button and reset as on the real one, from its menu or in the switchboard; the heaters keep their heat after a reset."
+msgstr ""
+
+#, c-format
+msgid "From the contactor; the heater carries the current to %s."
+msgstr ""
+
+#, c-format
+msgid "To the motor; the heater carries the current from %s."
+msgstr ""
+
+msgid "Setting Ir"
+msgstr ""
+
+msgid "Trip class"
+msgstr ""
+
+msgid "Trip delay"
+msgstr ""
+
+msgid "the relay has tripped"
+msgstr ""
+
+#, c-format
+msgid "Three-phase induction motor 3 x 400 V, %s kW"
+msgstr ""
+
+msgid "Three-phase induction motor. It runs when all three phases reach the right terminals: L1-L2-L3 on U-V-W turns it clockwise, two phases swapped reverse it. Two phases only is a phase loss (it hums and overheats). + and - of a DC source across a winding brake it (DC braking)."
+msgstr ""
+
+msgid "Windings U1-U2, V1-V2, W1-W2 brought out for a star/delta start: U2 V2 W2 joined is star, each end joined to the start of the next winding is delta. Started in star it draws a third of the current."
+msgstr ""
+
+msgid "Dahlander motor (two speeds, one winding): low speed in delta on 1U 1V 1W, high speed in double star on 2U 2V 2W with 1U 1V 1W joined."
+msgstr ""
+
+msgid "A separate star-connected winding for each speed. Feeding two speeds at once is miswired and overheats it."
+msgstr ""
+
+msgid "After switching off, it runs down in its coast time; with DC braking in its brake time."
+msgstr ""
+
+msgid "Its rating plate can be shown beside it (properties)."
+msgstr ""
+
+msgid "Protective earth"
+msgstr ""
+
+msgid "Frame of the motor; takes no part in the simulation."
+msgstr ""
+
+#, c-format
+msgid "End of winding %s"
+msgstr ""
+
+msgid "Joined to the other ends for star, to the start of the next winding for delta."
+msgstr ""
+
+#, c-format
+msgid "Winding %s"
+msgstr ""
+
+#, c-format
+msgid "Phase %s for clockwise rotation."
+msgstr ""
+
+msgid "Low speed (delta)"
+msgstr ""
+
+msgid "High speed (double star)"
+msgstr ""
+
+#, c-format
+msgid "Winding of speed %s"
+msgstr ""
+
+msgid "Rated power"
+msgstr ""
+
+msgid "Rated speed"
+msgstr ""
+
+msgid "Run-up time"
+msgstr ""
+
+msgid "Coast time / brake time"
+msgstr ""
+
+msgid "Frequency inverter for a 3~ motor, 3 x 400 V"
+msgstr ""
+
+msgid "The output frequency follows the target along the ramps; reversing goes through 0 Hz."
+msgstr ""
+
+msgid "V/f: the motor's voltage in proportion to the frequency."
+msgstr ""
+
+msgid "Without all three phases on its supply it does nothing."
+msgstr ""
+
+msgid "Phase L1 of the supply, 3 x 400 V."
+msgstr ""
+
+msgid "Phase L2 of the supply."
+msgstr ""
+
+msgid "Phase L3 of the supply."
+msgstr ""
+
+msgid "Frame of the device; not simulated."
+msgstr ""
+
+msgid "Reference"
+msgstr ""
+
+#, c-format
+msgid "10 V against %s, for a setpoint potentiometer on %s."
+msgstr ""
+
+#, c-format
+msgid "0-10 V against %s: 0 Hz up to the maximum frequency."
+msgstr ""
+
+msgid "0 V"
+msgstr ""
+
+msgid "0 V of the control terminals."
+msgstr ""
+
+msgid "ON/OFF1: on runs the motor, off stops it along the ramp."
+msgstr ""
+
+msgid "On reverses the direction (through 0 Hz)."
+msgstr ""
+
+msgid "Fixed frequency"
+msgstr ""
+
+msgid "On runs at the fixed frequency instead of the setpoint."
+msgstr ""
+
+msgid "Coast stop"
+msgstr ""
+
+msgid "OFF2: on switches the output off at once; the motor runs down."
+msgstr ""
+
+#, c-format
+msgid "Common of the digital inputs: they are on with 24 V against it (join it to %s to use the %s supply)."
+msgstr ""
+
+msgid "24 V"
+msgstr ""
+
+#, c-format
+msgid "24 V for the digital inputs, against %s."
+msgstr ""
+
+msgid "Motor output"
+msgstr ""
+
+msgid "Phase U of the motor."
+msgstr ""
+
+msgid "Phase V of the motor."
+msgstr ""
+
+msgid "Phase W of the motor."
+msgstr ""
+
+msgid "Relay output DO2"
+msgstr ""
+
+msgid "Common of the relay contact."
+msgstr ""
+
+#, c-format
+msgid "NO: closed to %s while the motor runs."
+msgstr ""
+
+msgid "Control terminals"
+msgstr ""
+
+msgid "Relay output"
+msgstr ""
+
+msgid "3 x 400 V, 50 Hz"
+msgstr ""
+
+#, c-format
+msgid "3 x 0-400 V, 0-%s Hz (V/f)"
+msgstr ""
+
+msgid "Ramp-up / ramp-down time"
+msgstr ""
+
+msgid "Digital inputs"
+msgstr ""
+
+#, c-format
+msgid "on from %s against DIC"
+msgstr ""
+
+msgid "Compact PLC, 24 V DC, transistor outputs"
+msgstr ""
+
+msgid "Logic module with relay outputs"
+msgstr ""
+
+msgid "Logic module with relay outputs: supply on L1 and N, inputs I1-I8 on with voltage against N, relay outputs Q1-Q4 each a free contact (Qn.1-Qn.2). Expansion modules clip on to its right, each with its own supply."
+msgstr ""
+
+msgid "It runs its program (function block or ladder diagram; double-click it) whenever an input changes or a timer of the program ends, until the program settles. Losing power resets the program."
+msgstr ""
+
+#, c-format
+msgid "Module %d: %s"
+msgstr ""
+
+msgid "Inputs on from"
+msgstr ""
+
+msgid "Inputs / outputs"
+msgstr ""
+
+msgid "Analog inputs / outputs"
+msgstr ""
+
+#, c-format
+msgid "%d / %d, 0-10 V = 0-%s"
+msgstr ""
+
+msgid "Output switching"
+msgstr ""
+
+#, c-format
+msgid "transistor, %s ms"
+msgstr ""
+
+#, c-format
+msgid "relay, pick-up %s ms, drop-out %s ms"
+msgstr ""
+
+#, c-format
+msgid "%d inputs"
+msgstr ""
+
+#, c-format
+msgid "%d outputs"
+msgstr ""
+
+#, c-format
+msgid "%d analog inputs"
+msgstr ""
+
+#, c-format
+msgid "%d analog outputs"
+msgstr ""
+
+#, c-format
+msgid "1 while it has voltage against %s."
+msgstr ""
+
+#, c-format
+msgid "Also analog input AI%d: 0-10 V = 0-%s."
+msgstr ""
+
+#, c-format
+msgid "Input %s"
+msgstr ""
+
+#, c-format
+msgid "Relay output Q%d"
+msgstr ""
+
+#, c-format
+msgid "Free contact: closed to %s while the program sets Q%d."
+msgstr ""
+
+#, c-format
+msgid "Output %s"
+msgstr ""
+
+msgid "Transistor output: switched to the output supply while the program sets it."
+msgstr ""
+
+#, c-format
+msgid "Analog input %s"
+msgstr ""
+
+#, c-format
+msgid "0-10 V = 0-%s in the program."
+msgstr ""
+
+#, c-format
+msgid "Analog output %s"
+msgstr ""
+
+#, c-format
+msgid "0-10 V for 0-%s in the program; 0 V while it does not work."
+msgstr ""
+
+msgid "+24 V DC supply of the CPU."
+msgstr ""
+
+msgid "0 V of the CPU supply."
+msgstr ""
+
+msgid "Common of the inputs: they are on with 24 V against it."
+msgstr ""
+
+msgid "Reference of the analog inputs."
+msgstr ""
+
+msgid "+24 V supply of the transistor outputs."
+msgstr ""
+
+msgid "0 V of the output supply."
+msgstr ""
+
+msgid "+24 V DC supply of the analog module."
+msgstr ""
+
+msgid "0 V of the analog module, reference of its values."
+msgstr ""
+
+#, c-format
+msgid "Supply of the PLC (%s)."
+msgstr ""
+
+#, c-format
+msgid "Supply of module %d (%s); it works only together with the PLC."
+msgstr ""
+
+msgid "Other supply terminal; the inputs of the PLC are on against it."
+msgstr ""
+
+#, c-format
+msgid "Other supply terminal of module %d; its inputs are on against it."
+msgstr ""
+
+msgid "Temperature transmitter, output 0-10 V"
+msgstr ""
+
+#, c-format
+msgid "+24 V DC against %s."
+msgstr ""
+
+msgid "0 V of the supply and the reference of the output."
+msgstr ""
+
+#, c-format
+msgid "0 V at %s °C up to 10 V at %s °C, against %s."
+msgstr ""
+
+msgid "Measuring range"
+msgstr ""
+
+msgid "0-10 V, held within it"
+msgstr ""
+
+msgid "Terminal assignment"
+msgstr ""
+
+msgid "Terminal"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Code"
+msgstr ""
+
+msgid "Symbol"
+msgstr ""
+
+msgid "Symbol as drawn in the schematic (IEC 60617)."
+msgstr ""
+
+msgid "Description"
+msgstr ""
+
+msgid "Features"
+msgstr ""
+
+msgid "(continued)"
+msgstr ""
+
+msgid "Technical data"
+msgstr ""
+
+msgid "Device front and terminals"
+msgstr ""
+
+msgid "The device as drawn in the switchboard view, with the marking of every terminal. Wires go into the terminals from the duct above or below the rail."
+msgstr ""
+
+msgid "Part datasheet"
+msgstr ""
+
+#, c-format
+msgid "sheet %d / %d"
+msgstr ""
+
+msgid "Values are those of the LadderLab simulation, not of a real product."
+msgstr ""
+
+msgid "Export PDF…"
+msgstr ""
+
+msgid "Save the datasheet as a PDF document"
+msgstr ""
+
+msgid "In the schematic"
+msgstr ""
+
+#, c-format
+msgid "Datasheet – %s"
+msgstr ""
+
+msgid "datasheet"
+msgstr ""
+
+msgid "Part datasheets…"
+msgstr ""
+
+msgid "Datasheet"
+msgstr ""
+
+msgid "Terminals, technical data and device front of this part"
+msgstr ""
