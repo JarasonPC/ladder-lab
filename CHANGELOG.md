@@ -86,6 +86,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   event log are rolled in while simulating
 
 ### Fixed
+- A wire without its corners (from a file edited by hand or made by another program) froze the
+  program; it now runs across and down
 - Turning or mirroring parts while dragging them could freeze the program
 
 ## 0.3.0 – 2026-10-17
