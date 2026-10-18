@@ -14,6 +14,16 @@ const MAX_COLUMNS: int = 4
 const WINDOW_SHARE: float = 0.9
 
 
+## Titles of the time relay functions, in [constant TimerRelay.MODE_NAMES] order.
+## [param input]: name of the control input (S, TL, ...) written in the titles.
+static func function_titles(input: String) -> Array:
+	var titles: Array = []
+	for title: String in ["F2 – On-delay", "Off-delay (on power loss)", "F1 – Pulse after power on", "F3 – Pulse when %s is pressed", "F4 – On-delay after %s is released", "F5 – Pulse after %s is released", "F6 – Impulse relay (no memory)", "F7 – Pulse generator", "F8 – Shifted pulse", "F9 – Test (always on)", "F10 – Cycler starting with the pause (t2 off, t1 on)", "F11 – Cycler starting with the pulse (t1 on, t2 off)", "F12 – On-delay t1 and off-delay t2 with %s"]:
+		var text: String = String(TranslationServer.translate(title))
+		titles.append(text % input if text.contains("%s") else text)
+	return titles
+
+
 ## Fills the list: [param titles] in [enum TimerRelay.Mode] order, the current
 ## function [param current] highlighted, the control input named [param input_name].
 func setup(titles: Array, current: TimerRelay.Mode, input_name: String) -> void:

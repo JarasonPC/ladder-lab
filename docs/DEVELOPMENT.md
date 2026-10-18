@@ -88,6 +88,20 @@ Architecture and conventions of the code base. Read this before changing the cod
   with the same label are joined (Circuit.get_links, used by the solver and by wire_net); numbering
   runs over the pages and connectors take their net's wire number as label; right click (Edit) or
   click (Simulate) jumps to the partner page
+- Datasheets (ui/datasheet/): Datasheet (no nodes) is what a part's datasheet says, built from
+  the part itself (its terminal names, poles, modules, rating, times; texts through tr()): title
+  (its palette entry), summary, description, features, terminal assignment (every terminal:
+  name and function; contacts drawn with the device's designation under a heading, else the
+  device's own, e.g. 15-16-18), technical data, the time functions of a time relay, a diagram
+  (TimerDiagram / TripCurveDiagram with paper = true) and the device front
+  (CabinetDevices.describe, parts on a rail only); Datasheet.of_template for palette parts.
+  DatasheetLayout lays it out on A4 pages in points (band, title, symbol beside the description,
+  tables continued on the next page, data beside the diagram, footer; the front on a page of its
+  own); DatasheetPage draws a page in SchematicTheme colours (white on export), the symbol, the
+  diagram and the front (DatasheetFront: CabinetParts.device at up to 2:1 with a label on a
+  leader at every terminal) as children; DatasheetWindow lists the part from the schematic and
+  every palette part, zooms (ZoomBox) and exports a PDF (200 dpi pages). Opened from the right
+  click menu (Datasheet, F1), the properties (Datasheet button) and Help > Part datasheets
 - Current path numbers (above the columns, left of the rows) can be turned off in View >
   Current path numbers (saved; page windows and export follow it)
 - Export: File > Export page as PNG / Export all pages as PDF first show the sheets in a preview

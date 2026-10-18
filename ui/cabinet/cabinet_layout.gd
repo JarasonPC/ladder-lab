@@ -129,18 +129,18 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 		place["kind"] = desc.get("kind", MISSING_DEVICE)
 	match place["kind"]:
 		CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE:
-			_box(place, Vector2(CabinetParts.MODULE_W * int(place["desc"]["poles"]), CabinetParts.MODULE_H))
+			_box(place, CabinetParts.device_size(place["desc"]))
 			var top_gap: float = 3.5 if place["kind"] == CabinetDevices.Kind.BREAKER else 0.5
 			_label(place, Vector2(place["size"].x * 0.5, -top_gap), minf(maxf(place["size"].x - 2.0, 14.0), 16.0))
 		CabinetDevices.Kind.TIMER:
-			_box(place, Vector2(CabinetParts.MODULE_W, CabinetParts.MODULE_H))
+			_box(place, CabinetParts.device_size(place["desc"]))
 			_label(place, Vector2(CabinetParts.MODULE_W * 0.5, -3.5), 14.0)
 		CabinetDevices.Kind.RELAY:
-			var relay: Vector2 = CabinetParts.relay_size(int(place["desc"]["poles"]))
+			var relay: Vector2 = CabinetParts.device_size(place["desc"])
 			_box(place, relay)
 			_label(place, Vector2(relay.x * 0.5, -3.5), clampf(relay.x, 11.0, 14.0))
 		CabinetDevices.Kind.CONTACTOR:
-			_box(place, CabinetParts.CONTACTOR)
+			_box(place, CabinetParts.device_size(place["desc"]))
 			var aux: int = (place["desc"]["aux"] as Array).size()
 			_label(place, CabinetParts.contactor_label_at(aux), 16.0)
 			var overload: String = place["desc"].get("overload", "")
@@ -153,16 +153,16 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 				place["under_label_at"] = place["under_origin"] + Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0)
 				place["bottom"] = place["under_label_at"].y + 2.6
 		CabinetDevices.Kind.RECTIFIER:
-			_box(place, CabinetParts.RECTIFIER)
+			_box(place, CabinetParts.device_size(place["desc"]))
 			_label(place, Vector2(CabinetParts.RECTIFIER.x * 0.5, -3.5), 14.0)
 		CabinetDevices.Kind.VFD:
-			_box(place, CabinetParts.VFD)
+			_box(place, CabinetParts.device_size(place["desc"]))
 			_label(place, Vector2(CabinetParts.VFD.x * 0.5, -3.5), 16.0)
 		CabinetDevices.Kind.PLC:
-			_box(place, CabinetParts.plc_size(place["desc"]))
+			_box(place, CabinetParts.device_size(place["desc"]))
 			_label(place, Vector2(CabinetParts.PLC.x * 0.5, -3.5), 16.0)
 		CabinetDevices.Kind.OVERLOAD:
-			_box(place, CabinetParts.OVERLOAD)
+			_box(place, CabinetParts.device_size(place["desc"]))
 			_label(place, Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0), 12.0)
 		_:
 			place["kind"] = MISSING_DEVICE

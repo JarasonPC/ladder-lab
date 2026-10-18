@@ -7,6 +7,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- Every part has a datasheet, laid out like a manufacturer's: what it does, every terminal with
+  its name and function, technical data, the timing diagram or time-current characteristic,
+  and the device front from the switchboard with its terminal markings. Open it with a right
+  click on the part (Datasheet), F1 or the Datasheet button in the properties; Help > Part
+  datasheets lists every part of the library. Datasheets export as PDF
 - Every example has a power circuit with a motor and its control circuit, protected by circuit
   breakers (C16 for the motor, B2 for the control circuit), with everything outside the
   switchboard wired through terminal strips: the supply on X1, buttons and lamps on X2, motors
