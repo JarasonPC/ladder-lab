@@ -3124,3 +3124,32 @@ msgid_plural "%d cores between %s and %s, worked out from the wiring of the sche
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
+
+#, c-format
+msgid "%s actuated"
+msgstr ""
+
+#, c-format
+msgid "%s let go"
+msgstr ""
+
+msgid "A motor of the group moves a part (e.g. the gate) that operates the group's limit switches while simulating"
+msgstr ""
+
+msgid "End to end in"
+msgstr ""
+
+msgid "Mechanical link"
+msgstr ""
+
+msgid "Mechanical link…"
+msgstr ""
+
+msgid "Put a motor of the field into this group first (drag it into the frame)."
+msgstr ""
+
+msgid "Starts at"
+msgstr ""
+
+msgid "The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch at an end is operated while the part is there, one in between while the part passes it."
+msgstr ""

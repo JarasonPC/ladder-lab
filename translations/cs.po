@@ -3133,3 +3133,32 @@ msgid_plural "%d cores between %s and %s, worked out from the wiring of the sche
 msgstr[0] "%d žíla mezi %s a %s, odvozeno ze zapojení schématu."
 msgstr[1] "%d žíly mezi %s a %s, odvozeno ze zapojení schématu."
 msgstr[2] "%d žil mezi %s a %s, odvozeno ze zapojení schématu."
+
+#, c-format
+msgid "%s actuated"
+msgstr "%s najetý"
+
+#, c-format
+msgid "%s let go"
+msgstr "%s uvolněný"
+
+msgid "A motor of the group moves a part (e.g. the gate) that operates the group's limit switches while simulating"
+msgstr "Motor skupiny pohybuje dílem (např. bránou), který při simulaci ovládá koncové spínače skupiny"
+
+msgid "End to end in"
+msgstr "Z konce na konec za"
+
+msgid "Mechanical link"
+msgstr "Mechanická vazba"
+
+msgid "Mechanical link…"
+msgstr "Mechanická vazba…"
+
+msgid "Put a motor of the field into this group first (drag it into the frame)."
+msgstr "Nejdříve do skupiny umístěte motor z pole (přetáhněte ho do rámečku)."
+
+msgid "Starts at"
+msgstr "Začíná na"
+
+msgid "The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch at an end is operated while the part is there, one in between while the part passes it."
+msgstr "Motor pohybuje dílem z jednoho konce (0 %) na druhý (100 %): při chodu vpřed (doprava) k 100 %, vzad k 0 %. Koncový spínač na konci je ovládnutý, dokud tam díl stojí, spínač mezi konci, když kolem něj díl projíždí."

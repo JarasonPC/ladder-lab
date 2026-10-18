@@ -1858,6 +1858,27 @@ func place_field_device(designation: String, at: Vector2, group: int = -1) -> vo
 		groups[g].members = members
 
 
+## Sets the mechanical link of group [param index]: member motor
+## [param drive] ("" for none) moves its part, [param seconds] end to end,
+## from [param start_at] (0-1) at the start; member limit switches
+## [param at_stops] (designation -> 0-1) are operated where they are. Returns
+## false when the drive is not a motor of the group.
+func set_group_link(index: int, drive: String, seconds: float, start_at: float, at_stops: Dictionary) -> bool:
+	if index < 0 or index >= groups.size():
+		return false
+	var group: WorkspaceGroup = groups[index]
+	if not drive.is_empty() and (not group.members.has(drive) or Workspace.field_kind(Workspace.field_component(circuit, drive)) != Workspace.Field.MOTOR):
+		return false
+	group.drive = drive
+	group.travel_time = clampf(seconds, 0.1, 3600.0)
+	group.start = clampf(start_at, 0.0, 1.0)
+	group.stops.clear()
+	for designation: Variant in at_stops:
+		if designation is String and group.members.has(designation) and Workspace.field_kind(Workspace.field_component(circuit, designation)) == Workspace.Field.LIMIT_SWITCH:
+			group.stops[designation] = clampf(float(at_stops[designation]), 0.0, 1.0)
+	return true
+
+
 ## Gives the places of an older schematic their names and spots: switchboards
 ## and stations without a name get the next free one, side by side.
 func name_places() -> void:
@@ -1890,6 +1911,11 @@ func rename_field_device(old_designation: String, new_designation: String) -> vo
 		var index: int = group.members.find(old_designation)
 		if index >= 0:
 			group.members[index] = new_designation
+		if group.drive == old_designation:
+			group.drive = new_designation
+		if group.stops.has(old_designation):
+			group.stops[new_designation] = group.stops[old_designation]
+			group.stops.erase(old_designation)
 
 
 ## Every switchboard, control station and group, in that order.

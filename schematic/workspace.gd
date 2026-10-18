@@ -171,3 +171,23 @@ static func unplaced(doc: SchematicDocument) -> Array[Dictionary]:
 			if not listed.has(designation):
 				result.append({"kind": "control", "designation": designation})
 	return result
+
+
+## The machine parts moved by motors (the mechanical links of the groups,
+## see [method SchematicDocument.set_group_link]) for a simulation of
+## [param doc]: only a member motor drives, only member limit switches count.
+static func travels(doc: SchematicDocument) -> Array[Travel]:
+	var result: Array[Travel] = []
+	for group: WorkspaceGroup in doc.groups:
+		if group.drive.is_empty() or not group.members.has(group.drive):
+			continue
+		var motor: CircuitComponent = field_component(doc.circuit, group.drive)
+		if field_kind(motor) != Field.MOTOR:
+			continue
+		var travel: Travel = Travel.new(group.name, motor, group.travel_time, group.start)
+		for designation: String in group.stops:
+			var switch: LatchingSwitch = doc.circuit.get_operator(designation) as LatchingSwitch
+			if group.members.has(designation) and switch is LimitSwitch:
+				travel.add_switch(switch, group.stops[designation])
+		result.append(travel)
+	return result

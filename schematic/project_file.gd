@@ -52,7 +52,10 @@ const FORMAT: String = "ladder-lab"
 ## field ("groups") and where those parts stand ("field").
 ## 25: names of the cables of the workspace ("cables": "+RA1|+ST1" -> "W1";
 ## missing before: named in turn).
-const VERSION: int = 25
+## 26: mechanical links of groups ("drive", "travel_time", "start", "stops":
+## the motor moving the group's part and where its limit switches are;
+## missing before: none).
+const VERSION: int = 26
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

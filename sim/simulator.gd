@@ -76,6 +76,9 @@ var last_result: StepResult = StepResult.new()
 var time: float = 0.0
 ## Optional: receives coil power, armature positions and load states.
 var trace: TraceRecorder = null
+## Machine parts moved by motors that operate limit switches (a gate between
+## its end positions, see [Travel]); set from outside.
+var travels: Array[Travel] = []
 
 var _built_version: int = -1
 var _net_count: int = 0
@@ -196,6 +199,7 @@ func step(delta: float = 0.0) -> StepResult:
 		last_result = _step_realistic(maxf(delta, 0.0))
 	else:
 		var result: StepResult = StepResult.new()
+		_advance_travels(0.0, result)
 		for actuator: Armature in _actuators:
 			actuator.snap(actuator.target)
 		if delta > 0.0:
@@ -209,6 +213,7 @@ func step(delta: float = 0.0) -> StepResult:
 				plc.snap()
 			_advance_protection(delta, result)
 			_advance_motors(delta, result)
+			_advance_travels(delta, result)
 		time += maxf(delta, 0.0)
 		last_result = _settle(result)
 		_record_trace()
@@ -681,9 +686,12 @@ func _step_realistic(delta: float) -> StepResult:
 	var result: StepResult = StepResult.new()
 	var remaining: float = delta
 	var events: int = 0
+	_advance_travels(0.0, result)
 	while true:
 		_apply_power(result)
 		var dt: float = remaining
+		for travel: Travel in travels:
+			dt = minf(dt, travel.time_to_next_event())
 		for i: int in _coil_indices:
 			dt = minf(dt, (_loads[i] as Coil).time_to_next_event())
 		for i: int in _plc_indices:
@@ -701,6 +709,7 @@ func _step_realistic(delta: float) -> StepResult:
 		dt = minf(dt, _time_to_heat_trip())
 		dt = maxf(dt, 0.0)
 		_advance_armatures(dt, result)
+		_advance_travels(dt, result)
 		time += dt
 		remaining -= dt
 		events += 1
@@ -860,6 +869,18 @@ func _advance_motors(dt: float, result: StepResult) -> void:
 			_log(result, "%s stopped", [motor.designation], time + minf(stops_in, dt))
 		elif motor.ac_powered and motor.is_running() and before < 0.95 and motor.shaft >= 0.95:
 			_log(result, "%s up to speed", [motor.designation], time + dt)
+
+
+## Moves the parts driven by motors on by [param dt] seconds and sets their
+## limit switches (in IDEAL mode at once).
+func _advance_travels(dt: float, result: StepResult) -> void:
+	for travel: Travel in travels:
+		if dt > 0.0:
+			travel.advance(dt)
+		for switch: LatchingSwitch in travel.apply():
+			if mode == Mode.IDEAL:
+				switch.actuator.snap(switch.actuator.target)
+			_log(result, "%s actuated" if switch.switched_on else "%s let go", [switch.designation], time + dt)
 
 
 ## [method _evaluate], but first lets every fuse or breaker that carries the

@@ -20,7 +20,7 @@ signal window_requested(kind: Workspace.Place, place_name: String)
 ## Part [param designation] should be shown in the schematic.
 signal schematic_requested(designation: String)
 
-enum MenuId { OPEN, WINDOW, RENAME, DELETE, SCHEMATIC, LEAVE_GROUP, ADD_SWITCHBOARD, ADD_STATION, ADD_GROUP }
+enum MenuId { OPEN, WINDOW, RENAME, DELETE, SCHEMATIC, LEAVE_GROUP, ADD_SWITCHBOARD, ADD_STATION, ADD_GROUP, LINK }
 
 var tree: WorkspaceTree
 var canvas: WorkspaceCanvas
@@ -45,6 +45,12 @@ var _rename_error: Label
 var _rename_labels: Array[Label] = []
 var _renaming: Dictionary = {}
 var _fit_pending: bool = true
+var _link_dialog: ConfirmationDialog
+var _link_grid: GridContainer
+var _link_note: Label
+## Group whose link the dialog edits, and the controls of each field.
+var _linking: String = ""
+var _link_fields: Dictionary[String, Control] = {}
 
 
 func _init() -> void:
@@ -83,6 +89,7 @@ func _ready() -> void:
 	_menu.id_pressed.connect(_on_menu)
 	add_child(_menu)
 	_build_rename_dialog()
+	_build_link_dialog()
 	_update_bar()
 
 
@@ -131,6 +138,13 @@ func retranslate() -> void:
 	_retranslate_dialog()
 	_update_bar()
 	canvas.queue_redraw()
+
+
+## Where the parts moved by motors are (group name -> 0-1), while simulating.
+func show_travels(positions: Dictionary[String, float]) -> void:
+	if positions != canvas.travel_positions:
+		canvas.travel_positions = positions
+		canvas.queue_redraw()
 
 
 ## Voltage reach of the last simulation step, for an opened switchboard.
@@ -414,6 +428,9 @@ func _open_menu(entry: Dictionary, at: Vector2, screen: Vector2) -> void:
 	if _editing and kind == "place":
 		if _menu.item_count > 0:
 			_menu.add_separator()
+		if place == Workspace.Place.GROUP:
+			_menu.add_item(tr("Mechanical link…"), MenuId.LINK)
+			_menu.set_item_tooltip(_menu.item_count - 1, tr("A motor of the group moves a part (e.g. the gate) that operates the group's limit switches while simulating"))
 		_menu.add_item(tr("Rename…"), MenuId.RENAME)
 		_menu.add_item(tr("Delete"), MenuId.DELETE)
 		_menu.set_item_tooltip(_menu.item_count - 1, tr("A switchboard's devices and a station's buttons lose their place, a group's parts stay where they are (Ctrl+Z brings it back)"))
@@ -455,6 +472,8 @@ func _on_menu(id: int) -> void:
 			_add(Workspace.Place.STATION, _menu_at.snappedf(WorkspaceCanvas.SNAP))
 		MenuId.ADD_GROUP:
 			_add(Workspace.Place.GROUP, _menu_at.snappedf(WorkspaceCanvas.SNAP))
+		MenuId.LINK:
+			_open_link(entry["name"])
 
 
 ## Adds a place of [param kind] at [param at] (a free spot when null) and shows it.
@@ -602,3 +621,118 @@ func _apply_cable_rename(key: String, new_name: String) -> void:
 		return
 	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.rename_cable(key, new_name))
 	refresh()
+
+
+# --- Mechanical link -----------------------------------------------------------------------
+
+func _build_link_dialog() -> void:
+	_link_dialog = ConfirmationDialog.new()
+	_link_dialog.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	var column: VBoxContainer = VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	_link_note = Label.new()
+	_link_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_link_note.theme_type_variation = "MutedLabel"
+	_link_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_link_note.custom_minimum_size.x = 380.0
+	column.add_child(_link_note)
+	_link_grid = GridContainer.new()
+	_link_grid.columns = 2
+	_link_grid.add_theme_constant_override("h_separation", 12)
+	column.add_child(_link_grid)
+	_link_dialog.add_child(column)
+	_link_dialog.confirmed.connect(_apply_link)
+	add_child(_link_dialog)
+
+
+## Asks how group [param group_name]'s part moves: which motor drives it,
+## how long it takes end to end, where it starts and where its limit switches are.
+func _open_link(group_name: String) -> void:
+	var index: int = _index(Workspace.Place.GROUP, group_name)
+	if index < 0:
+		return
+	var group: WorkspaceGroup = _document.groups[index]
+	_linking = group_name
+	_link_fields.clear()
+	for child: Node in _link_grid.get_children():
+		_link_grid.remove_child(child)
+		child.queue_free()
+	_link_dialog.title = tr("Mechanical link") + " +" + group_name
+	_link_dialog.ok_button_text = tr("OK")
+	_link_dialog.cancel_button_text = tr("Cancel")
+	_link_note.text = tr("The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch at an end is operated while the part is there, one in between while the part passes it.")
+	var motors: PackedStringArray = PackedStringArray([""])
+	var switches: PackedStringArray = PackedStringArray()
+	for member: String in group.members:
+		var kind: Workspace.Field = Workspace.field_kind(Workspace.field_component(_document.circuit, member))
+		if kind == Workspace.Field.MOTOR:
+			motors.append(member)
+		elif kind == Workspace.Field.LIMIT_SWITCH:
+			switches.append(member)
+	var drive: OptionButton = OptionButton.new()
+	drive.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	for motor: String in motors:
+		drive.add_item(tr("None") if motor.is_empty() else "-" + motor)
+	drive.select(maxi(motors.find(group.drive), 0))
+	drive.set_meta("choices", motors)
+	_link_row(tr("Motor"), drive)
+	_link_fields["drive"] = drive
+	var seconds: SpinBox = _spin(0.1, 3600.0, 0.1, group.travel_time, " s")
+	_link_row(tr("End to end in"), seconds)
+	_link_fields["time"] = seconds
+	var start: SpinBox = _spin(0.0, 100.0, 1.0, group.start * 100.0, " %")
+	_link_row(tr("Starts at"), start)
+	_link_fields["start"] = start
+	for i: int in switches.size():
+		var designation: String = switches[i]
+		# New switches: the first at 0 %, the next at 100 %.
+		var where: float = group.stops.get(designation, 0.0 if i == 0 else 1.0)
+		var used: CheckBox = CheckBox.new()
+		used.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		used.text = "-" + designation
+		used.button_pressed = group.stops.has(designation) or group.drive.is_empty()
+		_link_grid.add_child(used)
+		var at: SpinBox = _spin(0.0, 100.0, 1.0, where * 100.0, " %")
+		_link_grid.add_child(at)
+		_link_fields["sq:" + designation] = used
+		_link_fields["at:" + designation] = at
+	if motors.size() < 2:
+		_link_note.text = tr("Put a motor of the field into this group first (drag it into the frame).")
+	_link_dialog.reset_size()
+	_link_dialog.popup_centered()
+
+
+func _link_row(caption: String, field: Control) -> void:
+	var label: Label = Label.new()
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.text = caption
+	_link_grid.add_child(label)
+	_link_grid.add_child(field)
+
+
+func _spin(lowest: float, highest: float, step: float, value: float, suffix: String) -> SpinBox:
+	var spin: SpinBox = SpinBox.new()
+	spin.min_value = lowest
+	spin.max_value = highest
+	spin.step = step
+	spin.value = value
+	spin.suffix = suffix.strip_edges()
+	spin.custom_minimum_size.x = 120.0
+	return spin
+
+
+func _apply_link() -> void:
+	var index: int = _index(Workspace.Place.GROUP, _linking)
+	if index < 0 or not _link_fields.has("drive"):
+		return
+	var drive_field: OptionButton = _link_fields["drive"] as OptionButton
+	var motors: PackedStringArray = drive_field.get_meta("choices")
+	var drive: String = motors[maxi(drive_field.selected, 0)]
+	var seconds: float = (_link_fields["time"] as SpinBox).value
+	var start: float = (_link_fields["start"] as SpinBox).value / 100.0
+	var stops: Dictionary = {}
+	for key: String in _link_fields:
+		if key.begins_with("sq:") and (_link_fields[key] as CheckBox).button_pressed:
+			var designation: String = key.substr(3)
+			stops[designation] = (_link_fields["at:" + designation] as SpinBox).value / 100.0
+	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_group_link(index, drive, seconds, start, stops))
