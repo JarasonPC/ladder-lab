@@ -141,6 +141,24 @@ Architecture and conventions of the code base. Read this before changing the cod
   opened place shows the circuit's state; the workspace stays plain. Older files: the rails of
   "cabinet" become switchboard RA1, control boxes become stations ST1, ST2, … side by side
   (SchematicDocument.name_places)
+- Cables of the workspace (WorkspaceCables, no nodes): worked out from the wiring, never drawn
+  by hand. Every part has a place by designation ("+RA1" a device on a rail, an overload relay
+  under its contactor where the contactor is; "+ST1" a button, switch or lamp on a station, also
+  a lamp inside a button; "-M1" a part in the field; contacts go with their device); a net
+  reaching two or more places gets a core between them: from the switchboard with a strip
+  terminal on it to each other place (a star from the strip), else from the first switchboard,
+  else along the shortest tree between the places' centres (stop buttons looped through from
+  station to station). The cores between two places are one cable (key "+RA1|+ST1", its ends in
+  workspace order: switchboards, stations, parts), each core with what it lands on at both ends
+  (at a switchboard its strip terminals alone when it has some) and its wire number, the PE core
+  last; "4G" counts the cores with a PE one. Names W1, W2, … in order, kept in
+  SchematicDocument.cable_names (saved as "cables"; name_cables after every edit gives new
+  cables the first free number and drops the names of cables that are gone; renaming a place
+  or a part keeps its cables' names; rename_cable). WorkspaceCanvas draws them under the tiles
+  from tile centre to tile centre, bent to the side with fewer places in the way, the name and
+  core count on a tag where the line is clear of both places (place texts sit on paper over
+  lines passing behind); a click on a cable (tag or line) or on it in the tree ("Cables")
+  opens CablePanel in place of the canvas: a row per core, wire number, both ends
 - Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
@@ -178,8 +196,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   point's lead. Strip terminals leading to parts outside (CabinetDevices.is_outside:
   buttons, switches, lamps, motors; field_device finds the part: the one whose lead the
   terminal is on, else the first on its net) send field wires out of their bottom entries to
-  the bottom duct and out through a gland in the bottom of the enclosure, one cable per part
-  (its name on the gland), cores coloured like the other wires (a PE or N terminal gives a PE or
+  the bottom duct and out through a gland in the bottom of the enclosure, one cable for each
+  cable of the workspace from this switchboard (its name "W2" on the gland, all the buttons and
+  lamps of a station in one; CabinetWiring.build(doc, layout, k, board)), one per part for parts
+  without a place ("-SB1" on the gland), cores coloured like the other wires (a PE or N terminal gives a PE or
   N core). Strip terminals on a PE wire are PE terminals, on an N wire blue N
   terminals. A strip is split in the sidebar: picked terminals move to another strip or a new
   one (SchematicDocument.move_strip_terminals relabels them, "5" -> "X2:5", a taken number

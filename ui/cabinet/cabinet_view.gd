@@ -245,16 +245,16 @@ func _draw() -> void:
 	for place: Dictionary in _layout.places:
 		_draw_place(p, place)
 	if _wiring == null or not is_equal_approx(_wiring_k, k):
-		_wiring = CabinetWiring.build(document, _layout, k)
+		_wiring = CabinetWiring.build(document, _layout, k, board)
 		_wiring_k = k
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"])
 	for gland: Dictionary in _wiring.glands:
 		CabinetParts.cable_gland(p, gland["rect"], gland["bottom"])
 		if gland["bottom"]:
-			# The part the cable goes to, on a tag over the gland.
+			# The cable's name (or the part it goes to), on a tag over the gland.
 			var r: Rect2 = gland["rect"]
-			CabinetParts.label(p, r.get_center() + Vector2(0.0, -0.6), "-" + str(gland["cable"]), r.size.x - 1.0)
+			CabinetParts.label(p, r.get_center() + Vector2(0.0, -0.6), str(gland["cable"]), r.size.x - 1.0)
 	for place: Dictionary in _layout.places:
 		if place["label_w"] > 0.0:
 			CabinetParts.label(p, place["label_at"], "-" + str(place["designation"]), place["label_w"])

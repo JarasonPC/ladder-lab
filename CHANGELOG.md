@@ -95,6 +95,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   every station with its buttons and lamps, the groups and what has no place yet; a search
   field finds a device, a click opens its switchboard or station with it selected
 - Schematics saved before keep their switchboard as +RA1 and each control box as a station
+- Cables between the switchboards, control stations and parts in the field are worked out from
+  the wiring and drawn on the workspace with their name and core count (W1 · 4G); a stop button
+  wired straight on to the next station's gets a cable from station to station
+- A click on a cable lists its cores: what each core lands on at both ends (strip terminal or
+  device terminal) and its wire number; cables keep their names and can be renamed
+- The switchboard sends one field cable out to each control station and part in the field,
+  named like the cable on the workspace
 
 ### Files and export
 - Unsaved work is no longer lost when LadderLab crashes, freezes or is killed: a copy is kept

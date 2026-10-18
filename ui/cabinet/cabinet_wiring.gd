@@ -18,7 +18,9 @@ extends RefCounted
 ## ([method CabinetDevices.conductors]). Terminals of the strips that lead
 ## to parts outside (buttons, lamps, motors) send their field wires out:
 ## from the bottom of the terminal to the bottom duct and out through a
-## gland in the bottom of the enclosure, one cable per part. No nodes.
+## gland in the bottom of the enclosure, one cable for each cable of the
+## workspace (see [WorkspaceCables]: "W2" to a control station with all
+## its buttons and lamps), one per part for parts without a place. No nodes.
 
 ## Room between a duct and the bend into its slot.
 const BEND: float = 2.0
@@ -43,8 +45,8 @@ const SHARED: float = 0.9
 ## "width": float, "points": PackedVector2Array (mm, from one terminal to
 ## the other), "from", "to" (terminal keys in the circuit; for a core of a
 ## cable "from" names the cable), "external" (true for a core of a cable:
-## it starts at the gland), "cable" ("AC", "DC" or the part a field cable
-## goes to)}.
+## it starts at the gland), "cable" ("AC", "DC", or what is written on a
+## field cable: the workspace cable's name, "-SB1" for a part without a place)}.
 var wires: Array[Dictionary] = []
 ## Cable glands (mm): {"rect", "bottom" (in the bottom of the enclosure,
 ## a field cable going out; else the supply coming in at the top),
@@ -66,9 +68,9 @@ var _across: Array[Rect2] = []
 var _sides: Array[Rect2] = []
 
 
-## Wires of [param doc] laid out on [param layout] ([param k]: pixels per
-## mm the terminal strips are drawn at).
-static func build(doc: SchematicDocument, layout: CabinetLayout, k: float) -> CabinetWiring:
+## Wires of switchboard [param board] of [param doc] laid out on
+## [param layout] ([param k]: pixels per mm the terminal strips are drawn at).
+static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board: int = 0) -> CabinetWiring:
 	var wiring: CabinetWiring = CabinetWiring.new()
 	for duct: Dictionary in layout.ducts:
 		if duct["vertical"]:
@@ -101,7 +103,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float) -> Ca
 		for pair: Vector2i in wiring._tree(points, cores.has(n) and entry.is_empty()):
 			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
-	wiring._field_cables(edges, net, conductor)
+	wiring._field_cables(edges, net, conductor, _cable_names(doc, board))
 	wiring._route(edges)
 	wiring._glands()
 	return wiring
@@ -112,12 +114,13 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float) -> Ca
 ## meet), two cores to a slot of the bottom duct and a free slot beside it
 ## (closer together where the duct is short), a core to the field side of
 ## each terminal. Adds the cores to [param edges].
-func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], conductor: Dictionary[int, CabinetDevices.Conductor]) -> void:
+func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], conductor: Dictionary[int, CabinetDevices.Conductor], named: Dictionary[String, String]) -> void:
 	var cables: Dictionary[String, Array] = {}
 	for point: Dictionary in _field:
-		if not cables.has(point["field"]):
-			cables[point["field"]] = []
-		cables[point["field"]].append(point)
+		var cable: String = named.get(point["field"], "-" + str(point["field"]))
+		if not cables.has(cable):
+			cables[cable] = []
+		cables[cable].append(point)
 	var middle: Callable = func(points: Array) -> float:
 		var sum: float = 0.0
 		for point: Dictionary in points:
@@ -168,6 +171,31 @@ func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], condu
 			elif points[i]["kind"] == "N" and c == CabinetDevices.Conductor.CONTROL:
 				c = CabinetDevices.Conductor.NEUTRAL
 			edges.append({"net": n, "conductor": c, "a": core, "b": points[i], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
+
+
+## Part outside (designation) -> name of the workspace cable from switchboard
+## [param board] to where the part is (its station, itself in the field).
+static func _cable_names(doc: SchematicDocument, board: int) -> Dictionary[String, String]:
+	var result: Dictionary[String, String] = {}
+	if board < 0 or board >= doc.switchboards.size():
+		return result
+	var here: String = "+" + doc.switchboards[board].name
+	var stations: Dictionary[String, PackedStringArray] = {}
+	for box: ControlBox in doc.control_boxes:
+		var on: PackedStringArray = PackedStringArray()
+		for item: ControlBoxItem in box.items:
+			for designation: String in [item.designation, item.lamp]:
+				if not designation.is_empty():
+					on.append(designation)
+		stations["+" + box.name] = on
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		var other: String = cable["b"] if cable["a"] == here else (cable["a"] if cable["b"] == here else "")
+		if other.begins_with("-"):
+			result[other.substr(1)] = cable["name"]
+		elif stations.has(other):
+			for designation: String in stations[other]:
+				result[designation] = cable["name"]
+	return result
 
 
 ## The cores of the incoming cables: net -> the core feeding it, a point like

@@ -428,6 +428,7 @@ func change_type(component_id: String, template: Dictionary) -> String:
 func edit_workspace(change: Callable) -> void:
 	_record()
 	change.call(document())
+	document().name_cables()
 	edited.emit()
 
 
@@ -1444,6 +1445,8 @@ func _restore(snapshot: Dictionary) -> void:
 func _changed() -> void:
 	# Next to L2 or L3 a plain L supply becomes L1 (and stays selected).
 	var renamed: Dictionary[String, String] = document().name_first_phase()
+	# Cables of the workspace keep their names, new ones get the next.
+	document().name_cables()
 	for id: String in renamed:
 		if selected_components.erase(id):
 			selected_components[renamed[id]] = true
