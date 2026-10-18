@@ -50,6 +50,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   back exactly where they were
 
 ### Simulation
+- Keys of the keyboard operate push buttons and switches: right click on one in Edit mode (on
+  the schematic, an opened control station or the workspace tree), Bind a key…, and press the
+  key. While simulating a held key holds the button, a press flips a switch. The key shows as
+  a keycap beside the symbol, on the station's button and on the station's tile, lit while
+  held; a strip above the timing chart lists every key with what it operates
 - Mechanical links: in a group, a motor moves a part such as a gate from one end to the other
   in the time you set, and the part operates the group's limit switches where they are (at the
   ends, or as it passes one in between); the workspace shows the way with the switches on it
@@ -101,9 +106,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Schematics saved before keep their switchboard as +RA1 and each control box as a station
 - Cables between the switchboards, control stations and parts in the field are worked out from
   the wiring and drawn on the workspace as tracks (right angles with rounded corners, each
-  cable from a point of its own, power cables thicker) with their name and core count
-  (W1 · 4G); a stop button
+  cable from a point of its own, power cables thicker) with their name and type; a stop button
   wired straight on to the next station's gets a cable from station to station
+- Cables are typed like real ones: CGSG-J 4x2,5 (J with a PE core, O without), or, chosen in
+  View > Cable types, harmonised H07RN-F 4G2,5. Control cables are 1.5 mm², a cable to a motor
+  is sized for its rated current, other power cables for all the motors together
 - A click on a cable lists its cores: what each core lands on at both ends (strip terminal or
   device terminal) and its wire number; cables keep their names and can be renamed
 - The switchboard sends one field cable out to each control station and part in the field,

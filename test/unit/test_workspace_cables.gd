@@ -90,9 +90,34 @@ func test_names_in_turn_kept_and_renamed() -> void:
 	assert_eq(copy.cable_names, doc.cable_names, "names are saved")
 
 
-func test_cores_text() -> void:
-	assert_eq(WorkspaceCables.cores_text({"cores": [{"conductor": CabinetDevices.Conductor.CONTROL}, {"conductor": CabinetDevices.Conductor.PE}]}), "2G")
-	assert_eq(WorkspaceCables.cores_text({"cores": [{"conductor": CabinetDevices.Conductor.CONTROL}]}), "1")
+func test_type_text() -> void:
+	var with_pe: Dictionary = {"cores": [{"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.PE}], "section": 2.5}
+	var without: Dictionary = {"cores": [{"conductor": CabinetDevices.Conductor.CONTROL}, {"conductor": CabinetDevices.Conductor.CONTROL}], "section": 1.5}
+	WorkspaceCables.naming = WorkspaceCables.Naming.CZECH
+	assert_eq(WorkspaceCables.type_text(with_pe), "CGSG-J 3x2,5")
+	assert_eq(WorkspaceCables.type_text(without), "CGSG-O 2x1,5")
+	WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED
+	assert_eq(WorkspaceCables.type_text(with_pe), "H07RN-F 3G2,5")
+	assert_eq(WorkspaceCables.type_text(without), "H07RN-F 2x1,5")
+	WorkspaceCables.naming = WorkspaceCables.Naming.CZECH
+	assert_eq(WorkspaceCables.section_text(10.0), "10")
+
+
+func test_cross_section_by_rated_current() -> void:
+	var doc: SchematicDocument = _doc()
+	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M2")
+	motor.rated_current = 18.0
+	doc.add(motor, Vector2i(40, 30))
+	var big: ThreePhaseMotor = ThreePhaseMotor.new("M3")
+	big.rated_current = 30.0
+	doc.add(big, Vector2i(60, 30))
+	var power: Array = [{"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.PE}]
+	assert_eq(WorkspaceCables.section(doc, {"a": "+RA1", "b": "-M2", "cores": power}), 2.5, "18 A to the motor")
+	assert_eq(WorkspaceCables.section(doc, {"a": "+RA1", "b": "-M3", "cores": power}), 6.0, "30 A to the motor")
+	assert_eq(WorkspaceCables.section(doc, {"a": "+RA1", "b": "+RA2", "cores": power}), 10.0, "a feeder takes the motors together (48 A)")
+	assert_eq(WorkspaceCables.section(doc, {"a": "+RA1", "b": "-M2", "cores": [{"conductor": CabinetDevices.Conductor.CONTROL}]}), 1.5, "a control cable")
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		assert_true(cable.has("section"), "every cable has its cross-section")
 
 
 func test_nothing_placed_no_cables() -> void:

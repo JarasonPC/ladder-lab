@@ -69,6 +69,8 @@ func _sheet(copy: SchematicDocument, page_count: int) -> Dictionary:
 	var content: Node2D = Node2D.new()
 	viewport.add_child(content)
 	var view: SchematicView = SchematicView.new()
+	# Exported sheets show the circuit alone, no keys of the keyboard.
+	view.show_keys = false
 	view.set_wire_numbers_visible(wire_numbers)
 	view.set_path_numbers_visible(path_numbers)
 	content.add_child(view)

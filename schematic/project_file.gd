@@ -55,7 +55,9 @@ const FORMAT: String = "ladder-lab"
 ## 26: mechanical links of groups ("drive", "travel_time", "start", "stops":
 ## the motor moving the group's part and where its limit switches are;
 ## missing before: none).
-const VERSION: int = 26
+## 27: keys of the keyboard bound to push buttons and switches ("keys":
+## designation -> key; missing before: none).
+const VERSION: int = 27
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error.

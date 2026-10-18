@@ -3153,3 +3153,44 @@ msgstr ""
 
 msgid "The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch at an end is operated while the part is there, one in between while the part passes it."
 msgstr ""
+
+msgid "A key of the keyboard that operates it while simulating"
+msgstr ""
+
+msgid "Bind a key…"
+msgstr ""
+
+msgid "Bind a key"
+msgstr ""
+
+msgid "Cable types"
+msgstr ""
+
+msgid "Czech (CGSG-J 3x2,5)"
+msgstr ""
+
+msgid "EU harmonised (H07RN-F 3G2,5)"
+msgstr ""
+
+msgid "Keys"
+msgstr ""
+
+msgid "Keys of the keyboard bound to buttons and switches (right click on one in Edit mode: Bind a key…)"
+msgstr ""
+
+msgid "No key yet."
+msgstr ""
+
+#, c-format
+msgid "Now: %s"
+msgstr ""
+
+#, c-format
+msgid "Press a key for -%s"
+msgstr ""
+
+msgid "Space runs and pauses the simulation and F11 is full screen: choose another key."
+msgstr ""
+
+msgid "Take the key off"
+msgstr ""

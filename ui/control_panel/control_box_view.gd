@@ -12,6 +12,8 @@ signal button_held(designation: String, pressed: bool)
 signal switch_toggled(designation: String)
 ## An item was clicked while editing (-1: the housing beside the items).
 signal item_clicked(item_index: int)
+## An item was right-clicked (for its menu).
+signal item_menu(item_index: int)
 
 const CELL_W: float = 136.0
 const ROW_H: float = 60.0
@@ -42,6 +44,8 @@ const TITLE_TEXT := Color("80858a")
 ## Designations on the plates ("-SB1", "-H1"), teal as on the schematic.
 const PLATE_DESIGNATION := Color("5fd0c4")
 const DESIGNATION_FONT_SIZE: int = 10
+## Size of the keycaps of keys bound to the buttons and switches.
+const KEY_FONT_SIZE: int = 10
 ## Cap, grip and lens colours by [constant ControlBoxItem.COLORS] name.
 const COLORS: Dictionary[String, Color] = {
 	"green": Color("2ea44f"),
@@ -151,6 +155,12 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var hovered: int = _item_at((event as InputEventMouseMotion).position)
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if hovered >= 0 and _clickable(hovered) else Control.CURSOR_ARROW
+		return
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT and (event as InputEventMouseButton).pressed:
+		var at: int = _item_at((event as InputEventMouseButton).position)
+		if at >= 0:
+			item_menu.emit(at)
+			accept_event()
 		return
 	if not (event is InputEventMouseButton) or (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
 		return
@@ -262,6 +272,11 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 	if not _assigned(item):
 		# Not connected to the schematic: faded.
 		draw_rect(cell.grow(-1.0), Color(COVER, 0.55))
+	var key: String = document.key_bindings.get(item.designation, "") if item.kind != ControlBoxItem.Kind.LAMP else ""
+	if not key.is_empty():
+		# The key that operates it, on the cover at the top right of the bezel.
+		var held: bool = simulating and item.kind == ControlBoxItem.Kind.BUTTON and _travel(item.designation) > 0.5
+		Keycap.draw(self, center + Vector2(BEZEL_R * 0.55, -BEZEL_R - 6.0), key, KEY_FONT_SIZE, held)
 
 
 ## Label plate: the text in white with the designations in teal under it;

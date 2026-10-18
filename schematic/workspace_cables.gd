@@ -8,13 +8,32 @@ extends RefCounted
 ## switchboard; a net only between stations and parts in the field runs the
 ## shortest way between them (e.g. a stop button looped through from one
 ## station to the next). The cores between two places make one cable, named
-## W1, W2, ... ([member SchematicDocument.cable_names] keeps the names). No nodes.
+## W1, W2, ... ([member SchematicDocument.cable_names] keeps the names), and
+## gets a type as a real cable ([method type_text]). No nodes.
+
+## How cable types are written: Czech "CGSG-J 3x2,5" or the harmonised
+## "H07RN-F 3G2,5".
+enum Naming { CZECH, HARMONISED }
+
+## Copper cross-sections (mm²) with the most current (A) each is taken for,
+## smallest first (a flexible rubber cable laid on a surface, protected for
+## that current).
+const SECTIONS: Array[Vector2] = [
+	Vector2(1.5, 16.0), Vector2(2.5, 20.0), Vector2(4.0, 25.0), Vector2(6.0, 32.0),
+	Vector2(10.0, 50.0), Vector2(16.0, 63.0), Vector2(25.0, 80.0), Vector2(35.0, 100.0),
+	Vector2(50.0, 125.0), Vector2(70.0, 160.0), Vector2(95.0, 200.0), Vector2(120.0, 250.0),
+]
+## Cross-section of a cable without power cores (control circuits).
+const CONTROL_SECTION: float = 1.5
+
+## Naming of [method type_text] (View menu, kept in the user settings).
+static var naming: Naming = Naming.CZECH
 
 ## A cable: {"key" (its two ends, "+RA1|+ST1"), "name" ("W1"), "a", "b" (the
 ## ends: "+RA1" a switchboard or station, "-M1" a part in the field), "cores":
 ## [{"net", "conductor" ([enum CabinetDevices.Conductor]), "a", "b" (what the
 ## core lands on at each end, e.g. "X2:3", "SB1:13"), "number" (wire number,
-## may be empty)}]}, the PE core last.
+## may be empty)}], the PE core last, "section" (mm², see [method section])}.
 static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 	var circuit: Circuit = doc.circuit
 	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
@@ -101,6 +120,7 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 		var cable: Dictionary = found[key]
 		# The PE core last, as in a real cable.
 		(cable["cores"] as Array).sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["conductor"] != CabinetDevices.Conductor.PE and q["conductor"] == CabinetDevices.Conductor.PE)
+		cable["section"] = section(doc, cable)
 		result.append(cable)
 	result.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
 		if p["a"] != q["a"]:
@@ -110,13 +130,51 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 	return result
 
 
-## Short text of a cable's cores, e.g. "4G" (four cores, one of them PE) or "6".
-static func cores_text(cable: Dictionary) -> String:
-	var cores: Array = cable["cores"]
-	for core: Dictionary in cores:
-		if core["conductor"] == CabinetDevices.Conductor.PE:
-			return "%dG" % cores.size()
-	return str(cores.size())
+## Type of a cable as written on it: "CGSG-J 4x2,5" (J with a PE core, O
+## without) or harmonised "H07RN-F 4G2,5" (G with a PE core, x without), as
+## [member naming] says.
+static func type_text(cable: Dictionary) -> String:
+	var cores: int = (cable["cores"] as Array).size()
+	var pe: bool = false
+	for core: Dictionary in cable["cores"]:
+		pe = pe or core["conductor"] == CabinetDevices.Conductor.PE
+	var mm2: String = section_text(float(cable.get("section", CONTROL_SECTION)))
+	if naming == Naming.HARMONISED:
+		return "H07RN-F %d%s%s" % [cores, "G" if pe else "x", mm2]
+	return "CGSG-%s %dx%s" % ["J" if pe else "O", cores, mm2]
+
+
+## A cross-section as written on cables: "2,5", "10".
+static func section_text(mm2: float) -> String:
+	return str(snappedf(mm2, 0.1)).trim_suffix(".0").replace(".", ",")
+
+
+## Cross-section (mm²) of [param cable]: a cable without power cores is a
+## control cable ([constant CONTROL_SECTION]); one to a motor carries the
+## motor's rated current, any other power cable the rated currents of all
+## motors together (it feeds them), the smallest of [constant SECTIONS] that
+## takes it.
+static func section(doc: SchematicDocument, cable: Dictionary) -> float:
+	var power: bool = false
+	for core: Dictionary in cable["cores"]:
+		power = power or core["conductor"] == CabinetDevices.Conductor.POWER
+	if not power:
+		return CONTROL_SECTION
+	var amps: float = 0.0
+	var motor: bool = false
+	for end: String in [cable["a"], cable["b"]]:
+		var c: CircuitComponent = Workspace.field_component(doc.circuit, end.substr(1)) if end.begins_with("-") else null
+		if c is ThreePhaseMotor:
+			amps = maxf(amps, (c as ThreePhaseMotor).rated_current)
+			motor = true
+	if not motor:
+		for c: CircuitComponent in doc.circuit.get_components():
+			if c is ThreePhaseMotor:
+				amps += (c as ThreePhaseMotor).rated_current
+	for entry: Vector2 in SECTIONS:
+		if amps <= entry.y:
+			return entry.x
+	return SECTIONS[SECTIONS.size() - 1].x
 
 
 ## A cable name as saved: "" when unusable (empty, spaces, colons, "|").

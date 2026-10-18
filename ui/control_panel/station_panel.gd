@@ -14,6 +14,8 @@ signal button_held(designation: String, pressed: bool)
 signal switch_toggled(designation: String)
 ## A change of the station: [param change] is called with the document.
 signal edit_requested(change: Callable)
+## A key should be bound to push button or switch [param designation].
+signal key_bind_requested(designation: String)
 
 ## English names of [enum ControlBoxItem.Kind] (translated with tr()).
 const KIND_TITLES: PackedStringArray = ["Push button", "Switch", "Signal lamp"]
@@ -32,6 +34,8 @@ var _note: Label
 var _view: ControlBoxView
 var _rebuild_queued: bool = false
 var _swatches: Dictionary[String, Texture2D] = {}
+var _menu: PopupMenu
+var _menu_device: String = ""
 
 
 func _ready() -> void:
@@ -61,6 +65,11 @@ func _ready() -> void:
 	_view.item_clicked.connect(func(index: int) -> void:
 		_selected_item = index
 		_rebuild_queued = true)
+	_view.item_menu.connect(_open_item_menu)
+	_menu = PopupMenu.new()
+	_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_menu.id_pressed.connect(func(_id: int) -> void: key_bind_requested.emit(_menu_device))
+	add_child(_menu)
 	zoom_box.add_child(_view)
 	_tools = PanelContainer.new()
 	_tools.theme_type_variation = "RightPanel"
@@ -106,6 +115,22 @@ func select_device(designation: String) -> void:
 			_selected_item = i
 			_rebuild()
 			return
+
+
+## Right click on item [param index]: bind a key to its button or switch (Edit mode).
+func _open_item_menu(index: int) -> void:
+	var b: int = _box()
+	if not _editing or b < 0 or index >= _document.control_boxes[b].items.size():
+		return
+	var item: ControlBoxItem = _document.control_boxes[b].items[index]
+	if item.designation.is_empty() or not _document.can_have_key(item.designation):
+		return
+	_menu_device = item.designation
+	_menu.clear()
+	var key: String = _document.key_bindings.get(item.designation, "")
+	_menu.add_item(tr("Bind a key…") + ("  [%s]" % key if not key.is_empty() else ""))
+	_menu.reset_size()
+	_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
 
 
 func _process(_delta: float) -> void:

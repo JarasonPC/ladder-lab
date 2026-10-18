@@ -19,8 +19,10 @@ signal operate_requested(designation: String)
 signal window_requested(kind: Workspace.Place, place_name: String)
 ## Part [param designation] should be shown in the schematic.
 signal schematic_requested(designation: String)
+## A key should be bound to push button or switch [param designation].
+signal key_bind_requested(designation: String)
 
-enum MenuId { OPEN, WINDOW, RENAME, DELETE, SCHEMATIC, LEAVE_GROUP, ADD_SWITCHBOARD, ADD_STATION, ADD_GROUP, LINK }
+enum MenuId { OPEN, WINDOW, RENAME, DELETE, SCHEMATIC, LEAVE_GROUP, ADD_SWITCHBOARD, ADD_STATION, ADD_GROUP, LINK, BIND_KEY }
 
 var tree: WorkspaceTree
 var canvas: WorkspaceCanvas
@@ -240,6 +242,7 @@ static func forward_panel(panel: Control, target: Object) -> void:
 		panel.connect("operate_requested", func(designation: String) -> void: target.emit_signal("operate_requested", designation))
 	else:
 		panel.connect("edit_requested", func(change: Callable) -> void: target.emit_signal("edit_requested", change))
+		panel.connect("key_bind_requested", func(designation: String) -> void: target.emit_signal("key_bind_requested", designation))
 		panel.connect("button_held", func(designation: String, pressed: bool) -> void: target.emit_signal("button_held", designation, pressed))
 		panel.connect("switch_toggled", func(designation: String) -> void: target.emit_signal("switch_toggled", designation))
 
@@ -417,6 +420,9 @@ func _open_menu(entry: Dictionary, at: Vector2, screen: Vector2) -> void:
 		_menu.add_item(tr("Open"), MenuId.OPEN)
 		_menu.add_item(tr("Open in a new window"), MenuId.WINDOW)
 		_menu.set_item_tooltip(_menu.item_count - 1, tr("Shows it in a window of its own, e.g. on a second monitor; while simulating, it works there too"))
+	if kind == "control" and _editing and _document.can_have_key(entry["designation"]):
+		var key: String = _document.key_bindings.get(entry["designation"], "")
+		_menu.add_item(tr("Bind a key…") + ("  [%s]" % key if not key.is_empty() else ""), MenuId.BIND_KEY)
 	if kind == "cable":
 		_menu.add_item(tr("Show the cores"), MenuId.OPEN)
 		if _editing:
@@ -474,6 +480,8 @@ func _on_menu(id: int) -> void:
 			_add(Workspace.Place.GROUP, _menu_at.snappedf(WorkspaceCanvas.SNAP))
 		MenuId.LINK:
 			_open_link(entry["name"])
+		MenuId.BIND_KEY:
+			key_bind_requested.emit(entry["designation"])
 
 
 ## Adds a place of [param kind] at [param at] (a free spot when null) and shows it.

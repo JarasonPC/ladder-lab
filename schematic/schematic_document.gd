@@ -29,6 +29,10 @@ var groups: Array[WorkspaceGroup] = []
 ## Workspace: where the parts in the field were put (designation -> position;
 ## see [method Workspace.field_positions] for those not put anywhere).
 var field_positions: Dictionary[String, Vector2] = {}
+## Keys of the keyboard that operate push buttons and switches while
+## simulating: designation -> key, as [method OS.get_keycode_string] names it
+## ("S", "1", "F2"); a key operates one device at most.
+var key_bindings: Dictionary[String, String] = {}
 ## Workspace: names of the cables between places (cable key "+RA1|+ST1" ->
 ## name, see [WorkspaceCables]), kept so a cable keeps its name.
 var cable_names: Dictionary[String, String] = {}
@@ -1031,6 +1035,9 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 		rename_control_device(old.designation, new_component.designation)
 		rename_cabinet_device(old.designation, new_component.designation)
 		rename_field_device(old.designation, new_component.designation)
+		if key_bindings.has(old.designation):
+			key_bindings[new_component.designation] = key_bindings[old.designation]
+			key_bindings.erase(old.designation)
 	return true
 
 
@@ -1986,6 +1993,41 @@ func _spot_without(place: RefCounted) -> Vector2:
 		if other != place and at.x > -INF:
 			right = maxf(right, at.x + Workspace.PLACE_SIZE.x)
 	return Vector2.ZERO if right == -INF else Vector2(right + Workspace.SPACING, 0.0)
+
+
+# --- Keys -------------------------------------------------------------------------------
+
+## True for a device a key can operate: a push button or a switch (not a
+## limit switch, the machine operates those).
+func can_have_key(designation: String) -> bool:
+	var kind: int = ControlBoxItem.kind_of(circuit.get_operator(designation))
+	return kind == ControlBoxItem.Kind.BUTTON or kind == ControlBoxItem.Kind.SWITCH
+
+
+## Binds [param key] (see [member key_bindings]; "" takes the key off) to
+## push button or switch [param designation]; a device the key operated
+## before loses it. Returns false for another kind of device or an unknown key.
+func set_key(designation: String, key: String) -> bool:
+	if not can_have_key(designation):
+		return false
+	if key.is_empty():
+		key_bindings.erase(designation)
+		return true
+	if OS.find_keycode_from_string(key) == KEY_NONE:
+		return false
+	for other: String in key_bindings.keys():
+		if key_bindings[other] == key:
+			key_bindings.erase(other)
+	key_bindings[designation] = key
+	return true
+
+
+## The push button or switch [param key] operates, "" for none.
+func device_of_key(key: String) -> String:
+	for designation: String in key_bindings:
+		if key_bindings[designation] == key:
+			return designation
+	return ""
 
 
 # --- Control stations ---------------------------------------------------------------

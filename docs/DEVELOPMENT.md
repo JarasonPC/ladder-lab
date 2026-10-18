@@ -151,7 +151,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   station to station). The cores between two places are one cable (key "+RA1|+ST1", its ends in
   workspace order: switchboards, stations, parts), each core with what it lands on at both ends
   (at a switchboard its strip terminals alone when it has some) and its wire number, the PE core
-  last; "4G" counts the cores with a PE one. Names W1, W2, … in order, kept in
+  last. A cable's type (WorkspaceCables.type_text) is "CGSG-J 4x2,5" (J with a PE core, O
+  without) or harmonised "H07RN-F 4G2,5" (G with PE, x without) by WorkspaceCables.naming (View
+  menu, user settings "cable_types"); its cross-section (WorkspaceCables.section, "section" in
+  the cable) is CONTROL_SECTION without power cores, else the smallest of SECTIONS taking the
+  current: a motor's rated current for a cable to it, all motors' together for any other.
+  Names W1, W2, … in order, kept in
   SchematicDocument.cable_names (saved as "cables"; name_cables after every edit gives new
   cables the first free number and drops the names of cables that are gone; renaming a place
   or a part keeps its cables' names; rename_cable). WorkspaceCanvas draws them under the tiles
@@ -161,7 +166,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   in line with its other end's port (two rounds), a lane apart from the others on that side,
   runs out STUB, then at right angles (Z or L) with CORNER-rounded bends, the middle run moved
   by its lane; a dot at both ports; power cables (with a power core) thicker and darker; the
-  name and core count on a tag on the longest straight run (place texts sit on paper over
+  name and type on a tag on the longest straight run (two lines, or the name alone, when it
+  does not fit; the tooltip has it all) (place texts sit on paper over
   lines passing behind); a click on a cable (tag or line) or on it in the tree ("Cables")
   opens CablePanel in place of the canvas: a row per core, wire number, both ends
 - Mechanical links (Travel in sim/, no nodes): a group's member motor (WorkspaceGroup.drive)
@@ -177,6 +183,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   "let go". The canvas draws the link as dashed lines from the motor to the switches and the
   way along the bottom of the group's frame: a tick per switch, the start (Edit) or where the
   part is (Simulate, SchematicView.travel_positions)
+- Keys: SchematicDocument.key_bindings (designation -> key name as OS.get_keycode_string, e.g.
+  "A", "F2"; saved as "keys") for push buttons and switches (can_have_key); set_key keeps a key
+  on one device (undoable through SchematicEditor.edit_workspace), device_of_key finds it; a
+  renamed device keeps its key. "Bind a key…" in the context menus of the schematic, an opened
+  station (StationPanel) and the workspace tree opens KeyPrompt (window_input: Esc, Enter, Tab
+  and combinations with Ctrl/Alt/Meta are ignored, Space and F11 refused, Delete/Backspace takes
+  the key off). While simulating main.gd's _bound_key runs before the shortcuts (no Ctrl/Alt/
+  Meta): a push button is held while its key is down (released on focus loss), a switch flips
+  on a press; also from PlaceWindows. Keycap draws a key; SchematicSymbol.key (SchematicView
+  sets it when show_keys, off for exports), ControlBoxView and the station's tile draw them,
+  lit while a button is held. KeyStrip above the timing panel (Simulate, when there are keys)
+  lists every key, what it operates and where, rolled in or out (user settings "keys_rolled")
 - Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
