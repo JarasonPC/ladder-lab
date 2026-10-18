@@ -25,13 +25,15 @@ signal page_requested(index: int, focus_id: String)
 signal plc_requested(component_id: String)
 ## The datasheet of a part was asked for (right click menu).
 signal datasheet_requested(component_id: String)
+## A key should be bound to push button or switch [param designation] (right click menu).
+signal key_bind_requested(designation: String)
 
 enum Tool { SELECT, PLACE, WIRE }
 
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, GO_TO = 100 }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 
@@ -429,6 +431,8 @@ func edit_workspace(change: Callable) -> void:
 	_record()
 	change.call(document())
 	document().name_cables()
+	# Keycaps on the symbols follow bound keys.
+	view.rebuild()
 	edited.emit()
 
 
@@ -624,6 +628,10 @@ func _open_context_menu() -> void:
 		_menu.add_separator()
 	if hit != null and selected_components.size() == 1 and not (hit is Junction):
 		_menu.add_item(tr("Datasheet"), MenuId.DATASHEET, KEY_F1)
+		if doc.can_have_key(hit.designation):
+			var key: String = doc.key_bindings.get(hit.designation, "")
+			_menu.add_item(tr("Bind a key…") + ("  [%s]" % key if not key.is_empty() else ""), MenuId.BIND_KEY)
+			_menu.set_item_tooltip(_menu.item_count - 1, tr("A key of the keyboard that operates it while simulating"))
 		_menu.add_separator()
 	if hit != null and selected_components.size() == 1:
 		_change_options = type_options(hit)
@@ -675,6 +683,9 @@ func _on_menu_id(id: int) -> void:
 		MenuId.DATASHEET:
 			if selected_components.size() == 1:
 				datasheet_requested.emit(selected_components.keys()[0])
+		MenuId.BIND_KEY:
+			if selected_components.size() == 1:
+				key_bind_requested.emit(document().circuit.get_component(selected_components.keys()[0]).designation)
 		MenuId.ADD_STRIP, MenuId.REMOVE_STRIP:
 			if _menu_strip.is_empty() or not document().circuit.has_component_id(_menu_strip["component"]):
 				return

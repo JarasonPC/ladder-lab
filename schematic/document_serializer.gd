@@ -72,6 +72,12 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 			field[designation] = [at.x, at.y]
 	if not field.is_empty():
 		result["field"] = field
+	var keys: Dictionary = {}
+	for designation: String in doc.key_bindings:
+		if doc.can_have_key(designation):
+			keys[designation] = doc.key_bindings[designation]
+	if not keys.is_empty():
+		result["keys"] = keys
 	if not doc.cable_names.is_empty():
 		var names: Dictionary = {}
 		for key: String in doc.cable_names:
@@ -179,6 +185,11 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 		for designation: Variant in raw_field:
 			if designation is String and Workspace.field_component(doc.circuit, designation) != null:
 				doc.field_positions[designation] = Workspace.position_from(raw_field[designation])
+	var raw_keys: Variant = d.get("keys", {})
+	if raw_keys is Dictionary:
+		for designation: Variant in raw_keys:
+			if designation is String and raw_keys[designation] is String:
+				doc.set_key(designation, raw_keys[designation])
 	var raw_cables: Variant = d.get("cables", {})
 	if raw_cables is Dictionary:
 		for key: Variant in raw_cables:

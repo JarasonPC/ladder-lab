@@ -21,6 +21,9 @@ var warning: bool = false
 var hovered: bool = false
 ## False for palette previews.
 var show_labels: bool = true
+## Key of the keyboard bound to the device ("" for none), drawn as a keycap
+## after the designation.
+var key: String = ""
 ## True for palette previews (supplies there show their name only).
 var preview: bool = false
 ## Markings written at the last draw, for editing them in place:
@@ -85,6 +88,8 @@ func _draw() -> void:
 	if show_labels:
 		_draw_labels()
 		_draw_strip_labels()
+		if not key.is_empty():
+			_draw_keycap()
 	if has_fault():
 		draw_set_transform_matrix(unscale)
 		_draw_fault_marker(to_upright(Vector2(0.9 * G, 0.9 * G)))
@@ -305,6 +310,18 @@ func _draw_labels() -> void:
 	if names.size() == 2:
 		draw_label(names[0], Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 		draw_label(names[1], Vector2(0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+
+
+## The keycap of [member key] right after the designation, lit while the
+## device is operated.
+func _draw_keycap() -> void:
+	for entry: Array in marking_rects:
+		if entry[0] == "designation":
+			var rect: Rect2 = entry[2]
+			var cap: Vector2 = Keycap.size_of(key, SchematicTheme.TERMINAL_SIZE)
+			var lit: bool = component is SwitchingElement and (component as SwitchingElement).get_travel() > 0.5
+			Keycap.draw(self, Vector2(rect.end.x + 4.0, rect.get_center().y - cap.y * 0.5), key, SchematicTheme.TERMINAL_SIZE, lit and not (component is LatchingSwitch))
+			return
 
 
 ## True when a fault is injected into this component (simulation only).

@@ -97,6 +97,10 @@ func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 
 ## Recreates all symbol nodes, e.g. after the document was edited or another
 ## page was chosen.
+## Keycaps of the keys bound to buttons and switches are drawn (not on exported sheets).
+var show_keys: bool = true
+
+
 func rebuild() -> void:
 	_set_hovered(null)
 	for child: Node in get_children():
@@ -116,6 +120,8 @@ func rebuild() -> void:
 	_wire_layer.set_document(document)
 	for c: CircuitComponent in document.components_on_page(page):
 		var symbol: SchematicSymbol = SymbolFactory.create(c, document.get_placement(c.id))
+		if show_keys and document.circuit.get_operator(c.designation) == c:
+			symbol.key = document.key_bindings.get(c.designation, "")
 		if symbol is PageConnectorSymbol:
 			(symbol as PageConnectorSymbol).reference = document.connector_reference(c.id)
 		add_child(symbol)
@@ -393,7 +399,6 @@ func hold_button(designation: String, pressed: bool) -> void:
 	_apply(simulator.step())
 
 
-## Turns switch [param designation] over, as from a control box.
 ## Where each part moved by a motor is (group name -> 0-1), while simulating.
 func travel_positions() -> Dictionary[String, float]:
 	var result: Dictionary[String, float] = {}
@@ -403,6 +408,7 @@ func travel_positions() -> Dictionary[String, float]:
 	return result
 
 
+## Turns switch [param designation] over, as from a control box.
 func toggle_switch(designation: String) -> void:
 	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating or not (c is LatchingSwitch):

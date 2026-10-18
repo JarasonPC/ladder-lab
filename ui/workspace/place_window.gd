@@ -13,6 +13,7 @@ signal cabinet_edit_requested(change: Callable)
 signal button_held(designation: String, pressed: bool)
 signal switch_toggled(designation: String)
 signal operate_requested(designation: String)
+signal key_bind_requested(designation: String)
 
 var kind: Workspace.Place
 var place_name: String
@@ -104,7 +105,7 @@ class _Keys extends Node:
 
 	func _unhandled_input(event: InputEvent) -> void:
 		var key: InputEventKey = event as InputEventKey
-		if key == null or not key.pressed or key.echo:
+		if key == null or key.echo:
 			return
 		window.key_pressed.emit(key)
 		get_viewport().set_input_as_handled()

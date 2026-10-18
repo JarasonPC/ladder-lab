@@ -3,6 +3,7 @@ extends MarginContainer
 ## The cores of one cable of the workspace, opened from it: a list with a row
 ## per core, its wire number and what it lands on at each end (a strip
 ## terminal "X2:3", a device terminal "SB1:13"); the PE core last, marked PE.
+## Above it the cable's name and type.
 
 ## Key of the cable shown ("+RA1|+ST1", see [method WorkspaceCables.cables]).
 var cable_key: String = ""
@@ -65,7 +66,7 @@ func _rebuild() -> void:
 		_note.text = ""
 		return
 	var cores: Array = shown["cores"]
-	_note.text = tr_n("%d core between %s and %s, worked out from the wiring of the schematic.", "%d cores between %s and %s, worked out from the wiring of the schematic.", cores.size()) % [cores.size(), shown["a"], shown["b"]]
+	_note.text = "%s %s.  " % [shown["name"], WorkspaceCables.type_text(shown)] + tr_n("%d core between %s and %s, worked out from the wiring of the schematic.", "%d cores between %s and %s, worked out from the wiring of the schematic.", cores.size()) % [cores.size(), shown["a"], shown["b"]]
 	_list.set_column_title(0, tr("Core"))
 	_list.set_column_title(1, tr("Wire number"))
 	_list.set_column_title(2, str(shown["a"]))

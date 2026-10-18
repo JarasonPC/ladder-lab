@@ -116,7 +116,7 @@ func _fill(root: TreeItem) -> void:
 		var head: TreeItem = _heading(root, "cables", tr("Cables"))
 		head.set_tooltip_text(0, tr("Worked out from the wiring: the cores between each two places"))
 		for cable: Dictionary in cables:
-			var item: TreeItem = _entry(head, cable["name"], "%s – %s  (%s)" % [cable["a"], cable["b"], WorkspaceCables.cores_text(cable)], {"place": -1, "name": cable["key"], "designation": "", "kind": "cable"}, filter)
+			var item: TreeItem = _entry(head, cable["name"], "%s – %s  (%s)" % [cable["a"], cable["b"], WorkspaceCables.type_text(cable)], {"place": -1, "name": cable["key"], "designation": "", "kind": "cable"}, filter)
 			if item != null and opened == "=" + str(cable["key"]):
 				item.select(0)
 		_finish(head, filter)

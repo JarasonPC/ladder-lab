@@ -3162,3 +3162,44 @@ msgstr "Začíná na"
 
 msgid "The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch at an end is operated while the part is there, one in between while the part passes it."
 msgstr "Motor pohybuje dílem z jednoho konce (0 %) na druhý (100 %): při chodu vpřed (doprava) k 100 %, vzad k 0 %. Koncový spínač na konci je ovládnutý, dokud tam díl stojí, spínač mezi konci, když kolem něj díl projíždí."
+
+msgid "A key of the keyboard that operates it while simulating"
+msgstr "Klávesa, která ho při simulaci ovládá"
+
+msgid "Bind a key…"
+msgstr "Přiřadit klávesu…"
+
+msgid "Bind a key"
+msgstr "Přiřadit klávesu"
+
+msgid "Cable types"
+msgstr "Typy kabelů"
+
+msgid "Czech (CGSG-J 3x2,5)"
+msgstr "České (CGSG-J 3x2,5)"
+
+msgid "EU harmonised (H07RN-F 3G2,5)"
+msgstr "Harmonizované EU (H07RN-F 3G2,5)"
+
+msgid "Keys"
+msgstr "Klávesy"
+
+msgid "Keys of the keyboard bound to buttons and switches (right click on one in Edit mode: Bind a key…)"
+msgstr "Klávesy přiřazené tlačítkům a přepínačům (v režimu Úpravy pravé tlačítko myši na jednom z nich: Přiřadit klávesu…)"
+
+msgid "No key yet."
+msgstr "Zatím bez klávesy."
+
+#, c-format
+msgid "Now: %s"
+msgstr "Nyní: %s"
+
+#, c-format
+msgid "Press a key for -%s"
+msgstr "Stiskněte klávesu pro -%s"
+
+msgid "Space runs and pauses the simulation and F11 is full screen: choose another key."
+msgstr "Mezerník spouští a pozastavuje simulaci a F11 přepíná celou obrazovku: zvolte jinou klávesu."
+
+msgid "Take the key off"
+msgstr "Odebrat klávesu"

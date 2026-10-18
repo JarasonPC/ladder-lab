@@ -173,12 +173,26 @@ func cable_paths() -> Array[Dictionary]:
 			if corners[i].distance_to(corners[i + 1]) > corners[longest].distance_to(corners[longest + 1]):
 				longest = i
 		var middle: Vector2 = (corners[longest] + corners[longest + 1]) * 0.5
-		var text: String = "%s · %s" % [cable["name"], WorkspaceCables.cores_text(cable)]
+		var text: String = "%s · %s" % [cable["name"], WorkspaceCables.type_text(cable)]
 		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
+		var h: float = 16.0
+		# On a short run the name and the type go on two lines, on a shorter
+		# one only the name shows.
+		var room: float = corners[longest].distance_to(corners[longest + 1]) - 8.0
+		# Along a vertical run the tag's height counts.
+		var upright: bool = absf(corners[longest].x - corners[longest + 1].x) < 1.0
+		if (h if upright else w) > room:
+			text = "%s\n%s" % [cable["name"], WorkspaceCables.type_text(cable)]
+			w = font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
+			h = 30.0
+		if (h if upright else w) > room:
+			text = cable["name"]
+			w = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
+			h = 16.0
 		var power: bool = false
 		for core: Dictionary in cable["cores"]:
 			power = power or core["conductor"] == CabinetDevices.Conductor.POWER
-		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": Rect2(middle - Vector2(w, 16.0) * 0.5, Vector2(w, 16.0)), "text": text, "power": power, "ports": PackedVector2Array([pa, pb])})
+		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": Rect2(middle - Vector2(w, h) * 0.5, Vector2(w, h)), "text": text, "power": power, "ports": PackedVector2Array([pa, pb])})
 	return result
 
 
@@ -360,6 +374,17 @@ func item_at(point: Vector2) -> Dictionary:
 			if Geometry2D.get_closest_point_to_segment(at, points[i], points[i + 1]).distance_to(at) <= reach:
 				return _cable_item(path)
 	return {}
+
+
+## A cable under the mouse tells its name, type and ends.
+func _get_tooltip(at_position: Vector2) -> String:
+	var found: Dictionary = item_at(at_position)
+	if found.get("kind", "") != "cable":
+		return ""
+	for cable: Dictionary in cables():
+		if cable["key"] == found["name"]:
+			return "%s  %s\n%s – %s" % [cable["name"], WorkspaceCables.type_text(cable), cable["a"], cable["b"]]
+	return ""
 
 
 func _cable_item(path: Dictionary) -> Dictionary:
@@ -596,7 +621,7 @@ func _draw() -> void:
 		box.set_corner_radius_all(4)
 		box.anti_aliasing = true
 		box.draw(get_canvas_item(), tag)
-		draw_string(font, Vector2(tag.position.x, tag.position.y + 12.0), path["text"], HORIZONTAL_ALIGNMENT_CENTER, tag.size.x, SMALL_SIZE, SchematicTheme.TEXT)
+		draw_multiline_string(font, Vector2(tag.position.x, tag.position.y + 12.0), path["text"], HORIZONTAL_ALIGNMENT_CENTER, tag.size.x, SMALL_SIZE, -1, SchematicTheme.TEXT)
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -678,7 +703,21 @@ func _draw_place(item: Dictionary) -> void:
 	draw_rect(Rect2(tile.end.x + 4.0, rect.position.y, rect.end.x - tile.end.x - 4.0, rect.size.y), SchematicTheme.BACKGROUND)
 	draw_string(font, Vector2(x, rect.position.y + 17.0), "+" + str(item["name"]), HORIZONTAL_ALIGNMENT_LEFT, w, NAME_SIZE, SchematicTheme.DESIGNATION)
 	draw_string(font, Vector2(x, rect.position.y + 34.0), title, HORIZONTAL_ALIGNMENT_LEFT, w, TEXT_SIZE, SchematicTheme.TEXT)
-	draw_string(font, Vector2(x, rect.position.y + 50.0), summary, HORIZONTAL_ALIGNMENT_LEFT, w, SMALL_SIZE, SchematicTheme.PATH_TEXT)
+	var keys: PackedStringArray = PackedStringArray()
+	if item["kind"] == "station":
+		for station_item: ControlBoxItem in document.control_boxes[item["index"]].items:
+			var key: String = document.key_bindings.get(station_item.designation, "") if station_item.kind != ControlBoxItem.Kind.LAMP else ""
+			if not key.is_empty():
+				keys.append(key)
+	if keys.is_empty():
+		draw_string(font, Vector2(x, rect.position.y + 50.0), summary, HORIZONTAL_ALIGNMENT_LEFT, w, SMALL_SIZE, SchematicTheme.PATH_TEXT)
+	else:
+		# The keys that operate its buttons and switches, in place of the summary.
+		var at: Vector2 = Vector2(x, rect.position.y + 40.0)
+		for key: String in keys:
+			if at.x + Keycap.size_of(key, 10).x > rect.end.x:
+				break
+			at.x = Keycap.draw(self, at, key, 10).end.x + 3.0
 
 
 func _draw_field(item: Dictionary) -> void:

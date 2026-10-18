@@ -9,7 +9,7 @@ enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20, CABLES_CZECH = 40, CABLES_HARMONISED }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS }
@@ -83,6 +83,7 @@ var _numbers_toggle: Button
 var _sim_tools: HBoxContainer
 var _switching_select: OptionButton
 var _timing_panel: TimingPanel
+var _key_strip: KeyStrip
 var _run_button: Button
 var _step_button: Button
 var _speed_select: OptionButton
@@ -137,6 +138,10 @@ var _datasheet_window: DatasheetWindow = null
 var _workspace: WorkspaceView
 ## The next document shown fits the whole workspace into view (a new schematic).
 var _workspace_fit: bool = true
+## Asks for the key of a push button or switch.
+var _key_prompt: KeyPrompt
+## Push buttons held down by their keys.
+var _keys_down: Dictionary[String, bool] = {}
 var _check_panel: CheckPanel
 var _status_label: Label
 var _hint_label: Label
@@ -144,6 +149,8 @@ var _editor_hint: String = ""
 ## Timing chart and event log rolled out in Simulate mode (remembered).
 var _show_chart: bool = false
 var _show_log: bool = false
+## The key strip shows only its title.
+var _keys_rolled: bool = false
 var _theme_variant: AppTheme.Variant = AppTheme.Variant.DARK
 ## Keep the schematic on white paper in the dark theme.
 var _white_paper: bool = false
@@ -224,6 +231,8 @@ func _ready() -> void:
 	_workspace.operate_requested.connect(view.operate_device)
 	_workspace.window_requested.connect(open_place_window)
 	_workspace.schematic_requested.connect(_show_in_schematic)
+	_workspace.key_bind_requested.connect(_ask_key)
+	editor.key_bind_requested.connect(_ask_key)
 	editor.edited.connect(func() -> void:
 		for window: PlaceWindow in _place_windows():
 			window.refresh())
@@ -271,19 +280,56 @@ func _process(_delta: float) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_confirm_discard(_quit)
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		# A key let go elsewhere never comes back: let its buttons go now.
+		_release_bound_keys()
 
 
-## Space runs or pauses the simulation, unless a text field is being typed in
-## (taken before the controls, so a focused list or button does not eat it).
+## Space runs or pauses the simulation and bound keys operate their buttons
+## and switches, unless a text field is being typed in (taken before the
+## controls, so a focused list or button does not eat them).
 func _input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
-	if key == null or not key.pressed or key.echo or key.keycode != KEY_SPACE:
+	if key == null:
 		return
 	var focus: Control = get_viewport().gui_get_focus_owner()
 	if focus is LineEdit or focus is TextEdit:
 		return
+	if _bound_key(key):
+		get_viewport().set_input_as_handled()
+		return
+	if not key.pressed or key.echo or key.keycode != KEY_SPACE:
+		return
 	if _toggle_run_key(key):
 		get_viewport().set_input_as_handled()
+
+
+## While simulating, a key bound to a push button holds it down while the key
+## is down; one bound to a switch turns it over. Returns true when the key is bound.
+func _bound_key(key: InputEventKey) -> bool:
+	if mode != Mode.SIMULATE or view.document == null or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+		return false
+	var designation: String = view.document.device_of_key(OS.get_keycode_string(key.keycode))
+	if designation.is_empty():
+		return false
+	if key.echo:
+		return true
+	var device: CircuitComponent = view.document.circuit.get_operator(designation)
+	if device is PushButton:
+		if key.pressed:
+			_keys_down[designation] = true
+		else:
+			_keys_down.erase(designation)
+		view.hold_button(designation, key.pressed)
+	elif device is LatchingSwitch and key.pressed:
+		view.toggle_switch(designation)
+	return true
+
+
+func _release_bound_keys() -> void:
+	for designation: String in _keys_down.keys():
+		view.hold_button(designation, false)
+	_keys_down.clear()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -293,7 +339,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## A key pressed in a page window: the same shortcuts as here.
 func _on_window_key(key: InputEventKey) -> void:
-	if not key.pressed or key.echo:
+	if _bound_key(key) or not key.pressed or key.echo:
 		return
 	if key.keycode == KEY_SPACE:
 		_toggle_run_key(key)
@@ -535,6 +581,12 @@ func _build_ui() -> void:
 	_timing_panel.log_width = _timing_size.x
 	_timing_panel.resized_by_user.connect(_save_settings)
 	_timing_panel.parts_toggled.connect(_on_timing_parts_toggled)
+	_key_strip = KeyStrip.new()
+	_key_strip.rolled = _keys_rolled
+	_key_strip.rolled_changed.connect(func(rolled: bool) -> void:
+		_keys_rolled = rolled
+		_save_settings())
+	root.add_child(_key_strip)
 	root.add_child(_timing_panel)
 
 	var bottom: PanelContainer = PanelContainer.new()
@@ -664,6 +716,10 @@ func _build_dialogs() -> void:
 	add_child(_update_dialog)
 	_about_dialog = AboutDialog.new()
 	add_child(_about_dialog)
+	_key_prompt = KeyPrompt.new()
+	_key_prompt.chosen.connect(func(designation: String, key: String) -> void:
+		editor.edit_workspace(func(doc: SchematicDocument) -> void: doc.set_key(designation, key)))
+	add_child(_key_prompt)
 	_retranslate_dialogs()
 
 
@@ -779,6 +835,7 @@ func _retranslate() -> void:
 	if _datasheet_window != null:
 		_datasheet_window.retranslate()
 	_timing_panel.retranslate()
+	_key_strip.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
 		_check_panel.run(edit_doc)
@@ -861,6 +918,11 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_checked(popup.item_count - 1, not _current_view)
 	popup.add_radio_check_item(tr("Current view"), ViewMenuId.CURRENT_VIEW)
 	popup.set_item_checked(popup.item_count - 1, _current_view)
+	popup.add_separator(tr("Cable types"))
+	popup.add_radio_check_item(tr("Czech (CGSG-J 3x2,5)"), ViewMenuId.CABLES_CZECH)
+	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.CZECH)
+	popup.add_radio_check_item(tr("EU harmonised (H07RN-F 3G2,5)"), ViewMenuId.CABLES_HARMONISED)
+	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED)
 	popup.add_separator(tr("Language"))
 	for i: int in LOCALE_NAMES.size():
 		popup.add_radio_check_item(LOCALE_NAMES[i], ViewMenuId.LANGUAGE + i)
@@ -892,6 +954,12 @@ func _on_view_menu(id: int) -> void:
 	elif id == ViewMenuId.WHITE_PAPER:
 		_white_paper = not _white_paper
 		_apply_theme()
+		_save_settings()
+	elif id == ViewMenuId.CABLES_CZECH or id == ViewMenuId.CABLES_HARMONISED:
+		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if id == ViewMenuId.CABLES_HARMONISED else WorkspaceCables.Naming.CZECH
+		_workspace.refresh()
+		for window: PlaceWindow in _place_windows():
+			window.refresh()
 		_save_settings()
 	elif id >= ViewMenuId.SCALE:
 		_ui_scale = UI_SCALES[id - ViewMenuId.SCALE]
@@ -1089,6 +1157,8 @@ func _update_mode_ui() -> void:
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
 	_timing_panel.visible = not editing
+	_key_strip.document = view.document
+	_key_strip.visible = not editing and _key_strip.has_keys()
 	_update_run_button()
 	_refresh_pages()
 	_on_stepped(view.last_result)
@@ -1115,6 +1185,18 @@ func _set_mode(new_mode: Mode) -> void:
 		view.load_document(edit_doc, false)
 	_update_mode_ui()
 	_fit_camera_later()
+
+
+## Asks for the key of push button or switch [param designation] (Edit mode).
+func _ask_key(designation: String) -> void:
+	if mode != Mode.EDIT or not edit_doc.can_have_key(designation):
+		return
+	var what: String = ""
+	for box: ControlBox in edit_doc.control_boxes:
+		for item: ControlBoxItem in box.items:
+			if item.designation == designation and not item.label.is_empty():
+				what = item.label
+	_key_prompt.ask(designation, what, edit_doc.key_bindings.get(designation, ""))
 
 
 ## Shows the schematic or the workspace; the simulation runs on in both.
@@ -1169,10 +1251,13 @@ func _on_timing_parts_toggled(show_chart: bool, show_log: bool) -> void:
 
 ## (Re)starts the simulation on a fresh copy of the edited schematic.
 func _start_simulation() -> void:
+	_keys_down.clear()
 	view.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
 	_timing_panel.chart.set_document(view.document, view.trace)
 	_timing_panel.event_log.clear()
+	_key_strip.document = view.document
+	_key_strip.visible = mode == Mode.SIMULATE and _key_strip.has_keys()
 	_update_run_button()
 
 
@@ -1757,6 +1842,7 @@ func open_place_window(kind: Workspace.Place, place_name: String) -> PlaceWindow
 	window.button_held.connect(view.hold_button)
 	window.switch_toggled.connect(view.toggle_switch)
 	window.operate_requested.connect(view.operate_device)
+	window.key_bind_requested.connect(_ask_key)
 	add_child(window)
 	window.set_document(view.document, mode == Mode.EDIT)
 	return window
@@ -1899,6 +1985,8 @@ func _load_settings() -> void:
 		_recent = config.get_value("files", "recent", PackedStringArray())
 		_show_chart = config.get_value("view", "timing_chart", false)
 		_show_log = config.get_value("view", "event_log", false)
+		_keys_rolled = bool(config.get_value("view", "keys_rolled", false))
+		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if config.get_value("view", "cable_types", "czech") == "harmonised" else WorkspaceCables.Naming.CZECH
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
 		_white_paper = bool(config.get_value("view", "white_paper", false))
 		_edit_grid = bool(config.get_value("view", "grid", false))
@@ -1920,6 +2008,8 @@ func _save_settings() -> void:
 	config.set_value("files", "recent", _recent)
 	config.set_value("view", "timing_chart", _show_chart)
 	config.set_value("view", "event_log", _show_log)
+	config.set_value("view", "keys_rolled", _keys_rolled)
+	config.set_value("view", "cable_types", "harmonised" if WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED else "czech")
 	config.set_value("view", "theme", "light" if _theme_variant == AppTheme.Variant.LIGHT else "dark")
 	config.set_value("view", "ui_scale", _ui_scale)
 	config.set_value("view", "white_paper", _white_paper)
