@@ -781,17 +781,13 @@ func _turn(component_id: String, clockwise: bool) -> void:
 ## Turns components [param ids] together a quarter turn clockwise (or
 ## counterclockwise) about the middle of their terminals, so they keep their
 ## places to each other: wires between them turn along, the others are
-## re-routed. A single component turns as in [method rotate_component].
+## re-routed. Four turns (or a turn back) put everything back where it was.
+## A single component turns as in [method rotate_component].
 func rotate_components(ids: PackedStringArray, clockwise: bool = true) -> void:
 	if ids.size() == 1:
 		rotate_component(ids[0], clockwise)
 		return
-	var span: Rect2i = _terminal_span(ids)
-	# Twice the pivot; turning about it must land on cells, so its x and y
-	# are both whole or both halves.
-	var twice: Vector2i = span.position * 2 + span.size
-	if (twice.x + twice.y) % 2 != 0:
-		twice.y -= 1
+	var twice: Vector2i = _turn_pivot(ids)
 	var sum: int = (twice.x + twice.y) / 2
 	var difference: int = (twice.y - twice.x) / 2
 	var map: Callable = func(v: Vector2i) -> Vector2i:
@@ -820,6 +816,30 @@ func flip_components(ids: PackedStringArray) -> void:
 	var span: Rect2i = _terminal_span(ids)
 	var twice: int = span.position.y * 2 + span.size.y
 	_transform_components(ids, _flip, func(v: Vector2i) -> Vector2i: return Vector2i(v.x, twice - v.y))
+
+
+## Twice the point components [param ids] turn about: the middle of their
+## terminals. Turning must land on cells, so the point's x and y must be both
+## whole or both halves; when the middle is not, the terminal nearest to it
+## (by key on a tie). Turning about a point keeps it where it is and every
+## distance to it, so the next turn picks the same point again.
+func _turn_pivot(ids: PackedStringArray) -> Vector2i:
+	var span: Rect2i = _terminal_span(ids)
+	var middle: Vector2i = span.position * 2 + span.size
+	if (middle.x + middle.y) % 2 == 0:
+		return middle
+	var nearest: Vector2i = Vector2i.ZERO
+	var nearest_key: String = ""
+	var nearest_distance: int = 1 << 30
+	for given: String in ids:
+		for key: String in circuit.get_component(given).get_terminal_keys():
+			var twice: Vector2i = terminal_cell(key) * 2
+			var distance: int = (twice - middle).length_squared()
+			if distance < nearest_distance or (distance == nearest_distance and key < nearest_key):
+				nearest = twice
+				nearest_key = key
+				nearest_distance = distance
+	return nearest
 
 
 ## Cells spanned by the terminals of components [param ids].

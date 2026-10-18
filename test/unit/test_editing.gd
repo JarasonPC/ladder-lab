@@ -506,6 +506,32 @@ func test_parts_turned_together_keep_their_places() -> void:
 	assert_eq(doc.wire_points(1), cells[1])
 
 
+func test_parts_turned_together_come_back_after_four_turns() -> void:
+	# The middle of the terminals, (1, 1.5), is no point to turn about (a
+	# turn would leave the cells): the parts turn about a terminal next to
+	# it, the same one every time.
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(2, 0))
+	doc.connect_terminals("H1:X2", "H2:X2", [Vector2i(0, 5), Vector2i(2, 5)] as Array[Vector2i])
+	var ids: PackedStringArray = PackedStringArray(["H1", "H2"])
+	var before: Array[Vector2i] = doc.wire_points(0)
+	for clockwise: bool in [true, false]:
+		var seen: Array = []
+		for turn: int in 4:
+			doc.rotate_components(ids, clockwise)
+			seen.append([doc.get_placement("H1").cell, doc.get_placement("H2").cell])
+			_assert_routes_valid(doc)
+		assert_eq(doc.get_placement("H1").cell, Vector2i(0, 0), "four turns: back in place (%s)" % [seen])
+		assert_eq(doc.get_placement("H2").cell, Vector2i(2, 0))
+		assert_eq(doc.get_placement("H1").rotation, 0)
+		assert_eq(doc.wire_points(0), before)
+	doc.rotate_components(ids)
+	doc.rotate_components(ids, false)
+	assert_eq([doc.get_placement("H1").cell, doc.get_placement("H2").cell], [Vector2i(0, 0), Vector2i(2, 0)], "a turn back undoes a turn")
+	assert_eq(doc.wire_points(0), before)
+
+
 func test_parts_mirrored_together_swap_places() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
 	doc.add(Lamp.new("H1"), Vector2i(0, 0))

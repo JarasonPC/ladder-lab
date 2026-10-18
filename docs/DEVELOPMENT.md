@@ -374,7 +374,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   another, each keeping off those before; then wires the parts now cover and wires between two
   moved parts are re-routed if no longer clean. Several selected parts turn and mirror together
   (rotate_components, mirror_components, flip_components: about the middle of their terminals,
-  wires between them turned along); a single part turns about its first terminal. Branch dots
+  or the terminal nearest to it when turning about the middle would leave the cells, so four
+  turns or a turn back put everything back; wires between them turned along); a single part turns about its first terminal. Branch dots
   join wires of one net only
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
   through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are
