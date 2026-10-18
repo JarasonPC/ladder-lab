@@ -100,9 +100,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   click menu (Datasheet, F1), the properties (Datasheet button) and Help > Part datasheets
 - Current path numbers (above the columns, left of the rows) can be turned off in View >
   Current path numbers (saved; page windows and export follow it)
-- Export: File > Export page as PNG / Export all pages as PDF first show the sheets in a preview
+- Export: File > Export page as PNG / Export as PDF first show the sheets in a preview
   (ExportPreview: page by page, paper and scale, wire numbers on/off, on by default); saving
-  writes what the preview shows. Each page on an A4/A3 sheet
+  writes what the preview shows. A PDF holds what is ticked in the preview (ExportPreview.contents,
+  remembered in the user settings, section "export"): the schematic, the control stations
+  (StationsSheet: ControlBoxViews with their names, side by side, shared out over A4 sheets by
+  StationsSheet.arrange: as many as fit, then the next sheet), each switchboard with something in
+  it on a sheet of its own (CabinetView SWITCHBOARD_WIDTH wide), the workspace
+  (WorkspaceCanvas at zoom 1 around WorkspaceCanvas.bounds) and the parts list (PartsList.rows:
+  devices under the place they sit in, terminal strips with their count, the groups' and other
+  parts in the field, what has no place, the cables with type and ends; PartsSheet tables on A4
+  portrait, PartsSheet.split never ends a sheet with a heading); what the schematic has nothing
+  of is greyed out. SheetRenderer.sheets lists the sheets, numbered in turn across the PDF; no
+  keys of the keyboard on any sheet. Each page on an A4/A3 sheet
   (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
   (SheetFrame), rendered by SheetRenderer at 200 dpi, fitted to everything drawn (it draws each
   page once to measure: SchematicView.drawn_extent, with texts, wire and path numbers); PdfWriter writes one Flate image per page;
@@ -445,7 +455,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   either view. Symbols show ratings (breaker "C16", fuse "16 A", relay "Ir 8 A"), the heat of
   protective devices in % and a motor's line current and speed while simulating; the
   properties panel draws the time-current characteristic (TripCurveDiagram)
-- `ui/export/` SheetRenderer (renders pages in SubViewports), SheetFrame (frame, title block),
+- `ui/export/` SheetRenderer (renders sheets in SubViewports), SheetFrame (frame, title block),
+  StationsSheet, PartsSheet, PartsList (rows of the parts list),
   ExportPreview (dialog)
 - `sim/plc/` PlcProgram, PlcBlock, PlcRung, PlcRuntime, PlcTimer, PlcCounter (PLC programs)
 - `ui/plc/` PlcWindow, PlcCanvas, PlcFbdCanvas, PlcLadCanvas (PLC program window)

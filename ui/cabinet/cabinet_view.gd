@@ -101,6 +101,11 @@ func _get_minimum_size() -> Vector2:
 	return Vector2(floorf(_layout.size.x * k) if zoom > 1.0 else 0.0, ceilf(_layout.size.y * k))
 
 
+## Size of the drawing as laid out last (after [method refresh]).
+func drawn_size() -> Vector2:
+	return _layout.size * _k() if _layout != null else Vector2.ZERO
+
+
 ## Zooms by [param factor] keeping the point [param at] (pixels in the
 ## view) where it is on the screen, by scrolling the panel.
 func zoom_at(factor: float, at: Vector2) -> void:

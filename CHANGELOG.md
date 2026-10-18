@@ -117,6 +117,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   named like the cable on the workspace
 
 ### Files and export
+- The PDF export holds, as ticked in its preview, the schematic, the control stations, every
+  switchboard, the workspace and a parts list: every device under the switchboard, station or
+  group it sits in with its ratings, the terminal strips, the parts in the field, what has no
+  place yet, and the cables with their type and ends. The preview shows all of it, page by
+  page, and the choice is remembered (File > Export as PDF…)
 - Unsaved work is no longer lost when LadderLab crashes, freezes or is killed: a copy is kept
   after every edit, and the next start offers to restore it (also while the frozen window is
   still open); several LadderLab windows each keep their own copy

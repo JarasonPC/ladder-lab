@@ -62,6 +62,8 @@ var box_index: int = 0
 var simulating: bool = false
 ## Item selected for editing, -1 for none.
 var selected: int = -1
+## Draw the keys of the keyboard bound to the buttons and switches (off for exports).
+var show_keys: bool = true
 
 ## Designation of the push button held with the mouse, "" for none.
 var _held: String = ""
@@ -272,7 +274,7 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 	if not _assigned(item):
 		# Not connected to the schematic: faded.
 		draw_rect(cell.grow(-1.0), Color(COVER, 0.55))
-	var key: String = document.key_bindings.get(item.designation, "") if item.kind != ControlBoxItem.Kind.LAMP else ""
+	var key: String = document.key_bindings.get(item.designation, "") if item.kind != ControlBoxItem.Kind.LAMP and show_keys else ""
 	if not key.is_empty():
 		# The key that operates it, on the cover under the label plate (clear
 		# of the button and the next row).

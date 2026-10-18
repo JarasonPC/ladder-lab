@@ -51,6 +51,8 @@ var zoom: float = 1.0
 var offset: Vector2 = Vector2(40.0, 40.0)
 ## Key of the selected item (see [method items]), "" for none.
 var selected: String = ""
+## Draw the keys of the keyboard bound to the stations' buttons (off for exports).
+var show_keys: bool = true
 ## Where each part moved by a motor is while simulating (group name -> 0-1;
 ## empty while editing).
 var travel_positions: Dictionary[String, float] = {}
@@ -409,21 +411,34 @@ func to_workspace(point: Vector2) -> Vector2:
 	return (point - offset) / zoom
 
 
-## Shows everything, as large as fits (at most 125 %).
-func fit() -> void:
-	var bounds: Rect2 = Rect2()
+## What everything covers (places, parts, groups, cables and their tags),
+## in workspace units; empty without anything.
+func bounds() -> Rect2:
+	var result: Rect2 = Rect2()
 	var first: bool = true
 	for item: Dictionary in items():
-		bounds = item["rect"] if first else bounds.merge(item["rect"])
+		result = item["rect"] if first else result.merge(item["rect"])
 		first = false
-	if first or size.x < 10.0 or size.y < 10.0:
+	if first:
+		return result
+	for path: Dictionary in cable_paths():
+		result = result.merge(path["tag"])
+		for point: Vector2 in path["points"]:
+			result = result.expand(point)
+	return result
+
+
+## Shows everything, as large as fits (at most 125 %).
+func fit() -> void:
+	var area: Rect2 = bounds()
+	if not area.has_area() or size.x < 10.0 or size.y < 10.0:
 		zoom = 1.0
 		offset = Vector2(40.0, 40.0)
 		queue_redraw()
 		return
-	bounds = bounds.grow(40.0)
-	zoom = clampf(minf(size.x / bounds.size.x, size.y / bounds.size.y), MIN_ZOOM, 1.25)
-	offset = size * 0.5 - bounds.get_center() * zoom
+	area = area.grow(40.0)
+	zoom = clampf(minf(size.x / area.size.x, size.y / area.size.y), MIN_ZOOM, 1.25)
+	offset = size * 0.5 - area.get_center() * zoom
 	queue_redraw()
 
 
@@ -704,7 +719,7 @@ func _draw_place(item: Dictionary) -> void:
 	draw_string(font, Vector2(x, rect.position.y + 17.0), "+" + str(item["name"]), HORIZONTAL_ALIGNMENT_LEFT, w, NAME_SIZE, SchematicTheme.DESIGNATION)
 	draw_string(font, Vector2(x, rect.position.y + 34.0), title, HORIZONTAL_ALIGNMENT_LEFT, w, TEXT_SIZE, SchematicTheme.TEXT)
 	var keys: PackedStringArray = PackedStringArray()
-	if item["kind"] == "station":
+	if item["kind"] == "station" and show_keys:
 		for station_item: ControlBoxItem in document.control_boxes[item["index"]].items:
 			var key: String = document.key_bindings.get(station_item.designation, "") if station_item.kind != ControlBoxItem.Kind.LAMP else ""
 			if not key.is_empty():
