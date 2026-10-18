@@ -46,7 +46,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   terminal of another circuit or along one of its wires, with few corners and crossings; a part
   dropped on a wire that is not its own moves the wire aside
 - Several selected parts turn and mirror together, keeping their places to each other (a
-  column of parts turned becomes a row), with the wires between them
+  column of parts turned becomes a row), with the wires between them; four turns bring them
+  back exactly where they were
 
 ### Simulation
 - Supplies of different voltages: 230 V between a phase and N, 400 V between two phases, and DC
