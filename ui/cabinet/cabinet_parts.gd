@@ -1696,48 +1696,45 @@ static func pe_block_size(connections: int) -> Vector2:
 	return Vector2(PE_BLOCK_H, connections * PE_PITCH + 6.0)
 
 
-## Which side connection [param i] of a PE distribution block takes its wire
-## from: by turns the left (0) and the right (1).
-static func pe_side(i: int) -> int:
-	return i % 2
+## Centre of the hole in the green cover over connection [param i] of a
+## PE distribution block, from the block's top-left.
+static func pe_hole(i: int) -> Vector2:
+	return Vector2(PE_BLOCK_H * 0.5 + 0.6, 3.0 + PE_PITCH * (i + 0.5))
 
 
 ## Where connection [param i] of a PE distribution block takes its wire,
-## from the block's top-left: into the opening in the side of its yellow
-## base by its screw (see [method pe_side]).
+## from the block's top-left: into the hole in its green cover, from the
+## left.
 static func pe_entry(i: int) -> Vector2:
-	return Vector2(0.0 if pe_side(i) == 0 else PE_BLOCK_H, 3.0 + PE_PITCH * (i + 0.5))
+	return pe_hole(i) - Vector2(PE_HOLE, 0.0)
+
+
+## Radius of the holes in a PE distribution block's green cover.
+const PE_HOLE: float = 2.5
 
 
 ## PE distribution block on a DIN rail with [param connections] screw
 ## connections, as made, standing across the rail: a brass bar in a yellow
-## base with the wire openings along both its long sides, under a green
-## cover with a round hole over each screw (the screw deep inside) and the
-## connections' numbers.
+## base under a green cover with a round hole over each connection (its
+## screw deep inside, the wire going in there) and the connections' numbers.
 static func pe_block(p: CabinetPainter, connections: int) -> void:
 	var size: Vector2 = pe_block_size(connections)
 	var base: Rect2 = Rect2(Vector2.ZERO, size)
 	p.rect(base.grow(0.3), Color(0, 0, 0, 0.3), 1.0)
 	p.hgradient(base, PE_YELLOW.lightened(0.15), PE_YELLOW.darkened(0.12), 0.8)
 	p.rect(base, Color.TRANSPARENT, 0.8, PE_YELLOW.darkened(0.45), 0.15)
-	for i: int in connections:
-		var y: float = pe_entry(i).y
-		# The wire openings in the base, left and right.
-		for x: float in [0.3, size.x - 2.3]:
-			p.rect(Rect2(x, y - 1.6, 2.0, 3.2), Color("3a2a12"), 0.5)
-			p.rect(Rect2(x + (1.1 if x < 1.0 else 0.2), y - 1.1, 0.6, 2.2), Color("c9963c"), 0.2)
 	var cover: Rect2 = Rect2(2.6, 1.2, size.x - 5.2, size.y - 2.4)
 	p.rect(cover.grow(0.2), Color(0, 0, 0, 0.25), 1.6)
 	p.hgradient(cover, PE_GREEN.lightened(0.12), PE_GREEN.darkened(0.12), 1.4)
 	p.rect(cover, Color.TRANSPARENT, 1.4, PE_GREEN.darkened(0.45), 0.15)
 	for i: int in connections:
-		var at: Vector2 = Vector2(cover.position.x + cover.size.x * 0.42, pe_entry(i).y)
-		p.circle(at, 2.5, Color("173d22"))
+		var at: Vector2 = pe_hole(i)
+		p.circle(at, PE_HOLE, Color("173d22"))
 		# The screw deep in the hole.
 		p.circle(at + Vector2(0.2, 0.15), 1.5, Color("8f969c"))
 		p.line(at + Vector2(-0.95, 0.15), at + Vector2(1.35, 0.15), Color("4d5358"), 0.3)
 		p.line(at + Vector2(0.2, -1.0), at + Vector2(0.2, 1.3), Color("4d5358"), 0.3)
-		p.text_centered(Vector2(cover.end.x - 1.5, at.y), str(i + 1), 1.4, PE_GREEN.darkened(0.4), false)
+		p.text_centered(Vector2(cover.end.x - 1.3, at.y), str(i + 1), 1.4, PE_GREEN.darkened(0.4), false)
 
 
 ## Height of a plug-in bridge's bar on a terminal strip, between the test

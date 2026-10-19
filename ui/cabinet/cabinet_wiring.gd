@@ -54,8 +54,8 @@ const CLAMP_WIRES: int = 2
 ## before [constant CabinetParts.MARKER_FROM].
 const FAN: float = 3.2
 const FAN_FROM: float = 2.2
-## How far a wire runs out from the side of a PE distribution block before
-## it turns towards its duct (the nearest one).
+## How far a wire runs out to the left of a PE distribution block before it
+## turns towards its duct (the nearest one).
 const PE_LEAD: float = 4.0
 ## Least and most room between the bend of a slanting wire and its duct.
 const SLANT_MIN: float = 1.5
@@ -496,24 +496,22 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 				pass
 			CabinetLayout.PE_BLOCK:
 				# Its screw connections, one wire each, joined by its bar like
-				# bridged terminals; the wires go in from its sides, those of
-				# the upper connections up to the duct over its rail, the
-				# others down. On each side and way the wire from further
-				# along the block reaches out further before it turns, so
-				# none crosses another's lead.
+				# bridged terminals; the wires go into the holes in its cover
+				# from the left, those of the upper connections up to the duct
+				# over its rail, the others down. The wire from further along
+				# the block reaches out further before it turns, so none
+				# crosses another's lead.
 				var block: Array[Dictionary] = []
 				for i: int in place["desc"]["connections"]:
 					var at: Vector2 = origin + CabinetParts.pe_entry(i)
 					var up: bool = at.y < centre
-					block.append({"key": place["desc"]["key"], "at": at, "duct": rail if up else rail + 1, "up": up, "bridge": p * 1000, "room": 1, "block": true, "clamp": true, "side": CabinetParts.pe_side(i)})
+					block.append({"key": place["desc"]["key"], "at": at, "duct": rail if up else rail + 1, "up": up, "bridge": p * 1000, "room": 1, "block": true, "clamp": true})
 				for point: Dictionary in block:
 					var rank: int = 0
 					for other: Dictionary in block:
-						if other["side"] == point["side"] and other["up"] == point["up"] and (other["at"].y < point["at"].y if point["up"] else other["at"].y > point["at"].y):
+						if other["up"] == point["up"] and (other["at"].y < point["at"].y if point["up"] else other["at"].y > point["at"].y):
 							rank += 1
-					point["lead"] = (-1.0 if point["side"] == 0 else 1.0) * (PE_LEAD + rank * LANE)
-				for point: Dictionary in block:
-					point.erase("side")
+					point["lead"] = origin.x - PE_LEAD - rank * LANE
 				result.append_array(block)
 			_:
 				var beside: Rect2 = Rect2()
@@ -709,8 +707,8 @@ func _route(edges: Array[Dictionary]) -> void:
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
 		end["via"] = PackedVector2Array()
 		if end["point"].has("lead"):
-			# Out of the side of a PE distribution block, then on to the duct.
-			end["x"] = end["start"].x + end["point"]["lead"]
+			# Out from a PE distribution block to its left, then on to the duct.
+			end["x"] = end["point"]["lead"]
 			end["via"] = PackedVector2Array([Vector2(end["x"], end["start"].y)])
 	_lead_beside(ends)
 	_fan(ends, shared)
