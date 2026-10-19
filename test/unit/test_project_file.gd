@@ -60,3 +60,20 @@ func test_switching_times_and_mode_are_saved() -> void:
 	assert_false(copy.realistic_timing)
 	assert_almost_eq(copy.circuit.get_coil("KM1").pick_up_time, 0.035, 1e-9)
 	assert_almost_eq(copy.circuit.get_coil("KM1").drop_out_time, 0.025, 1e-9)
+
+
+func test_saving_waits_for_a_file_held_for_a_moment() -> void:
+	# An antivirus holding the new file makes the rename fail for a moment
+	# (on Windows); a folder in the way stands in for it here.
+	var path: String = "user://test_project_file_held.ladder"
+	DirAccess.make_dir_absolute(path)
+	DirAccess.make_dir_absolute(path + "/in_the_way")
+	var saving: Thread = Thread.new()
+	saving.start(func() -> Error: return ProjectFile.write_atomically(path, "saved"))
+	OS.delay_msec(ProjectFile.RENAME_WAIT_MSEC * 5)
+	DirAccess.remove_absolute(path + "/in_the_way")
+	DirAccess.remove_absolute(path)
+	assert_eq(saving.wait_to_finish(), OK, "put in place once it is free")
+	assert_eq(FileAccess.get_file_as_string(path), "saved")
+	assert_false(FileAccess.file_exists(path + ".tmp"))
+	DirAccess.remove_absolute(path)

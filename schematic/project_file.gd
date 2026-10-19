@@ -67,6 +67,13 @@ static func save(doc: SchematicDocument, path: String) -> Error:
 	return write_atomically(path, JSON.stringify(to_dict(doc), "\t") + "\n")
 
 
+## How many times, [constant RENAME_WAIT_MSEC] apart, the written file is
+## put in place: on Windows an antivirus reading the new file (in Downloads
+## above all) holds it for a moment, and the rename fails meanwhile.
+const RENAME_TRIES: int = 50
+const RENAME_WAIT_MSEC: int = 20
+
+
 ## Writes [param text] to [param path] through a temporary file beside it
 ## (path + ".tmp"), checking every step. Returns OK or the file error.
 static func write_atomically(path: String, text: String) -> Error:
@@ -82,7 +89,13 @@ static func write_atomically(path: String, text: String) -> Error:
 	if not complete:
 		DirAccess.remove_absolute(temporary)
 		return ERR_FILE_CANT_WRITE
-	return DirAccess.rename_absolute(temporary, path)
+	var error: Error = DirAccess.rename_absolute(temporary, path)
+	for i: int in RENAME_TRIES - 1:
+		if error == OK:
+			break
+		OS.delay_msec(RENAME_WAIT_MSEC)
+		error = DirAccess.rename_absolute(temporary, path)
+	return error
 
 
 ## Reads a schematic. Returns {"document": SchematicDocument} on success or
