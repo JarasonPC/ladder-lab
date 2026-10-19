@@ -320,7 +320,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   again until every duct fits, never narrowing one, and keeps that wiring,
   CabinetLayout.wiring; the view lays out again only for edits and a new scale); a contactor with its overload relay under
   it has a wiring channel on both sides (CabinetLayout.WIRE_CHANNEL): wires from its bottom
-  terminals run across its front at heights clear of its screws (CabinetParts.CONTACTOR_OUT_Y)
+  terminals go straight down as far as they can without passing over a screw on their way down
+  or across, then run across its front at heights clear of its screws (CabinetParts.CONTACTOR_OUT_Y,
+  a side block's wires at the first under their terminal)
   out to the nearer side and down beside the relay, never across it; wires from the auxiliary
   contact block on its front run straight on over the contactor's tiers, in at the block's top
   and bottom (its columns, CabinetParts.AUX_BLOCK_X / AUX_BLOCK_X4, lie between the

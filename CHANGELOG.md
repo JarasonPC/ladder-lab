@@ -43,7 +43,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Switchboard wire ducts are just as wide as the wires running through them need
 - Switchboard wires are easier to follow: in each duct they lie in order by where they come in
   and go out, so far fewer of them cross
-- Wires to the auxiliary contact block on a contactor's front run straight over the contactor
+- Wires to the auxiliary contact block on a contactor's front run straight over the contactor;
+  wires from a contactor's bottom terminals over its overload relay go straight down as far as
+  they can before turning aside
 
 ### Files and export
 - PLC programs can be exported to a file and imported into another PLC (PLC window)
