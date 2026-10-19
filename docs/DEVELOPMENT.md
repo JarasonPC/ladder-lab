@@ -578,7 +578,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION
   on format changes and keep older versions loading; values of the wrong type load as defaults
   (DocumentSerializer helpers); ProjectFile.save and RecoveryFile.write go through
-  ProjectFile.write_atomically (<path>.tmp, checked, renamed)
+  ProjectFile.write_atomically (<path>.tmp, checked, renamed; the rename tried again for about a
+  second, as an antivirus on Windows holds a new file for a moment)
 - Recovery (RecoveryFile, no nodes, in user://recovery): main.gd writes a copy of the edited
   schematic and the file it came from after every edit (_mark_dirty; written to a .tmp first),
   removed when it is saved, replaced (new, open, example) and on quit. Each run of the program is
