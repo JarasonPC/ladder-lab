@@ -1920,7 +1920,7 @@ func free_spot() -> Vector2:
 		right = maxf(right, board.position.x + Workspace.PLACE_SIZE.x)
 		top = minf(top, board.position.y)
 	for box: ControlBox in control_boxes:
-		right = maxf(right, box.position.x + Workspace.PLACE_SIZE.x)
+		right = maxf(right, box.position.x + Workspace.place_size(box).x)
 		top = minf(top, box.position.y)
 	# A group's frame is round its members where they stand, also those not
 	# put anywhere yet (drawn in its frame).
@@ -1999,6 +1999,13 @@ func move_place(kind: Workspace.Place, index: int, at: Vector2) -> void:
 		group.position += offset
 		return
 	place.set("position", at)
+
+
+## Shows station [param index] on the workspace as its face at
+## [param scale] (see [member ControlBox.face_scale]; 0: as its tile).
+func set_station_face(index: int, scale: float) -> void:
+	if index >= 0 and index < control_boxes.size():
+		control_boxes[index].face_scale = ControlBox.valid_face(scale)
 
 
 ## Puts part [param designation] in the field at [param at], in group
@@ -2181,7 +2188,7 @@ func _spot_without(place: RefCounted) -> Vector2:
 	for other: RefCounted in places():
 		var at: Vector2 = other.get("position")
 		if other != place and at.x > -INF:
-			right = maxf(right, at.x + Workspace.PLACE_SIZE.x)
+			right = maxf(right, at.x + Workspace.place_size(other).x)
 	return Vector2.ZERO if right == -INF else Vector2(right + Workspace.SPACING, 0.0)
 
 

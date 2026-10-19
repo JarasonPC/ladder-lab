@@ -19,7 +19,14 @@ signal cable_requested(key: String)
 signal menu_requested(item: Dictionary, at: Vector2)
 ## A change of the workspace: [param change] is called with the document.
 signal edit_requested(change: Callable)
+## A push button on a station shown as its face was pressed (true) or let
+## go while simulating.
+signal button_held(designation: String, pressed: bool)
+## A switch on a station shown as its face was clicked while simulating.
+signal switch_toggled(designation: String)
 
+## Reach (pixels) of the handle resizing a station's face.
+const HANDLE: float = 9.0
 const MIN_ZOOM: float = 0.25
 const MAX_ZOOM: float = 3.0
 const ZOOM_STEP: float = 1.15
@@ -68,6 +75,13 @@ var _dragging: bool = false
 var _pan_button: MouseButton = MOUSE_BUTTON_NONE
 var _pan_from: Vector2 = Vector2.ZERO
 var _panned: bool = false
+## Stations shown as their face: station name -> its [ControlBoxView] over
+## the canvas.
+var _faces: Dictionary[String, ControlBoxView] = {}
+## Station whose face is being resized by its corner handle (-1 for none),
+## and the scale it is dragged to.
+var _resizing: int = -1
+var _resize_scale: float = 0.0
 ## Angle of the marks turning on each motor's tile while simulating
 ## (designation -> radians), and whether any turned at the last frame.
 var _spin: Dictionary[String, float] = {}
@@ -413,7 +427,10 @@ func items() -> Array[Dictionary]:
 		result.append({"key": "+" + board.name, "kind": "switchboard", "index": b, "name": board.name, "rect": Rect2(_moved("+" + board.name, board.position), Workspace.PLACE_SIZE), "tile": WorkspaceTile.Kind.SWITCHBOARD})
 	for s: int in document.control_boxes.size():
 		var box: ControlBox = document.control_boxes[s]
-		result.append({"key": "+" + box.name, "kind": "station", "index": s, "name": box.name, "rect": Rect2(_moved("+" + box.name, box.position), Workspace.PLACE_SIZE), "tile": WorkspaceTile.Kind.STATION})
+		var box_size: Vector2 = Workspace.place_size(box)
+		if s == _resizing:
+			box_size = box.face_size() * _resize_scale
+		result.append({"key": "+" + box.name, "kind": "station", "index": s, "name": box.name, "rect": Rect2(_moved("+" + box.name, box.position), box_size), "tile": WorkspaceTile.Kind.STATION})
 	for designation: String in positions:
 		var c: CircuitComponent = Workspace.field_component(document.circuit, designation)
 		result.append({"key": "-" + designation, "kind": "field", "index": -1, "name": designation, "rect": Rect2(positions[designation], Workspace.FIELD_SIZE), "tile": WorkspaceTile.of_field(Workspace.field_kind(c))})
@@ -530,6 +547,10 @@ func _process(delta: float) -> void:
 	if turning or _spinning:
 		queue_redraw()
 	_spinning = turning
+	if not editing:
+		# Lamps and buttons of the stations shown as their face follow the simulation.
+		for face: ControlBoxView in _faces.values():
+			face.queue_redraw()
 
 
 ## How fast motor [param designation] in the field turns while simulating:
@@ -563,6 +584,10 @@ func _gui_input(event: InputEvent) -> void:
 		if _panned:
 			offset += motion.relative
 			queue_redraw()
+	elif _resizing >= 0:
+		var box: ControlBox = document.control_boxes[_resizing]
+		_resize_scale = ControlBox.valid_face((to_workspace(motion.position).x - box.position.x) / box.face_size().x)
+		queue_redraw()
 	elif not _press.is_empty():
 		if not _dragging and editing and _press["kind"] != "cable" and motion.position.distance_to(_press_at) >= SchematicEditor.CLICK_SLOP:
 			_dragging = true
@@ -594,6 +619,18 @@ func _on_button(mb: InputEventMouseButton) -> void:
 						queue_redraw()
 					menu_requested.emit(item, to_workspace(mb.position))
 		MOUSE_BUTTON_LEFT:
+			if mb.pressed and editing and _handle_at(mb.position) >= 0:
+				_resizing = _handle_at(mb.position)
+				_resize_scale = document.control_boxes[_resizing].face_scale
+				return
+			if not mb.pressed and _resizing >= 0:
+				var index: int = _resizing
+				var scale: float = _resize_scale
+				_resizing = -1
+				queue_redraw()
+				if not is_equal_approx(scale, document.control_boxes[index].face_scale):
+					edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_station_face(index, scale))
+				return
 			if mb.pressed:
 				_press = item_at(mb.position)
 				_press_at = mb.position
@@ -606,10 +643,24 @@ func _on_button(mb: InputEventMouseButton) -> void:
 			elif not _press.is_empty():
 				var item: Dictionary = _press
 				_press = {}
-				if item["kind"] == "switchboard" or item["kind"] == "station":
+				if item["kind"] == "station" and not editing and document.control_boxes[item["index"]].face_scale > 0.0:
+					# Its face is operated where it is (its menu still opens it).
+					pass
+				elif item["kind"] == "switchboard" or item["kind"] == "station":
 					open_requested.emit(Workspace.Place.SWITCHBOARD if item["kind"] == "switchboard" else Workspace.Place.STATION, item["name"])
 				elif item["kind"] == "cable":
 					cable_requested.emit(item["name"])
+
+
+## Station whose resize handle (the bottom right corner of its face, while
+## selected) is under screen point [param point], -1 for none.
+func _handle_at(point: Vector2) -> int:
+	for item: Dictionary in items():
+		if item["kind"] == "station" and selected == item["key"] and document.control_boxes[item["index"]].face_scale > 0.0:
+			var corner: Vector2 = offset + (item["rect"] as Rect2).end * zoom
+			if point.distance_to(corner) <= HANDLE:
+				return item["index"]
+	return -1
 
 
 func _zoom_at(point: Vector2, factor: float) -> void:
@@ -726,6 +777,58 @@ func _draw() -> void:
 		box.draw(get_canvas_item(), tag)
 		draw_multiline_string(font, Vector2(tag.position.x, tag.position.y + 12.0), path["text"], HORIZONTAL_ALIGNMENT_CENTER, tag.size.x, SMALL_SIZE, -1, SchematicTheme.TEXT)
 	draw_set_transform(Vector2.ZERO)
+	_place_faces(list)
+
+
+## Around a station shown as its face (drawn by its [ControlBoxView] over
+## the canvas): its name above it, the selection and, while editing, the
+## handle resizing it.
+func _draw_face_frame(item: Dictionary) -> void:
+	var rect: Rect2 = item["rect"]
+	var font: Font = AppTheme.schematic_font()
+	draw_string(font, rect.position + Vector2(0.0, -6.0), "+" + str(item["name"]), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, SchematicTheme.DESIGNATION)
+	if selected == item["key"]:
+		draw_rect(rect.grow(4.0), SchematicTheme.SELECTED, false, 2.0, true)
+		if editing:
+			var corner: Vector2 = rect.end + Vector2(4.0, 4.0)
+			draw_colored_polygon(PackedVector2Array([corner, corner - Vector2(12.0, 0.0), corner - Vector2(0.0, 12.0)]), SchematicTheme.SELECTED)
+
+
+## Puts a [ControlBoxView] over each station shown as its face, at its place
+## and scale; the others go. While simulating its buttons and switches work.
+func _place_faces(list: Array[Dictionary]) -> void:
+	var shown: Dictionary[String, bool] = {}
+	for item: Dictionary in list:
+		if item["kind"] != "station":
+			continue
+		var box: ControlBox = document.control_boxes[item["index"]]
+		if box.face_scale <= 0.0:
+			continue
+		shown[box.name] = true
+		var face: ControlBoxView = _faces.get(box.name, null)
+		if face == null:
+			face = ControlBoxView.new()
+			face.button_held.connect(func(designation: String, pressed: bool) -> void: button_held.emit(designation, pressed))
+			face.switch_toggled.connect(func(designation: String) -> void: switch_toggled.emit(designation))
+			add_child(face)
+			_faces[box.name] = face
+		face.document = document
+		face.box_index = item["index"]
+		face.simulating = not editing
+		face.show_keys = show_keys
+		# Editing: the canvas takes the clicks (select, drag, open); simulating,
+		# the face takes those on its buttons and passes on the rest.
+		face.mouse_filter = Control.MOUSE_FILTER_IGNORE if editing else Control.MOUSE_FILTER_PASS
+		var rect: Rect2 = item["rect"]
+		var face_size: Vector2 = box.face_size()
+		face.size = face_size
+		face.position = offset + rect.position * zoom
+		face.scale = Vector2.ONE * (rect.size.x / face_size.x) * zoom
+		face.queue_redraw()
+	for name: String in _faces.keys():
+		if not shown.has(name):
+			_faces[name].queue_free()
+			_faces.erase(name)
 
 
 ## The mechanical links of groups: a dashed line (IEC mechanical link) from
@@ -780,6 +883,9 @@ func _draw_group(item: Dictionary) -> void:
 
 func _draw_place(item: Dictionary) -> void:
 	var rect: Rect2 = item["rect"]
+	if item["kind"] == "station" and document.control_boxes[item["index"]].face_scale > 0.0:
+		_draw_face_frame(item)
+		return
 	var tile: Rect2 = Rect2(rect.position, Vector2(Workspace.TILE, Workspace.TILE))
 	if selected == item["key"]:
 		draw_rect(tile.grow(4.0), SchematicTheme.SELECTED, false, 2.0, true)

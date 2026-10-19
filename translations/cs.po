@@ -3305,3 +3305,12 @@ msgstr "Zatížení (% jmenovitého momentu)"
 
 msgid "Rated torque %s N·m. The load needs a quarter of it at standstill, the rest grows with the square of the speed (fan, pump)."
 msgstr "Jmenovitý moment %s N·m. Zátěž potřebuje v klidu čtvrtinu, zbytek roste s druhou mocninou otáček (ventilátor, čerpadlo)."
+
+msgid "Show as a tile"
+msgstr "Zobrazit jako dlaždici"
+
+msgid "Show as the control station"
+msgstr "Zobrazit jako ovládací skříňku"
+
+msgid "Shown as the station itself, its buttons and switches work on the workspace while simulating; drag its corner to size it"
+msgstr "Zobrazí skříňku samotnou, její tlačítka a přepínače při simulaci fungují přímo na pracovní ploše; tažením za roh změníte velikost"

@@ -22,7 +22,7 @@ signal schematic_requested(designation: String)
 ## A key should be bound to push button or switch [param designation].
 signal key_bind_requested(designation: String)
 
-enum MenuId { OPEN, WINDOW, RENAME, DELETE, SCHEMATIC, LEAVE_GROUP, ADD_SWITCHBOARD, ADD_STATION, ADD_GROUP, LINK, BIND_KEY }
+enum MenuId { OPEN, WINDOW, RENAME, DELETE, SCHEMATIC, LEAVE_GROUP, ADD_SWITCHBOARD, ADD_STATION, ADD_GROUP, LINK, BIND_KEY, FACE }
 
 var tree: WorkspaceTree
 var canvas: WorkspaceCanvas
@@ -84,6 +84,8 @@ func _ready() -> void:
 	canvas.menu_requested.connect(func(item: Dictionary, at: Vector2) -> void:
 		_open_menu(_entry_of(item), at))
 	canvas.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
+	canvas.button_held.connect(func(designation: String, pressed: bool) -> void: button_held.emit(designation, pressed))
+	canvas.switch_toggled.connect(func(designation: String) -> void: switch_toggled.emit(designation))
 	canvas.resized.connect(func() -> void:
 		if _fit_pending and canvas.size.x > 10.0:
 			_fit_pending = false
@@ -477,6 +479,10 @@ func _open_menu(entry: Dictionary, at: Vector2) -> void:
 	if _editing and kind == "place":
 		if _menu.item_count > 0:
 			_menu.add_separator()
+		if place == Workspace.Place.STATION:
+			var station: ControlBox = _place_of(Workspace.Place.STATION, entry["name"]) as ControlBox
+			_menu.add_item(tr("Show as a tile") if station != null and station.face_scale > 0.0 else tr("Show as the control station"), MenuId.FACE)
+			_menu.set_item_tooltip(_menu.item_count - 1, tr("Shown as the station itself, its buttons and switches work on the workspace while simulating; drag its corner to size it"))
 		if place == Workspace.Place.GROUP:
 			_menu.add_item(tr("Mechanical link…"), MenuId.LINK)
 			_menu.set_item_tooltip(_menu.item_count - 1, tr("A motor of the group moves a part (e.g. the gate) that operates the group's limit switches while simulating"))
@@ -524,6 +530,11 @@ func _on_menu(id: int) -> void:
 			_open_link(entry["name"])
 		MenuId.BIND_KEY:
 			key_bind_requested.emit(entry["designation"])
+		MenuId.FACE:
+			var index: int = _index(Workspace.Place.STATION, entry["name"])
+			if index >= 0:
+				var scale: float = 0.0 if _document.control_boxes[index].face_scale > 0.0 else ControlBox.DEFAULT_FACE
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_station_face(index, scale))
 
 
 ## Adds a place of [param kind] at [param at] (a free spot when null) and shows it.

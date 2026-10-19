@@ -41,6 +41,14 @@ static func position_from(value: Variant) -> Vector2:
 	return Vector2.ZERO
 
 
+## Size of the tile of [param place] (a switchboard or station) on the
+## workspace; a station shown as its face as large as the face at its scale.
+static func place_size(place: RefCounted) -> Vector2:
+	if place is ControlBox and (place as ControlBox).face_scale > 0.0:
+		return (place as ControlBox).face_size() * (place as ControlBox).face_scale
+	return PLACE_SIZE
+
+
 ## How [param c] stands in the field, [constant Field.NONE] when it is not a
 ## part of its own there.
 static func field_kind(c: CircuitComponent) -> Field:
@@ -88,7 +96,7 @@ static func field_positions(doc: SchematicDocument) -> Dictionary[String, Vector
 	for board: Switchboard in doc.switchboards:
 		known.append(Rect2(board.position, PLACE_SIZE))
 	for box: ControlBox in doc.control_boxes:
-		known.append(Rect2(box.position, PLACE_SIZE))
+		known.append(Rect2(box.position, place_size(box)))
 	for designation: String in result:
 		known.append(Rect2(result[designation], FIELD_SIZE))
 	for group: WorkspaceGroup in doc.groups:

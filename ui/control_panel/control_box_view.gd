@@ -15,13 +15,13 @@ signal item_clicked(item_index: int)
 ## An item was right-clicked (for its menu).
 signal item_menu(item_index: int)
 
-const CELL_W: float = 136.0
-const ROW_H: float = 60.0
-const PAD_X: float = 20.0
+const CELL_W: float = ControlBox.CELL_W
+const ROW_H: float = ControlBox.ROW_H
+const PAD_X: float = ControlBox.PAD_X
 ## Room above the items for the cable gland and the screws.
-const PAD_TOP: float = 30.0
-const PAD_BOTTOM: float = 22.0
-const TITLE_H: float = 16.0
+const PAD_TOP: float = ControlBox.PAD_TOP
+const PAD_BOTTOM: float = ControlBox.PAD_BOTTOM
+const TITLE_H: float = ControlBox.TITLE_H
 const PLATE := Vector2(64.0, 34.0)
 const BEZEL_R: float = 21.0
 const CAP_R: float = 15.5
@@ -82,14 +82,7 @@ func box() -> ControlBox:
 
 func _get_minimum_size() -> Vector2:
 	var b: ControlBox = box()
-	if b == null:
-		return Vector2.ZERO
-	var columns: int = clampi(b.items.size(), 1, b.columns)
-	var content: float = ROW_H
-	var cells: Array[Rect2] = _cells()
-	if not cells.is_empty():
-		content = cells[cells.size() - 1].end.y - PAD_TOP
-	return Vector2(2.0 * PAD_X + columns * CELL_W, PAD_TOP + content + PAD_BOTTOM + (TITLE_H if not b.title.is_empty() else 0.0))
+	return b.face_size() if b != null else Vector2.ZERO
 
 
 ## Cell of every item, in item order: rows of [member ControlBox.columns]

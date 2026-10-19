@@ -62,7 +62,9 @@ const FORMAT: String = "ladder-lab"
 ## before: none).
 ## 29: load of three-phase motors ("load", % of the rated torque; missing
 ## before: 100).
-const VERSION: int = 29
+## 30: control stations shown on the workspace as their face ("face": its
+## scale; missing before: as their tile).
+const VERSION: int = 30
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error. The

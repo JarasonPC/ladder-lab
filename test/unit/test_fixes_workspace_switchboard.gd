@@ -715,3 +715,58 @@ func test_motors_turn_on_the_workspace_while_simulating() -> void:
 	assert_true(spin.has("M1") and spin.has("M2"), "their marks go round")
 	canvas.editing = true
 	assert_eq(canvas.motor_turn("M1"), 0.0, "not while editing")
+
+
+func test_station_shown_as_its_face_on_the_workspace() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("face")
+	doc.add(PushButton.new("SB1", NO), Vector2i(5, 5))
+	var box: ControlBox = doc.add_control_box("Gate", 1, Vector2(100.0, 50.0))
+	box.items.append(ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, "SB1"))
+	assert_eq(Workspace.place_size(box), Workspace.PLACE_SIZE, "a tile at first")
+	doc.set_station_face(0, ControlBox.DEFAULT_FACE)
+	assert_eq(Workspace.place_size(box), box.face_size() * ControlBox.DEFAULT_FACE)
+	doc.set_station_face(0, 9.0)
+	assert_eq(box.face_scale, ControlBox.MAX_FACE, "kept within its limits")
+	doc.set_station_face(0, ControlBox.DEFAULT_FACE)
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(copy.control_boxes[0].face_scale, ControlBox.DEFAULT_FACE, "saved")
+	var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
+	canvas.document = doc
+	canvas.size = Vector2(800.0, 600.0)
+	add_child_autofree(canvas)
+	await wait_process_frames(2)
+	var faces: Dictionary = canvas.get("_faces")
+	assert_true(faces.has(box.name), "drawn as the station")
+	var face: ControlBoxView = faces[box.name]
+	assert_almost_eq(face.scale.x, ControlBox.DEFAULT_FACE * canvas.zoom, 0.001)
+	assert_eq(face.position, canvas.offset + box.position * canvas.zoom)
+	# Simulating, its buttons operate the circuit.
+	watch_signals(canvas)
+	face.button_held.emit("SB1", true)
+	assert_signal_emitted_with_parameters(canvas, "button_held", ["SB1", true])
+	# Editing, its corner resizes it (one undoable edit at the release).
+	canvas.editing = true
+	canvas.selected = "+" + box.name
+	canvas.queue_redraw()
+	await wait_process_frames(1)
+	var rect: Rect2 = Rect2(box.position, Workspace.place_size(box))
+	var corner: Vector2 = canvas.offset + rect.end * canvas.zoom
+	var press: InputEventMouseButton = InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = corner
+	canvas._gui_input(press)
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = canvas.offset + (box.position + Vector2(box.face_size().x, 0.0)) * canvas.zoom
+	canvas._gui_input(motion)
+	var release: InputEventMouseButton = press.duplicate()
+	release.pressed = false
+	canvas._gui_input(release)
+	assert_signal_emitted(canvas, "edit_requested")
+	var change: Callable = get_signal_parameters(canvas, "edit_requested")[0]
+	change.call(doc)
+	assert_almost_eq(box.face_scale, 1.0, 0.01, "dragged to full size")
+	doc.set_station_face(0, 0.0)
+	canvas.queue_redraw()
+	await wait_process_frames(2)
+	assert_false(faces.has(box.name), "back to its tile")
