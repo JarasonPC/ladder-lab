@@ -957,9 +957,9 @@ func _rebuild_view_menu() -> void:
 	popup.add_radio_check_item(tr("Current view"), ViewMenuId.CURRENT_VIEW)
 	popup.set_item_checked(popup.item_count - 1, _current_view)
 	popup.add_separator(tr("Cable types"))
-	popup.add_radio_check_item(tr("Czech (CGSG-J 3x2,5)"), ViewMenuId.CABLES_CZECH)
+	popup.add_radio_check_item(tr("Czech (CGSG, JYTY, CYKY)"), ViewMenuId.CABLES_CZECH)
 	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.CZECH)
-	popup.add_radio_check_item(tr("EU harmonised (H07RN-F 3G2,5)"), ViewMenuId.CABLES_HARMONISED)
+	popup.add_radio_check_item(tr("European (H07RN-F, H05VV5-F, NYY)"), ViewMenuId.CABLES_HARMONISED)
 	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED)
 	popup.add_separator(tr("Language"))
 	for i: int in LOCALE_NAMES.size():

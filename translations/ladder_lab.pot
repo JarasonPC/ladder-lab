@@ -3155,10 +3155,10 @@ msgstr ""
 msgid "Cable types"
 msgstr ""
 
-msgid "Czech (CGSG-J 3x2,5)"
+msgid "Czech (CGSG, JYTY, CYKY)"
 msgstr ""
 
-msgid "EU harmonised (H07RN-F 3G2,5)"
+msgid "European (H07RN-F, H05VV5-F, NYY)"
 msgstr ""
 
 msgid "Keys"

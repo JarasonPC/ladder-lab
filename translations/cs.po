@@ -3164,11 +3164,11 @@ msgstr "Přiřadit klávesu"
 msgid "Cable types"
 msgstr "Typy kabelů"
 
-msgid "Czech (CGSG-J 3x2,5)"
-msgstr "České (CGSG-J 3x2,5)"
+msgid "Czech (CGSG, JYTY, CYKY)"
+msgstr "České (CGSG, JYTY, CYKY)"
 
-msgid "EU harmonised (H07RN-F 3G2,5)"
-msgstr "Harmonizované EU (H07RN-F 3G2,5)"
+msgid "European (H07RN-F, H05VV5-F, NYY)"
+msgstr "Evropské (H07RN-F, H05VV5-F, NYY)"
 
 msgid "Keys"
 msgstr "Klávesy"

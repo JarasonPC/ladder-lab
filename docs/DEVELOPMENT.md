@@ -193,11 +193,17 @@ Architecture and conventions of the code base. Read this before changing the cod
   workspace order: switchboards, stations, parts in circuit order), each core with what it lands
   on at both ends
   (at a switchboard its strip terminals alone when it has some) and its wire number, the PE core
-  last. A cable's type (WorkspaceCables.type_text) is "CGSG-J 4x2,5" (J with a PE core, O
-  without) or harmonised "H07RN-F 4G2,5" (G with PE, x without) by WorkspaceCables.naming (View
-  menu, user settings "cable_types"); its cross-section (WorkspaceCables.section, "section" in
-  the cable) is CONTROL_SECTION without power cores, else the smallest of SECTIONS taking the
-  current: a motor's rated current for a cable to it, all motors' together for any other.
+  last. A cable's type (WorkspaceCables.type_text) follows its use (WorkspaceCables.use, "use"
+  in the cable: a motor at an end MOTOR, else a sensor SENSOR, else a limit switch FIELD;
+  between switchboards and stations FEEDER with power cores, else CONTROL) from
+  WorkspaceCables.TYPES, Czech or European by WorkspaceCables.naming (View menu, user settings
+  "cable_types"): motor and field CGSG-J / H07RN-F, sensor LiYCY / H05VVC4V5-K (shielded),
+  feeder CYKY-J / NYY-J, control JYTY-O / H05VV5-F ("J" with a PE core, "O" without; harmonised
+  H0... types "4G2,5" with PE, "4x2,5" without); its cross-section (WorkspaceCables.section,
+  "section" in the cable) is CONTROL_CABLE_SECTION (1 mm²) for control, SENSOR_SECTION for
+  sensors, CONTROL_SECTION for other cables without power cores, else the smallest of SECTIONS
+  taking the current: a motor's rated current for a cable to it, all motors' together for any
+  other.
   Names W1, W2, … in order, kept in
   SchematicDocument.cable_names (saved as "cables"; name_cables after every edit gives new
   cables the first free number and drops the names of cables that are gone; renaming a place

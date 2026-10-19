@@ -9,11 +9,18 @@ extends RefCounted
 ## shortest way between them (e.g. a stop button looped through from one
 ## station to the next). The cores between two places make one cable, named
 ## W1, W2, ... ([member SchematicDocument.cable_names] keeps the names), and
-## gets a type as a real cable ([method type_text]). No nodes.
+## gets a type as a real cable by what it is used for ([method use],
+## [method type_text]). No nodes.
 
-## How cable types are written: Czech "CGSG-J 3x2,5" or the harmonised
-## "H07RN-F 3G2,5".
+## How cable types are written: Czech designations ("CGSG-J 3x2,5") or their
+## European equivalents ("H07RN-F 3G2,5").
 enum Naming { CZECH, HARMONISED }
+## What a cable is used for, which decides its type: to a motor (rubber
+## flexible), to a limit switch (rubber flexible, on the machine), to a
+## sensor (shielded, analog signal), between switchboards with power cores (a
+## feeder, laid fixed), any other control cable (control stations, control
+## cores between switchboards: PVC control cable).
+enum Use { MOTOR, FIELD, SENSOR, FEEDER, CONTROL }
 
 ## Copper cross-sections (mm²) with the most current (A) each is taken for,
 ## smallest first (a flexible rubber cable laid on a surface, protected for
@@ -25,6 +32,20 @@ const SECTIONS: Array[Vector2] = [
 ]
 ## Cross-section of a cable without power cores (control circuits).
 const CONTROL_SECTION: float = 1.5
+## Cross-sections of control cables (PVC control cables come in 1 mm²) and of
+## shielded sensor cables.
+const CONTROL_CABLE_SECTION: float = 1.0
+const SENSOR_SECTION: float = 0.75
+## Types by [enum Use]: [Czech, European] and the letters marking a cable
+## with / without a green-yellow core in each (type, then cores x section;
+## "" where the letters go between the cores and the section: "3G1,5").
+const TYPES: Dictionary[Use, Array] = {
+	Use.MOTOR: [["CGSG-J", "CGSG-O"], ["H07RN-F", "H07RN-F"]],
+	Use.FIELD: [["CGSG-J", "CGSG-O"], ["H07RN-F", "H07RN-F"]],
+	Use.SENSOR: [["LiYCY", "LiYCY"], ["H05VVC4V5-K", "H05VVC4V5-K"]],
+	Use.FEEDER: [["CYKY-J", "CYKY-O"], ["NYY-J", "NYY-O"]],
+	Use.CONTROL: [["JYTY-J", "JYTY-O"], ["H05VV5-F", "H05VV5-F"]],
+}
 
 ## Naming of [method type_text] (View menu, kept in the user settings).
 static var naming: Naming = Naming.CZECH
@@ -33,7 +54,8 @@ static var naming: Naming = Naming.CZECH
 ## ends: "+RA1" a switchboard or station, "-M1" a part in the field), "cores":
 ## [{"net", "conductor" ([enum CabinetDevices.Conductor]), "a", "b" (what the
 ## core lands on at each end, e.g. "X2:3", "SB1:13"), "number" (wire number,
-## may be empty)}], the PE core last, "section" (mm², see [method section])}.
+## may be empty)}], the PE core last, "use" ([enum Use], see [method use]),
+## "section" (mm², see [method section])}.
 static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 	var circuit: Circuit = doc.circuit
 	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
@@ -120,6 +142,7 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 		var cable: Dictionary = found[key]
 		# The PE core last, as in a real cable.
 		(cable["cores"] as Array).sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["conductor"] != CabinetDevices.Conductor.PE and q["conductor"] == CabinetDevices.Conductor.PE)
+		cable["use"] = use(doc, cable)
 		cable["section"] = section(doc, cable)
 		result.append(cable)
 	result.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
@@ -130,36 +153,68 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 	return result
 
 
-## Type of a cable as written on it: "CGSG-J 4x2,5" (J with a PE core, O
-## without) or harmonised "H07RN-F 4G2,5" (G with a PE core, x without), as
-## [member naming] says.
+## Type of a cable as written on it, by its use ([constant TYPES]) as
+## [member naming] says: Czech "CGSG-J 4x2,5" (J with a PE core, O without),
+## "JYTY-O 7x1", "CYKY-J 5x10", "LiYCY 3x0,75"; European "H07RN-F 4G2,5" (G
+## with a PE core, x without), "H05VV5-F 7x1", "NYY-J 5x10" (J / O as in
+## Czech), "H05VVC4V5-K 3x0,75". A cable without a use is taken as one to a
+## part in the field.
 static func type_text(cable: Dictionary) -> String:
 	var cores: int = (cable["cores"] as Array).size()
 	var pe: bool = false
 	for core: Dictionary in cable["cores"]:
 		pe = pe or core["conductor"] == CabinetDevices.Conductor.PE
 	var mm2: String = section_text(float(cable.get("section", CONTROL_SECTION)))
-	if naming == Naming.HARMONISED:
-		return "H07RN-F %d%s%s" % [cores, "G" if pe else "x", mm2]
-	return "CGSG-%s %dx%s" % ["J" if pe else "O", cores, mm2]
+	var names: Array = TYPES[int(cable.get("use", Use.FIELD)) as Use][1 if naming == Naming.HARMONISED else 0]
+	var type: String = names[0] if pe else names[1]
+	if type.begins_with("H0"):
+		# Harmonised types mark the green-yellow core between count and section.
+		return "%s %d%s%s" % [type, cores, "G" if pe else "x", mm2]
+	return "%s %dx%s" % [type, cores, mm2]
 
 
-## A cross-section as written on cables: "2,5", "10".
+## What [param cable] is used for: a motor at one end makes it a motor cable,
+## else a sensor a sensor cable, else another part in the field (a limit
+## switch) a field cable; one between switchboards and stations is a feeder
+## when it has power cores, else a control cable.
+static func use(doc: SchematicDocument, cable: Dictionary) -> Use:
+	var kinds: Array[Workspace.Field] = []
+	for end: String in [cable["a"], cable["b"]]:
+		var c: CircuitComponent = Workspace.field_component(doc.circuit, end.substr(1)) if end.begins_with("-") else null
+		if c != null:
+			kinds.append(Workspace.field_kind(c))
+	if kinds.has(Workspace.Field.MOTOR):
+		return Use.MOTOR
+	if kinds.has(Workspace.Field.SENSOR):
+		return Use.SENSOR
+	if not kinds.is_empty():
+		return Use.FIELD
+	for core: Dictionary in cable["cores"]:
+		if core["conductor"] == CabinetDevices.Conductor.POWER:
+			return Use.FEEDER
+	return Use.CONTROL
+
+
+## A cross-section as written on cables: "0,75", "2,5", "10".
 static func section_text(mm2: float) -> String:
-	return str(snappedf(mm2, 0.1)).trim_suffix(".0").replace(".", ",")
+	return str(snappedf(mm2, 0.01)).trim_suffix(".0").replace(".", ",")
 
 
-## Cross-section (mm²) of [param cable]: a cable without power cores is a
-## control cable ([constant CONTROL_SECTION]); one to a motor carries the
-## motor's rated current, any other power cable the rated currents of all
-## motors together (it feeds them), the smallest of [constant SECTIONS] that
-## takes it.
+## Cross-section (mm²) of [param cable]: a PVC control cable
+## [constant CONTROL_CABLE_SECTION], a sensor cable [constant SENSOR_SECTION],
+## another cable without power cores [constant CONTROL_SECTION]; one to a
+## motor carries the motor's rated current, any other power cable the rated
+## currents of all motors together (it feeds them), the smallest of
+## [constant SECTIONS] that takes it.
 static func section(doc: SchematicDocument, cable: Dictionary) -> float:
 	var power: bool = false
 	for core: Dictionary in cable["cores"]:
 		power = power or core["conductor"] == CabinetDevices.Conductor.POWER
+	var kind: Use = int(cable.get("use", use(doc, cable))) as Use
+	if kind == Use.SENSOR:
+		return SENSOR_SECTION
 	if not power:
-		return CONTROL_SECTION
+		return CONTROL_CABLE_SECTION if kind == Use.CONTROL else CONTROL_SECTION
 	var amps: float = 0.0
 	var motor: bool = false
 	for end: String in [cable["a"], cable["b"]]:

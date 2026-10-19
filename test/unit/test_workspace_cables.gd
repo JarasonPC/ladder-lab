@@ -103,6 +103,36 @@ func test_type_text() -> void:
 	assert_eq(WorkspaceCables.section_text(10.0), "10")
 
 
+func test_types_follow_the_use() -> void:
+	var doc: SchematicDocument = _doc()
+	var sensor: TemperatureSensor = TemperatureSensor.new("BT1")
+	doc.add(sensor, Vector2i(40, 10))
+	var cables: Dictionary = _by_ends(WorkspaceCables.cables(doc))
+	assert_eq(cables["+RA1|+ST1"]["use"], WorkspaceCables.Use.CONTROL, "to a control station")
+	assert_eq(cables["+ST1|+ST2"]["use"], WorkspaceCables.Use.CONTROL, "between stations")
+	assert_eq(cables["+RA1|-M1"]["use"], WorkspaceCables.Use.MOTOR, "to a motor")
+	var power: Array = [{"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.PE}]
+	var control: Array = [{"conductor": CabinetDevices.Conductor.CONTROL}, {"conductor": CabinetDevices.Conductor.CONTROL}, {"conductor": CabinetDevices.Conductor.CONTROL}]
+	assert_eq(WorkspaceCables.use(doc, {"a": "+RA1", "b": "-BT1", "cores": control}), WorkspaceCables.Use.SENSOR, "to a sensor")
+	assert_eq(WorkspaceCables.use(doc, {"a": "+RA1", "b": "+RA2", "cores": power}), WorkspaceCables.Use.FEEDER, "power between switchboards")
+	assert_eq(WorkspaceCables.use(doc, {"a": "+RA1", "b": "+RA2", "cores": control}), WorkspaceCables.Use.CONTROL, "control between switchboards")
+	var station: Dictionary = cables["+RA1|+ST1"]
+	assert_eq(station["section"], WorkspaceCables.CONTROL_CABLE_SECTION)
+	assert_eq(WorkspaceCables.type_text(station), "JYTY-O 3x1")
+	var feeder: Dictionary = {"cores": power, "use": WorkspaceCables.Use.FEEDER, "section": 10.0}
+	var probe: Dictionary = {"cores": control, "use": WorkspaceCables.Use.SENSOR, "section": WorkspaceCables.SENSOR_SECTION}
+	var motor: Dictionary = {"cores": power, "use": WorkspaceCables.Use.MOTOR, "section": 2.5}
+	assert_eq(WorkspaceCables.type_text(motor), "CGSG-J 4x2,5")
+	assert_eq(WorkspaceCables.type_text(feeder), "CYKY-J 4x10")
+	assert_eq(WorkspaceCables.type_text(probe), "LiYCY 3x0,75")
+	WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED
+	assert_eq(WorkspaceCables.type_text(station), "H05VV5-F 3x1")
+	assert_eq(WorkspaceCables.type_text(motor), "H07RN-F 4G2,5")
+	assert_eq(WorkspaceCables.type_text(feeder), "NYY-J 4x10")
+	assert_eq(WorkspaceCables.type_text(probe), "H05VVC4V5-K 3x0,75")
+	WorkspaceCables.naming = WorkspaceCables.Naming.CZECH
+
+
 func test_cross_section_by_rated_current() -> void:
 	var doc: SchematicDocument = _doc()
 	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M2")
