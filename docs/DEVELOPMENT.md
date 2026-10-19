@@ -322,8 +322,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   it has a wiring channel on both sides (CabinetLayout.WIRE_CHANNEL): wires from its bottom
   terminals run across its front at heights clear of its screws (CabinetParts.CONTACTOR_OUT_Y)
   out to the nearer side and down beside the relay, never across it; wires from the auxiliary
-  contact blocks are led round the contactor's terminals along its edge
-  (CabinetWiring._lead_aside); colours by conductor
+  contact block on its front run straight on over the contactor's tiers, in at the block's top
+  and bottom (its columns, CabinetParts.AUX_BLOCK_X / AUX_BLOCK_X4, lie between the
+  contactor's, clear of the wires going into them; over an overload relay its bottom wires go
+  out to the side like the contactor's); colours by conductor
   (CabinetDevices.conductors): red = phase of the control circuit (L), light blue = N (and the
   DC - pole, a rectifier's - too), grey = main power circuit (L2/L3 and the terminals of main
   contacts, overload relay

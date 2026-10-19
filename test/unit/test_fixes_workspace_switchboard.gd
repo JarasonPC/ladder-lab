@@ -285,12 +285,23 @@ func _over_screws(doc: SchematicDocument, kinds: Array, board: int = 0) -> Packe
 			var points: Dictionary = CabinetParts.terminal_points(set[0], set[1])
 			for name: String in points:
 				var p: Vector3 = points[name]
-				screws.append({"at": set[2] + Vector2(p.x, p.y), "r": p.z, "key": terminals.get(name, ""), "name": "%s:%s" % [set[3], name]})
+				screws.append({"at": set[2] + Vector2(p.x, p.y), "r": p.z, "key": terminals.get(name, ""), "name": "%s:%s" % [set[3], name], "device": set[3]})
+	# The auxiliary contact block on a contactor's front: its wires run
+	# straight on over the contactor's own tiers, in front of their screws.
+	var block: Dictionary[String, String] = {}
+	for place: Dictionary in layout.places:
+		if place["kind"] == CabinetDevices.Kind.CONTACTOR:
+			var aux: Array = place["desc"]["aux"]
+			for k: int in range(CabinetParts.AUX_BUILT_IN, mini(aux.size(), CabinetParts.AUX_BUILT_IN + CabinetParts.AUX_FRONT)):
+				for name: String in [str(aux[k][0]), str(aux[k][2])]:
+					block[place["desc"]["terminals"].get(name, "")] = place["designation"]
 	var result: PackedStringArray = PackedStringArray()
 	for wire: Dictionary in wiring.wires:
 		var path: PackedVector2Array = wire["points"]
 		for screw: Dictionary in screws:
 			if screw["key"] == wire["from"] or screw["key"] == wire["to"]:
+				continue
+			if block.get(wire["from"], "") == screw["device"] or block.get(wire["to"], "") == screw["device"]:
 				continue
 			for i: int in path.size() - 1:
 				if _distance(screw["at"], path[i], path[i + 1]) < screw["r"] + wire["width"] * 0.5 - 0.3:
