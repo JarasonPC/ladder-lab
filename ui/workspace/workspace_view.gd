@@ -195,6 +195,7 @@ func open_cable(key: String) -> void:
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_body.add_child(_panel)
 	cores.set_document(_document, _editing)
+	cores.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
 	canvas.visible = false
 	canvas.selected = "=" + key
 	refresh()

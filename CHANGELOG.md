@@ -13,6 +13,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Workspace cables get a type by their use: CGSG-J to motors and limit switches, JYTY-O to
   control stations, shielded LiYCY to sensors, CYKY-J between switchboards (View > Cable types:
   Czech, or the European H07RN-F, H05VV5-F, H05VVC4V5-K, NYY-J)
+- A cable opened on the workspace can be given a type name of your own, a cross-section and its
+  length; it then shows its voltage drop (marked above 4 %), and the length is written on the
+  workspace and in the parts list
 
 ### Fixed
 - Zooming, moving and simulating in a switchboard is smooth: only what changed is drawn again

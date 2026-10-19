@@ -193,7 +193,7 @@ func cable_paths() -> Array[Dictionary]:
 ## in [param taken]; where none is clear, in the middle of the longest run.
 static func _tag(corners: PackedVector2Array, cable: Dictionary, taken: Array[Rect2]) -> Dictionary:
 	var font: Font = AppTheme.schematic_font()
-	var type: String = WorkspaceCables.type_text(cable)
+	var type: String = WorkspaceCables.type_and_length(cable)
 	var texts: PackedStringArray = ["%s · %s" % [cable["name"], type], "%s\n%s" % [cable["name"], type], cable["name"]]
 	var sizes: Array[Vector2] = []
 	for i: int in texts.size():
@@ -441,7 +441,7 @@ func _get_tooltip(at_position: Vector2) -> String:
 		return ""
 	for cable: Dictionary in cables():
 		if cable["key"] == found["name"]:
-			return "%s  %s\n%s – %s" % [cable["name"], WorkspaceCables.type_text(cable), cable["a"], cable["b"]]
+			return "%s  %s\n%s – %s" % [cable["name"], WorkspaceCables.type_and_length(cable), cable["a"], cable["b"]]
 	return ""
 
 

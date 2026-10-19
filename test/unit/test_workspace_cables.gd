@@ -188,3 +188,63 @@ func test_renamed_places_keep_their_cables_names() -> void:
 	var cables: Dictionary = _by_ends(WorkspaceCables.cables(doc))
 	assert_eq(cables["+RA1|+ST7"]["name"], "W-inside")
 	assert_eq(cables["+RA1|-M5"]["name"], "W3", "the motor's cable keeps its number")
+
+
+func test_type_section_and_length_set_by_hand() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.name_cables()
+	assert_true(doc.set_cable("+RA1|+ST1", "  ÖLFLEX 110  ", 1.5, 35.0))
+	assert_false(doc.set_cable("+RA9|+ST1", "X", 0.0, 0.0), "no such cable")
+	var cable: Dictionary = _by_ends(WorkspaceCables.cables(doc))["+RA1|+ST1"]
+	assert_eq(cable["type"], "ÖLFLEX 110")
+	assert_eq(cable["section"], 1.5)
+	assert_eq(cable["auto_section"], WorkspaceCables.CONTROL_CABLE_SECTION)
+	assert_eq(cable["length"], 35.0)
+	assert_eq(WorkspaceCables.type_text(cable), "ÖLFLEX 110 3x1,5")
+	assert_eq(WorkspaceCables.type_and_length(cable), "ÖLFLEX 110 3x1,5, 35 m")
+	WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED
+	assert_eq(WorkspaceCables.type_text(cable), "ÖLFLEX 110 3x1,5", "the cores written the European way")
+	WorkspaceCables.naming = WorkspaceCables.Naming.CZECH
+	# Saved with the schematic.
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(copy.cable_settings, doc.cable_settings)
+	# Damaged values load as nothing set.
+	var data: Dictionary = DocumentSerializer.to_dict(doc)
+	data["cable_settings"]["+RA1|+ST1"] = {"type": 5, "section": 3.3, "length": -2}
+	assert_false(DocumentSerializer.from_dict(data).cable_settings.has("+RA1|+ST1"))
+	# Kept when a place is renamed, dropped with the cable.
+	doc.rename_place(Workspace.Place.STATION, 0, "ST9", "")
+	doc.name_cables()
+	assert_true(doc.cable_settings.has("+RA1|+ST9"), "follows the renamed station")
+	doc.control_boxes.clear()
+	doc.name_cables()
+	assert_true(doc.cable_settings.is_empty(), "dropped with the cable")
+	# Nothing set: no entry.
+	doc = _doc()
+	doc.set_cable("+RA1|-M1", "", 0.0, 0.0)
+	assert_true(doc.cable_settings.is_empty())
+
+
+func test_voltage_drop() -> void:
+	var doc: SchematicDocument = _doc()
+	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M2")
+	motor.rated_current = 18.0
+	motor.power_factor = 0.8
+	doc.add(motor, Vector2i(40, 30))
+	var power: Array = [{"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.PE}]
+	var cable: Dictionary = {"a": "+RA1", "b": "-M2", "cores": power, "section": 2.5, "length": 50.0}
+	var drop: Dictionary = WorkspaceCables.voltage_drop(doc, cable)
+	# √3 · 50 m · 0.0225 Ω mm²/m · 18 A · 0.8 / 2.5 mm²
+	assert_almost_eq(float(drop["volts"]), sqrt(3.0) * 50.0 * 0.0225 * 18.0 * 0.8 / 2.5, 0.001)
+	assert_almost_eq(float(drop["percent"]), float(drop["volts"]) / 4.0, 0.001, "of 400 V")
+	assert_eq(drop["amps"], 18.0)
+	cable["length"] = 0.0
+	assert_eq(WorkspaceCables.voltage_drop(doc, cable), {}, "no length, no drop")
+	# A control cable: the loads on a core's net all on, there and back.
+	doc.name_cables()
+	doc.set_cable("+RA1|-M1", "", 0.0, 20.0)
+	var to_motor: Dictionary = _by_ends(WorkspaceCables.cables(doc))["+RA1|-M1"]
+	var single: Motor = doc.circuit.get_component("M1") as Motor
+	drop = WorkspaceCables.voltage_drop(doc, to_motor)
+	assert_almost_eq(float(drop["volts"]), 2.0 * single.rated_draw() * 20.0 * 0.0225 / float(to_motor["section"]), 0.001)
+	assert_eq(drop["of"], 230.0)

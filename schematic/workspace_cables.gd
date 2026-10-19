@@ -30,6 +30,16 @@ const SECTIONS: Array[Vector2] = [
 	Vector2(10.0, 50.0), Vector2(16.0, 63.0), Vector2(25.0, 80.0), Vector2(35.0, 100.0),
 	Vector2(50.0, 125.0), Vector2(70.0, 160.0), Vector2(95.0, 200.0), Vector2(120.0, 250.0),
 ]
+## Cross-sections (mm²) a cable can be given by hand.
+const CHOICES: PackedFloat32Array = [0.5, 0.75, 1.0, 1.5, 2.5, 4.0, 6.0, 10.0, 16.0, 25.0, 35.0, 50.0, 70.0, 95.0, 120.0]
+## Longest cable length (m) that can be given.
+const MAX_LENGTH: float = 10000.0
+## Resistivity of copper at its working temperature (Ω mm²/m, 1.25 times
+## that at 20 °C, as ČSN 33 2000-5-52 annex G reckons voltage drop).
+const RESISTIVITY: float = 0.0225
+## Voltage drop (%) above which a cable is marked: the 4 % commonly kept to
+## for circuits other than lighting.
+const DROP_LIMIT: float = 4.0
 ## Cross-section of a cable without power cores (control circuits).
 const CONTROL_SECTION: float = 1.5
 ## Cross-sections of control cables (PVC control cables come in 1 mm²) and of
@@ -55,7 +65,10 @@ static var naming: Naming = Naming.CZECH
 ## [{"net", "conductor" ([enum CabinetDevices.Conductor]), "a", "b" (what the
 ## core lands on at each end, e.g. "X2:3", "SB1:13"), "number" (wire number,
 ## may be empty)}], the PE core last, "use" ([enum Use], see [method use]),
-## "section" (mm², see [method section])}.
+## "section" (mm², see [method section], or the one set by hand), "auto_section"
+## (the one by [method section]), "type" (a type name set by hand, "" for
+## the one by its use), "length" (metres set by hand, 0 for none; see
+## [member SchematicDocument.cable_settings])}.
 static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 	var circuit: Circuit = doc.circuit
 	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
@@ -143,7 +156,11 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 		# The PE core last, as in a real cable.
 		(cable["cores"] as Array).sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["conductor"] != CabinetDevices.Conductor.PE and q["conductor"] == CabinetDevices.Conductor.PE)
 		cable["use"] = use(doc, cable)
-		cable["section"] = section(doc, cable)
+		cable["auto_section"] = section(doc, cable)
+		var given: Dictionary = doc.cable_settings.get(key, {})
+		cable["section"] = float(given.get("section", 0.0)) if float(given.get("section", 0.0)) > 0.0 else cable["auto_section"]
+		cable["type"] = str(given.get("type", ""))
+		cable["length"] = float(given.get("length", 0.0))
 		result.append(cable)
 	result.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
 		if p["a"] != q["a"]:
@@ -158,19 +175,113 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 ## "JYTY-O 7x1", "CYKY-J 5x10", "LiYCY 3x0,75"; European "H07RN-F 4G2,5" (G
 ## with a PE core, x without), "H05VV5-F 7x1", "NYY-J 5x10" (J / O as in
 ## Czech), "H05VVC4V5-K 3x0,75". A cable without a use is taken as one to a
-## part in the field.
+## part in the field. A type name set by hand ("type") takes the place of
+## the one by its use, written with the cores as European types are while
+## [member naming] is European.
 static func type_text(cable: Dictionary) -> String:
 	var cores: int = (cable["cores"] as Array).size()
 	var pe: bool = false
 	for core: Dictionary in cable["cores"]:
 		pe = pe or core["conductor"] == CabinetDevices.Conductor.PE
 	var mm2: String = section_text(float(cable.get("section", CONTROL_SECTION)))
-	var names: Array = TYPES[int(cable.get("use", Use.FIELD)) as Use][1 if naming == Naming.HARMONISED else 0]
-	var type: String = names[0] if pe else names[1]
-	if type.begins_with("H0"):
+	var type: String = type_name(cable)
+	var given: bool = not str(cable.get("type", "")).is_empty()
+	if type.begins_with("H0") or (given and naming == Naming.HARMONISED):
 		# Harmonised types mark the green-yellow core between count and section.
 		return "%s %d%s%s" % [type, cores, "G" if pe else "x", mm2]
 	return "%s %dx%s" % [type, cores, mm2]
+
+
+## The type name of [param cable] without its cores: the one set by hand,
+## else the one by its use ([constant TYPES]) as [member naming] says.
+static func type_name(cable: Dictionary) -> String:
+	var given: String = str(cable.get("type", ""))
+	if not given.is_empty():
+		return given
+	var pe: bool = false
+	for core: Dictionary in cable["cores"]:
+		pe = pe or core["conductor"] == CabinetDevices.Conductor.PE
+	var names: Array = TYPES[int(cable.get("use", Use.FIELD)) as Use][1 if naming == Naming.HARMONISED else 0]
+	return names[0] if pe else names[1]
+
+
+## Settings set by hand on a cable as kept in
+## [member SchematicDocument.cable_settings]: [param type] (one line, at most
+## 40 characters, "" for the type by use), [param section] (one of
+## [constant CHOICES], else 0), [param length] (metres up to
+## [constant MAX_LENGTH], else 0); {} when nothing is set.
+static func settings(type: String, section: float, length: float) -> Dictionary:
+	var result: Dictionary = {}
+	var name: String = " ".join(type.strip_edges().split("\n", false)).left(40).strip_edges()
+	if not name.is_empty():
+		result["type"] = name
+	for choice: float in CHOICES:
+		if is_equal_approx(choice, section):
+			result["section"] = choice
+	if length > 0.0 and length <= MAX_LENGTH:
+		result["length"] = snappedf(length, 0.1)
+	return result
+
+
+## Voltage drop along [param cable] over its length: {"amps" (the current
+## reckoned with), "volts", "percent" (of the voltage it is reckoned against,
+## "of")}; {} without a length or a current to reckon with. A cable to a
+## three-phase motor carries its rated current, a feeder those of all
+## three-phase motors (ΔU = √3 I L ρ cos φ / S, against 400 V); a control
+## cable on each core the rated currents of the loads on the core's net all
+## on at once (ΔU = 2 I L ρ / S, there and back, against their rated
+## voltage), the worst core counting. Reactance is left out (small for these
+## cross-sections).
+static func voltage_drop(doc: SchematicDocument, cable: Dictionary) -> Dictionary:
+	var length: float = float(cable.get("length", 0.0))
+	var mm2: float = float(cable.get("section", CONTROL_SECTION))
+	if length <= 0.0 or mm2 <= 0.0:
+		return {}
+	var power: bool = false
+	for core: Dictionary in cable["cores"]:
+		power = power or core["conductor"] == CabinetDevices.Conductor.POWER
+	if power:
+		var motors: Array[ThreePhaseMotor] = []
+		for end: String in [cable["a"], cable["b"]]:
+			var c: CircuitComponent = Workspace.field_component(doc.circuit, end.substr(1)) if end.begins_with("-") else null
+			if c is ThreePhaseMotor:
+				motors.append(c)
+		if motors.is_empty():
+			for c: CircuitComponent in doc.circuit.get_components():
+				if c is ThreePhaseMotor:
+					motors.append(c)
+		var amps: float = 0.0
+		var active: float = 0.0
+		for motor: ThreePhaseMotor in motors:
+			amps += motor.rated_current
+			active += motor.rated_current * motor.power_factor
+		if amps <= 0.0:
+			return {}
+		var volts: float = sqrt(3.0) * length * RESISTIVITY * active / mm2
+		return {"amps": amps, "volts": volts, "percent": 100.0 * volts / 400.0, "of": 400.0}
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var worst: Dictionary = {}
+	for core: Dictionary in cable["cores"]:
+		if core["conductor"] == CabinetDevices.Conductor.PE or core["conductor"] == CabinetDevices.Conductor.NEUTRAL:
+			continue
+		var amps: float = 0.0
+		var of: float = 0.0
+		for c: CircuitComponent in doc.circuit.get_components():
+			if not (c is Load):
+				continue
+			for key: String in c.get_terminal_keys():
+				if net.get(key, -1) == core["net"]:
+					amps += (c as Load).rated_draw()
+					if of <= 0.0:
+						of = VoltageRating.nominal((c as Load).rating)
+					break
+		if amps <= 0.0:
+			continue
+		of = of if of > 0.0 else PowerSupply.PHASE_VOLTS
+		var volts: float = 2.0 * amps * length * RESISTIVITY / mm2
+		if worst.is_empty() or volts / of > float(worst["volts"]) / float(worst["of"]):
+			worst = {"amps": amps, "volts": volts, "percent": 100.0 * volts / of, "of": of}
+	return worst
 
 
 ## What [param cable] is used for: a motor at one end makes it a motor cable,
@@ -193,6 +304,15 @@ static func use(doc: SchematicDocument, cable: Dictionary) -> Use:
 		if core["conductor"] == CabinetDevices.Conductor.POWER:
 			return Use.FEEDER
 	return Use.CONTROL
+
+
+## The type of [param cable] with its length when one is set: "CGSG-J
+## 4x2,5, 25 m" (on the workspace and in the parts list).
+static func type_and_length(cable: Dictionary) -> String:
+	var length: float = float(cable.get("length", 0.0))
+	if length <= 0.0:
+		return type_text(cable)
+	return "%s, %s m" % [type_text(cable), section_text(length)]
 
 
 ## A cross-section as written on cables: "0,75", "2,5", "10".

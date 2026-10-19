@@ -3268,3 +3268,24 @@ msgstr ""
 
 msgid "relay"
 msgstr ""
+
+msgid "Cross-section"
+msgstr ""
+
+msgid "Length"
+msgstr ""
+
+msgid "By the current (%s mm²)"
+msgstr ""
+
+msgid "Give the cable's length to work out its voltage drop."
+msgstr ""
+
+msgid "Voltage drop: no load current to reckon with."
+msgstr ""
+
+msgid "Voltage drop %s V (%s %% of %d V) at %s A."
+msgstr ""
+
+msgid "More than the %s %% usually kept to: a larger cross-section is needed."
+msgstr ""
