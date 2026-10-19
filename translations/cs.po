@@ -3486,3 +3486,20 @@ msgstr "Skokový mechanismus: spíná okamžitě, všechny póly zároveň."
 
 msgid "knob, stays where it is turned"
 msgstr "ovladač, zůstává v nastavené poloze"
+
+msgid "I-0-II (e.g. manual / off / auto)"
+msgstr "I-0-II (např. ručně / vypnuto / automat)"
+
+msgid "Operated in position"
+msgstr "Ovládán v poloze"
+
+#, c-format
+msgid "Selector switch I-0-II, this block operated in %s"
+msgstr "Přepínač I-0-II, tento blok ovládán v poloze %s"
+
+msgid "Selector switch with the positions I, 0 (in the middle) and II, e.g. manual / off / auto. Each block of it is operated in one of the positions I and II; in 0 none is. While simulating, a click turns it on to the next position (0, I, 0, II); on a control station or a switchboard door its knob is turned to the left or the right."
+msgstr "Přepínač s polohami I, 0 (uprostřed) a II, např. ručně / vypnuto / automat. Každý jeho blok je ovládán v jedné z poloh I a II; v poloze 0 žádný. Při simulaci ho klepnutí přepne do další polohy (0, I, 0, II); na ovládací skříňce nebo dveřích rozvaděče se jeho ovladač otáčí doleva nebo doprava."
+
+#, c-format
+msgid "it is in position %s"
+msgstr "je v poloze %s"

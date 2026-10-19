@@ -85,7 +85,7 @@ class _Chips extends Control:
 			var lit: bool = device is PushButton and (device as SwitchingElement).get_travel() > 0.5
 			if device is LatchingSwitch:
 				# The positions as marked on switches: I on, 0 off.
-				text += "  " + ("I" if (device as LatchingSwitch).switched_on else "0")
+				text += "  " + CamSwitch.MARKS[(device as LatchingSwitch).get_position()]
 			elif device is CamSwitch:
 				text += "  " + CamSwitch.MARKS[(device as CamSwitch).position]
 			result.append({"key": doc.key_bindings[designation], "text": text, "where": where, "lit": lit})
