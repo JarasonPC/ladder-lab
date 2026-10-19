@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.4.3 – 2026-10-19
+
 ### Fixed
 - After a while the program could stop taking clicks and could not be closed (only a beep on
   every click): dialogs and menus now open inside the program's window, so none can be left
