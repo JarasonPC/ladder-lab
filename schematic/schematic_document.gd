@@ -36,6 +36,11 @@ var key_bindings: Dictionary[String, String] = {}
 ## Workspace: names of the cables between places (cable key "+RA1|+ST1" ->
 ## name, see [WorkspaceCables]), kept so a cable keeps its name.
 var cable_names: Dictionary[String, String] = {}
+## What is set by hand on cables of the workspace: key ("+RA1|+ST1") ->
+## {"type": type name in place of the one by use ("" for that), "section":
+## mm² (0: by the current), "length": metres (0: not given)}; see
+## [method set_cable]. Dropped with the cable ([method name_cables]).
+var cable_settings: Dictionary[String, Dictionary] = {}
 ## Order of the terminals of terminal strips set in the switchboard: strip
 ## -> terminal labels from left to right. Terminals not listed follow in the
 ## order of their labels (see [method CabinetDevices.strips]).
@@ -2093,9 +2098,13 @@ func places() -> Array[RefCounted]:
 ## are dropped. Run after every edit.
 func name_cables() -> void:
 	var kept: Dictionary[String, String] = {}
+	var settings: Dictionary[String, Dictionary] = {}
 	for cable: Dictionary in WorkspaceCables.cables(self):
 		kept[cable["key"]] = cable["name"]
+		if cable_settings.has(cable["key"]):
+			settings[cable["key"]] = cable_settings[cable["key"]]
 	cable_names = kept
+	cable_settings = settings
 
 
 ## Cables with end [param old_end] ("+ST1", "-M1") keep their names when
@@ -2111,6 +2120,14 @@ func _rename_cable_end(old_end: String, new_end: String) -> void:
 				ends[i] = new_end
 		renamed["|".join(ends)] = cable_names[key]
 	cable_names = renamed
+	var settings: Dictionary[String, Dictionary] = {}
+	for key: String in cable_settings:
+		var ends: PackedStringArray = key.split("|")
+		for i: int in ends.size():
+			if ends[i] == old_end:
+				ends[i] = new_end
+		settings["|".join(ends)] = cable_settings[key]
+	cable_settings = settings
 
 
 ## Renames cable [param key] ("+RA1|+ST1") to [param cable_name]. Returns
@@ -2129,6 +2146,25 @@ func rename_cable(key: String, cable_name: String) -> bool:
 	if not found:
 		return false
 	cable_names[key] = new_name
+	return true
+
+
+## Sets on cable [param key] a type name in place of the one by its use
+## ([param type], "" for that), a cross-section in mm² ([param section], one
+## of [constant WorkspaceCables.CHOICES], 0 for the one by the current) and
+## its length in metres ([param length], 0 for not given). Returns false
+## when there is no such cable.
+func set_cable(key: String, type: String, section: float, length: float) -> bool:
+	var found: bool = false
+	for cable: Dictionary in WorkspaceCables.cables(self):
+		found = found or cable["key"] == key
+	if not found:
+		return false
+	var settings: Dictionary = WorkspaceCables.settings(type, section, length)
+	if settings.is_empty():
+		cable_settings.erase(key)
+	else:
+		cable_settings[key] = settings
 	return true
 
 

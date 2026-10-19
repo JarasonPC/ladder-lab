@@ -88,6 +88,11 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		for key: String in doc.cable_names:
 			names[key] = doc.cable_names[key]
 		result["cables"] = names
+	if not doc.cable_settings.is_empty():
+		var settings: Dictionary = {}
+		for key: String in doc.cable_settings:
+			settings[key] = doc.cable_settings[key].duplicate()
+		result["cable_settings"] = settings
 	if not doc.strip_orders.is_empty():
 		var orders: Dictionary = {}
 		for strip: String in doc.strip_orders:
@@ -202,6 +207,16 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			var cable_name: String = WorkspaceCables.cable_name(raw_cables[key])
 			if key is String and (key as String).contains("|") and not cable_name.is_empty():
 				doc.cable_names[key] = cable_name
+	var raw_settings: Variant = d.get("cable_settings", {})
+	if raw_settings is Dictionary:
+		for key: Variant in raw_settings:
+			var given: Variant = raw_settings[key]
+			if not (key is String and (key as String).contains("|") and given is Dictionary):
+				continue
+			var type: Variant = given.get("type", "")
+			var settings: Dictionary = WorkspaceCables.settings(type if type is String else "", _number_or(given, "section", 0.0), _number_or(given, "length", 0.0))
+			if not settings.is_empty():
+				doc.cable_settings[key] = settings
 	# Places of older files (and damaged names) get names and spots; a name
 	# used twice is given anew.
 	var seen: Dictionary[String, bool] = {}

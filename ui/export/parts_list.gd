@@ -51,7 +51,7 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 	_add(result, tr("Not placed"), missing)
 	var cables: Array[Dictionary] = []
 	for cable: Dictionary in WorkspaceCables.cables(doc):
-		cables.append({"designation": cable["name"], "name": tr("Cable"), "data": "%s   %s – %s" % [WorkspaceCables.type_text(cable), cable["a"], cable["b"]]})
+		cables.append({"designation": cable["name"], "name": tr("Cable"), "data": "%s   %s – %s" % [WorkspaceCables.type_and_length(cable), cable["a"], cable["b"]]})
 	_add(result, tr("Cables"), cables)
 	return result
 

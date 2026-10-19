@@ -203,7 +203,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   "section" in the cable) is CONTROL_CABLE_SECTION (1 mm²) for control, SENSOR_SECTION for
   sensors, CONTROL_SECTION for other cables without power cores, else the smallest of SECTIONS
   taking the current: a motor's rated current for a cable to it, all motors' together for any
-  other.
+  other. Set by hand per cable in its CablePanel (Edit mode, undoable, SchematicDocument.set_cable
+  / cable_settings, saved as "cable_settings", kept and dropped with the cable's name): a type name
+  in place of the one by use ("type"), a cross-section of WorkspaceCables.CHOICES ("section";
+  "auto_section" keeps the one by current) and the length in metres ("length", shown with the type
+  on the workspace and in the parts list, WorkspaceCables.type_and_length); the panel shows
+  WorkspaceCables.voltage_drop: power cables √3 I L ρ cos φ / S with the motors' rated currents
+  against 400 V, control cables 2 I L ρ / S with the rated draws of the loads on each core's net
+  against their rated voltage (worst core), ρ = RESISTIVITY (0.0225), marked above DROP_LIMIT 4 %.
   Names W1, W2, … in order, kept in
   SchematicDocument.cable_names (saved as "cables"; name_cables after every edit gives new
   cables the first free number and drops the names of cables that are gone; renaming a place

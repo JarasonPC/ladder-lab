@@ -3278,3 +3278,24 @@ msgstr "rychl."
 
 msgid "relay"
 msgstr "relé"
+
+msgid "Cross-section"
+msgstr "Průřez"
+
+msgid "Length"
+msgstr "Délka"
+
+msgid "By the current (%s mm²)"
+msgstr "Podle proudu (%s mm²)"
+
+msgid "Give the cable's length to work out its voltage drop."
+msgstr "Zadejte délku kabelu a spočítá se jeho úbytek napětí."
+
+msgid "Voltage drop: no load current to reckon with."
+msgstr "Úbytek napětí: chybí proud zátěže, se kterým by se počítalo."
+
+msgid "Voltage drop %s V (%s %% of %d V) at %s A."
+msgstr "Úbytek napětí %s V (%s %% z %d V) při %s A."
+
+msgid "More than the %s %% usually kept to: a larger cross-section is needed."
+msgstr "Víc než obvykle dodržovaných %s %%: je potřeba větší průřez."
