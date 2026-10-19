@@ -30,8 +30,8 @@ extends CircuitComponent
 ## standstill. The simulator gives it the potentials of its terminals
 ## ([method set_supply]); it works out the current of each terminal
 ## ([member terminal_currents]) and the torque, and in realistic timing runs up
-## against its load (rated torque at rated speed, more with [member
-## overloaded]) in about [member run_up_time]: a star start draws a third of the
+## against its load ([member load_level] times the rated torque at rated
+## speed, more with [member overloaded]) in about [member run_up_time]: a star start draws a third of the
 ## current, a lost phase or a reversed winding much more. Under DC braking it
 ## draws [constant DC_BRAKING_CURRENT] times its rated current.
 
@@ -96,6 +96,10 @@ var rated_power: float = DEFAULT_RATED_POWER
 var rated_speed: float = DEFAULT_RATED_SPEED
 ## Power factor cos φ at rated load.
 var power_factor: float = MotorModel.DEFAULT_POWER_FACTOR
+## Load of the driven machine at rated speed, in multiples of the rated
+## torque (1: rated load; it needs [constant MotorModel.STATIC_LOAD] of it at
+## standstill, the rest growing with the square of the speed).
+var load_level: float = 1.0
 ## Draw its rating plate beside it (design data).
 var show_plate: bool = false
 ## Signed shaft speed: fraction of the synchronous speed of the fastest
@@ -308,7 +312,18 @@ func plate_voltage() -> PackedStringArray:
 
 ## Load torque against the shaft now (multiples of the rated torque).
 func load_factor() -> float:
-	return OVERLOAD_FACTOR if overloaded else 1.0
+	return maxf(OVERLOAD_FACTOR, load_level) if overloaded else load_level
+
+
+## Rated torque in newton metres, from the rated power and speed
+## (9550 P / n).
+func rated_torque() -> float:
+	return 60000.0 / TAU * rated_power / maxf(rated_speed, 1.0)
+
+
+## Torque at the present speed in newton metres (signed, clockwise positive).
+func torque_nm() -> float:
+	return torque * rated_torque()
 
 
 ## Set by the simulator: [param potentials] of the winding terminals (see

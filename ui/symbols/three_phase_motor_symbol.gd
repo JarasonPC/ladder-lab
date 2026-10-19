@@ -364,6 +364,9 @@ func _draw_current(motor: ThreePhaseMotor, line: int) -> void:
 		line += 1
 	if motor.is_turning():
 		draw_label("%d min⁻¹" % roundi(absf(motor.rpm())), _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, _state_line(line))
+		line += 1
+	if motor.is_turning() or absf(motor.torque) > 0.005:
+		draw_label("%s N·m" % String.num(snappedf(absf(motor.torque_nm()), 0.1)), _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, _state_line(line))
 
 
 ## Line [param n] of what the motor is doing, beside its designation: above
