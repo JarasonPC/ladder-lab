@@ -262,6 +262,17 @@ func preview_rect() -> Rect2:
 	return Rect2()
 
 
+## Palette previews: [param text] centred upright at [param local_point] of
+## the unturned symbol, in the schematic font of [param size]. Called last in
+## [method _draw_shape] (it changes the draw transform).
+func draw_preview_text(text: String, local_point: Vector2, size: int) -> void:
+	draw_set_transform_matrix(Transform2D().scaled(Vector2.ONE / _k))
+	var font: Font = AppTheme.schematic_font()
+	var px: int = maxi(roundi(size * _k), 1)
+	var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	draw_string(font, to_upright(local_point) * _k + Vector2(-w * 0.5, font.get_ascent(px) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, SchematicTheme.TEXT)
+
+
 ## Draws the symbol in local coordinates. Override.
 func _draw_shape(_color: Color, _width: float) -> void:
 	pass

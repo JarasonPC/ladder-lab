@@ -22,6 +22,8 @@ func _draw_shape(color: Color, width: float) -> void:
 		aa_arc(CENTER, RADIUS + 5.0, _angle, _angle + PI * 0.6, 10, color, 2.0)
 		var tip: Vector2 = CENTER + Vector2.from_angle(_angle + PI * 0.6) * (RADIUS + 5.0)
 		aa_circle(tip, 2.5, color)
+	if preview:
+		draw_preview_text("M", CENTER, 16)
 
 
 func _draw_labels() -> void:

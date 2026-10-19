@@ -6,6 +6,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- The motors in the palette are drawn as a simple circle with "M 3~" and their windings beside
+  it (star/delta, Dahlander, two or three windings), so they are told apart at a glance
+
 ## 0.4.1 – 2026-10-19
 
 ### Files and export

@@ -34,6 +34,9 @@ func _terminal_box() -> bool:
 
 func _draw_shape(color: Color, width: float) -> void:
 	var motor: ThreePhaseMotor = component as ThreePhaseMotor
+	if preview:
+		_draw_preview(motor, color, width)
+		return
 	if _terminal_box():
 		_draw_terminal_box(motor, color)
 		return
@@ -81,6 +84,65 @@ func _draw_shape(color: Color, width: float) -> void:
 		var forward: Vector2 = Vector2.from_angle(end_angle + turn * PI * 0.5)
 		var side: Vector2 = Vector2.from_angle(end_angle)
 		aa_polygon(PackedVector2Array([tip + forward * 7.0, tip - side * 4.5, tip + side * 4.5]), SchematicTheme.LINE)
+
+
+## Middle of the column of winding marks right of the circle in the palette.
+const PREVIEW_MARKS_X: float = CENTER.x + RADIUS + 18.0
+
+
+## The palette shows the circle with "M 3~" and, beside it, how its windings
+## are connected; the leads alone would not tell the kinds apart on a tile.
+func preview_rect() -> Rect2:
+	var circle: Rect2 = Rect2(CENTER - Vector2.ONE * RADIUS, Vector2.ONE * 2.0 * RADIUS)
+	if (component as ThreePhaseMotor).kind == ThreePhaseMotor.Kind.STANDARD:
+		return circle
+	return circle.expand(Vector2(PREVIEW_MARKS_X + 16.0, CENTER.y))
+
+
+## Circle with "M 3~"; right of it a column of winding marks, one row per
+## speed: star over delta (star/delta), delta over double star (Dahlander),
+## a star per winding (separate windings).
+func _draw_preview(motor: ThreePhaseMotor, color: Color, width: float) -> void:
+	aa_arc(CENTER, RADIUS, 0.0, TAU, 40, color, width)
+	var rows: Array[String] = []
+	match motor.kind:
+		ThreePhaseMotor.Kind.STAR_DELTA:
+			rows = ["Y", "D"]
+		ThreePhaseMotor.Kind.DAHLANDER:
+			rows = ["D", "YY"]
+		ThreePhaseMotor.Kind.TWO_WINDINGS:
+			rows = ["Y", "Y"]
+		ThreePhaseMotor.Kind.THREE_WINDINGS:
+			rows = ["Y", "Y", "Y"]
+	var pitch: float = 2.0 * RADIUS / maxf(rows.size(), 1)
+	var r: float = minf(pitch * 0.4, 10.0)
+	for row: int in rows.size():
+		var y: float = CENTER.y - RADIUS + pitch * (row + 0.5)
+		var marks: String = rows[row]
+		for m: int in marks.length():
+			var x: float = PREVIEW_MARKS_X + (m - (marks.length() - 1) * 0.5) * 1.8 * r
+			if marks[m] == "Y":
+				_draw_star_mark(Vector2(x, y), r * (0.8 if marks.length() > 1 else 1.0), color, width)
+			else:
+				_draw_delta_mark(Vector2(x, y), r, color, width)
+	draw_preview_text("M", CENTER + Vector2(0.0, -7.0), 24)
+	draw_preview_text("3~", CENTER + Vector2(0.0, 12.0), 17)
+
+
+## Star: three arms from the middle, two up and one down (centred on its height).
+func _draw_star_mark(at: Vector2, r: float, color: Color, width: float) -> void:
+	at.y -= r * 0.25
+	for angle: float in [-PI * 5.0 / 6.0, -PI / 6.0, PI * 0.5]:
+		aa_line(at, at + Vector2.from_angle(angle) * r, color, width)
+
+
+## Delta: a triangle standing on its base (centred on its height).
+func _draw_delta_mark(at: Vector2, r: float, color: Color, width: float) -> void:
+	at.y += r * 0.25
+	var corners: PackedVector2Array = PackedVector2Array()
+	for angle: float in [-PI * 0.5, PI / 6.0, PI * 5.0 / 6.0, -PI * 0.5]:
+		corners.append(at + Vector2.from_angle(angle) * r)
+	aa_polyline(corners, color, width)
 
 
 ## Box of the terminal board, with room for the stud names right of the
