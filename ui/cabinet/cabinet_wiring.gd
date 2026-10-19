@@ -861,7 +861,10 @@ func _route(edges: Array[Dictionary]) -> void:
 			"external": edges[e]["a"].get("external", false), "cable": edges[e]["a"].get("cable", ""),
 			"mark": edges[e]["mark"], "pins": Vector2(_pin(route["a"]), _pin(route["b"])),
 		})
-		reaches.append(Vector2(_reach(route["a"]), _reach(route["b"])))
+		# A core of the door harness carries its sleeve where it comes out of
+		# the fitting too, so the harness can be followed.
+		var first: float = points[0].distance_to(points[1]) if door_lane.has(e) and points.size() > 1 else _reach(route["a"])
+		reaches.append(Vector2(first, _reach(route["b"])))
 	_markers(reaches)
 
 
@@ -904,7 +907,8 @@ func _fan(ends: Array[Dictionary], shared: Dictionary[int, int]) -> void:
 ## wires in a terminal too narrow to have them side by side: one above the
 ## other, in a row of such terminals by turns); one with nowhere else to go
 ## stays where it was first put. An end without
-## room for its sleeve has none.
+## room for its sleeve has none. A core of a cable has one at its terminal
+## only, one of the door harness at the fitting too.
 func _markers(reaches: Array[Vector2]) -> void:
 	var placed: Array[Rect2] = []
 	for w: int in wires.size():
@@ -915,7 +919,7 @@ func _markers(reaches: Array[Vector2]) -> void:
 			continue
 		var length: float = CabinetParts.marker_length(wire["mark"])
 		var thick: float = wire["width"] + CabinetParts.MARKER_GROW
-		for end: int in range(1 if wire["external"] else 0, 2):
+		for end: int in range(1 if wire["external"] and wire["cable"] != DOOR else 0, 2):
 			var path: PackedVector2Array = (wire["points"] as PackedVector2Array).duplicate()
 			if end == 1:
 				path.reverse()

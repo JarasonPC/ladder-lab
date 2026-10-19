@@ -543,6 +543,15 @@ func _paint_door(canvas: CanvasItem) -> void:
 	if exit.has_area():
 		var points: PackedVector2Array = PackedVector2Array([Vector2(exit.end.x, exit.get_center().y), at + Vector2(entry.position.x, entry.get_center().y)])
 		CabinetParts.conduit(p, points, minf(maxf(entry.size.y * 0.6, 5.0), 12.0))
+		# The wire numbers of its cores on a tag over the conduit.
+		var numbers: PackedStringArray = PackedStringArray()
+		for wire: Dictionary in _door.wires:
+			if wire["external"] and not str(wire["mark"]).is_empty() and not numbers.has(wire["mark"]):
+				numbers.append(wire["mark"])
+		if not numbers.is_empty():
+			var text: String = " ".join(numbers)
+			var width: float = clampf(text.length() * 2.2 + 3.0, 10.0, maxf(DOOR_GAP + 30.0, 10.0))
+			CabinetParts.label(p, (points[0] + points[1]) * 0.5 + Vector2(0.0, -entry.size.y * 0.5 - 4.0), text, width)
 	CabinetParts.door_fitting(q, entry)
 
 

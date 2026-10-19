@@ -305,7 +305,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminal "entry"), and leaves it up or down into
   a lane of the channel above or below its row, run along it and down the left side in a
   lane of their own between channels (channels and the side as wide as their lanes), coloured
-  by conductor, with ferrule collars and marker sleeves (CabinetWiring.wire_marks); while
+  by conductor, with ferrule collars and marker sleeves (CabinetWiring.wire_marks; drawn
+  too small for the sleeves' numbers to be read, below StationInsideView.NUMBER_PX, each
+  number also on a white tag beside its sleeve; a door harness core has a sleeve where it
+  comes out of its fitting too, on both sides of the hinge, and the conduit a tag with
+  their numbers); while
   simulating the terminals are ringed in their voltage's colour (StationPanel.show_step) and
   lamp blocks light Every switchboard has a door
   (Switchboard.door, a ControlBox: columns and items only, saved as the switchboard's "door"

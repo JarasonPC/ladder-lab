@@ -25,6 +25,9 @@ const NO_BAND := Color("2ea44f")
 const NC_BAND := Color("d63b3b")
 const LAMP_BODY := Color("f4f4f0")
 const PRINT := Color("26282b")
+## Pixels a wire number is written at least: below it the numbers on the
+## sleeves are written beside them as well.
+const NUMBER_PX: float = 7.0
 
 var _inside: StationInside
 
@@ -82,6 +85,24 @@ static func paint(p: CabinetPainter, inside: StationInside, reach_color: Callabl
 		CabinetParts.wire(p, wire["points"], wire["conductor"], StationInside.WIRE_W, wire["external"], Vector2.ZERO)
 	for wire: Dictionary in inside.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], StationInside.WIRE_W)
+	# Drawn too small for the numbers on the sleeves to be read: each number
+	# written beside its sleeve.
+	if (StationInside.WIRE_W + CabinetParts.MARKER_GROW) * 0.82 * p.k < NUMBER_PX:
+		for wire: Dictionary in inside.wires:
+			for span: PackedVector2Array in wire["markers"]:
+				_number_beside(p, span, wire["mark"])
+
+
+## Wire number [param mark] on a little white tag beside sleeve
+## [param span]: right of a sleeve running up and down, over one lying.
+static func _number_beside(p: CabinetPainter, span: PackedVector2Array, mark: String) -> void:
+	var size_mm: float = maxf(NUMBER_PX / p.k, 3.0)
+	var middle: Vector2 = (span[0] + span[1]) * 0.5
+	var tag: Vector2 = Vector2(mark.length() * size_mm * 0.62 + 1.2, size_mm + 1.0)
+	var lying: bool = absf(span[1].x - span[0].x) >= absf(span[1].y - span[0].y)
+	var center: Vector2 = middle + (Vector2(0.0, -tag.y * 0.5 - 2.0) if lying else Vector2(tag.x * 0.5 + 2.0, 0.0))
+	p.rect(Rect2(center - tag * 0.5, tag), Color(1, 1, 1, 0.9), 0.4, Color(0, 0, 0, 0.3), 0.15)
+	p.text_centered(center, mark, size_mm, PRINT)
 
 
 ## The back of a device: its actuator's housing behind the adapter, the
