@@ -43,6 +43,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Switchboard wire ducts are just as wide as the wires running through them need
 - Switchboard wires are easier to follow: in each duct they lie in order by where they come in
   and go out, so far fewer of them cross
+- Switchboard wires bend once past their marker sleeve and slant into the duct's slot, and
+  never cross each other on the way to the ducts
 - Wires to the auxiliary contact block on a contactor's front run straight over the contactor;
   wires from a contactor's bottom terminals over its overload relay go straight down as far as
   they can before turning aside, and wires from its main contacts go behind the relay

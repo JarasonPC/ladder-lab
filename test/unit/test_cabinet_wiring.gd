@@ -100,7 +100,13 @@ func test_wires_run_through_the_ducts() -> void:
 		for i: int in path.size() - 1:
 			var a: Vector2 = path[i]
 			var b: Vector2 = path[i + 1]
-			assert_true(is_equal_approx(a.x, b.x) or is_equal_approx(a.y, b.y), "%s-%s runs straight" % [wire["from"], wire["to"]])
+			# Straight runs, but for one slant into a slot at a duct's edge.
+			var into_slot: bool = false
+			for duct: Dictionary in layout.ducts:
+				var r: Rect2 = duct["rect"]
+				for y: float in [r.position.y, r.end.y]:
+					into_slot = into_slot or (not duct["vertical"] and (is_equal_approx(a.y, y) or is_equal_approx(b.y, y)) and absf(a.x - b.x) <= 2.0 * absf(a.y - b.y) + 0.01)
+			assert_true(is_equal_approx(a.x, b.x) or is_equal_approx(a.y, b.y) or into_slot, "%s-%s runs straight" % [wire["from"], wire["to"]])
 			for duct: Dictionary in layout.ducts:
 				var r: Rect2 = duct["rect"]
 				if not duct["vertical"] and r.has_point(a) and r.has_point(b) and is_equal_approx(a.y, b.y):
@@ -481,3 +487,38 @@ func test_wires_from_a_contactors_outputs_go_behind_its_overload_relay() -> void
 				var segment: Rect2 = Rect2(path[i], Vector2.ZERO).expand(path[i + 1])
 				assert_false(relay.grow(-0.5).intersects(segment), "%s: nothing of it over the relay" % key)
 	assert_true(found > 0, "KM2's outputs are wired on")
+
+
+func test_wires_cross_only_in_the_ducts() -> void:
+	# Each wire bends once past its sleeve and slants into its slot; the slots
+	# take them in the order of their terminals, so wires heading apart cross
+	# in the duct, never on the plate.
+	for example: int in [1, 6, 9, 14]:
+		var doc: SchematicDocument = ExampleCircuits.build(example)
+		doc.number_wires()
+		var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+		var wiring: CabinetWiring = layout.wiring
+		var segments: Array = []
+		for w: int in wiring.wires.size():
+			var path: PackedVector2Array = wiring.wires[w]["points"]
+			for i: int in path.size() - 1:
+				segments.append([w, path[i], path[i + 1]])
+		for i: int in segments.size():
+			for j: int in range(i + 1, segments.size()):
+				if segments[i][0] == segments[j][0]:
+					continue
+				var hit: Variant = Geometry2D.segment_intersects_segment(segments[i][1], segments[i][2], segments[j][1], segments[j][2])
+				if hit == null:
+					continue
+				var at: Vector2 = hit
+				var ends: bool = false
+				for k: int in [i, j]:
+					ends = ends or at.distance_to(segments[k][1]) < 0.01 or at.distance_to(segments[k][2]) < 0.01
+				if ends:
+					continue
+				var in_duct: bool = false
+				for duct: Dictionary in layout.ducts:
+					in_duct = in_duct or (duct["rect"] as Rect2).grow(0.5).has_point(at)
+				var a: Dictionary = wiring.wires[segments[i][0]]
+				var b: Dictionary = wiring.wires[segments[j][0]]
+				assert_true(in_duct, "%d: %s-%s and %s-%s cross at %s, out of a duct" % [example, a["from"], a["to"], b["from"], b["to"], at])
