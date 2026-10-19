@@ -48,7 +48,7 @@ func test_blocks_behind_the_devices() -> void:
 			for t: Dictionary in block["terminals"]:
 				assert_true((block["rect"] as Rect2).has_point(t["at"]), "terminals on their block")
 				var face: float = (block["rect"] as Rect2).position.y if t["top"] else (block["rect"] as Rect2).end.y
-				assert_eq(t["entry"], Vector2(t["at"].x, face), "the wire goes into the clamp's opening in the face, under the screw")
+				assert_eq(t["entry"], Vector2(t["at"].x, face), "the wire goes into the contact at the face, under the screw")
 	assert_true(Rect2(Vector2.ZERO, inside.size).encloses(inside.items[inside.items.size() - 1]["rect"]))
 
 
@@ -110,7 +110,7 @@ func test_every_terminal_of_a_net_is_wired() -> void:
 		entries.append(inside.terminals[key]["entry"])
 	for wire: Dictionary in inside.wires:
 		var points: PackedVector2Array = wire["points"]
-		assert_has(entries, points[points.size() - 1], "a wire ends in a clamp's opening, never on a screw")
+		assert_has(entries, points[points.size() - 1], "a wire ends going into a contact, never on a screw")
 		if not wire["external"]:
 			assert_has(entries, points[0])
 	var groups: Dictionary = _groups(inside)

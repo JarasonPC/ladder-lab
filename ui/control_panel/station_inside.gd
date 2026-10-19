@@ -27,9 +27,6 @@ const BLOCK := Vector2(10.0, 36.0)
 const CO_BLOCK: float = 16.0
 const CHAMBER: float = 13.0
 const SCREW_Y: float = 12.0
-## Size of the opening of a terminal's clamp in the block's face, where its
-## wire goes in under the screw.
-const OPENING := Vector2(3.6, 2.8)
 ## Lanes of wires in the channels and down the side.
 const LANE: float = 2.4
 ## Least height of a channel between rows.
@@ -44,8 +41,8 @@ var size: Vector2 = Vector2.ZERO
 ## "designation", "lamp", "cam" (a rotary cam switch), "rect", "center",
 ## "blocks": [{"kind" ("NO", "NC", "CO", "LAMP", "POLE"), "rect",
 ## "terminals": [{"name", "key", "at" (its screw), "entry" (where its wire
-## goes in: the opening of its clamp in the block's top or bottom face, under
-## the screw), "top"}]}]}.
+## goes into the contact: the block's top or bottom face, under the screw),
+## "top"}]}]}.
 var items: Array[Dictionary] = []
 ## Glands in the top: {"rect", "cable" (its name)}.
 var glands: Array[Dictionary] = []
@@ -349,8 +346,8 @@ func _route(links: Array[Dictionary], net: Dictionary[String, int], conductor: D
 		wires.append({"net": n, "conductor": c, "points": _simplified(points), "external": link["external"], "mark": mark, "markers": markers})
 
 
-## Where link end [param end] is: the opening of a terminal's clamp, or a
-## core coming in at its gland.
+## Where link end [param end] is: where a wire goes into a terminal's
+## contact, or a core coming in at its gland.
 func _end(end: Variant) -> Vector2:
 	if end is Dictionary:
 		var gland: Rect2 = glands[end["gland"]]["rect"]
