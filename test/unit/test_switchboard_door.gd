@@ -230,3 +230,29 @@ func test_door_open_beside_the_switchboard() -> void:
 	assert_false(panel.door_shown)
 	panel.door_shown = true
 	assert_false(panel.door_open, "one at a time")
+
+
+func test_harness_cores_carry_their_wire_numbers() -> void:
+	var doc: SchematicDocument = _door_example()
+	doc.number_wires()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var cores: int = 0
+	for wire: Dictionary in layout.wiring.wires:
+		if wire["external"] and wire["cable"] == CabinetWiring.DOOR:
+			cores += 1
+			assert_false(str(wire["mark"]).is_empty(), "a numbered net")
+			var start: Vector2 = (wire["points"] as PackedVector2Array)[0]
+			var at_fitting: bool = false
+			for span: PackedVector2Array in wire["markers"]:
+				# On its first run, out of the fitting (moved along it off the others).
+				at_fitting = at_fitting or (is_equal_approx(span[0].y, start.y) and span[0].x > layout.size.x * 0.5)
+			assert_true(at_fitting, "a sleeve where the core comes out of the fitting in the wall")
+	assert_gt(cores, 0)
+	var back: StationInside = StationInside.build_door(doc, 0, layout.size, 560.0)
+	for wire: Dictionary in back.wires:
+		if wire["external"]:
+			var start: Vector2 = (wire["points"] as PackedVector2Array)[0]
+			var at_fitting: bool = false
+			for span: PackedVector2Array in wire["markers"]:
+				at_fitting = at_fitting or span[0].distance_to(start) < 12.0
+			assert_true(at_fitting, "and where it comes out of the fitting in the door's edge")

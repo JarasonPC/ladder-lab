@@ -16,6 +16,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   contacts, and the door harness crossing in its conduit at the hinge; inside the switchboard
   the harness runs from the terminal strips along the bottom duct to a fitting in the hinge
   side wall, never out of the enclosure and back in
+- The wires inside a control station and on the back of a door show their wire numbers,
+  written beside their sleeves while the drawing is too small to read them on the sleeves;
+  the door harness's cores are marked where they leave their fittings, and its conduit
+  lists their numbers
 - A control station can be opened with its cover off (Front | Inside): the contact blocks
   behind each button and switch with their terminal numbers, lamp blocks, a cam switch's
   chambers, the cable coming in through its gland and every core and wire to the terminals,

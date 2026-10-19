@@ -453,7 +453,9 @@ func _route(links: Array[Dictionary], net: Dictionary[String, int], conductor: D
 		if not mark.is_empty():
 			var length: float = maxf(mark.length() * CabinetParts.MARKER_CHAR + CabinetParts.MARKER_ENDS, CabinetParts.MARKER_MIN)
 			for end: int in 2:
-				if end == 0 and link["external"]:
+				if end == 0 and link["external"] and not door:
+					# A cable's core is marked at its terminal; one of the door
+					# harness where it comes out of its fitting too.
 					continue
 				var tip: Vector2 = points[0] if end == 0 else points[points.size() - 1]
 				var next: Vector2 = points[1] if end == 0 else points[points.size() - 2]
