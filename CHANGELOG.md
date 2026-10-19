@@ -6,6 +6,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Panels
+- PLC ladder diagram: the chosen contact or coil is shown faintly where a click puts it
+- PLC ladder diagram: wires are drawn as in the schematic: click where the wire starts, click
+  for corners, and it ends on the rail, an element or another wire (or with a double click)
+
 ## 0.4.3 – 2026-10-19
 
 ### Fixed

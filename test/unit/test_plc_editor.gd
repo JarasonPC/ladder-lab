@@ -122,3 +122,85 @@ func test_fbd_selection_moves_together() -> void:
 	canvas._release()
 	for b: PlcBlock in program.blocks:
 		assert_eq(b.cell, before[b.id] + Vector2i(2, 1), b.label())
+
+
+func test_lad_wire_is_drawn_like_a_schematic_wire() -> void:
+	var program: PlcProgram = PlcProgram.new()
+	program.language = PlcProgram.Language.LAD
+	var canvas: PlcLadCanvas = autofree(PlcLadCanvas.new())
+	canvas.show_program(program, null)
+	canvas._apply("no", 0, 0, true)
+	canvas._apply("coil", 0, 0, true)
+	var rung: PlcRung = program.ladder()
+	canvas.tool = "wire"
+	watch_signals(canvas)
+	# From the rail down to row 1 and along it to the side after cell 2: the
+	# first run goes down the rail, the corner on row 1 is added by the click.
+	canvas._mouse = canvas._side_point(Vector2i(0, 0))
+	canvas._press()
+	canvas._mouse = canvas._side_point(Vector2i(3, 1))
+	canvas._press()
+	assert_eq(canvas._wire_points, [Vector2i(0, 0), Vector2i(0, 1), Vector2i(3, 1)] as Array[Vector2i], "a corner on empty paper")
+	assert_signal_not_emitted(canvas, "changed", "nothing laid yet")
+	# Up to the main row, which it joins: the wire ends there.
+	canvas._mouse = canvas._side_point(Vector2i(3, 0))
+	canvas._press()
+	assert_true(canvas._wire_points.is_empty(), "ended on the main row")
+	assert_signal_emit_count(canvas, "changed", 1)
+	for c: int in 3:
+		assert_eq(rung.get_cell(1, c), {"kind": "wire"}, "wire along row 1")
+	assert_true(rung.has_link(0, 2), "linked up to the main row")
+	assert_eq(rung.get_cell(0, 0)["kind"], "no", "elements stay")
+	assert_eq(rung.rung_groups(), [Vector2i(0, 1)] as Array[Vector2i])
+
+
+func test_lad_wire_runs_on_from_the_row_and_can_be_dropped() -> void:
+	var program: PlcProgram = PlcProgram.new()
+	program.language = PlcProgram.Language.LAD
+	var canvas: PlcLadCanvas = autofree(PlcLadCanvas.new())
+	canvas.show_program(program, null)
+	canvas._apply("no", 0, 0, true)
+	var rung: PlcRung = program.ladder()
+	canvas.tool = "wire"
+	# From the contact's right side the first run goes along the row.
+	canvas._wire_click(Vector2i(1, 0))
+	assert_eq(canvas._route_to(Vector2i(4, 2)), [Vector2i(1, 0), Vector2i(4, 0), Vector2i(4, 2)] as Array[Vector2i])
+	canvas._wire_click(Vector2i(4, 2))
+	var esc: InputEventKey = InputEventKey.new()
+	esc.keycode = KEY_BACKSPACE
+	esc.pressed = true
+	canvas._canvas_input(esc)
+	assert_eq(canvas._wire_points, [Vector2i(1, 0), Vector2i(4, 0)] as Array[Vector2i], "Backspace takes the last corner back")
+	esc.keycode = KEY_ESCAPE
+	canvas._canvas_input(esc)
+	assert_true(canvas._wire_points.is_empty(), "Esc drops the wire")
+	assert_eq(canvas.tool, "wire", "the tool stays")
+	# A double click on paper ends the wire there.
+	canvas._wire_click(Vector2i(1, 0))
+	canvas._wire_click(Vector2i(5, 0))
+	canvas._wire_click(Vector2i(5, 0))
+	assert_true(canvas._wire_points.is_empty())
+	for c: int in range(1, 5):
+		assert_eq(rung.get_cell(0, c), {"kind": "wire"})
+	assert_true(rung.get_cell(0, 5).is_empty())
+
+
+func test_lad_shows_where_the_tool_puts_its_element() -> void:
+	var program: PlcProgram = PlcProgram.new()
+	program.language = PlcProgram.Language.LAD
+	var canvas: PlcLadCanvas = autofree(PlcLadCanvas.new())
+	canvas.show_program(program, null)
+	canvas._mouse_inside = true
+	canvas._mouse = Vector2(PlcLadCanvas.RAIL_X + PlcLadCanvas.CELL_W * 2.5, canvas._row_y(1))
+	canvas.tool = "nc"
+	assert_eq(canvas._aim(), {"row": 1, "column": 2})
+	canvas.tool = "set"
+	assert_eq(canvas._aim(), {"row": 1, "column": PlcRung.COLUMNS}, "coils at the end of the row")
+	canvas.tool = "wire"
+	assert_eq(canvas._aim(), {}, "wires have their own preview")
+	canvas.tool = ""
+	assert_eq(canvas._aim(), {})
+	canvas.tool = "no"
+	canvas._mouse_inside = false
+	assert_eq(canvas._aim(), {}, "nothing while the mouse is off the diagram")
+	assert_true(program.ladder().is_empty(), "the preview changes nothing")

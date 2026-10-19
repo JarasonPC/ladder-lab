@@ -459,6 +459,8 @@ func _update_status() -> void:
 			_status.text = tr("Click a place to select it; Delete removes it, Insert puts an empty row above it.") + " " + view
 		elif _canvas().tool == "link":
 			_status.text = tr("Click a cell to link its right side with the row below (click again to remove the link).")
+		elif _canvas().tool == "wire":
+			_status.text = tr("Click where the wire starts, then click to add corners; it ends on the rail, an element or another wire, or with a double click. Backspace takes back the last corner, Esc drops the wire.")
 		else:
 			_status.text = tr("Click a cell to put the element there (coils go to the end of the row). Esc or a right click ends it.")
 
