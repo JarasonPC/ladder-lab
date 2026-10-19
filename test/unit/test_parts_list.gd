@@ -176,3 +176,30 @@ func test_gland_sizes_follow_the_cable() -> void:
 	WorkspaceCables.naming = WorkspaceCables.Naming.CZECH
 	assert_eq(WorkspaceCables.gland(motor)["size"], "PG16")
 	assert_eq(WorkspaceCables.gland(station)["size"], "PG11")
+
+
+func test_plc_programs_on_sheets() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(ExampleCircuits.TITLES.find("PLC: start/stop with an on-delay"))
+	assert_true(SheetRenderer.available(doc)["plc_programs"])
+	assert_false(SheetRenderer.available(_doc())["plc_programs"], "no PLC, no sheet")
+	var renderer: SheetRenderer = autofree(SheetRenderer.new())
+	renderer.schematic = false
+	renderer.plc_programs = true
+	var specs: Array[Dictionary] = renderer.sheets(doc, PackedInt32Array([0]))
+	assert_eq(specs.size(), 1)
+	assert_eq(specs[0]["kind"], "plc")
+	assert_false(specs[0].has("rows"), "a function block diagram on one sheet")
+	# A long ladder over several sheets, whole rungs where they fit.
+	var rung: PlcRung = PlcRung.new()
+	for r: int in 40:
+		rung.set_cell(r, 0, {"kind": "no", "operand": "I1"})
+		rung.set_coil(r, {"kind": "coil", "operand": "Q1"})
+		rung.wire_to_coil(r)
+	rung.set_link(16, 0, true)
+	var pages: Array[Vector2i] = PlcLadCanvas.paper_pages(rung, 16)
+	assert_eq(pages[0], Vector2i(0, 16))
+	assert_eq(pages[1], Vector2i(16, 32), "rows 16 and 17 make one rung: on the same sheet")
+	assert_eq(pages[pages.size() - 1].y, 40, "every row on a sheet")
+	for page: Vector2i in pages:
+		assert_lte(page.y - page.x, 16)
+	assert_eq(PlcLadCanvas.paper_pages(PlcRung.new(), 16), [Vector2i(0, 1)] as Array[Vector2i], "an empty ladder: one sheet")

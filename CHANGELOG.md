@@ -36,6 +36,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ### Files and export
 - PLC programs can be exported to a file and imported into another PLC (PLC window)
+- The PDF export can hold the PLC programs, each in the language it runs (FBD on one sheet,
+  a ladder diagram over as many sheets as it needs)
 - The export preview has a largest sheet size (A5 to A0): pages go on the smallest sheet they
   fit on up to it, larger ones are scaled down onto it
 

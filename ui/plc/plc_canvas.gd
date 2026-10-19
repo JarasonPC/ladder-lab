@@ -41,6 +41,9 @@ var tool: String = "":
 	set(value):
 		tool = value
 		queue_redraw()
+## Drawn for a sheet of paper (the PDF export): read-only, without the
+## editing aids (grid, dots, spare room).
+var paper: bool = false
 ## Writes an operand as the PLC names it ([method Plc.address]).
 var address: Callable = func(operand: String) -> String: return operand
 ## The program's value for 10 V on the PLC ([method Plc.full_scale]): new
@@ -74,7 +77,7 @@ func show_program(p: PlcProgram, p_runtime: PlcRuntime) -> void:
 
 
 func editable() -> bool:
-	return runtime == null and program != null
+	return runtime == null and program != null and not paper
 
 
 ## Palette entries: [{"id": tool, "title": English text, "symbol": short

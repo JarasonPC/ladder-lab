@@ -3366,3 +3366,6 @@ msgstr ""
 
 msgid "%s is not a PLC program of LadderLab."
 msgstr ""
+
+msgid "PLC programs"
+msgstr ""

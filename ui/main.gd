@@ -132,7 +132,7 @@ var _sheet_renderer: SheetRenderer
 ## Shows the sheets before they are exported; what it shows is saved.
 var _export_preview: ExportPreview
 ## What a PDF export holds (see [method ExportPreview.contents]), remembered.
-var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "workspace": true, "parts_list": true}
+var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "plc_programs": true, "workspace": true, "parts_list": true}
 var _export_pdf: bool = false
 ## Largest paper of the exported sheets (user settings, "export"/"largest_paper").
 var _export_paper: String = SheetLayout.DEFAULT_LARGEST
@@ -1728,6 +1728,7 @@ func _prepare_export(contents: Dictionary) -> void:
 	_sheet_renderer.schematic = contents.get("schematic", true)
 	_sheet_renderer.stations = contents.get("stations", false)
 	_sheet_renderer.switchboards = contents.get("switchboards", false)
+	_sheet_renderer.plc_programs = contents.get("plc_programs", false)
 	_sheet_renderer.workspace = contents.get("workspace", false)
 	_sheet_renderer.parts_list = contents.get("parts_list", false)
 	_sheet_renderer.wire_numbers = _wire_numbers
