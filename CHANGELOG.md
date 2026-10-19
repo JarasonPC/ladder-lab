@@ -37,6 +37,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   PE … on supply wires without a number); two wires in one terminal spread apart so both sleeves
   show, side by side or one above the other; the ducts sit further from the devices to leave
   room for them
+- Switchboard wires go into their terminals as on a real device: in at the face of the
+  terminal's tier past the screw, with insulated ferrule collars; device labels sit on the plate
+  clear of the wire ends
 
 ### Files and export
 - PLC programs can be exported to a file and imported into another PLC (PLC window)

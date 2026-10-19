@@ -18,6 +18,10 @@ const DUCT: float = 28.0
 const MARGIN: float = 5.0
 const GAP: float = 2.0
 const PAD: float = 20.0
+## How far over or under its device a label sits on the plate: in the room
+## between the duct and the device, past the wires' ferrules and marker
+## sleeves.
+const LABEL_OFF: float = 15.0
 ## Room on both sides of a contactor with an overload relay under it for
 ## the wires from the contactor's bottom terminals (see [CabinetWiring]),
 ## and more for the two wires of each auxiliary contact block mounted on
@@ -164,15 +168,14 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 	match place["kind"]:
 		CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE:
 			_box(place, CabinetParts.device_size(place["desc"]))
-			var top_gap: float = 3.5 if place["kind"] == CabinetDevices.Kind.BREAKER else 0.5
-			_label(place, Vector2(place["size"].x * 0.5, -top_gap), minf(maxf(place["size"].x - 2.0, 14.0), 16.0))
+			_label(place, Vector2(place["size"].x * 0.5, -LABEL_OFF), minf(maxf(place["size"].x - 2.0, 14.0), 16.0))
 		CabinetDevices.Kind.TIMER:
 			_box(place, CabinetParts.device_size(place["desc"]))
-			_label(place, Vector2(CabinetParts.MODULE_W * 0.5, -3.5), 14.0)
+			_label(place, Vector2(CabinetParts.MODULE_W * 0.5, -LABEL_OFF), 14.0)
 		CabinetDevices.Kind.RELAY:
 			var relay: Vector2 = CabinetParts.device_size(place["desc"])
 			_box(place, relay)
-			_label(place, Vector2(relay.x * 0.5, -3.5), clampf(relay.x, 11.0, 14.0))
+			_label(place, Vector2(relay.x * 0.5, -LABEL_OFF), clampf(relay.x, 11.0, 14.0))
 		CabinetDevices.Kind.CONTACTOR:
 			_box(place, CabinetParts.device_size(place["desc"]))
 			var aux: int = (place["desc"]["aux"] as Array).size()
@@ -186,23 +189,23 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 				# Under the contactor itself, between its side blocks.
 				place["under_origin"] = Vector2(CabinetParts.contactor_left(aux), place["origin"].y + CabinetParts.CONTACTOR.y)
 				place["under_rect"] = Rect2(place["under_origin"], CabinetParts.OVERLOAD)
-				place["under_label_at"] = place["under_origin"] + Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0)
-				place["bottom"] = place["under_label_at"].y + 2.6
+				place["under_label_at"] = place["under_origin"] + Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + LABEL_OFF)
+				place["bottom"] = place["under_rect"].end.y
 		CabinetDevices.Kind.RECTIFIER:
 			_box(place, CabinetParts.device_size(place["desc"]))
-			_label(place, Vector2(CabinetParts.RECTIFIER.x * 0.5, -3.5), 14.0)
+			_label(place, Vector2(CabinetParts.RECTIFIER.x * 0.5, -LABEL_OFF), 14.0)
 		CabinetDevices.Kind.VFD:
 			_box(place, CabinetParts.device_size(place["desc"]))
-			_label(place, Vector2(CabinetParts.VFD.x * 0.5, -3.5), 16.0)
+			_label(place, Vector2(CabinetParts.VFD.x * 0.5, -LABEL_OFF), 16.0)
 		CabinetDevices.Kind.PLC:
 			_box(place, CabinetParts.device_size(place["desc"]))
-			_label(place, Vector2(CabinetParts.PLC.x * 0.5, -3.5), 16.0)
+			_label(place, Vector2(CabinetParts.PLC.x * 0.5, -LABEL_OFF), 16.0)
 		CabinetDevices.Kind.OVERLOAD:
 			# On a rail of its own: on a mounting unit with the terminals
 			# of its heaters (1, 3, 5) on top.
 			place["desc"]["standalone"] = true
 			_box(place, CabinetParts.device_size(place["desc"]))
-			_label(place, Vector2(CabinetParts.OVERLOAD.x * 0.5, place["size"].y + 4.0), 12.0)
+			_label(place, Vector2(CabinetParts.OVERLOAD.x * 0.5, place["size"].y + LABEL_OFF), 12.0)
 		_:
 			place["kind"] = MISSING_DEVICE
 			_box(place, MISSING)
@@ -218,12 +221,12 @@ static func _box(place: Dictionary, size: Vector2) -> void:
 	place["bottom"] = place["origin"].y + size.y
 
 
-## Puts the place's label centred at [param at] relative to its drawing.
+## Puts the place's label centred at [param at] relative to its drawing:
+## on the device's front or on the plate in the room over or under it (see
+## [constant LABEL_OFF]), so it takes no room of its own.
 static func _label(place: Dictionary, at: Vector2, width: float) -> void:
 	place["label_at"] = place["origin"] + at
 	place["label_w"] = width
-	place["top"] = minf(place["top"], place["label_at"].y - 2.6)
-	place["bottom"] = maxf(place["bottom"], place["label_at"].y + 2.6)
 
 
 ## Moves a place laid out at x = 0 on a rail at y = 0 by [param offset]

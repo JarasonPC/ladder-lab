@@ -490,6 +490,10 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 		var up: bool = origin.y + p.y < centre
 		# Into the face of the terminal's tier, else at the edge of its screw.
 		var entry: float = CabinetParts.wire_entry(kind, desc, name, up)
+		if not up and beside.has_area() and entry > CabinetParts.CONTACTOR_OUT_Y[CabinetParts.CONTACTOR_OUT_Y.size() - 1] - LEG_STEP:
+			# The overload relay under the contactor covers that face: the
+			# wire goes in by the screw and out to the side above the relay.
+			entry = NAN
 		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z) if is_nan(entry) else entry)
 		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up, "clamp": true}
 		if not up and beside.has_area():
