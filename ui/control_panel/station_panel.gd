@@ -6,7 +6,9 @@ extends HBoxContainer
 ## editing, the tools beside it fill the station: click an item to choose its
 ## device, colour, plate text and a signal lamp inside it (illuminated
 ## button). Every change is emitted as one undoable edit of the document (see
-## [method SchematicEditor.edit_workspace]).
+## [method SchematicEditor.edit_workspace]). Front | Inside at the top shows
+## the station with its cover off instead ([StationInsideView]): the contact
+## blocks behind the buttons and switches and the wires to them.
 
 ## A push button was pressed (true) or let go (false) on the station.
 signal button_held(designation: String, pressed: bool)
@@ -46,6 +48,17 @@ var _rebuild_queued: bool = false
 var _item_tools: ControlItemTools = ControlItemTools.new()
 var _menu: PopupMenu
 var _menu_device: String = ""
+## The inside is shown instead of the front.
+var inside_shown: bool = false:
+	set(value):
+		inside_shown = value
+		if _inside_button != null:
+			(_inside_button if value else _front_button).button_pressed = true
+		_rebuild_queued = true
+var _front_button: Button
+var _inside_button: Button
+var _scroll: ScrollContainer
+var _inside: StationInsideView
 
 
 func _ready() -> void:
@@ -53,6 +66,29 @@ func _ready() -> void:
 	var left: VBoxContainer = VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(left)
+	# Front | Inside as one segmented switch.
+	var margin: MarginContainer = MarginContainer.new()
+	for side: String in ["left", "top"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	left.add_child(margin)
+	var track: PanelContainer = PanelContainer.new()
+	track.theme_type_variation = "SegmentTrack"
+	track.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	margin.add_child(track)
+	var segments: HBoxContainer = HBoxContainer.new()
+	segments.add_theme_constant_override("separation", 2)
+	track.add_child(segments)
+	var sides: ButtonGroup = ButtonGroup.new()
+	_front_button = _item_tools.make_button("", "panel")
+	_inside_button = _item_tools.make_button("", "cabinet")
+	for side_button: Button in [_front_button, _inside_button]:
+		side_button.theme_type_variation = "SegmentButton"
+		side_button.toggle_mode = true
+		side_button.button_group = sides
+		segments.add_child(side_button)
+	(_inside_button if inside_shown else _front_button).button_pressed = true
+	_front_button.pressed.connect(func() -> void: inside_shown = false)
+	_inside_button.pressed.connect(func() -> void: inside_shown = true)
 	_note = Label.new()
 	_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_note.theme_type_variation = "MutedLabel"
@@ -62,6 +98,11 @@ func _ready() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_child(scroll)
+	_scroll = scroll
+	_inside = StationInsideView.new()
+	_inside.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inside.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(_inside)
 	var center: CenterContainer = CenterContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -107,6 +148,12 @@ func set_document(doc: SchematicDocument, editing: bool) -> void:
 	_rebuild()
 
 
+## Voltage reach of the last simulation step (terminal key -> reach code),
+## shown on the terminals inside.
+func show_step(result: StepResult) -> void:
+	_inside.reach = result.terminal_reach
+
+
 ## Shows the document again after it was edited (devices renamed, items changed).
 func refresh() -> void:
 	_rebuild_queued = true
@@ -150,8 +197,12 @@ func _process(_delta: float) -> void:
 		_rebuild_queued = false
 		_rebuild()
 	if not _editing and is_visible_in_tree():
-		# Buttons, switches and lamps follow the simulation.
-		_view.queue_redraw()
+		# Buttons, switches and lamps follow the simulation (lamps and
+		# voltages inside too).
+		if inside_shown:
+			_inside.queue_redraw()
+		else:
+			_view.queue_redraw()
 
 
 ## Index of the station shown, -1 when the document has none of that name.
@@ -172,6 +223,16 @@ func _rebuild() -> void:
 		child.queue_free()
 	var b: int = _box()
 	_tools.visible = _editing and b >= 0
+	_front_button.text = tr("Front")
+	_front_button.tooltip_text = tr("The push buttons, switches and lamps as they are operated")
+	_inside_button.text = tr("Inside")
+	_inside_button.tooltip_text = tr("With the cover off: the contact blocks and the wires to them")
+	_scroll.visible = not inside_shown
+	_inside.visible = inside_shown
+	_inside.document = _document
+	_inside.box_index = b
+	_inside.simulating = not _editing
+	_inside.refresh()
 	_view.document = _document
 	_view.box_index = b
 	_view.simulating = not _editing

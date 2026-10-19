@@ -3530,3 +3530,12 @@ msgstr "Na těchto dveřích zatím nejsou žádná tlačítka, přepínače ani
 
 msgid "Put every push button, switch and signal lamp that is not on a station or a door yet on this door"
 msgstr "Umístí na tyto dveře všechna tlačítka, přepínače a signálky, které zatím nejsou na skříňce ani na dveřích"
+
+msgid "Front"
+msgstr "Čelo"
+
+msgid "The push buttons, switches and lamps as they are operated"
+msgstr "Tlačítka, přepínače a signálky, jak se ovládají"
+
+msgid "With the cover off: the contact blocks and the wires to them"
+msgstr "Se sejmutým víkem: kontaktní bloky a vodiče k nim"

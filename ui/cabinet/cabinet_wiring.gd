@@ -168,7 +168,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 			var first: Dictionary = by_net[n][0]
 			wiring._field.append({"key": first["key"], "at": first["at"], "duct": first["duct"], "up": first["up"], "id": first["id"], "cable": onward[n]})
 	wiring._field_cables(edges, net, conductor, _cable_names(doc, board, cables))
-	var marks: Dictionary[int, String] = _marks(doc, net)
+	var marks: Dictionary[int, String] = wire_marks(doc, net)
 	for edge: Dictionary in edges:
 		edge["mark"] = marks.get(edge["net"], "")
 	wiring._route(edges)
@@ -178,7 +178,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 
 ## What the marker sleeves of each net say: its wire number, else the name
 ## of the supply conductor on it ("L1", "N", "PE", "+").
-static func _marks(doc: SchematicDocument, net: Dictionary[String, int]) -> Dictionary[int, String]:
+static func wire_marks(doc: SchematicDocument, net: Dictionary[String, int]) -> Dictionary[int, String]:
 	var marks: Dictionary[int, String] = WorkspaceCables.wire_numbers(doc, net)
 	for c: CircuitComponent in doc.circuit.get_components():
 		if not (c is PowerSupply):

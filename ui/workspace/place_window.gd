@@ -76,6 +76,8 @@ func refresh() -> void:
 func show_step(result: StepResult) -> void:
 	if _panel is CabinetPanel:
 		(_panel as CabinetPanel).show_step(result)
+	elif _panel is StationPanel:
+		(_panel as StationPanel).show_step(result)
 
 
 func retranslate() -> void:
