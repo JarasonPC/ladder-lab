@@ -142,10 +142,14 @@ func _palette_title() -> String:
 		return tr("Overload relay contact")
 	# The entry that says the most about it (the compact PLC over the PLC).
 	var best: Dictionary = {}
+	var best_size: int = 0
 	for entry: Dictionary in Palette.ENTRIES:
-		var template: Dictionary = entry["template"]
-		if SchematicEditor.matches_template(component, template) and (best.is_empty() or template.size() > (best["template"] as Dictionary).size()):
+		var template: Dictionary = (entry["template"] as Dictionary).duplicate()
+		# The palette places one CPU size; the others are the same part.
+		template.erase("cpu")
+		if SchematicEditor.matches_template(component, template) and (best.is_empty() or template.size() > best_size):
 			best = entry
+			best_size = template.size()
 	return tr(best["title"]) if not best.is_empty() else component.designation
 
 
@@ -260,12 +264,16 @@ func _marking_data() -> void:
 
 
 ## Rows of the contacts drawn with the part's designation (on parts of their
-## own), under a heading; while none is drawn, those of the device in the
+## own: main, auxiliary and changeover contacts), under a heading; while none is drawn, those of the device in the
 ## switchboard: a time relay's changeover 15-16-18, a contactor's main
 ## contacts and 13-14, 21-22, a relay's changeover 11-12-14.
 func _device_contacts(delayed_by_output: bool) -> void:
 	var contacts: Array[CircuitComponent] = CabinetDevices.contacts_of(document.circuit, component.designation)
-	if contacts.is_empty():
+	var mains: Array[MainContacts] = []
+	for c: CircuitComponent in document.circuit.get_components():
+		if c is MainContacts and c.designation == component.designation:
+			mains.append(c as MainContacts)
+	if contacts.is_empty() and mains.is_empty():
 		_heading(tr("Contacts (parts of their own)"))
 		var operated: String = tr("the coil has pulled in")
 		if delayed_by_output:
@@ -280,6 +288,15 @@ func _device_contacts(delayed_by_output: bool) -> void:
 			_changeover_rows(PackedStringArray(["11", "12", "14"]), operated)
 		return
 	_heading(tr("Contacts drawn as -%s") % component.designation)
+	# Main contacts first, poles numbered on over all of them.
+	var pole: int = 0
+	for c: MainContacts in mains:
+		var names: PackedStringArray = c.get_terminal_names()
+		for p: int in c.poles:
+			pole += 1
+			var operated: String = tr("the coil has pulled in")
+			_row(names[2 * p], tr("Main contact, pole %d") % pole, tr("Supply side; closed to %s while %s.") % [names[2 * p + 1], operated])
+			_row(names[2 * p + 1], tr("Main contact, pole %d") % pole, tr("Load side; closed to %s while %s.") % [names[2 * p], operated])
 	for c: CircuitComponent in contacts:
 		var delayed: bool = (c as Contact).delayed if c is Contact else (c as ChangeoverContact).delayed
 		var operated: String = tr("output R is on") if delayed and delayed_by_output else tr("the coil has pulled in")
