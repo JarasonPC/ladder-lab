@@ -58,7 +58,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   numbering tool or double click; side panels (palette, properties + check, the workspace tree)
   are SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with
   oversampling_with_scale, so text stays sharp); the
-  palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; symbols too wide
+  palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; fuses,
+  breakers, multi-pole devices, motors and sensors upright, other two-terminal symbols lying; symbols too wide
   for a tile draw a simpler version there, SchematicSymbol.preview_rect: the inverter a box saying
   "VFD 3~ f", PLCs a box saying "PLC relay" / "PLC CPU", the temperature sensor a thermometer → U, 3~ motors a circle with "M 3~" and beside it
   Y over Δ (star/delta) or the number of speeds over "Dahl." / "speed"; the 1~ motor has its
@@ -103,7 +104,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   leader at every terminal) as children; DatasheetWindow lists the part from the schematic and
   every palette part, zooms (ZoomBox) and exports a PDF (200 dpi pages). Opened from the right
   click menu (Datasheet, F1), the properties (Datasheet button) and Help > Part datasheets
-- Current path numbers (above the columns, left of the rows) can be turned off in View >
+- Current path numbers (the number alone, no box; above the columns, left of the rows) can be turned off in View >
   Current path numbers (saved; page windows and export follow it)
 - Export: File > Export page as PNG / Export as PDF first show the sheets in a preview
   (ExportPreview: page by page, paper and scale, wire numbers on/off, on by default); saving
