@@ -1696,34 +1696,38 @@ static func pe_block_size(connections: int) -> Vector2:
 	return Vector2(PE_BLOCK_H, connections * PE_PITCH + 6.0)
 
 
-## Centre of the hole in the green cover over connection [param i] of a
-## PE distribution block, from the block's top-left.
+## Centre of the hole in the green cover over the screw of connection
+## [param i] of a PE distribution block, from the block's top-left.
 static func pe_hole(i: int) -> Vector2:
-	return Vector2(PE_BLOCK_H * 0.5 + 0.6, 3.0 + PE_PITCH * (i + 0.5))
+	return Vector2(PE_COVER_X + 5.6, 3.0 + PE_PITCH * (i + 0.5))
 
 
 ## Where connection [param i] of a PE distribution block takes its wire,
-## from the block's top-left: into the hole in its green cover, from the
-## left.
+## from the block's top-left: in under its green cover from the left, by
+## its screw.
 static func pe_entry(i: int) -> Vector2:
-	return pe_hole(i) - Vector2(PE_HOLE, 0.0)
+	return Vector2(PE_COVER_X, pe_hole(i).y)
 
 
-## Radius of the holes in a PE distribution block's green cover.
-const PE_HOLE: float = 2.5
+## Left edge of a PE distribution block's green cover; radius of the holes
+## in it and of the screws deep inside them.
+const PE_COVER_X: float = 2.6
+const PE_HOLE: float = 3.0
+const PE_SCREW: float = 2.2
 
 
 ## PE distribution block on a DIN rail with [param connections] screw
 ## connections, as made, standing across the rail: a brass bar in a yellow
-## base under a green cover with a round hole over each connection (its
-## screw deep inside, the wire going in there) and the connections' numbers.
+## base under a green cover with a round hole over the screw of each
+## connection and the connections' numbers; the wires go in under the cover
+## from its left.
 static func pe_block(p: CabinetPainter, connections: int) -> void:
 	var size: Vector2 = pe_block_size(connections)
 	var base: Rect2 = Rect2(Vector2.ZERO, size)
 	p.rect(base.grow(0.3), Color(0, 0, 0, 0.3), 1.0)
 	p.hgradient(base, PE_YELLOW.lightened(0.15), PE_YELLOW.darkened(0.12), 0.8)
 	p.rect(base, Color.TRANSPARENT, 0.8, PE_YELLOW.darkened(0.45), 0.15)
-	var cover: Rect2 = Rect2(2.6, 1.2, size.x - 5.2, size.y - 2.4)
+	var cover: Rect2 = Rect2(PE_COVER_X, 1.2, size.x - 2.0 * PE_COVER_X, size.y - 2.4)
 	p.rect(cover.grow(0.2), Color(0, 0, 0, 0.25), 1.6)
 	p.hgradient(cover, PE_GREEN.lightened(0.12), PE_GREEN.darkened(0.12), 1.4)
 	p.rect(cover, Color.TRANSPARENT, 1.4, PE_GREEN.darkened(0.45), 0.15)
@@ -1731,9 +1735,11 @@ static func pe_block(p: CabinetPainter, connections: int) -> void:
 		var at: Vector2 = pe_hole(i)
 		p.circle(at, PE_HOLE, Color("173d22"))
 		# The screw deep in the hole.
-		p.circle(at + Vector2(0.2, 0.15), 1.5, Color("8f969c"))
-		p.line(at + Vector2(-0.95, 0.15), at + Vector2(1.35, 0.15), Color("4d5358"), 0.3)
-		p.line(at + Vector2(0.2, -1.0), at + Vector2(0.2, 1.3), Color("4d5358"), 0.3)
+		var screw: Vector2 = at + Vector2(0.2, 0.15)
+		p.circle(screw, PE_SCREW, Color("9aa1a7"), Color("5d6369"), 0.15)
+		p.circle(screw + Vector2(-0.6, -0.6), PE_SCREW * 0.4, Color(1, 1, 1, 0.3))
+		p.line(screw + Vector2(-1.5, 0.0), screw + Vector2(1.5, 0.0), Color("4d5358"), 0.4)
+		p.line(screw + Vector2(0.0, -1.5), screw + Vector2(0.0, 1.5), Color("4d5358"), 0.4)
 		p.text_centered(Vector2(cover.end.x - 1.3, at.y), str(i + 1), 1.4, PE_GREEN.darkened(0.4), false)
 
 
