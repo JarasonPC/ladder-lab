@@ -361,6 +361,32 @@ static func nets(circuit: Circuit) -> Dictionary[String, int]:
 	return result
 
 
+## [param net] (see [method nets]) with the nets of the supply points of one
+## conductor (several of PE on the drawing) as one, as the switchboard wires
+## them (one core of the incoming cable feeds them all).
+static func supply_nets(circuit: Circuit, net: Dictionary[String, int]) -> Dictionary[String, int]:
+	var first: Dictionary[PowerSupply.Conductor, int] = {}
+	var into: Dictionary[int, int] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if c is PowerSupply:
+			var n: int = net.get(c.get_terminal_keys()[0], -1)
+			var which: PowerSupply.Conductor = (c as PowerSupply).conductor
+			if not first.has(which):
+				first[which] = n
+			elif first[which] != n:
+				into[n] = first[which]
+	if into.is_empty():
+		return net
+	var result: Dictionary[String, int] = {}
+	for key: String in net:
+		# Supply points of two conductors wired together (a short) join on.
+		var n: int = net[key]
+		while into.has(n) and into[n] != n:
+			n = into[n]
+		result[key] = n
+	return result
+
+
 ## Net number (see [method nets]) -> [enum Conductor] of every net. Nets
 ## joined to the N supply or a - pole (of a supply point or a rectifier)
 ## are NEUTRAL, nets joined to PE alone PE; nets on the terminals of the
@@ -446,7 +472,8 @@ static func field_device(circuit: Circuit, key: String, net: Dictionary[String, 
 # --- Terminal strips -----------------------------------------------------------------
 
 ## Terminal strip name -> its terminals from left to right (the order set in
-## the switchboard, [member SchematicDocument.strip_orders], else by label),
+## the switchboard, [member SchematicDocument.strip_orders], else by label
+## with those of one net side by side, see [method _grouped]),
 ## each {"label", "kind": "L",
 ## "N" or "PE", "keys": PackedStringArray of the circuit terminals it joins}.
 ## A terminal labelled PE or on a PE wire is a PE terminal, one labelled N
@@ -496,7 +523,33 @@ static func strips(doc: SchematicDocument) -> Dictionary:
 						if kind != "PE":
 							kind = "N"
 			terminals.append({"label": label, "kind": kind, "keys": found[strip][label]})
-		result[strip] = terminals
+		result[strip] = terminals if not order.is_empty() else _grouped(terminals, supply_nets(doc.circuit, net))
+	return result
+
+
+## [param terminals] (of a strip, by label) with those of one net of
+## [param net] side by side, from where the first of them is, so a plug-in
+## bridge joins them instead of a second wire into one of them.
+static func _grouped(terminals: Array, net: Dictionary[String, int]) -> Array:
+	var nets: Array[int] = []
+	for t: Dictionary in terminals:
+		var n: int = -1
+		for key: String in t["keys"]:
+			if net.has(key):
+				n = net[key]
+				break
+		nets.append(n)
+	var result: Array = []
+	var placed: Array[bool] = []
+	placed.resize(terminals.size())
+	placed.fill(false)
+	for i: int in terminals.size():
+		if placed[i]:
+			continue
+		for j: int in range(i, terminals.size()):
+			if j == i or (nets[i] >= 0 and nets[j] == nets[i] and not placed[j]):
+				result.append(terminals[j])
+				placed[j] = true
 	return result
 
 

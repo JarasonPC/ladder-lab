@@ -10,9 +10,12 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Wires on from a contactor's outputs under its overload relay come out from behind the
   relay at its left side, all of them, near its top, and run down beside it, no longer out under the relay
   between its own wires
-- Every terminal strip entry in a switchboard takes one wire with one marker sleeve: where a
-  strip terminal has to join two wires and no plug-in bridge to a neighbour of its net does,
-  it is a terminal for two wires, twice as wide, with two entries side by side at each end
+- Every terminal strip entry in a switchboard takes one wire with one marker sleeve: the
+  wiring loops through the devices' terminals rather than a strip terminal, the terminals of
+  one net stand side by side on their strip (unless you set the order) joined by a plug-in
+  bridge, and N or PE gets a distribution block from two loads on; a strip terminal that
+  still has to join two wires is a terminal for two wires, twice as wide, with two entries
+  side by side at each end
 
 ### Fixed
 - The terminal strip labels of a motor or of three poles side by side are all written alike,

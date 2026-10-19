@@ -172,7 +172,10 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 			if _bridged(points[pair.x], points[pair.y]):
 				# A plug-in bridge joins them, no wire.
 				continue
-			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
+			# A core of the incoming cable starts at the cable.
+			var a: Dictionary = points[pair.y] if points[pair.y].get("external", false) else points[pair.x]
+			var b: Dictionary = points[pair.x] if a == points[pair.y] else points[pair.y]
+			edges.append({"net": n, "conductor": c, "a": a, "b": b, "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
 	wiring._right = layout.size.x - CabinetLayout.FRAME
 	for n: int in onward:
@@ -663,9 +666,36 @@ func _behind_height(relay: Rect2) -> float:
 ## wire only where nothing else can (see [member doubled]). [param single]: the first point gets one wire only (a core
 ## of an incoming cable goes to one terminal).
 func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
+	var tree: Dictionary = _grow(points, single, false)
+	if not tree["doubled"].is_empty():
+		# Strip terminals last: the device terminals joined first, the strip
+		# terminals at the ends of what joins them, where a second wire
+		# into a strip terminal can be done without.
+		var ends: Dictionary = _grow(points, single, true)
+		if _count(ends["doubled"]) < _count(tree["doubled"]):
+			tree = ends
+	for key: String in tree["doubled"]:
+		doubled[key] = doubled.get(key, 0) + tree["doubled"][key]
+	return tree["pairs"]
+
+
+## Sum of the values of [param counts].
+static func _count(counts: Dictionary) -> int:
+	var sum: int = 0
+	for key: Variant in counts:
+		sum += counts[key]
+	return sum
+
+
+## The tree of [method _tree]: {"pairs", "doubled" (strip terminal -> wires
+## more than it has entries for, see [member doubled])}; [param strips_last]:
+## strip terminals joined only once every other terminal is (bridged ones
+## any time).
+func _grow(points: Array, single: bool, strips_last: bool) -> Dictionary:
 	var pairs: Array[Vector2i] = []
+	var more: Dictionary[String, int] = {}
 	if points.size() < 2:
-		return pairs
+		return {"pairs": pairs, "doubled": more}
 	var room: Array[int] = []
 	for i: int in points.size():
 		# Less a wire out to another switchboard from it.
@@ -677,6 +707,10 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 	joined.fill(false)
 	joined[0] = true
 	for step: int in points.size() - 1:
+		var others: bool = false
+		if strips_last:
+			for i: int in points.size():
+				others = others or (not joined[i] and not points[i].has("strip"))
 		# The shortest way from a terminal with room in its clamp to one not
 		# yet joined (a bridge needs no room).
 		var best: float = INF
@@ -689,6 +723,8 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 					continue
 				var bridged: bool = _bridged(points[j], points[i])
 				if not bridged and (room[j] <= 0 or room[i] <= 0):
+					continue
+				if not bridged and others and points[i].has("strip"):
 					continue
 				var d: float = _length(points[j], points[i])
 				if d < best:
@@ -712,14 +748,14 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 				break
 			for end: int in [pair.x, pair.y]:
 				if room[end] <= 0:
-					doubled[points[end]["strip"]] = doubled.get(points[end]["strip"], 0) + 1
+					more[points[end]["strip"]] = more.get(points[end]["strip"], 0) + 1
 					room[end] += 1
 		joined[pair.y] = true
 		if not _bridged(points[pair.x], points[pair.y]):
 			room[pair.x] -= 1
 			room[pair.y] -= 1
 		pairs.append(pair)
-	return pairs
+	return {"pairs": pairs, "doubled": more}
 
 
 ## Which neighbouring terminals of a strip ([param terminals] as in
