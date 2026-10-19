@@ -365,11 +365,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
   desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). A strip
   terminal takes one wire in each entry; one that has to join a second wire where no bridge
-  to a neighbour of its net does gets a block more right after it, bridged, its marker tag
-  across both (CabinetWiring.doubled, asked for while wiring; CabinetLayout.build lays out
-  again with them, CabinetLayout._with_blocks: the same terminal again, "span" 0, the first
-  "span" its number of blocks; the field side of the first block only; the parts list counts
-  the blocks and their bridges from the layout). Where
+  to a neighbour of its net does is a terminal for two wires, twice as wide: two entries side
+  by side at each end, a push button each, one marker tag (CabinetWiring.doubled, asked for
+  while wiring; CabinetLayout.build lays out again with them, CabinetLayout._with_blocks: the
+  same terminal again, "span" 0, the first "span" its number of pitches, joined as by a
+  bridge for the wiring but drawn as one piece, CabinetParts._terminal "entries"; the field
+  side in its first entry only; one terminal in the parts list). Where
   more than CabinetLayout.BUS_LOADS (2) loads take N or PE in a switchboard (strip terminals on
   the net but the incoming one, devices' terminals on it), it gets an N or PE distribution block
   by itself (CabinetLayout.bus_blocks, N first: a place of kind BUS_BLOCK, index -1, not a rail

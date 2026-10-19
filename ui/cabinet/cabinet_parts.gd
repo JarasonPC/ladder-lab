@@ -1583,9 +1583,10 @@ static func vfd(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> 
 ## A strip of push-in terminal blocks (svorkovnice) between two end stops
 ## with the strip's name on the first one. [param items]: {"label", "kind":
 ## "L" | "N" | "PE", "reach": Color, "span"}; "reach" rings the wire entries
-## (voltage reach); "span": blocks one terminal takes (bridged, its marker
-## tag across them all), 0 on the blocks after its first. Terminals sit on
-## whole pixels so every one looks the same.
+## (voltage reach); "span": pitches one terminal takes, one wire entry at
+## each end in each (a terminal for two wires is twice as wide, see [method
+## _terminal]), 0 on the pitches after its first. Terminals sit on whole
+## pixels so every one looks the same.
 ## Returns the width in mm.
 static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> float:
 	var q: CabinetPainter = p.snapped()
@@ -1595,19 +1596,22 @@ static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> fl
 	x += q.snap(END_STOP_W)
 	var first: float = x
 	for item: Dictionary in items:
-		_terminal(q, x, pitch, item)
+		var span: int = item.get("span", 1)
+		if span > 0:
+			_terminal(q, x, pitch * span, item, span)
 		x += pitch
-	# Marker tags with the terminal names, across all the blocks of a terminal.
+	# Marker tags with the terminal names, across the whole of a terminal.
 	for i: int in items.size():
 		var span: int = items[i].get("span", 1)
 		if span > 0:
 			var tag: Rect2 = Rect2(first + pitch * i + q.snap(0.5), TERMINAL.y * 0.5 - 4.5, pitch * span - q.snap(1.0), 9.0)
 			q.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
 			q.text_centered(tag.get_center(), str(items[i].get("label", "")), 2.4, Color("111111"), true, tag.size.x - 0.3)
-	# Plug-in bridges over the terminals they join.
+	# Plug-in bridges over the terminals they join (not inside a terminal
+	# for more wires: one piece).
 	var run: int = -1
 	for i: int in items.size():
-		var joined: bool = items[i].get("bridge", false)
+		var joined: bool = items[i].get("bridge", false) and i + 1 < items.size() and items[i + 1].get("span", 1) != 0
 		if joined and run < 0:
 			run = i
 		if not joined and run >= 0:
@@ -1645,10 +1649,11 @@ static func _terminal_color(kind: String) -> Color:
 	return TERMINAL_GREY
 
 
-## One push-in terminal [param w] mm wide: at both ends a wire entry with
-## the clamp's spring inside, the orange push button that opens it and a
-## test socket (the marker tag in the middle: see [method terminal_strip]).
-static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -> void:
+## One push-in terminal [param w] mm wide: at both ends [param entries]
+## wire entries side by side, each with the clamp's spring inside and the
+## orange push button that opens it, and a test socket (the marker tag in
+## the middle: see [method terminal_strip]).
+static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary, entries: int = 1) -> void:
 	var kind: String = item.get("kind", "L")
 	var body: Color = _terminal_color(kind)
 	var h: float = TERMINAL.y
@@ -1660,27 +1665,29 @@ static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -
 	p.line(Vector2(x + 0.5 / p.k, 0), Vector2(x + 0.5 / p.k, h), body.lightened(0.35), 0.0)
 	var reach: Color = item.get("reach", Color.TRANSPARENT)
 	var cx: float = x + w * 0.5
-	var bw: float = p.snap(w - 1.8)
+	var bw: float = p.snap(w / entries - 1.8)
 	for end: int in 2:
 		# Distances from the end of the terminal, mirrored for the bottom.
 		var at: Callable = func(d: float) -> float: return d if end == 0 else h - d
-		# Wire entry: a rounded square opening, the spring's edge inside it.
-		var entry: Vector2 = Vector2(cx, at.call(TERMINAL_ENTRY))
-		if reach.a > 0.0:
-			# Voltage reach: a coloured frame with a light edge, seen on any body colour.
-			p.rect(Rect2(entry - Vector2(2.45, 2.45), Vector2(4.9, 4.9)), Color(1, 1, 1, 0.85), 1.3)
-			p.rect(Rect2(entry - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), reach, 1.1)
-		p.rect(Rect2(entry - Vector2(1.5, 1.5), Vector2(3.0, 3.0)), HOLE, 0.8)
-		p.rect(Rect2(entry + Vector2(-1.0, 0.3 if end == 0 else -0.8), Vector2(2.0, 0.5)), METAL_DARK, 0.2)
-		# Push button: the same on every terminal, lighter towards the wire entry.
-		var top: float = at.call(6.6) if end == 0 else at.call(11.4)
-		var button: Rect2 = Rect2(cx - bw * 0.5, top, bw, 4.8)
-		p.rect(button.grow(0.25), body.darkened(0.4), 0.9)
-		if end == 0:
-			p.gradient(button, PUSH_ORANGE.lightened(0.18), PUSH_ORANGE.darkened(0.08), 0.7)
-		else:
-			p.gradient(button, PUSH_ORANGE.darkened(0.08), PUSH_ORANGE.lightened(0.18), 0.7)
-		p.line(Vector2(cx - bw * 0.3, button.get_center().y), Vector2(cx + bw * 0.3, button.get_center().y), PUSH_ORANGE.darkened(0.35), 0.35)
+		for k: int in entries:
+			var ex: float = x + w * (k + 0.5) / entries
+			# Wire entry: a rounded square opening, the spring's edge inside it.
+			var entry: Vector2 = Vector2(ex, at.call(TERMINAL_ENTRY))
+			if reach.a > 0.0:
+				# Voltage reach: a coloured frame with a light edge, seen on any body colour.
+				p.rect(Rect2(entry - Vector2(2.45, 2.45), Vector2(4.9, 4.9)), Color(1, 1, 1, 0.85), 1.3)
+				p.rect(Rect2(entry - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), reach, 1.1)
+			p.rect(Rect2(entry - Vector2(1.5, 1.5), Vector2(3.0, 3.0)), HOLE, 0.8)
+			p.rect(Rect2(entry + Vector2(-1.0, 0.3 if end == 0 else -0.8), Vector2(2.0, 0.5)), METAL_DARK, 0.2)
+			# Push button: the same on every terminal, lighter towards the wire entry.
+			var top: float = at.call(6.6) if end == 0 else at.call(11.4)
+			var button: Rect2 = Rect2(ex - bw * 0.5, top, bw, 4.8)
+			p.rect(button.grow(0.25), body.darkened(0.4), 0.9)
+			if end == 0:
+				p.gradient(button, PUSH_ORANGE.lightened(0.18), PUSH_ORANGE.darkened(0.08), 0.7)
+			else:
+				p.gradient(button, PUSH_ORANGE.darkened(0.08), PUSH_ORANGE.lightened(0.18), 0.7)
+			p.line(Vector2(ex - bw * 0.3, button.get_center().y), Vector2(ex + bw * 0.3, button.get_center().y), PUSH_ORANGE.darkened(0.35), 0.35)
 		# Test socket.
 		p.circle(Vector2(cx, at.call(14.2)), 0.7, HOLE)
 

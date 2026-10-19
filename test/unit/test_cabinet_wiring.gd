@@ -486,9 +486,9 @@ func test_wires_from_a_contactors_outputs_come_out_beside_its_overload_relay() -
 
 
 func test_one_wire_in_each_strip_terminal_entry() -> void:
-	# A strip terminal that has to join two wires gets a block more beside
-	# it, bridged, its tag across both, where no plug-in bridge to a
-	# neighbour of its net does.
+	# A strip terminal that has to join two wires is twice as wide, with two
+	# entries at each end (joined like bridged blocks for the wiring), where
+	# no plug-in bridge to a neighbour of its net does.
 	var k: float = 2.0
 	var doubled: int = 0
 	for example: int in ExampleCircuits.count():
@@ -517,8 +517,8 @@ func test_one_wire_in_each_strip_terminal_entry() -> void:
 				if span > 1:
 					doubled += 1
 					for b: int in range(i, i + span - 1):
-						assert_true(place["desc"]["bridges"][b], "example %d: the blocks of %s bridged" % [example, terminals[i]["label"]])
-						assert_eq(terminals[b + 1]["span"], 0, "the block more takes no tag of its own")
+						assert_true(place["desc"]["bridges"][b], "example %d: the entries of %s joined" % [example, terminals[i]["label"]])
+						assert_eq(terminals[b + 1]["span"], 0, "the second pitch is the same terminal")
 	assert_gt(doubled, 0, "some strip terminal had to be doubled")
 
 
