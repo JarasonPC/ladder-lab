@@ -469,7 +469,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   coil on AC does not pull in; a PLC also burns out with too high a voltage on an input or a
   module supply. The rating is written under the designation, a + supply's voltage beside it
   (supply points of one conductor are the same potential on every page); next to L2 or L3 a plain "L" supply is renamed
-  "L1" ("L.2" -> "L1.2", SchematicDocument.name_first_phase, run after every edit)
+  "L1" ("L.2" -> "L1.2", SchematicDocument.name_first_phase, run after every edit); phase supplies
+  placed one after the other with the place tool take the next phase, L1 → L2 → L3 → L1
+  (SchematicEditor._placed_data), unless a single-phase drawing names its phase plain "L"
 - Terminals are addressed "<designation>:<terminal>", e.g. "K1:A1", "S0:11"; supplies are just "L" / "N"
 - Contact terminals: first digit = sequence, second = function
   (1-2 NC, 3-4 NO, 5-6 delayed NC, 7-8 delayed NO); coils A1-A2, lamps X1-X2, motors U1-U2

@@ -6,6 +6,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- Phase supplies placed one after the other become L1, L2, L3 (not L1, L1, L1)
+
 ### Simulation
 - 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while
   simulating
