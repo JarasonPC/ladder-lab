@@ -2197,17 +2197,39 @@ static func _rounded_path(points: PackedVector2Array, radius: float) -> PackedVe
 ## enclosure where a cable comes in or goes out: the black cable outside,
 ## the grey nut on the frame and the black sealing insert the cores come
 ## out of.
-## The door harness leaving at [param r] (mm, in the bottom of the
-## enclosure like a gland): its cores in a grey corrugated flexible conduit
-## that runs on to the door's hinge, held by a black fitting.
-static func door_conduit(p: CabinetPainter, r: Rect2) -> void:
-	var tube: Rect2 = Rect2(r.position.x + r.size.x * 0.1, r.position.y + r.size.y * 0.35, r.size.x * 0.8, r.size.y * 0.65)
-	p.hgradient(tube, Color("8d9297"), Color("5f646a"), 0.8)
-	var ribs: int = maxi(int(tube.size.y / 0.9), 2)
-	for i: int in ribs:
-		var y: float = tube.position.y + (i + 0.5) * tube.size.y / ribs
-		p.line(Vector2(tube.position.x + 0.2, y), Vector2(tube.end.x - 0.2, y), Color(0, 0, 0, 0.3), 0.25)
-	p.rect(Rect2(r.position.x, r.position.y, r.size.x, r.size.y * 0.4), Color("1f2023"), 0.5, Color("0d0d0f"), 0.15)
+## The fitting [param r] (mm) in the wall of the enclosure or the edge of
+## its door on the hinge side, where the door harness's cores come out of
+## its conduit: a black nut with its grey sealing insert.
+static func door_fitting(p: CabinetPainter, r: Rect2) -> void:
+	p.gradient(r, Color("2b2d30"), Color("15161a"), 0.8, Color("0d0d0f"), 0.15)
+	p.rect(r.grow_individual(-r.size.x * 0.25, -1.0, -r.size.x * 0.25, -1.0), Color("5d6368"), 0.4)
+
+
+## A grey corrugated flexible conduit [param width] mm thick along
+## [param points] (mm), bends rounded (the door harness on its way from the
+## switchboard to its door).
+static func conduit(p: CabinetPainter, points: PackedVector2Array, width: float) -> void:
+	var path: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in _rounded_path(points, width * 2.0):
+		path.append(p.px(point))
+	var w: float = maxf(width * p.k, 2.0)
+	p.canvas.draw_polyline(path, Color("4d5257"), w + 1.0, true)
+	p.canvas.draw_polyline(path, Color("80868b"), maxf(w - 1.0, 1.0), true)
+	# The ribs across it.
+	var step: float = maxf(1.0 * p.k, 2.0)
+	for i: int in path.size() - 1:
+		var a: Vector2 = path[i]
+		var b: Vector2 = path[i + 1]
+		var length: float = a.distance_to(b)
+		if length < 0.5:
+			continue
+		var along: Vector2 = (b - a) / length
+		var across: Vector2 = along.orthogonal() * (w * 0.5 - 0.5)
+		var t: float = step * 0.5
+		while t < length:
+			var c: Vector2 = a + along * t
+			p.canvas.draw_line(c - across, c + across, Color(0, 0, 0, 0.28), 1.0, true)
+			t += step
 
 
 static func cable_gland(p: CabinetPainter, r: Rect2, bottom: bool = false) -> void:

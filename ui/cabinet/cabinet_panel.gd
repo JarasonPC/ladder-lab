@@ -7,9 +7,12 @@ extends HBoxContainer
 ## they show the circuit and breakers, fuse holders and overload relays are
 ## operated on them. While editing, the tools beside the drawing add and fill
 ## rails; every change is emitted as one undoable edit of the document (see
-## [method SchematicEditor.edit_cabinet]). Its door (Inside | Door at the
-## top) is drawn by a [DoorView] and holds push buttons, switches and lamps
-## like a control station, edited and operated the same way.
+## [method SchematicEditor.edit_cabinet]). Its door (Inside | Door | Door
+## open at the top) is drawn by a [DoorView] and holds push buttons, switches
+## and lamps like a control station, edited and operated the same way; Door
+## open shows the switchboard with the door opened beside it, the back of the
+## door with its contact blocks and wires and the door harness running from
+## the switchboard to it ([member CabinetView.door_open]).
 
 ## A breaker, fuse holder or overload relay was clicked while simulating.
 signal operate_requested(designation: String)
@@ -33,8 +36,17 @@ var board_name: String = ""
 var door_shown: bool = false:
 	set(value):
 		door_shown = value
-		if _door_button != null:
-			(_door_button if value else _inside_button).button_pressed = true
+		if value:
+			door_open = false
+		_press_side()
+		_rebuild_queued = true
+## The inside is shown with the door opened beside it.
+var door_open: bool = false:
+	set(value):
+		door_open = value
+		if value:
+			door_shown = false
+		_press_side()
 		_rebuild_queued = true
 var _document: SchematicDocument
 var _editing: bool = false
@@ -54,6 +66,7 @@ var _rebuild_queued: bool = false
 var _down: ScrollContainer
 var _inside_button: Button
 var _door_button: Button
+var _open_button: Button
 var _door: DoorView
 ## Item of the door selected for editing, -1 for none.
 var _door_selected: int = -1
@@ -84,14 +97,18 @@ func _ready() -> void:
 	var sides: ButtonGroup = ButtonGroup.new()
 	_inside_button = _button("", "cabinet")
 	_door_button = _button("", "panel")
-	for side_button: Button in [_inside_button, _door_button]:
+	_open_button = _button("", "cabinet")
+	for side_button: Button in [_inside_button, _door_button, _open_button]:
 		side_button.theme_type_variation = "SegmentButton"
 		side_button.toggle_mode = true
 		side_button.button_group = sides
 		segments.add_child(side_button)
-	(_door_button if door_shown else _inside_button).button_pressed = true
-	_inside_button.pressed.connect(func() -> void: door_shown = false)
+	_press_side()
+	_inside_button.pressed.connect(func() -> void:
+		door_shown = false
+		door_open = false)
 	_door_button.pressed.connect(func() -> void: door_shown = true)
+	_open_button.pressed.connect(func() -> void: door_open = true)
 	_zoom_row = HBoxContainer.new()
 	_zoom_row.add_theme_constant_override("separation", 2)
 	_zoom_row.alignment = BoxContainer.ALIGNMENT_END
@@ -192,6 +209,13 @@ func select_item(kind: CabinetItem.Kind, designation: String) -> void:
 				return
 
 
+## Presses the segment of what is shown (inside, door, door open).
+func _press_side() -> void:
+	if _inside_button == null:
+		return
+	(_door_button if door_shown else (_open_button if door_open else _inside_button)).button_pressed = true
+
+
 ## Shows the door with the item of device [param designation] selected
 ## (Edit mode; also the lamp inside a button).
 func select_door_device(designation: String) -> void:
@@ -264,6 +288,10 @@ func _rebuild() -> void:
 	_inside_button.tooltip_text = tr("The DIN rails with the devices and their wiring")
 	_door_button.text = tr("Door")
 	_door_button.tooltip_text = tr("The push buttons, switches and signal lamps on the door")
+	_open_button.text = tr("Door open")
+	_open_button.tooltip_text = tr("The switchboard with its door opened beside it: the back of the door with its contact blocks and wires, the door harness running across to it")
+	if _view.door_open != door_open:
+		_view.door_open = door_open
 	_down.visible = not door_shown
 	_door.visible = door_shown
 	_zoom_row.visible = not door_shown

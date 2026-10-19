@@ -3527,3 +3527,9 @@ msgstr ""
 
 msgid "With the cover off: the contact blocks and the wires to them"
 msgstr ""
+
+msgid "Door open"
+msgstr ""
+
+msgid "The switchboard with its door opened beside it: the back of the door with its contact blocks and wires, the door harness running across to it"
+msgstr ""

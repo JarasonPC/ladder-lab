@@ -315,14 +315,24 @@ Architecture and conventions of the code base. Read this before changing the cod
   door), a device shows on one station or door only (control_panel_devices), and a door's
   items are in the switchboard's place ("+RA1": WorkspaceCables, the tree under the
   switchboard, the parts list, the key strip; Workspace.door_of). CabinetPanel shows the door
-  in place of the inside (Inside | Door at the top, door_shown, select_door_device): a
+  in place of the inside (Inside | Door | Door open at the top, door_shown, door_open,
+  select_door_device): a
   DoorView (a ControlBoxView drawn in mm with CabinetPainter, after a photo of a real door:
   RAL 7035 face the size of the enclosure, larger only when its items do not fit at
   DoorView.PITCH, the items sharing out its width and height, two quarter-turn locks on the
   left, "+RA1" and the title top left, the yellow warning sign at the top, 22 mm devices with
   a black label holder under each, yellow position tags over selector switches, rotary cam
   switches bigger), edited (door_edit_requested, a workspace edit) and operated as a station;
-  the export puts the door beside the inside on the switchboard's sheet
+  the export puts the door beside the inside on the switchboard's sheet. Door open draws the
+  inside with the door opened beside it, hinged on the switchboard's right
+  (CabinetView.door_open, DOOR_GAP, CONDUIT_ROOM): the door's back laid out by
+  StationInside.build_door (each item behind its place on the front, mirrored; the blocks
+  and wires as inside a station, drawn by StationInsideView.paint; the channels clear of a
+  cam switch's back, StationInside.BACK_HALF; the labels beside the devices), hinges on its
+  left, the locks' latches on its right; a core of the door harness for each net of
+  CabinetWiring.door_harness comes in through a fitting in the door's hinge edge, at the
+  height the harness leaves the switchboard, its conduit (CabinetParts.conduit) straight
+  across the hinge from the switchboard's wall, and goes up the hinge side to its channel
 - Switchboards (rozvaděč, opened from the workspace, both modes): DIN rails (Switchboard.rails,
   CabinetRail / CabinetItem: a device by designation or a terminal strip by name; a device or
   strip has one place in all switchboards, SchematicDocument.cabinet_has; saved in "switchboards")
@@ -435,9 +445,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   wider or narrower at each scale; while simulating the places are only described again,
   CabinetLayout.describe_again); each switchboard is laid out
   and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Strip
-  terminals leading to parts on the switchboard's own door send their cores out as one door
-  harness (CabinetWiring.DOOR in place of a cable name, its gland "door": a grey corrugated
-  conduit tagged Door, CabinetParts.door_conduit); to a door of another switchboard in the
+  terminals leading to parts on the switchboard's own door send their cores to the door as
+  one door harness (CabinetWiring.DOOR in place of a cable name) that never leaves the
+  enclosure: out of the strip terminals' field side into the bottom duct, along its bottom in
+  lanes of their own to the hinge side and through a fitting in the right wall (its gland
+  "door", CabinetParts.door_fitting, tagged Door); to a door of another switchboard in the
   cable between the two. Edited in
   CabinetPanel beside the drawing (undoable, "Fill from the schematic" fills the opened
   switchboard), breakers, fuse holders and overload relays operated there while simulating.

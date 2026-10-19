@@ -12,7 +12,11 @@ extends RefCounted
 ## channels above and below each row of devices and down the left side,
 ## coloured by conductor ([method CabinetDevices.conductors]), each with its
 ## wire number on a marker sleeve at its ends. Laid out by [method build];
-## drawn by [StationInsideView]. No nodes.
+## drawn by [StationInsideView]. The back of a switchboard's door is laid out
+## the same way ([method build_door]): its devices behind their places on
+## the front (seen from behind, so mirrored), the door harness coming in at
+## the bottom on the hinge side (the left, seen from behind) from the
+## switchboard. No nodes.
 
 ## Room between the housing's edge and the items, the left side keeping
 ## room for the wires going down it too; the top above the first channel
@@ -27,6 +31,8 @@ const BLOCK := Vector2(10.0, 36.0)
 const CO_BLOCK: float = 16.0
 const CHAMBER: float = 13.0
 const SCREW_Y: float = 12.0
+## Half the height of the back of the biggest device (a cam switch's square).
+const BACK_HALF: float = 24.0
 ## Lanes of wires in the channels and down the side.
 const LANE: float = 2.4
 ## Least height of a channel between rows.
@@ -44,8 +50,11 @@ var size: Vector2 = Vector2.ZERO
 ## goes into the contact: the block's top or bottom face, under the screw),
 ## "top"}]}]}.
 var items: Array[Dictionary] = []
-## Glands in the top: {"rect", "cable" (its name)}.
+## Glands in the top: {"rect", "cable" (its name)}; on a door the harness's
+## conduit at the bottom ("cable" [constant CabinetWiring.DOOR]).
 var glands: Array[Dictionary] = []
+## The back of a switchboard's door (see [method build_door]).
+var door: bool = false
 ## Wires: {"net", "conductor", "points", "external" (a core starting at a
 ## gland), "mark", "markers" (sleeves as PackedVector2Array [from, to])}.
 var wires: Array[Dictionary] = []
@@ -86,6 +95,52 @@ static func build(doc: SchematicDocument, box_index: int) -> StationInside:
 			link["side_lane"] = side
 			side += 1
 	inside._lay_out(box, rows, lanes, side)
+	inside._route(links, net, conductor, marks)
+	return inside
+
+
+## The back of the door of switchboard [param board] of [param doc], the
+## enclosure [param enclosure] mm (see [method DoorView.size_of]): each
+## device behind its place on the front, mirrored as seen from behind; a
+## core of the door harness ([method CabinetWiring.door_harness]) to the
+## first terminal of its net here, the others joined to it. The harness
+## comes in through a fitting in the hinge edge (the left, seen from
+## behind) at height [param across] (where it leaves the switchboard; below
+## the rows when negative).
+static func build_door(doc: SchematicDocument, board: int, enclosure: Vector2, across: float = -1.0) -> StationInside:
+	var inside: StationInside = StationInside.new()
+	inside.door = true
+	if doc == null or board < 0 or board >= doc.switchboards.size():
+		return inside
+	var box: ControlBox = doc.switchboards[board].door
+	inside._place_items(doc, box)
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, net)
+	var marks: Dictionary[int, String] = CabinetWiring.wire_marks(doc, net)
+	var rows: int = maxi(ceili(box.items.size() / float(box.columns)), 1)
+	var harness: PackedInt32Array = PackedInt32Array()
+	for core: Dictionary in CabinetWiring.door_harness(doc, board):
+		harness.append(core["net"])
+	var links: Array[Dictionary] = inside._links(doc, box, net, harness, rows)
+	var lanes: PackedInt32Array = PackedInt32Array()
+	lanes.resize(rows + 1)
+	var side: int = 0
+	for link: Dictionary in links:
+		if link["external"]:
+			# A harness core goes up the hinge side to its channel at once.
+			link["a_channel"] = link["b_channel"]
+			link["side_lane"] = side
+			side += 1
+		for end: String in (["a"] if link["a_channel"] == link["b_channel"] else ["a", "b"]):
+			var channel: int = link[end + "_channel"]
+			link[end + "_lane"] = lanes[channel]
+			lanes[channel] += 1
+		if link["a_channel"] == link["b_channel"]:
+			link["b_lane"] = link["a_lane"]
+		elif not link.has("side_lane"):
+			link["side_lane"] = side
+			side += 1
+	inside._lay_out_door(box, enclosure, rows, lanes, across)
 	inside._route(links, net, conductor, marks)
 	return inside
 
@@ -175,10 +230,12 @@ static func block_width(kind: String) -> float:
 
 
 ## The wires to lay: a core of each cable coming in to the terminal it
-## lands on, and between the terminals of one net here the shortest links
-## from those already joined. Each {"net", "a", "b" (a terminal key, or a
-## gland core: {"cable", "core"}), "a_channel", "b_channel", "external"}.
-func _links(doc: SchematicDocument, box: ControlBox, net: Dictionary[String, int]) -> Array[Dictionary]:
+## lands on (on a door, a core of the harness for each of [param harness]'s
+## nets, coming in to the channel under row [param rows] - 1), and between
+## the terminals of one net here the shortest links from those already
+## joined. Each {"net", "a", "b" (a terminal key, or a gland core:
+## {"gland", "core"}), "a_channel", "b_channel", "external"}.
+func _links(doc: SchematicDocument, box: ControlBox, net: Dictionary[String, int], harness: PackedInt32Array = PackedInt32Array(), rows: int = 0) -> Array[Dictionary]:
 	var links: Array[Dictionary] = []
 	var here: String = "+" + box.name
 	# Terminal key -> its row and whether it is on top, from the items.
@@ -192,7 +249,22 @@ func _links(doc: SchematicDocument, box: ControlBox, net: Dictionary[String, int
 				terminals[t["key"]] = {"row": row, "top": t["top"]}
 				at[t["key"]] = Vector2(column, row)
 	var joined: Dictionary[int, PackedStringArray] = {}
-	for cable: Dictionary in WorkspaceCables.cables(doc):
+	if door:
+		glands.append({"cable": CabinetWiring.DOOR, "cores": 0})
+		for n: int in harness:
+			# The first terminal of the net, in the order of the items.
+			var key: String = ""
+			for entry: Dictionary in items:
+				for block: Dictionary in entry["blocks"]:
+					for t: Dictionary in block["terminals"]:
+						if key.is_empty() and net.get(t["key"], -1) == n:
+							key = t["key"]
+			if key.is_empty() or joined.has(n):
+				continue
+			links.append({"net": n, "a": {"gland": 0, "core": glands[0]["cores"]}, "b": key, "a_channel": rows, "b_channel": _channel(key), "external": true})
+			glands[0]["cores"] += 1
+			joined[n] = PackedStringArray([key])
+	for cable: Dictionary in (WorkspaceCables.cables(doc) if not door else []):
 		var end: String = "a" if cable["a"] == here else ("b" if cable["b"] == here else "")
 		if end.is_empty():
 			continue
@@ -276,23 +348,7 @@ func _lay_out(box: ControlBox, rows: int, lanes: PackedInt32Array, side: int) ->
 		var cell: Rect2 = Rect2(left + column * CELL.x, row_y[row], CELL.x, CELL.y)
 		entry["rect"] = cell
 		entry["center"] = cell.get_center()
-		var total: float = 0.0
-		for block: Dictionary in entry["blocks"]:
-			total += block_width(block["kind"])
-		var x: float = cell.get_center().x - total * 0.5
-		for block: Dictionary in entry["blocks"]:
-			var w: float = block_width(block["kind"])
-			block["rect"] = Rect2(x, cell.get_center().y - BLOCK.y * 0.5, w, BLOCK.y)
-			var tops: Array = block["terminals"].filter(func(t: Dictionary) -> bool: return t["top"])
-			for t: Dictionary in block["terminals"]:
-				var same: Array = tops if t["top"] else block["terminals"].filter(func(o: Dictionary) -> bool: return not o["top"])
-				var k: int = same.find(t)
-				var tx: float = x + w * (k + 1) / float(same.size() + 1)
-				t["at"] = Vector2(tx, cell.get_center().y + (-SCREW_Y if t["top"] else SCREW_Y))
-				t["entry"] = Vector2(tx, block["rect"].position.y if t["top"] else block["rect"].end.y)
-				terminals[t["key"]]["at"] = t["at"]
-				terminals[t["key"]]["entry"] = t["entry"]
-			x += w
+		_place_blocks(entry)
 	# Glands side by side in the middle of the top.
 	var widths: float = 0.0
 	for gland: Dictionary in glands:
@@ -302,6 +358,65 @@ func _lay_out(box: ControlBox, rows: int, lanes: PackedInt32Array, side: int) ->
 		var w: float = maxf(gland["cores"] * CORE + 4.0, 12.0)
 		gland["rect"] = Rect2(gx + 3.0, -2.0, w, 8.0)
 		gx += w + 6.0
+
+
+## The back of a door of [param box] (enclosure [param enclosure] mm): each
+## item behind its cell on the front, mirrored; the channel above each row
+## over its blocks, the one under a row under them, [param lanes] each; the
+## harness's fitting in the left edge (the hinge side seen from behind) at
+## height [param across].
+func _lay_out_door(box: ControlBox, enclosure: Vector2, rows: int, lanes: PackedInt32Array, across: float) -> void:
+	size = DoorView.size_of(box, enclosure)
+	var cells: Array[Rect2] = DoorView.cells_of(box, enclosure)
+	var centres: PackedFloat32Array = PackedFloat32Array()
+	for entry: Dictionary in items:
+		var front: Rect2 = cells[entry["item"]]
+		var cell: Rect2 = Rect2(size.x - front.end.x, front.position.y, front.size.x, front.size.y)
+		entry["rect"] = cell
+		entry["center"] = cell.position + Vector2(cell.size.x * 0.5, DoorView.DEVICE_Y)
+		entry["door"] = true
+		_place_blocks(entry)
+		var row: int = int(entry["item"] / box.columns)
+		while centres.size() <= row:
+			centres.append(entry["center"].y)
+	# The first channel over the first row's blocks, every other one under
+	# the blocks of the row above it (the rows are far enough apart).
+	_channels = PackedFloat32Array()
+	for r: int in rows + 1:
+		if centres.is_empty():
+			_channels.append(size.y - 30.0)
+		elif r == 0:
+			_channels.append(centres[0] - BACK_HALF - 4.0 - lanes[0] * LANE)
+		else:
+			_channels.append(centres[mini(r, centres.size()) - 1] + BACK_HALF + 2.0)
+	_side_x = FRAME + 6.0
+	if not glands.is_empty():
+		var h: float = maxf(glands[0]["cores"] * CORE + 4.0, 10.0)
+		var y: float = across if across >= 0.0 else size.y - 40.0
+		glands[0]["rect"] = Rect2(-1.0, clampf(y - h * 0.5, 10.0, size.y - h - 10.0), FRAME + 1.0, h)
+
+
+## The blocks of item [param entry] side by side round its centre, their
+## terminals' screws and where their wires go into the contacts.
+func _place_blocks(entry: Dictionary) -> void:
+	var center: Vector2 = entry["center"]
+	var total: float = 0.0
+	for block: Dictionary in entry["blocks"]:
+		total += block_width(block["kind"])
+	var x: float = center.x - total * 0.5
+	for block: Dictionary in entry["blocks"]:
+		var w: float = block_width(block["kind"])
+		block["rect"] = Rect2(x, center.y - BLOCK.y * 0.5, w, BLOCK.y)
+		var tops: Array = block["terminals"].filter(func(t: Dictionary) -> bool: return t["top"])
+		for t: Dictionary in block["terminals"]:
+			var same: Array = tops if t["top"] else block["terminals"].filter(func(o: Dictionary) -> bool: return not o["top"])
+			var k: int = same.find(t)
+			var tx: float = x + w * (k + 1) / float(same.size() + 1)
+			t["at"] = Vector2(tx, center.y + (-SCREW_Y if t["top"] else SCREW_Y))
+			t["entry"] = Vector2(tx, block["rect"].position.y if t["top"] else block["rect"].end.y)
+			terminals[t["key"]]["at"] = t["at"]
+			terminals[t["key"]]["entry"] = t["entry"]
+		x += w
 
 
 ## Height of lane [param lane] of channel [param channel].
@@ -319,7 +434,11 @@ func _route(links: Array[Dictionary], net: Dictionary[String, int], conductor: D
 		var ya: float = _lane_y(link["a_channel"], link["a_lane"])
 		var yb: float = _lane_y(link["b_channel"], link["b_lane"])
 		var points: PackedVector2Array = PackedVector2Array([a, Vector2(a.x, ya)])
-		if link["a_channel"] == link["b_channel"]:
+		if door and link["external"]:
+			# Out of the fitting in the hinge edge, up the side to the channel.
+			var xs: float = _side_x + link["side_lane"] * LANE
+			points = PackedVector2Array([a, Vector2(xs, a.y), Vector2(xs, yb), Vector2(b.x, yb)])
+		elif link["a_channel"] == link["b_channel"]:
 			points.append(Vector2(b.x, ya))
 		else:
 			var x: float = _side_x + link["side_lane"] * LANE
@@ -350,7 +469,11 @@ func _route(links: Array[Dictionary], net: Dictionary[String, int], conductor: D
 ## contact, or a core coming in at its gland.
 func _end(end: Variant) -> Vector2:
 	if end is Dictionary:
+		# A core comes out under a gland in the top, over the conduit at a
+		# door's bottom.
 		var gland: Rect2 = glands[end["gland"]]["rect"]
+		if door:
+			return Vector2(gland.end.x, gland.position.y + 2.0 + (end["core"] + 0.5) * CORE)
 		return Vector2(gland.position.x + 2.0 + (end["core"] + 0.5) * CORE, gland.end.y)
 	return terminals[end]["entry"]
 

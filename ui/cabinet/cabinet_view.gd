@@ -45,6 +45,18 @@ var zoom: float = 1.0:
 				_settle.start(ZOOM_SETTLE)
 			zoom_changed.emit()
 
+## The door is drawn open beside the switchboard (hinged on its right):
+## its back with the contact blocks and their wires (see
+## [method StationInside.build_door]), the door harness running in its
+## conduit from the switchboard's bottom across to the door.
+var door_open: bool = false:
+	set(value):
+		door_open = value
+		_door = null
+		_painted.clear()
+		update_minimum_size()
+		queue_redraw()
+
 ## Height the plate fits into at zoom 1 too (0: the width alone); the
 ## drawing is then centred across.
 var fit_height: float = 0.0:
@@ -63,6 +75,10 @@ const ZOOM_SETTLE: float = 0.15
 ## it is laid out at it; at most this many layouts (see [method _draw]).
 const SETTLED: float = 0.002
 const SETTLE_ROUNDS: int = 4
+## Room (mm) between the enclosure and the door opened beside it, and under
+## both for the door harness's conduit.
+const DOOR_GAP: float = 40.0
+const CONDUIT_ROOM: float = 22.0
 
 var _layout: CabinetLayout
 ## Scale [member _layout] was laid out at; it is laid out again when the
@@ -71,6 +87,10 @@ var _layout_k: float = 0.0
 ## Wires of the last layout, laid out again after edits and when the scale changes.
 var _wiring: CabinetWiring
 var _wiring_k: float = 0.0
+## The back of the door while [member door_open], laid out for the
+## enclosure's size.
+var _door: StationInside
+var _door_layer: Layer
 
 ## The layers ([Layer]) under one node, which is scaled while zooming.
 var _layers: Node2D
@@ -108,6 +128,8 @@ func _init() -> void:
 	_layers.add_child(_base)
 	_top = Layer.new(_paint_top)
 	_layers.add_child(_top)
+	_door_layer = Layer.new(_paint_door)
+	_layers.add_child(_door_layer)
 	_mark = Layer.new(_paint_mark)
 	_layers.add_child(_mark)
 	_settle = Timer.new()
@@ -128,19 +150,32 @@ func refresh() -> void:
 	_layout = CabinetLayout.build(document, k, board) if document != null else null
 	_layout_k = k
 	_wiring = null
+	_door = null
 	_painted.clear()
 	update_minimum_size()
 	queue_redraw()
 
 
+## Size in mm of what is drawn: the plate, with the open door beside it and
+## the conduit's room under both while [member door_open].
+func _extent() -> Vector2:
+	if _layout == null:
+		return Vector2.ZERO
+	if not door_open or document == null or board < 0 or board >= document.switchboards.size():
+		return _layout.size
+	var door: Vector2 = DoorView.size_of(document.switchboards[board].door, _layout.size)
+	return Vector2(_layout.size.x + DOOR_GAP + door.x, maxf(_layout.size.y, door.y) + CONDUIT_ROOM)
+
+
 ## Pixels per millimetre: the plate fills the width of the panel, times
 ## the zoom.
 func _k() -> float:
-	if _layout == null or _layout.size.x <= 0.0:
+	var extent: Vector2 = _extent()
+	if extent.x <= 0.0:
 		return 2.0
-	var fit: float = _fit_width() / _layout.size.x
-	if fit_height > 0.0 and _layout.size.y > 0.0:
-		fit = minf(fit, fit_height / _layout.size.y)
+	var fit: float = _fit_width() / extent.x
+	if fit_height > 0.0 and extent.y > 0.0:
+		fit = minf(fit, fit_height / extent.y)
 	return clampf(fit, 0.6, 6.0) * zoom
 
 
@@ -149,7 +184,7 @@ func _k() -> float:
 func _origin() -> Vector2:
 	if _layout == null:
 		return Vector2.ZERO
-	return Vector2(maxf(0.0, floorf((size.x - _layout.size.x * _k()) * 0.5)), 0.0)
+	return Vector2(maxf(0.0, floorf((size.x - _extent().x * _k()) * 0.5)), 0.0)
 
 
 ## Width the plate fills at zoom 1: the scrolling parent's, else its own.
@@ -163,7 +198,7 @@ func _get_minimum_size() -> Vector2:
 	if _layout == null:
 		return Vector2.ZERO
 	var k: float = _k()
-	return Vector2(floorf(_layout.size.x * k) if zoom > 1.0 else 0.0, ceilf(_layout.size.y * k))
+	return Vector2(floorf(_extent().x * k) if zoom > 1.0 else 0.0, ceilf(_extent().y * k))
 
 
 ## Size of the plate in mm as laid out last (after [method refresh]).
@@ -173,7 +208,7 @@ func plate_size() -> Vector2:
 
 ## Size of the drawing as laid out last (after [method refresh]).
 func drawn_size() -> Vector2:
-	return _layout.size * _k() if _layout != null else Vector2.ZERO
+	return _extent() * _k() if _layout != null else Vector2.ZERO
 
 
 ## Zooms by [param factor] keeping the point [param at] (pixels in the
@@ -317,7 +352,7 @@ func _draw() -> void:
 		_layers.scale = Vector2(scale, scale)
 		_layers.position = _origin() - _painted_origin * scale
 		return
-	var height: float = _layout.size.y if _layout != null else 0.0
+	var height: float = _extent().y
 	if _layout == null or not is_equal_approx(_layout_k, k):
 		# Laid out for the scale shown (edits lay it out again, see [method
 		# refresh]). The plate is a little wider or narrower at each scale
@@ -336,7 +371,7 @@ func _draw() -> void:
 		# The devices show the simulation state; the places stay where they are.
 		for place: Dictionary in _layout.places:
 			CabinetLayout.describe_again(document, place)
-	if not is_equal_approx(height, _layout.size.y):
+	if not is_equal_approx(height, _extent().y):
 		update_minimum_size.call_deferred()
 	if _wiring == null or not is_equal_approx(_wiring_k, k):
 		_wiring = _layout.wiring if _layout.wiring != null else CabinetWiring.build(document, _layout, k, board)
@@ -360,6 +395,14 @@ func _draw() -> void:
 		var place: Dictionary = _layout.places[i]
 		_repaint(_places[i], [at, place, _place_reach(place)])
 	_repaint(_top, [at, _wiring.get_instance_id()])
+	if door_open and _door == null:
+		# The harness comes into the door at the height it leaves the switchboard.
+		var across: float = -1.0
+		for gland: Dictionary in _wiring.glands:
+			if gland.get("door", false):
+				across = (gland["rect"] as Rect2).get_center().y
+		_door = StationInside.build_door(document, board, _layout.size, across)
+	_repaint(_door_layer, [at, _door.get_instance_id() if door_open else 0, _door_reach()])
 	var mark: Rect2 = Rect2()
 	if not simulating:
 		for place: Dictionary in _layout.places:
@@ -435,14 +478,72 @@ func _paint_top(canvas: CanvasItem) -> void:
 	for gland: Dictionary in _wiring.glands:
 		var r: Rect2 = gland["rect"]
 		if gland.get("door", false):
-			# The door harness: in a conduit to the door, tagged as such.
-			CabinetParts.door_conduit(p, r)
-			CabinetParts.label(p, r.get_center() + Vector2(0.0, -0.6), tr("Door"), maxf(r.size.x - 1.0, 10.0))
+			# The door harness's fitting in the hinge side wall, tagged as such.
+			CabinetParts.door_fitting(p, r)
+			CabinetParts.label(p, Vector2(r.position.x - 6.0, r.position.y - 3.5), tr("Door"), 10.0)
 			continue
 		CabinetParts.cable_gland(p, r, gland["bottom"])
 		if gland["bottom"]:
 			# The cable's name (or the part it goes to), on a tag over the gland.
 			CabinetParts.label(p, r.get_center() + Vector2(0.0, -0.6), str(gland["cable"]), r.size.x - 1.0)
+
+
+## What the back of the open door shows of the simulation: the voltage
+## colours of its terminals, its lamps lit.
+func _door_reach() -> Array:
+	var result: Array = []
+	if not door_open or _door == null or not simulating:
+		return result
+	for key: String in _door.terminals:
+		result.append(_color(key))
+	for entry: Dictionary in _door.items:
+		for block: Dictionary in entry["blocks"]:
+			if block["kind"] == "LAMP":
+				result.append(_lamp_lit(block))
+	return result
+
+
+func _lamp_lit(block: Dictionary) -> bool:
+	if not simulating or block["terminals"].is_empty():
+		return false
+	var lamp: CircuitComponent = document.circuit.get_terminal_owner(block["terminals"][0]["key"])
+	return lamp is Lamp and (lamp as Lamp).energized
+
+
+## The door opened beside the switchboard: its back with its devices and
+## wires, the hinges on the side by the switchboard, the locks' latches on
+## the other; the door harness's conduit from the switchboard's bottom,
+## under it, across and up into the door.
+func _paint_door(canvas: CanvasItem) -> void:
+	if not door_open or _door == null or _layout == null:
+		return
+	var p: CabinetPainter = _painter(canvas)
+	var at: Vector2 = Vector2(_layout.size.x + DOOR_GAP, 0.0)
+	var q: CabinetPainter = p.shifted(at)
+	var door: Rect2 = Rect2(Vector2.ZERO, _door.size)
+	q.gradient(door, DoorView.DOOR.darkened(0.04), DoorView.DOOR.darkened(0.12), 4.0, DoorView.DOOR_EDGE, 0.6)
+	# The folded edge and the stiffening frame inside it.
+	q.rect(door.grow(-6.0), Color.TRANSPARENT, 3.0, Color(0, 0, 0, 0.18), 0.8)
+	for y: float in [70.0, door.size.y - 70.0]:
+		# The hinges on the side by the switchboard, the locks' latches on the other.
+		q.rect(Rect2(-3.0, y - 30.0, 6.0, 60.0), CabinetParts.METAL_DARK, 1.5, CabinetParts.METAL_DARK.darkened(0.3), 0.3)
+		var lock: Vector2 = Vector2(door.size.x - 24.0, y)
+		q.circle(lock, 7.0, DoorView.LOCK.darkened(0.15), DoorView.LOCK_DARK, 0.3)
+		q.rect(Rect2(lock.x - 2.5, lock.y - 14.0, 5.0, 28.0), DoorView.LOCK_DARK, 1.0)
+	StationInsideView.paint(q, _door, _color, _lamp_lit)
+	if _door.glands.is_empty() or _door.glands[0]["cores"] == 0:
+		return
+	var entry: Rect2 = _door.glands[0]["rect"]
+	# The conduit straight across the hinge, from the fitting in the
+	# switchboard's wall to the one in the door's edge.
+	var exit: Rect2 = Rect2()
+	for gland: Dictionary in _wiring.glands:
+		if gland.get("door", false):
+			exit = gland["rect"]
+	if exit.has_area():
+		var points: PackedVector2Array = PackedVector2Array([Vector2(exit.end.x, exit.get_center().y), at + Vector2(entry.position.x, entry.get_center().y)])
+		CabinetParts.conduit(p, points, minf(maxf(entry.size.y * 0.6, 5.0), 12.0))
+	CabinetParts.door_fitting(q, entry)
 
 
 ## The outline of the place selected for editing.

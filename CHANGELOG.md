@@ -11,6 +11,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   buttons, switches, rotary cam switches and signal lamps on it, put on and edited like on a
   control station and operated there while simulating; inside, their wires leave the strip
   terminals in the door harness, and the export shows the door beside the switchboard
+- Door open shows the switchboard with its door opened beside it: the back of the door with
+  the contact blocks of its buttons and switches, their wires going straight into the
+  contacts, and the door harness crossing in its conduit at the hinge; inside the switchboard
+  the harness runs from the terminal strips along the bottom duct to a fitting in the hinge
+  side wall, never out of the enclosure and back in
 - A control station can be opened with its cover off (Front | Inside): the contact blocks
   behind each button and switch with their terminal numbers, lamp blocks, a cam switch's
   chambers, the cable coming in through its gland and every core and wire to the terminals,

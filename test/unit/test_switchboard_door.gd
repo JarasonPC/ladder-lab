@@ -91,7 +91,15 @@ func test_door_harness_inside_the_switchboard() -> void:
 		if gland["door"]:
 			harness.append(gland)
 	assert_eq(harness.size(), 1, "one door harness")
-	assert_true(harness[0]["bottom"])
+	assert_false(harness[0]["bottom"], "not out through the bottom of the enclosure")
+	var fitting: Rect2 = harness[0]["rect"]
+	assert_gt(fitting.end.x, layout.size.x - CabinetLayout.FRAME, "its fitting is in the right wall, the door's hinge side")
+	for wire: Dictionary in wiring.wires:
+		if wire["external"] and wire["cable"] == CabinetWiring.DOOR:
+			var points: PackedVector2Array = wire["points"]
+			assert_true(fitting.has_point(points[0] + Vector2(0.5, 0.0)), "each core starts at the fitting")
+			for point: Vector2 in points:
+				assert_true(Rect2(Vector2.ZERO, layout.size).has_point(point), "and stays inside the enclosure")
 	assert_gt(CabinetWiring.bottom_slots(doc, 0, CabinetDevices.strips(doc)), 0)
 
 
@@ -169,3 +177,56 @@ func test_door_drawn_and_operated() -> void:
 	var count: int = doc.switchboards[0].door.items.size()
 	edits[0].call(doc)
 	assert_eq(doc.switchboards[0].door.items.size(), count - 1)
+
+
+func test_back_of_the_door_is_wired_from_the_harness() -> void:
+	var doc: SchematicDocument = _door_example()
+	var harness: Array[Dictionary] = CabinetWiring.door_harness(doc, 0)
+	assert_gt(harness.size(), 0, "the strip terminals to the door's devices send a core each to the door")
+	var enclosure: Vector2 = CabinetLayout.build(doc, 2.0).size
+	var back: StationInside = StationInside.build_door(doc, 0, enclosure, 560.0)
+	assert_true(back.door)
+	assert_eq(back.size, DoorView.size_of(doc.switchboards[0].door, enclosure), "the door's own size")
+	# Seen from behind the items are mirrored: the first one of a row on the right.
+	var front: Array[Rect2] = DoorView.cells_of(doc.switchboards[0].door, enclosure)
+	for entry: Dictionary in back.items:
+		var cell: Rect2 = front[entry["item"]]
+		assert_almost_eq((entry["center"] as Vector2).x, back.size.x - cell.get_center().x, 0.01)
+	var cores: int = 0
+	var entries: Array[Vector2] = []
+	for key: String in back.terminals:
+		entries.append(back.terminals[key]["entry"])
+	for wire: Dictionary in back.wires:
+		var points: PackedVector2Array = wire["points"]
+		assert_has(entries, points[points.size() - 1], "every wire goes straight into a contact")
+		if wire["external"]:
+			cores += 1
+			assert_lt(points[0].x, StationInside.FRAME + 2.0, "harness cores come in through the hinge edge")
+			assert_true((back.glands[0]["rect"] as Rect2).grow(0.5).has_point(points[0]), "out of its fitting")
+	assert_eq(cores, harness.size(), "a core for each of the harness's nets")
+	assert_almost_eq((back.glands[0]["rect"] as Rect2).get_center().y, 560.0, 0.01, "at the height it leaves the switchboard")
+
+
+func test_door_open_beside_the_switchboard() -> void:
+	var doc: SchematicDocument = _door_example()
+	var view: CabinetView = CabinetView.new()
+	view.document = doc
+	add_child_autofree(view)
+	view.size = Vector2(800, 600)
+	view.refresh()
+	var closed: Vector2 = view.drawn_size()
+	view.door_open = true
+	await wait_process_frames(2)
+	var opened: Vector2 = view.drawn_size()
+	assert_gt(opened.x / opened.y, closed.x / closed.y * 1.5, "the door beside the switchboard")
+	assert_not_null(view.get("_door"), "the back of the door laid out")
+	var panel: CabinetPanel = CabinetPanel.new()
+	panel.board_name = "RA1"
+	add_child_autofree(panel)
+	panel.set_document(doc, true)
+	panel.door_open = true
+	await wait_process_frames(2)
+	assert_true((panel.get("_view") as CabinetView).door_open)
+	assert_false(panel.door_shown)
+	panel.door_shown = true
+	assert_false(panel.door_open, "one at a time")
