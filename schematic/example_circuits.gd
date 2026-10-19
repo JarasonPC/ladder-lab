@@ -119,17 +119,19 @@ static func _field_terminals(doc: SchematicDocument) -> void:
 			doc.set_strip_terminal(c.id, t, "%s:%d" % [strip, count[strip]])
 
 
-## Signal lamp with its purpose written above it.
+## Signal lamp with its purpose written above it, in the language of the
+## program (once built, it is the user's text like any other).
 static func _lamp(designation: String, purpose: String) -> Lamp:
 	var lamp: Lamp = Lamp.new(designation)
-	lamp.purpose = purpose
+	lamp.purpose = String(TranslationServer.translate(purpose))
 	return lamp
 
 
-## Push button on a control box, optionally illuminated by signal lamp [param lamp].
+## Push button on a control box, optionally illuminated by signal lamp
+## [param lamp]; its label in the language of the program.
 static func _panel_button(designation: String, color: String, label: String, lamp: String = "") -> ControlBoxItem:
 	var item: ControlBoxItem = ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, designation, color)
-	item.label = label
+	item.label = String(TranslationServer.translate(label))
 	item.lamp = lamp
 	return item
 

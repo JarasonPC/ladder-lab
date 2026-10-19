@@ -1688,20 +1688,8 @@ msgstr "Online: program běžící v simulaci (ke změnám přepněte na Úpravy
 msgid "Editing the program of %s"
 msgstr "Úprava programu %s"
 
-msgid "Add network"
-msgstr "Přidat síť"
-
-msgid "Click an element to see its state. Ctrl+wheel zooms."
-msgstr "Klepnutím na prvek uvidíte jeho stav. Ctrl+kolečko mění zvětšení."
-
-msgid "Drag from a block's output (right) to an input (left) to connect them. Right click an input to remove its connection. Delete removes the selected block."
-msgstr "Tažením z výstupu bloku (vpravo) na vstup (vlevo) je spojíte. Pravým tlačítkem na vstup jeho spojení zrušíte. Delete odstraní vybraný blok."
-
 msgid "Click to place the block. Esc or a right click ends placing."
 msgstr "Klepnutím blok umístíte. Esc nebo pravé tlačítko umísťování ukončí."
-
-msgid "Click an element to select it, a network's title to select the network. Delete removes the selection."
-msgstr "Klepnutím vyberete prvek, klepnutím na název sítě celou síť. Delete odstraní výběr."
 
 msgid "Click a cell to link its right side with the row below (click again to remove the link)."
 msgstr "Klepnutím na buňku spojíte její pravou stranu s řádkem pod ní (dalším klepnutím spojení zrušíte)."
@@ -1841,10 +1829,6 @@ msgstr "Každá náběžná hrana na Trg výstup přepne; S jej nastaví, R vynu
 msgid "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
 msgstr "Čítá náběžné hrany na Cnt, nahoru, nebo dolů, když je Dir 1; R vynuluje stav. Výstup je sepnutý, dokud stav dosahuje předvolby."
 
-#, c-format
-msgid "Network %d"
-msgstr "Síť %d"
-
 msgid "Select"
 msgstr "Vybrat"
 
@@ -1880,9 +1864,6 @@ msgstr "Čítání dolů"
 
 msgid "Erase"
 msgstr "Vymazat"
-
-msgid "Network"
-msgstr "Síť"
 
 msgid "Closed while its operand is 1."
 msgstr "Sepnutý, dokud je jeho operand 1."

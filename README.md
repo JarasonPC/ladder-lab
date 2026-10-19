@@ -11,31 +11,52 @@ contact numbering 13-14 / 21-22, coils A1-A2.
 
 ## Features
 
-- **Schematic editor**: supplies (L1 L2 L3 N PE, DC + and -), push buttons, switches,
-  limit switches, NO / NC / changeover contacts, contactors and relays, multifunction
-  time relays (F1-F12), lamps, fuses and fuse holders, circuit breakers, overload relays,
-  three-phase motors (including star/delta and Dahlander), bridge rectifiers, terminals and a
-  small PLC (logic module with 8 inputs and 4 relay outputs).
-  Undo / redo, rotating and mirroring, wire numbering, multi-page schematics with page
-  connectors.
+- **Schematic editor**: supplies (L1 L2 L3 N PE, DC + and - of 12-220 V), push buttons,
+  switches, limit switches, NO / NC / changeover contacts, contactors and relays,
+  multifunction time relays (F1-F12), lamps, fuses and fuse holders, circuit breakers,
+  overload relays, three-phase motors (star/delta, Dahlander, separate windings, drawn as
+  their terminal box if you like), bridge rectifiers, a temperature sensor (0-10 V), a
+  frequency inverter, terminal strips and two PLCs: a logic module (8 inputs, 4 relay
+  outputs, expansion and analog modules) and a compact 24 V DC CPU in three sizes with
+  signal modules. Coils, lamps and PLCs carry a rated voltage. Undo / redo, rotating and
+  mirroring (several parts together), wires that find their way around the symbols, wire
+  numbering, multi-page schematics with page connectors.
+- **Datasheets**: every part has a datasheet laid out like a manufacturer's, built from the
+  part itself: every terminal with its function, technical data, the timing diagram or
+  time-current characteristic and the device front with its terminal markings; exported as
+  PDF.
 - **Simulation**: ideal (instant) or realistic switching with pick-up and drop-out times,
-  a timing chart and event log, short circuits and overloads that trip the protection,
-  DC braking of motors.
+  a timing chart and event log. 230 V / 400 V and DC supplies: parts with too low a voltage
+  do not work, with far too high a voltage they burn out. Real currents (current view, clamp
+  meter), motors that behave like induction motors, fuses, breakers and overload relays that
+  trip after their characteristic, DC braking, the frequency inverter running its motor
+  along its ramps, analog 0-10 V signals. Keys of the keyboard operate push buttons and
+  switches; a motor can move a part such as a gate that operates limit switches.
 - **PLC programming**: the PLC's program in a window of its own, as a function block
   diagram (FBD: AND, OR, NOT, NAND, NOR, XOR, on- and off-delays, latching and pulse relays,
-  up/down counter) or a ladder diagram (LAD: one endless power rail, NO/NC and edge contacts,
-  coils, negated coils, set/reset, timer and counter coils), in the style of Siemens programming
-  software; a built-in simulation with input switches and output lamps tests the program on its
-  own, and while the schematic is simulated it shows the running program (signals, power flow,
-  times and counts).
-- **Control panel**: control boxes with push buttons, selector switches and signal lamps
-  that operate the simulated circuit.
+  up/down counter, analog trigger, comparator and amplifier) or a ladder diagram (LAD: one
+  endless power rail, NO/NC, edge and comparing contacts, coils, negated coils, set/reset,
+  timer, counter and analog output coils), in the style of Siemens programming software; the
+  compact CPU's addresses as on the real one (%I0.0, %Q0.0, %IW64); a built-in simulation
+  with input switches and output lamps tests the program on its own, and while the schematic
+  is simulated it shows the running program (signals, power flow, times and counts).
+- **Workspace**: switchboards, control stations and groups of parts in the field (motors,
+  limit switches, sensors) placed on a plan, with the cables between them worked out from the
+  wiring, typed (CGSG-J or H07RN-F) and sized; a click on a cable lists its cores.
+- **Control stations**: push buttons, selector switches, signal lamps and illuminated
+  buttons drawn like real ones, that operate the simulated circuit.
 - **Switchboard** (rozvaděč): DIN rails with the breakers, fuse holders, contactors,
-  overload relays, relays, time relays, PLCs and terminal strips of the schematic, drawn like
-  the real cabinet; they show the simulation and breakers and fuses are switched there.
-- **Export**: pages as PNG or all pages as PDF on A4 / A3 sheets with a frame and title block.
-- **Examples**: self-holding start/stop, forward/reverse, star/delta start, time relays
-  and more.
+  overload relays, relays, time relays, PLCs, frequency inverters and terminal strips of the
+  schematic, drawn like the real cabinet and wired after the circuit through the ducts, with
+  the field cables going out through glands; they show the simulation and breakers and fuses
+  are switched there.
+- **Export**: the page shown as PNG or a PDF on A4 / A3 sheets with a frame and title block,
+  shown first in a preview; the PDF holds, as ticked, the schematic, the control stations,
+  the switchboards, the workspace and a parts list.
+- **Recovery**: a copy of unsaved work is kept after every edit and offered back after a
+  crash.
+- **Examples**: self-holding start/stop, forward/reverse, star/delta start, time relays,
+  two-speed motors, DC braking, a schematic on three pages, a PLC start/stop and more.
 
 ## Download
 

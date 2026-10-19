@@ -1679,19 +1679,7 @@ msgstr ""
 msgid "Editing the program of %s"
 msgstr ""
 
-msgid "Add network"
-msgstr ""
-
-msgid "Click an element to see its state. Ctrl+wheel zooms."
-msgstr ""
-
-msgid "Drag from a block's output (right) to an input (left) to connect them. Right click an input to remove its connection. Delete removes the selected block."
-msgstr ""
-
 msgid "Click to place the block. Esc or a right click ends placing."
-msgstr ""
-
-msgid "Click an element to select it, a network's title to select the network. Delete removes the selection."
 msgstr ""
 
 msgid "Click a cell to link its right side with the row below (click again to remove the link)."
@@ -1832,10 +1820,6 @@ msgstr ""
 msgid "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
 msgstr ""
 
-#, c-format
-msgid "Network %d"
-msgstr ""
-
 msgid "Select"
 msgstr ""
 
@@ -1870,9 +1854,6 @@ msgid "Count down"
 msgstr ""
 
 msgid "Erase"
-msgstr ""
-
-msgid "Network"
 msgstr ""
 
 msgid "Closed while its operand is 1."
