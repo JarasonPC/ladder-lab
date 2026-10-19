@@ -26,6 +26,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   length; it then shows its voltage drop (marked above 4 %), and the length is written on the
   workspace and in the parts list
 
+### Application
+- The example circuits are no longer in the program (the toolbar list is gone)
+
 ### Fixed
 - Zooming, moving and simulating in a switchboard is smooth: only what changed is drawn again
 - A motor of small rated slip (e.g. 2970 min⁻¹) starts with a real motor's torque: started in star

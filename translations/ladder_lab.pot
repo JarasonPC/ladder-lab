@@ -502,11 +502,7 @@ msgstr ""
 msgid "Simulate"
 msgstr ""
 
-msgid "Example circuit"
-msgstr ""
 
-msgid "Example circuits…"
-msgstr ""
 
 msgid "Direction of the current paths"
 msgstr ""

@@ -505,11 +505,7 @@ msgstr "Úpravy"
 msgid "Simulate"
 msgstr "Simulace"
 
-msgid "Example circuit"
-msgstr "Ukázkové zapojení"
 
-msgid "Example circuits…"
-msgstr "Ukázková zapojení…"
 
 msgid "Direction of the current paths"
 msgstr "Směr proudových drah"

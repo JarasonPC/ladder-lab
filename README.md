@@ -58,8 +58,6 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   the switchboards, the workspace and a parts list.
 - **Recovery**: a copy of unsaved work is kept after every edit and offered back after a
   crash.
-- **Examples**: self-holding start/stop, forward/reverse, star/delta start, time relays,
-  two-speed motors, DC braking, a schematic on three pages, a PLC start/stop and more.
 
 ## Screenshots
 
