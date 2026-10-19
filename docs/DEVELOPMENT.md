@@ -57,11 +57,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   points included (Placement.strips: terminal index -> label "X2:6" or "6" on X1, drawn instead
   of the square, written strip and number on one line "X2-6" / "X1-6"
   (CabinetDevices.terminal_text; typed that way too, label_from_text), a size smaller or
-  strip over number only where one line would run onto a mark, its own symbol's or a nearby
-  part's (SchematicSymbol.nearby_terminals, set by the view); beside a vertical wire past
-  the mark (the outer side for two terminals side by side), over the mark along a horizontal
-  wire, or on one line past the mark where other terminals stand in line across the wire
-  (motors) and for supply points; a strip terminal's number keeps off its mark; Delete on the
+  strip over number only where one line would run onto a mark or terminal, its own symbol's
+  or a nearby part's (SchematicSymbol.nearby_terminals, set by the view); all the labels of
+  one symbol in one style, the first that fits the most of them (_strip_styles): beside a
+  vertical wire level with the mark (the outer side for two terminals side by side), over the
+  mark along a horizontal wire, or on one line past the mark beside the wire where three or
+  more terminals stand in a row across their wires (motors, poles of a breaker; along a
+  horizontal wire also two), on one line over the mark for supply points; a strip
+  terminal's number keeps off its mark; Delete on the
   selected mark
   removes it, a right click on a lead adds or removes one); a palette terminal takes
   SchematicDocument.next_strip_label(), a pasted strip terminal whose label is taken the next
@@ -446,7 +449,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   again only when what it shows changed, the layers scaled while the zoom changes and painted
   sharp CabinetView.ZOOM_SETTLE after it; laid out again until the scale it fits at changes by
   less than CabinetView.SETTLED, as the terminal strips snapped to whole pixels make it a little
-  wider or narrower at each scale; while simulating the places are only described again,
+  wider or narrower at each scale, and painted at the scale it was last laid out at
+  (CabinetView._built_k: the wires were routed to terminals at that scale's pitch); while simulating the places are only described again,
   CabinetLayout.describe_again); each switchboard is laid out
   and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Strip
   terminals leading to parts on the switchboard's own door send their cores to the door as
