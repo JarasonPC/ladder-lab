@@ -57,7 +57,8 @@ const MARKER_SPACE: float = 0.5
 
 ## The wires: {"net": int, "conductor": [enum CabinetDevices.Conductor],
 ## "width": float, "points": PackedVector2Array (mm, from one terminal to
-## the other), "from", "to" (terminal keys in the circuit; for a core of a
+## the other; from where it comes out under an overload relay for a wire
+## going down behind it), "from", "to" (terminal keys in the circuit; for a core of a
 ## cable "from" names the cable), "external" (true for a core of a cable:
 ## it starts at the gland), "cable" ("AC", "DC", or what is written on a
 ## field cable: the workspace cable's name, "-SB1" for a part without a place),
@@ -87,6 +88,8 @@ var _bottom: float = 0.0
 # Every screw of the devices on the rails, wired or not: centre and radius
 # (mm) as x, y, z.
 var _screws: Array[Vector3] = []
+# Columns under overload relays taken by wires coming out from behind them.
+var _behind_taken: Dictionary[float, bool] = {}
 
 var _circuit: Circuit
 # Ducts across (top to bottom) and down the sides (left, right).
@@ -457,7 +460,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 				var beside: Rect2 = Rect2()
 				if place.has("under_rect"):
 					beside = (place["rect"] as Rect2).merge(place["under_rect"])
-				_add_device(result, net, place["kind"], place["desc"], origin, rail, centre, beside, place.get("channel", 0.0))
+				_add_device(result, net, place["kind"], place["desc"], origin, rail, centre, beside, place.get("channel", 0.0), place.get("under_rect", Rect2()))
 				if place.has("under_origin"):
 					_add_device(result, net, CabinetDevices.Kind.OVERLOAD, place["under_desc"], place["under_origin"], rail, centre)
 	for i: int in result.size():
@@ -474,7 +477,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 ## Terminals of a device at [param origin] on rail [param rail]; wires from
 ## its bottom terminals go round [param beside] when it has an area, in
 ## [param channel] on both sides.
-func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, origin: Vector2, rail: int, centre: float, beside: Rect2 = Rect2(), channel: float = 0.0) -> void:
+func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, origin: Vector2, rail: int, centre: float, beside: Rect2 = Rect2(), channel: float = 0.0, relay: Rect2 = Rect2()) -> void:
 	var terminals: Dictionary = desc.get("terminals", {})
 	var points: Dictionary = CabinetParts.terminal_points(kind, desc)
 	# The terminals of the auxiliary contact blocks on a contactor's sides.
@@ -492,10 +495,14 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 		var up: bool = origin.y + p.y < centre
 		# Into the face of the terminal's tier, else at the edge of its screw.
 		var entry: float = CabinetParts.wire_entry(kind, desc, name, up)
-		if not up and beside.has_area() and entry > CabinetParts.CONTACTOR_OUT_Y[CabinetParts.CONTACTOR_OUT_Y.size() - 1] - LEG_STEP:
-			# The overload relay under the contactor covers that face: the
-			# wire goes in by the screw and out to the side above the relay.
-			entry = NAN
+		if not up and relay.has_area() and entry > CabinetParts.CONTACTOR_OUT_Y[CabinetParts.CONTACTOR_OUT_Y.size() - 1] - LEG_STEP:
+			# The overload relay under the contactor covers that face (its
+			# heaters' pins are in these terminals): the wire goes down behind
+			# the relay and comes out under it in a column of its own, between
+			# the relay's terminals.
+			var x: float = _behind_column(relay, origin.x + p.x)
+			result.append({"key": terminals[name], "at": Vector2(x, relay.end.y), "duct": rail + 1, "up": false, "behind": true})
+			continue
 		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z) if is_nan(entry) else entry)
 		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up, "clamp": true}
 		if not up and beside.has_area():
@@ -507,6 +514,27 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 			point["out"] = out
 			point["side"] = side.has(name)
 		result.append(point)
+
+
+## Column (mm) a wire coming down behind overload relay [param relay] at
+## [param x] comes out under it in: the middle between two of the relay's
+## terminal columns nearest [param x] that no other wire took.
+func _behind_column(relay: Rect2, x: float) -> float:
+	var columns: Array[float] = []
+	columns.append_array(CabinetParts.OVERLOAD_OUT_X)
+	columns.append_array(CabinetParts.OVERLOAD_AUX_X)
+	columns.sort()
+	var best: float = NAN
+	for i: int in columns.size() - 1:
+		var mid: float = relay.position.x + (columns[i] + columns[i + 1]) * 0.5
+		if _behind_taken.has(mid):
+			continue
+		if is_nan(best) or absf(mid - x) < absf(best - x):
+			best = mid
+	if is_nan(best):
+		return x
+	_behind_taken[best] = true
+	return best
 
 
 ## Pairs of indices into [param points] joining them all along the
@@ -830,8 +858,11 @@ func _fan_step(point: Dictionary, count: int, ends: Array[Dictionary]) -> float:
 
 ## How much of the ferrule shows at [param end] (one of the ends of
 ## [method _route]): none where it goes all the way into a device
-## terminal's clamp, a little going into a strip terminal's opening.
+## terminal's clamp, a little going into a strip terminal's opening; -1
+## where the wire comes out from behind an overload relay (no ferrule).
 static func _pin(end: Dictionary) -> float:
+	if end["point"].get("behind", false):
+		return -1.0
 	return 0.0 if end["point"].get("clamp", false) else CabinetParts.FERRULE
 
 

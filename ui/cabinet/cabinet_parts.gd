@@ -1935,6 +1935,9 @@ static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, 
 		var next: Vector2 = points[1] if end == 0 else points[points.size() - 2]
 		var along: Vector2 = (next - tip).normalized()
 		var pin: float = minf(pins.x if end == 0 else pins.y, tip.distance_to(next))
+		if pin < 0.0:
+			# Coming out from behind a part: its end out of sight.
+			continue
 		if pin > 0.0:
 			p.line(tip, tip + along * pin, METAL_DARK, width + 0.2)
 			p.line(tip, tip + along * pin, METAL, maxf(width - 0.5, 0.3))
