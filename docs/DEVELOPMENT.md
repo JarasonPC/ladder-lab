@@ -516,6 +516,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   per-control colours. No stretch scaling: the window uses content_scale_factor (View >
   Interface size); popups and context menus open through AppTheme.popup_at_mouse (at the mouse
   in window pixels, at the window's content_scale_factor, never at the drawing's zoom)
+- Dialogs, popups and tooltips are embedded (drawn inside the window they belong to, never
+  windows of the system: one left open off screen or behind would block the main window);
+  PageWindow, PlaceWindow, PlcWindow and DatasheetWindow are windows of their own (force_native)
+  and embed their own dialogs and popups
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom); the chart ends with
   rows of currents (motor lines, poles of fuses, breakers and overload relays; autoscaled, rated
   current dashed)

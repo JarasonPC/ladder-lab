@@ -233,11 +233,23 @@ static func _grabber_icon(ring: Color) -> Texture2D:
 
 ## Opens [param popup] (a menu or a panel) at the mouse, [param gap] logical
 ## pixels beside it, drawn at the interface size of the window it belongs
-## to. The mouse is read in the window's scaled content, a popup is placed
-## in the window's pixels; a menu under a zoomed drawing would also take
-## its zoom.
+## to. A popup of a window of the system is placed in the window's pixels
+## (the mouse is read in its scaled content); a menu under a zoomed drawing
+## would also take its zoom.
 static func popup_at_mouse(popup: Window, gap: Vector2 = Vector2.ZERO) -> void:
 	var host: Window = popup.get_parent().get_window()
+	if host.gui_embed_subwindows:
+		# Drawn inside the window: placed in its scaled content and scaled
+		# with it, kept inside it.
+		var corner: Vector2i = Vector2i(host.get_mouse_position() + gap)
+		popup.popup(Rect2i(corner, Vector2i.ZERO))
+		# Opening gives a menu under a zoomed drawing the drawing's zoom.
+		popup.content_scale_factor = 1.0
+		popup.min_size = Vector2i.ZERO
+		popup.reset_size()
+		var room: Vector2i = Vector2i(host.get_visible_rect().size)
+		popup.position = corner.clamp(Vector2i.ZERO, (room - popup.size).max(Vector2i.ZERO))
+		return
 	var factor: float = host.content_scale_factor
 	var at: Vector2 = (host.get_mouse_position() + gap) * factor
 	popup.content_scale_factor = factor
@@ -574,6 +586,7 @@ static func build() -> Theme:
 	window.shadow_size = 16
 	t.set_stylebox("embedded_border", "Window", window)
 	t.set_stylebox("embedded_unfocused_border", "Window", window)
+	t.set_constant("title_height", "Window", int(window.expand_margin_top))
 	t.set_color("title_color", "Window", text)
 	t.set_font("title_font", "Window", bold_font())
 	t.set_stylebox("panel", "AcceptDialog", box(popup_bg, RADIUS + 4, 14.0, 12.0))

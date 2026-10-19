@@ -7,6 +7,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Fixed
+- After a while the program could stop taking clicks and could not be closed (only a beep on
+  every click): dialogs and menus now open inside the program's window, so none can be left
+  open where it cannot be seen
 - Changing what the PDF holds or the wire numbers in the export preview no longer turns the
   schematic white or puts dark sheets in the PDF; the preview can only be saved once it shows the
   sheets as they are now
