@@ -24,6 +24,8 @@ var _tree: Tree
 ## Headings rolled in, by their key ("+RA1", "field", "unplaced").
 var _collapsed: Dictionary[String, bool] = {}
 var _filling: bool = false
+## Entry selected in the Tree, opened once its click is over ({} for none).
+var _pending: Dictionary = {}
 
 
 func _ready() -> void:
@@ -43,10 +45,19 @@ func _ready() -> void:
 	_tree.item_selected.connect(func() -> void:
 		var item: TreeItem = _tree.get_selected()
 		if item != null and not _filling:
-			chosen.emit(item.get_metadata(0)))
+			# Opened after the Tree's own mouse handling: opening rebuilds the
+			# tree, which the Tree refuses in the middle of a click.
+			_pending = item.get_metadata(0)
+			_choose.call_deferred())
 	_tree.item_mouse_selected.connect(func(at: Vector2, button: int) -> void:
-		if button == MOUSE_BUTTON_RIGHT and _tree.get_selected() != null:
-			menu_requested.emit(_tree.get_selected().get_metadata(0), _tree.get_screen_position() + at))
+		if button != MOUSE_BUTTON_RIGHT:
+			return
+		# A right click asks for the menu of the entry it selected (the tree
+		# is not rebuilt before that) and opens nothing.
+		_pending = {}
+		var item: TreeItem = _tree.get_selected()
+		if item != null:
+			menu_requested.emit(item.get_metadata(0), _tree.get_screen_position() + at))
 	_tree.item_collapsed.connect(func(item: TreeItem) -> void:
 		if _filling:
 			return
@@ -57,6 +68,13 @@ func _ready() -> void:
 			_collapsed.erase(key))
 	add_child(_tree)
 	retranslate()
+
+
+func _choose() -> void:
+	var entry: Dictionary = _pending
+	_pending = {}
+	if not entry.is_empty():
+		chosen.emit(entry)
 
 
 func retranslate() -> void:
@@ -90,12 +108,14 @@ func _fill(root: TreeItem) -> void:
 	for box: ControlBox in document.control_boxes:
 		var head: TreeItem = _place(root, Workspace.Place.STATION, box.name, box.title if not box.title.is_empty() else tr("Control station"))
 		for item: ControlBoxItem in box.items:
-			if item.designation.is_empty():
-				continue
 			var what: String = tr(StationPanel.KIND_TITLES[item.kind])
 			if not item.label.is_empty():
 				what += " · " + item.label
-			_entry(head, "-" + item.designation, what, {"place": Workspace.Place.STATION, "name": box.name, "designation": item.designation, "kind": "control"}, filter)
+			if not item.designation.is_empty():
+				_entry(head, "-" + item.designation, what, {"place": Workspace.Place.STATION, "name": box.name, "designation": item.designation, "kind": "control"}, filter)
+			if not item.lamp.is_empty():
+				# The signal lamp inside an illuminated button or switch.
+				_entry(head, "-" + item.lamp, tr(StationPanel.KIND_TITLES[ControlBoxItem.Kind.LAMP]), {"place": Workspace.Place.STATION, "name": box.name, "designation": item.lamp, "kind": "control"}, filter)
 		_finish(head, filter)
 	for group: WorkspaceGroup in document.groups:
 		var head: TreeItem = _place(root, Workspace.Place.GROUP, group.name, group.title if not group.title.is_empty() else tr("Group"))

@@ -31,6 +31,9 @@ var _editing: bool = false
 ## The opened place: its kind and name ("" while the canvas shows).
 var _opened_kind: Workspace.Place = Workspace.Place.SWITCHBOARD
 var _opened: String = ""
+## Where the opened place was among the places of its kind, to follow it
+## when it is renamed (see [method follow_place]).
+var _opened_at: Vector2i = Vector2i(-1, -1)
 ## Key of the opened cable ("" for none, see [WorkspaceCables]).
 var _opened_cable: String = ""
 var _panel: Control
@@ -111,8 +114,7 @@ func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> v
 		else:
 			_fit_pending = true
 	canvas.invalidate()
-	if not _opened.is_empty() and _index(_opened_kind, _opened) < 0:
-		close()
+	_follow_opened()
 	if not _opened_cable.is_empty() and _cable(_opened_cable).is_empty():
 		close()
 	if _panel != null:
@@ -126,6 +128,7 @@ func refresh() -> void:
 	if not _opened_cable.is_empty() and _cable(_opened_cable).is_empty():
 		close()
 		return
+	_follow_opened()
 	tree.opened = _opened if _opened_cable.is_empty() else "=" + _opened_cable
 	tree.refresh()
 	if _panel != null:
@@ -164,6 +167,7 @@ func open(kind: Workspace.Place, place_name: String, designation: String = "", i
 		close()
 		_opened_kind = kind
 		_opened = place_name
+		_opened_at = Vector2i(_index(kind, place_name), (_document.switchboards if kind == Workspace.Place.SWITCHBOARD else _document.control_boxes).size())
 		_panel = make_panel(kind, place_name)
 		_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		forward_panel(_panel, self)
@@ -255,6 +259,44 @@ func _index(kind: Workspace.Place, place_name: String) -> int:
 		if list[i].get("name") == place_name:
 			return i
 	return -1
+
+
+## Index in [param doc] of the place of [param kind] shown as
+## [param place_name], which was at [param last] (x: its index, y: how
+## many places of its kind there were): the place of that name, else the one
+## at the same index while there are as many as before (it was renamed, or
+## its rename undone); -1 when it is gone.
+static func follow_place(doc: SchematicDocument, kind: Workspace.Place, place_name: String, last: Vector2i) -> int:
+	var list: Array = doc.switchboards if kind == Workspace.Place.SWITCHBOARD else (doc.control_boxes if kind == Workspace.Place.STATION else doc.groups)
+	for i: int in list.size():
+		if list[i].get("name") == place_name:
+			return i
+	if last.x >= 0 and last.x < list.size() and list.size() == last.y:
+		return last.x
+	return -1
+
+
+## Keeps the opened place shown after an edit or undo renamed it; closes it
+## when it is gone.
+func _follow_opened() -> void:
+	if _opened.is_empty() or _document == null:
+		return
+	var index: int = follow_place(_document, _opened_kind, _opened, _opened_at)
+	if index < 0:
+		close()
+		return
+	var list: Array = _document.switchboards if _opened_kind == Workspace.Place.SWITCHBOARD else _document.control_boxes
+	_opened_at = Vector2i(index, list.size())
+	var now: String = str(list[index].get("name"))
+	if now == _opened:
+		return
+	if canvas.selected == "+" + _opened:
+		canvas.selected = "+" + now
+	_opened = now
+	if _panel is CabinetPanel:
+		(_panel as CabinetPanel).board_name = now
+	elif _panel is StationPanel:
+		(_panel as StationPanel).station_name = now
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -588,6 +630,9 @@ func _rename(entry: Dictionary) -> void:
 
 func _apply_rename() -> void:
 	var entry: Dictionary = _renaming
+	if not _editing:
+		# The simulation started meanwhile: it runs on a copy, never edited.
+		return
 	if entry.get("kind", "") == "cable":
 		_apply_cable_rename(entry["name"], _rename_name.text.strip_edges())
 		return
@@ -731,7 +776,7 @@ func _spin(lowest: float, highest: float, step: float, value: float, suffix: Str
 
 func _apply_link() -> void:
 	var index: int = _index(Workspace.Place.GROUP, _linking)
-	if index < 0 or not _link_fields.has("drive"):
+	if index < 0 or not _link_fields.has("drive") or not _editing:
 		return
 	var drive_field: OptionButton = _link_fields["drive"] as OptionButton
 	var motors: PackedStringArray = drive_field.get_meta("choices")

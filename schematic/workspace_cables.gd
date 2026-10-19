@@ -235,11 +235,12 @@ static func _centres(doc: SchematicDocument) -> Dictionary[String, Vector2]:
 		result["+" + board.name] = board.position + tile
 	for box: ControlBox in doc.control_boxes:
 		result["+" + box.name] = box.position + tile
-	# Parts in circuit order, wherever they stand: a part put somewhere
-	# keeps its rank, so its cables keep their keys and names.
+	# Parts in circuit order, wherever they were put: moving one keeps the
+	# ends of its cables in the same order, so the cables keep their names.
 	var positions: Dictionary[String, Vector2] = Workspace.field_positions(doc)
 	for designation: String in Workspace.field_devices(doc.circuit):
-		result["-" + designation] = positions[designation] + Vector2(Workspace.FIELD_SIZE.x * 0.5, Workspace.FIELD_TILE * 0.5)
+		if positions.has(designation):
+			result["-" + designation] = positions[designation] + Vector2(Workspace.FIELD_SIZE.x * 0.5, Workspace.FIELD_TILE * 0.5)
 	return result
 
 
