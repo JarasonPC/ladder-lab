@@ -867,9 +867,21 @@ func _drop(end: Dictionary, lane: float) -> PackedVector2Array:
 	return points
 
 
+## Whether a wire straight from [param a] to [param b] passes over no screw
+## (the one of the terminal it starts at, behind its start, aside).
+func _clear(a: Vector2, b: Vector2) -> bool:
+	for screw: Vector3 in _screws:
+		var at: Vector2 = Vector2(screw.x, screw.y)
+		if at.distance_to(Geometry2D.get_closest_point_to_segment(at, a, b)) < screw.z + POWER_W * 0.5 and at.distance_to(a) > screw.z + 0.01:
+			return false
+	return true
+
+
 ## Leads the wire ends from the bottom terminals of a contactor with an
-## overload relay under it out of the way: down to the first height under
-## the terminal clear of the contactor's screws, across to the nearer side
+## overload relay under it out of the way: straight down as far as it goes
+## without passing over a screw on its way down or across (to the lowest of
+## the heights clear of the contactor's screws, just over the relay, where it
+## can), across to the nearer side
 ## and on down beside the relay. At one height the wire nearest the side
 ## runs highest; beside the relay the highest runs outermost, so they
 ## never cross. Wires from the blocks on the contactor's sides cross no
@@ -885,10 +897,19 @@ func _lead_beside(ends: Array[Dictionary]) -> void:
 		var right: bool = end["x"] > r.get_center().x
 		var out: Array[float] = point["out"]
 		var leg: float = out[out.size() - 1]
+		var first: bool = true
 		for y: float in out:
-			if y > point["at"].y + LEG_STEP:
-				leg = y
+			if y <= point["at"].y + LEG_STEP:
+				continue
+			# The first height under the terminal, on down while the way is
+			# clear (a side block's wires, stacked over the others at their
+			# height, stay at the first).
+			var down: bool = _clear(Vector2(end["x"], point["at"].y), Vector2(end["x"], y))
+			var across: bool = _clear(Vector2(end["x"], y), Vector2(r.end.x if right else r.position.x, y))
+			if not first and (point["side"] or not (down and across)):
 				break
+			leg = y
+			first = false
 		end["leg"] = leg
 		var key: Vector3 = Vector3(r.position.x, r.position.y, 1.0 if right else 0.0)
 		if not sides.has(key):
