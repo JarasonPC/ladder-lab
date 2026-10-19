@@ -6,13 +6,6 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
-### Schematic editor
-- Selector switches can have the positions I-0-II (e.g. manual / off / auto): each block of the
-  switch is operated in position I or in position II (set in its properties)
-
-### Panels
-- A rotary cam switch is drawn bigger than a selector switch on a control station
-
 ## 0.4.4 – 2026-10-19
 
 ### Schematic editor
@@ -24,6 +17,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Rotary cam switch: 1-4 poles with the positions 0-I (off / on) or I-0-II (forward / off /
   reverse, each pole a changeover with the off position in the middle); a click turns it on
   to the next position, on a control station its knob turns left or right
+- Selector switches can have the positions I-0-II (e.g. manual / off / auto): each block of the
+  switch is operated in position I or in position II (set in its properties)
 
 ### Simulation
 - 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while
@@ -41,6 +36,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   list their contact blocks, contactors and breakers their auxiliary contacts, and each
   switchboard and station lists its cable glands sized for the cables (PG or metric)
 - Motors in the field turn on the workspace while simulating, as fast and in the direction they run
+- A rotary cam switch is drawn bigger than a selector switch on a control station
 - Workspace cables get a type by their use: CGSG-J to motors and limit switches, JYTY-O to
   control stations, shielded LiYCY to sensors, CYKY-J between switchboards (View > Cable types:
   Czech, or the European H07RN-F, H05VV5-F, H05VVC4V5-K, NYY-J)
