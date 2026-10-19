@@ -593,6 +593,21 @@ func test_rectifier_minus_output_is_wired_like_the_dc_minus_pole() -> void:
 	assert_eq(conductor[net["TB1:+"]], CabinetDevices.Conductor.CONTROL)
 
 
+func test_cam_switch_of_three_poles_is_wired_as_main_power() -> void:
+	# L1 fed only through a 3-pole cam switch is a phase of the main power
+	# circuit like L2 and L3, not the control circuit's.
+	var doc: SchematicDocument = SchematicDocument.new("cam")
+	_supplies(doc)
+	_add(doc, CamSwitch.new("RB1"))
+	doc.connect_terminals("L1", "RB1:1")
+	doc.connect_terminals("L2", "RB1:3")
+	doc.connect_terminals("L3", "RB1:5")
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, net)
+	for key: String in ["L1", "RB1:2", "RB1:4", "RB1:6"]:
+		assert_eq(conductor[net[key]], CabinetDevices.Conductor.POWER, key)
+
+
 func test_ctrl_wheel_zoom_keeps_the_point_under_the_mouse() -> void:
 	var down: ScrollContainer = ScrollContainer.new()
 	down.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED

@@ -407,7 +407,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   (CabinetDevices.conductors): red = phase of the control circuit (L), light blue = N (and the
   DC - pole, a rectifier's - too), grey = main power circuit (L2/L3 and the terminals of main
   contacts, overload relay
-  heaters, 3~ motors, fuses and breakers of 2-4 poles), green-yellow = PE; wires go into the
+  heaters, 3~ motors, fuses, breakers and rotary cam switches of 2-4 poles), green-yellow = PE; wires go into the
   top of strip terminals, wires near each other share the nearest slot; a wire to a device
   terminal goes into the face of the terminal's tier, past the screw (CabinetParts.wire_entry:
   the outer tiers' top or bottom face, the step where an inner tier begins, a time relay's wire
