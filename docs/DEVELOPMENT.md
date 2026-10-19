@@ -300,7 +300,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   and a cam switch's load side below), the designations on a label at the top left of each
   item; the workspace cables to the station come in through glands in the top, a core of
   each to the first terminal here it lands on (WorkspaceCables cores), the other terminals of
-  a net joined to the nearest one joined already; wires leave their terminal up or down into
+  a net joined to the nearest one joined already; a wire goes into its terminal at the
+  opening of the clamp in the block's top or bottom face, under the screw (never onto the
+  screw; StationInside.OPENING, terminal "entry"), and leaves it up or down into
   a lane of the channel above or below its row, run along it and down the left side in a
   lane of their own between channels (channels and the side as wide as their lanes), coloured
   by conductor, with ferrule collars and marker sleeves (CabinetWiring.wire_marks); while
