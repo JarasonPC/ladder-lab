@@ -10,6 +10,8 @@ extends ConfirmationDialog
 signal wire_numbers_toggled(on: bool)
 ## What the PDF holds was changed ([method contents]): render the sheets again.
 signal contents_changed
+## The largest paper was changed ([method largest_paper]): render the sheets again.
+signal paper_changed
 
 ## What a PDF can hold, in order (keys of [method contents]).
 const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "workspace", "parts_list"]
@@ -20,6 +22,8 @@ var _status: Label
 var _previous: Button
 var _next: Button
 var _numbers: CheckBox
+var _paper_label: Label
+var _paper: OptionButton
 var _contents_row: HBoxContainer
 var _contents: Dictionary[String, CheckBox] = {}
 var _images: Array[Image] = []
@@ -61,6 +65,16 @@ func _init() -> void:
 	_numbers.button_pressed = true
 	_numbers.toggled.connect(func(on: bool) -> void: wire_numbers_toggled.emit(on))
 	bar.add_child(_numbers)
+	_paper_label = Label.new()
+	_paper_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	bar.add_child(_paper_label)
+	_paper = OptionButton.new()
+	_paper.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	for size: Dictionary in SheetLayout.PAPERS:
+		_paper.add_item(size["name"])
+	_paper.select(SheetLayout.paper_index(SheetLayout.DEFAULT_LARGEST))
+	_paper.item_selected.connect(func(_index: int) -> void: paper_changed.emit())
+	bar.add_child(_paper)
 	_contents_row = HBoxContainer.new()
 	_contents_row.add_theme_constant_override("separation", 12)
 	box.add_child(_contents_row)
@@ -79,8 +93,11 @@ func _init() -> void:
 ## until [method show_sheets] fills it. A PDF holds what [param chosen] says
 ## (see [method contents]); what [param available] has false is greyed out
 ## (the schematic has nothing of it).
-func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}) -> void:
+func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, largest: String = SheetLayout.DEFAULT_LARGEST) -> void:
 	title = tr("Export PDF") if pdf else tr("Export PNG")
+	_paper_label.text = tr("Largest sheet")
+	_paper.tooltip_text = tr("Pages go on the smallest sheet they fit on, up to this one; larger pages are scaled down onto it")
+	_paper.select(maxi(SheetLayout.paper_index(largest), 0))
 	ok_button_text = tr("Save PDF…") if pdf else tr("Save PNG…")
 	cancel_button_text = tr("Cancel")
 	_numbers.text = tr("Wire numbers")
@@ -93,6 +110,11 @@ func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}) -> voi
 	_update_numbers()
 	rendering()
 	popup_centered_ratio(0.75)
+
+
+## The largest paper chosen ("A5" to "A0").
+func largest_paper() -> String:
+	return SheetLayout.PAPERS[maxi(_paper.selected, 0)]["name"]
 
 
 ## Empty until [method show_sheets] brings the sheets rendered again: what
