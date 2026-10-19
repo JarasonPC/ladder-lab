@@ -393,7 +393,14 @@ func _switching(element: SwitchingElement) -> void:
 	elif element is LatchingSwitch:
 		summary = tr("Keeps its position until operated again")
 		description.append(tr("Switch that keeps its position until operated again (click it while simulating). It snaps over almost at once. Blocks drawn with the same designation are one switch."))
-		_contact_rows(names, no, tr("it is on"))
+		if (element as LatchingSwitch).three_positions:
+			var position: String = "II" if (element as LatchingSwitch).side == 2 else "I"
+			summary = tr("Selector switch I-0-II, this block operated in %s") % position
+			description.append(tr("Selector switch with the positions I, 0 (in the middle) and II, e.g. manual / off / auto. Each block of it is operated in one of the positions I and II; in 0 none is. While simulating, a click turns it on to the next position (0, I, 0, II); on a control station or a switchboard door its knob is turned to the left or the right."))
+			_contact_rows(names, no, tr("it is in position %s") % position)
+			_data(tr("Positions"), "I – 0 – II")
+		else:
+			_contact_rows(names, no, tr("it is on"))
 		_data(tr("Actuator"), tr("latching, snap action"))
 	elif element is PushButton:
 		summary = tr("Momentary: operated only while held")

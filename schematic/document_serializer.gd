@@ -330,6 +330,9 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 			d["type"] = "limit_switch"
 		elif c is LatchingSwitch:
 			d["type"] = "latching_switch"
+			if (c as LatchingSwitch).three_positions:
+				d["positions"] = "I-0-II"
+				d["operated_in"] = "II" if (c as LatchingSwitch).side == 2 else "I"
 		else:
 			d["type"] = "contact"
 			d["delayed"] = (c as Contact).delayed
@@ -459,7 +462,10 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"push_button":
 			return PushButton.new(designation, contact, sequence)
 		"latching_switch":
-			return LatchingSwitch.new(designation, contact, sequence)
+			var switch: LatchingSwitch = LatchingSwitch.new(designation, contact, sequence)
+			switch.three_positions = str(d.get("positions", "0-I")) == "I-0-II"
+			switch.side = 2 if switch.three_positions and str(d.get("operated_in", "I")) == "II" else 1
+			return switch
 		"limit_switch":
 			return LimitSwitch.new(designation, contact, sequence)
 		"contact":

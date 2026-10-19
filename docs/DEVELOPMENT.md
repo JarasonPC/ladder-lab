@@ -517,7 +517,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   turn actuator on the left on a dashed link, the positions written under the designation; a
   click turns it on 0 → I → 0 → II (CamSwitch.step_on), a station turns it left or right
   (CamSwitch.turn, switch_toggled's steps); a station shows it as a square black front with
-  the positions round a handle; Circuit.get_operator returns it, no contacts follow it), SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
+  the positions round a handle, bigger than a selector switch (ControlBoxView.CAM_HALF);
+  Circuit.get_operator returns it, no contacts follow it; a selector switch, LatchingSwitch,
+  is 0-I or I-0-II (three_positions; its blocks share a second actuator actuator_two for
+  position II, each block operated in I or II, side; "positions", "operated_in" saved; a
+  station draws I 0 II round it and turns it left or right like the cam switch; its blocks
+  write "I-0-II: II" under the designation), SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
   or operated by a mechanical link),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;

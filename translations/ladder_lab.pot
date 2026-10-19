@@ -3474,3 +3474,20 @@ msgstr ""
 
 msgid "knob, stays where it is turned"
 msgstr ""
+
+msgid "I-0-II (e.g. manual / off / auto)"
+msgstr ""
+
+msgid "Operated in position"
+msgstr ""
+
+#, c-format
+msgid "Selector switch I-0-II, this block operated in %s"
+msgstr ""
+
+msgid "Selector switch with the positions I, 0 (in the middle) and II, e.g. manual / off / auto. Each block of it is operated in one of the positions I and II; in 0 none is. While simulating, a click turns it on to the next position (0, I, 0, II); on a control station or a switchboard door its knob is turned to the left or the right."
+msgstr ""
+
+#, c-format
+msgid "it is in position %s"
+msgstr ""

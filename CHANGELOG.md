@@ -6,6 +6,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- Selector switches can have the positions I-0-II (e.g. manual / off / auto): each block of the
+  switch is operated in position I or in position II (set in its properties)
+
+### Panels
+- A rotary cam switch is drawn bigger than a selector switch on a control station
+
 ## 0.4.4 – 2026-10-19
 
 ### Schematic editor

@@ -65,7 +65,9 @@ const FORMAT: String = "ladder-lab"
 ## 30: control stations shown on the workspace as their face ("face": its
 ## scale; missing before: as their tile).
 ## 31: rotary cam switches ("cam_switch": poles, "positions" 0-I or I-0-II).
-const VERSION: int = 31
+## 32: selector switches with the positions I-0-II ("latching_switch" with
+## "positions": "I-0-II" and "operated_in" I or II; missing: 0-I).
+const VERSION: int = 32
 
 
 ## PLC program files (see [method save_plc_program]).
