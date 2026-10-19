@@ -9,7 +9,8 @@ extends RefCounted
 ## and comes out to the other terminal the same way. Wires from the bottom
 ## terminals of a contactor with an overload relay under it run across the
 ## contactor's front out to the nearer side and down beside the relay.
-## Wires sharing a duct lie side by side. The supply comes in from outside:
+## Wires sharing a duct lie side by side, in lanes laid so they cross as
+## few others as they can (see [method _lanes]). The supply comes in from outside:
 ## one cable per source (AC, DC) through a gland in the top of the
 ## enclosure, each core of a supply conductor (L1, L2, L3, N, PE; +, -)
 ## straight into the top duct and on to the first terminal it feeds, or to
@@ -630,24 +631,26 @@ func _route(edges: Array[Dictionary]) -> void:
 		var b: Dictionary = by_side["%db" % e]
 		var route: Dictionary = {"a": a, "b": b, "da": a["point"]["duct"], "db": b["point"]["duct"]}
 		if route["da"] == route["db"]:
-			runs[route["da"]].append({"route": route, "lane": "lane_a", "from": minf(a["slot"], b["slot"]), "to": maxf(a["slot"], b["slot"])})
+			runs[route["da"]].append({"route": route, "lane": "lane_a", "from": minf(a["slot"], b["slot"]), "to": maxf(a["slot"], b["slot"]), "edge": _edge([a, b]), "in": b["slot"] if a["point"]["up"] else a["slot"]})
 		else:
 			var left: bool = a["slot"] + b["slot"] - 2.0 * _sides[0].end.x <= 2.0 * _sides[1].position.x - a["slot"] - b["slot"]
 			route["side"] = 0 if left else 1
 			var edge: float = _sides[0].end.x if left else _sides[1].position.x
-			runs[route["da"]].append({"route": route, "lane": "lane_a", "from": minf(a["slot"], edge), "to": maxf(a["slot"], edge)})
-			runs[route["db"]].append({"route": route, "lane": "lane_b", "from": minf(b["slot"], edge), "to": maxf(b["slot"], edge)})
+			runs[route["da"]].append({"route": route, "lane": "lane_a", "from": minf(a["slot"], edge), "to": maxf(a["slot"], edge), "edge": _edge([a])})
+			runs[route["db"]].append({"route": route, "lane": "lane_b", "from": minf(b["slot"], edge), "to": maxf(b["slot"], edge), "edge": _edge([b])})
 		routes.append(route)
 	for d: int in _across.size():
 		var r: Rect2 = _across[d]
 		var positions: PackedFloat32Array = _lanes(runs[d], r.position.y + CabinetParts.DUCT_DEPTH, r.end.y - CabinetParts.DUCT_DEPTH, lanes)
 		for i: int in runs[d].size():
 			runs[d][i]["route"][runs[d][i]["lane"]] = positions[i]
+	_order_slots(slots, routes)
 	for s: int in 2:
 		var down: Array = []
 		for route: Dictionary in routes:
 			if route.get("side", -1) == s:
-				down.append({"route": route, "from": minf(route["lane_a"], route["lane_b"]), "to": maxf(route["lane_a"], route["lane_b"])})
+				# The wires come in from the plate's side of the duct.
+				down.append({"route": route, "from": minf(route["lane_a"], route["lane_b"]), "to": maxf(route["lane_a"], route["lane_b"]), "edge": 1 if s == 0 else -1})
 		var r: Rect2 = _sides[s]
 		var positions: PackedFloat32Array = _lanes(down, r.position.x + CabinetParts.DUCT_DEPTH, r.end.x - CabinetParts.DUCT_DEPTH, lanes)
 		for i: int in down.size():
@@ -965,34 +968,109 @@ func _lead_aside(ends: Array[Dictionary]) -> void:
 			end["x"] = x
 
 
-## Lanes for the [param runs] ({"from", "to"} along one duct) between
-## [param low] and [param high] across it: runs that overlap get lanes of
-## their own, the lanes spread evenly (closer together when there are many).
-## Returns the position of each run's lane.
+## Orders the wires going in through each of [param slots] (duct, slot,
+## side -> wire ends of [method _route]; [param routes] by edge, their lanes
+## laid) so none crosses
+## another on its way to its lane: from the left those turning left, the one
+## in the lane nearest the slot first, then those turning right, the one in
+## the lane furthest away first. The wires keep the places in the slot.
+func _order_slots(slots: Dictionary[Vector3i, Array], routes: Array[Dictionary]) -> void:
+	for key: Vector3i in slots:
+		var group: Array = slots[key]
+		if group.size() < 2:
+			continue
+		var places: Array[float] = []
+		var order: Array = []
+		for end: Dictionary in group:
+			places.append(end["slot"])
+			var route: Dictionary = routes[end["edge"]]
+			var own: bool = end["side"] == "a"
+			var lane: float = route["lane_a"] if own or not route.has("side") else route["lane_b"]
+			var other: float
+			if route.has("side"):
+				other = _sides[0].end.x if route["side"] == 0 else _sides[1].position.x
+			else:
+				other = route["b"]["slot"] if own else route["a"]["slot"]
+			# How far into the duct its lane is, from the side it comes in.
+			var depth: float = -lane if end["point"]["up"] else lane
+			order.append({"end": end, "left": other < end["slot"], "depth": depth})
+		places.sort()
+		order.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
+			if p["left"] != q["left"]:
+				return p["left"]
+			return p["depth"] < q["depth"] if p["left"] else p["depth"] > q["depth"])
+		for i: int in order.size():
+			order[i]["end"]["slot"] = places[i]
+
+
+## Which edge of its duct across the wire ends [param ends] (of
+## [method _route]) come in over: -1 all over the top (from parts above
+## it, or the supply from the gland), 1 all over the bottom, 0 both.
+static func _edge(ends: Array) -> int:
+	var from_below: int = 0
+	for end: Dictionary in ends:
+		if end["point"]["up"]:
+			from_below += 1
+	return 1 if from_below == ends.size() else (-1 if from_below == 0 else 0)
+
+
+## Lanes for the [param runs] ({"from", "to" along one duct, "edge" (see
+## [method _edge]): the edge their wires come in over, -1 the low one, 1 the
+## high one, 0 both, then "in": where it comes in over the low edge}) between
+## [param low] and [param high] across it, laid so the wires are easy to
+## follow, crossing as few others as they can: runs coming in over one edge
+## lie nearest it, a run nested in another nearer the edge than that one;
+## runs coming in over both edges between them, those heading the same way
+## stepped so they do not cross (the one coming in further along its way
+## nearer the low edge). Each run lies past every run before it that it
+## overlaps, runs that do not overlap share a lane. Appends the number of
+## lanes to [param counts]; returns the position of each run's lane.
 func _lanes(runs: Array, low: float, high: float, counts: Array[int]) -> PackedFloat32Array:
-	var order: Array = range(runs.size())
-	order.sort_custom(func(i: int, j: int) -> bool: return runs[i]["from"] < runs[j]["from"])
+	var groups: Array = [[], [], []]
+	for i: int in runs.size():
+		groups[int(runs[i].get("edge", 0)) + 1].append(i)
 	var lane_of: PackedInt32Array = PackedInt32Array()
 	lane_of.resize(runs.size())
-	var lane_end: Array[float] = []
-	for i: int in order:
-		var lane: int = -1
-		for l: int in lane_end.size():
-			if lane_end[l] + LANE < runs[i]["from"]:
-				lane = l
-				break
-		if lane < 0:
-			lane = lane_end.size()
-			lane_end.append(0.0)
-		lane_end[lane] = runs[i]["to"]
-		lane_of[i] = lane
-	var count: int = lane_end.size()
-	counts.append(count)
-	var pitch: float = minf(LANE, (high - low - WIRE_W) / maxf(count - 1, 1))
-	var first: float = (low + high) * 0.5 - pitch * (count - 1) * 0.5
+	var sizes: Array[int] = []
+	for g: int in 3:
+		var order: Array = groups[g]
+		if g == 1:
+			# Heading right (coming in over the low edge at "from") first, the
+			# one coming in furthest right first; then heading left, the one
+			# coming in furthest left first.
+			order.sort_custom(func(i: int, j: int) -> bool:
+				var right_i: bool = is_equal_approx(runs[i]["in"], runs[i]["from"])
+				var right_j: bool = is_equal_approx(runs[j]["in"], runs[j]["from"])
+				if right_i != right_j:
+					return right_i
+				return runs[i]["in"] > runs[j]["in"] if right_i else runs[i]["in"] < runs[j]["in"])
+		else:
+			# The shortest first: a run nested in another lies nearer the edge.
+			order.sort_custom(func(i: int, j: int) -> bool:
+				var a: float = runs[i]["to"] - runs[i]["from"]
+				var b: float = runs[j]["to"] - runs[j]["from"]
+				return a < b if not is_equal_approx(a, b) else runs[i]["from"] < runs[j]["from"])
+		var count: int = 0
+		for n: int in order.size():
+			var i: int = order[n]
+			var lane: int = 0
+			for m: int in n:
+				var j: int = order[m]
+				if runs[i]["from"] <= runs[j]["to"] + LANE and runs[i]["to"] >= runs[j]["from"] - LANE:
+					lane = maxi(lane, lane_of[j] + 1)
+			lane_of[i] = lane
+			count = maxi(count, lane + 1)
+		sizes.append(count)
+	var total: int = sizes[0] + sizes[1] + sizes[2]
+	counts.append(total)
+	var pitch: float = minf(LANE, (high - low - WIRE_W) / maxf(total - 1, 1))
+	var first: float = (low + high) * 0.5 - pitch * (total - 1) * 0.5
 	var result: PackedFloat32Array = PackedFloat32Array()
 	for i: int in runs.size():
-		result.append(first + pitch * lane_of[i])
+		var g: int = int(runs[i].get("edge", 0)) + 1
+		# From the low edge: its runs, the middle ones, the high edge's last.
+		var place: int = lane_of[i] if g == 0 else (sizes[0] + lane_of[i] if g == 1 else total - 1 - lane_of[i])
+		result.append(first + pitch * place)
 	return result
 
 
