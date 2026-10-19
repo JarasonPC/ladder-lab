@@ -47,7 +47,8 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   wiring, typed by their use (motor CGSG-J, control station JYTY-O, sensor LiYCY, feeder CYKY-J,
   or their European equivalents) and sized; a click on a cable lists its cores.
 - **Control stations**: push buttons, selector switches, rotary cam switches, signal lamps
-  and illuminated buttons drawn like real ones, that operate the simulated circuit.
+  and illuminated buttons drawn like real ones, also with the cover off (contact blocks and
+  their wiring), that operate the simulated circuit.
 - **Switchboard** (rozvaděč): DIN rails with the breakers, fuse holders, contactors,
   overload relays, relays, time relays, PLCs, frequency inverters and terminal strips of the
   schematic, drawn like the real cabinet and wired after the circuit through the ducts, with

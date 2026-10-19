@@ -290,7 +290,22 @@ Architecture and conventions of the code base. Read this before changing the cod
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
   renames; opened from the workspace (StationPanel: the box drawn large, ZoomBox, the editing
   tools beside it in Edit mode, undoable; the tools are ControlItemTools, shared with the
-  switchboard door), operate the simulation in Simulate mode. Every switchboard has a door
+  switchboard door), operate the simulation in Simulate mode. Front | Inside at the top of an
+  opened station (StationPanel.inside_shown) shows it with its cover off (StationInside, no
+  nodes, laid out in mm; StationInsideView draws it with CabinetPainter, fitted to the room):
+  behind each button or switch its contact blocks side by side on the mounting adapter (every
+  part with its designation that switches with it: NO green, NC red, CO both; a lamp block
+  in the middle of an illuminated one), behind a lamp its lamp block, behind a cam switch a
+  chamber a pole; screw terminals on top and below with their numbers (a changeover's common
+  and a cam switch's load side below), the designations on a label at the top left of each
+  item; the workspace cables to the station come in through glands in the top, a core of
+  each to the first terminal here it lands on (WorkspaceCables cores), the other terminals of
+  a net joined to the nearest one joined already; wires leave their terminal up or down into
+  a lane of the channel above or below its row, run along it and down the left side in a
+  lane of their own between channels (channels and the side as wide as their lanes), coloured
+  by conductor, with ferrule collars and marker sleeves (CabinetWiring.wire_marks); while
+  simulating the terminals are ringed in their voltage's colour (StationPanel.show_step) and
+  lamp blocks light Every switchboard has a door
   (Switchboard.door, a ControlBox: columns and items only, saved as the switchboard's "door"
   when it has items or other columns): SchematicDocument.control_panels lists the stations,
   then the doors; the item edits (add/set/move/remove_control_item, fill_control_box,

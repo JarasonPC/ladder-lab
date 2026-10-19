@@ -3518,3 +3518,12 @@ msgstr ""
 
 msgid "Put every push button, switch and signal lamp that is not on a station or a door yet on this door"
 msgstr ""
+
+msgid "Front"
+msgstr ""
+
+msgid "The push buttons, switches and lamps as they are operated"
+msgstr ""
+
+msgid "With the cover off: the contact blocks and the wires to them"
+msgstr ""
