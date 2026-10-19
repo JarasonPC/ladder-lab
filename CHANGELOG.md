@@ -15,6 +15,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   Czech, or the European H07RN-F, H05VV5-F, H05VVC4V5-K, NYY-J)
 
 ### Fixed
+- Zooming, moving and simulating in a switchboard is smooth: only what changed is drawn again
 - Saving a schematic no longer fails in folders an antivirus watches closely, such as Downloads
   on Windows
 

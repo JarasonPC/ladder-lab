@@ -7,6 +7,13 @@ extends Control
 ## the colour of the voltage that reaches them, and a click switches a
 ## breaker or fuse holder, replaces a blown fuse or resets a tripped overload
 ## relay. While editing, a click selects a place.
+##
+## Painted in layers ([Layer]: the plate with its rails and ducts, each place
+## on its own, the wires with the labels, the selection) that are painted
+## again only when what they show changed, so a simulation step paints only
+## the devices that changed and moving the view paints nothing. While the
+## zoom changes the layers painted last are scaled, and painted sharp again
+## [constant ZOOM_SETTLE] seconds after the last change.
 
 ## A device was clicked while simulating ([param designation] of the
 ## breaker, fuse or overload relay).
@@ -34,6 +41,8 @@ var zoom: float = 1.0:
 		update_minimum_size()
 		queue_redraw()
 		if not is_equal_approx(was, zoom):
+			if _settle != null and _painted_k > 0.0:
+				_settle.start(ZOOM_SETTLE)
 			zoom_changed.emit()
 
 ## Height the plate fits into at zoom 1 too (0: the width alone); the
@@ -47,11 +56,60 @@ var fit_height: float = 0.0:
 ## Most zoom over fitting the width; one wheel step.
 const MAX_ZOOM: float = 8.0
 const ZOOM_STEP: float = 1.25
+## Seconds after the last zoom change before the drawing is painted sharp
+## at the new scale (until then the last painting is scaled).
+const ZOOM_SETTLE: float = 0.15
 
 var _layout: CabinetLayout
+## Scale [member _layout] was laid out at; it is laid out again when the
+## scale changes, while editing on every redraw, and after [method refresh].
+var _layout_k: float = 0.0
 ## Wires of the last layout, laid out again after edits and when the scale changes.
 var _wiring: CabinetWiring
 var _wiring_k: float = 0.0
+
+## The layers ([Layer]) under one node, which is scaled while zooming.
+var _layers: Node2D
+var _base: Layer
+var _places: Array[Layer] = []
+var _top: Layer
+var _mark: Layer
+## Layer -> what it was last painted from; painted again when that differs.
+var _painted: Dictionary[Layer, Variant] = {}
+## Scale and origin the layers were last painted at.
+var _painted_k: float = 0.0
+var _painted_origin: Vector2 = Vector2.ZERO
+## Runs while the zoom is changing (see [constant ZOOM_SETTLE]).
+var _settle: Timer
+
+
+## A part of the drawing painted on its own by [member paint] (called with
+## the layer), so the rest stays as it was painted.
+class Layer:
+	extends Node2D
+
+	var paint: Callable
+
+	func _init(p_paint: Callable) -> void:
+		paint = p_paint
+
+	func _draw() -> void:
+		paint.call(self)
+
+
+func _init() -> void:
+	_layers = Node2D.new()
+	add_child(_layers, false, Node.INTERNAL_MODE_FRONT)
+	_base = Layer.new(_paint_base)
+	_layers.add_child(_base)
+	_top = Layer.new(_paint_top)
+	_layers.add_child(_top)
+	_mark = Layer.new(_paint_mark)
+	_layers.add_child(_mark)
+	_settle = Timer.new()
+	_settle.one_shot = true
+	_settle.timeout.connect(queue_redraw)
+	add_child(_settle, false, Node.INTERNAL_MODE_FRONT)
 
 
 func _ready() -> void:
@@ -63,7 +121,9 @@ func _ready() -> void:
 ## Lays the switchboard out again (after edits or a new document).
 func refresh() -> void:
 	_layout = CabinetLayout.build(document, _k(), board) if document != null else null
+	_layout_k = _k()
 	_wiring = null
+	_painted.clear()
 	update_minimum_size()
 	queue_redraw()
 
@@ -153,6 +213,7 @@ func _notification(what: int) -> void:
 		update_minimum_size()
 		queue_redraw()
 	elif what == NOTIFICATION_THEME_CHANGED:
+		_painted.clear()
 		queue_redraw()
 
 
@@ -233,26 +294,110 @@ func _get_tooltip(at_position: Vector2) -> String:
 # --- Drawing ---------------------------------------------------------------------------
 
 func _draw() -> void:
+	_layers.visible = document != null
 	if document == null:
 		return
-	# Laid out again on every frame: the devices show the simulation state.
 	var k: float = _k()
+	if not _settle.is_stopped() and _painted_k > 0.0:
+		# Zooming: the last painting scaled until the zoom settles.
+		var scale: float = k / _painted_k
+		_layers.scale = Vector2(scale, scale)
+		_layers.position = _origin() - _painted_origin * scale
+		return
 	var height: float = _layout.size.y if _layout != null else 0.0
-	_layout = CabinetLayout.build(document, k, board)
+	if _layout == null or not simulating or not is_equal_approx(_layout_k, k):
+		_layout = CabinetLayout.build(document, k, board)
+		_layout_k = k
+	else:
+		# The devices show the simulation state; the places stay where they are.
+		for place: Dictionary in _layout.places:
+			CabinetLayout.describe_again(document, place)
 	if not is_equal_approx(height, _layout.size.y):
 		update_minimum_size.call_deferred()
-	var p: CabinetPainter = CabinetPainter.new(self, k, _origin())
+	if _wiring == null or not is_equal_approx(_wiring_k, k):
+		_wiring = CabinetWiring.build(document, _layout, k, board)
+		_wiring_k = k
+	_layers.scale = Vector2.ONE
+	_layers.position = Vector2.ZERO
+	_painted_k = k
+	_painted_origin = _origin()
+	var at: Array = [k, _painted_origin]
+	_repaint(_base, [at, _layout.size, _layout.rails, _layout.ducts])
+	while _places.size() < _layout.places.size():
+		var layer: Layer = Layer.new(_paint_place.bind(_places.size()))
+		_layers.add_child(layer)
+		_layers.move_child(layer, _top.get_index())
+		_places.append(layer)
+	while _places.size() > _layout.places.size():
+		var gone: Layer = _places.pop_back()
+		_painted.erase(gone)
+		gone.queue_free()
+	for i: int in _places.size():
+		var place: Dictionary = _layout.places[i]
+		_repaint(_places[i], [at, place, _place_reach(place)])
+	var labels: Array = []
+	for place: Dictionary in _layout.places:
+		labels.append([place.get("label_at"), place["label_w"], place["designation"], place.get("under_label_at"), place.get("under_designation")])
+	_repaint(_top, [at, _wiring.get_instance_id(), labels])
+	var mark: Rect2 = Rect2()
+	if not simulating:
+		for place: Dictionary in _layout.places:
+			if Vector2i(place["rail"], place["index"]) == selected:
+				mark = place["rect"]
+				if place.has("under_rect"):
+					mark = mark.merge(place["under_rect"])
+	_repaint(_mark, [at, mark])
+
+
+## Paints [param layer] again when [param state] (what it shows) differs
+## from what it was last painted from.
+func _repaint(layer: Layer, state: Array) -> void:
+	if _painted.get(layer) == state:
+		return
+	_painted[layer] = state.duplicate(true)
+	layer.queue_redraw()
+
+
+## The voltage colours a place shows (all its terminals).
+func _place_reach(place: Dictionary) -> Array:
+	var result: Array = []
+	if not simulating:
+		return result
+	var desc: Dictionary = place["desc"]
+	if place["kind"] == CabinetLayout.STRIP:
+		for t: Dictionary in desc["terminals"]:
+			result.append(_first_reach(t["keys"]))
+		return result
+	for d: Dictionary in [desc, place.get("under_desc", {})]:
+		var terminals: Dictionary = d.get("terminals", {})
+		for name: String in terminals:
+			result.append(_color(terminals[name]))
+	return result
+
+
+func _painter(canvas: CanvasItem) -> CabinetPainter:
+	return CabinetPainter.new(canvas, _painted_k, _painted_origin)
+
+
+## The plate with its DIN rails and ducts.
+func _paint_base(canvas: CanvasItem) -> void:
+	var p: CabinetPainter = _painter(canvas)
 	CabinetParts.plate(p, _layout.size)
 	for rail: Rect2 in _layout.rails:
 		CabinetParts.din_rail(p.shifted(rail.position), rail.size.x)
 	for duct: Dictionary in _layout.ducts:
 		var r: Rect2 = duct["rect"]
 		CabinetParts.duct(p.shifted(r.position), r.size.y if duct["vertical"] else r.size.x, r.size.x if duct["vertical"] else r.size.y, duct["vertical"])
-	for place: Dictionary in _layout.places:
-		_draw_place(p, place)
-	if _wiring == null or not is_equal_approx(_wiring_k, k):
-		_wiring = CabinetWiring.build(document, _layout, k, board)
-		_wiring_k = k
+
+
+func _paint_place(canvas: CanvasItem, index: int) -> void:
+	if index < _layout.places.size():
+		_draw_place(_painter(canvas), _layout.places[index])
+
+
+## The wires, the cable glands and the labels of the places.
+func _paint_top(canvas: CanvasItem) -> void:
+	var p: CabinetPainter = _painter(canvas)
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"])
 	for gland: Dictionary in _wiring.glands:
@@ -266,14 +411,13 @@ func _draw() -> void:
 			CabinetParts.label(p, place["label_at"], "-" + str(place["designation"]), place["label_w"])
 		if place.has("under_label_at"):
 			CabinetParts.label(p, place["under_label_at"], "-" + str(place["under_designation"]), 12.0)
-	if not simulating:
-		for place: Dictionary in _layout.places:
-			if Vector2i(place["rail"], place["index"]) == selected:
-				var r: Rect2 = place["rect"]
-				if place.has("under_rect"):
-					r = r.merge(place["under_rect"])
-				var px: Rect2 = Rect2(_origin() + r.position * k, r.size * k).grow(3.0)
-				draw_rect(px, AppTheme.accent, false, 2.0)
+
+
+## The outline of the place selected for editing.
+func _paint_mark(canvas: CanvasItem) -> void:
+	var mark: Rect2 = _painted[_mark][1]
+	if mark.has_area():
+		canvas.draw_rect(Rect2(_painted_origin + mark.position * _painted_k, mark.size * _painted_k).grow(3.0), AppTheme.accent, false, 2.0)
 
 
 func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
