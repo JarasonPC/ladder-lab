@@ -46,6 +46,8 @@ const CORE_ORDER: Array[PowerSupply.Conductor] = [
 ]
 ## Room between two wires in one terminal.
 const SHARED: float = 0.9
+## Most wires in one terminal's clamp.
+const CLAMP_WIRES: int = 2
 ## Two or more wires in one terminal spread out right under it, so their
 ## marker sleeves sit side by side: FAN apart (closer where the next
 ## terminal is near), aside past the ferrule (FAN_FROM from the terminal),
@@ -122,6 +124,14 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 			by_net[n] = []
 		by_net[n].append(point)
 	var cores: Dictionary[int, Dictionary] = wiring._feed(doc.circuit, net, conductor, by_net)
+	var cables: Array[Dictionary] = WorkspaceCables.cables(doc)
+	# A net going on to another switchboard leaves like a field wire, in the
+	# cable between the two (from its first terminal here, which keeps room
+	# in its clamp for it).
+	var onward: Dictionary[int, String] = _board_cables(doc, board, cables)
+	for n: int in onward:
+		if by_net.has(n) and not cores.has(n):
+			by_net[n][0]["taken"] = 1
 	var edges: Array[Dictionary] = []
 	for n: int in by_net:
 		var points: Array = by_net[n]
@@ -138,10 +148,6 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 				continue
 			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
-	var cables: Array[Dictionary] = WorkspaceCables.cables(doc)
-	# A net going on to another switchboard leaves like a field wire, in the
-	# cable between the two (from its first terminal here).
-	var onward: Dictionary[int, String] = _board_cables(doc, board, cables)
 	for n: int in onward:
 		if by_net.has(n) and not cores.has(n):
 			var first: Dictionary = by_net[n][0]
@@ -560,42 +566,50 @@ func _behind_column(relay: Rect2, x: float) -> float:
 
 
 ## Pairs of indices into [param points] joining them all along the
-## shortest routes (a minimum spanning tree).
-## [param single]: the first point gets one wire only (a core of an
-## incoming cable goes to one terminal).
+## shortest routes (a minimum spanning tree) with at most CLAMP_WIRES wires
+## in any terminal's clamp, so nets are looped from terminal to terminal
+## where they would branch; terminals a plug-in bridge joins take no wire
+## between them. [param single]: the first point gets one wire only (a core
+## of an incoming cable goes to one terminal).
 func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 	var pairs: Array[Vector2i] = []
 	if points.size() < 2:
 		return pairs
+	var room: Array[int] = []
+	for i: int in points.size():
+		# Less a wire out to another switchboard from it.
+		room.append(CLAMP_WIRES - int(points[i].get("taken", 0)))
+	if single:
+		room[0] = 1
 	var joined: Array[bool] = []
 	joined.resize(points.size())
 	joined.fill(false)
 	joined[0] = true
-	var best: Array[float] = []
-	var from: Array[int] = []
-	for i: int in points.size():
-		best.append(_length(points[0], points[i]))
-		from.append(0)
 	for step: int in points.size() - 1:
-		var next: int = -1
-		for i: int in points.size():
-			if not joined[i] and (next < 0 or best[i] < best[next]):
-				next = i
-		joined[next] = true
-		pairs.append(Vector2i(from[next], next))
-		if single and step == 0:
-			# Nothing more from the first point: the others are reached
-			# from the one it went to.
+		# The shortest way from a terminal with room in its clamp to one not
+		# yet joined (a bridge needs no room).
+		var best: float = INF
+		var pair: Vector2i = Vector2i(-1, -1)
+		for j: int in points.size():
+			if not joined[j]:
+				continue
 			for i: int in points.size():
-				if not joined[i]:
-					best[i] = _length(points[next], points[i])
-					from[i] = next
-		for i: int in points.size():
-			if not joined[i]:
-				var d: float = _length(points[next], points[i])
-				if d < best[i]:
-					best[i] = d
-					from[i] = next
+				if joined[i]:
+					continue
+				var bridged: bool = _bridged(points[j], points[i])
+				if not bridged and (room[j] <= 0 or room[i] <= 0):
+					continue
+				var d: float = _length(points[j], points[i])
+				if d < best:
+					best = d
+					pair = Vector2i(j, i)
+		if pair.x < 0:
+			break
+		joined[pair.y] = true
+		if not _bridged(points[pair.x], points[pair.y]):
+			room[pair.x] -= 1
+			room[pair.y] -= 1
+		pairs.append(pair)
 	return pairs
 
 

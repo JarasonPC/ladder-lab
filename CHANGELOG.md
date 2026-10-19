@@ -49,6 +49,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   instead of a wire; the parts list has the bridges
 - Every strip terminal on the lead of a part outside gets its own core in the cable to it,
   also where several terminals are on one net
+- No terminal in a switchboard takes more than two wires: nets are looped from terminal to
+  terminal instead of branching
 - Wires to the auxiliary contact block on a contactor's front run straight over the contactor;
   wires from a contactor's bottom terminals over its overload relay go straight down as far as
   they can before turning aside, and wires from its main contacts go behind the relay

@@ -312,7 +312,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   the picked terminals along the strip), else by label; neighbouring terminals of one net
   are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
   desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). Wired after the circuit (CabinetWiring): each net
-  joins its terminals on the rails along the shortest tree, every wire straight from its terminal
+  joins its terminals on the rails along the shortest tree with at most two wires in any
+  terminal's clamp (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would
+  branch; a clamp keeps room for a wire on to another switchboard), every wire straight from its terminal
   towards the duct over or under its rail, past its sleeve, then one bend slanting into a slot
   between the fingers (CabinetWiring._slants: wires whose slants lie side by side bend at one
   height, the latest any needs and at most SLANT_MAX before the duct, the slots taking them in
