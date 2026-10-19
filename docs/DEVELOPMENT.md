@@ -77,12 +77,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   event log (at most MAX_HEIGHT_SHARE of the height the other bars leave, the log never wider
   than the room beside the chart's tools; the chosen sizes are kept), its chart and event log
   roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
-- The program starts with as little as possible: an empty schematic of one page (no example
-  loaded; the example list reads "Example circuits…") and the palette; the properties panel
+- The program starts with as little as possible: an empty schematic of one page and the
+  palette (the program has no example circuits); the properties panel
   (with the check results) shows in Edit mode only while something is selected or the check
   results are shown; it starts on the schematic (Schematic | Workspace); by default (no
   settings saved yet) the timing chart and event log are rolled in
-- Built-in examples (ExampleCircuits): each has a power circuit with a motor on the left (L1 L2
+- Example circuits (ExampleCircuits): circuits the tests and the screenshot tools build, not
+  offered in the program; each has a power circuit with a motor on the left (L1 L2
   L3 on top) and its control circuit on the right; circuit breakers FA1 (C16, three poles) for
   the power circuit and FA2 (B2) for the control circuit; everything outside the switchboard on
   terminal strips: the supply on X1 (one terminal per conductor, "X1:L1" .. "X1:PE"), buttons,
@@ -612,7 +613,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   second, as an antivirus on Windows holds a new file for a moment)
 - Recovery (RecoveryFile, no nodes, in user://recovery): main.gd writes a copy of the edited
   schematic and the file it came from after every edit (_mark_dirty; written to a .tmp first),
-  removed when it is saved, replaced (new, open, example) and on quit. Each run of the program is
+  removed when it is saved, replaced (new, open) and on quit. Each run of the program is
   a session with a copy of its own and an alive mark rewritten every RecoveryFile.BEAT seconds;
   at start, copies of sessions not marked alive for STALE seconds (crashed, killed or still
   frozen) are offered, the newest first: Restore (opened unsaved, Save writes to its file),

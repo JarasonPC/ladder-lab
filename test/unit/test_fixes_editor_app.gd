@@ -61,8 +61,7 @@ func after_each() -> void:
 
 
 func _example(index: int) -> void:
-	main._circuit_select.select(index)
-	main._load_example()
+	main._replace_document(ExampleCircuits.build(index), "")
 
 
 func _first(doc: SchematicDocument, type: Variant) -> CircuitComponent:
@@ -227,17 +226,6 @@ func test_reset_keeps_the_events_of_the_first_step() -> void:
 	main._start_simulation()
 	assert_false(main.view.last_result.events.is_empty(), "the short is logged in the first step")
 	assert_eq(main._timing_panel.event_log._entries.size(), main.view.last_result.events.size())
-
-
-func test_example_list_shows_its_placeholder_after_new() -> void:
-	_example(0)
-	main._new_document()
-	assert_eq(main._circuit_select.selected, -1)
-	assert_eq(main._circuit_select.text, "Example circuits…")
-	main._mark_dirty()
-	main._on_example_selected(2)
-	main._unsaved_dialog.hide()
-	assert_eq(main._circuit_select.text, "Example circuits…", "still shown while asking about unsaved changes")
 
 
 func test_page_window_follows_its_page() -> void:

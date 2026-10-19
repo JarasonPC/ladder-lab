@@ -39,7 +39,6 @@ var editor: SchematicEditor
 ## File of the edited schematic, "" when it was never saved.
 var _file_path: String = ""
 var _dirty: bool = false
-var _example_index: int = 0
 var _recent: PackedStringArray = PackedStringArray()
 var _dialog_purpose: DialogPurpose = DialogPurpose.OPEN
 ## Runs after a successful save started from the unsaved-changes prompt.
@@ -71,7 +70,6 @@ var _edit_button: Button
 var _simulate_button: Button
 var _schematic_button: Button
 var _workspace_button: Button
-var _circuit_select: OptionButton
 var _layout_select: OptionButton
 var _edit_tools: HBoxContainer
 var _undo_button: Button
@@ -484,13 +482,6 @@ func _build_ui() -> void:
 	_edit_button.button_pressed = true
 	bar.add_child(VSeparator.new())
 
-	_circuit_select = _option(bar)
-	_circuit_select.fit_to_longest_item = false
-	_circuit_select.clip_text = true
-	_circuit_select.custom_minimum_size = Vector2(220, 0)
-	for i: int in ExampleCircuits.count():
-		_circuit_select.add_item("")
-	_circuit_select.item_selected.connect(_on_example_selected)
 	_layout_select = _option(bar)
 	_layout_select.add_item("")
 	_layout_select.add_item("")
@@ -819,11 +810,6 @@ func _retranslate() -> void:
 	_workspace_button.tooltip_text = tr("Switchboards, control stations and the motors, limit switches and sensors in the field")
 	_edit_button.text = tr("Edit")
 	_simulate_button.text = tr("Simulate")
-	_circuit_select.tooltip_text = tr("Example circuit")
-	for i: int in ExampleCircuits.count():
-		_circuit_select.set_item_text(i, tr(ExampleCircuits.TITLES[i]))
-	if _circuit_select.selected < 0:
-		_circuit_select.text = tr("Example circuits…")
 	_layout_select.tooltip_text = tr("Direction of the current paths")
 	_layout_select.set_item_text(0, tr("Vertical"))
 	_layout_select.set_item_text(1, tr("Horizontal"))
@@ -1357,7 +1343,6 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 	editor.leave_page()
 	# Check results of another schematic (an undo keeps them, re-checked).
 	_check_panel.hide()
-	_show_example(-1)
 	_show_document(doc, true)
 	_file_path = path
 	_dirty = false
@@ -1368,30 +1353,6 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 ## An empty schematic of one page, as the program starts.
 func _start_blank() -> void:
 	_replace_document(SchematicDocument.new(tr("New schematic")), "")
-
-
-func _load_example() -> void:
-	var index: int = _circuit_select.selected
-	_replace_document(ExampleCircuits.build(index, _layout_select.selected == 1), "")
-	_show_example(index)
-
-
-## The example drop-down shows example [param index], or "Example circuits…"
-## (-1) for a schematic that is not an example (new, opened, restored), so
-## any example can be picked again.
-func _show_example(index: int) -> void:
-	_example_index = index
-	_circuit_select.select(index)
-	if index < 0:
-		_circuit_select.text = tr("Example circuits…")
-
-
-func _on_example_selected(index: int) -> void:
-	# Keep showing the current example until the user agreed to leave the schematic.
-	_show_example(_example_index)
-	_confirm_discard(func() -> void:
-		_circuit_select.select(index)
-		_load_example())
 
 
 func _new_document() -> void:

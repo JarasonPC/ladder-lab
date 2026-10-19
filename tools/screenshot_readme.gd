@@ -95,8 +95,7 @@ func _initialize() -> void:
 
 ## Loads built-in example [param index] (simulating, as the mode is).
 func _example(index: int) -> void:
-	(main.get("_circuit_select") as OptionButton).select(index)
-	main.call("_load_example")
+	main.call("_replace_document", ExampleCircuits.build(index, (main.get("_layout_select") as OptionButton).selected == 1), "")
 	await _frames(10)
 
 
