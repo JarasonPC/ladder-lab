@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.4.5 – 2026-10-19
+
 ### Panels
 - A switchboard has a door (Inside | Door at the top of the opened switchboard) with push
   buttons, switches, rotary cam switches and signal lamps on it, put on and edited like on a
