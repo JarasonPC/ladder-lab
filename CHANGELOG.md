@@ -14,6 +14,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - PLC ladder diagram: the chosen contact or coil is shown faintly where a click puts it
 - PLC ladder diagram: wires are drawn as in the schematic: click where the wire starts, click
   for corners, and it ends on the rail, an element or another wire (or with a double click)
+- Motors in the field turn on the workspace while simulating, as fast and in the direction they run
 - Workspace cables get a type by their use: CGSG-J to motors and limit switches, JYTY-O to
   control stations, shielded LiYCY to sensors, CYKY-J between switchboards (View > Cable types:
   Czech, or the European H07RN-F, H05VV5-F, H05VVC4V5-K, NYY-J)

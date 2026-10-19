@@ -692,3 +692,26 @@ func test_field_core_leaves_from_the_terminal_on_the_buttons_lead() -> void:
 			out.append(wire["to"])
 	assert_true(out.has("SB2:13"), "the core of net 101 leaves from X2:7: %s" % [out])
 	assert_false(out.has(breaker.get_terminal_keys()[1]), "not from X2:6 on the breaker's lead")
+
+
+func test_motors_turn_on_the_workspace_while_simulating() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("turning")
+	var motor: ThreePhaseMotor = ThreePhaseMotor.new("M1")
+	doc.add(motor, Vector2i(10, 10))
+	var single: Motor = Motor.new("M2")
+	doc.add(single, Vector2i(20, 10))
+	var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
+	canvas.document = doc
+	canvas.size = Vector2(600.0, 400.0)
+	add_child_autofree(canvas)
+	assert_eq(canvas.motor_turn("M1"), 0.0, "standing still")
+	motor.shaft = 1.0
+	motor.rotor_speed = -motor.model().rated_speed(0)
+	single.energized = true
+	assert_almost_eq(canvas.motor_turn("M1"), -1.0, 0.01, "full speed, counterclockwise")
+	assert_eq(canvas.motor_turn("M2"), 1.0, "a 1~ motor with power")
+	await wait_process_frames(3)
+	var spin: Dictionary = canvas.get("_spin")
+	assert_true(spin.has("M1") and spin.has("M2"), "their marks go round")
+	canvas.editing = true
+	assert_eq(canvas.motor_turn("M1"), 0.0, "not while editing")

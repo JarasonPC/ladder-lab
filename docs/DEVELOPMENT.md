@@ -179,7 +179,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   when it is renamed (as does the opened place, also after undo; WorkspaceView.follow_place) and
   closes when it is gone; keys it does not use go to main.gd's shortcuts). While simulating only
   the
-  opened place shows the circuit's state; the workspace stays plain. Older files: the rails of
+  opened place shows the circuit's state; on the workspace only the motors in the field turn
+  (three marks going round the ring of a motor's tile, WorkspaceCanvas.motor_turn: the share of
+  its rated speed, signed; SPIN_RATE turns a second at rated speed). Older files: the rails of
   "cabinet" become switchboard RA1, control boxes become stations ST1, ST2, … side by side
   (SchematicDocument.name_places)
 - Cables of the workspace (WorkspaceCables, no nodes): worked out from the wiring, never drawn

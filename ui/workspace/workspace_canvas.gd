@@ -37,6 +37,9 @@ const CABLE_CLEARANCE: float = 8.0
 const STUB: float = 14.0
 const LANE: float = 8.0
 const CORNER: float = 10.0
+## Turns a second of the marks on a motor's tile at the motor's rated speed
+## (the real speed would only flicker).
+const SPIN_RATE: float = 1.5
 ## Sides of a tile, clockwise from the left.
 const SIDE_LEFT: int = 0
 const SIDE_TOP: int = 1
@@ -65,6 +68,10 @@ var _dragging: bool = false
 var _pan_button: MouseButton = MOUSE_BUTTON_NONE
 var _pan_from: Vector2 = Vector2.ZERO
 var _panned: bool = false
+## Angle of the marks turning on each motor's tile while simulating
+## (designation -> radians), and whether any turned at the last frame.
+var _spin: Dictionary[String, float] = {}
+var _spinning: bool = false
 ## Cables of the document, worked out again after it changed.
 var _cables: Array[Dictionary] = []
 var _cables_dirty: bool = true
@@ -508,10 +515,35 @@ func show_item(key: String) -> void:
 			return
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _dragging and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		# The release went elsewhere: drop it where it is.
 		_drop()
+	# Motors turning while simulating: their marks go round.
+	var turning: bool = false
+	if not editing and document != null and is_visible_in_tree():
+		for designation: String in Workspace.field_devices(document.circuit):
+			var share: float = motor_turn(designation)
+			if share != 0.0:
+				_spin[designation] = fmod(_spin.get(designation, 0.0) + share * SPIN_RATE * TAU * delta, TAU)
+				turning = true
+	if turning or _spinning:
+		queue_redraw()
+	_spinning = turning
+
+
+## How fast motor [param designation] in the field turns while simulating:
+## a share of its rated speed, clockwise positive (a 1~ motor 1 while it
+## has power); 0 standing still and while editing.
+func motor_turn(designation: String) -> float:
+	if editing or document == null:
+		return 0.0
+	var c: CircuitComponent = Workspace.field_component(document.circuit, designation)
+	if c is ThreePhaseMotor:
+		return (c as ThreePhaseMotor).top_speed_share()
+	if c is Motor:
+		return 1.0 if (c as Motor).energized and not (c as Motor).burnt else 0.0
+	return 0.0
 
 
 # --- Input -----------------------------------------------------------------------------
@@ -803,6 +835,13 @@ func _draw_field(item: Dictionary) -> void:
 		else:
 			draw_rect(tile.grow(4.0), SchematicTheme.SELECTED, false, 2.0, true)
 	WorkspaceTile.draw(self, item["tile"], tile)
+	if item["tile"] == WorkspaceTile.Kind.MOTOR and motor_turn(item["name"]) != 0.0:
+		# Three marks going round on the ring of the motor's sign.
+		var turn: float = _spin.get(item["name"], 0.0)
+		var radius: float = tile.size.x * 10.5 / 32.0
+		for i: int in 3:
+			var start: float = turn + i * TAU / 3.0
+			draw_arc(tile.get_center(), radius, start, start + 0.7, 8, SchematicTheme.CURRENT, WorkspaceTile.SIGN_WIDTH * tile.size.x / 32.0 * 1.8, true)
 	var font: Font = AppTheme.schematic_font()
 	draw_string(font, Vector2(rect.position.x, tile.end.y + 16.0), "-" + str(item["name"]), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, TEXT_SIZE + 1, SchematicTheme.DESIGNATION)
 	draw_string(font, Vector2(rect.position.x, tile.end.y + 30.0), tr(field_title(item["tile"])), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, SMALL_SIZE, SchematicTheme.PATH_TEXT)
