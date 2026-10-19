@@ -4,6 +4,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#versioning); downloads are on the
 [Releases](https://github.com/JarasonPC/ladder-lab/releases) page.
 
+## Unreleased
+
 ## 0.4.2 – 2026-10-19
 
 ### Schematic editor
