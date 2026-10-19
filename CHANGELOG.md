@@ -34,6 +34,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   length; it then shows its voltage drop (marked above 4 %), and the length is written on the
   workspace and in the parts list
 
+### Files and export
+- The export preview has a largest sheet size (A5 to A0): pages go on the smallest sheet they
+  fit on up to it, larger ones are scaled down onto it
+
 ### Application
 - The example circuits are no longer in the program (the toolbar list is gone)
 
