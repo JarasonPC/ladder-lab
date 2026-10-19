@@ -1625,7 +1625,8 @@ func _on_lesson_edited() -> void:
 
 ## A step of the simulation: the lesson's steps done while simulating.
 func _on_lesson_stepped(_result: StepResult) -> void:
-	if _lesson_run == null or mode != Mode.SIMULATE:
+	# The tour switches to Simulate by itself: that does not count.
+	if _lesson_run == null or mode != Mode.SIMULATE or _tour.visible:
 		return
 	if _lesson_run.update_live(view.document):
 		_lesson_run.follow()
@@ -1706,8 +1707,11 @@ func _answer_welcome() -> void:
 ## it ends.
 func start_tour() -> void:
 	_answer_welcome()
-	_tour_mode = mode
-	_tour_area = area
+	# Started again from its own last stop (the Help menu), it keeps what
+	# was there before it.
+	if not _tour.visible:
+		_tour_mode = mode
+		_tour_area = area
 	_tour.start()
 
 

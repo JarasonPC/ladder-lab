@@ -3639,10 +3639,10 @@ msgid "Done."
 msgstr "Hotovo."
 
 msgid "Ticked by itself as soon as it happens while simulating."
-msgstr "Odškrtne se samo, jakmile se to při simulaci stane."
+msgstr "Zaškrtne se sám, jakmile se to při simulaci stane."
 
 msgid "Ticked by itself as soon as the drawing has it."
-msgstr "Odškrtne se samo, jakmile to bude ve schématu."
+msgstr "Zaškrtne se sám, jakmile to bude ve schématu."
 
 msgid "Check your circuit"
 msgstr "Zkontrolujte svůj obvod"
@@ -3684,11 +3684,11 @@ msgstr "V kroku %d zkušební běh zastavil zkrat."
 
 #, c-format
 msgid "At step %d %s should be on, but it is off."
-msgstr "V kroku %d má být %s zapnuto, ale je vypnuto."
+msgstr "V kroku %d má být %s zapnutý, ale je vypnutý."
 
 #, c-format
 msgid "At step %d %s should be off, but it is on."
-msgstr "V kroku %d má být %s vypnuto, ale je zapnuto."
+msgstr "V kroku %d má být %s vypnutý, ale je zapnutý."
 
 #, c-format
 msgid "press %s"

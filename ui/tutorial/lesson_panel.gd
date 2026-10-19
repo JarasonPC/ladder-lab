@@ -295,9 +295,9 @@ func _build_failure(goal: Lesson.Goal, r: Dictionary) -> void:
 
 ## The sentence saying what went wrong in [param r], a result of [param goal].
 func failure_text(goal: Lesson.Goal, r: Dictionary) -> String:
-	if r["short"]:
-		return tr("A short circuit stopped the test run at step %d.") % (r["phase"] + 1)
 	var phase: int = r["phase"]
+	if int(r["short"]) == phase:
+		return tr("A short circuit stopped the test run at step %d.") % (phase + 1)
 	for row: Dictionary in r["rows"]:
 		var expected: Variant = (row["expected"] as Array)[phase]
 		if expected == null or bool(expected) == bool((row["got"] as Array)[phase]):

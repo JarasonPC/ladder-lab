@@ -33,6 +33,17 @@ func _build_nets() -> void:
 	for pair: PackedStringArray in pairs:
 		if index.has(pair[0]) and index.has(pair[1]):
 			uf.union(index[pair[0]], index[pair[1]])
+	# Supply points of one conductor are one potential (as in the
+	# simulator), whichever of them a wire starts from: L1 and L1.2 alike.
+	var first_point: Dictionary[String, String] = {}
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is PowerSupply:
+			var supply: PowerSupply = c as PowerSupply
+			var conductor: String = "%d/%d" % [supply.conductor, supply.voltage]
+			if first_point.has(conductor):
+				uf.union(index[first_point[conductor]], index[c.designation])
+			else:
+				first_point[conductor] = c.designation
 	for key: String in index:
 		_net[key] = uf.find(index[key])
 
@@ -189,12 +200,12 @@ static func state_of(c: CircuitComponent) -> bool:
 ## Runs [param goal] on a copy of the schematic in the simulator (instant
 ## switching), with every breaker and fuse holder switched on first.
 ## Returns {"passed": bool, "phase": index of the first phase that went
-## wrong or -1, "short": bool (a short circuit stopped the run), "missing":
+## wrong or -1, "short": the phase a short circuit stopped the run at or -1, "missing":
 ## role of a part the schematic does not have or "", "rows": [{"role",
 ## "label", "got": Array[bool], "expected": Array (bool or null)}]}, a row
 ## per part operated or expected, a value per phase.
 func run(goal: Lesson.Goal) -> Dictionary:
-	var result: Dictionary = {"passed": false, "phase": -1, "short": false, "missing": "", "rows": []}
+	var result: Dictionary = {"passed": false, "phase": -1, "short": -1, "missing": "", "rows": []}
 	for role: String in goal.needs:
 		if not has(role):
 			result["missing"] = role
@@ -250,7 +261,7 @@ func run(goal: Lesson.Goal) -> Dictionary:
 			if expect.has(role) and got != bool(expect[role]) and result["phase"] < 0:
 				result["phase"] = i
 		if step.short_circuit:
-			result["short"] = true
+			result["short"] = i
 			if result["phase"] < 0:
 				result["phase"] = i
 			break

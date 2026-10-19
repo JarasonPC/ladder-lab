@@ -122,7 +122,7 @@ func test_a_short_circuit_stops_the_run() -> void:
 	doc.connect_terminals("H1:X1", "H1:X2")
 	var result: Dictionary = LessonCheck.new(doc, lesson).run(lesson.goals[0])
 	assert_false(result["passed"])
-	assert_true(result["short"])
+	assert_eq(result["short"], 0, "at the first step")
 
 
 func test_missing_part_is_named() -> void:
@@ -180,3 +180,23 @@ func test_live_state_ticks_the_simulation_steps() -> void:
 	(live.part("start") as PushButton).release()
 	sim.step()
 	assert_true(test_step.done.call(live, live))
+
+
+func test_overload_contact_fed_from_the_power_l1_counts() -> void:
+	# Both supply points are drawn "L1": either one feeds 95.
+	var lesson: Lesson = Lessons.motor()
+	var doc: SchematicDocument = lesson.solution.call()
+	doc.remove_wire(doc.wire_between("L1.2", "F1:95"))
+	doc.connect_terminals("L1", "F1:95")
+	assert_true(lesson.steps[5].done.call(LessonCheck.new(doc, lesson), null))
+
+
+func test_short_circuit_after_a_wrong_step_is_told_apart() -> void:
+	var goal: Lesson.Goal = Lesson.Goal.new()
+	goal.phases = Lessons._phases([{"expect": {"lamp": true}}, {"do": [["switch", "on"]]}])
+	var lesson: Lesson = Lessons.lamp_and_switch()
+	var doc: SchematicDocument = lesson.solution.call()
+	doc.connect_terminals("H1:X1", "H1:X2")
+	var result: Dictionary = LessonCheck.new(doc, lesson).run(goal)
+	assert_eq(result["phase"], 0, "the lamp was dark before")
+	assert_eq(result["short"], 1, "the short came with the switch")

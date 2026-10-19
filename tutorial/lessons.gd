@@ -200,7 +200,7 @@ static func _start_stop_circuit(doc: SchematicDocument, x: int, top: int, n_row:
 		doc.add(PowerSupply.new("N", N), Vector2i(x, n_row))
 	doc.connect_terminals(feed, "SB1:11")
 	doc.connect_terminals("SB1:12", "SB2:13")
-	doc.connect_terminals("SB1:12", "KM1:13", _c([Vector2i(x, top + 5), Vector2i(x + 4, top + 5)]))
+	doc.connect_terminals("SB2:13", "KM1:13", _c([Vector2i(x, top + 5), Vector2i(x + 4, top + 5)]))
 	doc.connect_terminals("SB2:14", "KM1:A1")
 	doc.connect_terminals("SB2:14", "KM1:14", _c([Vector2i(x, top + 10), Vector2i(x + 4, top + 10)]))
 	doc.connect_terminals("KM1:A2", "N")
@@ -271,7 +271,7 @@ static func start_stop() -> Lesson:
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("start") and e.bridges(e.part("hold"), e.key("start", 0), e.key("start", 1)))
 	s.hint = "A wire can end on another wire: a branch dot is put there."
 	s.focus = PackedStringArray(["start", "hold"])
-	s.wires = [["stop", 1, "hold", 0], ["start", 1, "hold", 1]]
+	s.wires = [["start", 0, "hold", 0], ["start", 1, "hold", 1]]
 	s = lesson.step("Add a lamp that shows it runs",
 		"Place another Contact NO to the right (it becomes 23-24 of -KM1) and Lamp -H1 under it.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("lamp_contact") and e.has("lamp"))

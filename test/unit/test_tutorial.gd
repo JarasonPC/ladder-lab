@@ -388,3 +388,25 @@ func test_lesson_4_followed_in_the_editor() -> void:
 	main._switch_mode(Main.Mode.EDIT)
 	main._check_lesson()
 	assert_true(main._lesson_run.passed())
+
+
+func test_the_tour_ticks_no_lesson_step() -> void:
+	main._begin_lesson(0)
+	main.start_tour()
+	main._tour.show_step(4)
+	main._tour._on_next()
+	main.view.step_once(0.1)
+	assert_eq(main.mode, Main.Mode.SIMULATE)
+	assert_false(main._lesson_run.done[7], "Simulate clicked by the tour")
+	main._tour.stop(false)
+	assert_eq(main.mode, Main.Mode.EDIT)
+
+
+func test_tour_started_again_from_its_last_stop_puts_back_the_first_mode() -> void:
+	main.start_tour()
+	main._tour.show_step(6)
+	main._tour.show_step(main._tour.steps.size() - 1)
+	assert_eq(main.mode, Main.Mode.SIMULATE, "the tour simulates from its sixth stop on")
+	main.start_tour()
+	main._tour.stop(true)
+	assert_eq(main.mode, Main.Mode.EDIT)
