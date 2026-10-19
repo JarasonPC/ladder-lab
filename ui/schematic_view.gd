@@ -441,14 +441,18 @@ func travel_positions() -> Dictionary[String, float]:
 
 
 ## Turns switch [param designation] over, as from a control box; a rotary
-## cam switch [param steps] positions to the right (negative: to the left),
-## or on to its next position for 0 (see [method CamSwitch.step_on]).
+## cam switch or an I-0-II selector switch [param steps] positions to the
+## right (negative: to the left), or on to its next position for 0 (see
+## [method CamSwitch.step_on]).
 func toggle_switch(designation: String, steps: int = 0) -> void:
 	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating:
 		return
 	if c is LatchingSwitch:
-		(c as LatchingSwitch).toggle()
+		if steps != 0 and (c as LatchingSwitch).three_positions:
+			(c as LatchingSwitch).turn(steps)
+		else:
+			(c as LatchingSwitch).toggle()
 	elif c is CamSwitch:
 		if steps == 0:
 			(c as CamSwitch).step_on()

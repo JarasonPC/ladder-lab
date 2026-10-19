@@ -64,7 +64,9 @@ const FORMAT: String = "ladder-lab"
 ## before: 100).
 ## 30: control stations shown on the workspace as their face ("face": its
 ## scale; missing before: as their tile).
-## 31: rotary cam switches ("cam_switch": poles, "positions" 0-I or I-0-II).
+## 31: rotary cam switches ("cam_switch": poles, "positions" 0-I or I-0-II);
+## selector switches with the positions I-0-II ("latching_switch" with
+## "positions": "I-0-II" and "operated_in" I or II; missing: 0-I).
 const VERSION: int = 31
 
 

@@ -78,6 +78,10 @@ func show_component(component: CircuitComponent) -> void:
 		"push_button", "latching_switch", "limit_switch", "contact":
 			_choice(tr("Contact"), "contact", ["NO", "NC"], [tr("NO (make)"), tr("NC (break)")])
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
+			if kind == "latching_switch":
+				_choice(tr("Positions"), "positions", ["0-I", "I-0-II"], [tr("0-I (off / on)"), tr("I-0-II (e.g. manual / off / auto)")])
+				if _data.get("positions", "0-I") == "I-0-II":
+					_choice(tr("Operated in position"), "operated_in", ["I", "II"], ["I", "II"])
 			if kind == "contact":
 				_check(tr("Delayed (timer contact)"), "delayed")
 		"coil":

@@ -170,3 +170,75 @@ func test_datasheet() -> void:
 	assert_eq(sheet.letters, "RB")
 	assert_eq(sheet.terminals.size(), 9, "three rows a pole")
 	assert_false(sheet.summary.is_empty())
+
+
+## L - RB1 13-14 (operated in I) - H1 - N and L - RB1 23-24 (operated in
+## II) - H2 - N: an I-0-II selector switch.
+func _selector() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new("selector")
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(0, 0))
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(0, 14))
+	for i: int in 2:
+		var block: LatchingSwitch = LatchingSwitch.new("RB1", SwitchingElement.ContactType.NO, i + 1)
+		block.three_positions = true
+		block.side = i + 1
+		doc.add(block, Vector2i(4 + 4 * i, 2))
+		doc.add(Lamp.new("H%d" % (i + 1)), Vector2i(4 + 4 * i, 8))
+		doc.connect_terminals("L", "RB1:%d3" % (i + 1))
+		doc.connect_terminals("RB1:%d4" % (i + 1), "H%d:X1" % (i + 1))
+		doc.connect_terminals("H%d:X2" % (i + 1), "N")
+	return doc
+
+
+func test_selector_switch_with_three_positions() -> void:
+	var doc: SchematicDocument = _selector()
+	var first: LatchingSwitch = doc.circuit.get_operator("RB1") as LatchingSwitch
+	var h1: Lamp = doc.circuit.get_component("H1") as Lamp
+	var h2: Lamp = doc.circuit.get_component("H2") as Lamp
+	var sim: Simulator = Simulator.new(doc.circuit)
+	sim.step()
+	assert_false(h1.energized or h2.energized, "0: neither block")
+	first.turn(-1)
+	sim.step()
+	assert_true(h1.energized, "I operates the block of I")
+	assert_false(h2.energized)
+	first.turn(2)
+	sim.step()
+	assert_false(h1.energized)
+	assert_true(h2.energized, "II the block of II")
+	assert_eq(first.get_position(), 2)
+	var seen: Array[int] = []
+	first.set_position(0)
+	for i: int in 4:
+		first.toggle()
+		seen.append(first.get_position())
+	assert_eq(seen, [1, 0, 2, 0], "a click turns it on: I, 0, II, 0")
+	var plain: LatchingSwitch = LatchingSwitch.new("RB2", SwitchingElement.ContactType.NO)
+	plain.set_position(2)
+	assert_eq(plain.get_position(), 0, "0-I has no position II")
+	plain.toggle()
+	assert_true(plain.switched_on)
+
+
+func test_selector_switch_saved_and_turned_from_a_station() -> void:
+	var doc: SchematicDocument = _selector()
+	var d: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("RB1:23-24"))
+	assert_eq(d["positions"], "I-0-II")
+	assert_eq(d["operated_in"], "II")
+	assert_false(DocumentSerializer.component_to_dict(LatchingSwitch.new("RB2", SwitchingElement.ContactType.NO)).has("positions"), "0-I as before")
+	var loaded: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	var block: LatchingSwitch = loaded.circuit.get_component("RB1:23-24") as LatchingSwitch
+	assert_true(block.three_positions)
+	assert_eq(block.side, 2)
+	doc.add_control_box_for_all()
+	doc.realistic_timing = false
+	var view: SchematicView = SchematicView.new()
+	add_child_autofree(view)
+	view.load_document(doc)
+	view.toggle_switch("RB1", 1)
+	var shown: SchematicDocument = view.document
+	assert_eq((shown.circuit.get_operator("RB1") as LatchingSwitch).get_position(), 2, "turned right to II")
+	assert_true((shown.circuit.get_component("H2") as Lamp).energized)
+	view.toggle_switch("RB1", -1)
+	view.toggle_switch("RB1", -1)
+	assert_true((shown.circuit.get_component("H1") as Lamp).energized, "on to I")

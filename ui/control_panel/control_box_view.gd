@@ -26,6 +26,9 @@ const PAD_BOTTOM: float = ControlBox.PAD_BOTTOM
 const TITLE_H: float = ControlBox.TITLE_H
 const PLATE := Vector2(64.0, 34.0)
 const BEZEL_R: float = 21.0
+## Half the side of a rotary cam switch's front plate (bigger than a
+## selector switch).
+const CAM_HALF: float = 27.0
 const CAP_R: float = 15.5
 const PLATE_FONT_SIZE: int = 12
 const MIN_PLATE_FONT_SIZE: int = 9
@@ -141,6 +144,25 @@ func _travel(designation: String) -> float:
 	return (c as SwitchingElement).get_travel() if c is SwitchingElement else 0.0
 
 
+## How far switch [param designation] is turned, -1 (left) .. 1 (right):
+## 0-I from 0 at the left to I at the right, I-0-II from I at the left
+## through 0 (up) to II at the right.
+func _turn(designation: String) -> float:
+	var c: CircuitComponent = _device(designation)
+	if not (c is LatchingSwitch):
+		return -1.0
+	var switch: LatchingSwitch = c as LatchingSwitch
+	if switch.three_positions:
+		return switch.actuator_two.position - switch.actuator.position
+	return switch.actuator.position * 2.0 - 1.0
+
+
+## True for a selector switch with the positions I-0-II.
+func _three_positions(designation: String) -> bool:
+	var c: CircuitComponent = _device(designation)
+	return c is LatchingSwitch and (c as LatchingSwitch).three_positions
+
+
 func _lit(designation: String) -> bool:
 	var c: CircuitComponent = _device(designation)
 	return c is Lamp and (c as Lamp).energized
@@ -179,7 +201,7 @@ func _gui_input(event: InputEvent) -> void:
 	if item.kind == ControlBoxItem.Kind.BUTTON:
 		_held = item.designation
 		button_held.emit(_held, true)
-	elif _device(item.designation) is CamSwitch:
+	elif _device(item.designation) is CamSwitch or _three_positions(item.designation):
 		switch_toggled.emit(item.designation, -1 if mb.position.x < _knob(_cells()[index]).x else 1)
 	else:
 		switch_toggled.emit(item.designation, 0)
@@ -274,7 +296,7 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 			if cam != null:
 				_draw_cam_switch(center, color, cam, light)
 			else:
-				_draw_switch(center, color, _travel(item.designation), light)
+				_draw_switch(center, color, _turn(item.designation), light, _three_positions(item.designation))
 		ControlBoxItem.Kind.LAMP:
 			_draw_lamp(center, BEZEL_R - 1.0, color, _lit(item.designation))
 	if not _assigned(item):
@@ -362,19 +384,23 @@ func _glow(center: Vector2, color: Color, light: int) -> void:
 			draw_circle(center, BEZEL_R + 1.0 + 3.0 * k, Color(color, 0.2 - 0.06 * k), true, -1.0, true)
 
 
-## Selector switch with positions 0 (turned left) and I (turned right); an
-## illuminated one ([param light] as for [method _draw_button]) has a lit grip.
-func _draw_switch(center: Vector2, color: Color, travel: float, light: int = -1) -> void:
+## Selector switch with positions 0 (turned left) and I (turned right), or
+## with [param three] I (left), 0 (up) and II (right); [param turn] -1 (left)
+## .. 1 (right) as [method _turn]. An illuminated one ([param light] as for
+## [method _draw_button]) has a lit grip.
+func _draw_switch(center: Vector2, color: Color, turn: float, light: int = -1, three: bool = false) -> void:
 	_glow(center, color, light)
 	var font: Font = AppTheme.bold_font()
-	for mark: int in 2:
-		var text: String = "0" if mark == 0 else "I"
+	var marks: PackedStringArray = PackedStringArray(["I", "0", "II"]) if three else PackedStringArray(["0", "I"])
+	for mark: int in marks.size():
+		var text: String = marks[mark]
 		var mark_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10)
-		var at: Vector2 = center + Vector2(-18.0 if mark == 0 else 18.0, -BEZEL_R + 1.0)
+		var x: float = (-18.0 + 36.0 * mark / float(marks.size() - 1))
+		var at: Vector2 = center + Vector2(x, -BEZEL_R + 1.0 - (5.0 if three and mark == 1 else 0.0))
 		draw_string(font, Vector2(at.x - mark_size.x * 0.5, at.y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, MARK_TEXT)
 	draw_circle(center, BEZEL_R, BEZEL, true, -1.0, true)
 	draw_circle(center, BEZEL_R - 3.0, BEZEL_INNER, true, -1.0, true)
-	var angle: float = lerpf(-PI * 0.25, PI * 0.25, travel)
+	var angle: float = turn * PI * 0.25
 	var along: Vector2 = Vector2(sin(angle), -cos(angle))
 	var across: Vector2 = Vector2(-along.y, along.x)
 	var grip: Color = _lit_color(color if color.get_luminance() > 0.1 else Color("45484c"), light)
@@ -394,29 +420,30 @@ func _draw_switch(center: Vector2, color: Color, travel: float, light: int = -1)
 ## (with a white stripe) at the position it is in.
 func _draw_cam_switch(center: Vector2, color: Color, cam: CamSwitch, light: int = -1) -> void:
 	_glow(center, color, light)
-	var half: float = BEZEL_R + 1.0
+	# Bigger than a selector switch, as the real ones are.
+	var half: float = CAM_HALF
 	_rounded(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), BEZEL, 3, Color(1, 1, 1, 0.08))
 	var font: Font = AppTheme.bold_font()
 	for position: int in cam.knob_positions():
 		var out: Vector2 = Vector2.UP.rotated(deg_to_rad(_cam_degrees(cam, position)))
 		var text: String = CamSwitch.MARKS[position]
-		var mark_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8)
-		var at: Vector2 = center + out * (half - 5.0)
-		draw_string(font, at + Vector2(-mark_size.x * 0.5, font.get_ascent(8) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, PLATE_TEXT)
-	draw_circle(center, 10.5, BEZEL_INNER, true, -1.0, true)
-	draw_arc(center, 10.5, 0.0, TAU, 32, Color(1, 1, 1, 0.12), 1.0, true)
+		var mark_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9)
+		var at: Vector2 = center + out * (half - 6.0)
+		draw_string(font, at + Vector2(-mark_size.x * 0.5, font.get_ascent(9) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, PLATE_TEXT)
+	draw_circle(center, 13.0, BEZEL_INNER, true, -1.0, true)
+	draw_arc(center, 13.0, 0.0, TAU, 32, Color(1, 1, 1, 0.12), 1.0, true)
 	var along: Vector2 = Vector2.UP.rotated(deg_to_rad(_cam_degrees(cam, cam.position)))
 	var across: Vector2 = Vector2(-along.y, along.x)
 	# A black grip on the black plate would vanish: it is moulded lighter.
 	var grip: Color = _lit_color(color if color.get_luminance() > 0.1 else Color("5c6167"), light)
 	var points: PackedVector2Array = PackedVector2Array([
-		center + along * 12.0 + across * 3.0, center + along * 12.0 - across * 3.0,
-		center - along * 11.0 - across * 4.5, center - along * 11.0 + across * 4.5,
+		center + along * 16.0 + across * 3.5, center + along * 16.0 - across * 3.5,
+		center - along * 14.0 - across * 5.5, center - along * 14.0 + across * 5.5,
 	])
 	draw_colored_polygon(points, grip)
 	points.append(points[0])
 	draw_polyline(points, grip.lightened(0.25), 1.0, true)
-	draw_line(center + along * 3.0, center + along * 10.5, Color(1, 1, 1, 0.9), 2.0, true)
+	draw_line(center + along * 4.0, center + along * 14.0, Color(1, 1, 1, 0.9), 2.0, true)
 
 
 ## Angle of the handle (degrees from straight up, clockwise) in [param position].

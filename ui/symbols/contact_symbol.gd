@@ -58,6 +58,14 @@ func _designation_anchor() -> Vector2:
 	return Vector2(-1.9 * G if has_mark else -1.3 * G, 1.5 * G)
 
 
+func _draw_labels() -> void:
+	super._draw_labels()
+	var switch: LatchingSwitch = component as LatchingSwitch
+	if switch != null and switch.three_positions:
+		# A block of an I-0-II selector switch: the position that operates it.
+		draw_label("I-0-II: " + ("II" if switch.side == 2 else "I"), _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+
+
 func _draw_shape(color: Color, _width: float) -> void:
 	var element: SwitchingElement = component as SwitchingElement
 	var is_nc: bool = element.contact_type == SwitchingElement.ContactType.NC

@@ -150,6 +150,8 @@ func _unregister(component: CircuitComponent) -> void:
 ## else to a circuit breaker with their designation (auxiliary contacts).
 func _relink_contacts() -> void:
 	var actuators: Dictionary[String, Armature] = {}
+	# Position II of I-0-II selector switches.
+	var seconds: Dictionary[String, Armature] = {}
 	var breakers: Dictionary[String, CircuitComponent] = {}
 	for c: CircuitComponent in _components:
 		if c is PushButton:
@@ -165,6 +167,10 @@ func _relink_contacts() -> void:
 				switch.actuator = actuators[c.designation]
 			else:
 				actuators[c.designation] = switch.actuator
+			if seconds.has(c.designation):
+				switch.actuator_two = seconds[c.designation]
+			else:
+				seconds[c.designation] = switch.actuator_two
 		elif (c is CircuitBreaker or c is MotorBreaker) and not breakers.has(c.designation):
 			breakers[c.designation] = c
 	for c: CircuitComponent in _components:
