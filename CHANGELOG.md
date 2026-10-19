@@ -4,7 +4,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#versioning); downloads are on the
 [Releases](https://github.com/JarasonPC/ladder-lab/releases) page.
 
-## Unreleased
+## 0.4.2 – 2026-10-19
 
 ### Schematic editor
 - Contactor and relay coils show what they are rated for: a band in the coil box with "~" for
@@ -17,6 +17,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Current path numbers are written without a box around them
 - The temperature sensor is drawn with its measuring element, a resistor varying with the
   temperature (as a Pt100), inside the transmitter box
+- lots of BUG FIXES and tiny features
 
 ## 0.4.1 – 2026-10-19
 
