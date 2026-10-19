@@ -35,6 +35,10 @@ const SPARE_ROWS: int = 6
 ## Tint of the element a click would put in (or take out).
 const GHOST := Color(1, 1, 1, 0.45)
 
+## On paper ([member PlcCanvas.paper]): the rows drawn, from x to y
+## (exclusive), shown at the top (a long ladder over several sheets).
+var paper_rows: Vector2i = Vector2i(0, 0)
+
 ## Selected element: {"row": r, "column": c} (column COLUMNS is the coil),
 ## {} for nothing.
 var selected: Dictionary = {}
@@ -180,6 +184,8 @@ func _ladder() -> PlcRung:
 ## Rows that can be drawn into: the ones used and spare ones below, at
 ## least as many as fill the view.
 func _rows_shown() -> int:
+	if paper:
+		return paper_rows.y
 	var rows: int = _ladder().row_count() + SPARE_ROWS
 	var view: float = size.y / zoom
 	return clampi(maxi(rows, ceili((view - TOP) / ROW_H)), 1, PlcRung.MAX_ROWS)
@@ -196,6 +202,8 @@ func _cell_x(c: int) -> float:
 
 func _content_size() -> Vector2:
 	var rows: int = (_ladder().row_count() if program != null else 1) + SPARE_ROWS
+	if paper:
+		rows = maxi(paper_rows.y - paper_rows.x, 1)
 	return Vector2(RAIL_X + PlcRung.COLUMNS * CELL_W + COIL_W + 40.0, TOP + rows * ROW_H + 20.0)
 
 
@@ -582,6 +590,32 @@ func _new_coil(what: String, old: Dictionary) -> Dictionary:
 	return coil
 
 
+## The rows of [param rung] shared out over sheets of paper, at most
+## [param per_sheet] each: whole rungs while they fit ([method
+## PlcRung.rung_groups]), a longer rung cut where the sheet is full. Each
+## Vector2i(first row, end row).
+static func paper_pages(rung: PlcRung, per_sheet: int) -> Array[Vector2i]:
+	var pages: Array[Vector2i] = []
+	var start: int = 0
+	var end: int = 0
+	for group: Vector2i in rung.rung_groups():
+		var group_end: int = group.y + 1
+		if group_end - start > per_sheet and end > start:
+			pages.append(Vector2i(start, end))
+			start = end
+		while group_end - start > per_sheet:
+			pages.append(Vector2i(start, start + per_sheet))
+			start += per_sheet
+		end = group_end
+	end = maxi(end, rung.row_count())
+	while end - start > per_sheet:
+		pages.append(Vector2i(start, start + per_sheet))
+		start += per_sheet
+	if end > start or pages.is_empty():
+		pages.append(Vector2i(start, maxi(end, start + 1)))
+	return pages
+
+
 ## Value of a new comparing contact or AQ coil, on the PLC's scale.
 func _default_value() -> float:
 	return PlcRung.DEFAULT_VALUE * full_scale / PlcBlock.ANALOG_MAX
@@ -614,8 +648,11 @@ func _draw() -> void:
 	# Where a click puts the palette tool's element: drawn there faintly (an
 	# element the eraser or a link the branch tool would take out too).
 	var aim: Dictionary = _aim()
+	# On paper the first row drawn at the top, the rows above it cut off.
+	var shift: float = paper_rows.x * ROW_H * z if paper else 0.0
+	draw_set_transform(Vector2(0.0, -shift))
 	# The power rail, all the way down.
-	draw_line(Vector2(RAIL_X * z, 0.0), Vector2(RAIL_X * z, size.y), signal_color(true), 3.0 * z)
+	draw_line(Vector2(RAIL_X * z, shift), Vector2(RAIL_X * z, shift + size.y), signal_color(true), 3.0 * z)
 	# Rung numbers left of the rail.
 	var groups: Array[Vector2i] = rung.rung_groups()
 	for g: int in groups.size():
@@ -623,9 +660,9 @@ func _draw() -> void:
 		if g > 0:
 			var y_top: float = (TOP + groups[g].x * ROW_H) * z
 			draw_dashed_line(Vector2((RAIL_X + 4.0) * z, y_top), Vector2(_cell_x(PlcRung.COLUMNS) * z + COIL_W * z, y_top), Color(SchematicTheme.LINE, 0.12), 1.0, 4.0 * z)
-	for r: int in _rows_shown():
+	for r: int in range(paper_rows.x if paper else 0, _rows_shown()):
 		var y: float = _row_y(r) * z
-		if y - ROW_H * z > size.y:
+		if y - shift - ROW_H * z > size.y:
 			break
 		var real: bool = r < rung.row_count()
 		for c: int in PlcRung.COLUMNS:

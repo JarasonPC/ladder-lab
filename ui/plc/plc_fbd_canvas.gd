@@ -207,11 +207,12 @@ func _cells(pixel: Vector2) -> Vector2:
 
 
 func _content_size() -> Vector2:
-	# Room beyond the blocks to place more and to drag them further.
-	var extent: Vector2 = Vector2(60, 40)
+	# Room beyond the blocks to place more and to drag them further (on
+	# paper just round them).
+	var extent: Vector2 = Vector2.ZERO if paper else Vector2(60, 40)
 	if program != null:
 		for b: PlcBlock in program.blocks:
-			extent = extent.max(Vector2(b.cell + block_size(b)) + Vector2(24, 16))
+			extent = extent.max(Vector2(b.cell + block_size(b)) + (Vector2(2, 2) if paper else Vector2(24, 16)))
 	return (extent + Vector2(MARGIN, MARGIN)) * U
 
 

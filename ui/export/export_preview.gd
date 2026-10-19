@@ -3,8 +3,8 @@ extends ConfirmationDialog
 ## Shows the sheets about to be exported (PNG: the page shown, PDF: every
 ## page) as they will be saved, one at a time with page buttons, and the
 ## paper each is on. The wire numbers can be left out; a PDF holds, as
-## ticked, the schematic, the control stations, the switchboards, the
-## workspace and the parts list. OK asks where to save.
+## ticked, the schematic, the control stations, the switchboards, the PLC
+## programs, the workspace and the parts list. OK asks where to save.
 
 ## Wire numbers were switched on or off: render the sheets again.
 signal wire_numbers_toggled(on: bool)
@@ -14,8 +14,8 @@ signal contents_changed
 signal paper_changed
 
 ## What a PDF can hold, in order (keys of [method contents]).
-const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "workspace", "parts_list"]
-const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "Workspace", "Parts list"]
+const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "plc_programs", "workspace", "parts_list"]
+const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "PLC programs", "Workspace", "Parts list"]
 
 var _picture: TextureRect
 var _status: Label

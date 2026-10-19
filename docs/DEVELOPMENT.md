@@ -132,7 +132,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   remembered in the user settings, section "export"): the schematic, the control stations
   (StationsSheet: ControlBoxViews with their names, side by side, shared out over A4 sheets by
   StationsSheet.arrange: as many as fit, then the next sheet), each switchboard with something in
-  it on a sheet of its own (CabinetView SWITCHBOARD_WIDTH wide), the workspace
+  it on a sheet of its own, the PLC programs (PlcCanvas.paper: read-only, no editing aids; a
+  function block diagram on one sheet, a ladder LADDER_ROWS rows to a sheet,
+  PlcLadCanvas.paper_pages / paper_rows, whole rungs together where they fit) (CabinetView SWITCHBOARD_WIDTH wide), the workspace
   (WorkspaceCanvas at zoom 1 around WorkspaceCanvas.bounds) and the parts list (PartsList.rows:
   devices under the place they sit in, terminal strips with their count, the groups' and other
   parts in the field, what has no place, the cables with type and ends; within a place identical

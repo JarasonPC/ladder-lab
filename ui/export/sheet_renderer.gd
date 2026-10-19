@@ -12,6 +12,8 @@ const DPI: float = 200.0
 ## Most pixels along a sheet's longer side: large sheets (A1, A0) are
 ## rendered at fewer dots per inch.
 const MAX_PIXELS: float = 8192.0
+## Rows of a ladder diagram on one sheet (A4 portrait at about full size).
+const LADDER_ROWS: int = 16
 ## Pages rendered in the same frame (each needs a viewport the size of its sheet).
 const BATCH: int = 4
 ## Width of a switchboard on its sheet, in world pixels.
@@ -36,6 +38,7 @@ var stations: bool = false
 var switchboards: bool = false
 var workspace: bool = false
 var parts_list: bool = false
+var plc_programs: bool = false
 ## Layouts of the pages rendered last, in the same order.
 var layouts: Array[SheetLayout] = []
 
@@ -73,7 +76,17 @@ static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 		"stations": not doc.control_boxes.is_empty(),
 		"switchboards": fitted,
 		"workspace": not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()),
+		"plc_programs": not _programs(doc).is_empty(),
 	}
+
+
+## The PLCs of [param doc] with a program, in circuit order.
+static func _programs(doc: SchematicDocument) -> Array[Plc]:
+	var result: Array[Plc] = []
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is Plc and not (c as Plc).program.is_empty():
+			result.append(c as Plc)
+	return result
 
 
 ## True when something sits on the rails of [param board] (an empty
@@ -102,6 +115,13 @@ func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary
 		for b: int in doc.switchboards.size():
 			if _fitted(doc.switchboards[b]):
 				result.append({"kind": "switchboard", "board": b})
+	if plc_programs:
+		for plc: Plc in _programs(doc):
+			if plc.program.language == PlcProgram.Language.LAD:
+				for rows: Vector2i in PlcLadCanvas.paper_pages(plc.program.rungs[0], LADDER_ROWS):
+					result.append({"kind": "plc", "id": plc.id, "rows": rows})
+			else:
+				result.append({"kind": "plc", "id": plc.id})
 	if workspace and available(doc)["workspace"]:
 		result.append({"kind": "workspace"})
 	if parts_list:
@@ -202,6 +222,22 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			cabinet.size = cabinet.drawn_size()
 			frame.page_title = "+%s  %s" % [board.name, board.title if not board.title.is_empty() else tr("Switchboard")]
 			extent = Rect2(Vector2.ZERO, cabinet.size / G)
+		"plc":
+			var plc: Plc = copy.circuit.get_component(spec["id"]) as Plc
+			var lad: bool = plc.program.language == PlcProgram.Language.LAD
+			var diagram: PlcCanvas = PlcLadCanvas.new() if lad else PlcFbdCanvas.new()
+			diagram.paper = true
+			if lad:
+				(diagram as PlcLadCanvas).paper_rows = spec["rows"]
+			# Kept with the sheet: the diagram writes operands through it.
+			sheet["plc"] = plc
+			diagram.address = plc.address
+			diagram.full_scale = plc.full_scale()
+			diagram.show_program(plc.program, null)
+			diagram.size = diagram.custom_minimum_size
+			content.add_child(diagram)
+			frame.page_title = "-%s  %s" % [plc.designation, tr("Ladder diagram (LAD)") if lad else tr("Function block diagram (FBD)")]
+			extent = Rect2(Vector2.ZERO, diagram.size / G)
 		"workspace":
 			var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
 			canvas.document = copy
