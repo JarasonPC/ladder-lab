@@ -620,7 +620,7 @@ func test_pe_goes_through_a_distribution_block_for_more_than_two_loads() -> void
 	assert_true(block["origin"].x > strip_x1["origin"].x, "right after it")
 	# A star: every PE wire inside the switchboard goes to the block, one to
 	# each of its connections.
-	var used: Dictionary[float, int] = {}
+	var used: Dictionary[Vector2, int] = {}
 	var pe_wires: int = 0
 	for wire: Dictionary in layout.wiring.wires:
 		if wire["conductor"] != CabinetDevices.Conductor.PE or wire["external"]:
@@ -633,10 +633,11 @@ func test_pe_goes_through_a_distribution_block_for_more_than_two_loads() -> void
 				at_block.append(end)
 		assert_eq(at_block.size(), 1, "%s-%s: from the block" % [wire["from"], wire["to"]])
 		if at_block.size() == 1:
-			used[snappedf(at_block[0].x, 0.01)] = used.get(snappedf(at_block[0].x, 0.01), 0) + 1
+			var at: Vector2 = at_block[0].snapped(Vector2(0.01, 0.01))
+			used[at] = used.get(at, 0) + 1
 	assert_eq(pe_wires, 4, "the incoming PE and the three motors'")
-	for x: float in used:
-		assert_eq(used[x], 1, "one wire in each connection")
+	for at: Vector2 in used:
+		assert_eq(used[at], 1, "one wire in each connection")
 	var names: Array = []
 	for row: Dictionary in PartsList.new().rows(doc):
 		names.append(row.get("name", ""))
