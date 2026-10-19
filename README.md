@@ -9,6 +9,8 @@ The application is in English and Czech, and follows Czech practice
 (ČSN EN 60617 / 81346 / 60947 / 60445): designations such as -KM1, -KA1, -KT1, -SB1,
 contact numbering 13-14 / 21-22, coils A1-A2.
 
+![A star/delta start simulated: the schematic with the wires coloured by voltage, the timing chart and the event log](docs/screenshots/schematic.png)
+
 ## Features
 
 - **Schematic editor**: supplies (L1 L2 L3 N PE, DC + and -), push buttons, switches,
@@ -36,6 +38,13 @@ contact numbering 13-14 / 21-22, coils A1-A2.
 - **Export**: pages as PNG or all pages as PDF on A4 / A3 sheets with a frame and title block.
 - **Examples**: self-holding start/stop, forward/reverse, star/delta start, time relays
   and more.
+
+## Screenshots
+
+| Switchboard | Control station | PLC program |
+| --- | --- | --- |
+| [![The switchboard of the star/delta start while simulating](docs/screenshots/switchboard.png)](docs/screenshots/switchboard.png) | [![A control station with illuminated push buttons, the forward lamp lit](docs/screenshots/station.png)](docs/screenshots/station.png) | [![The PLC window with a ladder diagram running](docs/screenshots/plc.png)](docs/screenshots/plc.png) |
+| DIN rails, breakers, contactors and terminal strips drawn like the real cabinet, wired after the schematic | Push buttons and signal lamps that operate the simulated circuit | A ladder diagram running in the simulation, power flow shown live |
 
 ## Download
 
