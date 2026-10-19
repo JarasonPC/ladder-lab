@@ -263,7 +263,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   CabinetPanel beside the drawing (undoable, "Fill from the schematic" fills the opened
   switchboard), breakers, fuse holders and overload relays operated there while simulating.
   tools/screenshot_workspace.gd screenshots the app's workspace, a switchboard and a station
-  (xvfb) for visual review
+  (xvfb) for visual review; tools/screenshot_readme.gd takes the screenshots in README.md
+  (docs/screenshots/, kept out of the project by a .gdignore): retake them when the look changes
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
