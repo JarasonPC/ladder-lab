@@ -740,7 +740,7 @@ func _open_context_menu() -> void:
 	_menu.add_separator()
 	_menu.add_item(tr("Select all"), MenuId.SELECT_ALL, KEY_MASK_CTRL | KEY_A)
 	_menu.reset_size()
-	_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(_menu)
 
 
 func _on_menu_id(id: int) -> void:

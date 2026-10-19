@@ -130,7 +130,7 @@ func _open_item_menu(index: int) -> void:
 	var key: String = _document.key_bindings.get(item.designation, "")
 	_menu.add_item(tr("Bind a key…") + ("  [%s]" % key if not key.is_empty() else ""))
 	_menu.reset_size()
-	_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(_menu)
 
 
 func _process(_delta: float) -> void:

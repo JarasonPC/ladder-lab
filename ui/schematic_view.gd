@@ -309,7 +309,8 @@ func _update_visuals() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if document == null or not simulating:
+	# Hidden (the workspace is shown), the drawing takes no clicks.
+	if document == null or not simulating or not is_visible_in_tree():
 		return
 	if event is InputEventMouseMotion:
 		_update_hover()
@@ -488,7 +489,7 @@ func _open_keypad(drive: Vfd) -> void:
 		box.add_child(note)
 	popup.popup_hide.connect(popup.queue_free)
 	add_child(popup)
-	popup.popup(Rect2i(Vector2i(get_viewport().get_mouse_position()) + Vector2i(12, 12), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(popup, Vector2(12, 12))
 
 
 ## A slider under the mouse setting the temperature at [param sensor], a
@@ -525,7 +526,7 @@ func _open_temperature(sensor: TemperatureSensor) -> void:
 		set_temperature(designation, v))
 	popup.popup_hide.connect(popup.queue_free)
 	add_child(popup)
-	popup.popup(Rect2i(Vector2i(get_viewport().get_mouse_position()) + Vector2i(12, 12), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(popup, Vector2(12, 12))
 
 
 ## Operates breaker, fuse holder or overload relay [param designation] as a
@@ -586,7 +587,20 @@ func _open_fault_menu() -> void:
 	var point: Vector2 = get_local_mouse_position() / G
 	_fault_target = document.component_at(point, page)
 	_fault_wire = document.wire_at(point, 0.3, page) if _fault_target == null else -1
+	_fill_fault_menu()
+	AppTheme.popup_at_mouse(_fault_menu)
+
+
+## The faults [member _fault_target] or [member _fault_wire] can be given,
+## a burnt-out part's replacement first.
+func _fill_fault_menu() -> void:
 	_fault_menu.clear()
+	var burnt: bool = _fault_target is Load and (_fault_target as Load).burnt
+	if burnt:
+		# Replacing the part also takes away its other faults.
+		_fault_menu.add_item(tr("Replace the burnt-out part"), FaultId.CLEAR)
+		_fault_menu.add_separator()
+	var first: int = _fault_menu.item_count
 	if _fault_target is SwitchingElement and not (_fault_target is ProtectiveDevice) or _fault_target is ChangeoverContact or _fault_target is MainContacts:
 		_fault_menu.add_item(tr("Contact welded (stays closed)"), FaultId.WELDED)
 		_fault_menu.add_item(tr("Contact burnt (does not close)"), FaultId.CONTACT_OPEN)
@@ -599,16 +613,11 @@ func _open_fault_menu() -> void:
 		_fault_menu.add_item(tr("Motor overloaded"), FaultId.OVERLOAD)
 	elif _fault_wire >= 0:
 		_fault_menu.add_item(tr("Broken wire"), FaultId.WIRE_BROKEN)
-	if _fault_target is Load and (_fault_target as Load).burnt and _fault_menu.item_count == 0:
-		_fault_menu.add_item(tr("Replace the burnt-out part"), FaultId.CLEAR)
-		_fault_menu.add_separator()
-	elif _fault_menu.item_count > 0:
-		if _has_fault(_fault_target) or document.circuit.broken_wires.has(_fault_wire):
+	if _fault_menu.item_count > first:
+		if not burnt and (_has_fault(_fault_target) or document.circuit.broken_wires.has(_fault_wire)):
 			_fault_menu.add_item(tr("Remove fault"), FaultId.CLEAR)
 		_fault_menu.add_separator()
 	_fault_menu.add_item(tr("Remove all faults"), FaultId.CLEAR_ALL)
-	_fault_menu.reset_size()
-	_fault_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
 
 
 func _on_fault_menu(id: int) -> void:

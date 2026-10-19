@@ -609,6 +609,8 @@ func _build_ui() -> void:
 	bottom.add_child(status)
 	_status_label = _label(status)
 	_status_label.add_theme_font_size_override("font_size", AppTheme.SMALL_FONT_SIZE)
+	_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_WORD_ELLIPSIS
+	get_viewport().size_changed.connect(_fit_status_label)
 	_hint_label = _label(status)
 	_hint_label.theme_type_variation = "MutedLabel"
 	_hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1463,6 +1465,8 @@ func _single_selected() -> CircuitComponent:
 func _on_run_pressed() -> void:
 	view.running = not view.running
 	_update_run_button()
+	# Paused, no step comes to say so.
+	_show_status(view.last_result)
 
 
 func set_language(index: int) -> void:
@@ -1862,7 +1866,7 @@ func _open_page_menu(tab: int) -> void:
 
 func _popup_page_menu() -> void:
 	_page_menu.reset_size()
-	_page_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(_page_menu)
 
 
 func _on_page_menu(id: int) -> void:
@@ -2156,6 +2160,21 @@ func _on_editor_hint(text: String) -> void:
 	_editor_hint = text
 	if mode == Mode.EDIT and area == Area.SCHEMATIC and _status_label != null:
 		_status_label.text = text
+		_fit_status_label()
+
+
+## The status keeps its whole text while the window has room for it, the
+## hint beside it giving way first; a status longer than the window is cut
+## short.
+func _fit_status_label() -> void:
+	if _status_label == null:
+		return
+	var row: HBoxContainer = _status_label.get_parent() as HBoxContainer
+	var bar: Control = row.get_parent() as Control
+	var room: float = get_viewport().get_visible_rect().size.x - bar.get_theme_stylebox("panel").get_minimum_size().x - row.get_theme_constant("separation") - _hint_label.get_combined_minimum_size().x
+	var font: Font = _status_label.get_theme_font("font")
+	var need: float = font.get_string_size(_status_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _status_label.get_theme_font_size("font_size")).x + _status_label.get_theme_stylebox("normal").get_minimum_size().x
+	_status_label.custom_minimum_size.x = clampf(ceilf(need), 0.0, floorf(room))
 
 
 func _on_stepped(result: StepResult) -> void:
@@ -2169,29 +2188,38 @@ func _on_stepped(result: StepResult) -> void:
 		_status_label.text = _editor_hint if area == Area.SCHEMATIC else ""
 		_status_label.remove_theme_color_override("font_color")
 		_hint_label.text = tr("Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else ""
+		_fit_status_label()
 		return
 	_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else tr("Open a control station to press its buttons, a switchboard to switch its breakers.")
 	_time_label.text = "%.3f s" % view.sim_time
 	_timing_panel.chart.set_time(view.sim_time)
+	_show_status(result)
+
+
+## The status bar while simulating: a fault or warning of [param result],
+## else running or paused. In the app theme's colours: the bar is not
+## schematic paper.
+func _show_status(result: StepResult) -> void:
 	var tripped: String = _tripped_protection()
 	if result.short_circuit:
 		_status_label.text = tr("NO FUSE and SHORT CIRCUIT! %s") % " → ".join(result.short_circuit_path)
-		_status_label.add_theme_color_override("font_color", SchematicTheme.FAULT)
+		_status_label.add_theme_color_override("font_color", AppTheme.danger)
 	elif not tripped.is_empty():
 		_status_label.text = tripped
-		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
+		_status_label.add_theme_color_override("font_color", AppTheme.warning)
 	elif not _motor_trouble().is_empty():
 		_status_label.text = _motor_trouble()
-		_status_label.add_theme_color_override("font_color", SchematicTheme.FAULT)
+		_status_label.add_theme_color_override("font_color", AppTheme.danger)
 	elif not result.chatter_hz.is_empty():
 		var parts: PackedStringArray = PackedStringArray()
 		for designation: String in result.chatter_hz:
 			parts.append(tr("%s is chattering (about %d Hz)") % [designation, roundi(result.chatter_hz[designation])])
 		_status_label.text = ", ".join(parts)
-		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
+		_status_label.add_theme_color_override("font_color", AppTheme.warning)
 	elif result.is_oscillating():
 		_status_label.text = tr("Oscillation: %s keeps switching on and off") % ", ".join(result.oscillating_tags)
-		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
+		_status_label.add_theme_color_override("font_color", AppTheme.warning)
 	else:
 		_status_label.text = tr("Running") if view.running else tr("Paused")
 		_status_label.remove_theme_color_override("font_color")
+	_fit_status_label()

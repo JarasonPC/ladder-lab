@@ -137,9 +137,10 @@ static func use(new_variant: Variant) -> void:
 		chart_grid = Color(0, 0, 0, 0.07)
 	accent_soft = Color(accent, 0.18)
 	on_accent = Color.WHITE
-	danger = Color("e5484d")
-	warning = Color("e8962e")
-	success = Color("30a46c")
+	# Darker on light surfaces, so warnings in text stay readable.
+	danger = Color("e5484d") if variant == Variant.DARK else Color("cd2b31")
+	warning = Color("e8962e") if variant == Variant.DARK else Color("ad5700")
+	success = Color("30a46c") if variant == Variant.DARK else Color("18794e")
 
 
 static func ui_font() -> Font:
@@ -217,6 +218,39 @@ static func _check_icon(checked: bool, radio: bool) -> Texture2D:
 	var texture: Texture2D = DPITexture.create_from_string(svg)
 	_icons[key] = texture
 	return texture
+
+
+## Round slider grabber: white with a ring in [param ring].
+static func _grabber_icon(ring: Color) -> Texture2D:
+	var key: String = "grabber/%s" % ring.to_html()
+	if _icons.has(key):
+		return _icons[key]
+	var svg: String = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#ffffff" stroke="#%s" stroke-width="2.5"/></svg>' % ring.to_html(false)
+	var texture: Texture2D = DPITexture.create_from_string(svg)
+	_icons[key] = texture
+	return texture
+
+
+## Opens [param popup] (a menu or a panel) at the mouse, [param gap] logical
+## pixels beside it, drawn at the interface size of the window it belongs
+## to. The mouse is read in the window's scaled content, a popup is placed
+## in the window's pixels; a menu under a zoomed drawing would also take
+## its zoom.
+static func popup_at_mouse(popup: Window, gap: Vector2 = Vector2.ZERO) -> void:
+	var host: Window = popup.get_parent().get_window()
+	var factor: float = host.content_scale_factor
+	var at: Vector2 = (host.get_mouse_position() + gap) * factor
+	popup.content_scale_factor = factor
+	popup.reset_size()
+	popup.popup_on_parent(Rect2i(Vector2i(at), Vector2i.ZERO))
+	if not is_equal_approx(popup.content_scale_factor, factor):
+		# The menu took the scale of the canvas it is under: back to the
+		# window's, sized and kept on the screen again.
+		popup.content_scale_factor = factor
+		popup.min_size = Vector2i.ZERO
+		popup.reset_size()
+		var screen: Rect2i = DisplayServer.screen_get_usable_rect(popup.current_screen)
+		popup.position = (host.position + Vector2i(at)).clamp(screen.position, screen.end - popup.size)
 
 
 ## Flat rounded box.
@@ -376,7 +410,6 @@ static func build() -> Theme:
 	t.set_icon("unchecked", "PopupMenu", _check_icon(false, false))
 	t.set_icon("radio_checked", "PopupMenu", _check_icon(true, true))
 	t.set_icon("radio_unchecked", "PopupMenu", _check_icon(false, true))
-	t.set_stylebox("panel", "PopupPanel", popup)
 
 	# Text fields.
 	var edit: StyleBoxFlat = box(bg0, RADIUS, 9.0, 5.0, border_strong if variant == Variant.LIGHT else border, 1)
@@ -402,6 +435,26 @@ static func build() -> Theme:
 		t.set_constant("h_separation", type, 8)
 	t.set_icon("checked", "CheckBox", _check_icon(true, false))
 	t.set_icon("unchecked", "CheckBox", _check_icon(false, false))
+
+	# Sliders: a thin track, filled in the accent colour up to a round grabber.
+	t.set_stylebox("slider", "HSlider", box(bg3, 3, 0.0, 2.0))
+	t.set_stylebox("grabber_area", "HSlider", box(accent, 3, 0.0, 2.0))
+	t.set_stylebox("grabber_area_highlight", "HSlider", box(accent_hover, 3, 0.0, 2.0))
+	t.set_icon("grabber", "HSlider", _grabber_icon(accent))
+	t.set_icon("grabber_highlight", "HSlider", _grabber_icon(accent_hover))
+	t.set_icon("grabber_disabled", "HSlider", _grabber_icon(border_strong))
+	# Spin boxes (their field is a LineEdit): arrows in the text colours.
+	for arrow: String in ["up", "down"]:
+		t.set_color(arrow + "_icon_modulate", "SpinBox", text_muted)
+		t.set_color(arrow + "_hover_icon_modulate", "SpinBox", text)
+		t.set_color(arrow + "_pressed_icon_modulate", "SpinBox", accent)
+		t.set_color(arrow + "_disabled_icon_modulate", "SpinBox", text_faint)
+		t.set_stylebox(arrow + "_background", "SpinBox", none)
+		t.set_stylebox(arrow + "_background_hovered", "SpinBox", box(bg2, RADIUS - 2, 0.0, 0.0))
+		t.set_stylebox(arrow + "_background_pressed", "SpinBox", box(accent_soft, RADIUS - 2, 0.0, 0.0))
+		t.set_stylebox(arrow + "_background_disabled", "SpinBox", none)
+	t.set_stylebox("field_and_buttons_separator", "SpinBox", none)
+	t.set_stylebox("up_down_buttons_separator", "SpinBox", none)
 
 	# Panels.
 	t.set_stylebox("panel", "PanelContainer", box(bg1, 0, 0.0, 0.0))

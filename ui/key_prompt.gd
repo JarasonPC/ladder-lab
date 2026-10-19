@@ -41,6 +41,8 @@ func ask(designation: String, what: String, current: String) -> void:
 		text += "  (" + what + ")"
 	text += "\n" + (tr("Now: %s") % current if not current.is_empty() else tr("No key yet."))
 	_note.text = text
+	# At the interface size of the window it is asked from.
+	content_scale_factor = get_parent().get_window().content_scale_factor
 	reset_size()
 	popup_centered()
 
