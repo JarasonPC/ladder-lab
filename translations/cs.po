@@ -459,6 +459,30 @@ msgstr "Zrcadlit zleva doprava"
 msgid "Mirror top-bottom"
 msgstr "Zrcadlit shora dolů"
 
+msgid "Line up vertically…"
+msgstr "Seřadit pod sebe…"
+
+msgid "One under another, the same number of cells apart"
+msgstr "Pod sebou, se stejným počtem polí mezi nimi"
+
+msgid "Line up horizontally…"
+msgstr "Seřadit vedle sebe…"
+
+msgid "Side by side, the same number of cells apart"
+msgstr "Vedle sebe, se stejným počtem polí mezi nimi"
+
+msgid "Line up vertically"
+msgstr "Seřadit pod sebe"
+
+msgid "Line up horizontally"
+msgstr "Seřadit vedle sebe"
+
+msgid "Line up"
+msgstr "Seřadit"
+
+msgid "Free cells between the parts:"
+msgstr "Volná pole mezi součástkami:"
+
 msgid "Cut"
 msgstr "Vyjmout"
 
