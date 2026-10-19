@@ -10,6 +10,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The terminal strip labels of a motor or of three poles side by side are all written alike,
   on one line in one size past their marks beside the wires, no longer some a size smaller or
   on two lines; a strip label no longer runs onto a terminal of its own part (a motor's PE)
+- In the switchboard the wires go into the middle of their strip terminals at every zoom;
+  at some zoom levels they drifted off the terminals along the strip
 
 ## 0.4.5 – 2026-10-19
 

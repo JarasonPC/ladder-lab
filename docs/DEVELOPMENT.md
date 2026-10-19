@@ -449,7 +449,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   again only when what it shows changed, the layers scaled while the zoom changes and painted
   sharp CabinetView.ZOOM_SETTLE after it; laid out again until the scale it fits at changes by
   less than CabinetView.SETTLED, as the terminal strips snapped to whole pixels make it a little
-  wider or narrower at each scale; while simulating the places are only described again,
+  wider or narrower at each scale, and painted at the scale it was last laid out at
+  (CabinetView._built_k: the wires were routed to terminals at that scale's pitch); while simulating the places are only described again,
   CabinetLayout.describe_again); each switchboard is laid out
   and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Strip
   terminals leading to parts on the switchboard's own door send their cores to the door as

@@ -84,6 +84,11 @@ var _layout: CabinetLayout
 ## Scale [member _layout] was laid out at; it is laid out again when the
 ## scale changes, while editing on every redraw, and after [method refresh].
 var _layout_k: float = 0.0
+## Scale [member _layout] and its wiring were built at, which it is painted
+## at: the terminal strips' pitch is rounded to whole pixels at that scale,
+## so painted at the scale it fits at (a little different) the wires would
+## miss the terminals.
+var _built_k: float = 0.0
 ## Wires of the last layout, laid out again after edits and when the scale changes.
 var _wiring: CabinetWiring
 var _wiring_k: float = 0.0
@@ -149,6 +154,7 @@ func refresh() -> void:
 	var k: float = _k()
 	_layout = CabinetLayout.build(document, k, board) if document != null else null
 	_layout_k = k
+	_built_k = k
 	_wiring = null
 	_door = null
 	_painted.clear()
@@ -357,20 +363,23 @@ func _draw() -> void:
 		# Laid out for the scale shown (edits lay it out again, see [method
 		# refresh]). The plate is a little wider or narrower at each scale
 		# (the terminal strips are snapped to whole pixels), so laid out
-		# again until the scale it fits at settles, then shown at that.
+		# again until the scale it fits at settles, then shown at the scale
+		# last laid out at.
+		_wiring = null
 		for round: int in SETTLE_ROUNDS:
 			_layout = CabinetLayout.build(document, k, board)
+			_built_k = k
 			_layout_k = k
 			var fits: float = _k()
 			_layout_k = fits
 			if absf(fits / k - 1.0) < SETTLED:
 				break
 			k = fits
-		k = _layout_k
 	elif simulating:
 		# The devices show the simulation state; the places stay where they are.
 		for place: Dictionary in _layout.places:
 			CabinetLayout.describe_again(document, place)
+	k = _built_k
 	if not is_equal_approx(height, _extent().y):
 		update_minimum_size.call_deferred()
 	if _wiring == null or not is_equal_approx(_wiring_k, k):

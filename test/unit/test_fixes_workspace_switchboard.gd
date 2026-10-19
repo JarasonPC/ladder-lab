@@ -623,6 +623,45 @@ func test_ctrl_wheel_zoom_keeps_the_point_under_the_mouse() -> void:
 	assert_almost_eq(now.y, on_screen.y, 2.0)
 
 
+func test_wires_go_into_the_strip_terminals_at_any_width() -> void:
+	# The terminal pitch is rounded to whole pixels: the strips are painted
+	# at the scale the wires were laid out at, not the one the plate fits.
+	var view: CabinetView = CabinetView.new()
+	view.document = ExampleCircuits.build(9)
+	add_child_autofree(view)
+	var missed: int = 0
+	for width: int in range(700, 1300, 3):
+		view.size = Vector2(width, 600.0)
+		view.queue_redraw()
+		await wait_process_frames(2)
+		var k: float = view.get("_painted_k")
+		var layout: CabinetLayout = view.get("_layout")
+		var wiring: CabinetWiring = view.get("_wiring")
+		var pitch: float = roundf(CabinetParts.TERMINAL.x * k)
+		for place: Dictionary in layout.places:
+			if place["kind"] != CabinetLayout.STRIP:
+				continue
+			var origin: Vector2 = place["origin"]
+			var count: int = place["desc"]["terminals"].size()
+			# Pixels from the first terminal's left edge of the wire ends
+			# going into each terminal (wires sharing one spread around its middle).
+			var ends: Dictionary[int, Array] = {}
+			for wire: Dictionary in wiring.wires:
+				var points: PackedVector2Array = wire["points"]
+				for end: Vector2 in [points[0], points[points.size() - 1]]:
+					var x: float = (end.x - origin.x) * k - roundf(CabinetParts.END_STOP_W * k)
+					if absf(end.y - origin.y - CabinetParts.TERMINAL_ENTRY) < 0.01 and x > 0.0 and x < count * pitch:
+						var i: int = floori(x / pitch)
+						ends[i] = ends.get(i, []) + [x]
+			for i: int in ends:
+				var sum: float = 0.0
+				for x: float in ends[i]:
+					sum += x
+				if absf(sum / ends[i].size() - (i + 0.5) * pitch) > 0.5:
+					missed += 1
+	assert_eq(missed, 0, "every wire goes into the middle of its terminal")
+
+
 func test_switchboard_paints_again_only_what_changed() -> void:
 	var view: CabinetView = CabinetView.new()
 	view.document = ExampleCircuits.build(9)
