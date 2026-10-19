@@ -61,7 +61,7 @@ var _link_fields: Dictionary[String, Control] = {}
 func _init() -> void:
 	tree = WorkspaceTree.new()
 	tree.chosen.connect(_on_tree_chosen)
-	tree.menu_requested.connect(func(entry: Dictionary, at: Vector2) -> void: _open_menu(entry, Vector2.ZERO, at))
+	tree.menu_requested.connect(func(entry: Dictionary, _at: Vector2) -> void: _open_menu(entry, Vector2.ZERO))
 
 
 func _ready() -> void:
@@ -82,7 +82,7 @@ func _ready() -> void:
 	canvas.open_requested.connect(func(kind: Workspace.Place, place_name: String) -> void: open(kind, place_name))
 	canvas.cable_requested.connect(open_cable)
 	canvas.menu_requested.connect(func(item: Dictionary, at: Vector2) -> void:
-		_open_menu(_entry_of(item), at, get_viewport().get_mouse_position()))
+		_open_menu(_entry_of(item), at))
 	canvas.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
 	canvas.resized.connect(func() -> void:
 		if _fit_pending and canvas.size.x > 10.0:
@@ -451,8 +451,8 @@ func _on_tree_chosen(entry: Dictionary) -> void:
 
 
 ## The menu for [param entry] ({} on empty paper at workspace position
-## [param at]), shown at screen position [param screen].
-func _open_menu(entry: Dictionary, at: Vector2, screen: Vector2) -> void:
+## [param at]), shown at the mouse.
+func _open_menu(entry: Dictionary, at: Vector2) -> void:
 	_menu_entry = entry
 	_menu_at = at
 	_menu.clear()
@@ -488,8 +488,7 @@ func _open_menu(entry: Dictionary, at: Vector2, screen: Vector2) -> void:
 		_menu.add_item(tr("Add a group here"), MenuId.ADD_GROUP)
 	if _menu.item_count == 0:
 		return
-	_menu.reset_size()
-	_menu.popup_on_parent(Rect2i(Vector2i(screen), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(_menu)
 
 
 func _on_menu(id: int) -> void:

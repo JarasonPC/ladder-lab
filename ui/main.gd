@@ -81,6 +81,9 @@ var _check_button: Button
 var _number_button: Button
 var _numbers_toggle: Button
 var _sim_tools: HBoxContainer
+## The simulation's speed, switching, view and clamp: a group of its own, so
+## the toolbar can wrap between it and the run controls in a narrow window.
+var _sim_options: HBoxContainer
 var _switching_select: OptionButton
 var _timing_panel: TimingPanel
 var _key_strip: KeyStrip
@@ -516,21 +519,23 @@ func _build_ui() -> void:
 	_time_label = _label(_sim_tools)
 	_time_label.theme_type_variation = "TimeLabel"
 	_time_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_sim_tools.add_child(_spacer(6))
-	_speed_select = _option(_sim_tools)
+	_sim_options = HBoxContainer.new()
+	_sim_options.add_theme_constant_override("separation", 4)
+	bar.add_child(_sim_options)
+	_speed_select = _option(_sim_options)
 	for s: float in SPEEDS:
 		_speed_select.add_item("×%s" % str(s))
 	_speed_select.select(SPEEDS.find(1.0))
 	_speed_select.item_selected.connect(func(i: int) -> void: view.speed = SPEEDS[i])
-	_switching_select = _option(_sim_tools)
+	_switching_select = _option(_sim_options)
 	_switching_select.add_item("")
 	_switching_select.add_item("")
 	_switching_select.item_selected.connect(_on_switching_selected)
-	_view_select = _option(_sim_tools)
+	_view_select = _option(_sim_options)
 	_view_select.add_item("")
 	_view_select.add_item("")
 	_view_select.item_selected.connect(func(i: int) -> void: _set_current_view(i == 1))
-	_clamp_toggle = _tool(_sim_tools, func() -> void:
+	_clamp_toggle = _tool(_sim_options, func() -> void:
 		view.clamp_tool = _clamp_toggle.button_pressed
 		for window: PageWindow in _page_windows():
 			window.view.clamp_tool = _clamp_toggle.button_pressed, "clamp")
@@ -1178,6 +1183,7 @@ func _update_mode_ui() -> void:
 	_palette_bar.visible = editing and schematic
 	_update_side_bar()
 	_sim_tools.visible = not editing
+	_sim_options.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
 	_timing_panel.visible = not editing
