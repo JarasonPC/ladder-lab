@@ -89,7 +89,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   palette (the program has no example circuits); the properties panel
   (with the check results) shows in Edit mode only while something is selected or the check
   results are shown; it starts on the schematic (Schematic | Workspace); by default (no
-  settings saved yet) the timing chart and event log are rolled in
+  settings saved yet) the timing chart and event log are rolled in; until it is answered, the
+  welcome card offers the tour and the first lesson
 - Example circuits (ExampleCircuits): circuits the tests and the screenshot tools build, not
   offered in the program; each has a power circuit with a motor on the left (L1 L2
   L3 on top) and its control circuit on the right; circuit breakers FA1 (C16, three poles) for
@@ -97,6 +98,34 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminal strips: the supply on X1 (one terminal per conductor, "X1:L1" .. "X1:PE"), buttons,
   switches and lamps on X2, motors with their PE on X3; a PE supply point under every motor;
   lamp purposes and station labels are translated when the example is built
+- Lessons and the tour (tutorial/ no nodes, ui/tutorial/): a Lesson (Lessons.all: lamp_switch,
+  start_stop, time_relay, motor; English source texts, designations as the editor gives them
+  placing the parts in the order asked) has a start schematic (a new document each call), a
+  solution laid out as the steps suggest, roles found in a schematic by kind, not by name
+  (Lesson.roles: e.g. "stop" the first NC push button, "hold" the coil's NO contact across the
+  start button) with the solution's part for each role (Lesson.parts) and the role whose
+  placement lines the solution up with the drawing (anchor); steps (title, text, hint, the
+  palette template, toolbar control and roles they point at, roles and wires
+  [role, terminal index, role, terminal index] Show me draws, done(edited, live)) and goals
+  (phases of a test run: actions press / release / on / off / trip, waits, expected states).
+  LessonCheck: nets by wires and page connectors (UnionFind), series (parts one after the
+  other, either way round, a part bridged by a wire breaks it), bridges, pole_chain, the
+  state of a role while simulating, and run: a goal on a copy in the simulator (IDEAL, every
+  breaker and fuse holder switched on), a row per role operated or expected, a value per
+  phase, the first phase that went wrong. LessonRun: drawing steps done while the schematic
+  has them (undone again), steps done while simulating stay done, the step shown follows
+  the first not done, check results dropped by the next edit. main.gd starts a lesson on its
+  own schematic (after the unsaved-changes prompt; another schematic ends it) with the
+  LessonPanel in a SideBar on the right ("lesson"), updates it on edits and simulation
+  steps; LessonMarks (Node2D over the drawing) rings the step's parts and, with Show me in
+  Edit mode, draws the solution's missing parts faintly and its wires as marching dashes;
+  TutorialRings (CanvasLayer 2) rings the palette entry (Palette.entry_rect / reveal) and
+  Simulate or Edit; all in AppTheme.tutorial (purple: never the selection's accent nor a
+  wire colour). TourOverlay (CanvasLayer 3): the window dimmed but for the control of the
+  step (clicks there go through, _has_point), a card beside it, steps that wait for the
+  control to be used (Next does it), Esc; main.gd builds its stops and puts the mode and
+  area back after it. WelcomeCard over the drawing until it is answered (settings
+  "tutorial"/"welcomed"; finished lessons "tutorial"/"finished")
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -727,6 +756,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   ExportPreview (dialog)
 - `sim/plc/` PlcProgram, PlcBlock, PlcRung, PlcRuntime, PlcTimer, PlcCounter (PLC programs)
 - `ui/plc/` PlcWindow, PlcCanvas, PlcFbdCanvas, PlcLadCanvas (PLC program window)
+- `tutorial/` Lesson, Lessons, LessonCheck, LessonRun (lessons, no nodes)
+- `ui/tutorial/` LessonPanel, LessonMarks, TutorialRings, TourOverlay, WelcomeCard
 - `ui/workspace/` WorkspaceView, WorkspaceCanvas, WorkspaceTree, WorkspaceTile, PlaceWindow
 - `ui/control_panel/` StationPanel (one opened station), ControlBoxView (one box drawn with _draw())
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter

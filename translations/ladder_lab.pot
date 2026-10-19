@@ -3533,3 +3533,498 @@ msgstr ""
 
 msgid "The switchboard with its door opened beside it: the back of the door with its contact blocks and wires, the door harness running across to it"
 msgstr ""
+
+msgid "Interface tour"
+msgstr ""
+
+msgid "A short walk through the window: what each part of it is for"
+msgstr ""
+
+msgid "Lessons"
+msgstr ""
+
+msgid "Welcome to LadderLab"
+msgstr ""
+
+msgid "This short tour shows you around the window. Press Esc to leave it at any time."
+msgstr ""
+
+msgid "The parts"
+msgstr ""
+
+msgid "Every part you can draw is here. Click one, then click on the page to place it; R turns it before you place it."
+msgstr ""
+
+msgid "The page"
+msgstr ""
+
+msgid "Click a terminal to start a wire and another terminal to finish it. Drag with the right or middle mouse button to move around, turn the wheel to zoom."
+msgstr ""
+
+msgid "Editing tools"
+msgstr ""
+
+msgid "Undo and redo, rotate, mirror and delete. Check looks for terminals left unconnected and other mistakes."
+msgstr ""
+
+msgid "Try the circuit"
+msgstr ""
+
+msgid "Simulate runs the circuit: you press its buttons and watch the contactors switch. The drawing cannot be changed meanwhile."
+msgstr ""
+
+msgid "Time"
+msgstr ""
+
+msgid "Time runs from the moment you switch to Simulate. Pause it with Space, step through it, or start again with Reset. Realistic switching gives relays their pick-up and drop-out times."
+msgstr ""
+
+msgid "Timing chart and event log"
+msgstr ""
+
+msgid "They record when each part switched. Click their titles to show or hide them."
+msgstr ""
+
+msgid "Switchboards, control stations and the parts in the field, with the cables between them worked out from the wiring."
+msgstr ""
+
+msgid "Lessons in the Help menu teach you to draw circuits step by step and check what you drew. This tour is there too."
+msgstr ""
+
+msgid "Click Simulate, or press Next."
+msgstr ""
+
+msgid "Previous lesson"
+msgstr ""
+
+#, c-format
+msgid "Lesson %d of %d"
+msgstr ""
+
+msgid "Next lesson"
+msgstr ""
+
+msgid "Close the lesson"
+msgstr ""
+
+#, c-format
+msgid "%d of %d steps done"
+msgstr ""
+
+msgid "Show this step"
+msgstr ""
+
+msgid "Hide"
+msgstr ""
+
+msgid "Show me"
+msgstr ""
+
+msgid "Draw where the parts and wires of this step go"
+msgstr ""
+
+msgid "Done."
+msgstr ""
+
+msgid "Ticked by itself as soon as it happens while simulating."
+msgstr ""
+
+msgid "Ticked by itself as soon as the drawing has it."
+msgstr ""
+
+msgid "Check your circuit"
+msgstr ""
+
+msgid "Runs the circuit and tests what it should do."
+msgstr ""
+
+msgid "Check again"
+msgstr ""
+
+msgid "Check circuit"
+msgstr ""
+
+msgid "All goals met. Lesson complete!"
+msgstr ""
+
+#, c-format
+msgid "%d of %d goals met"
+msgstr ""
+
+msgid "Draw the parts of the steps above first."
+msgstr ""
+
+msgid "A dashed line shows what should have happened."
+msgstr ""
+
+msgid "Hide where"
+msgstr ""
+
+msgid "Show where"
+msgstr ""
+
+msgid "Ring the parts of this test on the drawing"
+msgstr ""
+
+#, c-format
+msgid "A short circuit stopped the test run at step %d."
+msgstr ""
+
+#, c-format
+msgid "At step %d %s should be on, but it is off."
+msgstr ""
+
+#, c-format
+msgid "At step %d %s should be off, but it is on."
+msgstr ""
+
+#, c-format
+msgid "press %s"
+msgstr ""
+
+#, c-format
+msgid "release %s"
+msgstr ""
+
+#, c-format
+msgid "turn %s on"
+msgstr ""
+
+#, c-format
+msgid "turn %s off"
+msgstr ""
+
+#, c-format
+msgid "trip %s"
+msgstr ""
+
+#, c-format
+msgid "wait the delay of %s"
+msgstr ""
+
+#, c-format
+msgid "wait %s s"
+msgstr ""
+
+msgid "Start again"
+msgstr ""
+
+msgid "Start the lesson again from its first step"
+msgstr ""
+
+msgid "All lessons"
+msgstr ""
+
+#, c-format
+msgid "Step %d of %d"
+msgstr ""
+
+msgid "Skip tour"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "Next"
+msgstr ""
+
+msgid "New here? Take a short tour of the window, or learn to draw your first circuit in a lesson."
+msgstr ""
+
+msgid "Take the tour"
+msgstr ""
+
+msgid "First lesson"
+msgstr ""
+
+msgid "Not now"
+msgstr ""
+
+msgid "A lamp and a switch"
+msgstr ""
+
+msgid "Draw your first circuit: a switch that turns a lamp on and off."
+msgstr ""
+
+msgid "Start and stop a contactor"
+msgstr ""
+
+msgid "Two push buttons switch a contactor on and off; one of its own contacts keeps it on."
+msgstr ""
+
+msgid "Switch on later: a time relay"
+msgstr ""
+
+msgid "A time relay lights a lamp a few seconds after you turn a switch on."
+msgstr ""
+
+msgid "A motor with overload protection"
+msgstr ""
+
+msgid "Add the power circuit to a start/stop control: a circuit breaker, the contactor's main contacts, an overload relay and a three-phase motor."
+msgstr ""
+
+msgid "Place the L1 supply"
+msgstr ""
+
+msgid "Click L1 supply in the palette, then click near the top left of the page. L1 is the phase: it carries 230 V against N."
+msgstr ""
+
+msgid "Place the N supply"
+msgstr ""
+
+msgid "Put N supply some way below L1, with room for two parts in between. The current returns through N, the neutral conductor."
+msgstr ""
+
+msgid "Add the switch"
+msgstr ""
+
+msgid "Place Switch NO under L1. It is named -RB1; its contact 13-14 closes when the switch is turned on."
+msgstr ""
+
+msgid "Add the lamp"
+msgstr ""
+
+msgid "Place Lamp under the switch. It is named -H1."
+msgstr ""
+
+msgid "Wire L1 to the switch"
+msgstr ""
+
+msgid "Click the terminal of L1 (the small square), then terminal 13 of -RB1. The wire finds its own way; click empty cells on the way to add corners."
+msgstr ""
+
+msgid "Wire the switch to the lamp"
+msgstr ""
+
+msgid "Draw a wire from terminal 14 of -RB1 to terminal X1 of -H1."
+msgstr ""
+
+msgid "Wire the lamp to N"
+msgstr ""
+
+msgid "Draw a wire from X2 of -H1 to N. The circuit is closed now: L1, the switch, the lamp, N."
+msgstr ""
+
+msgid "Switch to Simulate"
+msgstr ""
+
+msgid "Click Simulate at the top. The drawing cannot be changed now, and the wires are coloured by the voltage that reaches them."
+msgstr ""
+
+msgid "Turn the switch on"
+msgstr ""
+
+msgid "Click -RB1. The lamp lights. Click it again to turn it off."
+msgstr ""
+
+msgid "Add the stop button"
+msgstr ""
+
+msgid "Place Push button NC under L1. It is -SB1, the stop button: its contact 11-12 is closed and opens while you press it."
+msgstr ""
+
+msgid "Add the start button"
+msgstr ""
+
+msgid "Place Push button NO under -SB1. It is -SB2, the start button: its contact 13-14 closes while you press it."
+msgstr ""
+
+msgid "Add the contactor's coil"
+msgstr ""
+
+msgid "Place Coil under -SB2. It is -KM1: when A1-A2 gets 230 V, the contactor pulls in and all its contacts switch."
+msgstr ""
+
+msgid "Wire them in a row"
+msgstr ""
+
+msgid "Wire L1 to 11 of -SB1, 12 to 13 of -SB2, 14 to A1 of -KM1, and A2 to N."
+msgstr ""
+
+msgid "Try it"
+msgstr ""
+
+msgid "Switch to Simulate and press -SB2 (hold the mouse button down). -KM1 pulls in, but as soon as you let go, it drops out again."
+msgstr ""
+
+msgid "Hold it in with its own contact"
+msgstr ""
+
+msgid "Back in Edit, place Contact NO to the right of -SB2. It takes the name of the coil: it is contact 13-14 of -KM1, the self-holding contact."
+msgstr ""
+
+msgid "Wire it across -SB2"
+msgstr ""
+
+msgid "Wire 13 of -KM1 to 13 of -SB2 and 14 of -KM1 to 14 of -SB2. While -KM1 is on, its contact bridges -SB2, so the coil stays fed after you let go."
+msgstr ""
+
+msgid "Add a lamp that shows it runs"
+msgstr ""
+
+msgid "Place another Contact NO to the right (it becomes 23-24 of -KM1) and Lamp -H1 under it."
+msgstr ""
+
+msgid "Wire the lamp"
+msgstr ""
+
+msgid "Wire L1 to 23 of -KM1, 24 to X1 of -H1, and X2 to N."
+msgstr ""
+
+msgid "Test it"
+msgstr ""
+
+msgid "Simulate again. Press -SB2 and let go: -KM1 stays on and -H1 lights. Press -SB1 to stop it."
+msgstr ""
+
+msgid "Place Switch NO under L1. It is named -RB1."
+msgstr ""
+
+msgid "Add the time relay"
+msgstr ""
+
+msgid "Place Time relay under the switch. It is -KT1, set to function F2, on-delay: its delayed contacts switch 3 s after A1-A2 gets voltage."
+msgstr ""
+
+msgid "Wire the relay through the switch"
+msgstr ""
+
+msgid "Wire L1 to 13 of -RB1, 14 to A1 of -KT1, and A2 to N."
+msgstr ""
+
+msgid "Add its delayed contact"
+msgstr ""
+
+msgid "Click -KT1 to select it, then place Contact NO to the right of the switch. It becomes the relay's delayed contact 17-18, drawn with the delay mark."
+msgstr ""
+
+msgid "Place Lamp -H1 under the contact. Wire L1 to 17 of -KT1, 18 to X1 of -H1, and X2 to N."
+msgstr ""
+
+msgid "Watch the delay"
+msgstr ""
+
+msgid "Simulate and turn -RB1 on. -KT1 starts counting; 3 s later its contact closes and -H1 lights."
+msgstr ""
+
+msgid "Change the delay"
+msgstr ""
+
+msgid "Back in Edit, click -KT1 and set Time t to 5 s in its properties on the right. Simulate again and count."
+msgstr ""
+
+msgid "Add the circuit breaker"
+msgstr ""
+
+msgid "Place Circuit breaker under L1. In its properties on the right set Poles to 3: one pole for each phase."
+msgstr ""
+
+msgid "Add the main contacts"
+msgstr ""
+
+msgid "Place Main contacts under the breaker. They take the name of the coil, -KM1: the contactor switches the motor with them."
+msgstr ""
+
+msgid "Add the overload relay"
+msgstr ""
+
+msgid "Place Overload relay under the main contacts. It is -F1: the motor current flows through its heaters, and it trips when the motor is overloaded."
+msgstr ""
+
+msgid "Add the motor"
+msgstr ""
+
+msgid "Place Motor 3~ under the overload relay. It is named -M1."
+msgstr ""
+
+msgid "Wire the three phases"
+msgstr ""
+
+msgid "Wire L1, L2 and L3 to 1, 3 and 5 of -FA1. Then wire 2, 4 and 6 of each device to 1, 3 and 5 of the next one, and 2, 4 and 6 of -F1 to U1, V1 and W1 of the motor."
+msgstr ""
+
+msgid "Let the overload relay stop the contactor"
+msgstr ""
+
+msgid "In the control circuit on the right, delete the wire from L1 to -SB1. Click -F1, place Contact NC in the gap above -SB1 (it becomes 95-96 of -F1), then wire L1 to 95 and 96 to 11 of -SB1."
+msgstr ""
+
+msgid "Switch on and start"
+msgstr ""
+
+msgid "Simulate. Circuit breakers start switched off: click -FA1 to switch it on. Then press -SB2: -KM1 pulls in and the motor runs."
+msgstr ""
+
+msgid "Trip the overload relay"
+msgstr ""
+
+msgid "While the motor runs, click -F1: that presses its test button. The relay trips, its 95-96 opens and -KM1 drops out. Click -F1 again to reset it."
+msgstr ""
+
+msgid "Each click places another one. Right click or Esc stops placing."
+msgstr ""
+
+msgid "A wire can end on another wire: a branch dot is put there."
+msgstr ""
+
+msgid "Named KM1, the contact does not belong to the relay: double-click its designation and type KT1."
+msgstr ""
+
+msgid "To delete a wire, click it and press Del."
+msgstr ""
+
+#, c-format
+msgid "%s lights while %s is on"
+msgstr ""
+
+#, c-format
+msgid "%s is dark while %s is off"
+msgstr ""
+
+#, c-format
+msgid "Pressing %s switches %s on"
+msgstr ""
+
+#, c-format
+msgid "%s stays on after %s is released"
+msgstr ""
+
+#, c-format
+msgid "Pressing %s switches %s off"
+msgstr ""
+
+#, c-format
+msgid "%s stays off after %s is released"
+msgstr ""
+
+#, c-format
+msgid "%s stays dark right after %s is turned on"
+msgstr ""
+
+#, c-format
+msgid "%s lights once the delay of %s is over"
+msgstr ""
+
+#, c-format
+msgid "%s goes dark when %s is turned off"
+msgstr ""
+
+#, c-format
+msgid "Pressing %s starts %s"
+msgstr ""
+
+#, c-format
+msgid "%s keeps running after %s is released"
+msgstr ""
+
+#, c-format
+msgid "Pressing %s stops %s"
+msgstr ""
+
+#, c-format
+msgid "A tripped %s stops %s"
+msgstr ""

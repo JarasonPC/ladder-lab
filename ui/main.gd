@@ -12,7 +12,7 @@ enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK,
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20, CABLES_CZECH = 40, CABLES_HARMONISED }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
-enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS }
+enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS, TOUR }
 ## Titles offered for a new page (English source text: saved like that and
 ## shown translated, as every page title).
 const PAGE_PRESETS: PackedStringArray = ["Power section", "Control section", "Signalling section"]
@@ -27,6 +27,8 @@ const LOCALE_NAMES: PackedStringArray = ["English", "Čeština"]
 const UI_SCALES: Array[float] = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0]
 const SETTINGS_PATH: String = "user://settings.cfg"
 const MAX_RECENT: int = 8
+## Width of the lesson panel until one is chosen.
+const LESSON_WIDTH: float = 330.0
 
 var mode: Mode = Mode.EDIT
 var area: Area = Area.SCHEMATIC
@@ -186,6 +188,34 @@ var _recovery_dialog: ConfirmationDialog
 var _recovery_discard_button: Button
 ## The recovery file offered in [member _recovery_dialog].
 var _recovery_path: String = ""
+## Schematic | Workspace and Edit | Simulate (the tour points at them).
+var _area_switch: Control
+var _mode_switch: Control
+## The lesson being taken (see [LessonRun]), or null; its index in
+## [method Lessons.all].
+var _lesson_run: LessonRun = null
+var _lesson_index: int = -1
+var _lesson_panel: LessonPanel
+var _lesson_bar: SideBar
+## What the lesson points at on the drawing, and in the window.
+var _lesson_marks: LessonMarks
+var _lesson_rings: TutorialRings
+## The step whose palette entry was last scrolled into view.
+var _revealed_step: int = -1
+## A lesson's start schematic is being put in place (the lesson stays).
+var _starting_lesson: bool = false
+## Ids of the lessons whose goals were all met (remembered).
+var _finished_lessons: Dictionary[String, bool] = {}
+## Lessons submenu of the Help menu.
+var _lessons_menu: PopupMenu
+var _tour: TourOverlay
+## Mode and area to go back to when the tour ends.
+var _tour_mode: Mode = Mode.EDIT
+var _tour_area: Area = Area.SCHEMATIC
+## Offered on the first start: the tour or the first lesson.
+var _welcome: WelcomeCard
+## The welcome card was answered (remembered).
+var _welcomed: bool = false
 
 
 func _ready() -> void:
@@ -195,6 +225,9 @@ func _ready() -> void:
 	editor = SchematicEditor.new()
 	editor.view = view
 	add_child(editor)
+	_lesson_marks = LessonMarks.new()
+	_lesson_marks.view = view
+	add_child(_lesson_marks)
 	camera = SchematicCamera.new()
 	add_child(camera)
 	camera.make_current()
@@ -262,6 +295,9 @@ func _ready() -> void:
 	view.stepped.connect(func(_result: StepResult) -> void:
 		for window: PlcWindow in _plc_windows():
 			window.show_step())
+	editor.edited.connect(_on_lesson_edited)
+	view.stepped.connect(_on_lesson_stepped)
+	view.rebuilt.connect(_refresh_lesson_marks)
 	editor.active = true
 	_start_blank()
 	# A schematic double-clicked in the file manager comes as an argument.
@@ -277,6 +313,8 @@ func _ready() -> void:
 	heartbeat.timeout.connect(func() -> void: RecoveryFile.beat())
 	add_child(heartbeat)
 	_offer_recovery()
+	if not _welcomed:
+		_welcome.show()
 
 
 func _process(_delta: float) -> void:
@@ -454,6 +492,7 @@ func _build_ui() -> void:
 	var area_track: PanelContainer = PanelContainer.new()
 	area_track.theme_type_variation = "SegmentTrack"
 	bar.add_child(area_track)
+	_area_switch = area_track
 	var area_segments: HBoxContainer = HBoxContainer.new()
 	area_segments.add_theme_constant_override("separation", 2)
 	area_track.add_child(area_segments)
@@ -471,6 +510,7 @@ func _build_ui() -> void:
 	var track: PanelContainer = PanelContainer.new()
 	track.theme_type_variation = "SegmentTrack"
 	bar.add_child(track)
+	_mode_switch = track
 	var segments: HBoxContainer = HBoxContainer.new()
 	segments.add_theme_constant_override("separation", 2)
 	track.add_child(segments)
@@ -591,6 +631,28 @@ func _build_ui() -> void:
 	_check_panel = CheckPanel.new()
 	_side.add_child(_check_panel)
 	_side_bar = _side_panel(middle, _side, "properties", true)
+	_lesson_panel = LessonPanel.new()
+	_lesson_panel.finished = _finished_lessons
+	_lesson_bar = _side_panel(middle, _lesson_panel, "lesson", true)
+	_lesson_bar.hide()
+	_lesson_panel.closed.connect(_close_lesson)
+	_lesson_panel.lesson_chosen.connect(start_lesson)
+	_lesson_panel.restart_requested.connect(func() -> void: start_lesson(_lesson_index))
+	_lesson_panel.check_requested.connect(_check_lesson)
+	_lesson_panel.marks_changed.connect(_refresh_lesson_marks)
+	_welcome = WelcomeCard.new()
+	_welcome.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_welcome.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_welcome.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
+	_welcome.hide()
+	_welcome.tour_chosen.connect(func() -> void:
+		_answer_welcome()
+		start_tour())
+	_welcome.lesson_chosen.connect(func() -> void:
+		_answer_welcome()
+		start_lesson(0))
+	_welcome.dismissed.connect(_answer_welcome)
+	_canvas_area.add_child(_welcome)
 
 	_timing_panel = TimingPanel.new()
 	_timing_panel.panel_height = _timing_size.y
@@ -622,6 +684,18 @@ func _build_ui() -> void:
 	_hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint_label.clip_text = true
+	var rings_layer: CanvasLayer = CanvasLayer.new()
+	rings_layer.layer = 2
+	add_child(rings_layer)
+	_lesson_rings = TutorialRings.new()
+	rings_layer.add_child(_lesson_rings)
+	var tour_layer: CanvasLayer = CanvasLayer.new()
+	tour_layer.layer = 3
+	add_child(tour_layer)
+	_tour = TourOverlay.new()
+	tour_layer.add_child(_tour)
+	_tour.steps = _tour_steps()
+	_tour.finished.connect(_on_tour_finished)
 	_retranslate()
 	_update_mode_ui()
 
@@ -852,7 +926,7 @@ func _retranslate() -> void:
 	_page_tabs.tooltip_text = tr("Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more (also: open a page in a new window)")
 	_refresh_pages()
 	_palette.retranslate()
-	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar]:
 		bar.retranslate()
 	_workspace.retranslate()
 	for window: PlaceWindow in _place_windows():
@@ -865,6 +939,9 @@ func _retranslate() -> void:
 		_datasheet_window.retranslate()
 	_timing_panel.retranslate()
 	_key_strip.retranslate()
+	_lesson_panel.rebuild()
+	_tour.retranslate()
+	_welcome.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
 		_check_panel.run(edit_doc)
@@ -1009,6 +1086,21 @@ func _rebuild_help_menu() -> void:
 	popup.clear()
 	popup.add_item(tr("Part datasheets…"), HelpMenuId.DATASHEETS, KEY_F1)
 	popup.add_separator()
+	popup.add_item(tr("Interface tour"), HelpMenuId.TOUR)
+	popup.set_item_tooltip(popup.item_count - 1, tr("A short walk through the window: what each part of it is for"))
+	if _lessons_menu == null:
+		_lessons_menu = PopupMenu.new()
+		_lessons_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		_lessons_menu.id_pressed.connect(start_lesson)
+		popup.add_child(_lessons_menu)
+	_lessons_menu.clear()
+	var lessons: Array[Lesson] = Lessons.all()
+	for i: int in lessons.size():
+		_lessons_menu.add_check_item("%d. %s" % [i + 1, tr(lessons[i].title)], i)
+		_lessons_menu.set_item_checked(i, _finished_lessons.has(lessons[i].id))
+		_lessons_menu.set_item_tooltip(i, tr(lessons[i].summary))
+	popup.add_submenu_node_item(tr("Lessons"), _lessons_menu)
+	popup.add_separator()
 	popup.add_item(tr("Check for updates…"), HelpMenuId.CHECK_UPDATES)
 	popup.add_check_item(tr("Check for updates at startup"), HelpMenuId.CHECK_AT_START)
 	popup.set_item_checked(popup.item_count - 1, _check_updates)
@@ -1042,6 +1134,8 @@ func _on_help_menu(id: int) -> void:
 			_about_dialog.open()
 		HelpMenuId.DATASHEETS:
 			open_datasheets()
+		HelpMenuId.TOUR:
+			start_tour()
 
 
 ## The answer of a check: a newer version shows the toolbar button; a check
@@ -1127,7 +1221,7 @@ func _apply_ui_scale() -> void:
 func _side_panel(parent: Control, content: Control, key: String, grip_left: bool) -> SideBar:
 	var bar: SideBar = SideBar.new(content, grip_left)
 	bar.name = key
-	var saved: Vector2 = _bar_settings.get(key, Vector2(250.0, 1.0))
+	var saved: Vector2 = _bar_settings.get(key, Vector2(LESSON_WIDTH if key == "lesson" else 250.0, 1.0))
 	bar.width = saved.x
 	bar.zoom = saved.y
 	bar.changed.connect(_save_settings)
@@ -1186,6 +1280,7 @@ func _update_mode_ui() -> void:
 	_layout_select.visible = schematic
 	_clamp_toggle.visible = schematic
 	_palette_bar.visible = editing and schematic
+	_lesson_bar.visible = schematic and _lesson_run != null
 	_update_side_bar()
 	_sim_tools.visible = not editing
 	_sim_options.visible = not editing
@@ -1197,6 +1292,7 @@ func _update_mode_ui() -> void:
 	_update_run_button()
 	_refresh_pages()
 	_on_stepped(view.last_result)
+	_refresh_lesson_marks()
 
 
 func _update_run_button() -> void:
@@ -1341,8 +1437,11 @@ func _show_document(doc: SchematicDocument, fit: bool) -> void:
 		_fit_camera()
 
 
-## Replaces the edited schematic with a new one that has no file yet.
+## Replaces the edited schematic with a new one that has no file yet. Another
+## schematic than a lesson's own ends the lesson.
 func _replace_document(doc: SchematicDocument, path: String) -> void:
+	if not _starting_lesson:
+		_close_lesson()
 	_workspace_fit = true
 	editor.history.clear()
 	# Also drops a marking being typed, which belongs to the schematic replaced.
@@ -1469,6 +1568,198 @@ func _is_fullscreen() -> bool:
 
 func _toggle_fullscreen() -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if _is_fullscreen() else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+
+# --- Lessons and the tour ------------------------------------------------------------
+
+## Starts lesson [param index] of [method Lessons.all] on its own schematic,
+## after asking what to do with unsaved changes.
+func start_lesson(index: int) -> void:
+	if index < 0 or index >= Lessons.all().size():
+		return
+	_confirm_discard(func() -> void: _begin_lesson(index))
+
+
+func _begin_lesson(index: int) -> void:
+	var lesson: Lesson = Lessons.all()[index]
+	_answer_welcome()
+	_tour.stop(false)
+	_set_area(Area.SCHEMATIC)
+	_switch_mode(Mode.EDIT)
+	_starting_lesson = true
+	_replace_document(lesson.start.call(), "")
+	_starting_lesson = false
+	_lesson_index = index
+	_lesson_run = LessonRun.new(lesson)
+	_lesson_run.update(edit_doc)
+	_lesson_run.follow()
+	_revealed_step = -1
+	_lesson_panel.show_run(_lesson_run, index, Lessons.all().size())
+	_update_mode_ui()
+	_fit_camera_later()
+
+
+## Ends the lesson taken (the schematic stays).
+func _close_lesson() -> void:
+	if _lesson_run == null:
+		return
+	_lesson_run = null
+	_lesson_index = -1
+	_lesson_panel.show_run(null, 0, 1)
+	_lesson_bar.hide()
+	_lesson_marks.clear()
+	_lesson_rings.targets = []
+
+
+## The schematic changed: the lesson's drawing steps are looked at again
+## (the next step to do is shown when one was ticked or unticked).
+func _on_lesson_edited() -> void:
+	if _lesson_run == null:
+		return
+	if _lesson_run.update(edit_doc):
+		_lesson_run.follow()
+		_lesson_panel.show_me = false
+	_lesson_panel.rebuild()
+	_refresh_lesson_marks()
+
+
+## A step of the simulation: the lesson's steps done while simulating.
+func _on_lesson_stepped(_result: StepResult) -> void:
+	# The tour switches to Simulate by itself: that does not count.
+	if _lesson_run == null or mode != Mode.SIMULATE or _tour.visible:
+		return
+	if _lesson_run.update_live(view.document):
+		_lesson_run.follow()
+		_lesson_panel.show_me = false
+		_lesson_panel.rebuild()
+		_refresh_lesson_marks()
+
+
+## Check in the lesson panel: runs the lesson's goals on the schematic.
+func _check_lesson() -> void:
+	if _lesson_run == null:
+		return
+	_lesson_run.check(edit_doc)
+	var id: String = _lesson_run.lesson.id
+	if _lesson_run.passed() and not _finished_lessons.has(id):
+		_finished_lessons[id] = true
+		_save_settings()
+	_lesson_panel.show_where = true
+	_lesson_panel.rebuild()
+	_refresh_lesson_marks()
+
+
+## Rings and Show me of the step shown in the lesson panel: its parts on
+## the drawing, its palette entry and the toolbar control it needs; the
+## parts of a goal not met after a check.
+func _refresh_lesson_marks() -> void:
+	if _lesson_marks == null or _lesson_rings == null:
+		return
+	var run: LessonRun = _lesson_run
+	_lesson_marks.visible = area == Area.SCHEMATIC
+	if run == null or area != Area.SCHEMATIC:
+		_lesson_marks.clear()
+		_lesson_rings.targets = []
+		return
+	var step: Lesson.Step = run.lesson.steps[run.selected]
+	var open: bool = not run.done[run.selected]
+	var roles: PackedStringArray = PackedStringArray()
+	if open:
+		roles.append_array(step.focus)
+	if _lesson_panel.show_where:
+		roles.append_array(_lesson_panel.failed_roles())
+	_lesson_marks.show_marks(run.lesson, step, run.edited, roles, open and _lesson_panel.show_me and mode == Mode.EDIT)
+	var targets: Array[Callable] = []
+	if open and mode == Mode.EDIT and not step.palette.is_empty():
+		var template: Dictionary = step.palette
+		targets.append(func() -> Rect2: return _palette.entry_rect(template))
+		if _revealed_step != run.selected:
+			_revealed_step = run.selected
+			_palette.reveal(template)
+	if open and mode == Mode.EDIT and (step.control == "simulate" or step.simulating):
+		targets.append(func() -> Rect2: return _visible_rect(_simulate_button))
+	elif open and mode == Mode.SIMULATE and step.control == "edit":
+		targets.append(func() -> Rect2: return _visible_rect(_edit_button))
+	_lesson_rings.targets = targets
+
+
+## Edit or Simulate, as if its button was clicked.
+func _switch_mode(new_mode: Mode) -> void:
+	_edit_button.set_pressed_no_signal(new_mode == Mode.EDIT)
+	_simulate_button.set_pressed_no_signal(new_mode == Mode.SIMULATE)
+	_set_mode(new_mode)
+
+
+## Global rectangle of [param control] while it is shown, else an empty one.
+func _visible_rect(control: Control) -> Rect2:
+	return control.get_global_rect() if control != null and control.is_visible_in_tree() else Rect2()
+
+
+## The welcome card was answered: it is not offered again.
+func _answer_welcome() -> void:
+	_welcome.hide()
+	if not _welcomed:
+		_welcomed = true
+		_save_settings()
+
+
+## Starts the interface tour; the mode and area it leaves are put back when
+## it ends.
+func start_tour() -> void:
+	_answer_welcome()
+	# Started again from its own last stop (the Help menu), it keeps what
+	# was there before it.
+	if not _tour.visible:
+		_tour_mode = mode
+		_tour_area = area
+	_tour.start()
+
+
+func _on_tour_finished(_completed: bool) -> void:
+	_set_area(_tour_area)
+	_switch_mode(_tour_mode)
+
+
+func _tour_steps() -> Array[TourOverlay.Step]:
+	var editing: Callable = func() -> void:
+		_set_area(Area.SCHEMATIC)
+		_switch_mode(Mode.EDIT)
+	var simulating: Callable = func() -> void:
+		_set_area(Area.SCHEMATIC)
+		_switch_mode(Mode.SIMULATE)
+	var steps: Array[TourOverlay.Step] = []
+	steps.append(_tour_step("Welcome to LadderLab", "This short tour shows you around the window. Press Esc to leave it at any time.",
+		Callable(), editing))
+	steps.append(_tour_step("The parts", "Every part you can draw is here. Click one, then click on the page to place it; R turns it before you place it.",
+		func() -> Rect2: return _visible_rect(_palette_bar), editing))
+	steps.append(_tour_step("The page", "Click a terminal to start a wire and another terminal to finish it. Drag with the right or middle mouse button to move around, turn the wheel to zoom.",
+		func() -> Rect2: return _visible_rect(_canvas_area), editing))
+	steps.append(_tour_step("Editing tools", "Undo and redo, rotate, mirror and delete. Check looks for terminals left unconnected and other mistakes.",
+		func() -> Rect2: return _visible_rect(_edit_tools), editing))
+	var simulate: TourOverlay.Step = _tour_step("Try the circuit", "Simulate runs the circuit: you press its buttons and watch the contactors switch. The drawing cannot be changed meanwhile.",
+		func() -> Rect2: return _visible_rect(_simulate_button), func() -> void: _set_area(Area.SCHEMATIC))
+	simulate.waits = func() -> bool: return mode == Mode.SIMULATE
+	simulate.act = func() -> void: _switch_mode(Mode.SIMULATE)
+	simulate.waiting = "Click Simulate, or press Next."
+	steps.append(simulate)
+	steps.append(_tour_step("Time", "Time runs from the moment you switch to Simulate. Pause it with Space, step through it, or start again with Reset. Realistic switching gives relays their pick-up and drop-out times.",
+		func() -> Rect2: return _visible_rect(_sim_tools).merge(_visible_rect(_sim_options)) if _sim_tools.is_visible_in_tree() else Rect2(), simulating))
+	steps.append(_tour_step("Timing chart and event log", "They record when each part switched. Click their titles to show or hide them.",
+		func() -> Rect2: return _visible_rect(_timing_panel), simulating))
+	steps.append(_tour_step("Workspace", "Switchboards, control stations and the parts in the field, with the cables between them worked out from the wiring.",
+		func() -> Rect2: return _visible_rect(_area_switch), func() -> void: _set_area(Area.SCHEMATIC)))
+	steps.append(_tour_step("Lessons", "Lessons in the Help menu teach you to draw circuits step by step and check what you drew. This tour is there too.",
+		func() -> Rect2: return _visible_rect(_help_menu), Callable()))
+	return steps
+
+
+func _tour_step(title: String, text: String, target: Callable, prepare: Callable) -> TourOverlay.Step:
+	var step: TourOverlay.Step = TourOverlay.Step.new()
+	step.title = title
+	step.text = text
+	step.target = target
+	step.prepare = prepare
+	return step
 
 
 # --- Files ----------------------------------------------------------------------
@@ -2088,12 +2379,18 @@ func _load_settings() -> void:
 		if hidden_rows is PackedStringArray or hidden_rows is Array:
 			for key: Variant in hidden_rows:
 				_timing_hidden[str(key)] = true
-		for key: String in ["palette", "properties", "workspace_tree"]:
-			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", 250.0)), float(config.get_value("view", key + "_zoom", 1.0)))
+		for key: String in ["palette", "properties", "workspace_tree", "lesson"]:
+			var width: float = LESSON_WIDTH if key == "lesson" else 250.0
+			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", width)), float(config.get_value("view", key + "_zoom", 1.0)))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 		_check_updates = bool(config.get_value("updates", "check_at_start", true))
 		_associate_files = bool(config.get_value("files", "associate", true))
+		_welcomed = bool(config.get_value("tutorial", "welcomed", false))
+		var finished: Variant = config.get_value("tutorial", "finished", PackedStringArray())
+		if finished is PackedStringArray or finished is Array:
+			for id: Variant in finished:
+				_finished_lessons[str(id)] = true
 
 
 func _save_settings() -> void:
@@ -2119,13 +2416,15 @@ func _save_settings() -> void:
 		config.set_value("view", "timing_height", _timing_panel.panel_height)
 		config.set_value("view", "event_log_width", _timing_panel.log_width)
 		config.set_value("view", "timing_hidden", PackedStringArray(_timing_panel.chart.hidden_rows.keys()))
-	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar]:
 		if bar != null:
 			config.set_value("view", bar.name + "_width", bar.width)
 			config.set_value("view", bar.name + "_zoom", bar.zoom)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.set_value("updates", "check_at_start", _check_updates)
 	config.set_value("files", "associate", _associate_files)
+	config.set_value("tutorial", "welcomed", _welcomed)
+	config.set_value("tutorial", "finished", PackedStringArray(_finished_lessons.keys()))
 	config.save(SETTINGS_PATH)
 
 

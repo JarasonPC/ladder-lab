@@ -17,6 +17,18 @@ What changed in each LadderLab version. Version numbers follow the rules in
   still has to join two wires is a terminal for two wires, twice as wide, with two entries
   side by side at each end
 
+### Application
+- Lessons (Help > Lessons): four lessons teach drawing and simulating circuits, from a lamp
+  and a switch through start/stop with a self-holding contact and a time relay to a motor
+  with a circuit breaker and an overload relay. The lesson panel beside the drawing ticks each
+  step by itself when the drawing (or the simulation) has it, rings the palette entry, the
+  parts or the button the step is about, and Show me draws where its parts and wires go;
+  Check runs the circuit and says which of the lesson's goals it meets, with a chart of the
+  test that failed and the parts concerned ringed; finished lessons are ticked in the menu
+- Interface tour (Help > Interface tour): a short walk through the window, each stop
+  highlighted with a card saying what it is for; Esc or Skip tour leaves it
+- On the first start a card offers the tour or the first lesson
+
 ### Fixed
 - The terminal strip labels of a motor or of three poles side by side are all written alike,
   on one line in one size past their marks beside the wires, no longer some a size smaller or

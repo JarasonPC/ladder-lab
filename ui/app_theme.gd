@@ -42,6 +42,11 @@ static var popup_bg: Color
 static var tooltip_bg: Color
 static var chart_bg: Color
 static var chart_grid: Color
+## Lessons and the tour: what they point at, ring and propose (never the
+## accent, which marks the selection, nor a colour of the wires).
+static var tutorial: Color
+static var tutorial_hover: Color
+static var tutorial_soft: Color
 
 static var _ui_font: SystemFont
 static var _ui_bold: SystemFont
@@ -91,6 +96,10 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
 	"schematic": '<path d="M5 3v18"/><path d="M19 3v18"/><path d="M5 8h4"/><path d="M15 8h4"/><path d="M9 6v4"/><path d="M15 6v4"/><path d="M5 16h14"/>',
 	"workspace": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="8.5" y="14" width="7" height="7" rx="1.5"/><path d="M6.5 10v2h11v-2"/><path d="M12 12v2"/>',
+	"lesson": '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+	"hint": '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>',
+	"target": '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+	"tick": '<path d="M20 6 9 17l-5-5"/>',
 	"cabinet": '<rect x="3" y="2" width="18" height="20" rx="2"/><path d="M3 9h18"/><path d="M3 16h18"/><path d="M7 4.5v3"/><path d="M10 4.5v3"/><path d="M13 4.5v3"/><path d="M7 11.5v3"/><path d="M12 11.5v3"/>',
 }
 
@@ -141,6 +150,9 @@ static func use(new_variant: Variant) -> void:
 	danger = Color("e5484d") if variant == Variant.DARK else Color("cd2b31")
 	warning = Color("e8962e") if variant == Variant.DARK else Color("ad5700")
 	success = Color("30a46c") if variant == Variant.DARK else Color("18794e")
+	tutorial = Color("a855f7") if variant == Variant.DARK else Color("7e22ce")
+	tutorial_hover = Color("b77af9") if variant == Variant.DARK else Color("9333ea")
+	tutorial_soft = Color(tutorial, 0.16)
 
 
 static func ui_font() -> Font:
@@ -528,6 +540,30 @@ static func build() -> Theme:
 	section.border_width_top = 1
 	t.set_type_variation("RightSection", "PanelContainer")
 	t.set_stylebox("panel", "RightSection", section)
+	# Lessons: the step shown, its tip, the lesson's main action (Check)
+	# and the tour's card.
+	t.set_type_variation("LessonStep", "PanelContainer")
+	t.set_stylebox("panel", "LessonStep", box(bg2, RADIUS + 2, 0.0, 0.0, border_strong, 1))
+	t.set_type_variation("HintBox", "PanelContainer")
+	t.set_stylebox("panel", "HintBox", box(tutorial_soft, RADIUS, 10.0, 7.0))
+	t.set_type_variation("TutorialButton", "Button")
+	t.set_stylebox("normal", "TutorialButton", box(tutorial.darkened(0.08) if variant == Variant.DARK else tutorial, RADIUS, 12.0))
+	t.set_stylebox("hover", "TutorialButton", box(tutorial_hover, RADIUS, 12.0))
+	t.set_stylebox("pressed", "TutorialButton", box(tutorial.darkened(0.2), RADIUS, 12.0))
+	t.set_stylebox("hover_pressed", "TutorialButton", box(tutorial_hover, RADIUS, 12.0))
+	t.set_stylebox("disabled", "TutorialButton", box(bg2, RADIUS, 12.0))
+	for c: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color", "icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_hover_pressed_color", "icon_focus_color"]:
+		t.set_color(c, "TutorialButton", on_accent)
+	var tour_card: StyleBoxFlat = box(popup_bg, RADIUS + 6, 18.0, 14.0, border_strong if variant == Variant.DARK else border, 1)
+	tour_card.shadow_color = Color(0, 0, 0, 0.35)
+	tour_card.shadow_size = 18
+	tour_card.shadow_offset = Vector2(0, 6)
+	t.set_type_variation("TourCard", "PanelContainer")
+	t.set_stylebox("panel", "TourCard", tour_card)
+	t.set_type_variation("TutorialLabel", "Label")
+	t.set_color("font_color", "TutorialLabel", tutorial_hover if variant == Variant.DARK else tutorial)
+	t.set_font("font", "TutorialLabel", bold_font())
+	t.set_font_size("font_size", "TutorialLabel", SMALL_FONT_SIZE)
 	t.set_type_variation("Card", "PanelContainer")
 	t.set_stylebox("panel", "Card", box(chart_bg, RADIUS + 2, 1.0, 1.0, border, 1))
 	t.set_type_variation("FunctionCard", "PanelContainer")

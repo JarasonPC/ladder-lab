@@ -215,6 +215,39 @@ func _build() -> void:
 	retranslate()
 
 
+## The button of the first entry whose template has every key of
+## [param template] with the same value, or null.
+func entry_button(template: Dictionary) -> Button:
+	for i: int in mini(ENTRIES.size(), _buttons.size()):
+		var entry: Dictionary = ENTRIES[i]["template"]
+		var same: bool = true
+		for key: Variant in template:
+			if not entry.has(key) or entry[key] != template[key]:
+				same = false
+				break
+		if same:
+			return _buttons[i]
+	return null
+
+
+## Global rectangle of the entry of [param template] as far as the list
+## shows it; empty when it is scrolled away or the palette is hidden.
+func entry_rect(template: Dictionary) -> Rect2:
+	var button: Button = entry_button(template)
+	if button == null or not button.is_visible_in_tree():
+		return Rect2()
+	var shown: Rect2 = (_list.get_parent() as Control).get_global_rect()
+	var r: Rect2 = button.get_global_rect()
+	return r if shown.encloses(r) else Rect2()
+
+
+## Scrolls the list so the entry of [param template] is in view.
+func reveal(template: Dictionary) -> void:
+	var button: Button = entry_button(template)
+	if button != null and button.is_inside_tree():
+		(_list.get_parent() as ScrollContainer).ensure_control_visible(button)
+
+
 ## Repaints the symbol tiles after the schematic paper changed (dark / white).
 func refresh_paper() -> void:
 	for tile: Panel in _tiles:
