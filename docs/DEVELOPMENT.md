@@ -79,7 +79,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   Y over Δ (star/delta) or the number of speeds over "Dahl." / "speed"; the 1~ motor has its
   "M"; tiles show the rating a new part gets); the timing panel is resized by its top edge and the grip before the
   event log (at most MAX_HEIGHT_SHARE of the height the other bars leave, the log never wider
-  than the room beside the chart's tools; the chosen sizes are kept), its chart and event log
+  than the room beside the chart's tools; the chosen sizes are kept; Follow shows only its icon
+  when its text leaves no room for the log's smallest width), its chart and event log
   roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
 - The program starts with as little as possible: an empty schematic of one page and the
   palette (the program has no example circuits); the properties panel

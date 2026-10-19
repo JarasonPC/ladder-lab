@@ -194,8 +194,21 @@ func _apply_parts() -> void:
 func _apply_sizes() -> void:
 	if event_log == null:
 		return
+	_fit_follow()
 	custom_minimum_size.y = minf(panel_height, _room().y) if _show_chart or _show_log else 0.0
 	event_log.custom_minimum_size.x = minf(log_width, _room().x) if _show_log and _show_chart else 0.0
+
+
+## Follow shows its text when the window leaves room for it beside the
+## log's smallest width, else only its icon (the text is then its tooltip).
+func _fit_follow() -> void:
+	var text: String = tr("Follow")
+	var width: float = _live.get_theme_font("font").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _live.get_theme_font_size("font_size")).x + _live.get_theme_constant("h_separation")
+	var spare: float = _room().x - (0.0 if _live.text != "" else width)
+	var log_needs: float = event_log.get_minimum_size().x if _show_log and _show_chart else 0.0
+	var fits: bool = spare >= log_needs
+	_live.text = text if fits else ""
+	_live.tooltip_text = "" if fits else text
 
 
 ## Largest height the panel may take and width the log may take: a share of
@@ -220,7 +233,7 @@ func retranslate() -> void:
 	_chart_title.text = tr("Timing chart")
 	_chart_title.tooltip_text = tr("Show or hide the timing chart")
 	_window_label.text = tr("Time span:")
-	_live.text = tr("Follow")
+	_fit_follow()
 	_rows_button.tooltip_text = tr("Choose what the timing chart shows")
 	_show_hint()
 	event_log.retranslate()
