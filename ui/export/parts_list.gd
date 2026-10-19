@@ -195,6 +195,8 @@ func name_of(doc: SchematicDocument, designation: String) -> String:
 	var cabinet: CabinetDevices.Kind = CabinetDevices.kind_of(part)
 	if cabinet != CabinetDevices.Kind.NONE:
 		return tr(CabinetPanel.KIND_TITLES[cabinet])
+	if part is CamSwitch:
+		return tr(StationPanel.CAM_SWITCH_TITLE)
 	var control: int = ControlBoxItem.kind_of(part)
 	if control >= 0:
 		return tr(StationPanel.KIND_TITLES[control])
@@ -214,6 +216,8 @@ func data_of(doc: SchematicDocument, designation: String) -> String:
 		var fact: String = ""
 		if c is ProtectiveDevice or c is MotorBreaker or c is ThreePoleFuse:
 			fact = Datasheet.of(c, doc).summary
+		elif c is CamSwitch:
+			fact = CamSwitch.POSITION_NAMES[(c as CamSwitch).positions] + (", " + tr("%d poles") % (c as CamSwitch).poles if (c as CamSwitch).poles > 1 else "")
 		elif c is MainContacts and (c as MainContacts).poles > 1:
 			fact = tr("%d poles") % (c as MainContacts).poles
 		elif c is OverloadRelay:

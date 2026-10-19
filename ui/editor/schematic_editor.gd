@@ -1294,7 +1294,7 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			return doc.next_supply_designation(_conductor(data))
 		"push_button":
 			return doc.next_device_designation("SB")
-		"latching_switch":
+		"latching_switch", "cam_switch":
 			return doc.next_device_designation("RB")
 		"limit_switch":
 			return doc.next_device_designation("SQ")

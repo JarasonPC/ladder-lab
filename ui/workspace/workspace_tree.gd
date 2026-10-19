@@ -108,7 +108,7 @@ func _fill(root: TreeItem) -> void:
 	for box: ControlBox in document.control_boxes:
 		var head: TreeItem = _place(root, Workspace.Place.STATION, box.name, box.title if not box.title.is_empty() else tr("Control station"))
 		for item: ControlBoxItem in box.items:
-			var what: String = tr(StationPanel.KIND_TITLES[item.kind])
+			var what: String = tr(StationPanel.item_title(document, item))
 			if not item.label.is_empty():
 				what += " · " + item.label
 			if not item.designation.is_empty():

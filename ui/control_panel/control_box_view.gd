@@ -8,8 +8,10 @@ extends Control
 
 ## A push button was pressed (true) or let go (false) while simulating.
 signal button_held(designation: String, pressed: bool)
-## A switch was clicked while simulating.
-signal switch_toggled(designation: String)
+## A switch was clicked while simulating; a rotary cam switch is turned
+## [param steps] positions to the right (negative: to the left), clicked
+## right or left of the middle of its knob.
+signal switch_toggled(designation: String, steps: int)
 ## An item was clicked while editing (-1: the housing beside the items).
 signal item_clicked(item_index: int)
 ## An item was right-clicked (for its menu).
@@ -177,8 +179,10 @@ func _gui_input(event: InputEvent) -> void:
 	if item.kind == ControlBoxItem.Kind.BUTTON:
 		_held = item.designation
 		button_held.emit(_held, true)
+	elif _device(item.designation) is CamSwitch:
+		switch_toggled.emit(item.designation, -1 if mb.position.x < _knob(_cells()[index]).x else 1)
 	else:
-		switch_toggled.emit(item.designation)
+		switch_toggled.emit(item.designation, 0)
 	accept_event()
 
 
@@ -194,7 +198,7 @@ func _get_tooltip(at_position: Vector2) -> String:
 	if index < 0:
 		return ""
 	var item: ControlBoxItem = box().items[index]
-	var text: String = tr(StationPanel.KIND_TITLES[item.kind])
+	var text: String = tr(StationPanel.item_title(document, item))
 	if item.designation.is_empty():
 		text += " – " + tr("no device chosen")
 	else:
@@ -258,7 +262,7 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 		if not designation.is_empty():
 			marks.append("-" + designation)
 	_plate_text(plate, item.label, " ".join(marks))
-	var center: Vector2 = Vector2(plate.end.x + 14.0 + BEZEL_R, cy)
+	var center: Vector2 = _knob(cell)
 	var color: Color = COLORS.get(item.color, COLORS["green"])
 	# -1: no lamp inside, 0: its lamp is off, 1: lit.
 	var light: int = (1 if _lit(item.lamp) else 0) if _illuminated(item) else -1
@@ -266,7 +270,11 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 		ControlBoxItem.Kind.BUTTON:
 			_draw_button(center, color, _travel(item.designation), light)
 		ControlBoxItem.Kind.SWITCH:
-			_draw_switch(center, color, _travel(item.designation), light)
+			var cam: CamSwitch = _device(item.designation) as CamSwitch
+			if cam != null:
+				_draw_cam_switch(center, color, cam, light)
+			else:
+				_draw_switch(center, color, _travel(item.designation), light)
 		ControlBoxItem.Kind.LAMP:
 			_draw_lamp(center, BEZEL_R - 1.0, color, _lit(item.designation))
 	if not _assigned(item):
@@ -279,6 +287,12 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 		var held: bool = simulating and item.kind == ControlBoxItem.Kind.BUTTON and _travel(item.designation) > 0.5
 		var cap: Vector2 = Keycap.size_of(key, KEY_FONT_SIZE)
 		Keycap.draw(self, Vector2(plate.get_center().x - cap.x * 0.5, plate.end.y + 1.0), key, KEY_FONT_SIZE, held)
+
+
+## Middle of the button, switch or lamp of the item in [param cell], right
+## of its label plate.
+static func _knob(cell: Rect2) -> Vector2:
+	return Vector2(cell.position.x + 6.0 + PLATE.x + 14.0 + BEZEL_R, cell.position.y + ROW_H * 0.5)
 
 
 ## Label plate: the text in white with the designations in teal under it;
@@ -372,6 +386,44 @@ func _draw_switch(center: Vector2, color: Color, travel: float, light: int = -1)
 	points.append(points[0])
 	draw_polyline(points, grip.darkened(0.35), 1.0, true)
 	draw_line(center, center + along * 12.0, Color(1, 1, 1, 0.85), 2.0, true)
+
+
+## Rotary cam switch: a square black front plate with its positions marked
+## round the knob in white (0 up, I to the right; I-0-II: I up left, 0 up,
+## II up right), a round boss and a broad handle across it, its pointer end
+## (with a white stripe) at the position it is in.
+func _draw_cam_switch(center: Vector2, color: Color, cam: CamSwitch, light: int = -1) -> void:
+	_glow(center, color, light)
+	var half: float = BEZEL_R + 1.0
+	_rounded(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), BEZEL, 3, Color(1, 1, 1, 0.08))
+	var font: Font = AppTheme.bold_font()
+	for position: int in cam.knob_positions():
+		var out: Vector2 = Vector2.UP.rotated(deg_to_rad(_cam_degrees(cam, position)))
+		var text: String = CamSwitch.MARKS[position]
+		var mark_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8)
+		var at: Vector2 = center + out * (half - 5.0)
+		draw_string(font, at + Vector2(-mark_size.x * 0.5, font.get_ascent(8) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, PLATE_TEXT)
+	draw_circle(center, 10.5, BEZEL_INNER, true, -1.0, true)
+	draw_arc(center, 10.5, 0.0, TAU, 32, Color(1, 1, 1, 0.12), 1.0, true)
+	var along: Vector2 = Vector2.UP.rotated(deg_to_rad(_cam_degrees(cam, cam.position)))
+	var across: Vector2 = Vector2(-along.y, along.x)
+	# A black grip on the black plate would vanish: it is moulded lighter.
+	var grip: Color = _lit_color(color if color.get_luminance() > 0.1 else Color("5c6167"), light)
+	var points: PackedVector2Array = PackedVector2Array([
+		center + along * 12.0 + across * 3.0, center + along * 12.0 - across * 3.0,
+		center - along * 11.0 - across * 4.5, center - along * 11.0 + across * 4.5,
+	])
+	draw_colored_polygon(points, grip)
+	points.append(points[0])
+	draw_polyline(points, grip.lightened(0.25), 1.0, true)
+	draw_line(center + along * 3.0, center + along * 10.5, Color(1, 1, 1, 0.9), 2.0, true)
+
+
+## Angle of the handle (degrees from straight up, clockwise) in [param position].
+static func _cam_degrees(cam: CamSwitch, position: int) -> float:
+	if cam.positions == CamSwitch.Positions.CHANGEOVER:
+		return [0.0, -50.0, 50.0][position]
+	return 90.0 if position == CamSwitch.ONE else 0.0
 
 
 ## Signal lamp: a black collar, a translucent coloured rim and a domed lens

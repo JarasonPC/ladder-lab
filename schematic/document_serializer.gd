@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -293,6 +293,10 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		if (c as ThreePoleFuse).holder:
 			d["holder"] = true
 		d["rated_current"] = (c as ThreePoleFuse).rated_current
+	elif c is CamSwitch:
+		d["type"] = "cam_switch"
+		d["poles"] = (c as CamSwitch).poles
+		d["positions"] = CamSwitch.POSITION_NAMES[(c as CamSwitch).positions]
 	elif c is MotorBreaker:
 		d["type"] = "breaker"
 		d["poles"] = (c as MotorBreaker).poles
@@ -489,6 +493,9 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			var relay: OverloadRelay = OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0), 3 if _int(d, "poles", 0) == 3 else 0)
 			relay.setting = _amperes(d, "setting", OverloadRelay.DEFAULT_SETTING)
 			return relay
+		"cam_switch":
+			var positions: int = maxi(CamSwitch.POSITION_NAMES.find(str(d.get("positions", ""))), 0)
+			return CamSwitch.new(designation, positions as CamSwitch.Positions, _poles(d, 1, 3))
 		"main_contacts":
 			var contacts: MainContacts = MainContacts.new(designation)
 			contacts.poles = _poles(d, 1, 3)

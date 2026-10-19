@@ -371,6 +371,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				(c as LatchingSwitch).toggle()
 				_apply(simulator.step())
 				get_viewport().set_input_as_handled()
+			elif c is CamSwitch:
+				(c as CamSwitch).step_on()
+				_apply(simulator.step())
+				get_viewport().set_input_as_handled()
 			elif c is Plc:
 				plc_requested.emit(c.id)
 				get_viewport().set_input_as_handled()
@@ -436,12 +440,22 @@ func travel_positions() -> Dictionary[String, float]:
 	return result
 
 
-## Turns switch [param designation] over, as from a control box.
-func toggle_switch(designation: String) -> void:
+## Turns switch [param designation] over, as from a control box; a rotary
+## cam switch [param steps] positions to the right (negative: to the left),
+## or on to its next position for 0 (see [method CamSwitch.step_on]).
+func toggle_switch(designation: String, steps: int = 0) -> void:
 	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
-	if not simulating or not (c is LatchingSwitch):
+	if not simulating:
 		return
-	(c as LatchingSwitch).toggle()
+	if c is LatchingSwitch:
+		(c as LatchingSwitch).toggle()
+	elif c is CamSwitch:
+		if steps == 0:
+			(c as CamSwitch).step_on()
+		else:
+			(c as CamSwitch).turn(steps)
+	else:
+		return
 	_apply(simulator.step())
 
 

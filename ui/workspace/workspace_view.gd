@@ -13,7 +13,7 @@ signal edit_requested(change: Callable)
 ## A change of a switchboard (may relabel terminals on the drawing).
 signal cabinet_edit_requested(change: Callable)
 signal button_held(designation: String, pressed: bool)
-signal switch_toggled(designation: String)
+signal switch_toggled(designation: String, steps: int)
 signal operate_requested(designation: String)
 ## Place [param place_name] should open in a window of its own.
 signal window_requested(kind: Workspace.Place, place_name: String)
@@ -85,7 +85,7 @@ func _ready() -> void:
 		_open_menu(_entry_of(item), at))
 	canvas.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
 	canvas.button_held.connect(func(designation: String, pressed: bool) -> void: button_held.emit(designation, pressed))
-	canvas.switch_toggled.connect(func(designation: String) -> void: switch_toggled.emit(designation))
+	canvas.switch_toggled.connect(func(designation: String, steps: int) -> void: switch_toggled.emit(designation, steps))
 	canvas.resized.connect(func() -> void:
 		if _fit_pending and canvas.size.x > 10.0:
 			_fit_pending = false
@@ -251,7 +251,7 @@ static func forward_panel(panel: Control, target: Object) -> void:
 		panel.connect("edit_requested", func(change: Callable) -> void: target.emit_signal("edit_requested", change))
 		panel.connect("key_bind_requested", func(designation: String) -> void: target.emit_signal("key_bind_requested", designation))
 		panel.connect("button_held", func(designation: String, pressed: bool) -> void: target.emit_signal("button_held", designation, pressed))
-		panel.connect("switch_toggled", func(designation: String) -> void: target.emit_signal("switch_toggled", designation))
+		panel.connect("switch_toggled", func(designation: String, steps: int) -> void: target.emit_signal("switch_toggled", designation, steps))
 
 
 func _index(kind: Workspace.Place, place_name: String) -> int:

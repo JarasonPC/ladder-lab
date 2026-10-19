@@ -3423,3 +3423,63 @@ msgstr "%s není program PLC z LadderLabu."
 
 msgid "PLC programs"
 msgstr "Programy PLC"
+
+msgid "Rotary cam switch (0-I or I-0-II)"
+msgstr "Vačkový spínač (0-I nebo I-0-II)"
+
+msgid "Rotary cam switch"
+msgstr "Vačkový spínač"
+
+msgid "Positions"
+msgstr "Polohy"
+
+msgid "0-I (off / on)"
+msgstr "0-I (vypnuto / zapnuto)"
+
+msgid "I-0-II (forward / off / reverse)"
+msgstr "I-0-II (vpřed / vypnuto / vzad)"
+
+msgid "0-I: each pole closes 1-2, 3-4 ... in position I. I-0-II: each pole joins its common 2, 4 ... to 1, 3 ... in I and to 1', 3' ... in II. While simulating, a click turns it on to the next position (0, I, 0, II)."
+msgstr "0-I: každý pól spíná 1-2, 3-4 ... v poloze I. I-0-II: každý pól spojí svůj společný vývod 2, 4 ... s 1, 3 ... v poloze I a s 1', 3' ... v poloze II. Při simulaci ho klepnutí přepne do další polohy (0, I, 0, II)."
+
+msgid "Turned by hand: off 0, on I"
+msgstr "Ovládaný rukou: vypnuto 0, zapnuto I"
+
+msgid "Rotary cam switch with the positions 0 (off) and I (on): every pole is a make contact closed in position I. While simulating, a click turns it over; on a control station or a switchboard door its knob is turned to the left or the right."
+msgstr "Vačkový spínač s polohami 0 (vypnuto) a I (zapnuto): každý pól je spínací kontakt sepnutý v poloze I. Při simulaci ho klepnutí přepne; na ovládací skříňce nebo dveřích rozvaděče se jeho ovladač otáčí doleva nebo doprava."
+
+#, c-format
+msgid "Closed to %s in position I."
+msgstr "Spojen s %s v poloze I."
+
+msgid "Turned by hand: I forward, 0 off, II reverse"
+msgstr "Ovládaný rukou: I vpřed, 0 vypnuto, II vzad"
+
+msgid "Rotary cam switch with the positions I, 0 (off, in the middle) and II: every pole joins its common to its I side in position I and to its II side in position II, never to both. Wired with two phases swapped between the I and the II sides, it runs a motor forward in I and in reverse in II. While simulating, a click turns it on to the next position (0, I, 0, II); on a control station or a switchboard door its knob is turned to the left or the right."
+msgstr "Vačkový spínač s polohami I, 0 (vypnuto, uprostřed) a II: každý pól spojí svůj společný vývod se stranou I v poloze I a se stranou II v poloze II, nikdy s oběma. Zapojený se dvěma prohozenými fázemi mezi stranami I a II točí motorem v poloze I vpřed a v poloze II vzad. Při simulaci ho klepnutí přepne do další polohy (0, I, 0, II); na ovládací skříňce nebo dveřích rozvaděče se jeho ovladač otáčí doleva nebo doprava."
+
+#, c-format
+msgid "Pole %d, I side"
+msgstr "Pól %d, strana I"
+
+#, c-format
+msgid "Pole %d, II side"
+msgstr "Pól %d, strana II"
+
+#, c-format
+msgid "Closed to %s in position II."
+msgstr "Spojen s %s v poloze II."
+
+#, c-format
+msgid "Pole %d, common"
+msgstr "Pól %d, společný vývod"
+
+#, c-format
+msgid "Switched between %s and %s; open in position 0."
+msgstr "Přepíná mezi %s a %s; v poloze 0 rozpojen."
+
+msgid "Snap action: it switches at once, every pole together."
+msgstr "Skokový mechanismus: spíná okamžitě, všechny póly zároveň."
+
+msgid "knob, stays where it is turned"
+msgstr "ovladač, zůstává v nastavené poloze"
