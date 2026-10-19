@@ -19,6 +19,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ### Fixed
 - Zooming, moving and simulating in a switchboard is smooth: only what changed is drawn again
+- A motor of small rated slip (e.g. 2970 min⁻¹) starts with a real motor's torque: started in star
+  it no longer stays at standstill drawing its starting current
 - A field cable's core leaves the switchboard from the strip terminal on the part's own lead
   (e.g. a button's), not from another terminal of its net such as one under a breaker
 - Saving a schematic no longer fails in folders an antivirus watches closely, such as Downloads

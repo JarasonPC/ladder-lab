@@ -16,7 +16,11 @@ extends RefCounted
 ## chosen so that the motor draws its rated current at its rated slip
 ## ([member slip_rated]) with its rated power factor, and [member
 ## start_ratio] times it at standstill. Torque is the rotor power of the positive sequence minus
-## that of the negative one, 1 at rated slip.
+## that of the negative one, 1 at rated slip. The rotor resistance grows with
+## the slip as in the deep bars of real rotors ([member deep_bar]), as far as
+## needed for a starting torque of [constant MIN_START_TORQUE] direct on line:
+## without it a motor of small rated slip (2970 min⁻¹) would start with
+## hardly any torque, and in star not at all.
 ##
 ## Units: potentials in phase voltages (L1 = 1∠0°, see [Phasor]), currents in
 ## amperes for a motor of rated current In.
@@ -27,6 +31,9 @@ const DEFAULT_POWER_FACTOR: float = 0.82
 ## rest grows with the square of the speed (fans, pumps), so the rated load is
 ## reached at rated speed.
 const STATIC_LOAD: float = 0.25
+## Least starting torque direct on line, in multiples of the rated torque
+## (about the least IEC 60034-12 design N motors have).
+const MIN_START_TORQUE: float = 1.6
 const SQRT3: float = 1.7320508075688772
 
 static var _cache: Dictionary[String, MotorModel] = {}
@@ -39,6 +46,9 @@ var power_factor: float
 var magnetizing: float
 ## Rotor resistance and leakage reactance (per unit of the winding).
 var r2: float
+## Rotor resistance at standstill over that at rated slip (deep bars, 1 for
+## none); in between it grows in proportion to the slip.
+var deep_bar: float = 1.0
 var x: float
 ## Rotor power per unit voltage at rated slip (torque 1).
 var _g_rated: float
@@ -95,13 +105,21 @@ func load_torque(speed: float, load: float) -> float:
 ## Winding admittance (per unit) at slip [param s]: magnetizing current plus
 ## the rotor branch.
 func admittance(s: float) -> Vector2:
-	var d: float = r2 * r2 + x * x * s * s
-	return Vector2(s * r2 / d, -magnetizing - x * s * s / d)
+	var r: float = rotor_resistance(s)
+	var d: float = r * r + x * x * s * s
+	return Vector2(s * r / d, -magnetizing - x * s * s / d)
 
 
 ## Rotor power per unit voltage at slip [param s].
 func rotor_power(s: float) -> float:
-	return s * r2 / (r2 * r2 + x * x * s * s)
+	var r: float = rotor_resistance(s)
+	return s * r / (r * r + x * x * s * s)
+
+
+## Rotor resistance (per unit) at slip [param s]: [member r2] up to the rated
+## slip, growing to [member deep_bar] times it at standstill (and on beyond).
+func rotor_resistance(s: float) -> float:
+	return r2 * (1.0 + (deep_bar - 1.0) * maxf(absf(s) - slip_rated, 0.0) / (1.0 - slip_rated))
 
 
 ## Solves the motor at [param speed]: [param potentials] of the winding
@@ -230,6 +248,47 @@ func _winding_matrix(s: int, speed: float, rated_current: float) -> PackedVector
 ## Chooses x, r2 and the magnetizing current: rated current with the rated
 ## power factor at rated slip, start_ratio times it at standstill.
 func _calibrate() -> void:
+	deep_bar = 1.0
+	_fit_reactance()
+	if _start_torque() >= MIN_START_TORQUE:
+		return
+	# Up in steps to where the torque is reached, then narrowed down; where
+	# the starting current allows no such torque, the most it allows.
+	var best: float = 1.0
+	var best_torque: float = _start_torque()
+	var low: float = 1.0
+	var high: float = 0.0
+	var step: float = 1.0
+	while step < 30.0 and high <= 0.0:
+		step *= 1.2
+		deep_bar = step
+		_fit_reactance()
+		var torque: float = _start_torque()
+		if torque >= MIN_START_TORQUE:
+			high = step
+		else:
+			low = step
+			if torque > best_torque:
+				best = step
+				best_torque = torque
+	if high <= 0.0:
+		deep_bar = best
+		_fit_reactance()
+		return
+	for i: int in 30:
+		deep_bar = (low + high) * 0.5
+		_fit_reactance()
+		if _start_torque() < MIN_START_TORQUE:
+			low = deep_bar
+		else:
+			high = deep_bar
+	deep_bar = high
+	_fit_reactance()
+
+
+## The reactance for [member start_ratio] times the rated current at
+## standstill (with the [member deep_bar] set).
+func _fit_reactance() -> void:
 	var low: float = 0.005
 	var high: float = 0.5 / power_factor - 1e-6
 	for i: int in 60:
@@ -239,6 +298,11 @@ func _calibrate() -> void:
 		else:
 			high = x
 	_g_rated = rotor_power(slip_rated)
+
+
+## Starting torque direct on line, in multiples of the rated torque.
+func _start_torque() -> float:
+	return rotor_power(1.0) / rotor_power(slip_rated)
 
 
 ## With reactance [param react]: r2 so the active rated current is the power

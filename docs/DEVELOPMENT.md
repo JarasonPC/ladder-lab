@@ -479,7 +479,9 @@ Architecture and conventions of the code base. Read this before changing the cod
 - MotorModel (cached per kind, Ia/In, rated slip, cos φ): windings in sets (one per speed;
   STANDARD star inside, STAR_DELTA U1-U2.. rated 400 V, Dahlander delta + tap halves taking
   part only while a tap is fed, separate windings as stars), each set an induction machine by
-  symmetrical components: positive and negative sequence admittance -j m + 1/(r2/s + j x) at
+  symmetrical components (the rotor resistance growing with the slip as in deep bars,
+  MotorModel.deep_bar, as far as needed for MIN_START_TORQUE 1.6 direct on line, so a motor of
+  small rated slip still starts, also in star): positive and negative sequence admittance -j m + 1/(r2/s + j x) at
   slips s and 2 - s, zero sequence 1/(r2 + j x); calibrated to In at rated slip and cos φ and
   Ia at standstill; floating terminals and star points solved by nodal analysis. Torque
   (positive minus negative sequence rotor power) against a fan-like load (25 % at standstill,
