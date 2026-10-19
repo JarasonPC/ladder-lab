@@ -163,6 +163,27 @@ What changed in each LadderLab version. Version numbers follow the rules in
   and status bar fit the window; side panels scroll when they are taller than it
 - Sliders and spin boxes match the theme (the slider is visible in the light theme)
 - Clicks in the workspace no longer reach the hidden schematic
+- Terminal strip labels no longer sit on the terminal marks, terminal numbers or ratings: on motor
+  leads, parts lying horizontally, a changeover's NC, a time relay's S, sensors, rectifiers and
+  supply points; terminal numbers keep off the marks
+- The slash of a strip terminal leans the same way however the part is turned
+- Contacts, buttons, breakers, main contacts and fuse holders turned once now pivot on the left;
+  the palette shows the changeover contact pivoting on the left
+- Current path number boxes keep all four edges when zoomed out
+- PLC lights and display, the inverter window and the motor rating plate no longer fade away below
+  zoom 1; box outlines are smoother
+- A motor's rating plate stays beside the motor when it is turned or mirrored
+- A running motor writes its current, speed and state clear of the PE lead; its turning arrow no
+  longer covers terminal names
+- PLC example: the -KM1 designation no longer touches the PLC
+- The 3-pole overload relay's terminal numbers are clear of its housing
+- Motor terminal boards: with three windings the terminals and names are outside the board;
+  turned, the stud names stay inside the board
+- Turned PLCs and inverters fit "PLC RUN", module texts and the frequency into their windows
+- A lamp's purpose is written above its designation also when the designation is under the lamp
+- The fault mark sits beside the part, off its lines and terminal numbers
+- F10–F12 fit the time relay's box
+- A closed NO contact's blade lines up with its lead
 
 ## 0.4.0 – 2026-10-18
 

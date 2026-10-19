@@ -21,7 +21,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   colour, except coils.
   Symbols draw shapes through SchematicSymbol.aa_* helpers (antialiased with a one-pixel edge at
   any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
-  are drawn mirrored along their axis so the blade pivots on the left. Every moving part (blades,
+  are drawn mirrored along their axis so the blade pivots on the left (only when turned three
+  times: turned once the pivot is already on the left; a changeover is never mirrored, its NC
+  terminal sits beside the NO one, so it pivots on the left only turned once, as the palette
+  shows it). Every moving part (blades,
   buttons, holders) moves smoothly (SchematicSymbol.shown); marks fixed to a blade (breaker
   releases, delay marks) turn with it; button and switch heads stay straight on a dashed stem;
   the limit switch's roller stays straight on a solid stem from the middle of the blade; the overload contact's bimetal step stays straight on a solid stem. Breakers and fuse holders start switched off (open).
@@ -50,7 +53,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   time relay's A1/A2 are only swapped, never renamed; its S counts against whichever is A2)
 - Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead, supply
   points included (Placement.strips: terminal index -> label, drawn instead of the square, a
-  label of another strip than X1 on two lines, strip over number; Delete on the selected mark
+  label of another strip than X1 on two lines, strip over number; beside a vertical wire past
+  the mark (the outer side for two terminals side by side), over the mark along a horizontal
+  wire, or on one line past the mark where other terminals stand in line across the wire
+  (motors) and for supply points; a strip terminal's number keeps off its mark; Delete on the
+  selected mark
   removes it, a right click on a lead adds or removes one); a palette terminal takes
   SchematicDocument.next_strip_label(), a pasted strip terminal whose label is taken the next
   free number on its strip; wire segments can be dragged; wire
