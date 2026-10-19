@@ -3346,3 +3346,9 @@ msgstr "%d přepínací"
 
 msgid "aux. %s"
 msgstr "pomocné %s"
+
+msgid "Largest sheet"
+msgstr "Největší list"
+
+msgid "Pages go on the smallest sheet they fit on, up to this one; larger pages are scaled down onto it"
+msgstr "Stránky jdou na nejmenší list, na který se vejdou, nejvýš na tento; větší se na něj zmenší"

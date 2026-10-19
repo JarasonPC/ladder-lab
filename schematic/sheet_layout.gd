@@ -1,10 +1,11 @@
 class_name SheetLayout
 extends RefCounted
 ## The sheet of paper a page of the schematic is exported on (PDF and PNG):
-## ISO A4 or A3, landscape or portrait, with a frame and a title block along
-## the bottom of the frame. [method fit] takes the smallest paper on which the
-## drawing fits at [constant CELL_MM] per grid cell, else the A3 sheet on
-## which it is scaled down least. Rectangles are in grid cells, on the grid of
+## ISO A5 to A0, landscape or portrait, with a frame and a title block along
+## the bottom of the frame. [method fit] takes the smallest paper from A4 up
+## to the largest allowed (A3 unless set otherwise; A5 only when that is the
+## largest) on which the drawing fits at [constant CELL_MM] per grid cell,
+## else the largest sheet, on which it is scaled down least. Rectangles are in grid cells, on the grid of
 ## the drawing, so the drawing sits in the middle of the room above the title
 ## block.
 
@@ -18,9 +19,17 @@ const TITLE_BLOCK_MM: float = 18.0
 const MM_PER_INCH: float = 25.4
 const POINTS_PER_INCH: float = 72.0
 ## Paper sizes (landscape), smallest first.
-const PAPERS: Array[Dictionary] = [{"name": "A4", "size": Vector2(297.0, 210.0)}, {"name": "A3", "size": Vector2(420.0, 297.0)}]
+const PAPERS: Array[Dictionary] = [
+	{"name": "A5", "size": Vector2(210.0, 148.0)}, {"name": "A4", "size": Vector2(297.0, 210.0)},
+	{"name": "A3", "size": Vector2(420.0, 297.0)}, {"name": "A2", "size": Vector2(594.0, 420.0)},
+	{"name": "A1", "size": Vector2(841.0, 594.0)}, {"name": "A0", "size": Vector2(1189.0, 841.0)},
+]
+## The largest paper used unless another is chosen, and the smallest used
+## while a larger one is allowed.
+const DEFAULT_LARGEST: String = "A3"
+const SMALLEST: String = "A4"
 
-## "A4" or "A3".
+## "A5" to "A0".
 var paper_name: String = "A4"
 var portrait: bool = false
 ## Paper width and height in millimetres, as the sheet is seen.
@@ -33,10 +42,14 @@ var frame: Rect2 = Rect2()
 var title_block: Rect2 = Rect2()
 
 
-## Sheet for a drawing covering [param drawing] (grid cells).
-static func fit(drawing: Rect2) -> SheetLayout:
+## Sheet for a drawing covering [param drawing] (grid cells), on paper up
+## to [param largest] ("A5" to "A0").
+static func fit(drawing: Rect2, largest: String = DEFAULT_LARGEST) -> SheetLayout:
 	var best: SheetLayout = null
-	for paper: Dictionary in PAPERS:
+	var top: int = maxi(paper_index(largest), 0)
+	var bottom: int = mini(paper_index(SMALLEST), top)
+	for i: int in range(bottom, top + 1):
+		var paper: Dictionary = PAPERS[i]
 		for upright: bool in [false, true]:
 			var size: Vector2 = paper["size"]
 			if upright:
@@ -49,6 +62,14 @@ static func fit(drawing: Rect2) -> SheetLayout:
 			if scale >= 1.0:
 				return best
 	return best
+
+
+## Index of paper [param name] in [constant PAPERS], -1 for none.
+static func paper_index(name: String) -> int:
+	for i: int in PAPERS.size():
+		if PAPERS[i]["name"] == name:
+			return i
+	return -1
 
 
 ## Paper size in PDF points (1/72 inch).

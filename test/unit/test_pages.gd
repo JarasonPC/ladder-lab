@@ -221,6 +221,23 @@ func test_sheet_layout_picks_the_paper() -> void:
 	assert_almost_eq(huge.paper_points().x, 420.0 / 25.4 * 72.0, 1e-3)
 
 
+
+func test_largest_sheet_can_be_chosen() -> void:
+	# 200 x 60 cells: 1000 x 300 mm at full size.
+	var huge: Rect2 = Rect2(-10, -10, 200, 60)
+	var a0: SheetLayout = SheetLayout.fit(huge, "A0")
+	assert_eq(a0.paper_name, "A0", "the smallest that takes it at full size")
+	assert_almost_eq(a0.cell_mm, SheetLayout.CELL_MM, 1e-6)
+	var a1: SheetLayout = SheetLayout.fit(huge, "A1")
+	assert_eq(a1.paper_name, "A1")
+	assert_lt(a1.cell_mm, SheetLayout.CELL_MM, "scaled down onto the largest allowed")
+	assert_eq(SheetLayout.fit(Rect2(0, 0, 30, 20), "A0").paper_name, "A4", "small drawings stay on A4")
+	var a5: SheetLayout = SheetLayout.fit(Rect2(0, 0, 50, 20), "A5")
+	assert_eq(a5.paper_name, "A5", "nothing larger than A5")
+	assert_lt(a5.cell_mm, SheetLayout.CELL_MM, "scaled down onto it")
+	assert_eq(SheetLayout.fit(huge, "B9").paper_name, "A5", "an unknown size: the smallest")
+
+
 func test_pdf_file_structure() -> void:
 	var pdf: PdfWriter = PdfWriter.new()
 	pdf.title = "Ovládací část"

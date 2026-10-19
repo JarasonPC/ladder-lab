@@ -9,12 +9,17 @@ extends Node
 
 const G: float = float(SymbolGeometry.GRID)
 const DPI: float = 200.0
+## Most pixels along a sheet's longer side: large sheets (A1, A0) are
+## rendered at fewer dots per inch.
+const MAX_PIXELS: float = 8192.0
 ## Pages rendered in the same frame (each needs a viewport the size of its sheet).
 const BATCH: int = 4
 ## Width of a switchboard on its sheet, in world pixels.
 const SWITCHBOARD_WIDTH: float = 50.0 * G
 
 ## Draw the wire numbers.
+## Largest paper the sheets go on ("A5" to "A0", see [method SheetLayout.fit]).
+var largest_paper: String = SheetLayout.DEFAULT_LARGEST
 var wire_numbers: bool = true
 ## Draw the current path numbers.
 var path_numbers: bool = true
@@ -217,21 +222,22 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 	add_child(viewport)
 	if sheet.has("view"):
 		(sheet["view"] as SchematicView).load_document(copy, false)
-	_place(sheet, SheetLayout.fit(extent))
+	_place(sheet, SheetLayout.fit(extent, largest_paper))
 	return sheet
 
 
 ## Puts [param sheet] on the sheet fitted to all it drew, and draws it again.
 func _fit(sheet: Dictionary) -> void:
 	var view: SchematicView = sheet["view"]
-	_place(sheet, SheetLayout.fit(view.drawn_extent().grow(0.5)))
+	_place(sheet, SheetLayout.fit(view.drawn_extent().grow(0.5), largest_paper))
 	for symbol: Node in view.get_children():
 		if symbol is CanvasItem:
 			(symbol as CanvasItem).queue_redraw()
 
 
 func _place(sheet: Dictionary, layout: SheetLayout) -> void:
-	var k: float = layout.pixels_per_cell(DPI) / G
+	var dpi: float = minf(DPI, MAX_PIXELS / (maxf(layout.paper_mm.x, layout.paper_mm.y) / SheetLayout.MM_PER_INCH))
+	var k: float = layout.pixels_per_cell(dpi) / G
 	var size: Vector2 = layout.sheet.size * G * k
 	var viewport: SubViewport = sheet["viewport"]
 	viewport.size = Vector2i(size.round())

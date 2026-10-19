@@ -134,6 +134,8 @@ var _export_preview: ExportPreview
 ## What a PDF export holds (see [method ExportPreview.contents]), remembered.
 var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "workspace": true, "parts_list": true}
 var _export_pdf: bool = false
+## Largest paper of the exported sheets (user settings, "export"/"largest_paper").
+var _export_paper: String = SheetLayout.DEFAULT_LARGEST
 var _export_images: Array[Image] = []
 var _export_layouts: Array[SheetLayout] = []
 ## Counts preview renderings, so only the latest one is shown.
@@ -689,6 +691,10 @@ func _build_dialogs() -> void:
 	_export_preview.wire_numbers_toggled.connect(func(_on: bool) -> void: _render_preview())
 	_export_preview.contents_changed.connect(func() -> void:
 		_export_contents = _export_preview.ticks()
+		_save_settings()
+		_render_preview())
+	_export_preview.paper_changed.connect(func() -> void:
+		_export_paper = _export_preview.largest_paper()
 		_save_settings()
 		_render_preview())
 	add_child(_export_preview)
@@ -1691,7 +1697,7 @@ func _open_export_preview(pdf: bool) -> void:
 	_export_pdf = pdf
 	_export_images.clear()
 	_export_layouts.clear()
-	_export_preview.open(pdf, _export_contents, SheetRenderer.available(edit_doc))
+	_export_preview.open(pdf, _export_contents, SheetRenderer.available(edit_doc), _export_paper)
 	_render_preview()
 
 
@@ -1718,6 +1724,7 @@ func _render_preview() -> void:
 ## PDF holds what [param contents] says (see [method ExportPreview.contents]),
 ## the schematic alone when it is empty.
 func _prepare_export(contents: Dictionary) -> void:
+	_sheet_renderer.largest_paper = _export_paper
 	_sheet_renderer.schematic = contents.get("schematic", true)
 	_sheet_renderer.stations = contents.get("stations", false)
 	_sheet_renderer.switchboards = contents.get("switchboards", false)
@@ -2065,6 +2072,8 @@ func _load_settings() -> void:
 		_keys_rolled = bool(config.get_value("view", "keys_rolled", false))
 		for key: String in ExportPreview.CONTENTS:
 			_export_contents[key] = bool(config.get_value("export", key, true))
+		var paper: String = str(config.get_value("export", "largest_paper", SheetLayout.DEFAULT_LARGEST))
+		_export_paper = paper if SheetLayout.paper_index(paper) >= 0 else SheetLayout.DEFAULT_LARGEST
 		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if config.get_value("view", "cable_types", "czech") == "harmonised" else WorkspaceCables.Naming.CZECH
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
 		_white_paper = bool(config.get_value("view", "white_paper", false))
@@ -2095,6 +2104,7 @@ func _save_settings() -> void:
 	config.set_value("view", "keys_rolled", _keys_rolled)
 	for key: String in _export_contents:
 		config.set_value("export", key, _export_contents[key])
+	config.set_value("export", "largest_paper", _export_paper)
 	config.set_value("view", "cable_types", "harmonised" if WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED else "czech")
 	config.set_value("view", "theme", "light" if _theme_variant == AppTheme.Variant.LIGHT else "dark")
 	config.set_value("view", "ui_scale", _ui_scale)

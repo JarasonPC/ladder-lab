@@ -144,7 +144,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   with Czech cable names, metric M with European ones; PartsSheet tables on A4
   portrait, PartsSheet.split never ends a sheet with a heading); what the schematic has nothing
   of is greyed out. SheetRenderer.sheets lists the sheets, numbered in turn across the PDF; no
-  keys of the keyboard on any sheet. Each page on an A4/A3 sheet
+  keys of the keyboard on any sheet. Each page on an A4 to A3 sheet, or up to the largest chosen in the preview (A5-A0, ExportPreview.largest_paper, user settings "export"/"largest_paper", SheetRenderer.largest_paper; A5 only when it is the largest; sheets larger than A2 rendered at fewer dpi, SheetRenderer.MAX_PIXELS)
   (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
   (SheetFrame), rendered by SheetRenderer at 200 dpi on white paper
   (SheetRenderer.begin_white_paper / end_white_paper count the renders, datasheets too; the last
