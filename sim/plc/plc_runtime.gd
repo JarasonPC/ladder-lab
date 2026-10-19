@@ -6,10 +6,10 @@ extends RefCounted
 ##
 ## Function block diagram: the blocks are worked through in signal order
 ## (a block after the blocks that feed it); where outputs are fed back (a
-## loop) the block with the lowest number goes first and reads the value the
-## other blocks had in the scan before. Basic functions without any connected
-## input give 0; unconnected inputs of AND / NAND count as 1, of the others
-## as 0.
+## loop) the block with the lowest number in the loop goes first and reads
+## the value the other blocks had in the scan before. Basic functions
+## without any connected input give 0; unconnected inputs of AND / NAND
+## count as 1, of the others as 0.
 ##
 ## Ladder diagram: the rungs (rows joined by vertical links, see
 ## [method PlcRung.rung_groups]) are worked through from the top; in each,
@@ -201,9 +201,10 @@ func _signal_order() -> PackedInt32Array:
 				next = id
 				break
 		if next < 0:
-			# A loop: the lowest number goes first.
+			# A loop: its lowest number goes first. Blocks fed by a loop wait
+			# as well, so the block taken must lie on one.
 			for id: int in ids:
-				if not done.has(id):
+				if not done.has(id) and _on_loop(id, by_id, done):
 					next = id
 					break
 		done[next] = true
@@ -215,6 +216,21 @@ func _signal_order() -> PackedInt32Array:
 				if source == next:
 					waiting[id] -= 1
 	return order
+
+
+## True when block [param id] feeds itself through blocks not [param done].
+func _on_loop(id: int, by_id: Dictionary[int, PlcBlock], done: Dictionary[int, bool]) -> bool:
+	var seen: Dictionary[int, bool] = {}
+	var stack: Array[int] = [id]
+	while not stack.is_empty():
+		var at: int = stack.pop_back()
+		for source: int in by_id[at].inputs:
+			if source == id:
+				return true
+			if by_id.has(source) and not done.has(source) and not seen.has(source):
+				seen[source] = true
+				stack.append(source)
+	return false
 
 
 func _scan_fbd() -> void:

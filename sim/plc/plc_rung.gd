@@ -105,17 +105,20 @@ func rung_groups() -> Array[Vector2i]:
 	return groups
 
 
+## Removes row [param row]; a link from the row above still joins the row
+## below only where the removed row's link went on down to it, so rows that
+## were apart stay apart.
 func remove_row(row: int) -> void:
 	if row < 0 or row >= row_count() or row_count() <= 1:
 		return
+	if row > 0:
+		for c: int in COLUMNS:
+			if not has_link(row, c):
+				_links[(row - 1) * COLUMNS + c] = 0
 	for c: int in COLUMNS:
 		_cells.remove_at(row * COLUMNS)
 		_links.remove_at(row * COLUMNS)
 	_coils.remove_at(row)
-	if row == row_count():
-		# The links of the new last row lead nowhere.
-		for c: int in COLUMNS:
-			_links[(row - 1) * COLUMNS + c] = 0
 
 
 ## Rows until [param rows] exist (at most [constant MAX_ROWS]).

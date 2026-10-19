@@ -43,6 +43,9 @@ var tool: String = "":
 		queue_redraw()
 ## Writes an operand as the PLC names it ([method Plc.address]).
 var address: Callable = func(operand: String) -> String: return operand
+## The program's value for 10 V on the PLC ([method Plc.full_scale]): new
+## analog elements start at values on its scale.
+var full_scale: float = PlcBlock.ANALOG_MAX
 
 ## Moving the view: the button doing it (MOUSE_BUTTON_NONE when not), where
 ## it went down, whether it moved far enough.

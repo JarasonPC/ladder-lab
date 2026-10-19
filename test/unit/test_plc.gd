@@ -166,7 +166,7 @@ func test_expansion_module_inputs_and_outputs() -> void:
 	assert_false(h1.energized)
 	s1.press()
 	sim.step()
-	assert_eq(plc.inputs, 1 << 8, "I9 is on")
+	assert_eq(plc.inputs, PackedByteArray([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]), "I9 is on")
 	assert_true(h1.energized, "Q5 on the module switches the lamp")
 	module_power.set_switched_on(false)
 	sim.step()
@@ -198,7 +198,7 @@ func test_expansion_module_draws_current_and_logs() -> void:
 func test_fbd_start_stop_self_holding() -> void:
 	_build(_fbd_self_hold())
 	assert_true(plc.energized)
-	assert_eq(plc.inputs, 2, "I2 has voltage through the NC stop button")
+	assert_eq(plc.inputs, PackedByteArray([0, 1, 0, 0, 0, 0, 0, 0]), "I2 has voltage through the NC stop button")
 	assert_false(h1.energized)
 	_click(s1)
 	assert_true(h1.energized, "started and holding after the button is released")
@@ -225,7 +225,7 @@ func test_input_needs_voltage_against_n() -> void:
 	circuit.remove(circuit.get_component("N"))
 	sim.step()
 	assert_false(plc.energized)
-	assert_eq(plc.inputs, 0)
+	assert_eq(plc.inputs, PackedByteArray([0, 0, 0, 0, 0, 0, 0, 0]))
 
 
 func test_fbd_on_delay() -> void:

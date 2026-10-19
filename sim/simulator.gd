@@ -108,13 +108,13 @@ var _control_a2_first: Dictionary[int, bool] = {}
 var _coil_indices: PackedInt32Array = PackedInt32Array()
 ## Indices into [member _loads] of the PLCs, the nets of their inputs (from
 ## _plc_input_start[p] on for PLC p) and, from the last evaluation, which
-## inputs have voltage against their N (bit k: input k + 1).
+## inputs have voltage against their N (1 for each input that has).
 var _plc_indices: PackedInt32Array = PackedInt32Array()
 var _plc_input_nets: PackedInt32Array = PackedInt32Array()
 ## The net each input is on against (N, M, 1M ...), alongside.
 var _plc_input_ref_nets: PackedInt32Array = PackedInt32Array()
 var _plc_input_start: PackedInt32Array = PackedInt32Array()
-var _plc_inputs: PackedInt32Array = PackedInt32Array()
+var _plc_inputs: Array[PackedByteArray] = []
 ## Expansion modules of the PLCs: nets and terminal indices of their L1 and
 ## N (from _plc_module_start[p] on, two per module, -1 for a module without
 ## a supply of its own) and, from the last evaluation, which have voltage
@@ -413,7 +413,7 @@ func _build() -> void:
 	_rectifier_on.resize(_rectifiers.size())
 	_rectifier_on.fill(0)
 	_plc_inputs.resize(_plc_indices.size())
-	_plc_inputs.fill(0)
+	_plc_inputs.fill(PackedByteArray())
 	_plc_modules.resize(_plc_indices.size())
 	_plc_modules.fill(0)
 	_plc_analog.resize(_plc_indices.size())
@@ -1192,7 +1192,8 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 					overvoltage = true
 		_plc_modules[p] = on
 		# Inputs: on with voltage against the N (M, 1M) of their group.
-		var bits: int = 0
+		var bits: PackedByteArray = PackedByteArray()
+		bits.resize(plc.input_count())
 		var threshold: float = VoltageRating.input_threshold(plc.rating)
 		for k: int in plc.input_count():
 			var input: int = masks.get(uf.find(_plc_input_nets[_plc_input_start[p] + k]), 0)
@@ -1203,7 +1204,7 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 			if VoltageRating.state(plc.rating, volts, (input & PowerSupply.AC_BITS) == 0) == VoltageRating.State.BURNS:
 				overvoltage = true
 			elif volts >= threshold and (VoltageRating.kind(plc.rating) != VoltageRating.Kind.DC or (input & PowerSupply.AC_BITS) == 0):
-				bits |= 1 << k
+				bits[k] = 1
 		_plc_inputs[p] = bits
 		if overvoltage and not plc.burnt:
 			result[_plc_indices[p]] = 4
@@ -1223,12 +1224,19 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 	for p: int in _plc_indices.size():
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		var volts: PackedFloat32Array = PackedFloat32Array()
+		var inputs: PackedByteArray = _plc_inputs[p]
 		for k: int in plc.analog_input_count():
 			var root: int = uf.find(_plc_ai_nets[_plc_ai_start[p] + k])
 			var mask: int = masks.get(root, 0)
 			# A DC + pole on an analog input reads its voltage.
 			var dc: float = PowerSupply.dc_volts(mask) if _is_single_source(mask) else 0.0
 			volts.append(snappedf(analog.get(root, dc), 0.001))
+			# An input that is also an analog input switches on at its
+			# threshold whatever puts the volts on it (a sensor, an AQ).
+			var digital: int = plc.analog_input_digital(k)
+			if digital >= 0 and volts[k] >= VoltageRating.input_threshold(plc.rating):
+				inputs[digital] = 1
+		_plc_inputs[p] = inputs
 		_plc_analog[p] = volts
 	# Frequency inverters: DI1-DI4 on with 24 V against DIC, the volts on AI1.
 	for d: int in _drives.size():

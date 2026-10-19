@@ -37,6 +37,8 @@ var chosen: Dictionary[int, bool] = {}
 static var _clipboard: Array[Dictionary] = []
 
 var _mouse: Vector2 = Vector2.ZERO
+## The mouse is over the diagram (else [member _mouse] is where it left).
+var _mouse_inside: bool = false
 ## Moving blocks: the block grabbed, the grab point (cells), where each
 ## selected block started, whether they moved.
 var _drag_block: int = 0
@@ -47,8 +49,10 @@ var _drag_moved: bool = false
 var _band: bool = false
 var _band_from: Vector2 = Vector2.ZERO
 var _band_adds: bool = false
-## Drawing a connection from the output of block [member _wire_from].
+## Drawing a connection from the output of block [member _wire_from]; when
+## it was picked up from an input, that input (block, pin), else x = 0.
 var _wire_from: int = 0
+var _wire_picked: Vector2i = Vector2i.ZERO
 
 
 func tools() -> Array[Dictionary]:
@@ -154,9 +158,9 @@ static func type_help(type: String) -> String:
 		"counter":
 			return "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
 		"analog_input":
-			return "Brings an analog input into the diagram: 0-10 V as 0-1000."
+			return "Brings an analog input into the diagram: 0-10 V as 0-%d."
 		"analog_output":
-			return "Puts the value at Ax (0-1000) on an analog output as 0-10 V."
+			return "Puts the value at Ax (0-%d) on an analog output as 0-10 V."
 		"analog_threshold":
 			return "Gain x Ax + offset: the output comes on above On and goes off at Off or below (with On below Off: on between them)."
 		"analog_compare":
@@ -219,6 +223,7 @@ func _program_shown() -> void:
 			chosen.erase(id)
 	_drag_block = 0
 	_wire_from = 0
+	_wire_picked = Vector2i.ZERO
 
 
 # --- Selection panel ---------------------------------------------------------------
@@ -336,7 +341,7 @@ func _canvas_input(event: InputEvent) -> void:
 				delete_selection()
 			KEY_ESCAPE:
 				if not tool.is_empty() or _wire_from > 0:
-					_wire_from = 0
+					_cancel_wire()
 					tool_finished.emit()
 				else:
 					_select_none()
@@ -359,7 +364,7 @@ func _canvas_input(event: InputEvent) -> void:
 func _right_click(at: Vector2) -> void:
 	_mouse = at
 	if not tool.is_empty() or _wire_from > 0:
-		_wire_from = 0
+		_cancel_wire()
 		tool_finished.emit()
 	elif editable():
 		var pin: Vector2i = _input_pin_at(_cells(_mouse))
@@ -367,6 +372,22 @@ func _right_click(at: Vector2) -> void:
 			program.block(pin.x).inputs[pin.y] = 0
 			changed.emit()
 	queue_redraw()
+
+
+## Drops the connection being drawn; one picked up from an input goes back
+## to it, as nothing was changed.
+func _cancel_wire() -> void:
+	if _wire_picked.x > 0 and program.block(_wire_picked.x) != null:
+		program.block(_wire_picked.x).inputs[_wire_picked.y] = _wire_from
+	_wire_from = 0
+	_wire_picked = Vector2i.ZERO
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_ENTER:
+		_mouse_inside = true
+	elif what == NOTIFICATION_MOUSE_EXIT:
+		_mouse_inside = false
 
 
 func select_all() -> void:
@@ -406,7 +427,7 @@ func paste() -> void:
 	for d: Dictionary in _clipboard:
 		top_left = top_left.min(Vector2i(int(d["cell"][0]), int(d["cell"][1])))
 	var at: Vector2i = Vector2i(_cells(_mouse).floor()).max(Vector2i.ZERO)
-	if not Rect2(Vector2.ZERO, size).has_point(_mouse):
+	if not _mouse_inside:
 		at = top_left + Vector2i(2, 2)
 	var ids: Dictionary[int, int] = {}
 	var copies: Array[PlcBlock] = []
@@ -436,6 +457,9 @@ func _press(shift: bool) -> void:
 		if editable():
 			var b: PlcBlock = program.add_block(tool, _place_cell(at))
 			if b != null:
+				# Thresholds on the PLC's analog scale.
+				b.on *= full_scale / PlcBlock.ANALOG_MAX
+				b.off *= full_scale / PlcBlock.ANALOG_MAX
 				selected = b.id
 				chosen = {b.id: true}
 				update_size()
@@ -446,11 +470,13 @@ func _press(shift: bool) -> void:
 		var out: int = _output_pin_at(at)
 		if out > 0:
 			_wire_from = out
+			_wire_picked = Vector2i.ZERO
 			return
 		var pin: Vector2i = _input_pin_at(at)
 		if pin.x > 0 and program.block(pin.x).inputs[pin.y] > 0:
 			# Pick the connection up from the input: drop it elsewhere to remove it.
 			_wire_from = program.block(pin.x).inputs[pin.y]
+			_wire_picked = pin
 			program.block(pin.x).inputs[pin.y] = 0
 			return
 	var hit: PlcBlock = _block_at(at)
@@ -490,6 +516,7 @@ func _release() -> void:
 		if pin.x > 0 and pin.x != _wire_from:
 			program.block(pin.x).inputs[pin.y] = _wire_from
 		_wire_from = 0
+		_wire_picked = Vector2i.ZERO
 		changed.emit()
 	elif _drag_block > 0 and _drag_moved:
 		changed.emit()

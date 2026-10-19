@@ -370,9 +370,10 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 
 
 ## Expansion modules of a PLC from saved data: unknown ones are left out,
-## and those beyond what the PLC takes ([method Plc.modules_fit]; the signal
-## modules of compact CPU [param cpu], see [method CompactPlc.modules_fit_cpu]).
-static func plc_modules(raw: Variant, cpu: int = -1) -> Array[Plc.Module]:
+## and those beyond what the PLC takes ([method Plc.modules_fit], with its own
+## analog inputs counted for [param version]; the signal modules of compact
+## CPU [param cpu], see [method CompactPlc.modules_fit_cpu]).
+static func plc_modules(raw: Variant, cpu: int = -1, version: String = "") -> Array[Plc.Module]:
 	var modules: Array[Plc.Module] = []
 	if not (raw is Array):
 		return modules
@@ -381,7 +382,7 @@ static func plc_modules(raw: Variant, cpu: int = -1) -> Array[Plc.Module]:
 		if kind < 0:
 			continue
 		modules.append(kind as Plc.Module)
-		var fits: bool = Plc.modules_fit(modules) if cpu < 0 else CompactPlc.modules_fit_cpu(modules, cpu as CompactPlc.Cpu)
+		var fits: bool = Plc.modules_fit(modules, version) if cpu < 0 else CompactPlc.modules_fit_cpu(modules, cpu as CompactPlc.Cpu)
 		if not fits:
 			modules.pop_back()
 	return modules
@@ -519,7 +520,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 				if cpu < 0:
 					cpu = CompactPlc.Cpu.DI8_DQ6
 				return CompactPlc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), cpu), cpu as CompactPlc.Cpu)
-			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", [])))
+			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), -1, str(d.get("rating", ""))))
 		"vfd":
 			var drive: Vfd = Vfd.new(designation)
 			drive.control = maxi(Vfd.CONTROL_NAMES.find(str(d.get("control", ""))), 0) as Vfd.Command

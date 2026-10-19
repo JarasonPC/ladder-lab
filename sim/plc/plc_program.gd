@@ -35,7 +35,8 @@ var rungs: Array[PlcRung] = []
 static func valid_operand(operand: String, areas: String) -> bool:
 	var area: String = area_of(operand)
 	var number: String = operand.substr(area.length())
-	if area.is_empty() or not area_list(areas).has(area) or not number.is_valid_int() or number.begins_with("0"):
+	# Plain digits only: no sign ("I+1") and no leading zero ("I01").
+	if area.is_empty() or not area_list(areas).has(area) or not number.is_valid_int() or str(int(number)) != number:
 		return false
 	return int(number) >= 1 and int(number) <= AREA_SIZES[area]
 
