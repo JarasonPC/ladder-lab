@@ -13,7 +13,7 @@ for it, with one exception: **the update check**.
   it asks GitHub whether a newer version has been released: a single HTTPS request to
   `https://api.github.com/repos/JarasonPC/ladder-lab/releases/latest`. The request contains
   nothing about you or your work. Like every web request it shows GitHub your IP address,
-  and it names the program version (for example `User-Agent: LadderLab/0.5.0`). GitHub's
+  and it names the program version (for example `User-Agent: LadderLab/0.4.1`). GitHub's
   [privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)
   applies to it. To stop the check at start, untick **Help > Check for updates at startup**.
 - **Links.** LadderLab on GitHub, Report a problem, the new-version button and the project
