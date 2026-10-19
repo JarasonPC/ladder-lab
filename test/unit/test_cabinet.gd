@@ -308,3 +308,24 @@ func test_terminal_labels_on_one_line() -> void:
 	assert_eq(CabinetDevices.label_from_text("X1-7"), "7", "on X1 the number alone")
 	assert_eq(CabinetDevices.label_from_text(" 8 "), "8")
 	assert_eq(CabinetDevices.label_from_text("PE"), "PE")
+
+
+func test_duct_sizes_follow_their_wires() -> void:
+	assert_eq(CabinetLayout.duct_size(0), 25.0, "an empty duct: the narrowest")
+	assert_eq(CabinetLayout.duct_size(4), 25.0)
+	assert_eq(CabinetLayout.duct_size(5), 40.0, "one more wire side by side: the next size")
+	assert_eq(CabinetLayout.duct_size(11), 40.0)
+	assert_eq(CabinetLayout.duct_size(12), 60.0)
+	assert_eq(CabinetLayout.duct_size(500), 120.0, "never wider than the widest")
+	for example: int in [0, 6, 10, 14]:
+		var doc: SchematicDocument = ExampleCircuits.build(example)
+		var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+		var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+		assert_eq(wiring.lanes.size(), layout.ducts.size())
+		var widths: Array[float] = []
+		for d: int in layout.ducts.size():
+			var r: Rect2 = layout.ducts[d]["rect"]
+			var width: float = r.size.x if layout.ducts[d]["vertical"] else r.size.y
+			widths.append(width)
+			assert_true(width >= CabinetLayout.duct_size(wiring.lanes[d]), "%d: duct %d holds its %d wires side by side" % [example, d, wiring.lanes[d]])
+		assert_true(widths.max() > widths.min(), "%d: busier ducts are wider" % example)

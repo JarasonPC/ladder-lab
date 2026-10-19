@@ -9,9 +9,14 @@ extends RefCounted
 
 ## Frame of the enclosure around the plate.
 const FRAME: float = 6.0
-## Width of the ducts down both sides, height of the ducts across.
+## Width of the ducts down both sides, height of the ducts across, before
+## they are sized to their wires (see [method duct_size]).
 const SIDE_DUCT: float = 25.0
 const DUCT: float = 28.0
+## Widths wire ducts are made in.
+const DUCT_SIZES: Array[float] = [25.0, 40.0, 60.0, 80.0, 100.0, 120.0]
+## Most times the ducts are sized again for the wires' new ways.
+const SIZE_ROUNDS: int = 4
 ## Room between the side ducts and the rails, between places on a rail, and
 ## between a duct and the parts above or below it (room for the wires'
 ## marker sleeves, see [CabinetWiring]).
@@ -41,7 +46,11 @@ const STRIP: int = 100
 const MISSING_DEVICE: int = 101
 
 var size: Vector2 = Vector2.ZERO
-## Ducts: {"rect": Rect2, "vertical": bool}.
+## The wiring the ducts were sized for (see [method build]); null when the
+## sizing did not settle.
+var wiring: CabinetWiring
+## Ducts: {"rect": Rect2, "vertical": bool}: across from the top, then down
+## the left and the right side.
 var ducts: Array[Dictionary] = []
 ## DIN rails, one per [member Switchboard.rails].
 var rails: Array[Rect2] = []
@@ -57,8 +66,48 @@ var places: Array[Dictionary] = []
 
 ## Lays out switchboard [param board] of [param doc] (empty when there is no
 ## such switchboard); [param k] (pixels per mm) makes the terminal strips as
-## wide as they are drawn.
+## wide as they are drawn. Each duct is as wide as the wires running through
+## it need (see [method duct_size], [member CabinetWiring.lanes]).
 static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLayout:
+	# Laid out with ducts of the first size, wired, then again with each duct
+	# as wide as the wires running through it need, until they all fit (the
+	# wires take other ways as the ducts grow; a duct never gets narrower,
+	# so it settles).
+	var layout: CabinetLayout = _build(doc, k, board, [])
+	var sizes: Array[float] = []
+	for attempt: int in SIZE_ROUNDS:
+		layout.wiring = CabinetWiring.build(doc, layout, k, board)
+		var lanes: Array[int] = layout.wiring.lanes
+		if lanes.size() != layout.ducts.size():
+			return layout
+		var grown: bool = false
+		for d: int in lanes.size():
+			var width: float = maxf(duct_size(lanes[d]), sizes[d] if d < sizes.size() else 0.0)
+			if d >= sizes.size():
+				sizes.append(width)
+				grown = true
+			elif width > sizes[d]:
+				sizes[d] = width
+				grown = true
+		if not grown:
+			return layout
+		layout = _build(doc, k, board, sizes)
+	return layout
+
+
+## Narrowest of [constant DUCT_SIZES] holding [param wires] side by side
+## between its fingers (see [CabinetWiring]).
+static func duct_size(wires: int) -> float:
+	var room: float = maxi(wires - 1, 0) * CabinetWiring.LANE + CabinetWiring.WIRE_W + 2.0 * CabinetParts.DUCT_DEPTH
+	for width: float in DUCT_SIZES:
+		if width >= room:
+			return width
+	return DUCT_SIZES[DUCT_SIZES.size() - 1]
+
+
+## The layout with ducts [param sizes] wide, in the order of [member ducts]
+## (none given: DUCT and SIDE_DUCT).
+static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[float]) -> CabinetLayout:
 	var layout: CabinetLayout = CabinetLayout.new()
 	var strips: Dictionary = CabinetDevices.strips(doc)
 	var board_rails: Array[CabinetRail] = doc.switchboards[board].rails if board >= 0 and board < doc.switchboards.size() else ([] as Array[CabinetRail])
@@ -96,11 +145,16 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 	if slots > 0:
 		var pitch: float = CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT
 		content = maxf(content, slots * pitch + 2.0 * CabinetParts.DUCT_END + CabinetParts.DUCT_FINGER - 2.0 * MARGIN + 0.1)
-	var x0: float = FRAME + SIDE_DUCT + MARGIN
-	layout.size.x = 2.0 * x0 + content
+	var count: int = maxi(rows.size(), 1) + 1
+	var across_size: Callable = func(d: int) -> float: return sizes[d] if sizes.size() == count + 2 else DUCT
+	# The side ducts' slots: the duct and the room against the frame.
+	var left: float = sizes[count] + 2.0 if sizes.size() == count + 2 else SIDE_DUCT
+	var right: float = sizes[count + 1] + 2.0 if sizes.size() == count + 2 else SIDE_DUCT
+	var x0: float = FRAME + left + MARGIN
+	layout.size.x = x0 + content + MARGIN + right + FRAME
 	var y: float = FRAME + 2.0
 	var across: Array[float] = [y]
-	y += DUCT + PAD
+	y += across_size.call(0) + PAD
 	for row: Dictionary in rows:
 		var cy: float = y - row["top"]
 		layout.rails.append(Rect2(x0 - 2.0, cy - CabinetParts.RAIL_H * 0.5, content + 4.0, CabinetParts.RAIL_H))
@@ -109,18 +163,18 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 			layout.places.append(place)
 		y = cy + row["bottom"] + PAD
 		across.append(y)
-		y += DUCT + PAD
+		y += across_size.call(across.size() - 1) + PAD
 	if rows.is_empty():
 		y += EMPTY_ROW
 		across.append(y)
-		y += DUCT + PAD
-	layout.size.y = across[across.size() - 1] + DUCT + 2.0 + FRAME
-	var duct_x: float = FRAME + SIDE_DUCT
-	for duct_y: float in across:
-		layout.ducts.append({"rect": Rect2(duct_x, duct_y, layout.size.x - 2.0 * duct_x, DUCT), "vertical": false})
+		y += across_size.call(across.size() - 1) + PAD
+	layout.size.y = across[across.size() - 1] + across_size.call(across.size() - 1) + 2.0 + FRAME
+	var duct_x: float = FRAME + left
+	for d: int in across.size():
+		layout.ducts.append({"rect": Rect2(duct_x, across[d], layout.size.x - FRAME - right - duct_x, across_size.call(d)), "vertical": false})
 	var down: float = layout.size.y - 2.0 * (FRAME + 2.0)
-	layout.ducts.append({"rect": Rect2(FRAME + 2.0, FRAME + 2.0, SIDE_DUCT - 2.0, down), "vertical": true})
-	layout.ducts.append({"rect": Rect2(layout.size.x - FRAME - SIDE_DUCT, FRAME + 2.0, SIDE_DUCT - 2.0, down), "vertical": true})
+	layout.ducts.append({"rect": Rect2(FRAME + 2.0, FRAME + 2.0, left - 2.0, down), "vertical": true})
+	layout.ducts.append({"rect": Rect2(layout.size.x - FRAME - right, FRAME + 2.0, right - 2.0, down), "vertical": true})
 	return layout
 
 

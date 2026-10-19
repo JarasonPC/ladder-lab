@@ -70,6 +70,10 @@ var wires: Array[Dictionary] = []
 ## a field cable going out; else the supply coming in at the top),
 ## "cable"}.
 var glands: Array[Dictionary] = []
+## Wires side by side at the busiest point of each duct, in the order of
+## [member CabinetLayout.ducts] (across from the top, then down the left and
+## the right side).
+var lanes: Array[int] = []
 
 # Field side of the strip terminals leading to parts outside, like the
 # points of [method _terminals] with "field" (the part).
@@ -636,7 +640,7 @@ func _route(edges: Array[Dictionary]) -> void:
 		routes.append(route)
 	for d: int in _across.size():
 		var r: Rect2 = _across[d]
-		var positions: PackedFloat32Array = _lanes(runs[d], r.position.y + CabinetParts.DUCT_DEPTH, r.end.y - CabinetParts.DUCT_DEPTH)
+		var positions: PackedFloat32Array = _lanes(runs[d], r.position.y + CabinetParts.DUCT_DEPTH, r.end.y - CabinetParts.DUCT_DEPTH, lanes)
 		for i: int in runs[d].size():
 			runs[d][i]["route"][runs[d][i]["lane"]] = positions[i]
 	for s: int in 2:
@@ -645,7 +649,7 @@ func _route(edges: Array[Dictionary]) -> void:
 			if route.get("side", -1) == s:
 				down.append({"route": route, "from": minf(route["lane_a"], route["lane_b"]), "to": maxf(route["lane_a"], route["lane_b"])})
 		var r: Rect2 = _sides[s]
-		var positions: PackedFloat32Array = _lanes(down, r.position.x + CabinetParts.DUCT_DEPTH, r.end.x - CabinetParts.DUCT_DEPTH)
+		var positions: PackedFloat32Array = _lanes(down, r.position.x + CabinetParts.DUCT_DEPTH, r.end.x - CabinetParts.DUCT_DEPTH, lanes)
 		for i: int in down.size():
 			down[i]["route"]["lane_side"] = positions[i]
 	for e: int in edges.size():
@@ -965,7 +969,7 @@ func _lead_aside(ends: Array[Dictionary]) -> void:
 ## [param low] and [param high] across it: runs that overlap get lanes of
 ## their own, the lanes spread evenly (closer together when there are many).
 ## Returns the position of each run's lane.
-func _lanes(runs: Array, low: float, high: float) -> PackedFloat32Array:
+func _lanes(runs: Array, low: float, high: float, counts: Array[int]) -> PackedFloat32Array:
 	var order: Array = range(runs.size())
 	order.sort_custom(func(i: int, j: int) -> bool: return runs[i]["from"] < runs[j]["from"])
 	var lane_of: PackedInt32Array = PackedInt32Array()
@@ -983,6 +987,7 @@ func _lanes(runs: Array, low: float, high: float) -> PackedFloat32Array:
 		lane_end[lane] = runs[i]["to"]
 		lane_of[i] = lane
 	var count: int = lane_end.size()
+	counts.append(count)
 	var pitch: float = minf(LANE, (high - low - WIRE_W) / maxf(count - 1, 1))
 	var first: float = (low + high) * 0.5 - pitch * (count - 1) * 0.5
 	var result: PackedFloat32Array = PackedFloat32Array()
