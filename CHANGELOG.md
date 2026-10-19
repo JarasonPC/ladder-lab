@@ -11,7 +11,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   AC or "⎓" for DC
 - The palette tells the parts apart at a glance: the motors are a circle with "M 3~" and
   star/delta, Dahlander or the number of speeds beside it, the PLCs say "PLC relay" and
-  "PLC CPU", the temperature sensor shows a thermometer
+  "PLC CPU", the frequency inverter "VFD 3~ f", the temperature sensor shows a thermometer
+- A new overload relay from the palette has three poles (its heaters in the power circuit)
+- The fuse, fuse holder and circuit breaker stand upright in the palette
+- Current path numbers are written without a box around them
 - The temperature sensor is drawn with its measuring element, a resistor varying with the
   temperature (as a Pt100), inside the transmitter box
 

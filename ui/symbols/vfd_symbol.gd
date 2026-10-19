@@ -16,7 +16,7 @@ const CONTACT_Y: float = 4.3 * G
 
 func _draw_shape(color: Color, width: float) -> void:
 	if preview:
-		_draw_power_part(color)
+		_draw_preview(color, width)
 		return
 	var drive: Vfd = component as Vfd
 	for i: int in Vfd.TERMINALS.size():
@@ -48,22 +48,18 @@ func _draw_shape(color: Color, width: float) -> void:
 	draw_blade(pivot, blade_tip(pivot, fixed + Vector2(2.0, -9.0), fixed + Vector2(2.0, 0.0), travel), color, width)
 
 
-## The palette shows the power part alone: the whole drive is too wide to
-## read on a tile.
+## The palette shows a box saying what the drive is: the whole drive is too
+## wide to read on a tile.
 func preview_rect() -> Rect2:
-	return Rect2(POWER.position.x, 0.0, POWER.size.x, SymbolGeometry.VFD_HEIGHT * G)
+	return PlcSymbol.PREVIEW_BOX
 
 
-## The power part with its supply leads (L1 L2 L3 PE) and motor leads (U V W).
-func _draw_power_part(color: Color) -> void:
-	for i: int in 4:
-		var top: Vector2 = Vector2(SymbolGeometry.vfd_terminal_cell(i)) * G
-		aa_line(top, Vector2(top.x, POWER.position.y), color)
-	for i: int in range(Vfd.FIRST_BOTTOM, Vfd.DO2C):
-		var bottom: Vector2 = Vector2(SymbolGeometry.vfd_terminal_cell(i)) * G
-		aa_line(bottom, Vector2(bottom.x, POWER.end.y), color)
-	aa_rect(POWER, color, false)
-	aa_line(Vector2(POWER.position.x, POWER.end.y), Vector2(POWER.end.x, POWER.position.y), color)
+## A box with "VFD" over "3~ f", like the PLCs' tiles.
+func _draw_preview(color: Color, width: float) -> void:
+	aa_rect(PlcSymbol.PREVIEW_BOX, color, false, width)
+	var c: Vector2 = PlcSymbol.PREVIEW_BOX.get_center()
+	draw_preview_text("VFD", c + Vector2(0.0, -15.0), 32)
+	draw_preview_text("3~ f", c + Vector2(0.0, 17.0), 30)
 
 
 func _draw_labels() -> void:

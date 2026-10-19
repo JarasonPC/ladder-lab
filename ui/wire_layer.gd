@@ -220,7 +220,7 @@ func wire_number_at(point: Vector2) -> Vector2i:
 
 
 ## Numbers the current paths: above the columns of a vertical drawing, left of
-## the rows of a horizontal one.
+## the rows of a horizontal one; the number alone, no box.
 func _draw_path_numbers() -> void:
 	_path_rects.clear()
 	var paths: PackedFloat32Array = document.current_paths(2.0, page)
@@ -238,8 +238,6 @@ func _draw_path_numbers() -> void:
 			center = Vector2(paths[i], b.position.y - 1.5) * G
 		var rect: Rect2 = Rect2(center - box * 0.5, box)
 		_path_rects.append(Rect2(rect.position / G, rect.size / G))
-		draw_rect(rect, SchematicTheme.BACKGROUND)
-		draw_rect(rect, SchematicTheme.PATH_TEXT, false, 1.0)
 		var text: String = str(i + 1)
 		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.PATH_TEXT)

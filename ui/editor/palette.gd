@@ -37,7 +37,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Fuse", "template": {"type": "fuse"}},
 	{"title": "Fuse holder", "template": {"type": "fuse", "holder": true}},
 	{"title": "Circuit breaker", "template": {"type": "breaker"}},
-	{"title": "Overload relay", "template": {"type": "overload_relay", "trip_delay": 5.0}},
+	{"title": "Overload relay", "template": {"type": "overload_relay", "trip_delay": 5.0, "poles": 3}},
 	{"title": "Main contacts", "template": {"type": "main_contacts"}},
 	{"title": "Motor 3~", "template": {"type": "motor3", "motor_kind": "standard"}},
 	{"title": "Motor 3~ star/delta", "template": {"type": "motor3", "motor_kind": "star_delta"}},
@@ -239,8 +239,9 @@ func retranslate() -> void:
 
 
 ## Draws the symbol on a paper tile at the left of the button, scaled to fit
-## it: two-terminal symbols and supplies lying horizontally, three-pole
-## devices, motors and the temperature sensor upright. Supplies show their conductor name in the circle.
+## it: two-terminal symbols and supplies lying horizontally, fuses, breakers,
+## three-pole devices, motors and the temperature sensor upright. Supplies
+## show their conductor name in the circle.
 func _add_icon(button: Button, template: Dictionary) -> void:
 	var data: Dictionary = template.duplicate()
 	var conductor: String = str(data.get("conductor", ""))
@@ -251,7 +252,7 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 		data["rating"] = ratings[0]
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	var supply: bool = component is PowerSupply
-	var upright: bool = component is ThreePhaseMotor or component is TemperatureSensor or component.get_terminal_names().size() > 3
+	var upright: bool = component is ThreePhaseMotor or component is TemperatureSensor or component is ProtectiveDevice or component.get_terminal_names().size() > 3
 	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)
 	var symbol: SchematicSymbol = SymbolFactory.create(component, placement)
 	symbol.show_labels = supply
