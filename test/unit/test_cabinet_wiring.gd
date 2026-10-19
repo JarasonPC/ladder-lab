@@ -522,3 +522,34 @@ func test_wires_cross_only_in_the_ducts() -> void:
 				var a: Dictionary = wiring.wires[segments[i][0]]
 				var b: Dictionary = wiring.wires[segments[j][0]]
 				assert_true(in_duct, "%d: %s-%s and %s-%s cross at %s, out of a duct" % [example, a["from"], a["to"], b["from"], b["to"], at])
+
+
+func test_neighbouring_strip_terminals_of_one_net_are_bridged() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(6)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = layout.wiring
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var bridged: int = 0
+	for place: Dictionary in layout.places:
+		if place["kind"] != CabinetLayout.STRIP:
+			continue
+		var terminals: Array = place["desc"]["terminals"]
+		var bridges: Array = place["desc"]["bridges"]
+		assert_eq(bridges.size(), terminals.size() - 1, "one between each two neighbours")
+		for i: int in bridges.size():
+			var a: int = net.get(terminals[i]["keys"][0], -1)
+			var b: int = net.get(terminals[i + 1]["keys"][0], -2)
+			assert_eq(bridges[i], a == b, "-%s: %s and %s bridged when they are on one net" % [place["designation"], terminals[i]["label"], terminals[i + 1]["label"]])
+			if not bridges[i]:
+				continue
+			bridged += 1
+			# No wire between them: the bridge joins them.
+			var keys: Array = [terminals[i]["keys"], terminals[i + 1]["keys"]]
+			for wire: Dictionary in wiring.wires:
+				assert_false((keys[0].has(wire["from"]) and keys[1].has(wire["to"])) or (keys[1].has(wire["from"]) and keys[0].has(wire["to"])), "-%s: no wire between bridged %s and %s" % [place["designation"], terminals[i]["label"], terminals[i + 1]["label"]])
+	assert_true(bridged > 0, "the example has neighbouring terminals of one net")
+	# The parts list has the bridges.
+	var names: Array = []
+	for row: Dictionary in PartsList.new().rows(doc):
+		names.append(row.get("name", ""))
+	assert_true(names.has("Plug-in bridge"))

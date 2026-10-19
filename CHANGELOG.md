@@ -45,6 +45,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   and go out, so far fewer of them cross
 - Switchboard wires bend once past their marker sleeve and slant into the duct's slot, and
   never cross each other on the way to the ducts
+- Neighbouring terminals of one net on a terminal strip are joined by a plug-in bridge
+  instead of a wire; the parts list has the bridges
 - Wires to the auxiliary contact block on a contactor's front run straight over the contactor;
   wires from a contactor's bottom terminals over its overload relay go straight down as far as
   they can before turning aside, and wires from its main contacts go behind the relay

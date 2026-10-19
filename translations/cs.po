@@ -1152,6 +1152,9 @@ msgstr "Přesunout na lištu pod ní"
 msgid "Terminal strip"
 msgstr "Svorkovnice"
 
+msgid "Plug-in bridge"
+msgstr "Zásuvná propojka"
+
 msgid "Auxiliary relay"
 msgstr "Pomocné relé"
 
@@ -3219,6 +3222,13 @@ msgid_plural "%d terminals"
 msgstr[0] "%d svorka"
 msgstr[1] "%d svorky"
 msgstr[2] "%d svorek"
+
+#, c-format
+msgid "%d pole"
+msgid_plural "%d poles"
+msgstr[0] "%d pól"
+msgstr[1] "%d póly"
+msgstr[2] "%d pólů"
 
 #, c-format
 msgid "Function %s of time relay %s works with its control input S, which is turned off."

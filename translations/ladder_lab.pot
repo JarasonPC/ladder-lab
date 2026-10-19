@@ -1133,6 +1133,9 @@ msgstr ""
 msgid "Terminal strip"
 msgstr ""
 
+msgid "Plug-in bridge"
+msgstr ""
+
 msgid "Auxiliary relay"
 msgstr ""
 
@@ -3207,6 +3210,12 @@ msgstr ""
 #, c-format
 msgid "%d terminal"
 msgid_plural "%d terminals"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "%d pole"
+msgid_plural "%d poles"
 msgstr[0] ""
 msgstr[1] ""
 

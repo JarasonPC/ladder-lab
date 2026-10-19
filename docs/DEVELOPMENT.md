@@ -307,7 +307,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   four modules in Siemens grey; breakers print their characteristic and rating ("B2", "C16");
   terminal strips from terminal labels ("X2:4" = strip X2, plain "4" = strip X1), their
   terminals in the order set in the sidebar (SchematicDocument.strip_orders, saved; arrows move
-  the picked terminals along the strip), else by label. Wired after the circuit (CabinetWiring): each net
+  the picked terminals along the strip), else by label; neighbouring terminals of one net
+  are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
+  desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree, every wire straight from its terminal
   towards the duct over or under its rail, past its sleeve, then one bend slanting into a slot
   between the fingers (CabinetWiring._slants: wires whose slants lie side by side bend at one

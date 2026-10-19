@@ -439,8 +439,10 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 				CabinetParts.overload_relay(p.shifted(place["under_origin"]), under.get("tripped", false), "5", _named_reach(under))
 		CabinetLayout.STRIP:
 			var items: Array = []
-			for t: Dictionary in desc["terminals"]:
-				items.append({"label": t["label"], "kind": t["kind"], "reach": _first_reach(t["keys"])})
+			var bridges: Array = desc.get("bridges", [])
+			for i: int in desc["terminals"].size():
+				var t: Dictionary = desc["terminals"][i]
+				items.append({"label": t["label"], "kind": t["kind"], "reach": _first_reach(t["keys"]), "bridge": i < bridges.size() and bridges[i]})
 			CabinetParts.terminal_strip(q, place["designation"], items)
 		_:
 			CabinetParts.missing(q, place["size"], "-" + str(place["designation"]))

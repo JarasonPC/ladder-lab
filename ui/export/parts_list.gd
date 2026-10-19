@@ -16,12 +16,14 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var under: Dictionary[String, String] = CabinetDevices.overloads_under_contactors(doc.circuit)
 	var strips: Dictionary = CabinetDevices.strips(doc)
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
 	for board: Switchboard in doc.switchboards:
 		var part: Array[Dictionary] = []
 		for rail: CabinetRail in board.rails:
 			for item: CabinetItem in rail.items:
 				if item.kind == CabinetItem.Kind.STRIP:
 					part.append(_strip(item.designation, strips))
+					part.append_array(_bridges(item.designation, strips, net))
 					continue
 				part.append(_device(doc, item.designation))
 				# An overload relay fitted under its contactor.
@@ -115,6 +117,22 @@ static func _letters_number(designation: String) -> PackedStringArray:
 func _strip(strip: String, strips: Dictionary) -> Dictionary:
 	var count: int = (strips.get(strip, []) as Array).size()
 	return {"designation": "-" + strip, "quantity": 1, "name": tr("Terminal strip"), "data": tr_n("%d terminal", "%d terminals", count) % count}
+
+
+## The plug-in bridges of strip [param strip] (see
+## [method CabinetWiring.strip_bridges]): one row for each number of poles.
+func _bridges(strip: String, strips: Dictionary, net: Dictionary[String, int]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var joined: Array[bool] = CabinetWiring.strip_bridges(strips.get(strip, []), net)
+	var poles: int = 1
+	for i: int in joined.size() + 1:
+		if i < joined.size() and joined[i]:
+			poles += 1
+			continue
+		if poles > 1:
+			result.append({"designation": "-" + strip, "quantity": 1, "name": tr("Plug-in bridge"), "data": tr_n("%d pole", "%d poles", poles) % poles})
+		poles = 1
+	return result
 
 
 ## The cable glands of place [param place] ("+RA1"): one for each cable
