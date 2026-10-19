@@ -131,6 +131,13 @@ func _block(p: CabinetPainter, block: Dictionary) -> void:
 			p.circle(r.get_center(), 3.2, Color("fff2b0") if lit else Color("d8d6c8"), BLOCK_EDGE, 0.2)
 	for t: Dictionary in block["terminals"]:
 		var at: Vector2 = t["at"]
+		# The opening of its clamp in the face, the wire going in under the
+		# screw, the clamp's plate showing inside.
+		var entry: Vector2 = t["entry"]
+		var opening: Rect2 = Rect2(entry.x - StationInside.OPENING.x * 0.5, entry.y if t["top"] else entry.y - StationInside.OPENING.y, StationInside.OPENING.x, StationInside.OPENING.y)
+		p.rect(opening, BACK, 0.4)
+		var plate_y: float = opening.end.y - 0.5 if t["top"] else opening.position.y + 0.5
+		p.line(Vector2(opening.position.x + 0.4, plate_y), Vector2(opening.end.x - 0.4, plate_y), CabinetParts.METAL_DARK, 0.5)
 		var color: Color = _reach_color(t["key"])
 		if color.a > 0.0:
 			p.circle(at, 2.6, Color(1, 1, 1, 0.85))

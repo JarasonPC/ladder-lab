@@ -27,6 +27,9 @@ const BLOCK := Vector2(10.0, 36.0)
 const CO_BLOCK: float = 16.0
 const CHAMBER: float = 13.0
 const SCREW_Y: float = 12.0
+## Size of the opening of a terminal's clamp in the block's face, where its
+## wire goes in under the screw.
+const OPENING := Vector2(3.6, 2.8)
 ## Lanes of wires in the channels and down the side.
 const LANE: float = 2.4
 ## Least height of a channel between rows.
@@ -40,14 +43,16 @@ var size: Vector2 = Vector2.ZERO
 ## The items: {"item" (index in the station), "kind" ([enum ControlBoxItem.Kind]),
 ## "designation", "lamp", "cam" (a rotary cam switch), "rect", "center",
 ## "blocks": [{"kind" ("NO", "NC", "CO", "LAMP", "POLE"), "rect",
-## "terminals": [{"name", "key", "at", "top"}]}]}.
+## "terminals": [{"name", "key", "at" (its screw), "entry" (where its wire
+## goes in: the opening of its clamp in the block's top or bottom face, under
+## the screw), "top"}]}]}.
 var items: Array[Dictionary] = []
 ## Glands in the top: {"rect", "cable" (its name)}.
 var glands: Array[Dictionary] = []
 ## Wires: {"net", "conductor", "points", "external" (a core starting at a
 ## gland), "mark", "markers" (sleeves as PackedVector2Array [from, to])}.
 var wires: Array[Dictionary] = []
-## Terminal key -> where it is: {"at", "top", "row"}.
+## Terminal key -> where it is: {"at", "entry", "top", "row"}.
 var terminals: Dictionary[String, Dictionary] = {}
 
 # Tops of the channels, x of the first lane down the side.
@@ -287,7 +292,9 @@ func _lay_out(box: ControlBox, rows: int, lanes: PackedInt32Array, side: int) ->
 				var k: int = same.find(t)
 				var tx: float = x + w * (k + 1) / float(same.size() + 1)
 				t["at"] = Vector2(tx, cell.get_center().y + (-SCREW_Y if t["top"] else SCREW_Y))
+				t["entry"] = Vector2(tx, block["rect"].position.y if t["top"] else block["rect"].end.y)
 				terminals[t["key"]]["at"] = t["at"]
+				terminals[t["key"]]["entry"] = t["entry"]
 			x += w
 	# Glands side by side in the middle of the top.
 	var widths: float = 0.0
@@ -342,13 +349,13 @@ func _route(links: Array[Dictionary], net: Dictionary[String, int], conductor: D
 		wires.append({"net": n, "conductor": c, "points": _simplified(points), "external": link["external"], "mark": mark, "markers": markers})
 
 
-## Where link end [param end] is: a terminal's screw, or a core coming in at
-## its gland.
+## Where link end [param end] is: the opening of a terminal's clamp, or a
+## core coming in at its gland.
 func _end(end: Variant) -> Vector2:
 	if end is Dictionary:
 		var gland: Rect2 = glands[end["gland"]]["rect"]
 		return Vector2(gland.position.x + 2.0 + (end["core"] + 0.5) * CORE, gland.end.y)
-	return terminals[end]["at"]
+	return terminals[end]["entry"]
 
 
 ## [param points] without points repeated or in line.

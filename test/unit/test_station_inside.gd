@@ -47,6 +47,8 @@ func test_blocks_behind_the_devices() -> void:
 			assert_true(cell.encloses(block["rect"]), "the blocks sit in their item's room")
 			for t: Dictionary in block["terminals"]:
 				assert_true((block["rect"] as Rect2).has_point(t["at"]), "terminals on their block")
+				var face: float = (block["rect"] as Rect2).position.y if t["top"] else (block["rect"] as Rect2).end.y
+				assert_eq(t["entry"], Vector2(t["at"].x, face), "the wire goes into the clamp's opening in the face, under the screw")
 	assert_true(Rect2(Vector2.ZERO, inside.size).encloses(inside.items[inside.items.size() - 1]["rect"]))
 
 
@@ -103,11 +105,19 @@ func test_every_terminal_of_a_net_is_wired() -> void:
 			cores += cable["cores"].size()
 	assert_eq(inside.glands.size(), 1, "the cable from the switchboard comes in through a gland")
 	assert_eq(external, cores, "a core of the cable to each terminal it lands on")
+	var entries: Array[Vector2] = []
+	for key: String in inside.terminals:
+		entries.append(inside.terminals[key]["entry"])
+	for wire: Dictionary in inside.wires:
+		var points: PackedVector2Array = wire["points"]
+		assert_has(entries, points[points.size() - 1], "a wire ends in a clamp's opening, never on a screw")
+		if not wire["external"]:
+			assert_has(entries, points[0])
 	var groups: Dictionary = _groups(inside)
 	# Terminals of one net here end up joined; every wired terminal is reached.
 	var by_net: Dictionary = {}
 	for key: String in inside.terminals:
-		var at: Vector2 = inside.terminals[key]["at"]
+		var at: Vector2 = inside.terminals[key]["entry"]
 		if not groups.has(at):
 			continue
 		var n: int = net[key]
