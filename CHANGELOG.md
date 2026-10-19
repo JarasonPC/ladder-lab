@@ -11,7 +11,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   AC or "⎓" for DC
 - The palette tells the parts apart at a glance: the motors are a circle with "M 3~" and
   star/delta, Dahlander or the number of speeds beside it, the PLCs say "PLC relay" and
-  "PLC CPU"
+  "PLC CPU", the temperature sensor shows a thermometer
+- The temperature sensor is drawn with its measuring element, a resistor varying with the
+  temperature (as a Pt100), inside the transmitter box
 
 ## 0.4.1 – 2026-10-19
 
