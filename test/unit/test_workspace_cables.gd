@@ -248,3 +248,27 @@ func test_voltage_drop() -> void:
 	drop = WorkspaceCables.voltage_drop(doc, to_motor)
 	assert_almost_eq(float(drop["volts"]), 2.0 * single.rated_draw() * 20.0 * 0.0225 / float(to_motor["section"]), 0.001)
 	assert_eq(drop["of"], 230.0)
+
+
+func test_each_strip_terminal_on_a_parts_lead_has_its_own_core() -> void:
+	# Forward / reverse: SB1:14 and SB2:11 are one net, each on a terminal of
+	# its own (X2:4, X2:5) at the station's cable.
+	var doc: SchematicDocument = ExampleCircuits.build(6)
+	var cores: Array = []
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		for core: Dictionary in cable["cores"]:
+			cores.append([core["a"], core["b"]])
+	assert_true(cores.has([PackedStringArray(["X2:4"]), PackedStringArray(["SB1:14"])]) or cores.has([PackedStringArray(["SB1:14"]), PackedStringArray(["X2:4"])]), "a core from X2:4 to SB1:14")
+	assert_true(cores.has([PackedStringArray(["X2:5"]), PackedStringArray(["SB2:11"])]) or cores.has([PackedStringArray(["SB2:11"]), PackedStringArray(["X2:5"])]), "and one from X2:5 to SB2:11")
+	# The switchboard lands the same cores.
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var landed: Array = []
+	for wire: Dictionary in layout.wiring.wires:
+		if wire["external"] and str(wire["from"]).begins_with("W"):
+			landed.append(wire["to"])
+	assert_true(landed.has("SB1:14") and landed.has("SB2:11"), "both cores land in the switchboard")
+	var count: int = 0
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		if cable["name"] == "W1":
+			count = cable["cores"].size()
+	assert_eq(landed.filter(func(key: String) -> bool: return not key.begins_with("M1")).size(), count, "as many as the cable has")

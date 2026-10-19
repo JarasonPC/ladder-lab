@@ -180,20 +180,31 @@ func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], condu
 		if not cables.has(cable):
 			cables[cable] = []
 		cables[cable].append(point)
-	# One core for each net in a cable, as the workspace counts them (see
-	# [WorkspaceCables]): to the first of its terminals that sits on the lead
-	# of a part outside (else the first of them, e.g. one on the lead of a
-	# breaker inside); the others on that net are joined to it inside the
-	# switchboard.
+	# The cores of a cable, as the workspace counts them (see
+	# [WorkspaceCables]): one to each terminal on the lead of a part outside
+	# where a net has two or more, else one for the net, to the first of its
+	# terminals that sits on such a lead (else the first of them, e.g. one on
+	# the lead of a breaker inside); the others on that net are joined to it
+	# inside the switchboard.
 	for cable: String in cables:
 		var points: Array = cables[cable]
 		points.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["at"].x < q["at"].x)
 		var first: Dictionary[int, int] = {}
+		var leads: Dictionary[int, Array] = {}
 		for i: int in points.size():
 			var n: int = net[points[i]["key"]]
+			if points[i].get("on_lead", false):
+				if not leads.has(n):
+					leads[n] = []
+				leads[n].append(i)
 			if not first.has(n) or (points[i].get("on_lead", false) and not points[first[n]].get("on_lead", false)):
 				first[n] = i
-		var chosen: Array = first.values()
+		var chosen: Array = []
+		for n: int in first:
+			if leads.has(n) and leads[n].size() >= 2:
+				chosen.append_array(leads[n])
+			else:
+				chosen.append(first[n])
 		chosen.sort()
 		var cores: Array = []
 		for i: int in chosen:

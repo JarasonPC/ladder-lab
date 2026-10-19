@@ -211,7 +211,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   reaching two or more places gets a core between them: from the switchboard with a strip
   terminal on it to each other place (a star from the strip), else from the first switchboard,
   else along the shortest tree between the places' centres (stop buttons looped through from
-  station to station). The cores between two places are one cable (key "+RA1|+ST1", its ends in
+  station to station). A strip terminal on the lead of a part at the other end has a core of
+  its own to that part where its net has two or more such terminals (WorkspaceCables._split; the
+  switchboard lands each, joined there by a plug-in bridge or wires). The cores between two places are one cable (key "+RA1|+ST1", its ends in
   workspace order: switchboards, stations, parts in circuit order), each core with what it lands
   on at both ends
   (at a switchboard its strip terminals alone when it has some) and its wire number, the PE core
