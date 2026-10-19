@@ -286,3 +286,72 @@ func test_supply_lands_on_the_strip_terminal_of_its_supply_point() -> void:
 	for conductor: String in cores:
 		assert_true(doc.circuit.get_terminal_owner(cores[conductor]) is PowerSupply, conductor + " lands on the terminal X1:" + conductor)
 
+
+
+func test_wires_carry_their_numbers_on_marker_sleeves() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.number_wires()
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var numbers: Dictionary[int, String] = WorkspaceCables.wire_numbers(doc, net)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var control: Dictionary = _wire(wiring, "FU2:2", "KM1:13")
+	assert_false(numbers.get(net["KM1:13"], "").is_empty(), "the net is numbered")
+	assert_eq(control["mark"], numbers[net["KM1:13"]], "the wire number on the sleeves")
+	assert_eq(_wire(wiring, "FU1:1", "FU2:1")["mark"], "L1", "a supply conductor without a number: its name")
+	for wire: Dictionary in wiring.wires:
+		if wire["external"] and wire["from"] == "N":
+			assert_eq(wire["mark"], "N", "the cores of the supply cable too")
+		assert_eq(wire["markers"].size(), 1 if wire["external"] else 2, "%s-%s: a sleeve at each terminal end, none where a core leaves its cable" % [wire["from"], wire["to"]])
+	var points: PackedVector2Array = control["points"]
+	var first: PackedVector2Array = control["markers"][0]
+	assert_almost_eq(points[0].distance_to(first[0]), CabinetParts.MARKER_FROM, 0.01, "just behind the ferrule")
+	assert_almost_eq(first[0].distance_to(first[1]), CabinetParts.marker_length(control["mark"]), 0.01)
+
+
+## Sleeves of example 9 (star/delta: two power wires in terminals of the
+## motor's strip), each as its wire and its outline.
+func _sleeves(layout: CabinetLayout, wiring: CabinetWiring) -> Array[Array]:
+	var result: Array[Array] = []
+	for wire: Dictionary in wiring.wires:
+		var path: PackedVector2Array = wire["points"]
+		if path[0].distance_to(path[path.size() - 1]) < 1.0:
+			# A wire back into its own terminal: two supply points on one strip terminal.
+			continue
+		for span: PackedVector2Array in wire["markers"]:
+			var r: Rect2 = Rect2(span[0], Vector2.ZERO).expand(span[1])
+			var half: float = (wire["width"] + CabinetParts.MARKER_GROW) * 0.5 - 0.05
+			result.append([wire, r.grow_individual(half, 0.0, half, 0.0) if r.size.x < r.size.y else r.grow_individual(0.0, half, 0.0, half)])
+	return result
+
+
+func test_marker_sleeves_keep_out_of_the_ducts_and_off_each_other() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(9)
+	doc.number_wires()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	for wire: Dictionary in wiring.wires:
+		assert_eq(wire["markers"].size(), 1 if wire["external"] else 2, "%s-%s has room for its sleeves" % [wire["from"], wire["to"]])
+	var sleeves: Array[Array] = _sleeves(layout, wiring)
+	for i: int in sleeves.size():
+		var outline: Rect2 = sleeves[i][1]
+		for duct: Dictionary in layout.ducts:
+			assert_false((duct["rect"] as Rect2).intersects(outline), "%s-%s: no sleeve in a duct" % [sleeves[i][0]["from"], sleeves[i][0]["to"]])
+		for j: int in range(i + 1, sleeves.size()):
+			assert_false(outline.intersects(sleeves[j][1]), "%s-%s and %s-%s: no sleeve covers another" % [sleeves[i][0]["from"], sleeves[i][0]["to"], sleeves[j][0]["from"], sleeves[j][0]["to"]])
+
+
+func test_wires_in_one_terminal_spread_out_for_their_sleeves() -> void:
+	var doc: SchematicDocument = _doc()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	# L1 comes in to FU1:1 and goes on to FU2:1: two wires in FU1:1.
+	var core: Dictionary = {}
+	for wire: Dictionary in wiring.wires:
+		if wire["external"] and wire["from"] == "L1":
+			core = wire
+	var jumper: Dictionary = _wire(wiring, "FU1:1", "FU2:1")
+	var core_sleeve: PackedVector2Array = core["markers"][core["markers"].size() - 1]
+	var jumper_sleeve: PackedVector2Array = jumper["markers"][0] if jumper["from"] == "FU1:1" else jumper["markers"][1]
+	assert_almost_eq(core_sleeve[0].y, jumper_sleeve[0].y, 0.01, "side by side at one height")
+	assert_true(absf(core_sleeve[0].x - jumper_sleeve[0].x) >= CabinetWiring.FAN - 0.01, "far enough apart for both sleeves")

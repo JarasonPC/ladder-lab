@@ -22,7 +22,10 @@ extends RefCounted
 ## workspace (see [WorkspaceCables]: "W2" to a control station with all
 ## its buttons and lamps, a core for each net), one per part for parts
 ## without a place; a net going on to another switchboard leaves the same
-## way, in the cable between the two. No nodes.
+## way, in the cable between the two. Every wire carries its net's wire
+## number on a marker sleeve at each terminal end (the supply conductor's
+## name, "L1", "N", "PE", on a net without a number); wires sharing a
+## terminal spread out under it, so their sleeves sit side by side. No nodes.
 
 ## Room between a duct and the bend into its slot.
 const BEND: float = 2.0
@@ -42,13 +45,24 @@ const CORE_ORDER: Array[PowerSupply.Conductor] = [
 ]
 ## Room between two wires in one terminal.
 const SHARED: float = 0.9
+## Two or more wires in one terminal spread out right under it, so their
+## marker sleeves sit side by side: FAN apart (closer where the next
+## terminal is near), aside past the ferrule (FAN_FROM from the terminal),
+## before [constant CabinetParts.MARKER_FROM].
+const FAN: float = 3.2
+const FAN_FROM: float = 2.2
+## Room between two marker sleeves one above the other.
+const MARKER_SPACE: float = 0.5
 
 ## The wires: {"net": int, "conductor": [enum CabinetDevices.Conductor],
 ## "width": float, "points": PackedVector2Array (mm, from one terminal to
 ## the other), "from", "to" (terminal keys in the circuit; for a core of a
 ## cable "from" names the cable), "external" (true for a core of a cable:
 ## it starts at the gland), "cable" ("AC", "DC", or what is written on a
-## field cable: the workspace cable's name, "-SB1" for a part without a place)}.
+## field cable: the workspace cable's name, "-SB1" for a part without a place),
+## "mark" (what its marker sleeves say: the wire number, else the supply
+## conductor's name, else ""), "markers" (its marker sleeves, each as
+## PackedVector2Array [from, to] in mm along the wire; see [method _markers])}.
 var wires: Array[Dictionary] = []
 ## Cable glands (mm): {"rect", "bottom" (in the bottom of the enclosure,
 ## a field cable going out; else the supply coming in at the top),
@@ -63,6 +77,9 @@ var _field: Array[Dictionary] = []
 var _entries: Dictionary[PowerSupply.Conductor, Dictionary] = {}
 # Where the cores of the field cables leave the plate (mm from its top).
 var _bottom: float = 0.0
+# Every screw of the devices on the rails, wired or not: centre and radius
+# (mm) as x, y, z.
+var _screws: Array[Vector3] = []
 
 var _circuit: Circuit
 # Ducts across (top to bottom) and down the sides (left, right).
@@ -114,9 +131,25 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 			var first: Dictionary = by_net[n][0]
 			wiring._field.append({"key": first["key"], "at": first["at"], "duct": first["duct"], "up": first["up"], "id": first["id"], "cable": onward[n]})
 	wiring._field_cables(edges, net, conductor, _cable_names(doc, board, cables))
+	var marks: Dictionary[int, String] = _marks(doc, net)
+	for edge: Dictionary in edges:
+		edge["mark"] = marks.get(edge["net"], "")
 	wiring._route(edges)
 	wiring._glands()
 	return wiring
+
+
+## What the marker sleeves of each net say: its wire number, else the name
+## of the supply conductor on it ("L1", "N", "PE", "+").
+static func _marks(doc: SchematicDocument, net: Dictionary[String, int]) -> Dictionary[int, String]:
+	var marks: Dictionary[int, String] = WorkspaceCables.wire_numbers(doc, net)
+	for c: CircuitComponent in doc.circuit.get_components():
+		if not (c is PowerSupply):
+			continue
+		var n: int = net.get(c.get_terminal_keys()[0], -1)
+		if n >= 0 and not marks.has(n):
+			marks[n] = (c as PowerSupply).conductor_name()
+	return marks
 
 
 ## A cable out of the bottom of the enclosure for each part outside: its
@@ -444,9 +477,10 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 			on[str(aux[k][0])] = true
 			on[str(aux[k][2])] = true
 	for name: String in points:
+		var p: Vector3 = points[name]
+		_screws.append(Vector3(origin.x + p.x, origin.y + p.y, p.z))
 		if not terminals.has(name) or not net.has(terminals[name]):
 			continue
-		var p: Vector3 = points[name]
 		var up: bool = origin.y + p.y < centre
 		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z))
 		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up}
@@ -536,11 +570,13 @@ func _route(edges: Array[Dictionary]) -> void:
 		var id: int = end["point"]["id"]
 		var index: int = used.get(id, 0)
 		used[id] = index + 1
+		end["index"] = index
 		end["x"] = end["point"]["at"].x + (index - (shared[id] - 1) * 0.5) * SHARED
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
 		end["via"] = PackedVector2Array()
 	_lead_beside(ends)
 	_lead_aside(ends)
+	_fan(ends, shared)
 	ends.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
 	var pitch: float = CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT
 	# Slots by duct, number and side: wires from above and from below go in
@@ -572,6 +608,7 @@ func _route(edges: Array[Dictionary]) -> void:
 	for i: int in _across.size():
 		runs.append([])
 	var routes: Array[Dictionary] = []
+	var reaches: Array[Vector2] = []
 	for e: int in edges.size():
 		var a: Dictionary = by_side["%da" % e]
 		var b: Dictionary = by_side["%db" % e]
@@ -612,7 +649,180 @@ func _route(edges: Array[Dictionary]) -> void:
 			"net": edges[e]["net"], "conductor": edges[e]["conductor"], "width": edges[e]["width"],
 			"points": _clean(points), "from": edges[e]["a"]["key"], "to": edges[e]["b"]["key"],
 			"external": edges[e]["a"].get("external", false), "cable": edges[e]["a"].get("cable", ""),
+			"mark": edges[e]["mark"],
 		})
+		reaches.append(Vector2(_reach(route["a"]), _reach(route["b"])))
+	_markers(reaches)
+
+
+## Spreads the wires of a terminal that has [param shared] (terminal id ->
+## wires) two or more apart right under it: in the terminal side by side,
+## out past the ferrule, then aside to a place of its own (a short jog),
+## FAN apart or as
+## far as the room to the next terminal in the row and the screws on their
+## way to the duct allow, so the marker sleeves sit side by side. Wires led
+## round a contactor already go their own ways.
+func _fan(ends: Array[Dictionary], shared: Dictionary[int, int]) -> void:
+	var steps: Dictionary[int, float] = {}
+	for end: Dictionary in ends:
+		var point: Dictionary = end["point"]
+		var count: int = shared[point["id"]]
+		if count < 2 or not end["via"].is_empty() or point.get("external", false):
+			continue
+		if not steps.has(point["id"]):
+			steps[point["id"]] = _fan_step(point, count, ends)
+		var at: Vector2 = point["at"]
+		var away: float = -1.0 if point["up"] else 1.0
+		var x: float = at.x + (end["index"] - (count - 1) * 0.5) * steps[point["id"]]
+		end["via"] = PackedVector2Array([Vector2(end["x"], at.y + away * FAN_FROM), Vector2(x, at.y + away * FAN_FROM)])
+		end["x"] = x
+
+
+## Places the marker sleeves of every wire (its "markers"): one at each end
+## leading to a terminal (none where a core comes out of its cable),
+## [constant CabinetParts.MARKER_FROM] from the end, else on the first
+## straight stretch long enough after it, clear of the bends (as
+## [method CabinetParts.wire] rounds them) and before the wire bends into
+## its duct ([param reaches]: how far each wire runs from its first and its
+## last terminal before that), so a sleeve never sits in a duct. A sleeve
+## that would cover another one moves on along its wire by its length (two
+## wires in a terminal too narrow to have them side by side: one above the
+## other, in a row of such terminals by turns); one with nowhere else to go
+## stays where it was first put. An end without
+## room for its sleeve has none.
+func _markers(reaches: Array[Vector2]) -> void:
+	var placed: Array[Rect2] = []
+	for w: int in wires.size():
+		var wire: Dictionary = wires[w]
+		var markers: Array[PackedVector2Array] = []
+		wire["markers"] = markers
+		if str(wire["mark"]).is_empty():
+			continue
+		var length: float = CabinetParts.marker_length(wire["mark"])
+		var thick: float = wire["width"] + CabinetParts.MARKER_GROW
+		for end: int in range(1 if wire["external"] else 0, 2):
+			var path: PackedVector2Array = (wire["points"] as PackedVector2Array).duplicate()
+			if end == 1:
+				path.reverse()
+			var limit: float = (reaches[w].x if end == 0 else reaches[w].y) - wire["width"] * 1.6
+			var span: PackedVector2Array = _marker_span(path, CabinetParts.MARKER_FROM, length, wire["width"] * 1.6, limit)
+			var free: PackedVector2Array = span
+			var from: float = CabinetParts.MARKER_FROM
+			while not free.is_empty() and _covers(free, thick, placed):
+				from += length + MARKER_SPACE
+				free = _marker_span(path, from, length, wire["width"] * 1.6, limit)
+			if not free.is_empty():
+				span = free
+			if not span.is_empty():
+				markers.append(span)
+				placed.append(_outline(span, thick))
+
+
+## The first straight stretch [param length] long along [param path] from
+## [param from] on, clear of the bends rounded off at [param radius] and
+## ending before [param limit] (mm along the path), as [from, to]; empty
+## for none.
+static func _marker_span(path: PackedVector2Array, from: float, length: float, radius: float, limit: float) -> PackedVector2Array:
+	var walked: float = 0.0
+	for i: int in path.size() - 1:
+		if walked >= limit:
+			break
+		var leg: float = path[i].distance_to(path[i + 1])
+		var low: float = maxf(from, walked + _bend_radius(path, i, radius))
+		var high: float = minf(limit, walked + leg - _bend_radius(path, i + 1, radius))
+		if high - low >= length:
+			return PackedVector2Array([_point_along(path, low), _point_along(path, low + length)])
+		walked += leg
+	return PackedVector2Array()
+
+
+## Radius of the bend at point [param i] of [param path] as
+## [method CabinetParts.wire] rounds it off ([param radius], less where the
+## legs are short); 0 at the ends.
+static func _bend_radius(path: PackedVector2Array, i: int, radius: float) -> float:
+	if i <= 0 or i >= path.size() - 1:
+		return 0.0
+	return minf(radius, minf(path[i - 1].distance_to(path[i]), path[i].distance_to(path[i + 1])) * 0.5)
+
+
+## The point [param distance] mm along [param path].
+static func _point_along(path: PackedVector2Array, distance: float) -> Vector2:
+	for i: int in path.size() - 1:
+		var leg: float = path[i].distance_to(path[i + 1])
+		if distance <= leg:
+			return path[i].lerp(path[i + 1], distance / leg) if leg > 0.0 else path[i]
+		distance -= leg
+	return path[path.size() - 1]
+
+
+## Outline of a sleeve [param thick] mm thick along [param span] (lying or
+## standing).
+static func _outline(span: PackedVector2Array, thick: float) -> Rect2:
+	var r: Rect2 = Rect2(span[0], Vector2.ZERO).expand(span[1])
+	return r.grow_individual(thick * 0.5, 0.0, thick * 0.5, 0.0) if r.size.x < r.size.y else r.grow_individual(0.0, thick * 0.5, 0.0, thick * 0.5)
+
+
+## Whether a sleeve [param thick] mm thick along [param span] covers one of
+## the sleeves [param placed] (their outlines).
+static func _covers(span: PackedVector2Array, thick: float, placed: Array[Rect2]) -> bool:
+	var outline: Rect2 = _outline(span, thick).grow(-0.05)
+	for other: Rect2 in placed:
+		if outline.intersects(other):
+			return true
+	return false
+
+
+## How far apart the [param count] wires of the terminal at [param point]
+## spread (see [method _fan]): FAN, less for the next terminal in the row
+## ([param ends]) and for screws on their way to the duct; SHARED for no
+## room.
+func _fan_step(point: Dictionary, count: int, ends: Array[Dictionary]) -> float:
+	var at: Vector2 = point["at"]
+	var step: float = FAN
+	for other: Dictionary in ends:
+		var next: Dictionary = other["point"]
+		if next["id"] != point["id"] and next["up"] == point["up"] and absf(next["at"].y - at.y) < FAN:
+			step = minf(step, absf(next["at"].x - at.x) / count)
+	var duct: Rect2 = _across[point["duct"]]
+	var way: float = absf((duct.end.y + BEND if point["up"] else duct.position.y - BEND) - at.y)
+	var away: float = -1.0 if point["up"] else 1.0
+	var in_way: Array[Vector3] = []
+	for screw: Vector3 in _screws:
+		var ahead: float = (screw.y - at.y) * away
+		if ahead > 0.0 and ahead < way + screw.z:
+			in_way.append(screw)
+	var hits: Callable = func(spread: float, screw: Vector3) -> bool:
+		for i: int in count:
+			if absf(at.x + (i - (count - 1) * 0.5) * spread - screw.x) < screw.z + POWER_W * 0.5:
+				return true
+		return false
+	while step > SHARED:
+		var clear: bool = true
+		for screw: Vector3 in in_way:
+			if hits.call(step, screw):
+				clear = false
+				break
+		if clear:
+			return step
+		step -= 0.1
+	return SHARED
+
+
+## How far a wire runs from its terminal at [param end] (one of the ends of
+## [method _route]) to the bend into its duct; 0 for a core coming out of a
+## cable.
+func _reach(end: Dictionary) -> float:
+	var point: Dictionary = end["point"]
+	if point.get("external", false):
+		return 0.0
+	var duct: Rect2 = _across[point["duct"]]
+	var path: PackedVector2Array = PackedVector2Array([end["start"]])
+	path.append_array(end["via"])
+	path.append(Vector2(end["x"], duct.end.y + BEND if point["up"] else duct.position.y - BEND))
+	var length: float = 0.0
+	for i: int in path.size() - 1:
+		length += path[i].distance_to(path[i + 1])
+	return length
 
 
 ## From a terminal up or down to its duct and in through its slot to the

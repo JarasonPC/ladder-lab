@@ -1937,6 +1937,59 @@ static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, 
 		p.line(tip, back, METAL, maxf(width - 0.5, 0.3))
 
 
+## Yellow of the wire marker sleeves.
+const MARKER := Color("f5d30f")
+## Length of a marker sleeve: per character plus both ends, at least
+## MARKER_MIN.
+const MARKER_CHAR: float = 1.8
+const MARKER_ENDS: float = 2.4
+const MARKER_MIN: float = 5.5
+## From the end of a wire to its sleeve: past the ferrule and where the
+## wires of one terminal spread out (see [constant CabinetWiring.FAN]), so
+## the sleeves of a row of terminals line up (see [CabinetWiring], "markers").
+const MARKER_FROM: float = 5.4
+## How much thicker a sleeve is than its wire.
+const MARKER_GROW: float = 0.9
+
+
+## Length of the marker sleeve saying [param mark].
+static func marker_length(mark: String) -> float:
+	return maxf(mark.length() * MARKER_CHAR + MARKER_ENDS, MARKER_MIN)
+
+
+## The yellow marker sleeves of a wire [param width] mm thick, each from
+## one point of [param spans] to the other (mm), saying [param mark] along
+## the wire: left to right, bottom to top on a wire running up and down.
+## The text is left out where too small to read.
+static func wire_markers(p: CabinetPainter, spans: Array[PackedVector2Array], mark: String, width: float) -> void:
+	var thick: float = width + MARKER_GROW
+	var w: float = maxf(thick * p.k, 2.0)
+	var font: Font = AppTheme.bold_font()
+	for span: PackedVector2Array in spans:
+		var a: Vector2 = p.px(span[0])
+		var b: Vector2 = p.px(span[1])
+		var dir: Vector2 = (b - a).normalized()
+		p.canvas.draw_line(a - dir * 0.5, b + dir * 0.5, MARKER.darkened(0.45), w + 1.0, true)
+		p.canvas.draw_line(a, b, MARKER, maxf(w - 0.4, 1.0), true)
+		var lying: bool = absf(dir.x) >= absf(dir.y)
+		if w >= 4.0:
+			# Light along the top and left of the round sleeve.
+			var shine: Vector2 = Vector2(0.0, -1.0) if lying else Vector2(-1.0, 0.0)
+			p.canvas.draw_line(a + shine * w * 0.22, b + shine * w * 0.22, MARKER.lightened(0.45), maxf(w * 0.16, 1.0), true)
+		var size_mm: float = thick * 0.82
+		if size_mm * p.k < CabinetPainter.MIN_TEXT_PX:
+			continue
+		var font_size: int = roundi(size_mm * p.k)
+		var room: float = a.distance_to(b) - 2.0
+		while font_size > 5 and font.get_string_size(mark, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > room:
+			font_size -= 1
+		var text_w: float = font.get_string_size(mark, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var shift: float = (font.get_ascent(font_size) - font.get_descent(font_size)) * 0.5
+		p.canvas.draw_set_transform((a + b) * 0.5, 0.0 if lying else -PI * 0.5)
+		p.canvas.draw_string(font, Vector2(-text_w * 0.5, shift).round(), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("111111"))
+		p.canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
 ## [param points] with every bend rounded off to [param radius] mm (less
 ## where the legs are short).
 static func _rounded_path(points: PackedVector2Array, radius: float) -> PackedVector2Array:

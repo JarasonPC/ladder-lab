@@ -114,7 +114,7 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 				if strip_labels.has(label):
 					on_strip.append(label)
 			ends[n][place] = on_strip
-	var numbers: Dictionary[int, String] = _numbers(doc, net)
+	var numbers: Dictionary[int, String] = wire_numbers(doc, net)
 	var centres: Dictionary[String, Vector2] = _centres(doc)
 	var rank: Dictionary[String, int] = {}
 	for i: int in centres.size():
@@ -443,7 +443,7 @@ static func _labels(list: Array) -> PackedStringArray:
 
 
 ## Wire number of each net that has one.
-static func _numbers(doc: SchematicDocument, net: Dictionary[String, int]) -> Dictionary[int, String]:
+static func wire_numbers(doc: SchematicDocument, net: Dictionary[String, int]) -> Dictionary[int, String]:
 	var result: Dictionary[int, String] = {}
 	var wires: Array[PackedStringArray] = doc.circuit.get_wires()
 	for i: int in wires.size():

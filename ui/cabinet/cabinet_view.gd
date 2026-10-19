@@ -395,11 +395,15 @@ func _paint_place(canvas: CanvasItem, index: int) -> void:
 		_draw_place(_painter(canvas), _layout.places[index])
 
 
-## The wires, the cable glands and the labels of the places.
+## The wires with their marker sleeves, the cable glands and the labels of
+## the places.
 func _paint_top(canvas: CanvasItem) -> void:
 	var p: CabinetPainter = _painter(canvas)
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"])
+	# The marker sleeves over every wire, so a wire running past never hides one.
+	for wire: Dictionary in _wiring.wires:
+		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], wire["width"])
 	for gland: Dictionary in _wiring.glands:
 		CabinetParts.cable_gland(p, gland["rect"], gland["bottom"])
 		if gland["bottom"]:

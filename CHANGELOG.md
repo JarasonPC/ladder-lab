@@ -25,6 +25,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A cable opened on the workspace can be given a type name of your own, a cross-section and its
   length; it then shows its voltage drop (marked above 4 %), and the length is written on the
   workspace and in the parts list
+- Switchboard wires carry yellow marker sleeves with their wire numbers at both ends (L1, N,
+  PE … on supply wires without a number); two wires in one terminal spread apart so both sleeves
+  show, side by side or one above the other; the ducts sit further from the devices to leave
+  room for them
 
 ### Application
 - The example circuits are no longer in the program (the toolbar list is gone)
