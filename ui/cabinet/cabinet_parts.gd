@@ -1990,6 +1990,24 @@ static func wire_markers(p: CabinetPainter, spans: Array[PackedVector2Array], ma
 		p.canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
+## Depth of a terminal's clamp opening seen from the front: the ferrule
+## goes all the way in.
+const MOUTH: float = 2.0
+
+
+## The clamp opening of a device terminal the wires go into, at [param at]
+## (the edge of the screw on the side the wires come from; [param up]: from
+## above), [param width] mm across the wires in it: a dark opening over the
+## wire ends with the clamp's edge inside.
+static func clamp_mouth(p: CabinetPainter, at: Vector2, up: bool, width: float) -> void:
+	var w: float = width + 1.2
+	var r: Rect2 = Rect2(at.x - w * 0.5, at.y - MOUTH if up else at.y, w, MOUTH)
+	p.rect(r.grow(0.25), Color(1, 1, 1, 0.18), 0.6)
+	p.rect(r, HOLE, 0.5)
+	var edge: float = r.end.y - 0.45 if up else r.position.y + 0.15
+	p.rect(Rect2(r.position.x + 0.5, edge, w - 1.0, 0.3), METAL_DARK, 0.1)
+
+
 ## [param points] with every bend rounded off to [param radius] mm (less
 ## where the legs are short).
 static func _rounded_path(points: PackedVector2Array, radius: float) -> PackedVector2Array:

@@ -64,6 +64,10 @@ const MARKER_SPACE: float = 0.5
 ## conductor's name, else ""), "markers" (its marker sleeves, each as
 ## PackedVector2Array [from, to] in mm along the wire; see [method _markers])}.
 var wires: Array[Dictionary] = []
+## Clamp openings of the device terminals the wires go into (mm): {"at"
+## (where the wires go in: the edge of the screw on the side they come
+## from), "up" (they come from above), "width" (across the wires in it)}.
+var mouths: Array[Dictionary] = []
 ## Cable glands (mm): {"rect", "bottom" (in the bottom of the enclosure,
 ## a field cable going out; else the supply coming in at the top),
 ## "cable"}.
@@ -487,7 +491,7 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 			continue
 		var up: bool = origin.y + p.y < centre
 		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z))
-		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up}
+		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up, "clamp": true}
 		if not up and beside.has_area():
 			var out: Array[float] = []
 			for y: float in CabinetParts.CONTACTOR_OUT_Y:
@@ -581,6 +585,7 @@ func _route(edges: Array[Dictionary]) -> void:
 	_lead_beside(ends)
 	_lead_aside(ends)
 	_fan(ends, shared)
+	_mouths(ends, shared)
 	ends.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
 	var pitch: float = CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT
 	# Slots by duct, number and side: wires from above and from below go in
@@ -657,6 +662,18 @@ func _route(edges: Array[Dictionary]) -> void:
 		})
 		reaches.append(Vector2(_reach(route["a"]), _reach(route["b"])))
 	_markers(reaches)
+
+
+## The clamp opening of each device terminal with wires in it (see
+## [member mouths]): wide enough for its [param shared] wires side by side.
+func _mouths(ends: Array[Dictionary], shared: Dictionary[int, int]) -> void:
+	var done: Dictionary[int, bool] = {}
+	for end: Dictionary in ends:
+		var point: Dictionary = end["point"]
+		if not point.get("clamp", false) or done.has(point["id"]):
+			continue
+		done[point["id"]] = true
+		mouths.append({"at": point["at"], "up": point["up"], "width": POWER_W + (shared[point["id"]] - 1) * SHARED})
 
 
 ## Spreads the wires of a terminal that has [param shared] (terminal id ->
