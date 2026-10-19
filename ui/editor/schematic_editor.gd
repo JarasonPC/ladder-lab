@@ -36,6 +36,8 @@ const CLICK_SLOP: float = 6.0
 enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
+## Phase conductors as the palette names them, in phase order.
+const PHASES: PackedStringArray = ["L", "L2", "L3"]
 
 var view: SchematicView
 var history: UndoHistory = UndoHistory.new()
@@ -60,6 +62,9 @@ var _mouse_cell: Vector2i = Vector2i.ZERO
 var _mouse_point: Vector2 = Vector2.ZERO
 # Placing.
 var _template: Dictionary = {}
+## Phase supplies placed one after the other with the place tool: each takes
+## the next phase (L1, L2, L3, L1, ...), see [method _placed_data].
+var _phase_step: int = 0
 var _ghost: SchematicSymbol = null
 var _ghost_rotation: int = 0
 var _ghost_mirrored: bool = false
@@ -205,6 +210,7 @@ func begin_place(template: Dictionary) -> void:
 	_cancel_tool()
 	tool = Tool.PLACE
 	_template = template
+	_phase_step = 0
 	_ghost_rotation = 3 if document().horizontal else 0
 	_ghost_mirrored = document().horizontal
 	_rebuild_ghost()
@@ -964,7 +970,7 @@ func _place_at(cell: Vector2i) -> void:
 				doc.set_strip_terminal(owner.id, index, doc.next_strip_label())
 				_changed()
 			return
-	var data: Dictionary = _template.duplicate()
+	var data: Dictionary = _placed_data()
 	data["designation"] = _new_designation(data)
 	var ratings: PackedStringArray = VoltageRating.offered(data["type"]) if data.get("family", "") != "compact" else PackedStringArray()
 	if not ratings.is_empty() and not data.has("rating"):
@@ -991,8 +997,21 @@ func _place_at(cell: Vector2i) -> void:
 		doc.add(c, cell, _ghost_rotation, _ghost_mirrored)
 	_clear_selection()
 	selected_components[c.id] = true
+	if c is PowerSupply and PHASES.has(data["conductor"]):
+		_phase_step += 1
 	_changed()
 	_rebuild_ghost()
+
+
+## What the place tool puts down next: its template, a phase supply placed
+## after others moved on by [member _phase_step] phases (L1 → L2 → L3 →
+## L1), except where a single-phase drawing names its phase plain "L".
+func _placed_data() -> Dictionary:
+	var data: Dictionary = _template.duplicate()
+	if data.get("type", "") == "supply" and PHASES.has(str(data.get("conductor", ""))) and _phase_step > 0:
+		if document().next_supply_designation(PowerSupply.Conductor.L) != "L" and not document().next_supply_designation(PowerSupply.Conductor.L).begins_with("L."):
+			data["conductor"] = PHASES[(PHASES.find(str(data["conductor"])) + _phase_step) % PHASES.size()]
+	return data
 
 
 ## True when other parts carry the designation of [param c].
@@ -1567,7 +1586,7 @@ func _rebuild_ghost() -> void:
 	if _ghost != null:
 		_ghost.free()
 		_ghost = null
-	var data: Dictionary = _template.duplicate()
+	var data: Dictionary = _placed_data()
 	data["designation"] = _new_designation(data)
 	var placement: Placement = Placement.new(_mouse_cell, _ghost_rotation, _ghost_mirrored)
 	_ghost = SymbolFactory.create(DocumentSerializer.component_from_dict(data), placement)

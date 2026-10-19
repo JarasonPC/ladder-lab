@@ -769,3 +769,29 @@ func test_contact_renamed_to_an_overload_relay_on_another_page() -> void:
 	relay_data["designation"] = "F7"
 	assert_eq(editor.apply_properties(relay.id, relay_data), "")
 	assert_true(editor.document().circuit.get_component("F7:95-96") is OverloadContact, "follows the renamed relay")
+
+
+func test_phase_supplies_placed_in_turn() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	view.load_document(doc, false)
+	editor.begin_place({"type": "supply", "conductor": "L"})
+	for c: int in 4:
+		_at(Vector2(2 + 3 * c, 1))
+		editor._on_left_pressed(false)
+		editor._on_left_released(false)
+	editor._cancel_tool()
+	var names: PackedStringArray = PackedStringArray()
+	for c: CircuitComponent in editor.document().circuit.get_components():
+		names.append(c.designation)
+	assert_eq(names, PackedStringArray(["L1", "L2", "L3", "L1.2"]), "L1, L2, L3, then L1 again")
+	# A single-phase drawing naming its phase "L" keeps it.
+	doc = SchematicDocument.new()
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
+	view.load_document(doc, false)
+	editor.begin_place({"type": "supply", "conductor": "L"})
+	for x: int in [8, 12]:
+		_at(Vector2(x, 1))
+		editor._on_left_pressed(false)
+		editor._on_left_released(false)
+	editor._cancel_tool()
+	assert_null(editor.document().circuit.get_component("L2"), "no L2 in a single-phase drawing")
