@@ -651,3 +651,44 @@ func test_switchboard_paints_again_only_what_changed() -> void:
 	await wait_seconds(CabinetView.ZOOM_SETTLE + 0.1)
 	await wait_process_frames(2)
 	assert_eq(layers.scale, Vector2.ONE, "painted sharp at the new scale")
+
+
+func test_field_core_leaves_from_the_terminal_on_the_buttons_lead() -> void:
+	# X2:6 on the breaker's lead on page 1, a page connector on to page 2,
+	# where X2:7 and X2:9 sit on the leads of two buttons on a station: the
+	# core to the station leaves from a button's terminal, not from X2:6.
+	var doc: SchematicDocument = SchematicDocument.new("cores")
+	doc.pages = PackedStringArray(["Power", "Control"])
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
+	var breaker: CircuitBreaker = CircuitBreaker.new("FA2")
+	doc.add(breaker, Vector2i(5, 4))
+	doc.add(PageConnector.new("PC1", "101"), Vector2i(5, 12))
+	doc.connect_terminals("L", breaker.get_terminal_keys()[0])
+	doc.connect_terminals(breaker.get_terminal_keys()[1], "PC1")
+	doc.get_placement(breaker.id).strips[1] = "X2:6"
+	doc.page = 1
+	doc.add(PageConnector.new("PC2", "101"), Vector2i(20, 3))
+	doc.add(PushButton.new("SB2", SwitchingElement.ContactType.NO), Vector2i(5, 5))
+	doc.add(PushButton.new("SB1", SwitchingElement.ContactType.NC), Vector2i(10, 5))
+	doc.add(Coil.new("KA1"), Vector2i(5, 12))
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, 20))
+	doc.connect_terminals("PC2", "SB2:13")
+	doc.connect_terminals("PC2", "SB1:11")
+	doc.connect_terminals("SB2:14", "KA1:A1")
+	doc.connect_terminals("SB1:12", "KA1:A1")
+	doc.connect_terminals("KA1:A2", "N")
+	doc.get_placement(doc.circuit.get_component("SB2").id).strips = {0: "X2:7", 1: "X2:8"}
+	doc.get_placement(doc.circuit.get_component("SB1").id).strips = {0: "X2:9", 1: "X2:10"}
+	doc.page = 0
+	doc.add_switchboard()
+	doc.fill_cabinet(0)
+	var box: ControlBox = doc.add_control_box("Station")
+	box.items.append(ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, "SB1", "red"))
+	box.items.append(ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, "SB2"))
+	var wiring: CabinetWiring = CabinetWiring.build(doc, CabinetLayout.build(doc, 2.0, 0), 2.0, 0)
+	var out: PackedStringArray = PackedStringArray()
+	for wire: Dictionary in wiring.wires:
+		if wire["external"] and str(wire["from"]).begins_with("W"):
+			out.append(wire["to"])
+	assert_true(out.has("SB2:13"), "the core of net 101 leaves from X2:7: %s" % [out])
+	assert_false(out.has(breaker.get_terminal_keys()[1]), "not from X2:6 on the breaker's lead")
