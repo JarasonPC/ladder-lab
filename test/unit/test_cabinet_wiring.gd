@@ -446,3 +446,38 @@ func test_lanes_keep_wires_easy_to_follow() -> void:
 		{"from": 20.0, "to": 60.0, "edge": 0, "in": 20.0},
 	], 0.0, 40.0, counts)
 	assert_true(lanes[1] < lanes[0])
+
+
+func test_wires_from_a_contactors_outputs_go_behind_its_overload_relay() -> void:
+	# Forward / reverse: KM2's outputs carry the overload relay's heaters and
+	# are wired on to KM1's.
+	var doc: SchematicDocument = ExampleCircuits.build(6)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var relay: Rect2 = Rect2()
+	var place: Dictionary = {}
+	for p: Dictionary in layout.places:
+		if p.has("under_rect"):
+			relay = p["under_rect"]
+			place = p
+	assert_true(relay.has_area(), "an overload relay under a contactor")
+	var columns: Array[float] = []
+	for x: float in CabinetParts.OVERLOAD_OUT_X + CabinetParts.OVERLOAD_AUX_X:
+		columns.append(relay.position.x + x)
+	var found: int = 0
+	for pole: int in 3:
+		var key: String = place["desc"]["terminals"][str(2 * pole + 2)]
+		for wire: Dictionary in wiring.wires:
+			if wire["from"] != key and wire["to"] != key:
+				continue
+			found += 1
+			var path: PackedVector2Array = wire["points"]
+			var out: Vector2 = path[0] if wire["from"] == key else path[path.size() - 1]
+			assert_almost_eq(out.y, relay.end.y, 0.01, "%s: comes out under the relay" % key)
+			assert_eq(wire["pins"].x if wire["from"] == key else wire["pins"].y, -1.0, "its end out of sight")
+			for x: float in columns:
+				assert_true(absf(out.x - x) > CabinetWiring.WIRE_W, "%s: in a column clear of the relay's own wires" % key)
+			for i: int in path.size() - 1:
+				var segment: Rect2 = Rect2(path[i], Vector2.ZERO).expand(path[i + 1])
+				assert_false(relay.grow(-0.5).intersects(segment), "%s: nothing of it over the relay" % key)
+	assert_true(found > 0, "KM2's outputs are wired on")

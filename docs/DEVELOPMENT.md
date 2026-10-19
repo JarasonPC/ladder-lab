@@ -322,7 +322,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   it has a wiring channel on both sides (CabinetLayout.WIRE_CHANNEL): wires from its bottom
   terminals go straight down as far as they can without passing over a screw on their way down
   or across, then run across its front at heights clear of its screws (CabinetParts.CONTACTOR_OUT_Y,
-  a side block's wires at the first under their terminal)
+  a side block's wires at the first under their terminal); wires on from its power outputs,
+  which carry the relay's heaters, go down behind the relay and come out under it, each in a
+  column between the relay's own terminals (CabinetWiring._behind_column; their end out of
+  sight: wire "pins" -1)
   out to the nearer side and down beside the relay, never across it; wires from the auxiliary
   contact block on its front run straight on over the contactor's tiers, in at the block's top
   and bottom (its columns, CabinetParts.AUX_BLOCK_X / AUX_BLOCK_X4, lie between the

@@ -45,7 +45,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   and go out, so far fewer of them cross
 - Wires to the auxiliary contact block on a contactor's front run straight over the contactor;
   wires from a contactor's bottom terminals over its overload relay go straight down as far as
-  they can before turning aside
+  they can before turning aside, and wires from its main contacts go behind the relay
 
 ### Files and export
 - PLC programs can be exported to a file and imported into another PLC (PLC window)
