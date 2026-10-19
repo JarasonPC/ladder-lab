@@ -1680,67 +1680,74 @@ static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -
 	p.text_centered(tag.get_center(), str(item.get("label", "")), 2.4, Color("111111"), true, w - 0.8)
 
 
-## PE distribution block: the pitch of its screws, its height, the sizes it
-## is made in (screw connections).
-const PE_PITCH: float = 7.0
-const PE_BLOCK_H: float = 18.0
-const PE_SIZES: Array[int] = [7, 12, 15]
+## Distribution block (N or PE, see [method bus_block]): the pitch of its
+## screws, its height, the sizes it is made in (screw connections).
+const BUS_PITCH: float = 7.0
+const BUS_H: float = 18.0
+const BUS_SIZES: Array[int] = [7, 12, 15]
+## Colours of a distribution block's base and cover: PE yellow and green,
+## N grey and blue.
 const PE_YELLOW := Color("f2cf1f")
 const PE_GREEN := Color("2fae5c")
+const N_GREY := Color("d9dcdf")
+const N_BLUE := Color("2f6fd4")
 
 
-## Size of a PE distribution block with [param connections] screw
+## Size of a distribution block with [param connections] screw
 ## connections: standing across the DIN rail, the connections one under the
 ## other.
-static func pe_block_size(connections: int) -> Vector2:
-	return Vector2(PE_BLOCK_H, connections * PE_PITCH + 6.0)
+static func bus_size(connections: int) -> Vector2:
+	return Vector2(BUS_H, connections * BUS_PITCH + 6.0)
 
 
-## Centre of the hole in the green cover over the screw of connection
-## [param i] of a PE distribution block, from the block's top-left.
-static func pe_hole(i: int) -> Vector2:
-	return Vector2(PE_COVER_X + 5.6, 3.0 + PE_PITCH * (i + 0.5))
+## Centre of the hole in the cover over the screw of connection
+## [param i] of a distribution block, from the block's top-left.
+static func bus_hole(i: int) -> Vector2:
+	return Vector2(BUS_COVER_X + 5.6, 3.0 + BUS_PITCH * (i + 0.5))
 
 
-## Where connection [param i] of a PE distribution block takes its wire,
-## from the block's top-left: in under its green cover from the left, by
+## Where connection [param i] of a distribution block takes its wire,
+## from the block's top-left: in under its cover from the left, by
 ## its screw.
-static func pe_entry(i: int) -> Vector2:
-	return Vector2(PE_COVER_X, pe_hole(i).y)
+static func bus_entry(i: int) -> Vector2:
+	return Vector2(BUS_COVER_X, bus_hole(i).y)
 
 
-## Left edge of a PE distribution block's green cover; radius of the holes
+## Left edge of a distribution block's cover; radius of the holes
 ## in it and of the screws deep inside them.
-const PE_COVER_X: float = 2.6
-const PE_HOLE: float = 3.0
-const PE_SCREW: float = 2.2
+const BUS_COVER_X: float = 2.6
+const BUS_HOLE: float = 3.0
+const BUS_SCREW: float = 2.2
 
 
-## PE distribution block on a DIN rail with [param connections] screw
-## connections, as made, standing across the rail: a brass bar in a yellow
-## base under a green cover with a round hole over the screw of each
-## connection and the connections' numbers; the wires go in under the cover
-## from its left.
-static func pe_block(p: CabinetPainter, connections: int) -> void:
-	var size: Vector2 = pe_block_size(connections)
+## Distribution block on a DIN rail with [param connections] screw
+## connections, as made, standing across the rail: a brass bar in a base
+## under a cover with a round hole over the screw of each connection and the
+## connections' numbers; the wires go in under the cover from its left.
+## [param neutral]: an N block (a grey base under a blue cover), else PE
+## (yellow under green).
+static func bus_block(p: CabinetPainter, connections: int, neutral: bool = false) -> void:
+	var size: Vector2 = bus_size(connections)
 	var base: Rect2 = Rect2(Vector2.ZERO, size)
+	var under: Color = N_GREY if neutral else PE_YELLOW
+	var over: Color = N_BLUE if neutral else PE_GREEN
 	p.rect(base.grow(0.3), Color(0, 0, 0, 0.3), 1.0)
-	p.hgradient(base, PE_YELLOW.lightened(0.15), PE_YELLOW.darkened(0.12), 0.8)
-	p.rect(base, Color.TRANSPARENT, 0.8, PE_YELLOW.darkened(0.45), 0.15)
-	var cover: Rect2 = Rect2(PE_COVER_X, 1.2, size.x - 2.0 * PE_COVER_X, size.y - 2.4)
+	p.hgradient(base, under.lightened(0.15), under.darkened(0.12), 0.8)
+	p.rect(base, Color.TRANSPARENT, 0.8, under.darkened(0.45), 0.15)
+	var cover: Rect2 = Rect2(BUS_COVER_X, 1.2, size.x - 2.0 * BUS_COVER_X, size.y - 2.4)
 	p.rect(cover.grow(0.2), Color(0, 0, 0, 0.25), 1.6)
-	p.hgradient(cover, PE_GREEN.lightened(0.12), PE_GREEN.darkened(0.12), 1.4)
-	p.rect(cover, Color.TRANSPARENT, 1.4, PE_GREEN.darkened(0.45), 0.15)
+	p.hgradient(cover, over.lightened(0.12), over.darkened(0.12), 1.4)
+	p.rect(cover, Color.TRANSPARENT, 1.4, over.darkened(0.45), 0.15)
 	for i: int in connections:
-		var at: Vector2 = pe_hole(i)
-		p.circle(at, PE_HOLE, Color("173d22"))
+		var at: Vector2 = bus_hole(i)
+		p.circle(at, BUS_HOLE, Color("173d22"))
 		# The screw deep in the hole.
 		var screw: Vector2 = at + Vector2(0.2, 0.15)
-		p.circle(screw, PE_SCREW, Color("9aa1a7"), Color("5d6369"), 0.15)
-		p.circle(screw + Vector2(-0.6, -0.6), PE_SCREW * 0.4, Color(1, 1, 1, 0.3))
+		p.circle(screw, BUS_SCREW, Color("9aa1a7"), Color("5d6369"), 0.15)
+		p.circle(screw + Vector2(-0.6, -0.6), BUS_SCREW * 0.4, Color(1, 1, 1, 0.3))
 		p.line(screw + Vector2(-1.5, 0.0), screw + Vector2(1.5, 0.0), Color("4d5358"), 0.4)
 		p.line(screw + Vector2(0.0, -1.5), screw + Vector2(0.0, 1.5), Color("4d5358"), 0.4)
-		p.text_centered(Vector2(cover.end.x - 1.3, at.y), str(i + 1), 1.4, PE_GREEN.darkened(0.4), false)
+		p.text_centered(Vector2(cover.end.x - 1.3, at.y), str(i + 1), 1.4, over.darkened(0.4), false)
 
 
 ## Height of a plug-in bridge's bar on a terminal strip, between the test

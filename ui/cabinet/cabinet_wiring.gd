@@ -54,9 +54,9 @@ const CLAMP_WIRES: int = 2
 ## before [constant CabinetParts.MARKER_FROM].
 const FAN: float = 3.2
 const FAN_FROM: float = 2.2
-## How far a wire runs out to the left of a PE distribution block before it
+## How far a wire runs out to the left of a distribution block before it
 ## turns towards its duct (the nearest one).
-const PE_LEAD: float = 4.0
+const BUS_LEAD: float = 4.0
 ## Least and most room between the bend of a slanting wire and its duct.
 const SLANT_MIN: float = 1.5
 const SLANT_MAX: float = 6.0
@@ -147,7 +147,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 		elif cores.has(n):
 			points.push_front(cores[n])
 		if star:
-			# A PE distribution block: everything else takes one wire, from it.
+			# A distribution block (N or PE): everything else takes one wire, from it.
 			for point: Dictionary in points:
 				if not point.get("block", false):
 					point["room"] = 1
@@ -494,7 +494,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 								_field.append({"key": key, "at": below, "duct": rail + 1, "up": false, "field": part, "kind": terminals[i]["kind"], "on_lead": owner != null and owner.designation == part})
 			CabinetLayout.MISSING_DEVICE:
 				pass
-			CabinetLayout.PE_BLOCK:
+			CabinetLayout.BUS_BLOCK:
 				# Its screw connections, one wire each, joined by its bar like
 				# bridged terminals; the wires go into the holes in its cover
 				# from the left, those of the upper connections up to the duct
@@ -503,7 +503,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 				# crosses another's lead.
 				var block: Array[Dictionary] = []
 				for i: int in place["desc"]["connections"]:
-					var at: Vector2 = origin + CabinetParts.pe_entry(i)
+					var at: Vector2 = origin + CabinetParts.bus_entry(i)
 					var up: bool = at.y < centre
 					block.append({"key": place["desc"]["key"], "at": at, "duct": rail if up else rail + 1, "up": up, "bridge": p * 1000, "room": 1, "block": true, "clamp": true})
 				for point: Dictionary in block:
@@ -511,7 +511,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 					for other: Dictionary in block:
 						if other["up"] == point["up"] and (other["at"].y < point["at"].y if point["up"] else other["at"].y > point["at"].y):
 							rank += 1
-					point["lead"] = origin.x - PE_LEAD - rank * LANE
+					point["lead"] = origin.x - BUS_LEAD - rank * LANE
 				result.append_array(block)
 			_:
 				var beside: Rect2 = Rect2()
@@ -645,7 +645,7 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 ## Which neighbouring terminals of a strip ([param terminals] as in
 ## [method CabinetDevices.strips]) a plug-in bridge joins: element i is true
 ## when terminal i and the next are on the same net of [param net] (not one
-## of [param apart]: PE where a PE distribution block takes each).
+## of [param apart]: N or PE where a distribution block takes each).
 static func strip_bridges(terminals: Array, net: Dictionary[String, int], apart: Dictionary[int, bool] = {}) -> Array[bool]:
 	var result: Array[bool] = []
 	var nets: Array[int] = []
@@ -707,7 +707,7 @@ func _route(edges: Array[Dictionary]) -> void:
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
 		end["via"] = PackedVector2Array()
 		if end["point"].has("lead"):
-			# Out from a PE distribution block to its left, then on to the duct.
+			# Out from a distribution block to its left, then on to the duct.
 			end["x"] = end["point"]["lead"]
 			end["via"] = PackedVector2Array([Vector2(end["x"], end["start"].y)])
 	_lead_beside(ends)

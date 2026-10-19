@@ -59,6 +59,10 @@ const ZOOM_STEP: float = 1.25
 ## Seconds after the last zoom change before the drawing is painted sharp
 ## at the new scale (until then the last painting is scaled).
 const ZOOM_SETTLE: float = 0.15
+## The scale the plate fits at changes by less than this (a fraction) once
+## it is laid out at it; at most this many layouts (see [method _draw]).
+const SETTLED: float = 0.002
+const SETTLE_ROUNDS: int = 4
 
 var _layout: CabinetLayout
 ## Scale [member _layout] was laid out at; it is laid out again when the
@@ -286,8 +290,8 @@ func _get_tooltip(at_position: Vector2) -> String:
 			text = tr("Terminal strip") + " -" + str(place["designation"])
 		CabinetLayout.MISSING_DEVICE:
 			return "-%s – %s" % [place["designation"], tr("not in the schematic")]
-		CabinetLayout.PE_BLOCK:
-			return tr("PE distribution block")
+		CabinetLayout.BUS_BLOCK:
+			return tr("N distribution block") if place["desc"]["neutral"] else tr("PE distribution block")
 		_:
 			text = tr(CabinetPanel.KIND_TITLES[place["kind"]]) + " -" + str(place["designation"])
 	if simulating and not _operated(index, false).is_empty():
@@ -310,9 +314,19 @@ func _draw() -> void:
 		return
 	var height: float = _layout.size.y if _layout != null else 0.0
 	if _layout == null or not is_equal_approx(_layout_k, k):
-		# Laid out for the scale shown (edits lay it out again, see [method refresh]).
-		_layout = CabinetLayout.build(document, k, board)
-		_layout_k = k
+		# Laid out for the scale shown (edits lay it out again, see [method
+		# refresh]). The plate is a little wider or narrower at each scale
+		# (the terminal strips are snapped to whole pixels), so laid out
+		# again until the scale it fits at settles, then shown at that.
+		for round: int in SETTLE_ROUNDS:
+			_layout = CabinetLayout.build(document, k, board)
+			_layout_k = k
+			var fits: float = _k()
+			_layout_k = fits
+			if absf(fits / k - 1.0) < SETTLED:
+				break
+			k = fits
+		k = _layout_k
 	elif simulating:
 		# The devices show the simulation state; the places stay where they are.
 		for place: Dictionary in _layout.places:
@@ -440,8 +454,8 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 			if place.has("under_origin"):
 				var under: Dictionary = place["under_desc"]
 				CabinetParts.overload_relay(p.shifted(place["under_origin"]), under.get("tripped", false), "5", _named_reach(under))
-		CabinetLayout.PE_BLOCK:
-			CabinetParts.pe_block(q, desc["connections"])
+		CabinetLayout.BUS_BLOCK:
+			CabinetParts.bus_block(q, desc["connections"], desc["neutral"])
 		CabinetLayout.STRIP:
 			var items: Array = []
 			var bridges: Array = desc.get("bridges", [])

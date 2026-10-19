@@ -603,18 +603,18 @@ func _motors(motors: int) -> SchematicDocument:
 func test_pe_goes_through_a_distribution_block_for_more_than_two_loads() -> void:
 	var two: CabinetLayout = CabinetLayout.build(_motors(2), 2.0)
 	for place: Dictionary in two.places:
-		assert_ne(place["kind"], CabinetLayout.PE_BLOCK, "two loads: no block")
+		assert_ne(place["kind"], CabinetLayout.BUS_BLOCK, "two loads: no block")
 	var doc: SchematicDocument = _motors(3)
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	var block: Dictionary = {}
 	var strip_x1: Dictionary = {}
 	for place: Dictionary in layout.places:
-		if place["kind"] == CabinetLayout.PE_BLOCK:
+		if place["kind"] == CabinetLayout.BUS_BLOCK:
 			block = place
 		elif place["kind"] == CabinetLayout.STRIP and place["designation"] == "X1":
 			strip_x1 = place
 	assert_false(block.is_empty(), "three loads: a PE distribution block")
-	assert_eq(block["desc"]["connections"], CabinetParts.PE_SIZES[0], "the smallest size taking the loads and the incoming PE")
+	assert_eq(block["desc"]["connections"], CabinetParts.BUS_SIZES[0], "the smallest size taking the loads and the incoming PE")
 	assert_eq(block["index"], -1, "added by the switchboard, not an item of the rail")
 	assert_eq(block["rail"], strip_x1["rail"], "on the rail of the strip the incoming PE lands on")
 	assert_true(block["origin"].x > strip_x1["origin"].x, "right after it")
@@ -642,3 +642,41 @@ func test_pe_goes_through_a_distribution_block_for_more_than_two_loads() -> void
 	for row: Dictionary in PartsList.new().rows(doc):
 		names.append(row.get("name", ""))
 	assert_true(names.has("PE distribution block"), "in the parts list")
+
+
+func test_n_goes_through_a_distribution_block_for_more_than_two_loads() -> void:
+	# The coils and lamps of the example all take N.
+	var doc: SchematicDocument = ExampleCircuits.build(9)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var block: Dictionary = {}
+	for place: Dictionary in layout.places:
+		if place["kind"] == CabinetLayout.BUS_BLOCK and place["desc"]["neutral"]:
+			block = place
+	assert_false(block.is_empty(), "an N distribution block")
+	if block.is_empty():
+		return
+	assert_eq(block["designation"], "N")
+	var nets: PackedInt32Array = block["desc"]["nets"]
+	var used: Dictionary[Vector2, int] = {}
+	var n_wires: int = 0
+	for wire: Dictionary in layout.wiring.wires:
+		if not nets.has(wire["net"]) or wire["external"]:
+			continue
+		n_wires += 1
+		var path: PackedVector2Array = wire["points"]
+		var at_block: Array[Vector2] = []
+		for end: Vector2 in [path[0], path[path.size() - 1]]:
+			if (block["rect"] as Rect2).grow(0.1).has_point(end):
+				at_block.append(end)
+		assert_eq(at_block.size(), 1, "%s-%s: from the block" % [wire["from"], wire["to"]])
+		if at_block.size() == 1:
+			var at: Vector2 = at_block[0].snapped(Vector2(0.01, 0.01))
+			used[at] = used.get(at, 0) + 1
+	assert_gt(n_wires, 3, "the incoming N and more than two loads")
+	assert_true(n_wires <= block["desc"]["connections"], "a connection for each")
+	for at: Vector2 in used:
+		assert_eq(used[at], 1, "one wire in each connection")
+	var names: Array = []
+	for row: Dictionary in PartsList.new().rows(doc):
+		names.append(row.get("name", ""))
+	assert_true(names.has("N distribution block"), "in the parts list")

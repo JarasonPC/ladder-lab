@@ -312,16 +312,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   the picked terminals along the strip), else by label; neighbouring terminals of one net
   are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
   desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). Where
-  more than CabinetLayout.PE_LOADS (2) loads take PE in a switchboard (strip terminals on PE but
-  the incoming one, devices' PE terminals), it gets a PE distribution block by itself
-  (CabinetLayout.pe_block: a place of kind PE_BLOCK, index -1, not a rail item and not
-  selectable, right after the strip the incoming PE lands on, CabinetParts.PE_SIZES 7, 12 or 15
+  more than CabinetLayout.BUS_LOADS (2) loads take N or PE in a switchboard (strip terminals on
+  the net but the incoming one, devices' terminals on it), it gets an N or PE distribution block
+  by itself (CabinetLayout.bus_blocks, N first: a place of kind BUS_BLOCK, index -1, not a rail
+  item and not selectable, desc "neutral", "nets", "connections", right after the strip the
+  incoming conductor lands on, CabinetParts.BUS_SIZES 7, 12 or 15
   screw connections, drawn as made, standing across the rail: a brass bar in a yellow base under a
-  green cover with a round hole over each screw, the wires going in under the cover's left edge
-  by their screws, all from the left (CabinetParts.pe_entry), out CabinetWiring.PE_LEAD past the block (further for those
+  green cover for PE, a grey base under a blue cover for N, with a round hole over each screw, the
+  wires going in under the cover's left edge
+  by their screws, all from the left (CabinetParts.bus_entry), out CabinetWiring.BUS_LEAD past the block (further for those
   further along, so no lead crosses another) and on to the duct over (upper half) or under it,
-  room on its left for the leads, CabinetParts.pe_block): PE is wired as a star from it, one wire to each
-  connection and from each load, PE terminals not bridged then; in the parts list. Wired after the circuit (CabinetWiring): each net
+  room on its left for the leads, CabinetParts.bus_block): the net is wired as a star from it, one wire to each
+  connection and from each load, its strip terminals not bridged then (CabinetLayout.bus_nets); in the parts list. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree with at most two wires in any
   terminal's clamp (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would
   branch; a clamp keeps room for a wire on to another switchboard), every wire straight from its terminal
@@ -393,7 +395,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   across: buttons, Ctrl+wheel over it; right or middle drag moves it; painted in layers,
   CabinetView.Layer: plate/rails/ducts, each place, wires/glands/labels, selection, each painted
   again only when what it shows changed, the layers scaled while the zoom changes and painted
-  sharp CabinetView.ZOOM_SETTLE after it; while simulating the places are only described again,
+  sharp CabinetView.ZOOM_SETTLE after it; laid out again until the scale it fits at changes by
+  less than CabinetView.SETTLED, as the terminal strips snapped to whole pixels make it a little
+  wider or narrower at each scale; while simulating the places are only described again,
   CabinetLayout.describe_again); each switchboard is laid out
   and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Edited in
   CabinetPanel beside the drawing (undoable, "Fill from the schematic" fills the opened
