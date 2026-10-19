@@ -1179,6 +1179,9 @@ msgstr "Svorkovnice"
 msgid "Plug-in bridge"
 msgstr "Zásuvná propojka"
 
+msgid "PE distribution block"
+msgstr "Rozbočovací blok PE"
+
 msgid "Auxiliary relay"
 msgstr "Pomocné relé"
 
@@ -3253,6 +3256,13 @@ msgid_plural "%d poles"
 msgstr[0] "%d pól"
 msgstr[1] "%d póly"
 msgstr[2] "%d pólů"
+
+#, c-format
+msgid "%d connection"
+msgid_plural "%d connections"
+msgstr[0] "%d připojení"
+msgstr[1] "%d připojení"
+msgstr[2] "%d připojení"
 
 #, c-format
 msgid "Function %s of time relay %s works with its control input S, which is turned off."

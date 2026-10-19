@@ -248,7 +248,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var under: Array = []
 		var index: int = _place_at((event as InputEventMouseMotion).position, under)
-		var clickable: bool = index >= 0 and (not simulating or not _operated(index, not under.is_empty()).is_empty())
+		var clickable: bool = index >= 0 and _layout.places[index]["index"] >= 0 and (not simulating or not _operated(index, not under.is_empty()).is_empty())
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if clickable else Control.CURSOR_ARROW
 		return
 	if not (event is InputEventMouseButton):
@@ -264,7 +264,8 @@ func _gui_input(event: InputEvent) -> void:
 			operate_requested.emit(designation)
 			accept_event()
 		return
-	if index < 0:
+	if index < 0 or _layout.places[index]["index"] < 0:
+		# Nothing, or a place the switchboard adds by itself.
 		place_clicked.emit(-1, -1)
 	else:
 		place_clicked.emit(_layout.places[index]["rail"], _layout.places[index]["index"])
@@ -285,6 +286,8 @@ func _get_tooltip(at_position: Vector2) -> String:
 			text = tr("Terminal strip") + " -" + str(place["designation"])
 		CabinetLayout.MISSING_DEVICE:
 			return "-%s – %s" % [place["designation"], tr("not in the schematic")]
+		CabinetLayout.PE_BLOCK:
+			return tr("PE distribution block")
 		_:
 			text = tr(CabinetPanel.KIND_TITLES[place["kind"]]) + " -" + str(place["designation"])
 	if simulating and not _operated(index, false).is_empty():
@@ -437,6 +440,8 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 			if place.has("under_origin"):
 				var under: Dictionary = place["under_desc"]
 				CabinetParts.overload_relay(p.shifted(place["under_origin"]), under.get("tripped", false), "5", _named_reach(under))
+		CabinetLayout.PE_BLOCK:
+			CabinetParts.pe_block(q, desc["connections"])
 		CabinetLayout.STRIP:
 			var items: Array = []
 			var bridges: Array = desc.get("bridges", [])

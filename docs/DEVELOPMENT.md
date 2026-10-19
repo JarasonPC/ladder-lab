@@ -311,7 +311,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminals in the order set in the sidebar (SchematicDocument.strip_orders, saved; arrows move
   the picked terminals along the strip), else by label; neighbouring terminals of one net
   are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
-  desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). Wired after the circuit (CabinetWiring): each net
+  desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). Where
+  more than CabinetLayout.PE_LOADS (2) loads take PE in a switchboard (strip terminals on PE but
+  the incoming one, devices' PE terminals), it gets a PE distribution block by itself
+  (CabinetLayout.pe_block: a place of kind PE_BLOCK, index -1, not a rail item and not
+  selectable, right after the strip the incoming PE lands on, CabinetParts.PE_SIZES 6-24
+  push-in connections, CabinetParts.pe_block): PE is wired as a star from it, one wire to each
+  connection and from each load, PE terminals not bridged then; in the parts list. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree with at most two wires in any
   terminal's clamp (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would
   branch; a clamp keeps room for a wire on to another switchboard), every wire straight from its terminal
