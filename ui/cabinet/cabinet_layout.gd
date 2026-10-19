@@ -42,6 +42,12 @@ const EMPTY_ROW: float = 47.0
 ## device the circuit no longer has.
 const STRIP: int = 100
 const MISSING_DEVICE: int = 101
+## Kind of a place the switchboard adds by itself: a PE distribution block
+## (see [method pe_block]).
+const PE_BLOCK: int = 102
+## Most loads taking PE in a switchboard before it gets a PE distribution
+## block.
+const PE_LOADS: int = 2
 
 var size: Vector2 = Vector2.ZERO
 ## The wiring the ducts were sized for (see [method build]); null when the
@@ -52,8 +58,9 @@ var wiring: CabinetWiring
 var ducts: Array[Dictionary] = []
 ## DIN rails, one per [member Switchboard.rails].
 var rails: Array[Rect2] = []
-## Places on the rails: {"rail", "index", "kind" (CabinetDevices.Kind, STRIP or
-## MISSING_DEVICE), "designation", "desc" (see [method CabinetDevices.describe];
+## Places on the rails: {"rail", "index" (-1 for a place the switchboard
+## adds by itself), "kind" (CabinetDevices.Kind, STRIP, MISSING_DEVICE or
+## PE_BLOCK, its desc as [method pe_block]), "designation", "desc" (see [method CabinetDevices.describe];
 ## for a strip {"terminals": [...], "bridges" (see
 ## [method CabinetWiring.strip_bridges])}), "origin" (top-left of the drawing),
 ## "size", "rect" (answers clicks), "label_at", "label_w" (no label when 0),
@@ -94,6 +101,63 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 	return layout
 
 
+## The PE distribution block switchboard [param board] of [param doc] gets
+## ([param strips] as [method CabinetDevices.strips], [param net] its nets):
+## where more than PE_LOADS loads take PE there (strip terminals on PE,
+## but the one the incoming PE lands on, and devices' PE terminals), one
+## with the smallest of [constant CabinetParts.PE_SIZES] connections
+## taking them and the incoming PE: {"connections", "after" (the strip the
+## incoming PE lands on, "" for none), "key" (a terminal key on PE)}; empty
+## for none.
+static func pe_block(doc: SchematicDocument, board: int, strips: Dictionary, net: Dictionary[String, int]) -> Dictionary:
+	if board < 0 or board >= doc.switchboards.size():
+		return {}
+	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, net)
+	var on_pe: Callable = func(key: String) -> bool: return net.has(key) and conductor.get(net[key], CabinetDevices.Conductor.CONTROL) == CabinetDevices.Conductor.PE
+	var loads: int = 0
+	var after: String = ""
+	var key: String = ""
+	for rail: CabinetRail in doc.switchboards[board].rails:
+		for item: CabinetItem in rail.items:
+			if item.kind == CabinetItem.Kind.STRIP:
+				for t: Dictionary in strips.get(item.designation, []):
+					var pe: bool = false
+					var supply: bool = false
+					for k: String in t["keys"]:
+						if on_pe.call(k):
+							pe = true
+							key = k
+							supply = supply or doc.circuit.get_terminal_owner(k) is PowerSupply
+					if supply:
+						after = item.designation
+					elif pe:
+						loads += 1
+				continue
+			var terminals: Dictionary = CabinetDevices.describe(doc, item.designation).get("terminals", {})
+			for name: String in terminals:
+				if on_pe.call(terminals[name]):
+					loads += 1
+					key = terminals[name]
+	if loads <= PE_LOADS:
+		return {}
+	var connections: int = loads + 1
+	for size: int in CabinetParts.PE_SIZES:
+		if size >= loads + 1:
+			connections = size
+			break
+	return {"connections": connections, "after": after, "key": key}
+
+
+## The nets of [param doc] ([param net] its nets) that are PE.
+static func pe_nets(doc: SchematicDocument, net: Dictionary[String, int]) -> Dictionary[int, bool]:
+	var result: Dictionary[int, bool] = {}
+	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, net)
+	for n: int in conductor:
+		if conductor[n] == CabinetDevices.Conductor.PE:
+			result[n] = true
+	return result
+
+
 ## Width of a duct just holding [param wires] side by side between its
 ## fingers (see [CabinetWiring]), in whole millimetres (one wire's room for
 ## none).
@@ -107,6 +171,8 @@ static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[fl
 	var layout: CabinetLayout = CabinetLayout.new()
 	var strips: Dictionary = CabinetDevices.strips(doc)
 	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var pe: Dictionary = pe_block(doc, board, strips, net)
+	var apart: Dictionary[int, bool] = pe_nets(doc, net) if not pe.is_empty() else ({} as Dictionary[int, bool])
 	var board_rails: Array[CabinetRail] = doc.switchboards[board].rails if board >= 0 and board < doc.switchboards.size() else ([] as Array[CabinetRail])
 	# Each rail: its places relative to the rail's centre line and its extent.
 	var rows: Array[Dictionary] = []
@@ -125,15 +191,26 @@ static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[fl
 		for i: int in rail.items.size():
 			if rail.items[i].kind == CabinetItem.Kind.DEVICE and fitted.has(rail.items[i].designation):
 				continue
-			var place: Dictionary = _place(doc, strips, rail.items[i], k, net)
+			var place: Dictionary = _place(doc, strips, rail.items[i], k, net, apart)
 			place["rail"] = r
 			place["index"] = i
 			var slot: float = maxf(place["size"].x + 2.0 * place.get("channel", 0.0), place["label_w"])
 			place["origin"] = Vector2(x + (slot - place["size"].x) * 0.5, place["origin"].y)
 			x += slot + GAP
-			row["places"].append(place)
-			row["top"] = minf(row["top"], place["top"])
-			row["bottom"] = maxf(row["bottom"], place["bottom"])
+			var added: Array[Dictionary] = [place]
+			# The PE distribution block after the strip the incoming PE lands
+			# on (else at the end of the last rail).
+			var last: bool = r == board_rails.size() - 1 and i == rail.items.size() - 1
+			if not pe.is_empty() and ((rail.items[i].kind == CabinetItem.Kind.STRIP and rail.items[i].designation == pe["after"]) or (pe["after"].is_empty() and last)):
+				var block: Dictionary = {"designation": "PE", "label_w": 0.0, "kind": PE_BLOCK, "desc": pe, "rail": r, "index": -1}
+				_box(block, CabinetParts.pe_block_size(pe["connections"]))
+				block["origin"] = Vector2(x, block["origin"].y)
+				x += block["size"].x + GAP
+				added.append(block)
+			for put: Dictionary in added:
+				row["places"].append(put)
+				row["top"] = minf(row["top"], put["top"])
+				row["bottom"] = maxf(row["bottom"], put["bottom"])
 		content = maxf(content, x - GAP)
 		rows.append(row)
 	# Wide enough for a slot of the bottom duct to each field cable (the
@@ -192,7 +269,7 @@ func place_at(point: Vector2, under: Array = []) -> int:
 ## Describes the device of [param place] again (its simulation state
 ## changed); where it is stays as laid out.
 static func describe_again(doc: SchematicDocument, place: Dictionary) -> void:
-	if place["kind"] == STRIP or place["kind"] == MISSING_DEVICE:
+	if place["kind"] == STRIP or place["kind"] == MISSING_DEVICE or place["kind"] == PE_BLOCK:
 		return
 	var desc: Dictionary = CabinetDevices.describe(doc, place["designation"])
 	if place["kind"] == CabinetDevices.Kind.OVERLOAD:
@@ -203,12 +280,12 @@ static func describe_again(doc: SchematicDocument, place: Dictionary) -> void:
 
 
 ## Place of [param item], relative to the rail's centre line at x = 0.
-static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem, k: float, net: Dictionary[String, int]) -> Dictionary:
+static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem, k: float, net: Dictionary[String, int], apart: Dictionary[int, bool]) -> Dictionary:
 	var place: Dictionary = {"designation": item.designation, "label_w": 0.0}
 	if item.kind == CabinetItem.Kind.STRIP:
 		var terminals: Array = strips.get(item.designation, [])
 		place["kind"] = STRIP if not terminals.is_empty() else MISSING_DEVICE
-		place["desc"] = {"terminals": terminals, "bridges": CabinetWiring.strip_bridges(terminals, net)}
+		place["desc"] = {"terminals": terminals, "bridges": CabinetWiring.strip_bridges(terminals, net, apart)}
 		if not terminals.is_empty():
 			_box(place, Vector2(CabinetParts.terminal_strip_width(terminals.size(), k), CabinetParts.TERMINAL.y))
 			return place

@@ -137,12 +137,19 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 		var points: Array = by_net[n]
 		var c: CabinetDevices.Conductor = conductor.get(n, CabinetDevices.Conductor.CONTROL)
 		var entry: Dictionary = wiring._entries.get(cores[n]["conductor"], {}) if cores.has(n) else {}
+		var star: bool = points.any(func(point: Dictionary) -> bool: return point.get("block", false))
 		if not entry.is_empty():
 			# The core lands on the supply's strip terminal from below.
 			edges.append({"net": n, "conductor": c, "a": cores[n], "b": entry, "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 		elif cores.has(n):
 			points.push_front(cores[n])
-		for pair: Vector2i in wiring._tree(points, cores.has(n) and entry.is_empty()):
+		if star:
+			# A PE distribution block: everything else takes one wire, from it.
+			for point: Dictionary in points:
+				if not point.get("block", false):
+					point["room"] = 1
+			points.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.get("block", false) and not b.get("block", false))
+		for pair: Vector2i in wiring._tree(points, cores.has(n) and entry.is_empty() and not star):
 			if _bridged(points[pair.x], points[pair.y]):
 				# A plug-in bridge joins them, no wire.
 				continue
@@ -484,6 +491,10 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 								_field.append({"key": key, "at": below, "duct": rail + 1, "up": false, "field": part, "kind": terminals[i]["kind"], "on_lead": owner != null and owner.designation == part})
 			CabinetLayout.MISSING_DEVICE:
 				pass
+			CabinetLayout.PE_BLOCK:
+				# Its connections, one wire each, joined inside like bridged ones.
+				for i: int in place["desc"]["connections"]:
+					result.append({"key": place["desc"]["key"], "at": origin + CabinetParts.pe_entry(i), "duct": rail, "up": true, "bridge": p * 1000, "room": 1, "block": true})
 			_:
 				var beside: Rect2 = Rect2()
 				if place.has("under_rect"):
@@ -578,7 +589,7 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 	var room: Array[int] = []
 	for i: int in points.size():
 		# Less a wire out to another switchboard from it.
-		room.append(CLAMP_WIRES - int(points[i].get("taken", 0)))
+		room.append(int(points[i].get("room", CLAMP_WIRES)) - int(points[i].get("taken", 0)))
 	if single:
 		room[0] = 1
 	var joined: Array[bool] = []
@@ -615,8 +626,9 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 
 ## Which neighbouring terminals of a strip ([param terminals] as in
 ## [method CabinetDevices.strips]) a plug-in bridge joins: element i is true
-## when terminal i and the next are on the same net of [param net].
-static func strip_bridges(terminals: Array, net: Dictionary[String, int]) -> Array[bool]:
+## when terminal i and the next are on the same net of [param net] (not one
+## of [param apart]: PE where a PE distribution block takes each).
+static func strip_bridges(terminals: Array, net: Dictionary[String, int], apart: Dictionary[int, bool] = {}) -> Array[bool]:
 	var result: Array[bool] = []
 	var nets: Array[int] = []
 	for t: Dictionary in terminals:
@@ -627,7 +639,7 @@ static func strip_bridges(terminals: Array, net: Dictionary[String, int]) -> Arr
 				break
 		nets.append(n)
 	for i: int in maxi(terminals.size() - 1, 0):
-		result.append(nets[i] >= 0 and nets[i] == nets[i + 1])
+		result.append(nets[i] >= 0 and nets[i] == nets[i + 1] and not apart.has(nets[i]))
 	return result
 
 

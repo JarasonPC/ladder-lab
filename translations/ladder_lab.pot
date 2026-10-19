@@ -1136,6 +1136,9 @@ msgstr ""
 msgid "Plug-in bridge"
 msgstr ""
 
+msgid "PE distribution block"
+msgstr ""
+
 msgid "Auxiliary relay"
 msgstr ""
 
@@ -3216,6 +3219,12 @@ msgstr[1] ""
 #, c-format
 msgid "%d pole"
 msgid_plural "%d poles"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "%d connection"
+msgid_plural "%d connections"
 msgstr[0] ""
 msgstr[1] ""
 

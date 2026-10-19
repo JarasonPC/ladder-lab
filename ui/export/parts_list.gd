@@ -17,18 +17,24 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 	var under: Dictionary[String, String] = CabinetDevices.overloads_under_contactors(doc.circuit)
 	var strips: Dictionary = CabinetDevices.strips(doc)
 	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
-	for board: Switchboard in doc.switchboards:
+	for b: int in doc.switchboards.size():
+		var board: Switchboard = doc.switchboards[b]
 		var part: Array[Dictionary] = []
+		var pe: Dictionary = CabinetLayout.pe_block(doc, b, strips, net)
+		var apart: Dictionary[int, bool] = CabinetLayout.pe_nets(doc, net) if not pe.is_empty() else ({} as Dictionary[int, bool])
 		for rail: CabinetRail in board.rails:
 			for item: CabinetItem in rail.items:
 				if item.kind == CabinetItem.Kind.STRIP:
 					part.append(_strip(item.designation, strips))
-					part.append_array(_bridges(item.designation, strips, net))
+					part.append_array(_bridges(item.designation, strips, net, apart))
 					continue
 				part.append(_device(doc, item.designation))
 				# An overload relay fitted under its contactor.
 				if under.has(item.designation):
 					part.append(_device(doc, under[item.designation]))
+		# The PE distribution block the switchboard adds by itself.
+		if not pe.is_empty():
+			part.append({"designation": "", "quantity": 1, "name": tr("PE distribution block"), "data": tr_n("%d connection", "%d connections", pe["connections"]) % pe["connections"]})
 		part.append_array(_glands(doc, "+" + board.name))
 		_add(result, "+%s  %s" % [board.name, board.title if not board.title.is_empty() else tr("Switchboard")], part)
 	for box: ControlBox in doc.control_boxes:
@@ -121,9 +127,9 @@ func _strip(strip: String, strips: Dictionary) -> Dictionary:
 
 ## The plug-in bridges of strip [param strip] (see
 ## [method CabinetWiring.strip_bridges]): one row for each number of poles.
-func _bridges(strip: String, strips: Dictionary, net: Dictionary[String, int]) -> Array[Dictionary]:
+func _bridges(strip: String, strips: Dictionary, net: Dictionary[String, int], apart: Dictionary[int, bool]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var joined: Array[bool] = CabinetWiring.strip_bridges(strips.get(strip, []), net)
+	var joined: Array[bool] = CabinetWiring.strip_bridges(strips.get(strip, []), net, apart)
 	var poles: int = 1
 	for i: int in joined.size() + 1:
 		if i < joined.size() and joined[i]:

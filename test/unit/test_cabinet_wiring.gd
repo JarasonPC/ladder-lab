@@ -572,3 +572,72 @@ func test_no_terminal_takes_more_than_two_wires() -> void:
 				clamps[clamp] = clamps.get(clamp, 0) + 1
 		for clamp: String in clamps:
 			assert_true(clamps[clamp] <= CabinetWiring.CLAMP_WIRES, "%d: %s takes %d wires" % [example, clamp, clamps[clamp]])
+
+
+## [param motors] motors on terminal strip X2, each with its PE terminal
+## there; the supply with its PE on strip X1.
+func _motors(motors: int) -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new("pe")
+	var supplies: Array[PowerSupply] = []
+	for s: Array in [["L1", PowerSupply.Conductor.L], ["L2", PowerSupply.Conductor.L2], ["L3", PowerSupply.Conductor.L3], ["PE", PowerSupply.Conductor.PE]]:
+		var supply: PowerSupply = PowerSupply.new(s[0], s[1])
+		doc.add(supply, Vector2i(4 * supplies.size(), 0))
+		supplies.append(supply)
+	doc.set_strip_terminal(supplies[3].id, 0, "X1:PE")
+	for m: int in motors:
+		var fuse: ThreePoleFuse = ThreePoleFuse.new("FU%d" % (m + 1))
+		doc.add(fuse, Vector2i(8 * m, 4))
+		var motor: ThreePhaseMotor = ThreePhaseMotor.new("M%d" % (m + 1))
+		doc.add(motor, Vector2i(8 * m, 12))
+		for pole: int in 3:
+			doc.connect_terminals(["L1", "L2", "L3"][pole], "FU%d:%d" % [m + 1, 2 * pole + 1])
+			doc.connect_terminals("FU%d:%d" % [m + 1, 2 * pole + 2], "M%d:%s" % [m + 1, ["U1", "V1", "W1"][pole]])
+			doc.set_strip_terminal(motor.id, pole, "X2:%d" % (3 * m + pole + 1))
+		doc.connect_terminals("M%d:PE" % (m + 1), "PE")
+		doc.set_strip_terminal(motor.id, 3, "X2:PE%d" % (m + 1))
+	doc.add_switchboard()
+	doc.fill_cabinet(0)
+	return doc
+
+
+func test_pe_goes_through_a_distribution_block_for_more_than_two_loads() -> void:
+	var two: CabinetLayout = CabinetLayout.build(_motors(2), 2.0)
+	for place: Dictionary in two.places:
+		assert_ne(place["kind"], CabinetLayout.PE_BLOCK, "two loads: no block")
+	var doc: SchematicDocument = _motors(3)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var block: Dictionary = {}
+	var strip_x1: Dictionary = {}
+	for place: Dictionary in layout.places:
+		if place["kind"] == CabinetLayout.PE_BLOCK:
+			block = place
+		elif place["kind"] == CabinetLayout.STRIP and place["designation"] == "X1":
+			strip_x1 = place
+	assert_false(block.is_empty(), "three loads: a PE distribution block")
+	assert_eq(block["desc"]["connections"], 6, "the smallest size taking the loads and the incoming PE")
+	assert_eq(block["index"], -1, "added by the switchboard, not an item of the rail")
+	assert_eq(block["rail"], strip_x1["rail"], "on the rail of the strip the incoming PE lands on")
+	assert_true(block["origin"].x > strip_x1["origin"].x, "right after it")
+	# A star: every PE wire inside the switchboard goes to the block, one to
+	# each of its connections.
+	var used: Dictionary[float, int] = {}
+	var pe_wires: int = 0
+	for wire: Dictionary in layout.wiring.wires:
+		if wire["conductor"] != CabinetDevices.Conductor.PE or wire["external"]:
+			continue
+		pe_wires += 1
+		var path: PackedVector2Array = wire["points"]
+		var at_block: Array[Vector2] = []
+		for end: Vector2 in [path[0], path[path.size() - 1]]:
+			if (block["rect"] as Rect2).grow(0.1).has_point(end):
+				at_block.append(end)
+		assert_eq(at_block.size(), 1, "%s-%s: from the block" % [wire["from"], wire["to"]])
+		if at_block.size() == 1:
+			used[snappedf(at_block[0].x, 0.01)] = used.get(snappedf(at_block[0].x, 0.01), 0) + 1
+	assert_eq(pe_wires, 4, "the incoming PE and the three motors'")
+	for x: float in used:
+		assert_eq(used[x], 1, "one wire in each connection")
+	var names: Array = []
+	for row: Dictionary in PartsList.new().rows(doc):
+		names.append(row.get("name", ""))
+	assert_true(names.has("PE distribution block"), "in the parts list")
