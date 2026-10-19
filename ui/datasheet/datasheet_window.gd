@@ -261,7 +261,11 @@ class _Keys:
 
 	func _unhandled_input(event: InputEvent) -> void:
 		var key: InputEventKey = event as InputEventKey
-		if key == null or not key.pressed or key.echo:
+		if key == null or key.echo:
+			return
+		if not key.pressed:
+			# A push button held by its key is let go wherever the key comes up.
+			window.key_pressed.emit(key)
 			return
 		if key.keycode == KEY_ESCAPE:
 			window.hide()

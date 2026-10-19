@@ -101,6 +101,12 @@ func show_step() -> void:
 		_live.text = info.get("live", "")
 
 
+## Shows the texts again in the language now chosen.
+func retranslate() -> void:
+	if is_node_ready():
+		_show()
+
+
 ## State of the running program shown: the simulated PLC's, the one of the
 ## test simulation, or null while editing.
 func _runtime() -> PlcRuntime:
@@ -607,8 +613,8 @@ func _on_canvas_changed() -> void:
 	program_edited.emit(component_id, _program.to_data())
 
 
-## Takes the keys the diagrams leave: undo and redo, the rest goes to the
-## main window.
+## Takes the keys the diagrams leave: undo and redo, Space (held to pan
+## here), the rest goes to the main window.
 class KeyCatcher:
 	extends Node
 
@@ -616,10 +622,17 @@ class KeyCatcher:
 
 	func _unhandled_input(event: InputEvent) -> void:
 		var key: InputEventKey = event as InputEventKey
-		if key == null or not key.pressed or key.echo:
+		if key == null or key.echo:
+			return
+		if not key.pressed:
+			# A push button held by its key is let go wherever the key comes up.
+			window.key_pressed.emit(key)
 			return
 		var ctrl: bool = key.ctrl_pressed or key.meta_pressed
-		if ctrl and key.keycode == KEY_Z and not key.shift_pressed:
+		if key.keycode == KEY_SPACE:
+			# Held to pan the diagram: it does not run or pause the simulation.
+			pass
+		elif ctrl and key.keycode == KEY_Z and not key.shift_pressed:
 			window.undo_requested.emit()
 		elif ctrl and (key.keycode == KEY_Y or (key.keycode == KEY_Z and key.shift_pressed)):
 			window.redo_requested.emit()

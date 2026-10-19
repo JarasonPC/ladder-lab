@@ -613,6 +613,7 @@ func test_plain_l_becomes_l1_next_to_l2() -> void:
 func test_conductor_l3_renames_the_plain_l() -> void:
 	_place({"type": "supply", "conductor": "N"}, Vector2i(8, 1))
 	editor._clear_selection()
+	editor.selected_components["N.2"] = true
 	var doc: SchematicDocument = editor.document()
 	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("N.2"))
 	data["conductor"] = "L3"

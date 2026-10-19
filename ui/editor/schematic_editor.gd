@@ -41,7 +41,14 @@ var view: SchematicView
 var history: UndoHistory = UndoHistory.new()
 var active: bool = false:
 	set(value):
+		# Unchanged (e.g. a View menu toggle refreshing the window): the tool
+		# in use goes on.
+		if value == active:
+			return
 		active = value
+		if not value and _inline != null:
+			# A marking being typed is taken, as when its field loses focus.
+			_commit_inline(_inline.text)
 		_cancel_tool()
 		visible = value
 
@@ -69,6 +76,8 @@ var _drag_applied: Vector2i = Vector2i.ZERO
 var _drag_recorded: bool = false
 ## Placements and wire routes when the drag began (SchematicDocument.drag_start).
 var _drag_start: Dictionary = {}
+## The document as the drag's undo step recorded it ({} after a turn).
+var _drag_snapshot: Dictionary = {}
 ## Dragging one segment of a wire sideways (tidying the route).
 var _wire_drag: int = -1
 var _wire_drag_segment: int = -1
@@ -292,6 +301,8 @@ func flip_selection() -> void:
 ## slanted segment).
 func _turned_while_dragging() -> void:
 	if _dragging and _drag_recorded:
+		# The turn is an undo step of its own after the drag's.
+		_drag_snapshot = {}
 		_drag_start = document().drag_start(PackedStringArray(selected_components.keys()))
 		_press_point += Vector2(_drag_applied)
 		_drag_applied = Vector2i.ZERO
@@ -372,8 +383,11 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 				renamed = DocumentSerializer.component_from_dict(part_data)
 			if renamed != null and _can_replace(part, renamed):
 				doc.replace_component(part.id, renamed)
-	selected_components.clear()
-	selected_components[replacement.id] = true
+	# The selection follows the part only when it was selected: a PLC
+	# program edited in its window leaves the selection alone.
+	if selected_components.has(component_id):
+		selected_components.clear()
+		selected_components[replacement.id] = true
 	_changed()
 	return ""
 
@@ -918,7 +932,11 @@ func _on_left_released(shift: bool) -> void:
 		_dragging = false
 		_drag_start = {}
 		if _drag_recorded:
-			_changed()
+			if DocumentSerializer.to_dict(document()) == _drag_snapshot:
+				# Dragged back to where they were: nothing changed, no undo step.
+				history.discard_last()
+			else:
+				_changed()
 	if _boxing:
 		_boxing = false
 		var box: Rect2 = Rect2(_box_origin, Vector2.ZERO).expand(_mouse_point)
@@ -1286,7 +1304,8 @@ func _drag_to(delta: Vector2i) -> void:
 	if delta == _drag_applied or selected_components.is_empty():
 		return
 	if not _drag_recorded:
-		_record()
+		_drag_snapshot = DocumentSerializer.to_dict(document())
+		history.record(_drag_snapshot)
 		_drag_recorded = true
 		_drag_start = document().drag_start(PackedStringArray(selected_components.keys()))
 	document().drag_components(_drag_start, delta)
@@ -1471,8 +1490,12 @@ func _commit_inline(value: String) -> void:
 			names[index] = value
 			data["terminals"] = names
 		"purpose":
+			if value == (c as Lamp).purpose:
+				return
 			data["purpose"] = value
 		"label":
+			if value == ((c as PageConnector).label if c is PageConnector else (c as TerminalBlock).label):
+				return
 			data["label"] = value
 	var error: String = apply_properties(c.id, data)
 	if not error.is_empty():
@@ -1555,6 +1578,8 @@ func _record() -> void:
 
 
 func _restore(snapshot: Dictionary) -> void:
+	# A marking being typed belongs to the state left.
+	_close_inline()
 	_clear_selection()
 	document_replaced.emit(DocumentSerializer.from_dict(snapshot))
 	edited.emit()
