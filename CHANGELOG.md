@@ -6,6 +6,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Fixed
+- The terminal strip labels of a motor or of three poles side by side are all written alike,
+  on one line in one size past their marks beside the wires, no longer some a size smaller or
+  on two lines; a strip label no longer runs onto a terminal of its own part (a motor's PE)
+
 ## 0.4.5 – 2026-10-19
 
 ### Panels

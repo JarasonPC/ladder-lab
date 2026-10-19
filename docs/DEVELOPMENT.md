@@ -57,11 +57,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   points included (Placement.strips: terminal index -> label "X2:6" or "6" on X1, drawn instead
   of the square, written strip and number on one line "X2-6" / "X1-6"
   (CabinetDevices.terminal_text; typed that way too, label_from_text), a size smaller or
-  strip over number only where one line would run onto a mark, its own symbol's or a nearby
-  part's (SchematicSymbol.nearby_terminals, set by the view); beside a vertical wire past
-  the mark (the outer side for two terminals side by side), over the mark along a horizontal
-  wire, or on one line past the mark where other terminals stand in line across the wire
-  (motors) and for supply points; a strip terminal's number keeps off its mark; Delete on the
+  strip over number only where one line would run onto a mark or terminal, its own symbol's
+  or a nearby part's (SchematicSymbol.nearby_terminals, set by the view); all the labels of
+  one symbol in one style, the first that fits the most of them (_strip_styles): beside a
+  vertical wire level with the mark (the outer side for two terminals side by side), over the
+  mark along a horizontal wire, or on one line past the mark beside the wire where three or
+  more terminals stand in a row across their wires (motors, poles of a breaker; along a
+  horizontal wire also two), on one line over the mark for supply points; a strip
+  terminal's number keeps off its mark; Delete on the
   selected mark
   removes it, a right click on a lead adds or removes one); a palette terminal takes
   SchematicDocument.next_strip_label(), a pasted strip terminal whose label is taken the next

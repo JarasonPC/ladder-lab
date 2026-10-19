@@ -87,6 +87,38 @@ func test_strip_labels_keep_off_marks_names_and_ratings() -> void:
 		_assert_texts_apart(symbol, "%s turned %d (mirrored %s)" % [symbol.component.designation, symbol.placement.rotation, symbol.placement.mirrored])
 
 
+func test_strip_labels_of_one_symbol_written_alike() -> void:
+	var parts: Array = [
+		[{"type": "motor3", "designation": "M1"}, {0: "9", 1: "10", 2: "11", 3: "12"}],
+		[{"type": "motor3", "designation": "M1", "motor_kind": "star_delta"}, {0: "9", 1: "10", 2: "11", 3: "12", 4: "13", 5: "14", 6: "15"}],
+		[{"type": "main_contacts", "designation": "KM1"}, {0: "X4:1", 1: "X4:2", 2: "X4:3", 3: "X4:4", 4: "X4:5", 5: "X4:6"}],
+	]
+	var symbols: Array[SchematicSymbol] = []
+	for part: Array in parts:
+		for o: Array in _orientations():
+			symbols.append(_symbol(part[0], o[0], o[1], part[1]))
+	await wait_process_frames(2)
+	for symbol: SchematicSymbol in symbols:
+		var what: String = "%s turned %d (mirrored %s)" % [symbol.component.designation, symbol.placement.rotation, symbol.placement.mirrored]
+		var lines: Dictionary[int, int] = {}
+		var heights: Dictionary[float, bool] = {}
+		for m: Array in symbol.marking_rects:
+			if m[0] == "strip":
+				lines[m[1]] = lines.get(m[1], 0) + 1
+				heights[(m[2] as Rect2).size.y] = true
+		assert_eq(lines.size(), symbol.placement.strips.size(), what + ": every strip terminal labelled")
+		for k: int in lines:
+			assert_eq(lines[k], 1, "%s: the label of terminal %d on one line" % [what, k])
+		assert_eq(heights.size(), 1, what + ": the labels in one size")
+		var names: PackedStringArray = symbol.component.get_terminal_names()
+		for m: Array in symbol.marking_rects:
+			if m[0] == "strip":
+				for k: int in names.size():
+					if k != m[1]:
+						assert_false(_glyphs(m[2]).intersects(_mark(symbol, k)), "%s: the label of terminal %d off terminal %d" % [what, m[1], k])
+		_assert_texts_apart(symbol, what)
+
+
 ## Segments of a 3~ motor's PE lead, node coordinates.
 func _pe_lead(symbol: SchematicSymbol) -> PackedVector2Array:
 	var frame: Vector2 = ThreePhaseMotorSymbol.CENTER + Vector2.from_angle(PI * 0.88) * ThreePhaseMotorSymbol.RADIUS
