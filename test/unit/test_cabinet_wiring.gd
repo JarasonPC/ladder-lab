@@ -553,3 +553,22 @@ func test_neighbouring_strip_terminals_of_one_net_are_bridged() -> void:
 	for row: Dictionary in PartsList.new().rows(doc):
 		names.append(row.get("name", ""))
 	assert_true(names.has("Plug-in bridge"))
+
+
+func test_no_terminal_takes_more_than_two_wires() -> void:
+	# Nets are looped from terminal to terminal where they would branch;
+	# terminals joined by a plug-in bridge take no wire between them.
+	for example: int in range(15):
+		var doc: SchematicDocument = ExampleCircuits.build(example)
+		var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+		var clamps: Dictionary[String, int] = {}
+		for wire: Dictionary in layout.wiring.wires:
+			var path: PackedVector2Array = wire["points"]
+			for end: int in range(1 if wire["external"] else 0, 2):
+				var at: Vector2 = path[0] if end == 0 else path[path.size() - 1]
+				var key: String = str(wire["from"] if end == 0 else wire["to"])
+				# Top and bottom of a strip terminal are clamps of their own.
+				var clamp: String = "%s@%d" % [key, roundi(at.y)]
+				clamps[clamp] = clamps.get(clamp, 0) + 1
+		for clamp: String in clamps:
+			assert_true(clamps[clamp] <= CabinetWiring.CLAMP_WIRES, "%d: %s takes %d wires" % [example, clamp, clamps[clamp]])
