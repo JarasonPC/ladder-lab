@@ -453,6 +453,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   (dark/light), system fonts (MSDF font for schematic text), line icons as inline SVG via
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
   per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
+- Dialogs, popups and tooltips are embedded (drawn inside the window they belong to, never
+  windows of the system: one left open off screen or behind would block the main window);
+  PageWindow, PlaceWindow, PlcWindow and DatasheetWindow are windows of their own (force_native)
+  and embed their own dialogs and popups
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom); the chart ends with
   rows of currents (motor lines, poles of fuses, breakers and overload relays; autoscaled, rated
   current dashed)

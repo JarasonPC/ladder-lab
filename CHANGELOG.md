@@ -6,6 +6,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Fixed
+- After a while the program could stop taking clicks and could not be closed (only a beep on
+  every click): dialogs and menus now open inside the program's window, so none can be left
+  open where it cannot be seen
+
 ## 0.4.2 – 2026-10-19
 
 ### Schematic editor
