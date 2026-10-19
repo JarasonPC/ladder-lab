@@ -3545,3 +3545,498 @@ msgstr "Dveře otevřené"
 
 msgid "The switchboard with its door opened beside it: the back of the door with its contact blocks and wires, the door harness running across to it"
 msgstr "Rozvaděč s otevřenými dveřmi vedle něj: zadní strana dveří s kontaktními bloky a vodiči, svazek vodičů ke dveřím vedený přes závěs"
+
+msgid "Interface tour"
+msgstr "Prohlídka rozhraní"
+
+msgid "A short walk through the window: what each part of it is for"
+msgstr "Krátká procházka oknem: k čemu slouží jednotlivé jeho části"
+
+msgid "Lessons"
+msgstr "Lekce"
+
+msgid "Welcome to LadderLab"
+msgstr "Vítejte v aplikaci LadderLab"
+
+msgid "This short tour shows you around the window. Press Esc to leave it at any time."
+msgstr "Tato krátká prohlídka vás provede oknem. Kdykoli ji můžete ukončit klávesou Esc."
+
+msgid "The parts"
+msgstr "Součástky"
+
+msgid "Every part you can draw is here. Click one, then click on the page to place it; R turns it before you place it."
+msgstr "Tady jsou všechny součástky, které můžete kreslit. Klikněte na některou a potom ji kliknutím na stránku umístěte; klávesou R ji před umístěním otočíte."
+
+msgid "The page"
+msgstr "Stránka"
+
+msgid "Click a terminal to start a wire and another terminal to finish it. Drag with the right or middle mouse button to move around, turn the wheel to zoom."
+msgstr "Kliknutím na svorku začnete vodič, kliknutím na jinou svorku ho dokončíte. Tažením pravým nebo prostředním tlačítkem myši se po stránce posouváte, kolečkem ji přibližujete."
+
+msgid "Editing tools"
+msgstr "Nástroje pro úpravy"
+
+msgid "Undo and redo, rotate, mirror and delete. Check looks for terminals left unconnected and other mistakes."
+msgstr "Zpět a znovu, otočení, zrcadlení a mazání. Kontrola vyhledá nepřipojené svorky a další chyby."
+
+msgid "Try the circuit"
+msgstr "Vyzkoušejte obvod"
+
+msgid "Simulate runs the circuit: you press its buttons and watch the contactors switch. The drawing cannot be changed meanwhile."
+msgstr "Simulace obvod spustí: tisknete jeho tlačítka a sledujete, jak spínají stykače. Schéma mezitím nelze upravovat."
+
+msgid "Time"
+msgstr "Čas"
+
+msgid "Time runs from the moment you switch to Simulate. Pause it with Space, step through it, or start again with Reset. Realistic switching gives relays their pick-up and drop-out times."
+msgstr "Čas běží od chvíle, kdy přepnete na Simulaci. Mezerníkem ho pozastavíte, můžete ho krokovat nebo tlačítkem Reset začít znovu. Při reálném spínání mají relé své doby přítahu a odpadu."
+
+msgid "Timing chart and event log"
+msgstr "Časový diagram a záznam událostí"
+
+msgid "They record when each part switched. Click their titles to show or hide them."
+msgstr "Zaznamenávají, kdy která součástka sepnula. Kliknutím na jejich nadpisy je zobrazíte nebo skryjete."
+
+msgid "Switchboards, control stations and the parts in the field, with the cables between them worked out from the wiring."
+msgstr "Rozvaděče, ovládací skříňky a součástky v poli s kabely mezi nimi, odvozenými ze zapojení."
+
+msgid "Lessons in the Help menu teach you to draw circuits step by step and check what you drew. This tour is there too."
+msgstr "Lekce v nabídce Nápověda vás krok za krokem naučí kreslit obvody a zkontrolují, co jste nakreslili. Najdete tam i tuto prohlídku."
+
+msgid "Click Simulate, or press Next."
+msgstr "Klikněte na Simulace, nebo stiskněte Další."
+
+msgid "Previous lesson"
+msgstr "Předchozí lekce"
+
+#, c-format
+msgid "Lesson %d of %d"
+msgstr "Lekce %d/%d"
+
+msgid "Next lesson"
+msgstr "Další lekce"
+
+msgid "Close the lesson"
+msgstr "Zavřít lekci"
+
+#, c-format
+msgid "%d of %d steps done"
+msgstr "Hotové kroky: %d/%d"
+
+msgid "Show this step"
+msgstr "Zobrazit tento krok"
+
+msgid "Hide"
+msgstr "Skrýt"
+
+msgid "Show me"
+msgstr "Ukázat"
+
+msgid "Draw where the parts and wires of this step go"
+msgstr "Zakreslí, kam patří součástky a vodiče tohoto kroku"
+
+msgid "Done."
+msgstr "Hotovo."
+
+msgid "Ticked by itself as soon as it happens while simulating."
+msgstr "Odškrtne se samo, jakmile se to při simulaci stane."
+
+msgid "Ticked by itself as soon as the drawing has it."
+msgstr "Odškrtne se samo, jakmile to bude ve schématu."
+
+msgid "Check your circuit"
+msgstr "Zkontrolujte svůj obvod"
+
+msgid "Runs the circuit and tests what it should do."
+msgstr "Spustí obvod a vyzkouší, co má dělat."
+
+msgid "Check again"
+msgstr "Zkontrolovat znovu"
+
+msgid "Check circuit"
+msgstr "Zkontrolovat obvod"
+
+msgid "All goals met. Lesson complete!"
+msgstr "Všechny cíle splněny. Lekce je hotová!"
+
+#, c-format
+msgid "%d of %d goals met"
+msgstr "Splněné cíle: %d/%d"
+
+msgid "Draw the parts of the steps above first."
+msgstr "Nejdřív nakreslete součástky z kroků výše."
+
+msgid "A dashed line shows what should have happened."
+msgstr "Čárkovaná čára ukazuje, co se mělo stát."
+
+msgid "Hide where"
+msgstr "Skrýt místo"
+
+msgid "Show where"
+msgstr "Ukázat místo"
+
+msgid "Ring the parts of this test on the drawing"
+msgstr "Zakroužkuje ve schématu součástky tohoto testu"
+
+#, c-format
+msgid "A short circuit stopped the test run at step %d."
+msgstr "V kroku %d zkušební běh zastavil zkrat."
+
+#, c-format
+msgid "At step %d %s should be on, but it is off."
+msgstr "V kroku %d má být %s zapnuto, ale je vypnuto."
+
+#, c-format
+msgid "At step %d %s should be off, but it is on."
+msgstr "V kroku %d má být %s vypnuto, ale je zapnuto."
+
+#, c-format
+msgid "press %s"
+msgstr "stisk %s"
+
+#, c-format
+msgid "release %s"
+msgstr "puštění %s"
+
+#, c-format
+msgid "turn %s on"
+msgstr "zapnutí %s"
+
+#, c-format
+msgid "turn %s off"
+msgstr "vypnutí %s"
+
+#, c-format
+msgid "trip %s"
+msgstr "vybavení %s"
+
+#, c-format
+msgid "wait the delay of %s"
+msgstr "čekání po dobu zpoždění %s"
+
+#, c-format
+msgid "wait %s s"
+msgstr "čekání %s s"
+
+msgid "Start again"
+msgstr "Začít znovu"
+
+msgid "Start the lesson again from its first step"
+msgstr "Začít lekci znovu od prvního kroku"
+
+msgid "All lessons"
+msgstr "Všechny lekce"
+
+#, c-format
+msgid "Step %d of %d"
+msgstr "Krok %d/%d"
+
+msgid "Skip tour"
+msgstr "Přeskočit prohlídku"
+
+msgid "Back"
+msgstr "Zpět"
+
+msgid "Done"
+msgstr "Hotovo"
+
+msgid "Next"
+msgstr "Další"
+
+msgid "New here? Take a short tour of the window, or learn to draw your first circuit in a lesson."
+msgstr "Jste tu poprvé? Projděte si krátkou prohlídku okna, nebo se v lekci naučte nakreslit svůj první obvod."
+
+msgid "Take the tour"
+msgstr "Projít prohlídku"
+
+msgid "First lesson"
+msgstr "První lekce"
+
+msgid "Not now"
+msgstr "Teď ne"
+
+msgid "A lamp and a switch"
+msgstr "Signálka a spínač"
+
+msgid "Draw your first circuit: a switch that turns a lamp on and off."
+msgstr "Nakreslete svůj první obvod: spínač, který rozsvěcí a zhasíná signálku."
+
+msgid "Start and stop a contactor"
+msgstr "Zapnutí a vypnutí stykače"
+
+msgid "Two push buttons switch a contactor on and off; one of its own contacts keeps it on."
+msgstr "Dvě tlačítka stykač zapínají a vypínají; zapnutý ho drží jeden z jeho vlastních kontaktů."
+
+msgid "Switch on later: a time relay"
+msgstr "Zapnutí se zpožděním: časové relé"
+
+msgid "A time relay lights a lamp a few seconds after you turn a switch on."
+msgstr "Časové relé rozsvítí signálku několik sekund poté, co zapnete spínač."
+
+msgid "A motor with overload protection"
+msgstr "Motor s ochranou proti přetížení"
+
+msgid "Add the power circuit to a start/stop control: a circuit breaker, the contactor's main contacts, an overload relay and a three-phase motor."
+msgstr "Doplňte k ovládání start/stop silový obvod: jistič, hlavní kontakty stykače, tepelné nadproudové relé a trojfázový motor."
+
+msgid "Place the L1 supply"
+msgstr "Umístěte přívod L1"
+
+msgid "Click L1 supply in the palette, then click near the top left of the page. L1 is the phase: it carries 230 V against N."
+msgstr "Klikněte v paletě na Přívod L1 a potom klikněte na stránku poblíž jejího levého horního rohu. L1 je fáze: proti N má napětí 230 V."
+
+msgid "Place the N supply"
+msgstr "Umístěte přívod N"
+
+msgid "Put N supply some way below L1, with room for two parts in between. The current returns through N, the neutral conductor."
+msgstr "Umístěte Přívod N kus pod L1 tak, aby se mezi ně vešly dvě součástky. Proud se vrací středním vodičem N."
+
+msgid "Add the switch"
+msgstr "Přidejte spínač"
+
+msgid "Place Switch NO under L1. It is named -RB1; its contact 13-14 closes when the switch is turned on."
+msgstr "Pod L1 umístěte Spínač spínací. Dostane označení -RB1; jeho kontakt 13-14 sepne, když spínač zapnete."
+
+msgid "Add the lamp"
+msgstr "Přidejte signálku"
+
+msgid "Place Lamp under the switch. It is named -H1."
+msgstr "Pod spínač umístěte Signálku. Dostane označení -H1."
+
+msgid "Wire L1 to the switch"
+msgstr "Propojte L1 se spínačem"
+
+msgid "Click the terminal of L1 (the small square), then terminal 13 of -RB1. The wire finds its own way; click empty cells on the way to add corners."
+msgstr "Klikněte na svorku přívodu L1 (malý čtvereček) a potom na svorku 13 spínače -RB1. Vodič si cestu najde sám; kliknutím do prázdných polí cestou přidáte rohy."
+
+msgid "Wire the switch to the lamp"
+msgstr "Propojte spínač se signálkou"
+
+msgid "Draw a wire from terminal 14 of -RB1 to terminal X1 of -H1."
+msgstr "Nakreslete vodič ze svorky 14 spínače -RB1 na svorku X1 signálky -H1."
+
+msgid "Wire the lamp to N"
+msgstr "Připojte signálku na N"
+
+msgid "Draw a wire from X2 of -H1 to N. The circuit is closed now: L1, the switch, the lamp, N."
+msgstr "Nakreslete vodič ze svorky X2 signálky -H1 na N. Obvod je teď uzavřený: L1, spínač, signálka, N."
+
+msgid "Switch to Simulate"
+msgstr "Přepněte na Simulaci"
+
+msgid "Click Simulate at the top. The drawing cannot be changed now, and the wires are coloured by the voltage that reaches them."
+msgstr "Nahoře klikněte na Simulace. Schéma teď nelze upravovat a vodiče jsou obarvené podle napětí, které na ně dosáhne."
+
+msgid "Turn the switch on"
+msgstr "Zapněte spínač"
+
+msgid "Click -RB1. The lamp lights. Click it again to turn it off."
+msgstr "Klikněte na -RB1. Signálka se rozsvítí. Dalším kliknutím spínač vypnete."
+
+msgid "Add the stop button"
+msgstr "Přidejte tlačítko Stop"
+
+msgid "Place Push button NC under L1. It is -SB1, the stop button: its contact 11-12 is closed and opens while you press it."
+msgstr "Pod L1 umístěte Tlačítko rozpínací. Je to -SB1, tlačítko Stop: jeho kontakt 11-12 je sepnutý a při stisku se rozepne."
+
+msgid "Add the start button"
+msgstr "Přidejte tlačítko Start"
+
+msgid "Place Push button NO under -SB1. It is -SB2, the start button: its contact 13-14 closes while you press it."
+msgstr "Pod -SB1 umístěte Tlačítko spínací. Je to -SB2, tlačítko Start: jeho kontakt 13-14 při stisku sepne."
+
+msgid "Add the contactor's coil"
+msgstr "Přidejte cívku stykače"
+
+msgid "Place Coil under -SB2. It is -KM1: when A1-A2 gets 230 V, the contactor pulls in and all its contacts switch."
+msgstr "Pod -SB2 umístěte Cívku. Je to -KM1: když na A1-A2 přijde 230 V, stykač přitáhne a přepnou se všechny jeho kontakty."
+
+msgid "Wire them in a row"
+msgstr "Zapojte je za sebou"
+
+msgid "Wire L1 to 11 of -SB1, 12 to 13 of -SB2, 14 to A1 of -KM1, and A2 to N."
+msgstr "Propojte L1 se svorkou 11 tlačítka -SB1, svorku 12 se svorkou 13 tlačítka -SB2, svorku 14 se svorkou A1 stykače -KM1 a svorku A2 s N."
+
+msgid "Try it"
+msgstr "Vyzkoušejte to"
+
+msgid "Switch to Simulate and press -SB2 (hold the mouse button down). -KM1 pulls in, but as soon as you let go, it drops out again."
+msgstr "Přepněte na Simulaci a stiskněte -SB2 (podržte tlačítko myši). Stykač -KM1 přitáhne, ale jakmile tlačítko pustíte, zase odpadne."
+
+msgid "Hold it in with its own contact"
+msgstr "Přidržte ho jeho vlastním kontaktem"
+
+msgid "Back in Edit, place Contact NO to the right of -SB2. It takes the name of the coil: it is contact 13-14 of -KM1, the self-holding contact."
+msgstr "Zpět v režimu Úpravy umístěte vpravo od -SB2 Kontakt spínací. Převezme označení cívky: je to kontakt 13-14 stykače -KM1, přídržný kontakt."
+
+msgid "Wire it across -SB2"
+msgstr "Připojte ho paralelně k -SB2"
+
+msgid "Wire 13 of -KM1 to 13 of -SB2 and 14 of -KM1 to 14 of -SB2. While -KM1 is on, its contact bridges -SB2, so the coil stays fed after you let go."
+msgstr "Propojte svorku 13 stykače -KM1 se svorkou 13 tlačítka -SB2 a svorku 14 stykače -KM1 se svorkou 14 tlačítka -SB2. Dokud je -KM1 sepnutý, jeho kontakt přemosťuje -SB2, takže cívka zůstane napájená i po puštění tlačítka."
+
+msgid "Add a lamp that shows it runs"
+msgstr "Přidejte signálku chodu"
+
+msgid "Place another Contact NO to the right (it becomes 23-24 of -KM1) and Lamp -H1 under it."
+msgstr "Vpravo umístěte další Kontakt spínací (stane se kontaktem 23-24 stykače -KM1) a pod něj Signálku -H1."
+
+msgid "Wire the lamp"
+msgstr "Zapojte signálku"
+
+msgid "Wire L1 to 23 of -KM1, 24 to X1 of -H1, and X2 to N."
+msgstr "Propojte L1 se svorkou 23 stykače -KM1, svorku 24 se svorkou X1 signálky -H1 a svorku X2 s N."
+
+msgid "Test it"
+msgstr "Otestujte to"
+
+msgid "Simulate again. Press -SB2 and let go: -KM1 stays on and -H1 lights. Press -SB1 to stop it."
+msgstr "Znovu spusťte simulaci. Stiskněte a pusťte -SB2: -KM1 zůstane sepnutý a -H1 svítí. Tlačítkem -SB1 ho vypnete."
+
+msgid "Place Switch NO under L1. It is named -RB1."
+msgstr "Pod L1 umístěte Spínač spínací. Dostane označení -RB1."
+
+msgid "Add the time relay"
+msgstr "Přidejte časové relé"
+
+msgid "Place Time relay under the switch. It is -KT1, set to function F2, on-delay: its delayed contacts switch 3 s after A1-A2 gets voltage."
+msgstr "Pod spínač umístěte Časové relé. Je to -KT1 nastavené na funkci F2, zpožděný přítah: jeho zpožděné kontakty přepnou 3 s poté, co na A1-A2 přijde napětí."
+
+msgid "Wire the relay through the switch"
+msgstr "Zapojte relé přes spínač"
+
+msgid "Wire L1 to 13 of -RB1, 14 to A1 of -KT1, and A2 to N."
+msgstr "Propojte L1 se svorkou 13 spínače -RB1, svorku 14 se svorkou A1 relé -KT1 a svorku A2 s N."
+
+msgid "Add its delayed contact"
+msgstr "Přidejte jeho zpožděný kontakt"
+
+msgid "Click -KT1 to select it, then place Contact NO to the right of the switch. It becomes the relay's delayed contact 17-18, drawn with the delay mark."
+msgstr "Klikněte na -KT1, aby bylo vybrané, a potom vpravo od spínače umístěte Kontakt spínací. Stane se zpožděným kontaktem 17-18 relé -KT1, nakresleným se značkou zpoždění."
+
+msgid "Place Lamp -H1 under the contact. Wire L1 to 17 of -KT1, 18 to X1 of -H1, and X2 to N."
+msgstr "Pod kontakt umístěte Signálku -H1. Propojte L1 se svorkou 17 relé -KT1, svorku 18 se svorkou X1 signálky -H1 a svorku X2 s N."
+
+msgid "Watch the delay"
+msgstr "Sledujte zpoždění"
+
+msgid "Simulate and turn -RB1 on. -KT1 starts counting; 3 s later its contact closes and -H1 lights."
+msgstr "Spusťte simulaci a zapněte -RB1. Relé -KT1 začne odpočítávat; o 3 s později jeho kontakt sepne a -H1 se rozsvítí."
+
+msgid "Change the delay"
+msgstr "Změňte zpoždění"
+
+msgid "Back in Edit, click -KT1 and set Time t to 5 s in its properties on the right. Simulate again and count."
+msgstr "Zpět v režimu Úpravy klikněte na -KT1 a ve vlastnostech vpravo nastavte Čas t na 5 s. Spusťte simulaci znovu a počítejte."
+
+msgid "Add the circuit breaker"
+msgstr "Přidejte jistič"
+
+msgid "Place Circuit breaker under L1. In its properties on the right set Poles to 3: one pole for each phase."
+msgstr "Pod L1 umístěte Jistič. Ve vlastnostech vpravo nastavte Póly na 3: jeden pól pro každou fázi."
+
+msgid "Add the main contacts"
+msgstr "Přidejte hlavní kontakty"
+
+msgid "Place Main contacts under the breaker. They take the name of the coil, -KM1: the contactor switches the motor with them."
+msgstr "Pod jistič umístěte Hlavní kontakty. Převezmou označení cívky, -KM1: stykač jimi spíná motor."
+
+msgid "Add the overload relay"
+msgstr "Přidejte tepelné nadproudové relé"
+
+msgid "Place Overload relay under the main contacts. It is -F1: the motor current flows through its heaters, and it trips when the motor is overloaded."
+msgstr "Pod hlavní kontakty umístěte Tepelné nadproudové relé. Je to -F1: jeho topnými články protéká proud motoru, a když je motor přetížený, relé vybaví."
+
+msgid "Add the motor"
+msgstr "Přidejte motor"
+
+msgid "Place Motor 3~ under the overload relay. It is named -M1."
+msgstr "Pod relé umístěte Motor 3~. Dostane označení -M1."
+
+msgid "Wire the three phases"
+msgstr "Zapojte tři fáze"
+
+msgid "Wire L1, L2 and L3 to 1, 3 and 5 of -FA1. Then wire 2, 4 and 6 of each device to 1, 3 and 5 of the next one, and 2, 4 and 6 of -F1 to U1, V1 and W1 of the motor."
+msgstr "Propojte L1, L2 a L3 se svorkami 1, 3 a 5 jističe -FA1. Potom vždy propojte svorky 2, 4 a 6 jednoho přístroje se svorkami 1, 3 a 5 dalšího a svorky 2, 4 a 6 relé -F1 se svorkami U1, V1 a W1 motoru."
+
+msgid "Let the overload relay stop the contactor"
+msgstr "Ať relé při přetížení vypne stykač"
+
+msgid "In the control circuit on the right, delete the wire from L1 to -SB1. Click -F1, place Contact NC in the gap above -SB1 (it becomes 95-96 of -F1), then wire L1 to 95 and 96 to 11 of -SB1."
+msgstr "V ovládacím obvodu vpravo smažte vodič z L1 do -SB1. Klikněte na -F1, do mezery nad -SB1 umístěte Kontakt rozpínací (stane se kontaktem 95-96 relé -F1) a potom propojte L1 se svorkou 95 a svorku 96 se svorkou 11 tlačítka -SB1."
+
+msgid "Switch on and start"
+msgstr "Zapněte a spusťte"
+
+msgid "Simulate. Circuit breakers start switched off: click -FA1 to switch it on. Then press -SB2: -KM1 pulls in and the motor runs."
+msgstr "Spusťte simulaci. Jističe jsou na začátku vypnuté: kliknutím na -FA1 ho zapněte. Potom stiskněte -SB2: -KM1 přitáhne a motor se rozběhne."
+
+msgid "Trip the overload relay"
+msgstr "Vybavte nadproudové relé"
+
+msgid "While the motor runs, click -F1: that presses its test button. The relay trips, its 95-96 opens and -KM1 drops out. Click -F1 again to reset it."
+msgstr "Za chodu motoru klikněte na -F1: tím stisknete jeho testovací tlačítko. Relé vybaví, jeho kontakt 95-96 rozepne a -KM1 odpadne. Dalším kliknutím na -F1 relé odblokujete."
+
+msgid "Each click places another one. Right click or Esc stops placing."
+msgstr "Každé kliknutí umístí další. Pravé tlačítko myši nebo Esc vkládání ukončí."
+
+msgid "A wire can end on another wire: a branch dot is put there."
+msgstr "Vodič může končit i na jiném vodiči: vznikne tam odbočka s tečkou."
+
+msgid "Named KM1, the contact does not belong to the relay: double-click its designation and type KT1."
+msgstr "Má-li kontakt označení KM1, k relé nepatří: dvakrát klikněte na jeho označení a napište KT1."
+
+msgid "To delete a wire, click it and press Del."
+msgstr "Vodič smažete tak, že na něj kliknete a stisknete Del."
+
+#, c-format
+msgid "%s lights while %s is on"
+msgstr "%s svítí, když je %s zapnutý"
+
+#, c-format
+msgid "%s is dark while %s is off"
+msgstr "%s nesvítí, když je %s vypnutý"
+
+#, c-format
+msgid "Pressing %s switches %s on"
+msgstr "Stisk %s zapne %s"
+
+#, c-format
+msgid "%s stays on after %s is released"
+msgstr "%s zůstane zapnutý i po puštění %s"
+
+#, c-format
+msgid "Pressing %s switches %s off"
+msgstr "Stisk %s vypne %s"
+
+#, c-format
+msgid "%s stays off after %s is released"
+msgstr "%s zůstane vypnutý i po puštění %s"
+
+#, c-format
+msgid "%s stays dark right after %s is turned on"
+msgstr "%s hned po zapnutí %s nesvítí"
+
+#, c-format
+msgid "%s lights once the delay of %s is over"
+msgstr "%s se rozsvítí po uplynutí zpoždění %s"
+
+#, c-format
+msgid "%s goes dark when %s is turned off"
+msgstr "%s zhasne po vypnutí %s"
+
+#, c-format
+msgid "Pressing %s starts %s"
+msgstr "Stisk %s rozběhne %s"
+
+#, c-format
+msgid "%s keeps running after %s is released"
+msgstr "%s běží dál i po puštění %s"
+
+#, c-format
+msgid "Pressing %s stops %s"
+msgstr "Stisk %s zastaví %s"
+
+#, c-format
+msgid "A tripped %s stops %s"
+msgstr "Vybavené relé %s zastaví %s"

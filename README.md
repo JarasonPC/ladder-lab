@@ -59,6 +59,11 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   the switchboards, the workspace and a parts list.
 - **Recovery**: a copy of unsaved work is kept after every edit and offered back after a
   crash.
+- **Lessons and a tour**: lessons in the Help menu teach drawing and simulating circuits step
+  by step, from a lamp and a switch to a motor with overload protection; each step ticks
+  itself when the drawing has it, Show me draws where its parts and wires go, and Check runs
+  the circuit and says which of the lesson's goals it meets, with a chart of the test that
+  failed. A short tour shows around the window; both are offered on the first start.
 
 ## Screenshots
 
