@@ -408,6 +408,32 @@ func test_program_switching_itself_is_reported() -> void:
 	assert_true(sim.last_result.oscillating_tags.has("A1"))
 
 
+## Q8 (on an expansion module) wired back to I1 through NOT by S1: reported
+## like an output among Q1-Q7.
+func test_output_switching_itself_through_the_wiring_is_reported_beyond_q7() -> void:
+	var p: PlcProgram = PlcProgram.new()
+	var i1: PlcBlock = p.add_block("input", Vector2i(0, 0))
+	i1.operand = "I1"
+	var inverter: PlcBlock = p.add_block("not", Vector2i(4, 0))
+	inverter.inputs[0] = i1.id
+	var q8: PlcBlock = p.add_block("output", Vector2i(8, 0))
+	q8.operand = "Q8"
+	q8.inputs[0] = inverter.id
+	circuit = Circuit.new()
+	circuit.add(PowerSupply.new("L", PowerSupply.Conductor.L))
+	circuit.add(PowerSupply.new("N", PowerSupply.Conductor.N))
+	var modules: Array[Plc.Module] = [Plc.Module.DI4_DQ4]
+	plc = circuit.add(Plc.new("A1", p, modules)) as Plc
+	var loop: LatchingSwitch = circuit.add(LatchingSwitch.new("S1", NO)) as LatchingSwitch
+	for t: Array in [["L", "A1:L1"], ["A1:N", "N"], ["L", "A1:2L1"], ["A1:2N", "N"], ["L", "A1:Q8.1"], ["A1:Q8.2", "S1:13"], ["S1:14", "A1:I1"]]:
+		circuit.connect_terminals(t[0], t[1])
+	sim = Simulator.new(circuit)
+	sim.step()
+	loop.set_switched_on(true)
+	sim.step()
+	assert_true(sim.last_result.oscillating_tags.has("A1"))
+
+
 func test_realistic_output_relay_switching_time() -> void:
 	_build(_fbd_self_hold(), true)
 	s1.press()

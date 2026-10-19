@@ -139,6 +139,39 @@ func test_mains_on_the_output_trips_it() -> void:
 	assert_eq(r.events[0]["text"] % r.events[0]["args"], "TA1: short circuit, output off")
 
 
+func test_above_50_hz_instant_switching_settles_where_realistic_does() -> void:
+	var shafts: Array[float] = []
+	for realistic: bool in [false, true]:
+		_build(realistic)
+		drive.max_frequency = 100.0
+		drive.setpoint = Vfd.Setpoint.KEYPAD
+		drive.keypad_frequency = 70.0
+		_switch(1, true)
+		sim.step(30.0 if realistic else 0.0)
+		assert_eq(drive.frequency, 70.0)
+		shafts.append(motor.shaft)
+	assert_gt(shafts[0], 1.3, "faster than 1.2 times the rated speed at 70 Hz")
+	assert_almost_eq(shafts[0], shafts[1], 0.02, "instant switching settles where the run-up does")
+
+
+func test_mains_on_its_24v_blows_the_fuse_in_the_way() -> void:
+	for realistic: bool in [false, true]:
+		_build(realistic)
+		var fuse: Fuse = circuit.add(Fuse.new("FU1")) as Fuse
+		circuit.add(LatchingSwitch.new("S5", NO))
+		circuit.connect_terminals("L1", "FU1:1")
+		circuit.connect_terminals("FU1:2", "S5:13")
+		circuit.connect_terminals("S5:14", "TA1:24V")
+		sim = Simulator.new(circuit)
+		sim.mode = Simulator.Mode.REALISTIC if realistic else Simulator.Mode.IDEAL
+		sim.step()
+		_switch(5, true)
+		var r: StepResult = sim.step(0.1 if realistic else 0.0)
+		assert_true(fuse.tripped, "the fault path runs from the drive's 24 V (realistic: %s)" % realistic)
+		assert_false(r.short_circuit, "and the blown fuse ends the short")
+		assert_true(drive.powered, "the drive keeps its supply")
+
+
 func test_draws_from_its_supply() -> void:
 	_build()
 	_switch(1, true)

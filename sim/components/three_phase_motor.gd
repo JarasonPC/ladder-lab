@@ -413,7 +413,8 @@ func snap_speed() -> void:
 		if v == 0.0:
 			return 0.0 if absf(t) <= model().load_torque(0.0, load) else t
 		return t - signf(v) * model().load_torque(v, load)
-	var limit: float = 1.2
+	# Past the synchronous speed, which an inverter raises with its frequency.
+	var limit: float = maxf(1.2, frequency + 0.2)
 	while absf(n + step) <= limit:
 		var next: float = n + step
 		if signf(next) != signf(n) and n != 0.0:
