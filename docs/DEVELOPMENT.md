@@ -309,12 +309,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminals in the order set in the sidebar (SchematicDocument.strip_orders, saved; arrows move
   the picked terminals along the strip), else by label. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree, every wire straight from its terminal
-  to the duct over or under its rail, in through a slot between the fingers, along the duct in a
+  towards the duct over or under its rail, past its sleeve, then one bend slanting into a slot
+  between the fingers (CabinetWiring._slants: wires whose slants lie side by side bend at one
+  height, the latest any needs and at most SLANT_MAX before the duct, the slots taking them in
+  the order of their terminals, so no slant crosses another and wires heading apart cross in
+  the duct; without room to slant the two short turns by the duct), along the duct in a
   lane of its own (down a side duct to another duct); the lanes are laid so wires are easy
   to follow (CabinetWiring._lanes): wires coming in over one edge of a duct lie nearest it, a
   run nested in another nearer the edge, those coming in over both edges between them, stepped
-  by the way they head; each run past every earlier run it overlaps; the wires in one slot
-  ordered so none crosses another on the way to its lane (CabinetWiring._order_slots); each
+  by the way they head; each run past every earlier run it overlaps; each
   duct just as wide as its wires need side by side at its busiest point, in whole millimetres
   (CabinetWiring.lanes, CabinetLayout.duct_size; CabinetLayout.build lays out, wires and sizes
   again until every duct fits, never narrowing one, and keeps that wiring,

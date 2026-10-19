@@ -52,6 +52,9 @@ const SHARED: float = 0.9
 ## before [constant CabinetParts.MARKER_FROM].
 const FAN: float = 3.2
 const FAN_FROM: float = 2.2
+## Least and most room between the bend of a slanting wire and its duct.
+const SLANT_MIN: float = 1.5
+const SLANT_MAX: float = 6.0
 ## Room between two marker sleeves one above the other.
 const MARKER_SPACE: float = 0.5
 
@@ -602,13 +605,14 @@ func _route(edges: Array[Dictionary]) -> void:
 		for side: String in ["a", "b"]:
 			var point: Dictionary = edges[e][side]
 			shared[point["id"]] = shared.get(point["id"], 0) + 1
-			ends.append({"edge": e, "side": side, "point": point})
+			ends.append({"edge": e, "side": side, "point": point, "sleeve": CabinetParts.marker_length(edges[e]["mark"]) if not str(edges[e]["mark"]).is_empty() else 0.0})
 	var used: Dictionary[int, int] = {}
 	for end: Dictionary in ends:
 		var id: int = end["point"]["id"]
 		var index: int = used.get(id, 0)
 		used[id] = index + 1
 		end["index"] = index
+		end["shared"] = shared[id]
 		end["x"] = end["point"]["at"].x + (index - (shared[id] - 1) * 0.5) * SHARED
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
 		end["via"] = PackedVector2Array()
@@ -636,6 +640,7 @@ func _route(edges: Array[Dictionary]) -> void:
 		var spread: float = minf(LANE, (CabinetParts.DUCT_SLOT - WIRE_W) / maxf(group.size() - 1, 1))
 		for i: int in group.size():
 			group[i]["slot"] += (i - (group.size() - 1) * 0.5) * spread
+	_slants(ends)
 	var by_side: Dictionary = {}
 	for end: Dictionary in ends:
 		by_side["%d%s" % [end["edge"], end["side"]]] = end
@@ -664,7 +669,6 @@ func _route(edges: Array[Dictionary]) -> void:
 		var positions: PackedFloat32Array = _lanes(runs[d], r.position.y + CabinetParts.DUCT_DEPTH, r.end.y - CabinetParts.DUCT_DEPTH, lanes)
 		for i: int in runs[d].size():
 			runs[d][i]["route"][runs[d][i]["lane"]] = positions[i]
-	_order_slots(slots, routes)
 	for s: int in 2:
 		var down: Array = []
 		for route: Dictionary in routes:
@@ -753,7 +757,8 @@ func _markers(reaches: Array[Vector2]) -> void:
 			var free: PackedVector2Array = span
 			var from: float = CabinetParts.MARKER_FROM
 			while not free.is_empty() and _covers(free, thick, placed):
-				from += length + MARKER_SPACE
+				# On past where it came to lie.
+				from = _distance_to(path, free[1]) + MARKER_SPACE
 				free = _marker_span(path, from, length, wire["width"] * 1.6, limit)
 			if not free.is_empty():
 				span = free
@@ -787,6 +792,18 @@ static func _bend_radius(path: PackedVector2Array, i: int, radius: float) -> flo
 	if i <= 0 or i >= path.size() - 1:
 		return 0.0
 	return minf(radius, minf(path[i - 1].distance_to(path[i]), path[i].distance_to(path[i + 1])) * 0.5)
+
+
+## How far along [param path] its point [param at] lies (mm).
+static func _distance_to(path: PackedVector2Array, at: Vector2) -> float:
+	var walked: float = 0.0
+	for i: int in path.size() - 1:
+		var leg: float = path[i].distance_to(path[i + 1])
+		var on: Vector2 = Geometry2D.get_closest_point_to_segment(at, path[i], path[i + 1])
+		if on.distance_to(at) < 0.001:
+			return walked + path[i].distance_to(on)
+		walked += leg
+	return walked
 
 
 ## The point [param distance] mm along [param path].
@@ -876,7 +893,8 @@ func _reach(end: Dictionary) -> float:
 	var duct: Rect2 = _across[point["duct"]]
 	var path: PackedVector2Array = PackedVector2Array([end["start"]])
 	path.append_array(end["via"])
-	path.append(Vector2(end["x"], duct.end.y + BEND if point["up"] else duct.position.y - BEND))
+	var slant: float = _slant_from(end)
+	path.append(Vector2(end["x"], (duct.end.y + BEND if point["up"] else duct.position.y - BEND) if is_nan(slant) else slant))
 	var length: float = 0.0
 	for i: int in path.size() - 1:
 		length += path[i].distance_to(path[i + 1])
@@ -894,8 +912,78 @@ func _drop(end: Dictionary, lane: float) -> PackedVector2Array:
 	var bend: float = duct.end.y + BEND if point["up"] else duct.position.y - BEND
 	var points: PackedVector2Array = PackedVector2Array([end["start"]])
 	points.append_array(end["via"])
+	var slant: float = _slant_from(end)
+	if not is_nan(slant):
+		var edge: float = duct.end.y if point["up"] else duct.position.y
+		points.append_array([Vector2(end["x"], slant), Vector2(end["slot"], edge), Vector2(end["slot"], lane)])
+		return points
 	points.append_array([Vector2(end["x"], bend), Vector2(end["slot"], bend), Vector2(end["slot"], lane)])
 	return points
+
+
+## Where the wire at [param end] bends towards its slot (see
+## [method _slants]); NAN for none (a core coming straight from its gland).
+func _slant_from(end: Dictionary) -> float:
+	return end.get("slant", NAN)
+
+
+## Sets where each of the wire [param ends] (of [method _route], in their
+## slots) bends once to slant straight into its slot: just past its marker
+## sleeve and the bend's rounding, at most SLANT_MAX before the duct. Wires
+## whose slants would lie side by side bend at one height, the latest any of
+## them needs, so with the slots
+## taking the wires in the order of their terminals no slant crosses
+## another (wires heading apart cross in the duct, out of sight).
+func _slants(ends: Array[Dictionary]) -> void:
+	var sides: Dictionary[Vector2i, Array] = {}
+	for end: Dictionary in ends:
+		var point: Dictionary = end["point"]
+		if point.get("external", false):
+			continue
+		var key: Vector2i = Vector2i(point["duct"], 1 if point["up"] else 0)
+		if not sides.has(key):
+			sides[key] = []
+		sides[key].append(end)
+	for key: Vector2i in sides:
+		var group: Array = sides[key]
+		var up: bool = key.y == 1
+		var away: float = -1.0 if up else 1.0
+		var duct: Rect2 = _across[key.x]
+		var edge: float = duct.end.y if up else duct.position.y
+		group.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return minf(p["x"], p["slot"]) < minf(q["x"], q["slot"]))
+		var cluster: Array = []
+		var reach: float = -INF
+		for n: int in group.size() + 1:
+			var end: Dictionary = group[n] if n < group.size() else {}
+			if n < group.size() and (cluster.is_empty() or minf(end["x"], end["slot"]) <= reach + LANE):
+				cluster.append(end)
+				reach = maxf(reach, maxf(end["x"], end["slot"]))
+				continue
+			# The latest height any of them needs: past its sleeve (two rows
+			# where wires share a strip terminal too narrow for them side by
+			# side, or run close beside an overload relay) and the bend's
+			# rounding, also when it comes after a jog.
+			var y: float = edge - away * INF
+			var slope: float = 0.0
+			for c: Dictionary in cluster:
+				var narrow: bool = (c["shared"] > 1 and not c["point"].get("clamp", false)) or c["point"].has("beside")
+				var rows: int = 2 if narrow else 1
+				var sleeves: float = rows * (c["sleeve"] + MARKER_SPACE)
+				var need: float = c["start"].y + away * (CabinetParts.MARKER_FROM + sleeves + POWER_W * 1.6 + 0.5)
+				if not c["via"].is_empty():
+					var last: Vector2 = c["via"][c["via"].size() - 1]
+					var after: float = last.y + away * (sleeves + 2.0 * POWER_W * 1.6 + 0.5)
+					need = minf(need, after) if up else maxf(need, after)
+				y = minf(y, need) if up else maxf(y, need)
+				slope = maxf(slope, absf(c["slot"] - c["x"]) * 0.5)
+			# Late, a short slant into the slot, where the wires have room.
+			y = maxf(y, edge - SLANT_MAX) if not up else minf(y, edge + SLANT_MAX)
+			# Without room to slant: the two short turns by the duct.
+			var slanted: bool = (edge - y) * away >= maxf(SLANT_MIN, slope)
+			for c: Dictionary in cluster:
+				c["slant"] = y if slanted else NAN
+			cluster = [end] if n < group.size() else []
+			reach = maxf(end["x"], end["slot"]) if n < group.size() else -INF
 
 
 ## Whether a wire straight from [param a] to [param b] passes over no screw
@@ -978,41 +1066,6 @@ func _lead_beside(ends: Array[Dictionary]) -> void:
 			var x: float = edge + (channel - 1.0 - spread * j) * (1.0 if right else -1.0)
 			end["via"] = PackedVector2Array([Vector2(end["x"], y), Vector2(x, y)])
 			end["x"] = x
-
-
-## Orders the wires going in through each of [param slots] (duct, slot,
-## side -> wire ends of [method _route]; [param routes] by edge, their lanes
-## laid) so none crosses
-## another on its way to its lane: from the left those turning left, the one
-## in the lane nearest the slot first, then those turning right, the one in
-## the lane furthest away first. The wires keep the places in the slot.
-func _order_slots(slots: Dictionary[Vector3i, Array], routes: Array[Dictionary]) -> void:
-	for key: Vector3i in slots:
-		var group: Array = slots[key]
-		if group.size() < 2:
-			continue
-		var places: Array[float] = []
-		var order: Array = []
-		for end: Dictionary in group:
-			places.append(end["slot"])
-			var route: Dictionary = routes[end["edge"]]
-			var own: bool = end["side"] == "a"
-			var lane: float = route["lane_a"] if own or not route.has("side") else route["lane_b"]
-			var other: float
-			if route.has("side"):
-				other = _sides[0].end.x if route["side"] == 0 else _sides[1].position.x
-			else:
-				other = route["b"]["slot"] if own else route["a"]["slot"]
-			# How far into the duct its lane is, from the side it comes in.
-			var depth: float = -lane if end["point"]["up"] else lane
-			order.append({"end": end, "left": other < end["slot"], "depth": depth})
-		places.sort()
-		order.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
-			if p["left"] != q["left"]:
-				return p["left"]
-			return p["depth"] < q["depth"] if p["left"] else p["depth"] > q["depth"])
-		for i: int in order.size():
-			order[i]["end"]["slot"] = places[i]
 
 
 ## Which edge of its duct across the wire ends [param ends] (of
