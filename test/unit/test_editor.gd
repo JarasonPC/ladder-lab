@@ -535,6 +535,55 @@ func test_terminal_on_a_lead() -> void:
 	assert_true(editor.document().get_placement("H1").strips.is_empty())
 
 
+func test_select_all_then_delete_takes_more_than_a_strip_mark() -> void:
+	_place({"type": "lamp"}, Vector2i(10, 3))
+	_place({"type": "terminal"}, Vector2i(10, 6))
+	_place({"type": "lamp"}, Vector2i(14, 3))
+	editor.selected_components["H1"] = true
+	editor.selected_marking = {"component": "H1", "kind": "strip", "index": 1}
+	editor.select_all()
+	editor.delete_selection()
+	assert_null(editor.document().circuit.get_component("H1"), "everything selected goes")
+	assert_null(editor.document().circuit.get_component("H2"))
+
+
+func test_delete_while_dragging_a_wire_segment_leaves_other_wires() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 4))
+	_place({"type": "lamp"}, Vector2i(9, 4))
+	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])
+	_wire([Vector2(5, 7), Vector2(5, 9), Vector2(9, 9), Vector2(9, 7)])
+	var doc: SchematicDocument = editor.document()
+	var other: Array[Vector2i] = doc.wire_points(1)
+	_at(Vector2(3.5, 1))
+	editor._on_left_pressed(false)
+	_at(Vector2(3.5, 2))
+	editor._on_mouse_moved()
+	editor.delete_selection()
+	assert_eq(doc.get_wire_count(), 1, "the dragged wire is deleted")
+	_at(Vector2(3.5, 3))
+	editor._on_mouse_moved()
+	editor._on_left_released(false)
+	assert_eq(doc.wire_points(0), other, "the drag does not go on with another wire")
+
+
+func test_undo_while_dragging_a_marking_ends_the_drag() -> void:
+	_place({"type": "lamp"}, Vector2i(10, 3))
+	await wait_process_frames(2)
+	var symbol: SchematicSymbol = view.get_symbol("H1")
+	var at: Vector2 = (symbol.position + symbol.marking_rect("designation").get_center()) / SymbolGeometry.GRID
+	editor._clear_selection()
+	_at(at)
+	editor._on_left_pressed(false)
+	_at(at + Vector2(-1.5, 0.5))
+	editor._on_mouse_moved()
+	editor.undo()
+	assert_true(editor.document().get_placement("H1").labels.is_empty(), "the drag is undone")
+	_at(at + Vector2(-2.5, 1.5))
+	editor._on_mouse_moved()
+	editor._on_left_released(false)
+	assert_true(editor.document().get_placement("H1").labels.is_empty(), "and goes no further")
+
+
 func test_designation_prefixes_and_limit_switch() -> void:
 	_place({"type": "push_button", "contact": "NO"}, Vector2i(4, 2))
 	_place({"type": "latching_switch", "contact": "NO"}, Vector2i(8, 2))
