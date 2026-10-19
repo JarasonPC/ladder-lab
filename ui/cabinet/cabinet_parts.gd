@@ -2197,6 +2197,19 @@ static func _rounded_path(points: PackedVector2Array, radius: float) -> PackedVe
 ## enclosure where a cable comes in or goes out: the black cable outside,
 ## the grey nut on the frame and the black sealing insert the cores come
 ## out of.
+## The door harness leaving at [param r] (mm, in the bottom of the
+## enclosure like a gland): its cores in a grey corrugated flexible conduit
+## that runs on to the door's hinge, held by a black fitting.
+static func door_conduit(p: CabinetPainter, r: Rect2) -> void:
+	var tube: Rect2 = Rect2(r.position.x + r.size.x * 0.1, r.position.y + r.size.y * 0.35, r.size.x * 0.8, r.size.y * 0.65)
+	p.hgradient(tube, Color("8d9297"), Color("5f646a"), 0.8)
+	var ribs: int = maxi(int(tube.size.y / 0.9), 2)
+	for i: int in ribs:
+		var y: float = tube.position.y + (i + 0.5) * tube.size.y / ribs
+		p.line(Vector2(tube.position.x + 0.2, y), Vector2(tube.end.x - 0.2, y), Color(0, 0, 0, 0.3), 0.25)
+	p.rect(Rect2(r.position.x, r.position.y, r.size.x, r.size.y * 0.4), Color("1f2023"), 0.5, Color("0d0d0f"), 0.15)
+
+
 static func cable_gland(p: CabinetPainter, r: Rect2, bottom: bool = false) -> void:
 	var cable: Rect2 = Rect2(r.position.x + r.size.x * 0.18, r.position.y + (r.size.y * 0.5 if bottom else 0.0), r.size.x * 0.64, r.size.y * 0.5)
 	p.hgradient(cable, Color("2b2d30"), Color("15161a"), 0.6)

@@ -2330,14 +2330,41 @@ func add_control_box_for_all() -> ControlBox:
 
 
 ## Puts every push button, switch and signal lamp that is not on a station
-## yet on station [param index]: buttons that only break (stop) red, other
-## buttons green, switches black, lamps green. Returns how many were added.
+## or a door yet on panel [param index] (see [method control_panels]):
+## buttons that only break (stop) red, other buttons green, switches black,
+## lamps green. Returns how many were added.
 func fill_control_box(index: int) -> int:
-	if index < 0 or index >= control_boxes.size():
+	var panel: ControlBox = _panel(index)
+	if panel == null:
 		return 0
 	var items: Array[ControlBoxItem] = _unlisted_control_items()
-	control_boxes[index].items.append_array(items)
+	panel.items.append_array(items)
 	return items.size()
+
+
+## Everything push buttons, switches and lamps are put on: the control
+## stations, then the door of each switchboard, in that order. The item
+## edits below take an index into it ("panel"; a station's is its index in
+## [member control_boxes], see [method door_panel] for a door).
+func control_panels() -> Array[ControlBox]:
+	var panels: Array[ControlBox] = control_boxes.duplicate()
+	for board: Switchboard in switchboards:
+		panels.append(board.door)
+	return panels
+
+
+## Panel index (see [method control_panels]) of the door of switchboard
+## [param board], -1 when there is no such switchboard.
+func door_panel(board: int) -> int:
+	return control_boxes.size() + board if _has_board(board) else -1
+
+
+func _panel(index: int) -> ControlBox:
+	if index >= 0 and index < control_boxes.size():
+		return control_boxes[index]
+	if _has_board(index - control_boxes.size()):
+		return switchboards[index - control_boxes.size()].door
+	return null
 
 
 func _unlisted_control_items() -> Array[ControlBoxItem]:
@@ -2363,17 +2390,21 @@ func _unlisted_control_items() -> Array[ControlBoxItem]:
 	return items
 
 
-## Sets the text on a control station and how many items it has per row.
+## Sets the text on a control station and how many items it has per row
+## (a door: [param box_title] unused).
 func set_control_box(index: int, box_title: String, columns: int) -> void:
-	if index >= 0 and index < control_boxes.size():
-		control_boxes[index].title = box_title.strip_edges()
-		control_boxes[index].columns = columns
+	var panel: ControlBox = _panel(index)
+	if panel != null:
+		if index < control_boxes.size():
+			panel.title = box_title.strip_edges()
+		panel.columns = columns
 
 
-## Adds a [param kind] item to control station [param box_index], showing the
-## first device of that kind not on a station yet (or no device). Returns it.
+## Adds a [param kind] item to panel [param box_index] (a station or a door,
+## see [method control_panels]), showing the first device of that kind not
+## on one yet (or no device). Returns it.
 func add_control_item(box_index: int, kind: ControlBoxItem.Kind) -> ControlBoxItem:
-	if box_index < 0 or box_index >= control_boxes.size():
+	if _panel(box_index) == null:
 		return null
 	var designation: String = ""
 	var listed: Dictionary[String, bool] = control_panel_devices()
@@ -2382,20 +2413,20 @@ func add_control_item(box_index: int, kind: ControlBoxItem.Kind) -> ControlBoxIt
 			designation = candidate
 			break
 	var item: ControlBoxItem = ControlBoxItem.new(kind, designation)
-	control_boxes[box_index].items.append(item)
+	_panel(box_index).items.append(item)
 	return item
 
 
 func remove_control_item(box_index: int, item_index: int) -> void:
 	if _has_control_item(box_index, item_index):
-		control_boxes[box_index].items.remove_at(item_index)
+		_panel(box_index).items.remove_at(item_index)
 
 
-## Moves an item by [param delta] places within its station (clamped).
+## Moves an item by [param delta] places within its station or door (clamped).
 func move_control_item(box_index: int, item_index: int, delta: int) -> void:
 	if not _has_control_item(box_index, item_index):
 		return
-	var items: Array[ControlBoxItem] = control_boxes[box_index].items
+	var items: Array[ControlBoxItem] = _panel(box_index).items
 	var item: ControlBoxItem = items[item_index]
 	items.remove_at(item_index)
 	items.insert(clampi(item_index + delta, 0, items.size()), item)
@@ -2407,7 +2438,7 @@ func set_control_item(box_index: int, item_index: int, data: Dictionary) -> bool
 	var item: ControlBoxItem = ControlBoxItem.from_data(data)
 	if item == null or not _has_control_item(box_index, item_index):
 		return false
-	control_boxes[box_index].items[item_index] = item
+	_panel(box_index).items[item_index] = item
 	return true
 
 
@@ -2421,7 +2452,7 @@ func control_devices(kind: int) -> PackedStringArray:
 	return result
 
 
-## Points every station item (and lamp under one) showing device
+## Points every station and door item (and lamp under one) showing device
 ## [param old_designation] to [param new_designation], if that is a device of
 ## the item's kind (a button turned into a limit switch leaves its item); a
 ## device shown on a station already keeps its items, the old name's go empty.
@@ -2429,7 +2460,7 @@ func rename_control_device(old_designation: String, new_designation: String) -> 
 	var device: CircuitComponent = circuit.get_operator(new_designation)
 	var kind: int = ControlBoxItem.kind_of(device if device != null else circuit.get_component(new_designation))
 	var shown: bool = control_panel_devices().has(new_designation)
-	for box: ControlBox in control_boxes:
+	for box: ControlBox in control_panels():
 		for item: ControlBoxItem in box.items:
 			if item.designation == old_designation and item.kind == kind:
 				item.designation = "" if shown else new_designation
@@ -2438,13 +2469,15 @@ func rename_control_device(old_designation: String, new_designation: String) -> 
 
 
 func _has_control_item(box_index: int, item_index: int) -> bool:
-	return box_index >= 0 and box_index < control_boxes.size() and item_index >= 0 and item_index < control_boxes[box_index].items.size()
+	var panel: ControlBox = _panel(box_index)
+	return panel != null and item_index >= 0 and item_index < panel.items.size()
 
 
-## Designations already shown on a station (items and lamps under them).
+## Designations already shown on a station or a switchboard door (items and
+## lamps under them).
 func control_panel_devices() -> Dictionary[String, bool]:
 	var listed: Dictionary[String, bool] = {}
-	for box: ControlBox in control_boxes:
+	for box: ControlBox in control_panels():
 		for item: ControlBoxItem in box.items:
 			listed[item.designation] = true
 			if not item.lamp.is_empty():

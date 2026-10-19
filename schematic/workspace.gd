@@ -166,8 +166,18 @@ static func station_of(doc: SchematicDocument, designation: String) -> int:
 	return -1
 
 
+## Index of the switchboard with device [param designation] on its door
+## (also as the lamp inside a button), -1 for none.
+static func door_of(doc: SchematicDocument, designation: String) -> int:
+	for b: int in doc.switchboards.size():
+		for item: ControlBoxItem in doc.switchboards[b].door.items:
+			if item.designation == designation or item.lamp == designation:
+				return b
+	return -1
+
+
 ## What has no place yet: devices and terminal strips not in a switchboard,
-## push buttons, switches and lamps not on a control station. Each
+## push buttons, switches and lamps not on a control station or a door. Each
 ## {"kind": "device", "strip" or "control", "designation"}, in that order.
 static func unplaced(doc: SchematicDocument) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []

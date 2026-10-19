@@ -62,6 +62,8 @@ const COLORS: Dictionary[String, Color] = {
 }
 
 var document: SchematicDocument
+## The station (or door, see [DoorView]) drawn: its index in
+## [method SchematicDocument.control_panels].
 var box_index: int = 0
 ## Operate the circuit (true) or select items for editing (false).
 var simulating: bool = false
@@ -80,9 +82,10 @@ func _ready() -> void:
 
 
 func box() -> ControlBox:
-	if document == null or box_index < 0 or box_index >= document.control_boxes.size():
+	if document == null:
 		return null
-	return document.control_boxes[box_index]
+	var panels: Array[ControlBox] = document.control_panels()
+	return panels[box_index] if box_index >= 0 and box_index < panels.size() else null
 
 
 func _get_minimum_size() -> Vector2:
@@ -202,7 +205,7 @@ func _gui_input(event: InputEvent) -> void:
 		_held = item.designation
 		button_held.emit(_held, true)
 	elif _device(item.designation) is CamSwitch or _three_positions(item.designation):
-		switch_toggled.emit(item.designation, -1 if mb.position.x < _knob(_cells()[index]).x else 1)
+		switch_toggled.emit(item.designation, -1 if mb.position.x < _knob_of(_cells()[index]).x else 1)
 	else:
 		switch_toggled.emit(item.designation, 0)
 	accept_event()
@@ -284,7 +287,7 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 		if not designation.is_empty():
 			marks.append("-" + designation)
 	_plate_text(plate, item.label, " ".join(marks))
-	var center: Vector2 = _knob(cell)
+	var center: Vector2 = _knob_of(cell)
 	var color: Color = COLORS.get(item.color, COLORS["green"])
 	# -1: no lamp inside, 0: its lamp is off, 1: lit.
 	var light: int = (1 if _lit(item.lamp) else 0) if _illuminated(item) else -1
@@ -313,7 +316,7 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 
 ## Middle of the button, switch or lamp of the item in [param cell], right
 ## of its label plate.
-static func _knob(cell: Rect2) -> Vector2:
+func _knob_of(cell: Rect2) -> Vector2:
 	return Vector2(cell.position.x + 6.0 + PLATE.x + 14.0 + BEZEL_R, cell.position.y + ROW_H * 0.5)
 
 

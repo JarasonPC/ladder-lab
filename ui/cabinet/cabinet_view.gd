@@ -166,6 +166,11 @@ func _get_minimum_size() -> Vector2:
 	return Vector2(floorf(_layout.size.x * k) if zoom > 1.0 else 0.0, ceilf(_layout.size.y * k))
 
 
+## Size of the plate in mm as laid out last (after [method refresh]).
+func plate_size() -> Vector2:
+	return _layout.size if _layout != null else Vector2.ZERO
+
+
 ## Size of the drawing as laid out last (after [method refresh]).
 func drawn_size() -> Vector2:
 	return _layout.size * _k() if _layout != null else Vector2.ZERO
@@ -428,10 +433,15 @@ func _paint_top(canvas: CanvasItem) -> void:
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], wire["width"])
 	for gland: Dictionary in _wiring.glands:
-		CabinetParts.cable_gland(p, gland["rect"], gland["bottom"])
+		var r: Rect2 = gland["rect"]
+		if gland.get("door", false):
+			# The door harness: in a conduit to the door, tagged as such.
+			CabinetParts.door_conduit(p, r)
+			CabinetParts.label(p, r.get_center() + Vector2(0.0, -0.6), tr("Door"), maxf(r.size.x - 1.0, 10.0))
+			continue
+		CabinetParts.cable_gland(p, r, gland["bottom"])
 		if gland["bottom"]:
 			# The cable's name (or the part it goes to), on a tag over the gland.
-			var r: Rect2 = gland["rect"]
 			CabinetParts.label(p, r.get_center() + Vector2(0.0, -0.6), str(gland["cable"]), r.size.x - 1.0)
 
 

@@ -3491,3 +3491,30 @@ msgstr ""
 #, c-format
 msgid "it is in position %s"
 msgstr ""
+
+msgid "WARNING"
+msgstr ""
+
+msgid "Electrical equipment!"
+msgstr ""
+
+msgid "Inside"
+msgstr ""
+
+msgid "The DIN rails with the devices and their wiring"
+msgstr ""
+
+msgid "Door"
+msgstr ""
+
+msgid "The push buttons, switches and signal lamps on the door"
+msgstr ""
+
+msgid "No push buttons, switches or lamps on this door yet."
+msgstr ""
+
+msgid "No push buttons, switches or lamps on this door yet. Add them in Edit mode."
+msgstr ""
+
+msgid "Put every push button, switch and signal lamp that is not on a station or a door yet on this door"
+msgstr ""

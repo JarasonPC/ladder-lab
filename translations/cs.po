@@ -3503,3 +3503,30 @@ msgstr "Přepínač s polohami I, 0 (uprostřed) a II, např. ručně / vypnuto 
 #, c-format
 msgid "it is in position %s"
 msgstr "je v poloze %s"
+
+msgid "WARNING"
+msgstr "POZOR"
+
+msgid "Electrical equipment!"
+msgstr "Elektrické zařízení!"
+
+msgid "Inside"
+msgstr "Uvnitř"
+
+msgid "The DIN rails with the devices and their wiring"
+msgstr "Lišty DIN s přístroji a jejich zapojením"
+
+msgid "Door"
+msgstr "Dveře"
+
+msgid "The push buttons, switches and signal lamps on the door"
+msgstr "Tlačítka, přepínače a signálky na dveřích"
+
+msgid "No push buttons, switches or lamps on this door yet."
+msgstr "Na těchto dveřích zatím nejsou žádná tlačítka, přepínače ani signálky."
+
+msgid "No push buttons, switches or lamps on this door yet. Add them in Edit mode."
+msgstr "Na těchto dveřích zatím nejsou žádná tlačítka, přepínače ani signálky. Přidejte je v režimu Úpravy."
+
+msgid "Put every push button, switch and signal lamp that is not on a station or a door yet on this door"
+msgstr "Umístí na tyto dveře všechna tlačítka, přepínače a signálky, které zatím nejsou na skříňce ani na dveřích"

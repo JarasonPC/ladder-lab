@@ -52,7 +52,7 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   overload relays, relays, time relays, PLCs, frequency inverters and terminal strips of the
   schematic, drawn like the real cabinet and wired after the circuit through the ducts, with
   the field cables going out through glands; they show the simulation and breakers and fuses
-  are switched there.
+  are switched there. Its door holds push buttons, switches and lamps like a control station.
 - **Export**: the page shown as PNG or a PDF on A4 / A3 sheets with a frame and title block,
   shown first in a preview; the PDF holds, as ticked, the schematic, the control stations,
   the switchboards, the workspace and a parts list.

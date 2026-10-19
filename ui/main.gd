@@ -1246,7 +1246,7 @@ func _ask_key(designation: String) -> void:
 	if mode != Mode.EDIT or not edit_doc.can_have_key(designation):
 		return
 	var what: String = ""
-	for box: ControlBox in edit_doc.control_boxes:
+	for box: ControlBox in edit_doc.control_panels():
 		for item: ControlBoxItem in box.items:
 			if item.designation == designation and not item.label.is_empty():
 				what = item.label

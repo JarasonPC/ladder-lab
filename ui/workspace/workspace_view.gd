@@ -180,7 +180,10 @@ func open(kind: Workspace.Place, place_name: String, designation: String = "", i
 	if not designation.is_empty():
 		if _panel is StationPanel:
 			(_panel as StationPanel).select_device(designation)
+		elif _panel is CabinetPanel and item_kind == "control":
+			(_panel as CabinetPanel).select_door_device(designation)
 		elif _panel is CabinetPanel:
+			(_panel as CabinetPanel).door_shown = false
 			(_panel as CabinetPanel).select_item(CabinetItem.Kind.STRIP if item_kind == "strip" else CabinetItem.Kind.DEVICE, designation)
 	refresh()
 
@@ -247,11 +250,13 @@ static func forward_panel(panel: Control, target: Object) -> void:
 	if panel is CabinetPanel:
 		panel.connect("edit_requested", func(change: Callable) -> void: target.emit_signal("cabinet_edit_requested", change))
 		panel.connect("operate_requested", func(designation: String) -> void: target.emit_signal("operate_requested", designation))
+		# Its door is edited like a station.
+		panel.connect("door_edit_requested", func(change: Callable) -> void: target.emit_signal("edit_requested", change))
 	else:
 		panel.connect("edit_requested", func(change: Callable) -> void: target.emit_signal("edit_requested", change))
-		panel.connect("key_bind_requested", func(designation: String) -> void: target.emit_signal("key_bind_requested", designation))
-		panel.connect("button_held", func(designation: String, pressed: bool) -> void: target.emit_signal("button_held", designation, pressed))
-		panel.connect("switch_toggled", func(designation: String, steps: int) -> void: target.emit_signal("switch_toggled", designation, steps))
+	panel.connect("key_bind_requested", func(designation: String) -> void: target.emit_signal("key_bind_requested", designation))
+	panel.connect("button_held", func(designation: String, pressed: bool) -> void: target.emit_signal("button_held", designation, pressed))
+	panel.connect("switch_toggled", func(designation: String, steps: int) -> void: target.emit_signal("switch_toggled", designation, steps))
 
 
 func _index(kind: Workspace.Place, place_name: String) -> int:

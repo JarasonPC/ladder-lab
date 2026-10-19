@@ -12,6 +12,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ### Panels
 - A rotary cam switch is drawn bigger than a selector switch on a control station
+- A switchboard has a door (Inside | Door at the top of the opened switchboard) with push
+  buttons, switches, rotary cam switches and signal lamps on it, put on and edited like on a
+  control station and operated there while simulating; inside, their wires leave the strip
+  terminals in the door harness, and the export shows the door beside the switchboard
 
 ## 0.4.4 – 2026-10-19
 

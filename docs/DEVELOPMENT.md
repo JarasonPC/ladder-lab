@@ -288,7 +288,23 @@ Architecture and conventions of the code base. Read this before changing the cod
   coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
   renames; opened from the workspace (StationPanel: the box drawn large, ZoomBox, the editing
-  tools beside it in Edit mode, undoable), operate the simulation in Simulate mode
+  tools beside it in Edit mode, undoable; the tools are ControlItemTools, shared with the
+  switchboard door), operate the simulation in Simulate mode. Every switchboard has a door
+  (Switchboard.door, a ControlBox: columns and items only, saved as the switchboard's "door"
+  when it has items or other columns): SchematicDocument.control_panels lists the stations,
+  then the doors; the item edits (add/set/move/remove_control_item, fill_control_box,
+  set_control_box) take an index into it (a station's own index, door_panel(board) for a
+  door), a device shows on one station or door only (control_panel_devices), and a door's
+  items are in the switchboard's place ("+RA1": WorkspaceCables, the tree under the
+  switchboard, the parts list, the key strip; Workspace.door_of). CabinetPanel shows the door
+  in place of the inside (Inside | Door at the top, door_shown, select_door_device): a
+  DoorView (a ControlBoxView drawn in mm with CabinetPainter, after a photo of a real door:
+  RAL 7035 face the size of the enclosure, larger only when its items do not fit at
+  DoorView.PITCH, the items sharing out its width and height, two quarter-turn locks on the
+  left, "+RA1" and the title top left, the yellow warning sign at the top, 22 mm devices with
+  a black label holder under each, yellow position tags over selector switches, rotary cam
+  switches bigger), edited (door_edit_requested, a workspace edit) and operated as a station;
+  the export puts the door beside the inside on the switchboard's sheet
 - Switchboards (rozvaděč, opened from the workspace, both modes): DIN rails (Switchboard.rails,
   CabinetRail / CabinetItem: a device by designation or a terminal strip by name; a device or
   strip has one place in all switchboards, SchematicDocument.cabinet_has; saved in "switchboards")
@@ -400,7 +416,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   less than CabinetView.SETTLED, as the terminal strips snapped to whole pixels make it a little
   wider or narrower at each scale; while simulating the places are only described again,
   CabinetLayout.describe_again); each switchboard is laid out
-  and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Edited in
+  and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Strip
+  terminals leading to parts on the switchboard's own door send their cores out as one door
+  harness (CabinetWiring.DOOR in place of a cable name, its gland "door": a grey corrugated
+  conduit tagged Door, CabinetParts.door_conduit); to a door of another switchboard in the
+  cable between the two. Edited in
   CabinetPanel beside the drawing (undoable, "Fill from the schematic" fills the opened
   switchboard), breakers, fuse holders and overload relays operated there while simulating.
   tools/screenshot_workspace.gd screenshots the app's workspace, a switchboard and a station

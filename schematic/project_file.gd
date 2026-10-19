@@ -67,7 +67,9 @@ const FORMAT: String = "ladder-lab"
 ## 31: rotary cam switches ("cam_switch": poles, "positions" 0-I or I-0-II).
 ## 32: selector switches with the positions I-0-II ("latching_switch" with
 ## "positions": "I-0-II" and "operated_in" I or II; missing: 0-I).
-const VERSION: int = 32
+## 33: the door of a switchboard ("door": columns and items like a control
+## station's; missing before: an empty door).
+const VERSION: int = 33
 
 
 ## PLC program files (see [method save_plc_program]).
