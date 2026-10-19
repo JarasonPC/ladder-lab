@@ -388,7 +388,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   without); rows joined by links make a rung (PlcRung.rung_groups, numbered in the
   margin), rungs run from the top, power flows column by column, linked rows share it; older
   programs with several networks load as rows one after another);
-  language says which one runs. Operands I1-I24, Q1-Q20 (the PLC window offers
+  language says which one runs; the PLC window exports a program to a file of its own and
+  imports one (ProjectFile.save_plc_program / load_plc_program, ".plcprog": JSON format
+  "ladder-lab-plc", version, program; import is one undoable edit). Operands I1-I24, Q1-Q20 (the PLC window offers
   those the PLC has with its modules), M1-M16, T1-T16, C1-C16. Saved with
   the component ("program"); damaged parts of a program are left out, never refusing the file.
   The symbol (PlcSymbol): a box with L1 N I1-I8 on top, the output contacts below (moving),

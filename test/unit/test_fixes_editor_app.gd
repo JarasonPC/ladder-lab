@@ -334,3 +334,34 @@ func test_timing_chart_rows_can_be_hidden() -> void:
 	assert_true(chart.hidden_rows.has("I M1"))
 	chart.set_row_shown("I M1", true)
 	assert_eq(chart.custom_minimum_size.y, all)
+
+
+func test_plc_program_exported_and_imported() -> void:
+	_example(ExampleCircuits.TITLES.find("PLC: start/stop with an on-delay"))
+	var plc: Plc = _first(main.edit_doc, Plc) as Plc
+	var path: String = "user://test_program." + ProjectFile.PLC_EXTENSION
+	assert_eq(ProjectFile.save_plc_program(plc.program, path), OK)
+	var loaded: Dictionary = ProjectFile.load_plc_program(path)
+	assert_true(loaded.has("program"))
+	assert_eq((loaded["program"] as PlcProgram).to_data(), plc.program.to_data(), "the same program back")
+	# Imported into a PLC with an empty program: one undoable edit.
+	main.editor.apply_properties(plc.id, _with_program(plc, PlcProgram.new()))
+	assert_true((main.edit_doc.circuit.get_component(plc.id) as Plc).program.is_empty())
+	var window: PlcWindow = main.open_plc_window(plc.id)
+	assert_true(window.import_program(path))
+	assert_eq((main.edit_doc.circuit.get_component(plc.id) as Plc).program.to_data(), loaded["program"].to_data(), "the PLC runs it")
+	main.editor.undo()
+	assert_true((main.edit_doc.circuit.get_component(plc.id) as Plc).program.is_empty(), "Ctrl+Z takes it back")
+	# Not a program file.
+	var schematic: String = "user://test_program_not.ladder"
+	ProjectFile.save(main.edit_doc, schematic)
+	assert_eq(ProjectFile.load_plc_program(schematic)["error"], "%s is not a PLC program of LadderLab.")
+	window._error.hide()
+	DirAccess.remove_absolute(path)
+	DirAccess.remove_absolute(schematic)
+
+
+func _with_program(plc: Plc, program: PlcProgram) -> Dictionary:
+	var data: Dictionary = DocumentSerializer.component_to_dict(plc)
+	data["program"] = program.to_data()
+	return data

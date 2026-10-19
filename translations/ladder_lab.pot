@@ -3342,3 +3342,27 @@ msgstr ""
 
 msgid "Pages go on the smallest sheet they fit on, up to this one; larger pages are scaled down onto it"
 msgstr ""
+
+msgid "Export…"
+msgstr ""
+
+msgid "Import…"
+msgstr ""
+
+msgid "Saves the program to a file of its own, to use it in another PLC"
+msgstr ""
+
+msgid "Replaces the program with one saved to a file (Ctrl+Z brings it back)"
+msgstr ""
+
+msgid "Export PLC program"
+msgstr ""
+
+msgid "Import PLC program"
+msgstr ""
+
+msgid "PLC program"
+msgstr ""
+
+msgid "%s is not a PLC program of LadderLab."
+msgstr ""
