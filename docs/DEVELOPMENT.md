@@ -320,7 +320,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   DC - pole, a rectifier's - too), grey = main power circuit (L2/L3 and the terminals of main
   contacts, overload relay
   heaters, 3~ motors, fuses and breakers of 2-4 poles), green-yellow = PE; wires go into the
-  top of strip terminals, wires near each other share the nearest slot; the supply comes in
+  top of strip terminals, wires near each other share the nearest slot; every wire carries a
+  yellow marker sleeve at each terminal end with its wire number printed along it (bottom to
+  top; the supply conductor's name "L1", "N", "PE" on a net without a number;
+  CabinetWiring._marks), CabinetParts.MARKER_FROM from the end and before the bend into the
+  duct (CabinetLayout.PAD, 20 mm between the ducts and the parts, leaves the room), placed by
+  CabinetWiring._markers (wire "markers") and drawn over all wires; wires sharing a terminal
+  spread out under it (CabinetWiring.FAN, as far as the next terminal and the screws on their
+  way allow) so their sleeves sit side by side, a sleeve that would still cover another moves
+  on along its wire by its length (one above the other, by turns along a strip); the supply comes in
   from outside: one cable per source (AC, DC) through a gland in the top of the enclosure, one
   core per supply conductor (L1 L2 L3 N PE, + -) straight down into the top duct to the first
   terminal it feeds, or onto the field side (bottom entry) of the strip terminal on a supply

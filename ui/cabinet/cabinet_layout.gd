@@ -13,10 +13,11 @@ const FRAME: float = 6.0
 const SIDE_DUCT: float = 25.0
 const DUCT: float = 28.0
 ## Room between the side ducts and the rails, between places on a rail, and
-## between a duct and the parts above or below it.
+## between a duct and the parts above or below it (room for the wires'
+## marker sleeves, see [CabinetWiring]).
 const MARGIN: float = 5.0
 const GAP: float = 2.0
-const PAD: float = 4.0
+const PAD: float = 20.0
 ## Room on both sides of a contactor with an overload relay under it for
 ## the wires from the contactor's bottom terminals (see [CabinetWiring]),
 ## and more for the two wires of each auxiliary contact block mounted on

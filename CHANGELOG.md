@@ -33,6 +33,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A cable opened on the workspace can be given a type name of your own, a cross-section and its
   length; it then shows its voltage drop (marked above 4 %), and the length is written on the
   workspace and in the parts list
+- Switchboard wires carry yellow marker sleeves with their wire numbers at both ends (L1, N,
+  PE … on supply wires without a number); two wires in one terminal spread apart so both sleeves
+  show, side by side or one above the other; the ducts sit further from the devices to leave
+  room for them
 
 ### Files and export
 - PLC programs can be exported to a file and imported into another PLC (PLC window)
@@ -45,6 +49,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The example circuits are no longer in the program (the toolbar list is gone)
 
 ### Fixed
+- Switchboard: two supply points of one conductor on the same strip terminal no longer get a wire
+  from the terminal back into itself
 - Zooming, moving and simulating in a switchboard is smooth: only what changed is drawn again
 - A motor of small rated slip (e.g. 2970 min⁻¹) starts with a real motor's torque: started in star
   it no longer stays at standstill drawing its starting current
