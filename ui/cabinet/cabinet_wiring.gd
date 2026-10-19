@@ -37,6 +37,9 @@ const POWER_W: float = 2.0
 const LANE: float = 2.2
 ## Room between two wires running out from under a contactor.
 const LEG_STEP: float = 0.8
+## How far under the top of an overload relay the first wire from behind it
+## comes out at its side.
+const BEHIND_TOP: float = 3.0
 ## Room between the cores of the incoming cable where it enters.
 const CORE: float = 2.2
 ## Order of the cores of the incoming cables, AC then DC.
@@ -68,7 +71,7 @@ const DOOR: String = "@door"
 
 ## The wires: {"net": int, "conductor": [enum CabinetDevices.Conductor],
 ## "width": float, "points": PackedVector2Array (mm, from one terminal to
-## the other; from where it comes out under an overload relay for a wire
+## the other; from where it comes out beside an overload relay for a wire
 ## going down behind it), "from", "to" (terminal keys in the circuit; for a core of a
 ## cable "from" names the cable), "external" (true for a core of a cable:
 ## it starts at the gland), "cable" ("AC", "DC", or what is written on a
@@ -105,8 +108,8 @@ var _right: float = 0.0
 # Every screw of the devices on the rails, wired or not: centre and radius
 # (mm) as x, y, z.
 var _screws: Array[Vector3] = []
-# Columns under overload relays taken by wires coming out from behind them.
-var _behind_taken: Dictionary[float, bool] = {}
+# Wires come out from behind each overload relay (by its position) so far.
+var _behind_taken: Dictionary[Vector2, int] = {}
 
 var _circuit: Circuit
 # Ducts across (top to bottom) and down the sides (left, right).
@@ -616,10 +619,11 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 		if not up and relay.has_area() and entry > CabinetParts.CONTACTOR_OUT_Y[CabinetParts.CONTACTOR_OUT_Y.size() - 1] - LEG_STEP:
 			# The overload relay under the contactor covers that face (its
 			# heaters' pins are in these terminals): the wire goes down behind
-			# the relay and comes out under it in a column of its own, between
-			# the relay's terminals.
-			var x: float = _behind_column(relay, origin.x + p.x)
-			result.append({"key": terminals[name], "at": Vector2(x, relay.end.y), "duct": rail + 1, "up": false, "behind": true})
+			# the relay and comes out at its left side near its top (all of
+			# them, each a lane lower than the one before), and on down beside it.
+			var y: float = _behind_height(relay)
+			result.append({"key": terminals[name], "at": Vector2(relay.position.x, y), "duct": rail + 1, "up": false, "behind": true,
+					"beside": beside, "channel": channel, "out": [y] as Array[float], "side": false})
 			continue
 		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z) if is_nan(entry) else entry)
 		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up, "clamp": true}
@@ -634,25 +638,13 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 		result.append(point)
 
 
-## Column (mm) a wire coming down behind overload relay [param relay] at
-## [param x] comes out under it in: the middle between two of the relay's
-## terminal columns nearest [param x] that no other wire took.
-func _behind_column(relay: Rect2, x: float) -> float:
-	var columns: Array[float] = []
-	columns.append_array(CabinetParts.OVERLOAD_OUT_X)
-	columns.append_array(CabinetParts.OVERLOAD_AUX_X)
-	columns.sort()
-	var best: float = NAN
-	for i: int in columns.size() - 1:
-		var mid: float = relay.position.x + (columns[i] + columns[i + 1]) * 0.5
-		if _behind_taken.has(mid):
-			continue
-		if is_nan(best) or absf(mid - x) < absf(best - x):
-			best = mid
-	if is_nan(best):
-		return x
-	_behind_taken[best] = true
-	return best
+## Height (mm) a wire coming down behind overload relay [param relay]
+## comes out at on its left side: the first of the heights BEHIND_TOP +
+## LANE apart from the relay's top that no other wire took.
+func _behind_height(relay: Rect2) -> float:
+	var count: int = _behind_taken.get(relay.position, 0)
+	_behind_taken[relay.position] = count + 1
+	return relay.position.y + BEHIND_TOP + count * LANE
 
 
 ## Pairs of indices into [param points] joining them all along the
@@ -1047,7 +1039,8 @@ func _fan_step(point: Dictionary, count: int, ends: Array[Dictionary]) -> float:
 ## How much of the ferrule shows at [param end] (one of the ends of
 ## [method _route]): none where it goes all the way into a device
 ## terminal's clamp, a little going into a strip terminal's opening; -1
-## where the wire comes out from behind an overload relay (no ferrule).
+## where the wire comes out from behind an overload relay at its side (no
+## ferrule).
 static func _pin(end: Dictionary) -> float:
 	if end["point"].get("behind", false):
 		return -1.0
@@ -1236,6 +1229,9 @@ func _lead_beside(ends: Array[Dictionary]) -> void:
 			var y: float = end["leg"] + (i - middle) * LEG_STEP
 			var x: float = edge + (channel - 1.0 - spread * j) * (1.0 if right else -1.0)
 			end["via"] = PackedVector2Array([Vector2(end["x"], y), Vector2(x, y)])
+			if end["point"].get("behind", false):
+				# Straight out from behind the relay at its height.
+				end["via"] = PackedVector2Array([Vector2(x, end["leg"])])
 			end["x"] = x
 
 

@@ -454,9 +454,9 @@ func test_lanes_keep_wires_easy_to_follow() -> void:
 	assert_true(lanes[1] < lanes[0])
 
 
-func test_wires_from_a_contactors_outputs_go_behind_its_overload_relay() -> void:
+func test_wires_from_a_contactors_outputs_come_out_beside_its_overload_relay() -> void:
 	# Forward / reverse: KM2's outputs carry the overload relay's heaters and
-	# are wired on to KM1's.
+	# are wired on to KM1's, behind the relay and out at its left side.
 	var doc: SchematicDocument = ExampleCircuits.build(6)
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
@@ -467,9 +467,6 @@ func test_wires_from_a_contactors_outputs_go_behind_its_overload_relay() -> void
 			relay = p["under_rect"]
 			place = p
 	assert_true(relay.has_area(), "an overload relay under a contactor")
-	var columns: Array[float] = []
-	for x: float in CabinetParts.OVERLOAD_OUT_X + CabinetParts.OVERLOAD_AUX_X:
-		columns.append(relay.position.x + x)
 	var found: int = 0
 	for pole: int in 3:
 		var key: String = place["desc"]["terminals"][str(2 * pole + 2)]
@@ -479,10 +476,9 @@ func test_wires_from_a_contactors_outputs_go_behind_its_overload_relay() -> void
 			found += 1
 			var path: PackedVector2Array = wire["points"]
 			var out: Vector2 = path[0] if wire["from"] == key else path[path.size() - 1]
-			assert_almost_eq(out.y, relay.end.y, 0.01, "%s: comes out under the relay" % key)
+			assert_almost_eq(out.x, relay.position.x, 0.01, "%s: comes out at the relay's left side, like the others" % key)
+			assert_between(out.y, relay.position.y, relay.position.y + relay.size.y * 0.5, "%s: near its top" % key)
 			assert_eq(wire["pins"].x if wire["from"] == key else wire["pins"].y, -1.0, "its end out of sight")
-			for x: float in columns:
-				assert_true(absf(out.x - x) > CabinetWiring.WIRE_W, "%s: in a column clear of the relay's own wires" % key)
 			for i: int in path.size() - 1:
 				var segment: Rect2 = Rect2(path[i], Vector2.ZERO).expand(path[i + 1])
 				assert_false(relay.grow(-0.5).intersects(segment), "%s: nothing of it over the relay" % key)

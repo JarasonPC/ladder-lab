@@ -6,6 +6,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Panels
+- Wires on from a contactor's outputs under its overload relay come out from behind the
+  relay at its left side, all of them, near its top, and run down beside it, no longer out under the relay
+  between its own wires
+
 ### Fixed
 - The terminal strip labels of a motor or of three poles side by side are all written alike,
   on one line in one size past their marks beside the wires, no longer some a size smaller or
