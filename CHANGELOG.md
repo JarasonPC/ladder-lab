@@ -9,6 +9,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ### Simulation
 - 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while
   simulating
+- The timing chart shows only the signals you choose (the list button beside Follow)
 
 ### Panels
 - PLC ladder diagram: the chosen contact or coil is shown faintly where a click puts it

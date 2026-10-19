@@ -554,7 +554,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   and embed their own dialogs and popups
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom); the chart ends with
   rows of currents (motor lines, poles of fuses, breakers and overload relays; autoscaled, rated
-  current dashed)
+  current dashed); rows can be hidden from the list button beside Follow (TimingChart.hidden_rows
+  by row key, "I " before the designation for rows of currents; saved in the user settings,
+  "timing_hidden")
 - Simulate mode shows a voltage view (wires coloured by voltage reach) or a current view
   (SchematicView.set_current_view, saved setting: only wires and terminals carrying current
   coloured, line width growing with the current, amperes written on the wires); a clamp meter

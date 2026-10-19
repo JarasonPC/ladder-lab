@@ -108,6 +108,8 @@ var _tree_bar: SideBar
 var _bar_settings: Dictionary[String, Vector2] = {}
 ## Event log width and timing panel height, as loaded.
 var _timing_size: Vector2 = Vector2(340.0, 220.0)
+## Rows of the timing chart not shown (see [member TimingChart.hidden_rows]).
+var _timing_hidden: Dictionary[String, bool] = {}
 ## Part of the window where the schematic is visible (between the panels).
 var _canvas_area: Control
 ## Tabs of the pages above the schematic, and the button adding a page.
@@ -601,6 +603,7 @@ func _build_ui() -> void:
 	_timing_panel.panel_height = _timing_size.y
 	_timing_panel.log_width = _timing_size.x
 	_timing_panel.resized_by_user.connect(_save_settings)
+	_timing_panel.rows_chosen.connect(_save_settings)
 	_timing_panel.parts_toggled.connect(_on_timing_parts_toggled)
 	_key_strip = KeyStrip.new()
 	_key_strip.rolled = _keys_rolled
@@ -609,6 +612,7 @@ func _build_ui() -> void:
 		_save_settings())
 	root.add_child(_key_strip)
 	root.add_child(_timing_panel)
+	_timing_panel.chart.hidden_rows = _timing_hidden
 
 	var bottom: PanelContainer = PanelContainer.new()
 	bottom.theme_type_variation = "Statusbar"
@@ -2109,6 +2113,10 @@ func _load_settings() -> void:
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
 		_current_view = bool(config.get_value("view", "current_view", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
+		var hidden_rows: Variant = config.get_value("view", "timing_hidden", PackedStringArray())
+		if hidden_rows is PackedStringArray or hidden_rows is Array:
+			for key: Variant in hidden_rows:
+				_timing_hidden[str(key)] = true
 		for key: String in ["palette", "properties", "workspace_tree"]:
 			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", 250.0)), float(config.get_value("view", key + "_zoom", 1.0)))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
@@ -2138,6 +2146,7 @@ func _save_settings() -> void:
 	if _timing_panel != null:
 		config.set_value("view", "timing_height", _timing_panel.panel_height)
 		config.set_value("view", "event_log_width", _timing_panel.log_width)
+		config.set_value("view", "timing_hidden", PackedStringArray(_timing_panel.chart.hidden_rows.keys()))
 	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar]:
 		if bar != null:
 			config.set_value("view", bar.name + "_width", bar.width)
