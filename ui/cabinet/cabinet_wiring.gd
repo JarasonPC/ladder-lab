@@ -477,16 +477,13 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, origin: Vector2, rail: int, centre: float, beside: Rect2 = Rect2(), channel: float = 0.0) -> void:
 	var terminals: Dictionary = desc.get("terminals", {})
 	var points: Dictionary = CabinetParts.terminal_points(kind, desc)
-	# The terminals of a contactor's auxiliary contact block on its front
-	# and of those on its sides.
-	var block: Dictionary[String, bool] = {}
+	# The terminals of the auxiliary contact blocks on a contactor's sides.
 	var side: Dictionary[String, bool] = {}
 	var aux: Array = desc.get("aux", [])
 	if kind == CabinetDevices.Kind.CONTACTOR:
-		for k: int in range(CabinetParts.AUX_BUILT_IN, aux.size()):
-			var on: Dictionary[String, bool] = block if k < CabinetParts.AUX_BUILT_IN + CabinetParts.AUX_FRONT else side
-			on[str(aux[k][0])] = true
-			on[str(aux[k][2])] = true
+		for k: int in range(CabinetParts.AUX_BUILT_IN + CabinetParts.AUX_FRONT, aux.size()):
+			side[str(aux[k][0])] = true
+			side[str(aux[k][2])] = true
 	for name: String in points:
 		var p: Vector3 = points[name]
 		_screws.append(Vector3(origin.x + p.x, origin.y + p.y, p.z))
@@ -509,10 +506,6 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 			point["channel"] = channel
 			point["out"] = out
 			point["side"] = side.has(name)
-		elif block.has(name):
-			var leads: Dictionary = CabinetParts.aux_block_leads(int(desc.get("poles", 3)), CabinetParts.contactor_left(aux.size()))
-			var heights: Vector2 = leads["top" if up else "bottom"]
-			point["aside"] = {"x": leads["x"] + Vector2(origin.x, origin.x), "y": heights + Vector2(origin.y, origin.y)}
 		result.append(point)
 
 
@@ -592,7 +585,6 @@ func _route(edges: Array[Dictionary]) -> void:
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
 		end["via"] = PackedVector2Array()
 	_lead_beside(ends)
-	_lead_aside(ends)
 	_fan(ends, shared)
 	ends.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
 	var pitch: float = CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT
@@ -932,38 +924,6 @@ func _lead_beside(ends: Array[Dictionary]) -> void:
 			var middle: float = (own - 1) * 0.5 if own > 0 else -(from_side[end["leg"]] + 1) * 0.5
 			var y: float = end["leg"] + (i - middle) * LEG_STEP
 			var x: float = edge + (channel - 1.0 - spread * j) * (1.0 if right else -1.0)
-			end["via"] = PackedVector2Array([Vector2(end["x"], y), Vector2(x, y)])
-			end["x"] = x
-
-
-## Leads the wire ends from the auxiliary contact block on a contactor's
-## front round the contactor's own terminals (see
-## [method CabinetParts.aux_block_leads]): to a height between the block and
-## the inner tier, out to the left and on along the contactor's left edge.
-## The wire from the column nearest that edge runs nearest the block and
-## outermost, so they never cross.
-func _lead_aside(ends: Array[Dictionary]) -> void:
-	var groups: Dictionary[Vector3, Array] = {}
-	for end: Dictionary in ends:
-		var point: Dictionary = end["point"]
-		if not point.has("aside"):
-			continue
-		var key: Vector3 = Vector3(point["aside"]["x"].x, point["aside"]["y"].x, 1.0 if point["up"] else 0.0)
-		if not groups.has(key):
-			groups[key] = []
-		groups[key].append(end)
-	for key: Vector3 in groups:
-		var group: Array = groups[key]
-		group.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
-		var across: Vector2 = group[0]["point"]["aside"]["x"]
-		var heights: Vector2 = group[0]["point"]["aside"]["y"]
-		var step_x: float = minf(LANE * 0.6, (across.y - across.x) / maxf(group.size() - 1, 1))
-		var step_y: float = (heights.y - heights.x) / maxf(group.size() - 1, 1)
-		step_y = signf(step_y) * minf(absf(step_y), LEG_STEP)
-		for i: int in group.size():
-			var end: Dictionary = group[i]
-			var y: float = heights.x + step_y * i
-			var x: float = across.x + step_x * i
 			end["via"] = PackedVector2Array([Vector2(end["x"], y), Vector2(x, y)])
 			end["x"] = x
 

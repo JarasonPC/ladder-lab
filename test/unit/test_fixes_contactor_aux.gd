@@ -107,12 +107,23 @@ func _over_screws(doc: SchematicDocument) -> PackedStringArray:
 			var points: Dictionary = CabinetParts.terminal_points(set[0], set[1])
 			for name: String in points:
 				var p: Vector3 = points[name]
-				screws.append({"at": set[2] + Vector2(p.x, p.y), "r": p.z, "key": terminals.get(name, ""), "name": "%s:%s" % [set[3], name]})
+				screws.append({"at": set[2] + Vector2(p.x, p.y), "r": p.z, "key": terminals.get(name, ""), "name": "%s:%s" % [set[3], name], "device": set[3]})
+	# The auxiliary contact block on a contactor's front: its wires run
+	# straight on over the contactor's own tiers, in front of their screws.
+	var block: Dictionary[String, String] = {}
+	for place: Dictionary in layout.places:
+		if place["kind"] == CabinetDevices.Kind.CONTACTOR:
+			var aux: Array = place["desc"]["aux"]
+			for k: int in range(CabinetParts.AUX_BUILT_IN, mini(aux.size(), CabinetParts.AUX_BUILT_IN + CabinetParts.AUX_FRONT)):
+				for name: String in [str(aux[k][0]), str(aux[k][2])]:
+					block[place["desc"]["terminals"].get(name, "")] = place["designation"]
 	var result: PackedStringArray = PackedStringArray()
 	for wire: Dictionary in wiring.wires:
 		var path: PackedVector2Array = wire["points"]
 		for screw: Dictionary in screws:
 			if screw["key"] == wire["from"] or screw["key"] == wire["to"]:
+				continue
+			if block.get(wire["from"], "") == screw["device"] or block.get(wire["to"], "") == screw["device"]:
 				continue
 			for i: int in path.size() - 1:
 				var at: Vector2 = screw["at"]
@@ -221,3 +232,33 @@ func test_tooltip_names_no_contacts_left_out() -> void:
 	var at: Vector2 = view.call("_origin") + (place["rect"] as Rect2).get_center() * k
 	var tip: String = view.call("_get_tooltip", at)
 	assert_true(tip.ends_with("-KM1"), "the contactor alone: " + tip)
+
+
+func test_wires_of_the_front_block_run_straight() -> void:
+	for overload: bool in [false, true]:
+		var doc: SchematicDocument = _contactor(8, overload)
+		var layout: CabinetLayout = CabinetLayout.build(doc, 4.0)
+		var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 4.0)
+		var place: Dictionary = _contactor_place(layout)
+		var desc: Dictionary = place["desc"]
+		var body: Rect2 = Rect2(place["origin"], CabinetParts.device_size(desc))
+		var aux: Array = desc["aux"]
+		var ends: int = 0
+		for k: int in range(CabinetParts.AUX_BUILT_IN, CabinetParts.AUX_BUILT_IN + CabinetParts.AUX_FRONT):
+			for t: int in [0, 2]:
+				if overload and t == 2:
+					# Over the overload relay they go out to the side.
+					continue
+				var key: String = desc["terminals"][str(aux[k][t])]
+				for wire: Dictionary in wiring.wires:
+					var path: PackedVector2Array = wire["points"]
+					if wire["to"] == key:
+						path = path.duplicate()
+						path.reverse()
+					elif wire["from"] != key:
+						continue
+					ends += 1
+					assert_almost_eq(path[0].y, body.position.y + (CabinetParts.AUX_BLOCK_TOP if t == 0 else CabinetParts.AUX_BLOCK_BOTTOM), 0.01, "%s: in at the block's face" % key)
+					assert_almost_eq(path[1].x, path[0].x, 0.01, "%s: straight on" % key)
+					assert_false(body.has_point(path[1] + Vector2(0.0, -0.01 if t == 0 else 0.01)), "%s: straight out past the contactor" % key)
+		assert_true(ends > 0, "the front block is wired")
