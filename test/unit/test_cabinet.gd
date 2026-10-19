@@ -311,12 +311,11 @@ func test_terminal_labels_on_one_line() -> void:
 
 
 func test_duct_sizes_follow_their_wires() -> void:
-	assert_eq(CabinetLayout.duct_size(0), 25.0, "an empty duct: the narrowest")
-	assert_eq(CabinetLayout.duct_size(4), 25.0)
-	assert_eq(CabinetLayout.duct_size(5), 40.0, "one more wire side by side: the next size")
-	assert_eq(CabinetLayout.duct_size(11), 40.0)
-	assert_eq(CabinetLayout.duct_size(12), 60.0)
-	assert_eq(CabinetLayout.duct_size(500), 120.0, "never wider than the widest")
+	var fingers: float = 2.0 * CabinetParts.DUCT_DEPTH
+	assert_eq(CabinetLayout.duct_size(0), ceilf(fingers + CabinetWiring.WIRE_W), "an empty duct: room for one wire")
+	assert_eq(CabinetLayout.duct_size(1), CabinetLayout.duct_size(0))
+	assert_eq(CabinetLayout.duct_size(5), ceilf(fingers + CabinetWiring.WIRE_W + 4.0 * CabinetWiring.LANE), "just wide enough, whole millimetres")
+	assert_true(CabinetLayout.duct_size(12) > CabinetLayout.duct_size(11))
 	for example: int in [0, 6, 10, 14]:
 		var doc: SchematicDocument = ExampleCircuits.build(example)
 		var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)

@@ -13,8 +13,6 @@ const FRAME: float = 6.0
 ## they are sized to their wires (see [method duct_size]).
 const SIDE_DUCT: float = 25.0
 const DUCT: float = 28.0
-## Widths wire ducts are made in.
-const DUCT_SIZES: Array[float] = [25.0, 40.0, 60.0, 80.0, 100.0, 120.0]
 ## Most times the ducts are sized again for the wires' new ways.
 const SIZE_ROUNDS: int = 4
 ## Room between the side ducts and the rails, between places on a rail, and
@@ -95,14 +93,11 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 	return layout
 
 
-## Narrowest of [constant DUCT_SIZES] holding [param wires] side by side
-## between its fingers (see [CabinetWiring]).
+## Width of a duct just holding [param wires] side by side between its
+## fingers (see [CabinetWiring]), in whole millimetres (one wire's room for
+## none).
 static func duct_size(wires: int) -> float:
-	var room: float = maxi(wires - 1, 0) * CabinetWiring.LANE + CabinetWiring.WIRE_W + 2.0 * CabinetParts.DUCT_DEPTH
-	for width: float in DUCT_SIZES:
-		if width >= room:
-			return width
-	return DUCT_SIZES[DUCT_SIZES.size() - 1]
+	return ceilf(maxi(wires - 1, 0) * CabinetWiring.LANE + CabinetWiring.WIRE_W + 2.0 * CabinetParts.DUCT_DEPTH - 0.001)
 
 
 ## The layout with ducts [param sizes] wide, in the order of [member ducts]

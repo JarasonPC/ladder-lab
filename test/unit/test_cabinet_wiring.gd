@@ -416,3 +416,33 @@ func test_labels_sit_on_the_plate_clear_of_the_ducts() -> void:
 			var device: Rect2 = place["rect"]
 			if not device.encloses(r):
 				assert_true(absf(at.y - device.position.y) >= CabinetLayout.LABEL_OFF - 0.01 or absf(at.y - device.end.y) >= CabinetLayout.LABEL_OFF - 0.01 or place.has("under_rect"), "-%s: past the wire ends" % place["designation"])
+
+
+func test_lanes_keep_wires_easy_to_follow() -> void:
+	var wiring: CabinetWiring = CabinetWiring.new()
+	var counts: Array[int] = []
+	# Both in over the top: the one nested in the other nearer the top, and
+	# one beside them sharing its lane.
+	var lanes: PackedFloat32Array = wiring._lanes([
+		{"from": 10.0, "to": 100.0, "edge": -1},
+		{"from": 40.0, "to": 60.0, "edge": -1},
+		{"from": 110.0, "to": 130.0, "edge": -1},
+	], 0.0, 40.0, counts)
+	assert_true(lanes[1] < lanes[0], "the nested run nearer the edge its wires come in over")
+	assert_eq(lanes[2], lanes[1], "runs side by side share a lane")
+	assert_eq(counts, [2] as Array[int])
+	# In over the bottom: mirrored.
+	lanes = wiring._lanes([
+		{"from": 10.0, "to": 100.0, "edge": 1},
+		{"from": 40.0, "to": 60.0, "edge": 1},
+		{"from": 20.0, "to": 70.0, "edge": -1},
+	], 0.0, 40.0, counts)
+	assert_true(lanes[1] > lanes[0], "nearer the bottom edge")
+	assert_true(lanes[2] < lanes[0] and lanes[2] < lanes[1], "those from the top above them")
+	# In over the top and out over the bottom, both heading right: the one
+	# coming in further right higher, so neither crosses the other.
+	lanes = wiring._lanes([
+		{"from": 10.0, "to": 50.0, "edge": 0, "in": 10.0},
+		{"from": 20.0, "to": 60.0, "edge": 0, "in": 20.0},
+	], 0.0, 40.0, counts)
+	assert_true(lanes[1] < lanes[0])

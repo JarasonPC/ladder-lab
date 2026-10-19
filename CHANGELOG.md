@@ -40,7 +40,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Switchboard wires go into their terminals as on a real device: in at the face of the
   terminal's tier past the screw, with insulated ferrule collars; device labels sit on the plate
   clear of the wire ends
-- Switchboard wire ducts are as wide as the wires running through them need (25 to 120 mm)
+- Switchboard wire ducts are just as wide as the wires running through them need
+- Switchboard wires are easier to follow: in each duct they lie in order by where they come in
+  and go out, so far fewer of them cross
 
 ### Files and export
 - PLC programs can be exported to a file and imported into another PLC (PLC window)
