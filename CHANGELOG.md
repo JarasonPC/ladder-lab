@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.4.1 – 2026-10-19
+
 ### Files and export
 - File > Open .ladder files with LadderLab (Windows): turns the file association on or off;
   turning it off removes it from the registry again
