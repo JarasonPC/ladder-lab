@@ -44,7 +44,8 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   is simulated it shows the running program (signals, power flow, times and counts).
 - **Workspace**: switchboards, control stations and groups of parts in the field (motors,
   limit switches, sensors) placed on a plan, with the cables between them worked out from the
-  wiring, typed (CGSG-J or H07RN-F) and sized; a click on a cable lists its cores.
+  wiring, typed by their use (motor CGSG-J, control station JYTY-O, sensor LiYCY, feeder CYKY-J,
+  or their European equivalents) and sized; a click on a cable lists its cores.
 - **Control stations**: push buttons, selector switches, signal lamps and illuminated
   buttons drawn like real ones, that operate the simulated circuit.
 - **Switchboard** (rozvaděč): DIN rails with the breakers, fuse holders, contactors,
