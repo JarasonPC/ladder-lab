@@ -3238,3 +3238,12 @@ msgstr "Otevírat soubory .ladder v LadderLabu"
 
 msgid "A double-click on a .ladder file in Explorer opens it in this LadderLab (registered for your Windows user only); turning it off removes the registration"
 msgstr "Dvojklik na soubor .ladder v Průzkumníku jej otevře v tomto LadderLabu (zapsáno jen pro vašeho uživatele Windows); vypnutím se přiřazení odstraní"
+
+msgid "Dahl."
+msgstr "Dahl."
+
+msgid "speed"
+msgstr "rychl."
+
+msgid "relay"
+msgstr "relé"
