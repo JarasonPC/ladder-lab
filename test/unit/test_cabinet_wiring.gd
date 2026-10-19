@@ -314,10 +314,6 @@ func test_wires_carry_their_numbers_on_marker_sleeves() -> void:
 func _sleeves(layout: CabinetLayout, wiring: CabinetWiring) -> Array[Array]:
 	var result: Array[Array] = []
 	for wire: Dictionary in wiring.wires:
-		var path: PackedVector2Array = wire["points"]
-		if path[0].distance_to(path[path.size() - 1]) < 1.0:
-			# A wire back into its own terminal: two supply points on one strip terminal.
-			continue
 		for span: PackedVector2Array in wire["markers"]:
 			var r: Rect2 = Rect2(span[0], Vector2.ZERO).expand(span[1])
 			var half: float = (wire["width"] + CabinetParts.MARKER_GROW) * 0.5 - 0.05
@@ -355,3 +351,15 @@ func test_wires_in_one_terminal_spread_out_for_their_sleeves() -> void:
 	var jumper_sleeve: PackedVector2Array = jumper["markers"][0] if jumper["from"] == "FU1:1" else jumper["markers"][1]
 	assert_almost_eq(core_sleeve[0].y, jumper_sleeve[0].y, 0.01, "side by side at one height")
 	assert_true(absf(core_sleeve[0].x - jumper_sleeve[0].x) >= CabinetWiring.FAN - 0.01, "far enough apart for both sleeves")
+
+
+func test_no_wire_goes_back_into_its_own_terminal() -> void:
+	# The examples have supply points L1 and L1.2 of one conductor on strip
+	# terminal X1:L1.
+	for example: int in [0, 5, 9, 10]:
+		var doc: SchematicDocument = ExampleCircuits.build(example)
+		var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+		var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+		for wire: Dictionary in wiring.wires:
+			var path: PackedVector2Array = wire["points"]
+			assert_true(path[0].distance_to(path[path.size() - 1]) > CabinetWiring.FAN, "%d: %s-%s joins two terminals" % [example, wire["from"], wire["to"]])

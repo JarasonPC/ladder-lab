@@ -346,7 +346,11 @@ func _feed(circuit: Circuit, net: Dictionary[String, int], conductor: Dictionary
 		var first: int = resolve.call(fed[supply.conductor])
 		if first != n:
 			# Another supply point of the same conductor: one core feeds both.
-			by_net[first].append_array(by_net[n])
+			# One on the same strip terminal is the same point: no wire from
+			# the terminal back into itself.
+			for point: Dictionary in by_net[n]:
+				if not by_net[first].any(func(p: Dictionary) -> bool: return p["at"] == point["at"] and p["up"] == point["up"]):
+					by_net[first].append(point)
 			by_net.erase(n)
 			merged[n] = first
 			if conductor.get(n, CabinetDevices.Conductor.CONTROL) == CabinetDevices.Conductor.POWER:

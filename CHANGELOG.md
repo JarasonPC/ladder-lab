@@ -34,6 +34,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The example circuits are no longer in the program (the toolbar list is gone)
 
 ### Fixed
+- Switchboard: two supply points of one conductor on the same strip terminal no longer get a wire
+  from the terminal back into itself
 - Zooming, moving and simulating in a switchboard is smooth: only what changed is drawn again
 - A motor of small rated slip (e.g. 2970 min⁻¹) starts with a real motor's torque: started in star
   it no longer stays at standstill drawing its starting current
