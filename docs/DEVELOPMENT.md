@@ -310,7 +310,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   the picked terminals along the strip), else by label. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree, every wire straight from its terminal
   to the duct over or under its rail, in through a slot between the fingers, along the duct in a
-  lane of its own (down a side duct to another duct); a contactor with its overload relay under
+  lane of its own (down a side duct to another duct); each duct is as wide as its wires need
+  side by side at its busiest point (CabinetWiring.lanes; CabinetLayout.duct_size, of
+  CabinetLayout.DUCT_SIZES 25-120 mm; CabinetLayout.build lays out, wires and sizes again until
+  every duct fits, never narrowing one, and keeps that wiring, CabinetLayout.wiring; the view
+  lays out again only for edits and a new scale); a contactor with its overload relay under
   it has a wiring channel on both sides (CabinetLayout.WIRE_CHANNEL): wires from its bottom
   terminals run across its front at heights clear of its screws (CabinetParts.CONTACTOR_OUT_Y)
   out to the nearer side and down beside the relay, never across it; wires from the auxiliary

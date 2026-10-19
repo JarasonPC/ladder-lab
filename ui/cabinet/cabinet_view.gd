@@ -120,8 +120,9 @@ func _ready() -> void:
 
 ## Lays the switchboard out again (after edits or a new document).
 func refresh() -> void:
-	_layout = CabinetLayout.build(document, _k(), board) if document != null else null
-	_layout_k = _k()
+	var k: float = _k()
+	_layout = CabinetLayout.build(document, k, board) if document != null else null
+	_layout_k = k
 	_wiring = null
 	_painted.clear()
 	update_minimum_size()
@@ -305,17 +306,18 @@ func _draw() -> void:
 		_layers.position = _origin() - _painted_origin * scale
 		return
 	var height: float = _layout.size.y if _layout != null else 0.0
-	if _layout == null or not simulating or not is_equal_approx(_layout_k, k):
+	if _layout == null or not is_equal_approx(_layout_k, k):
+		# Laid out for the scale shown (edits lay it out again, see [method refresh]).
 		_layout = CabinetLayout.build(document, k, board)
 		_layout_k = k
-	else:
+	elif simulating:
 		# The devices show the simulation state; the places stay where they are.
 		for place: Dictionary in _layout.places:
 			CabinetLayout.describe_again(document, place)
 	if not is_equal_approx(height, _layout.size.y):
 		update_minimum_size.call_deferred()
 	if _wiring == null or not is_equal_approx(_wiring_k, k):
-		_wiring = CabinetWiring.build(document, _layout, k, board)
+		_wiring = _layout.wiring if _layout.wiring != null else CabinetWiring.build(document, _layout, k, board)
 		_wiring_k = k
 	_layers.scale = Vector2.ONE
 	_layers.position = Vector2.ZERO
