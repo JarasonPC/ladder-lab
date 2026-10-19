@@ -20,7 +20,9 @@ extends RefCounted
 ## from the bottom of the terminal to the bottom duct and out through a
 ## gland in the bottom of the enclosure, one cable for each cable of the
 ## workspace (see [WorkspaceCables]: "W2" to a control station with all
-## its buttons and lamps), one per part for parts without a place. No nodes.
+## its buttons and lamps, a core for each net), one per part for parts
+## without a place; a net going on to another switchboard leaves the same
+## way, in the cable between the two. No nodes.
 
 ## Room between a duct and the bend into its slot.
 const BEND: float = 2.0
@@ -103,7 +105,15 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 		for pair: Vector2i in wiring._tree(points, cores.has(n) and entry.is_empty()):
 			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
-	wiring._field_cables(edges, net, conductor, _cable_names(doc, board))
+	var cables: Array[Dictionary] = WorkspaceCables.cables(doc)
+	# A net going on to another switchboard leaves like a field wire, in the
+	# cable between the two (from its first terminal here).
+	var onward: Dictionary[int, String] = _board_cables(doc, board, cables)
+	for n: int in onward:
+		if by_net.has(n) and not cores.has(n):
+			var first: Dictionary = by_net[n][0]
+			wiring._field.append({"key": first["key"], "at": first["at"], "duct": first["duct"], "up": first["up"], "id": first["id"], "cable": onward[n]})
+	wiring._field_cables(edges, net, conductor, _cable_names(doc, board, cables))
 	wiring._route(edges)
 	wiring._glands()
 	return wiring
@@ -117,10 +127,23 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], conductor: Dictionary[int, CabinetDevices.Conductor], named: Dictionary[String, String]) -> void:
 	var cables: Dictionary[String, Array] = {}
 	for point: Dictionary in _field:
-		var cable: String = named.get(point["field"], "-" + str(point["field"]))
+		var cable: String = point["cable"] if point.has("cable") else named.get(point["field"], "-" + str(point["field"]))
 		if not cables.has(cable):
 			cables[cable] = []
 		cables[cable].append(point)
+	# One core for each net in a cable, as the workspace counts them (see
+	# [WorkspaceCables]): to the first of its terminals; the others on that
+	# net are joined to it inside the switchboard.
+	for cable: String in cables:
+		var points: Array = cables[cable]
+		points.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["at"].x < q["at"].x)
+		var seen: Dictionary[int, bool] = {}
+		var cores: Array = []
+		for point: Dictionary in points:
+			if not seen.has(net[point["key"]]):
+				seen[net[point["key"]]] = true
+				cores.append(point)
+		cables[cable] = cores
 	var middle: Callable = func(points: Array) -> float:
 		var sum: float = 0.0
 		for point: Dictionary in points:
@@ -141,11 +164,14 @@ func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], condu
 		for name: String in order:
 			total += ceili(cables[name].size() / float(cores))
 		return total
-	while room.call(per_slot, gap) > count and (gap > 0 or per_slot < 3):
+	# The layout makes the plate wide enough for three cores to a slot (see
+	# [method bottom_slots]); a cable to another switchboard may still need
+	# more to a slot.
+	while room.call(per_slot, gap) > count and (gap > 0 or per_slot < 8):
 		if gap > 0:
 			gap -= 1
 		else:
-			per_slot = 3
+			per_slot += 1
 	var free: int = 0
 	var id: int = 2000000
 	for name: String in order:
@@ -166,16 +192,69 @@ func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], condu
 			var n: int = net[points[i]["key"]]
 			var c: CabinetDevices.Conductor = conductor.get(n, CabinetDevices.Conductor.CONTROL)
 			# A PE or N terminal takes the PE or N core, wired or not.
-			if points[i]["kind"] == "PE":
+			if points[i].get("kind", "") == "PE":
 				c = CabinetDevices.Conductor.PE
-			elif points[i]["kind"] == "N" and c == CabinetDevices.Conductor.CONTROL:
+			elif points[i].get("kind", "") == "N" and c == CabinetDevices.Conductor.CONTROL:
 				c = CabinetDevices.Conductor.NEUTRAL
 			edges.append({"net": n, "conductor": c, "a": core, "b": points[i], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 
 
+## Slots of the bottom duct the field cables of switchboard [param board]
+## take at least, three cores to a slot (see [method _field_cables]): one
+## cable for each station and each part outside the field wires of its
+## [param strips] (see [method CabinetDevices.strips]) go to, a core for
+## each net. The layout makes the plate wide enough for them.
+static func bottom_slots(doc: SchematicDocument, board: int, strips: Dictionary) -> int:
+	if board < 0 or board >= doc.switchboards.size():
+		return 0
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	# Where the cable goes -> its nets.
+	var ends: Dictionary[String, Dictionary] = {}
+	for rail: CabinetRail in doc.switchboards[board].rails:
+		for item: CabinetItem in rail.items:
+			if item.kind != CabinetItem.Kind.STRIP:
+				continue
+			for terminal: Dictionary in strips.get(item.designation, []):
+				for key: String in terminal["keys"]:
+					if not net.has(key) or doc.circuit.get_terminal_owner(key) is PowerSupply:
+						continue
+					var part: String = CabinetDevices.field_device(doc.circuit, key, net)
+					if part.is_empty():
+						continue
+					var station: int = Workspace.station_of(doc, part)
+					var to: String = "+" + doc.control_boxes[station].name if station >= 0 else "-" + part
+					if not ends.has(to):
+						ends[to] = {}
+					ends[to][net[key]] = true
+	var slots: int = 0
+	for to: String in ends:
+		slots += ceili(ends[to].size() / 3.0)
+	return slots
+
+
+## Net -> name of the workspace cable it runs in from switchboard
+## [param board] to another switchboard ([param cables]: those of
+## [method WorkspaceCables.cables]).
+static func _board_cables(doc: SchematicDocument, board: int, cables: Array[Dictionary]) -> Dictionary[int, String]:
+	var result: Dictionary[int, String] = {}
+	if board < 0 or board >= doc.switchboards.size():
+		return result
+	var here: String = "+" + doc.switchboards[board].name
+	var boards: Dictionary[String, bool] = {}
+	for other: Switchboard in doc.switchboards:
+		boards["+" + other.name] = true
+	for cable: Dictionary in cables:
+		var other: String = cable["b"] if cable["a"] == here else (cable["a"] if cable["b"] == here else "")
+		if boards.has(other):
+			for core: Dictionary in cable["cores"]:
+				result[core["net"]] = cable["name"]
+	return result
+
+
 ## Part outside (designation) -> name of the workspace cable from switchboard
-## [param board] to where the part is (its station, itself in the field).
-static func _cable_names(doc: SchematicDocument, board: int) -> Dictionary[String, String]:
+## [param board] to where the part is (its station, itself in the field);
+## [param cables]: those of [method WorkspaceCables.cables].
+static func _cable_names(doc: SchematicDocument, board: int, cables: Array[Dictionary]) -> Dictionary[String, String]:
 	var result: Dictionary[String, String] = {}
 	if board < 0 or board >= doc.switchboards.size():
 		return result
@@ -188,7 +267,7 @@ static func _cable_names(doc: SchematicDocument, board: int) -> Dictionary[Strin
 				if not designation.is_empty():
 					on.append(designation)
 		stations["+" + box.name] = on
-	for cable: Dictionary in WorkspaceCables.cables(doc):
+	for cable: Dictionary in cables:
 		var other: String = cable["b"] if cable["a"] == here else (cable["a"] if cable["b"] == here else "")
 		if other.begins_with("-"):
 			result[other.substr(1)] = cable["name"]
@@ -207,23 +286,34 @@ static func _cable_names(doc: SchematicDocument, board: int) -> Dictionary[Strin
 func _feed(circuit: Circuit, net: Dictionary[String, int], conductor: Dictionary[int, CabinetDevices.Conductor], by_net: Dictionary[int, Array]) -> Dictionary[int, Dictionary]:
 	var fed: Dictionary[PowerSupply.Conductor, int] = {}
 	var keys: Dictionary[PowerSupply.Conductor, String] = {}
+	# Net -> the net it was merged into: supply points of two conductors
+	# wired together (a short) join their nets too.
+	var merged: Dictionary[int, int] = {}
+	var resolve: Callable = func(n: int) -> int:
+		while merged.has(n):
+			n = merged[n]
+		return n
 	for c: CircuitComponent in circuit.get_components():
 		if not (c is PowerSupply):
 			continue
 		var supply: PowerSupply = c as PowerSupply
-		var n: int = net[supply.get_terminal_keys()[0]]
+		var n: int = resolve.call(net[supply.get_terminal_keys()[0]])
 		if not by_net.has(n):
 			continue
 		if not fed.has(supply.conductor):
 			fed[supply.conductor] = n
 			keys[supply.conductor] = supply.get_terminal_keys()[0]
-		elif fed[supply.conductor] != n:
+			continue
+		var first: int = resolve.call(fed[supply.conductor])
+		if first != n:
 			# Another supply point of the same conductor: one core feeds both.
-			var first: int = fed[supply.conductor]
 			by_net[first].append_array(by_net[n])
 			by_net.erase(n)
+			merged[n] = first
 			if conductor.get(n, CabinetDevices.Conductor.CONTROL) == CabinetDevices.Conductor.POWER:
 				conductor[first] = CabinetDevices.Conductor.POWER
+	for which: PowerSupply.Conductor in fed:
+		fed[which] = resolve.call(fed[which])
 	var result: Dictionary[int, Dictionary] = {}
 	var top: Rect2 = _across[0]
 	var x: float = top.position.x + CabinetParts.duct_slot(0)
@@ -233,7 +323,7 @@ func _feed(circuit: Circuit, net: Dictionary[String, int], conductor: Dictionary
 		if k == CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS) and not result.is_empty():
 			# The DC source has a cable of its own.
 			x += 3.0 * (CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT)
-		if not fed.has(which):
+		if not fed.has(which) or result.has(fed[which]):
 			continue
 		result[fed[which]] = {"key": keys[which], "at": Vector2(x, CabinetLayout.FRAME), "duct": 0, "up": false, "id": id, "external": true, "cable": "DC" if k >= CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS) else "AC", "conductor": which}
 		x += CORE
@@ -241,7 +331,8 @@ func _feed(circuit: Circuit, net: Dictionary[String, int], conductor: Dictionary
 	return result
 
 
-## A gland round the cores of each cable where they come in or go out.
+## A gland round the cores of each cable where they come in or go out;
+## glands side by side narrower where they would overlap.
 func _glands() -> void:
 	var spans: Dictionary[String, Vector2] = {}
 	var bottom: Dictionary[String, bool] = {}
@@ -252,11 +343,26 @@ func _glands() -> void:
 		var span: Vector2 = spans.get(wire["cable"], Vector2(INF, -INF))
 		spans[wire["cable"]] = Vector2(minf(span.x, start.x), maxf(span.y, start.x))
 		bottom[wire["cable"]] = start.y > CabinetLayout.FRAME + 1.0
-	for cable: String in spans:
+	var order: Array = spans.keys()
+	order.sort_custom(func(a: String, b: String) -> bool: return spans[a].x < spans[b].x)
+	# Left and right edge of each gland.
+	var edges: Dictionary[String, Vector2] = {}
+	for cable: String in order:
 		var span: Vector2 = spans[cable]
 		var w: float = maxf(span.y - span.x + 2.0 * CORE + 2.0, 12.0)
+		edges[cable] = Vector2((span.x + span.y) * 0.5 - w * 0.5, (span.x + span.y) * 0.5 + w * 0.5)
+	for i: int in order.size() - 1:
+		var a: String = order[i]
+		var b: String = order[i + 1]
+		if bottom[a] != bottom[b] or edges[a].y + 1.0 <= edges[b].x:
+			continue
+		# Halfway between their outermost cores.
+		var between: float = (spans[a].y + spans[b].x) * 0.5
+		edges[a].y = minf(edges[a].y, between - 0.5)
+		edges[b].x = maxf(edges[b].x, between + 0.5)
+	for cable: String in order:
 		var y: float = _bottom - 1.0 if bottom[cable] else 0.0
-		glands.append({"rect": Rect2((span.x + span.y) * 0.5 - w * 0.5, y, w, CabinetLayout.FRAME + 1.0), "bottom": bottom[cable], "cable": cable})
+		glands.append({"rect": Rect2(edges[cable].x, y, edges[cable].y - edges[cable].x, CabinetLayout.FRAME + 1.0), "bottom": bottom[cable], "cable": cable})
 
 
 ## Every terminal on the rails a wire can go to: {"key" (terminal key in
@@ -317,6 +423,13 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, origin: Vector2, rail: int, centre: float, beside: Rect2 = Rect2()) -> void:
 	var terminals: Dictionary = desc.get("terminals", {})
 	var points: Dictionary = CabinetParts.terminal_points(kind, desc)
+	# The terminals of a contactor's auxiliary contact block.
+	var block: Dictionary[String, bool] = {}
+	if kind == CabinetDevices.Kind.CONTACTOR:
+		var aux: Array = desc.get("aux", [])
+		for k: int in range(2, mini(aux.size(), CabinetDevices.AUX_CONTACTS)):
+			block[str(aux[k][0])] = true
+			block[str(aux[k][2])] = true
 	for name: String in points:
 		if not terminals.has(name) or not net.has(terminals[name]):
 			continue
@@ -330,6 +443,10 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 				out.append(origin.y + y)
 			point["beside"] = beside
 			point["out"] = out
+		elif block.has(name):
+			var leads: Dictionary = CabinetParts.aux_block_leads(int(desc.get("poles", 3)))
+			var heights: Vector2 = leads["top" if up else "bottom"]
+			point["aside"] = {"x": leads["x"] + Vector2(origin.x, origin.x), "y": heights + Vector2(origin.y, origin.y)}
 		result.append(point)
 
 
@@ -408,6 +525,7 @@ func _route(edges: Array[Dictionary]) -> void:
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
 		end["via"] = PackedVector2Array()
 	_lead_beside(ends)
+	_lead_aside(ends)
 	ends.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
 	var pitch: float = CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT
 	# Slots by duct, number and side: wires from above and from below go in
@@ -542,6 +660,38 @@ func _lead_beside(ends: Array[Dictionary]) -> void:
 			placed[end["leg"]] = i + 1
 			var y: float = end["leg"] + (i - (at_height[end["leg"]] - 1) * 0.5) * LEG_STEP
 			var x: float = edge + (CabinetLayout.WIRE_CHANNEL - 1.0 - spread * j) * (1.0 if right else -1.0)
+			end["via"] = PackedVector2Array([Vector2(end["x"], y), Vector2(x, y)])
+			end["x"] = x
+
+
+## Leads the wire ends from the auxiliary contact block on a contactor's
+## front round the contactor's own terminals (see
+## [method CabinetParts.aux_block_leads]): to a height between the block and
+## the inner tier, out to the left and on along the contactor's left edge.
+## The wire from the column nearest that edge runs nearest the block and
+## outermost, so they never cross.
+func _lead_aside(ends: Array[Dictionary]) -> void:
+	var groups: Dictionary[Vector3, Array] = {}
+	for end: Dictionary in ends:
+		var point: Dictionary = end["point"]
+		if not point.has("aside"):
+			continue
+		var key: Vector3 = Vector3(point["aside"]["x"].x, point["aside"]["y"].x, 1.0 if point["up"] else 0.0)
+		if not groups.has(key):
+			groups[key] = []
+		groups[key].append(end)
+	for key: Vector3 in groups:
+		var group: Array = groups[key]
+		group.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
+		var across: Vector2 = group[0]["point"]["aside"]["x"]
+		var heights: Vector2 = group[0]["point"]["aside"]["y"]
+		var step_x: float = minf(LANE * 0.6, (across.y - across.x) / maxf(group.size() - 1, 1))
+		var step_y: float = (heights.y - heights.x) / maxf(group.size() - 1, 1)
+		step_y = signf(step_y) * minf(absf(step_y), LEG_STEP)
+		for i: int in group.size():
+			var end: Dictionary = group[i]
+			var y: float = heights.x + step_y * i
+			var x: float = across.x + step_x * i
 			end["via"] = PackedVector2Array([Vector2(end["x"], y), Vector2(x, y)])
 			end["x"] = x
 

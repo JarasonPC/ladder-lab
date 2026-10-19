@@ -61,7 +61,8 @@ func _labels(terminals: Array, origin: Vector2, k: float, edge: float, away: flo
 	var names: PackedStringArray = PackedStringArray()
 	var xs: PackedFloat32Array = PackedFloat32Array()
 	for t: Array in terminals:
-		names.append(t[0])
+		# Without the number of a further relay of the device ("A1#2").
+		names.append(str(t[0]).get_slice(CabinetDevices.UNIT, 0))
 		xs.append(origin.x + (t[1] as Vector3).x * k)
 	var arranged: Dictionary = arrange(names, xs, room)
 	var font: Font = AppTheme.mono_font()
