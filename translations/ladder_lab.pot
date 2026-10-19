@@ -3304,3 +3304,15 @@ msgstr ""
 
 msgid "Shown as the station itself, its buttons and switches work on the workspace while simulating; drag its corner to size it"
 msgstr ""
+
+msgid "Choose what the timing chart shows"
+msgstr ""
+
+msgid "Show all"
+msgstr ""
+
+msgid "Hide all"
+msgstr ""
+
+msgid "%s currents"
+msgstr ""

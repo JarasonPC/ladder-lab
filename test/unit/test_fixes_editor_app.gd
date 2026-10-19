@@ -324,3 +324,25 @@ func test_plc_and_page_windows_follow_the_language() -> void:
 	main._retranslate()
 	assert_true(page_title.begins_with("Stránka 1"), page_title)
 	assert_ne(plc_now, plc_title)
+
+
+func test_timing_chart_rows_can_be_hidden() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(9)
+	var chart: TimingChart = autofree(TimingChart.new())
+	chart.set_document(doc, TraceRecorder.new())
+	var rows: Array[Dictionary] = chart.choices()
+	var keys: PackedStringArray = PackedStringArray()
+	for row: Dictionary in rows:
+		keys.append(row["key"])
+	assert_true(keys.has("KM1") and keys.has("I M1") and keys.has("M1"), "the motor's row and its currents apart: %s" % [keys])
+	var all: float = chart.custom_minimum_size.y
+	chart.set_row_shown("I M1", false)
+	assert_lt(chart.custom_minimum_size.y, all, "lower without the motor's currents")
+	var shown: Array = chart.get("_rows")
+	for row: Dictionary in shown:
+		assert_ne(row["key"], "I M1")
+	# Kept for the next schematic, shown again.
+	chart.set_document(doc, TraceRecorder.new())
+	assert_true(chart.hidden_rows.has("I M1"))
+	chart.set_row_shown("I M1", true)
+	assert_eq(chart.custom_minimum_size.y, all)

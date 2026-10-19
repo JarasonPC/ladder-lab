@@ -7,7 +7,8 @@ extends Control
 ## and through each fuse, breaker and overload relay (per pole), scaled to the
 ## largest value in view with the rated current dashed. Follows the
 ## simulation time; drag to look back, mouse wheel to zoom, double click to
-## follow again.
+## follow again. Rows can be hidden ([member hidden_rows], chosen in the
+## [TimingPanel]).
 
 signal window_changed(seconds: float)
 ## The right edge started or stopped following the simulation time.
@@ -40,10 +41,20 @@ var follow: bool = true:
 			follow = value
 			follow_changed.emit(follow)
 
-## Rows: "label", "band" (signal shown as shaded band), "line" (analog signal),
-## "step" (digital signal drawn as a step line); rows of currents have
-## "currents" (signals in amperes, one per line or pole) and "rated" (amperes).
+## Keys of the rows not shown (see [method choices]); rows of other
+## schematics with the same key are hidden too.
+var hidden_rows: Dictionary[String, bool] = {}:
+	set(value):
+		hidden_rows = value
+		_show_rows()
+
+## Rows shown: "key", "label", "band" (signal shown as shaded band), "line"
+## (analog signal), "step" (digital signal drawn as a step line); rows of
+## currents have "currents" (signals in amperes, one per line or pole) and
+## "rated" (amperes).
 var _rows: Array[Dictionary] = []
+## Every row of the schematic, shown or not.
+var _all_rows: Array[Dictionary] = []
 var _now: float = 0.0
 var _end: float = 0.0
 var _dragging: bool = false
@@ -63,6 +74,7 @@ func _init() -> void:
 func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 	trace = p_trace
 	_rows.clear()
+	_all_rows.clear()
 	for c: CircuitComponent in doc.circuit.get_components():
 		if c is Coil:
 			_rows.append({"label": c.designation, "band": c.designation, "line": c.designation + "/armature", "step": ""})
@@ -113,13 +125,45 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 				signals.append("%s/I%d" % [c.designation, p + 1])
 			# The rated current of a breaker or fuse (In), the setting of an overload relay (Ir).
 			_rows.append({"label": c.designation, "currents": signals, "rated": rated, "rated_label": "Ir" if c is OverloadRelay else "In"})
+	for row: Dictionary in _rows:
+		row["key"] = ("I " if row.has("currents") else "") + str(row["label"])
+	_all_rows = _rows.duplicate()
+	_show_rows()
+	follow = true
+	_now = 0.0
+	_end = 0.0
+	queue_redraw()
+
+
+## The rows that can be shown, in order: [{"key", "label" (English for
+## rows of currents: "%s currents")}].
+func choices() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for row: Dictionary in _all_rows:
+		result.append({"key": row["key"], "label": row["label"], "currents": row.has("currents")})
+	return result
+
+
+## Shows or hides row [param key] (see [method choices]).
+func set_row_shown(key: String, shown: bool) -> void:
+	var now: Dictionary[String, bool] = hidden_rows.duplicate()
+	if shown:
+		now.erase(key)
+	else:
+		now[key] = true
+	hidden_rows = now
+
+
+## The rows not hidden, and the chart as high as they are.
+func _show_rows() -> void:
+	_rows.clear()
+	for row: Dictionary in _all_rows:
+		if not hidden_rows.has(row["key"]):
+			_rows.append(row)
 	var height: float = 0.0
 	for row: Dictionary in _rows:
 		height += _row_height(row)
 	custom_minimum_size = Vector2(200, HEADER_HEIGHT + maxf(height, ROW_HEIGHT) + 4)
-	follow = true
-	_now = 0.0
-	_end = 0.0
 	queue_redraw()
 
 

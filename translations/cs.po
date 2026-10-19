@@ -3314,3 +3314,15 @@ msgstr "Zobrazit jako ovládací skříňku"
 
 msgid "Shown as the station itself, its buttons and switches work on the workspace while simulating; drag its corner to size it"
 msgstr "Zobrazí skříňku samotnou, její tlačítka a přepínače při simulaci fungují přímo na pracovní ploše; tažením za roh změníte velikost"
+
+msgid "Choose what the timing chart shows"
+msgstr "Vybrat, co časový diagram ukazuje"
+
+msgid "Show all"
+msgstr "Zobrazit vše"
+
+msgid "Hide all"
+msgstr "Skrýt vše"
+
+msgid "%s currents"
+msgstr "%s proudy"

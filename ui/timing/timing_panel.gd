@@ -10,6 +10,8 @@ extends PanelContainer
 signal resized_by_user
 ## The chart or the log was rolled in or out by clicking its title.
 signal parts_toggled(show_chart: bool, show_log: bool)
+## Rows of the chart were hidden or shown (to remember them).
+signal rows_chosen
 
 const WINDOWS: Array[float] = [0.02, 0.1, 0.5, 2.0, 10.0, 60.0]
 const MIN_HEIGHT: float = 140.0
@@ -34,6 +36,9 @@ var _show_log: bool = true
 var _window_label: Label
 var _window_select: OptionButton
 var _live: Button
+## Opens the list of rows to show ([member _rows_menu]).
+var _rows_button: Button
+var _rows_menu: PopupMenu
 var _hint: Label
 ## What the hint says, shown when it fits whole.
 var _hint_text: String = ""
@@ -103,6 +108,17 @@ func _ready() -> void:
 	_live.focus_mode = Control.FOCUS_NONE
 	_live.pressed.connect(func() -> void: chart.follow_now())
 	tools.add_child(_live)
+	_rows_button = Button.new()
+	_rows_button.icon = AppTheme.icon("list", 16)
+	_rows_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_rows_button.focus_mode = Control.FOCUS_NONE
+	_rows_button.pressed.connect(_open_rows_menu)
+	tools.add_child(_rows_button)
+	_rows_menu = PopupMenu.new()
+	_rows_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_rows_menu.hide_on_checkable_item_selection = false
+	_rows_menu.id_pressed.connect(_on_rows_menu)
+	add_child(_rows_menu)
 	_hint = Label.new()
 	_hint.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_hint.theme_type_variation = "MutedLabel"
@@ -205,10 +221,51 @@ func retranslate() -> void:
 	_chart_title.tooltip_text = tr("Show or hide the timing chart")
 	_window_label.text = tr("Time span:")
 	_live.text = tr("Follow")
+	_rows_button.tooltip_text = tr("Choose what the timing chart shows")
 	_show_hint()
 	event_log.retranslate()
 	_log_grip.tooltip_text = tr("Drag to share the width between the chart and the event log")
 	chart.queue_redraw()
+
+
+## The list of the chart's rows with a tick each, "Show all" and "Hide all"
+## above them, under the Signals button.
+func _open_rows_menu() -> void:
+	_rows_menu.clear()
+	_rows_menu.add_item(tr("Show all"), 0)
+	_rows_menu.add_item(tr("Hide all"), 1)
+	_rows_menu.add_separator()
+	var rows: Array[Dictionary] = chart.choices()
+	for i: int in rows.size():
+		var label: String = tr("%s currents") % rows[i]["label"] if rows[i]["currents"] else str(rows[i]["label"])
+		_rows_menu.add_check_item(label, 10 + i)
+		_rows_menu.set_item_checked(_rows_menu.item_count - 1, not chart.hidden_rows.has(rows[i]["key"]))
+		_rows_menu.set_item_metadata(_rows_menu.item_count - 1, rows[i]["key"])
+	var at: Vector2 = _rows_button.get_screen_position() + Vector2(0.0, _rows_button.size.y)
+	_rows_menu.popup(Rect2i(Vector2i(at), Vector2i.ZERO))
+
+
+func _on_rows_menu(id: int) -> void:
+	if id == 0 or id == 1:
+		var now: Dictionary[String, bool] = {}
+		if id == 1:
+			for row: Dictionary in chart.choices():
+				now[row["key"]] = true
+		else:
+			# Keys of rows of other schematics stay hidden.
+			now = chart.hidden_rows.duplicate()
+			for row: Dictionary in chart.choices():
+				now.erase(row["key"])
+		chart.hidden_rows = now
+		for i: int in _rows_menu.item_count:
+			if _rows_menu.is_item_checkable(i):
+				_rows_menu.set_item_checked(i, id == 0)
+	else:
+		var index: int = _rows_menu.get_item_index(id)
+		var shown: bool = not _rows_menu.is_item_checked(index)
+		_rows_menu.set_item_checked(index, shown)
+		chart.set_row_shown(str(_rows_menu.get_item_metadata(index)), shown)
+	rows_chosen.emit()
 
 
 ## The top edge: drag up to make the panel taller.
