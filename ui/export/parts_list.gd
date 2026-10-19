@@ -26,7 +26,7 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 			for item: CabinetItem in rail.items:
 				if item.kind == CabinetItem.Kind.STRIP:
 					part.append(_strip(item.designation, strips))
-					part.append_array(_bridges(item.designation, strips, net, apart))
+					part.append_array(_bridges(item.designation, strips, CabinetDevices.supply_nets(doc.circuit, net), apart))
 					continue
 				part.append(_device(doc, item.designation))
 				# An overload relay fitted under its contactor.

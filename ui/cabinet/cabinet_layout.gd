@@ -47,7 +47,7 @@ const MISSING_DEVICE: int = 101
 const BUS_BLOCK: int = 102
 ## Most loads taking N or PE in a switchboard before it gets a distribution
 ## block for it.
-const BUS_LOADS: int = 2
+const BUS_LOADS: int = 1
 
 var size: Vector2 = Vector2.ZERO
 ## The wiring the ducts were sized for (see [method build]); null when the
@@ -123,9 +123,17 @@ static func bus_blocks(doc: SchematicDocument, board: int, strips: Dictionary, n
 	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, net)
 	var neutral: Dictionary[int, bool] = {}
 	var earth: Dictionary[int, bool] = {}
+	var shorted: Dictionary[int, bool] = {}
 	for c: CircuitComponent in doc.circuit.get_components():
-		if c is PowerSupply and (c as PowerSupply).conductor == PowerSupply.Conductor.N and net.has(c.get_terminal_keys()[0]):
-			neutral[net[c.get_terminal_keys()[0]]] = true
+		if c is PowerSupply and net.has(c.get_terminal_keys()[0]):
+			if (c as PowerSupply).conductor == PowerSupply.Conductor.N:
+				neutral[net[c.get_terminal_keys()[0]]] = true
+			else:
+				shorted[net[c.get_terminal_keys()[0]]] = true
+	# N wired to the supply point of another conductor (a short) is wired
+	# with that conductor, not through a block.
+	for n: int in shorted:
+		neutral.erase(n)
 	for n: int in conductor:
 		if conductor[n] == CabinetDevices.Conductor.PE:
 			earth[n] = true
@@ -334,7 +342,7 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 	if item.kind == CabinetItem.Kind.STRIP:
 		var terminals: Array = strips.get(item.designation, [])
 		place["kind"] = STRIP if not terminals.is_empty() else MISSING_DEVICE
-		place["desc"] = {"terminals": terminals, "bridges": CabinetWiring.strip_bridges(terminals, net, apart)}
+		place["desc"] = {"terminals": terminals, "bridges": CabinetWiring.strip_bridges(terminals, CabinetDevices.supply_nets(doc.circuit, net), apart)}
 		if not terminals.is_empty():
 			_box(place, Vector2(CabinetParts.terminal_strip_width(terminals.size(), k), CabinetParts.TERMINAL.y))
 			return place

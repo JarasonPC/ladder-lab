@@ -81,7 +81,7 @@ func test_wires_join_the_terminals_of_each_net() -> void:
 	assert_eq(_wire(wiring, "KM1:14", "KM1:A1")["conductor"], CabinetDevices.Conductor.CONTROL)
 	assert_eq(_wire(wiring, "KM1:A2", "X5")["conductor"], CabinetDevices.Conductor.NEUTRAL)
 	assert_eq(_wire(wiring, "FU1:1", "FU2:1")["conductor"], CabinetDevices.Conductor.POWER, "L1 to both fuses")
-	assert_eq(wiring.wires.size(), 19, "one wire fewer than terminals in each net, a core of the supply cable for each of L1, L2, L3, N and PE, and four cores out to the motor")
+	assert_eq(wiring.wires.size(), 20, "one wire fewer than terminals in each net (N a star from its distribution block: two loads), a core of the supply cable for each of L1, L2, L3, N and PE, and four cores out to the motor")
 
 
 func test_wires_run_through_the_ducts() -> void:
@@ -491,8 +491,15 @@ func test_one_wire_in_each_strip_terminal_entry() -> void:
 	# no plug-in bridge to a neighbour of its net does.
 	var k: float = 2.0
 	var doubled: int = 0
-	for example: int in ExampleCircuits.count():
-		var doc: SchematicDocument = ExampleCircuits.build(example)
+	for example: int in ExampleCircuits.count() + 1:
+		var doc: SchematicDocument = ExampleCircuits.build(mini(example, 4))
+		if example == ExampleCircuits.count():
+			# Strip X2 of example 4 in the order of its labels, set by hand:
+			# L1 on X2-5 and X2-9, apart, the devices on it without room.
+			var labels: PackedStringArray = PackedStringArray()
+			for i: int in range(1, 11):
+				labels.append(str(i))
+			doc.strip_orders["X2"] = labels
 		var layout: CabinetLayout = CabinetLayout.build(doc, k)
 		var pitch: float = roundf(CabinetParts.TERMINAL.x * k) / k
 		var wires: Dictionary[Vector3i, int] = {}
@@ -519,7 +526,7 @@ func test_one_wire_in_each_strip_terminal_entry() -> void:
 					for b: int in range(i, i + span - 1):
 						assert_true(place["desc"]["bridges"][b], "example %d: the entries of %s joined" % [example, terminals[i]["label"]])
 						assert_eq(terminals[b + 1]["span"], 0, "the second pitch is the same terminal")
-	assert_gt(doubled, 0, "some strip terminal had to be doubled")
+	assert_eq(doubled, 1, "a terminal for two wires only where the order set by hand leaves no other way")
 
 
 func test_wires_cross_only_in_the_ducts() -> void:
@@ -561,7 +568,11 @@ func test_neighbouring_strip_terminals_of_one_net_are_bridged() -> void:
 	var doc: SchematicDocument = ExampleCircuits.build(6)
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	var wiring: CabinetWiring = layout.wiring
-	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	# Supply points of one conductor are one net in the switchboard; N and PE
+	# going through a distribution block are not bridged.
+	var raw: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var net: Dictionary[String, int] = CabinetDevices.supply_nets(doc.circuit, raw)
+	var apart: Dictionary[int, bool] = CabinetLayout.bus_nets(CabinetLayout.bus_blocks(doc, 0, CabinetDevices.strips(doc), raw))
 	var bridged: int = 0
 	for place: Dictionary in layout.places:
 		if place["kind"] != CabinetLayout.STRIP:
@@ -572,7 +583,7 @@ func test_neighbouring_strip_terminals_of_one_net_are_bridged() -> void:
 		for i: int in bridges.size():
 			var a: int = net.get(terminals[i]["keys"][0], -1)
 			var b: int = net.get(terminals[i + 1]["keys"][0], -2)
-			assert_eq(bridges[i], a == b, "-%s: %s and %s bridged when they are on one net" % [place["designation"], terminals[i]["label"], terminals[i + 1]["label"]])
+			assert_eq(bridges[i], a == b and not apart.has(a), "-%s: %s and %s bridged when they are on one net" % [place["designation"], terminals[i]["label"], terminals[i + 1]["label"]])
 			if not bridges[i]:
 				continue
 			bridged += 1
@@ -633,10 +644,12 @@ func _motors(motors: int) -> SchematicDocument:
 	return doc
 
 
-func test_pe_goes_through_a_distribution_block_for_more_than_two_loads() -> void:
+func test_pe_goes_through_a_distribution_block_for_more_than_one_load() -> void:
+	var one: CabinetLayout = CabinetLayout.build(_motors(1), 2.0)
+	for place: Dictionary in one.places:
+		assert_ne(place["kind"], CabinetLayout.BUS_BLOCK, "one load: no block")
 	var two: CabinetLayout = CabinetLayout.build(_motors(2), 2.0)
-	for place: Dictionary in two.places:
-		assert_ne(place["kind"], CabinetLayout.BUS_BLOCK, "two loads: no block")
+	assert_true(two.places.any(func(place: Dictionary) -> bool: return place["kind"] == CabinetLayout.BUS_BLOCK), "two loads: a block, no strip terminal taking two PE wires")
 	var doc: SchematicDocument = _motors(3)
 	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
 	var block: Dictionary = {}
