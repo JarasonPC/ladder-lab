@@ -54,6 +54,9 @@ const CLAMP_WIRES: int = 2
 ## before [constant CabinetParts.MARKER_FROM].
 const FAN: float = 3.2
 const FAN_FROM: float = 2.2
+## How far a wire runs out from the side of a PE distribution block before
+## it turns towards its duct (the nearest one).
+const PE_LEAD: float = 4.0
 ## Least and most room between the bend of a slanting wire and its duct.
 const SLANT_MIN: float = 1.5
 const SLANT_MAX: float = 6.0
@@ -493,9 +496,25 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 				pass
 			CabinetLayout.PE_BLOCK:
 				# Its screw connections, one wire each, joined by its bar like
-				# bridged terminals.
+				# bridged terminals; the wires go in from its sides, those of
+				# the upper connections up to the duct over its rail, the
+				# others down. On each side and way the wire from further
+				# along the block reaches out further before it turns, so
+				# none crosses another's lead.
+				var block: Array[Dictionary] = []
 				for i: int in place["desc"]["connections"]:
-					result.append({"key": place["desc"]["key"], "at": origin + CabinetParts.pe_entry(i), "duct": rail, "up": true, "bridge": p * 1000, "room": 1, "block": true, "clamp": true})
+					var at: Vector2 = origin + CabinetParts.pe_entry(i)
+					var up: bool = at.y < centre
+					block.append({"key": place["desc"]["key"], "at": at, "duct": rail if up else rail + 1, "up": up, "bridge": p * 1000, "room": 1, "block": true, "clamp": true, "side": CabinetParts.pe_side(i)})
+				for point: Dictionary in block:
+					var rank: int = 0
+					for other: Dictionary in block:
+						if other["side"] == point["side"] and other["up"] == point["up"] and (other["at"].y < point["at"].y if point["up"] else other["at"].y > point["at"].y):
+							rank += 1
+					point["lead"] = (-1.0 if point["side"] == 0 else 1.0) * (PE_LEAD + rank * LANE)
+				for point: Dictionary in block:
+					point.erase("side")
+				result.append_array(block)
 			_:
 				var beside: Rect2 = Rect2()
 				if place.has("under_rect"):
@@ -689,6 +708,10 @@ func _route(edges: Array[Dictionary]) -> void:
 		end["x"] = end["point"]["at"].x + (index - (shared[id] - 1) * 0.5) * SHARED
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
 		end["via"] = PackedVector2Array()
+		if end["point"].has("lead"):
+			# Out of the side of a PE distribution block, then on to the duct.
+			end["x"] = end["start"].x + end["point"]["lead"]
+			end["via"] = PackedVector2Array([Vector2(end["x"], end["start"].y)])
 	_lead_beside(ends)
 	_fan(ends, shared)
 	ends.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["x"] < q["x"])
