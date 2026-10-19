@@ -49,23 +49,26 @@ func _get_minimum_size() -> Vector2:
 ## Size of the door in mm: the enclosure's, larger only where its items do
 ## not fit with [constant PITCH] between them.
 func door_size() -> Vector2:
-	var b: ControlBox = box()
+	return size_of(box(), enclosure)
+
+
+## Size in mm of door [param b] of an enclosure [param of] mm (see
+## [method door_size]).
+static func size_of(b: ControlBox, of: Vector2) -> Vector2:
 	var columns: int = b.columns if b != null else 1
-	return Vector2(maxf(enclosure.x, 2.0 * SIDE + columns * PITCH.x), maxf(enclosure.y, TOP + _rows() * PITCH.y + BOTTOM))
+	return Vector2(maxf(of.x, 2.0 * SIDE + columns * PITCH.x), maxf(of.y, TOP + _rows(b) * PITCH.y + BOTTOM))
 
 
-func _rows() -> int:
-	var b: ControlBox = box()
+static func _rows(b: ControlBox) -> int:
 	return maxi(ceili(b.items.size() / float(b.columns)), 1) if b != null else 1
 
 
-## Room each item takes on a door of [param door] mm: the width shared out
-## by the columns, the height by the rows, within [constant PITCH] -
-## [constant MAX_PITCH].
-func _pitch(door: Vector2) -> Vector2:
-	var b: ControlBox = box()
+## Room each item of door [param b] takes on a door of [param door] mm: the
+## width shared out by the columns, the height by the rows, within
+## [constant PITCH] - [constant MAX_PITCH].
+static func _pitch(b: ControlBox, door: Vector2) -> Vector2:
 	var columns: int = b.columns if b != null else 1
-	return Vector2(clampf((door.x - 2.0 * SIDE) / columns, PITCH.x, MAX_PITCH.x), clampf((door.y - TOP - BOTTOM) / _rows(), PITCH.y, MAX_PITCH.y))
+	return Vector2(clampf((door.x - 2.0 * SIDE) / columns, PITCH.x, MAX_PITCH.x), clampf((door.y - TOP - BOTTOM) / _rows(b), PITCH.y, MAX_PITCH.y))
 
 
 ## Pixels per mm: the whole door in sight.
@@ -81,12 +84,17 @@ func _origin() -> Vector2:
 
 ## Cell of every item in mm: rows of the door's columns, centred across.
 func _mm_cells() -> Array[Rect2]:
+	return cells_of(box(), enclosure)
+
+
+## Cell of every item of door [param b] (enclosure [param of] mm) in mm, seen
+## from the front: rows of its columns, centred across.
+static func cells_of(b: ControlBox, of: Vector2) -> Array[Rect2]:
 	var cells: Array[Rect2] = []
-	var b: ControlBox = box()
 	if b == null:
 		return cells
-	var door: Vector2 = door_size()
-	var pitch: Vector2 = _pitch(door)
+	var door: Vector2 = size_of(b, of)
+	var pitch: Vector2 = _pitch(b, door)
 	var y: float = TOP
 	var row_start: int = 0
 	while row_start < b.items.size():

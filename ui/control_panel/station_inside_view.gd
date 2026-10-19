@@ -65,24 +65,31 @@ func _draw() -> void:
 	p.gradient(r, INSIDE.lightened(0.05), INSIDE.darkened(0.05), 2.0)
 	for corner: Vector2 in [Vector2(4, 4), Vector2(r.end.x - 4, 4), Vector2(4, r.end.y - 4), r.end - Vector2(4, 4)]:
 		p.circle(corner, 2.2, CabinetParts.METAL, CabinetParts.METAL_DARK, 0.2)
-	for entry: Dictionary in _inside.items:
-		_device(p, entry)
-	for wire: Dictionary in _inside.wires:
-		CabinetParts.wire(p, wire["points"], wire["conductor"], StationInside.WIRE_W, wire["external"], Vector2.ZERO)
-	for wire: Dictionary in _inside.wires:
-		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], StationInside.WIRE_W)
+	paint(p, _inside, _reach_color, _lamp_lit)
 	for gland: Dictionary in _inside.glands:
 		var g: Rect2 = gland["rect"]
 		CabinetParts.cable_gland(p, g)
 		CabinetParts.label(p, Vector2(g.get_center().x, g.position.y - 3.0), str(gland["cable"]), maxf(g.size.x, 10.0))
 
 
+## The devices and wires of [param inside] (also the back of a switchboard's
+## door, see [CabinetView]): [param reach_color] gives a terminal key's
+## voltage colour, [param lamp_lit] whether a lamp block's lamp is lit.
+static func paint(p: CabinetPainter, inside: StationInside, reach_color: Callable, lamp_lit: Callable) -> void:
+	for entry: Dictionary in inside.items:
+		_device(p, entry, reach_color, lamp_lit)
+	for wire: Dictionary in inside.wires:
+		CabinetParts.wire(p, wire["points"], wire["conductor"], StationInside.WIRE_W, wire["external"], Vector2.ZERO)
+	for wire: Dictionary in inside.wires:
+		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], StationInside.WIRE_W)
+
+
 ## The back of a device: its actuator's housing behind the adapter, the
 ## blocks on it with their terminals, its designation on a label under it.
-func _device(p: CabinetPainter, entry: Dictionary) -> void:
+static func _device(p: CabinetPainter, entry: Dictionary, reach_color: Callable, lamp_lit: Callable) -> void:
 	var center: Vector2 = entry["center"]
 	if entry["cam"]:
-		p.rect(Rect2(center - Vector2(24.0, 24.0), Vector2(48.0, 48.0)), BACK, 2.0)
+		p.rect(Rect2(center - Vector2.ONE * StationInside.BACK_HALF, Vector2.ONE * 2.0 * StationInside.BACK_HALF), BACK, 2.0)
 	else:
 		p.circle(center, 15.0, BACK)
 	var blocks: Array = entry["blocks"]
@@ -94,7 +101,7 @@ func _device(p: CabinetPainter, entry: Dictionary) -> void:
 		# The mounting adapter the blocks clip on.
 		p.rect(Rect2(span.position.x - 2.5, center.y - 5.0, span.size.x + 5.0, 10.0), ADAPTER, 1.0)
 		for block: Dictionary in blocks:
-			_block(p, block)
+			_block(p, block, reach_color, lamp_lit)
 	elif not entry["designation"].is_empty():
 		p.text_centered(center, "?", 6.0, CabinetParts.METAL)
 	var designations: PackedStringArray = PackedStringArray()
@@ -102,15 +109,19 @@ func _device(p: CabinetPainter, entry: Dictionary) -> void:
 		if not designation.is_empty():
 			designations.append("-" + designation)
 	if not designations.is_empty():
-		# At the top left of its cell, clear of the wires going to the blocks.
+		# At the top left of its cell (on a door left of the device, the
+		# channel running over the cell), clear of the wires to the blocks.
 		var cell: Rect2 = entry["rect"]
 		var width: float = minf(cell.size.x * 0.5 - 4.0, 8.0 + 6.0 * designations.size())
-		CabinetParts.label(p, cell.position + Vector2(width * 0.5 + 2.0, 4.0), " ".join(designations), width)
+		var at: Vector2 = cell.position + Vector2(width * 0.5 + 2.0, 4.0)
+		if entry.get("door", false):
+			at = center - Vector2(StationInside.BACK_HALF + width * 0.5 + 2.0, 0.0)
+		CabinetParts.label(p, at, " ".join(designations), width)
 
 
 ## A block: its body with a coloured band (NO green, NC red, a lamp block's
 ## lens), its screws ringed in the voltage reaching them and their numbers.
-func _block(p: CabinetPainter, block: Dictionary) -> void:
+static func _block(p: CabinetPainter, block: Dictionary, reach_color: Callable, lamp_lit: Callable) -> void:
 	var r: Rect2 = block["rect"]
 	var kind: String = block["kind"]
 	var lamp: bool = kind == "LAMP"
@@ -125,13 +136,13 @@ func _block(p: CabinetPainter, block: Dictionary) -> void:
 			p.rect(Rect2(band.position, Vector2(band.size.x * 0.5, band.size.y)), NC_BAND, 0.5)
 			p.rect(Rect2(band.position + Vector2(band.size.x * 0.5, 0.0), Vector2(band.size.x * 0.5, band.size.y)), NO_BAND, 0.5)
 		"LAMP":
-			var lit: bool = _lamp_lit(block)
+			var lit: bool = lamp_lit.call(block)
 			if lit:
 				p.circle(r.get_center(), 5.5, Color(1.0, 0.92, 0.55, 0.35))
 			p.circle(r.get_center(), 3.2, Color("fff2b0") if lit else Color("d8d6c8"), BLOCK_EDGE, 0.2)
 	for t: Dictionary in block["terminals"]:
 		var at: Vector2 = t["at"]
-		var color: Color = _reach_color(t["key"])
+		var color: Color = reach_color.call(t["key"])
 		if color.a > 0.0:
 			p.circle(at, 2.6, Color(1, 1, 1, 0.85))
 			p.circle(at, 2.3, color)

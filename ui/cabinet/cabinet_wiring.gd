@@ -82,8 +82,10 @@ const DOOR: String = "@door"
 var wires: Array[Dictionary] = []
 ## Cable glands (mm): {"rect", "bottom" (in the bottom of the enclosure,
 ## a field cable going out; else the supply coming in at the top),
-## "cable"}; the door harness ([constant DOOR]) leaves the same way, through
-## a flexible conduit to the door hinge instead of a gland.
+## "cable"}; the door harness ([constant DOOR], "door") never leaves the
+## enclosure: its cores run along the bottom duct to the hinge side and go
+## across to the door through a fitting in the right wall, "rect" the
+## fitting.
 var glands: Array[Dictionary] = []
 ## Wires side by side at the busiest point of each duct, in the order of
 ## [member CabinetLayout.ducts] (across from the top, then down the left and
@@ -96,8 +98,10 @@ var _field: Array[Dictionary] = []
 # Field side of the strip terminals on the leads of supply points, where the
 # incoming cores land: conductor -> point like those of [method _terminals].
 var _entries: Dictionary[PowerSupply.Conductor, Dictionary] = {}
-# Where the cores of the field cables leave the plate (mm from its top).
+# Where the cores of the field cables leave the plate (mm from its top),
+# and the inside of the right wall (the door's hinge side).
 var _bottom: float = 0.0
+var _right: float = 0.0
 # Every screw of the devices on the rails, wired or not: centre and radius
 # (mm) as x, y, z.
 var _screws: Array[Vector3] = []
@@ -163,6 +167,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 				continue
 			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
+	wiring._right = layout.size.x - CabinetLayout.FRAME
 	for n: int in onward:
 		if by_net.has(n) and not cores.has(n):
 			var first: Dictionary = by_net[n][0]
@@ -322,6 +327,32 @@ static func bottom_slots(doc: SchematicDocument, board: int, strips: Dictionary)
 	return slots
 
 
+## The cores of the door harness of switchboard [param board]: one for each
+## net a strip terminal there sends out to a part on its own door (as
+## [method _field_cables] lays them), in the order of the strips:
+## [{"net", "key" (the strip terminal's key in the circuit), "label"}].
+static func door_harness(doc: SchematicDocument, board: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if board < 0 or board >= doc.switchboards.size():
+		return result
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var strips: Dictionary = CabinetDevices.strips(doc)
+	var seen: Dictionary[int, bool] = {}
+	for rail: CabinetRail in doc.switchboards[board].rails:
+		for item: CabinetItem in rail.items:
+			if item.kind != CabinetItem.Kind.STRIP:
+				continue
+			for terminal: Dictionary in strips.get(item.designation, []):
+				for key: String in terminal["keys"]:
+					if not net.has(key) or seen.has(net[key]) or doc.circuit.get_terminal_owner(key) is PowerSupply:
+						continue
+					var part: String = CabinetDevices.field_device(doc.circuit, key, net)
+					if not part.is_empty() and Workspace.door_of(doc, part) == board:
+						seen[net[key]] = true
+						result.append({"net": net[key], "key": key, "label": terminal["label"]})
+	return result
+
+
 ## Net -> name of the workspace cable it runs in from switchboard
 ## [param board] to another switchboard ([param cables]: those of
 ## [method WorkspaceCables.cables]).
@@ -442,8 +473,18 @@ func _feed(circuit: Circuit, net: Dictionary[String, int], conductor: Dictionary
 func _glands() -> void:
 	var spans: Dictionary[String, Vector2] = {}
 	var bottom: Dictionary[String, bool] = {}
+	# The door harness's fitting in the right wall, round its cores.
+	var door: Vector2 = Vector2(INF, -INF)
 	for wire: Dictionary in wires:
-		if not wire["external"]:
+		if wire["external"] and wire["cable"] == DOOR:
+			var y: float = (wire["points"] as PackedVector2Array)[0].y
+			door = Vector2(minf(door.x, y), maxf(door.y, y))
+	if door.x < INF:
+		var h: float = maxf(door.y - door.x + 2.0 * CORE + 2.0, 10.0)
+		var middle: float = (door.x + door.y) * 0.5
+		glands.append({"rect": Rect2(_right - 1.0, middle - h * 0.5, CabinetLayout.FRAME + 1.0, h), "bottom": false, "cable": DOOR, "door": true})
+	for wire: Dictionary in wires:
+		if not wire["external"] or wire["cable"] == DOOR:
 			continue
 		var start: Vector2 = (wire["points"] as PackedVector2Array)[0]
 		var span: Vector2 = spans.get(wire["cable"], Vector2(INF, -INF))
@@ -468,7 +509,7 @@ func _glands() -> void:
 		edges[b].x = maxf(edges[b].x, between + 0.5)
 	for cable: String in order:
 		var y: float = _bottom - 1.0 if bottom[cable] else 0.0
-		glands.append({"rect": Rect2(edges[cable].x, y, edges[cable].y - edges[cable].x, CabinetLayout.FRAME + 1.0), "bottom": bottom[cable], "cable": cable, "door": cable == DOOR})
+		glands.append({"rect": Rect2(edges[cable].x, y, edges[cable].y - edges[cable].x, CabinetLayout.FRAME + 1.0), "bottom": bottom[cable], "cable": cable, "door": false})
 
 
 ## Every terminal on the rails a wire can go to: {"key" (terminal key in
@@ -793,9 +834,21 @@ func _route(edges: Array[Dictionary]) -> void:
 		var positions: PackedFloat32Array = _lanes(down, r.position.x + CabinetParts.DUCT_DEPTH, r.end.x - CabinetParts.DUCT_DEPTH, lanes)
 		for i: int in down.size():
 			down[i]["route"]["lane_side"] = positions[i]
+	# The cores of the door harness in lanes of their own along the bottom of
+	# the bottom duct, from the fitting in the right wall.
+	var door_lane: Dictionary[int, float] = {}
+	var bottom_duct: Rect2 = _across[_across.size() - 1]
+	for e: int in edges.size():
+		if edges[e]["a"].get("cable", "") == DOOR:
+			door_lane[e] = bottom_duct.end.y - CabinetParts.DUCT_DEPTH - 1.0 - door_lane.size() * LANE
 	for e: int in edges.size():
 		var route: Dictionary = routes[e]
 		var points: PackedVector2Array = _drop(route["a"], route["lane_a"])
+		if door_lane.has(e):
+			# In from the hinge side along the duct, then up as it went.
+			var y: float = maxf(door_lane[e], points[1].y if points.size() > 1 else door_lane[e])
+			points[0] = Vector2(points[0].x, y)
+			points.insert(0, Vector2(_right, y))
 		if route.has("side"):
 			points.append(Vector2(route["lane_side"], route["lane_a"]))
 			points.append(Vector2(route["lane_side"], route["lane_b"]))
