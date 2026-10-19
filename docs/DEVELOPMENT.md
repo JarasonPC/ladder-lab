@@ -393,7 +393,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   selection's operand / time / preset on the right. FBD: frame selection on empty paper (Shift
   adds), the selection moves together, Ctrl+A / C / X / V (pasted at the mouse with new block
   numbers, connections between the copies kept). LAD: the power rail runs the whole height,
-  spare rows below the last one, anything placed anywhere along it; Insert / Delete row.
+  spare rows below the last one, anything placed anywhere along it (the tool's element drawn
+  faintly where a click puts it); wires drawn as in the schematic between cell sides (start,
+  corners, one-corner preview to the mouse, ends on the rail, an element, a wire or a link or by
+  a double click; runs along a row fill its empty cells, runs down a side become links;
+  Backspace / Esc); Insert / Delete row.
   Simulation (Edit mode, as in LOGO!Soft Comfort): a Plc of its own runs a copy of the program
   with switches I1-I8 and lamps Q1-Q4 below the diagram and the time running; read-only
   meanwhile. In Edit mode it edits a copy and sends each finished change that alters the program
