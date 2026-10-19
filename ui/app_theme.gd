@@ -521,6 +521,7 @@ static func build() -> Theme:
 	window.shadow_size = 16
 	t.set_stylebox("embedded_border", "Window", window)
 	t.set_stylebox("embedded_unfocused_border", "Window", window)
+	t.set_constant("title_height", "Window", int(window.expand_margin_top))
 	t.set_color("title_color", "Window", text)
 	t.set_font("title_font", "Window", bold_font())
 	t.set_stylebox("panel", "AcceptDialog", box(popup_bg, RADIUS + 4, 14.0, 12.0))

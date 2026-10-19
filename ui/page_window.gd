@@ -23,6 +23,9 @@ func _init(source: SchematicView, page: int) -> void:
 	view = SchematicView.new()
 	view.page = page
 	visible = false
+	# A window of its own on the desktop (dialogs and popups are drawn inside
+	# the window they belong to).
+	force_native = true
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	initial_position = Window.WINDOW_INITIAL_POSITION_CENTER_MAIN_WINDOW_SCREEN
 	min_size = Vector2i(320, 240)
