@@ -1182,6 +1182,9 @@ msgstr "Zásuvná propojka"
 msgid "PE distribution block"
 msgstr "Rozbočovací blok PE"
 
+msgid "N distribution block"
+msgstr "Rozbočovací blok N"
+
 msgid "Auxiliary relay"
 msgstr "Pomocné relé"
 

@@ -20,8 +20,8 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 	for b: int in doc.switchboards.size():
 		var board: Switchboard = doc.switchboards[b]
 		var part: Array[Dictionary] = []
-		var pe: Dictionary = CabinetLayout.pe_block(doc, b, strips, net)
-		var apart: Dictionary[int, bool] = CabinetLayout.pe_nets(doc, net) if not pe.is_empty() else ({} as Dictionary[int, bool])
+		var buses: Array[Dictionary] = CabinetLayout.bus_blocks(doc, b, strips, net)
+		var apart: Dictionary[int, bool] = CabinetLayout.bus_nets(buses)
 		for rail: CabinetRail in board.rails:
 			for item: CabinetItem in rail.items:
 				if item.kind == CabinetItem.Kind.STRIP:
@@ -32,9 +32,9 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 				# An overload relay fitted under its contactor.
 				if under.has(item.designation):
 					part.append(_device(doc, under[item.designation]))
-		# The PE distribution block the switchboard adds by itself.
-		if not pe.is_empty():
-			part.append({"designation": "", "quantity": 1, "name": tr("PE distribution block"), "data": tr_n("%d connection", "%d connections", pe["connections"]) % pe["connections"]})
+		# The distribution blocks the switchboard adds by itself.
+		for bus: Dictionary in buses:
+			part.append({"designation": "", "quantity": 1, "name": tr("N distribution block") if bus["neutral"] else tr("PE distribution block"), "data": tr_n("%d connection", "%d connections", bus["connections"]) % bus["connections"]})
 		part.append_array(_glands(doc, "+" + board.name))
 		_add(result, "+%s  %s" % [board.name, board.title if not board.title.is_empty() else tr("Switchboard")], part)
 	for box: ControlBox in doc.control_boxes:

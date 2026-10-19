@@ -1163,6 +1163,9 @@ msgstr ""
 msgid "PE distribution block"
 msgstr ""
 
+msgid "N distribution block"
+msgstr ""
+
 msgid "Auxiliary relay"
 msgstr ""
 
