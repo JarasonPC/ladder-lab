@@ -1649,19 +1649,19 @@ func _open_export_preview(pdf: bool) -> void:
 	_export_pdf = pdf
 	_export_images.clear()
 	_export_layouts.clear()
-	_export_preview.open(pdf, _export_contents, {
-		"stations": not edit_doc.control_boxes.is_empty(),
-		"switchboards": not edit_doc.switchboards.is_empty(),
-		"workspace": not (edit_doc.places().is_empty() and Workspace.field_devices(edit_doc.circuit).is_empty()),
-	})
+	_export_preview.open(pdf, _export_contents, SheetRenderer.available(edit_doc))
 	_render_preview()
 
 
-## Renders the sheets the preview shows, as they will be saved.
+## Renders the sheets the preview shows, as they will be saved; until they
+## are there, the preview shows nothing and cannot be saved.
 func _render_preview() -> void:
 	_export_render += 1
 	var ticket: int = _export_render
 	var pdf: bool = _export_pdf
+	_export_images = []
+	_export_layouts = []
+	_export_preview.rendering()
 	_prepare_export(_export_preview.contents() if pdf else {})
 	_sheet_renderer.wire_numbers = _export_preview.wire_numbers()
 	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages() if pdf else PackedInt32Array([edit_doc.page]))

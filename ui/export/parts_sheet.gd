@@ -10,6 +10,9 @@ const SIZE := Vector2(35.9 * G, 49.7 * G)
 const ROW_H: float = 24.0
 const HEAD_H: float = 30.0
 const TEXT_SIZE: int = 12
+## Smallest size a text too long for its cell shrinks to; beyond it, it is
+## cut short with "…".
+const MIN_TEXT_SIZE: int = 9
 ## Column edges, as parts of the width.
 const COLUMNS: Array[float] = [0.0, 0.16, 0.5, 1.0]
 
@@ -38,6 +41,25 @@ func extent() -> Rect2:
 	return Rect2(Vector2.ZERO, SIZE / G)
 
 
+## [param text] as it fits [param width] in [param font]: {"text", "size"},
+## smaller down to [constant MIN_TEXT_SIZE], then cut short with "…".
+static func fit(font: Font, text: String, width: float) -> Dictionary:
+	var size: int = TEXT_SIZE
+	while size > MIN_TEXT_SIZE and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width:
+		size -= 1
+	var shown: String = text
+	if font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width:
+		while not shown.is_empty() and font.get_string_size(shown + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width:
+			shown = shown.left(-1)
+		shown = shown.strip_edges() + "…"
+	return {"text": shown, "size": size}
+
+
+func _cell(font: Font, at: Vector2, text: String, width: float, color: Color) -> void:
+	var fitted: Dictionary = fit(font, text, width)
+	draw_string(font, at, fitted["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, fitted["size"], color)
+
+
 func _draw() -> void:
 	var font: Font = AppTheme.schematic_font()
 	var bold: Font = AppTheme.bold_font()
@@ -58,12 +80,12 @@ func _draw() -> void:
 		var baseline: float = y + ROW_H - 8.0
 		if row.get("heading", false):
 			# A place heads the rows after it across the whole table.
-			draw_string(bold, Vector2(pad, baseline), row["text"], HORIZONTAL_ALIGNMENT_LEFT, SIZE.x - 2.0 * pad, TEXT_SIZE, SchematicTheme.DESIGNATION)
+			_cell(bold, Vector2(pad, baseline), row["text"], SIZE.x - 2.0 * pad, SchematicTheme.DESIGNATION)
 		else:
 			var texts: Array = [row["designation"], row["name"], row["data"]]
 			for c: int in texts.size():
 				var color: Color = SchematicTheme.DESIGNATION if c == 0 else SchematicTheme.TEXT
-				draw_string(font, Vector2(x[c] + pad, baseline), str(texts[c]), HORIZONTAL_ALIGNMENT_LEFT, x[c + 1] - x[c] - 2.0 * pad, TEXT_SIZE, color)
+				_cell(font, Vector2(x[c] + pad, baseline), str(texts[c]), x[c + 1] - x[c] - 2.0 * pad, color)
 			for c: int in range(1, x.size() - 1):
 				draw_line(Vector2(x[c], y), Vector2(x[c], y + ROW_H), columns, 0.5)
 		y += ROW_H

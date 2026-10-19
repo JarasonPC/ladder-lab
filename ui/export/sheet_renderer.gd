@@ -34,6 +34,51 @@ var parts_list: bool = false
 ## Layouts of the pages rendered last, in the same order.
 var layouts: Array[SheetLayout] = []
 
+## Renders on white paper going on now (sheets and datasheets), and the
+## paper shown before the first of them began: renders overlap (the preview
+## renders again at every tick), so only the last one to end puts it back.
+static var _white_renders: int = 0
+static var _shown_dark: bool = false
+
+
+## Puts [SchematicTheme] on white paper for a render; [method end_white_paper]
+## when it is done.
+static func begin_white_paper() -> void:
+	if _white_renders == 0:
+		_shown_dark = SchematicTheme.dark
+		SchematicTheme.use(false)
+	_white_renders += 1
+
+
+## Ends a render begun with [method begin_white_paper]: the last one to end
+## puts the paper shown back.
+static func end_white_paper() -> void:
+	_white_renders -= 1
+	if _white_renders == 0:
+		SchematicTheme.use(_shown_dark)
+
+
+## What [param doc] has sheets of: {"stations", "switchboards" (one with
+## something in it), "workspace" (places or parts)}.
+static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
+	var fitted: bool = false
+	for board: Switchboard in doc.switchboards:
+		fitted = fitted or _fitted(board)
+	return {
+		"stations": not doc.control_boxes.is_empty(),
+		"switchboards": fitted,
+		"workspace": not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()),
+	}
+
+
+## True when something sits on the rails of [param board] (an empty
+## enclosure needs no sheet).
+static func _fitted(board: Switchboard) -> bool:
+	for rail: CabinetRail in board.rails:
+		if not rail.items.is_empty():
+			return true
+	return false
+
 
 ## What the sheets of an export of [param doc] show, in order: {"kind"
 ## ("page", "stations", "switchboard", "workspace", "parts") and "page",
@@ -50,13 +95,9 @@ func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary
 			result.append({"kind": "stations", "boxes": boxes})
 	if switchboards:
 		for b: int in doc.switchboards.size():
-			# An empty enclosure needs no sheet.
-			var fitted: bool = false
-			for rail: CabinetRail in doc.switchboards[b].rails:
-				fitted = fitted or not rail.items.is_empty()
-			if fitted:
+			if _fitted(doc.switchboards[b]):
 				result.append({"kind": "switchboard", "board": b})
-	if workspace and not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()):
+	if workspace and available(doc)["workspace"]:
 		result.append({"kind": "workspace"})
 	if parts_list:
 		for rows: Array in PartsSheet.split(PartsList.new().rows(doc)):
@@ -74,13 +115,16 @@ func render(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Image]:
 	var images: Array[Image] = []
 	# Its own list: another rendering may start while this one waits.
 	var sheet_layouts: Array[SheetLayout] = []
-	var dark_paper: bool = SchematicTheme.dark
-	SchematicTheme.use(false)
+	begin_white_paper()
 	var specs: Array[Dictionary] = sheets(doc, pages)
+	# A page alone (a PNG) keeps its number in the schematic; the sheets of a
+	# PDF are numbered in turn.
+	var single: bool = specs.size() == 1 and specs[0]["kind"] == "page"
 	for start: int in range(0, specs.size(), BATCH):
 		var batch: Array[Dictionary] = []
 		for i: int in range(start, mini(start + BATCH, specs.size())):
-			batch.append(_sheet(DocumentSerializer.from_dict(data), specs[i], i, specs.size()))
+			var number: int = int(specs[0]["page"]) if single else i
+			batch.append(_sheet(DocumentSerializer.from_dict(data), specs[i], number, doc.pages.size() if single else specs.size()))
 		await RenderingServer.frame_post_draw
 		for sheet: Dictionary in batch:
 			if sheet.has("view"):
@@ -94,7 +138,7 @@ func render(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Image]:
 			images.append(image)
 			sheet_layouts.append(sheet["frame"].layout)
 			viewport.queue_free()
-	SchematicTheme.use(dark_paper)
+	end_white_paper()
 	layouts = sheet_layouts
 	return images
 
