@@ -453,7 +453,7 @@ func test_contacts_of_a_time_relay_are_delayed() -> void:
 
 func test_markings_are_selected_and_dragged() -> void:
 	_place({"type": "lamp"}, Vector2i(10, 3))
-	await wait_frames(2)
+	await wait_process_frames(2)
 	var symbol: SchematicSymbol = view.get_symbol("H1")
 	var r: Rect2 = symbol.marking_rect("designation")
 	assert_true(r.has_area(), "the designation was drawn")
