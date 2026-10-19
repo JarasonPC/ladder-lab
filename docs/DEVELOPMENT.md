@@ -769,7 +769,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   trip all poles on the largest pole current, fuses per pole, the relay on its largest heater;
   a 0-pole relay (and the injected overloaded fault) still uses trip_delay
 - Buttons/switches with the same designation share one actuator (multi-block devices); ids of
-  switching elements are "<designation>:<terminals>"; any component may have custom terminal names
+  switching elements are "<designation>:<terminals>"; any component may have custom terminal names;
+  a part replaced by its edited copy (properties, Change type: SchematicDocument.replace_component)
+  keeps its wires, strip terminals and terminal markings by standard terminal name, by position
+  where no name matches (a PLC's only by name)
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION
   on format changes and keep older versions loading; values of the wrong type load as defaults
