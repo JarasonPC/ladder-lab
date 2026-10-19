@@ -37,7 +37,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Fuse", "template": {"type": "fuse"}},
 	{"title": "Fuse holder", "template": {"type": "fuse", "holder": true}},
 	{"title": "Circuit breaker", "template": {"type": "breaker"}},
-	{"title": "Overload relay", "template": {"type": "overload_relay", "trip_delay": 5.0}},
+	{"title": "Overload relay", "template": {"type": "overload_relay", "trip_delay": 5.0, "poles": 3}},
 	{"title": "Main contacts", "template": {"type": "main_contacts"}},
 	{"title": "Motor 3~", "template": {"type": "motor3", "motor_kind": "standard"}},
 	{"title": "Motor 3~ star/delta", "template": {"type": "motor3", "motor_kind": "star_delta"}},
