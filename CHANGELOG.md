@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.4.4 – 2026-10-19
+
 ### Schematic editor
 - Phase supplies placed one after the other become L1, L2, L3 (not L1, L1, L1)
 - Terminal marks are written on one line, "X2-6" (and "X1-6"), instead of the strip over the
