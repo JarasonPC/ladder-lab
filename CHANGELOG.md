@@ -11,6 +11,158 @@ What changed in each LadderLab version. Version numbers follow the rules in
   and no palette symbol has lines too thin to see
 - The mouse wheel scrolls a datasheet or an opened control station with the pointer over the
   sheet or the station, not only beside it
+- Changing what the PDF holds or the wire numbers in the export preview no longer turns the
+  schematic white or puts dark sheets in the PDF; the preview can only be saved once it shows the
+  sheets as they are now
+- The Switchboards tick in the PDF export is greyed out while every switchboard is empty
+- An exported PNG gives its page number in the schematic in the title block; the PDF creation date
+  carries the time zone
+- Long entries of the exported parts list get smaller, and end with "…" where they still do not
+  fit; a long control station title no longer runs into the next station on the exported sheet
+- Datasheets: a compact PLC of any CPU size gets the compact PLC's datasheet, long diagram
+  headings of the time relay stay on the page, a heading of the terminal table never ends a page
+  alone, a contactor lists its main contacts, and every terminal label on the device front is
+  readable, also on a PLC with many modules
+- The examples' lamp purposes and station button labels are in Czech in the Czech program
+- Numbering the wires no longer joins two circuits through page connectors
+- Splitting a terminal strip no longer gives two terminals the same number; moved terminals keep
+  their order
+- Deleting a branch no longer loses the wire number of the wire left
+- Changing a part's type no longer passes its key or its place on a control station to a part that
+  cannot take them, and within one part (fuse to fuse holder, another motor or PLC, contact NO to
+  NC) it keeps its settings, such as the rated current or an unticked delay
+- A coil turned into a time relay (or back) keeps swapped A1/A2 and times set by hand, and its
+  contacts become delayed (or plain) contacts
+- Editing poles, the control input S, the CPU or modules is no longer refused after a terminal was
+  renamed; the names given by hand stay. After a refused edit the properties show the part as it
+  stayed
+- Editing a part's properties no longer re-routes its wires
+- Renaming a coil takes all its contacts along, giving one with the same numbers the next free
+  number; changeover and main contacts can no longer take the name of an overload relay
+- A deleted part no longer leaves its key, group or mechanical link to the next part given its
+  name; renaming a part to another block of an existing device no longer lists it twice in a group
+  or overwrites its stop and its key
+- Turning or mirroring a selection that holds an overload relay without poles works again
+- A terminal from the palette takes a number no strip terminal on a lead uses, and pasted strip
+  terminals get free numbers instead of sharing terminals with the originals
+- A second wire between the same two terminals is no longer drawn, and pasting no longer leaves
+  junctions without wires
+- The temperature sensor's range bounds can no longer cross each other (one bound past the other
+  no longer resets the range to 0–100 °C); the inverter's fixed and keypad frequencies can no
+  longer be set above its maximum frequency, and lowering the maximum no longer cuts them for good
+- PLC versions that do not fit the expansion modules can no longer be chosen
+- A wire cancelled on its start terminal no longer clears Redo
+- A designation or other marking being typed when Simulate is clicked is kept in the schematic, no
+  longer applied to the simulation
+- Editing a PLC program in its window no longer selects the PLC (Delete then removed it)
+- Confirming an unchanged lamp purpose or label, binding the same key, or dragging a part back to
+  its place no longer counts as a change; View menu toggles no longer end placing or wiring
+- Undo and Redo keep the check results open and check again
+- Check: no false "not connected" on compact PLC digital modules; supplies are checked per source
+  (a load between L2 and L3 passes, L with DC − does not); hints for a time relay function that
+  needs the control input S while it is off, open compact PLC commons (1M, 3L+, 3M) while inputs
+  or outputs using them are wired, and analog modules on the AC supply
+- Right-click menus no longer grow and shrink with the schematic's zoom: menus, the inverter
+  keypad and the temperature slider open at the mouse at every interface size; the key prompt
+  follows the interface size
+- A short circuit with no fuse in it now drops out only its own supply (mains or DC); other
+  circuits keep working
+- A short on a frequency inverter's motor output or 24 V trips the inverter (output off) instead
+  of leaving the whole circuit dead
+- Instant switching: a buzzing relay no longer stops other relays from switching, a correctly
+  interlocked reversing starter no longer blows its fuses, and clearing a stuck-armature fault
+  releases the relay at once
+- Time relays see the control input S correctly when it changes together with their power (no
+  false pulse); a time relay cycling with both times set to zero no longer freezes the simulation,
+  and times from a file are held to 0.1–3600 s
+- The event log shows a time relay's output switching on or off together with its power (F1 at
+  power on, F2 at power off)
+- Limit switches part-way along a mechanical link are operated and let go at the right places in
+  realistic timing; mechanical links keep moving when a lot happens in one step; a Dahlander motor
+  at low speed moves its link at its real, slower speed
+- A blown pole of a multi-pole fuse shows its heat like a single fuse
+- Currents: a rectifier's output current returns through its own − terminal, and a load between
+  two + supplies of different voltages shows its current
+- A burnt-out coil can be replaced from the fault menu
+- Clicking Simulate while simulating no longer restarts the simulation; Edit, Schematic and
+  Workspace do nothing when already shown
+- A push button held by its key is let go when the key comes up with Ctrl, Alt or Cmd down, while
+  typing, or in the datasheet or PLC window
+- The timing chart no longer fails with a compact PLC, and outputs that are not wired get no row
+- Follow brings the timing chart back to now while paused too; dragging the chart at the start no
+  longer jumps ahead; the time axis no longer shows "-0.0 s"; "Double click: follow" is shown
+  beside Follow instead of over the last chart row
+- The time span field shows the span zoomed to with the wheel; overload relays are marked Ir in
+  the chart
+- The event log no longer repeats entries when switching views, scrolls to the newest entry, and
+  Reset keeps the events of the first step
+- The status bar says "Paused" after Pause, and its warnings are readable in the light theme
+- Clamp meter readings and currents on wires are no longer hidden behind symbols
+- PLC: a compact CPU with many signal modules sees every input (inputs from I33 on were wrong)
+- PLC: on the 12/24 V and 24 V versions, a sensor's volts on I7, I8, I1 or I2 also switch the
+  digital input
+- PLC ladder: deleting a row no longer joins two rungs; Insert row on a full ladder does nothing
+- PLC function block diagram: a feedback loop starts at a block of the loop (counters after a loop
+  no longer count wrongly)
+- PLC: a very long simulation step of a program that keeps switching no longer runs timers
+  backwards; operands like "I+1" are no longer accepted in saved programs; expansion modules
+  beyond what the PLC's version takes are left out on loading
+- PLC window: operand names and block numbers no longer disappear after an edit or a properties
+  change; the test simulation of a new PLC no longer stops at every schematic edit, and it shows
+  the selected block's state
+- PLC window: edits that change nothing no longer make undo steps; Esc or a right click while
+  carrying a connection puts it back; Ctrl+V with the mouse outside the diagram pastes beside the
+  copied blocks
+- PLC window: times, presets and analog values take their whole range; analog help texts and new
+  values follow the compact CPU's 0-27648 scale; the ladder's coils are in view at the default
+  size
+- PLC window: releasing a bound key there lets the push button go; Space stays for panning and no
+  longer pauses the simulation
+- Clicking an entry in the workspace tree no longer causes errors; a right click only opens its
+  menu; the lamps inside illuminated buttons are listed under their station
+- Text typed in a station field just before switching to Simulate no longer changes the
+  simulation; workspace, station and switchboard edits are ignored while simulating
+- A switchboard or station stays open (also in its own window) when it is renamed or the rename is
+  undone
+- Many cables leaving one side of a place no longer run diagonally or pile their name tags on each
+  other
+- An empty group moves with the mouse while dragged; a motor taken out of its group no longer
+  shows its mechanical link; a part taken out of a group leaves its link
+- A renamed cable between two parts in the field keeps its name when one of them is moved; new
+  places no longer land on a group's frame
+- Changing an item's kind on a station no longer shows a device twice; a long station title no
+  longer runs over the cover screws
+- The selection frame in a switchboard sits on the selected device; Ctrl+wheel zooms at the mouse
+- An overload relay on a rail of its own is wired on both sides (it sits on a mounting unit with
+  terminals 1, 3, 5) and is never drawn twice
+- Field cables in the switchboard have as many cores as the workspace cable; a circuit going on to
+  another switchboard leaves in the cable between the two
+- Cable glands in the switchboard no longer overlap; the switchboard grows wide enough for them
+- Wiring two supply points of different conductors together, or naming a main contact 13 or 21, no
+  longer breaks the switchboard
+- Switchboards draw and wire every auxiliary contact of a contactor: contacts beyond the six on
+  the contactor and its front block go on auxiliary contact blocks mounted on its sides; a
+  changeover contact on a contactor is wired on both sides
+- Relays with more than four contacts and time relays with more than three get a second relay
+  beside them
+- Wires in the switchboard no longer run over the terminals of contactors, overload relays and
+  inverters; terminal names on PLCs, relays and time relays are no longer hidden by their wires
+- Fuse holders with several poles number each pole; the rectifier's − output is wired light blue;
+  compact PLC module screws no longer touch; a missing device's name is readable
+- F1 opens the selected part's datasheet also after the Help menu has been opened
+- The example list shows "Example circuits…" again after New, Open or Restore, so the last example
+  can be picked again
+- A page window keeps showing its page when pages are moved and closes when its page is deleted;
+  PLC windows and page window titles follow a change of language
+- After restoring unsaved changes, copies from other sessions that did not close properly are
+  offered too
+- A file with a wrongly typed value opens with defaults instead of being refused as damaged
+- Saving writes a temporary file first: a failed save (for example on a full disk) keeps the file
+  saved before and reports the error
+- At large interface sizes and in small windows, the toolbar, timing panel, event log, side panels
+  and status bar fit the window; side panels scroll when they are taller than it
+- Sliders and spin boxes match the theme (the slider is visible in the light theme)
+- Clicks in the workspace no longer reach the hidden schematic
 
 ## 0.4.0 – 2026-10-18
 

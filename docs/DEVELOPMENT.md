@@ -51,15 +51,22 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead, supply
   points included (Placement.strips: terminal index -> label, drawn instead of the square, a
   label of another strip than X1 on two lines, strip over number; Delete on the selected mark
-  removes it, a right click on a lead adds or removes one); wire segments can be dragged; wire
+  removes it, a right click on a lead adds or removes one); a palette terminal takes
+  SchematicDocument.next_strip_label(), a pasted strip terminal whose label is taken the next
+  free number on its strip; wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal right next to its square,
   a short wire once at its upper/left end, draggable offsets) via the
   numbering tool or double click; side panels (palette, properties + check, the workspace tree)
   are SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with
-  oversampling_with_scale, so text stays sharp); the
+  oversampling_with_scale, so text stays sharp), scrolled when taller than the window and shown
+  at most SideBar.MAX_WIDTH_SHARE (30 %) of the window wide (the chosen width is kept); the
   palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; symbols too wide
-  for a tile, PLCs and the inverter, draw a smaller version there, SchematicSymbol.preview_rect); the timing panel is resized by its top edge and the grip before the
-  event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
+  for a tile, PLCs and the inverter, draw a smaller version there,
+  SchematicSymbol.preview_rect); the timing panel is resized by its top edge and the grip before
+  the event log (at most MAX_HEIGHT_SHARE of the height the other bars leave, the log never
+  wider than the room beside the chart's tools; the chosen sizes are kept), its chart and event
+  log roll in and out by a click on their titles; widths, heights and zooms are saved in the
+  settings
 - The program starts with as little as possible: an empty schematic of one page (no example
   loaded; the example list reads "Example circuits…") and the palette; the properties panel
   (with the check results) shows in Edit mode only while something is selected or the check
@@ -69,7 +76,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   L3 on top) and its control circuit on the right; circuit breakers FA1 (C16, three poles) for
   the power circuit and FA2 (B2) for the control circuit; everything outside the switchboard on
   terminal strips: the supply on X1 (one terminal per conductor, "X1:L1" .. "X1:PE"), buttons,
-  switches and lamps on X2, motors with their PE on X3; a PE supply point under every motor
+  switches and lamps on X2, motors with their PE on X3; a PE supply point under every motor;
+  lamp purposes and station labels are translated when the example is built
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -78,7 +86,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   drag reorders, right click: move/delete, open in a new window; page edits undoable via SchematicEditor.edit_pages).
   A page window (PageWindow) holds a SchematicView with its own page (SchematicView.page) that
   follows the main view (SchematicView.follow: same document and simulation, steps and events go
-  through the main view; it rebuilds when the main view does); shortcuts pressed there are handled
+  through the main view; it rebuilds when the main view does; keeps its page when pages are
+  moved, closes when its page is deleted); shortcuts pressed there are handled
   by main.gd. Space runs/pauses the simulation
 - Page connectors (PageConnector, internal designation "PC1", drawn as a tag: point on the wire, flat
   end away from it; label in the wire-number colour, cross reference "/page.path" below): all connectors
@@ -96,7 +105,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   tables continued on the next page, data beside the diagram, footer; the front on a page of its
   own); DatasheetPage draws a page in SchematicTheme colours (white on export), the symbol, the
   diagram and the front (DatasheetFront: CabinetParts.device at up to 2:1 with a label on a
-  leader at every terminal) as children; DatasheetWindow lists the part from the schematic and
+  leader at every terminal, in as many rows as needed, smaller or upright where terminals are
+  close, DatasheetFront.arrange; a table's heading never ends a page) as children;
+  DatasheetWindow lists the part from the schematic and
   every palette part, zooms (ZoomBox) and exports a PDF (200 dpi pages). Opened from the right
   click menu (Datasheet, F1), the properties (Datasheet button) and Help > Part datasheets
 - Current path numbers (above the columns, left of the rows) can be turned off in View >
@@ -115,7 +126,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   of is greyed out. SheetRenderer.sheets lists the sheets, numbered in turn across the PDF; no
   keys of the keyboard on any sheet. Each page on an A4/A3 sheet
   (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
-  (SheetFrame), rendered by SheetRenderer at 200 dpi, fitted to everything drawn (it draws each
+  (SheetFrame), rendered by SheetRenderer at 200 dpi on white paper
+  (SheetRenderer.begin_white_paper / end_white_paper count the renders, datasheets too; the last
+  to end puts the paper shown back; the preview is empty and cannot be saved while it renders
+  again, ExportPreview.rendering; SheetRenderer.available says what has sheets), fitted to
+  everything drawn (it draws each
   page once to measure: SchematicView.drawn_extent, with texts, wire and path numbers); PdfWriter writes one Flate image per page;
   title block texts (company, project, drawing no., revision, drawn by, checked by, date; empty
   date = export date) are SchematicDocument.title_block (TitleBlock, saved), edited in
@@ -133,7 +148,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   themselves: where they were put (SchematicDocument.field_positions), else in a row under
   everything (Workspace.field_positions); a group's frame is round its members
   (Workspace.group_rect), dragging it moves them (move_place), a part dropped into a frame
-  joins the group, dropped outside leaves it (place_field_device); renamed parts keep both.
+  joins the group, dropped outside leaves it, and its link role (place_field_device); renamed
+  parts keep both. Workspace, station and switchboard edits only apply in Edit mode (main.gd
+  _edit_workspace / _edit_cabinet).
   WorkspaceCanvas draws on schematic paper (SchematicTheme, follows White schematic paper)
   solid tiles (WorkspaceTile: switchboard teal, station blue, field grey, white signs; also the
   tree's icons): the place's tile with "+RA1", its title and what it holds, a part's tile with
@@ -144,11 +161,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   map + detail, the CabinetPanel / StationPanel takes the canvas's room with a bar above (back,
   rename, window, close; Esc goes back) and the tree stays as the map (a click on a device in
   it opens its place with the device selected). The tree lists switchboards with their devices
-  and strips, stations with their items, groups with their parts, the parts in the field and
+  and strips, stations with their items and the lamps inside them, groups with their parts, the
+  parts in the field and
   what has no place yet (Workspace.unplaced: devices and strips in no switchboard, buttons,
   switches and lamps on no station); its search field filters it. PlaceWindow shows a
-  switchboard or station in a window of its own (follows the shown document, closes when its
-  place is gone; keys it does not use go to main.gd's shortcuts). While simulating only the
+  switchboard or station in a window of its own (follows the shown document, follows its place
+  when it is renamed (as does the opened place, also after undo; WorkspaceView.follow_place) and
+  closes when it is gone; keys it does not use go to main.gd's shortcuts). While simulating only
+  the
   opened place shows the circuit's state; the workspace stays plain. Older files: the rails of
   "cabinet" become switchboard RA1, control boxes become stations ST1, ST2, … side by side
   (SchematicDocument.name_places)
@@ -160,7 +180,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminal on it to each other place (a star from the strip), else from the first switchboard,
   else along the shortest tree between the places' centres (stop buttons looped through from
   station to station). The cores between two places are one cable (key "+RA1|+ST1", its ends in
-  workspace order: switchboards, stations, parts), each core with what it lands on at both ends
+  workspace order: switchboards, stations, parts in circuit order), each core with what it lands
+  on at both ends
   (at a switchboard its strip terminals alone when it has some) and its wire number, the PE core
   last. A cable's type (WorkspaceCables.type_text) is "CGSG-J 4x2,5" (J with a PE core, O
   without) or harmonised "H07RN-F 4G2,5" (G with PE, x without) by WorkspaceCables.naming (View
@@ -174,15 +195,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   as tracks: the sides of both ends are chosen by trying every pair from the sides' middles
   (fewest places in the way, then shortest, then fewest bends; a right side starts past the
   place's texts, a bottom side under a part's name), each cable leaves from a point of its own
-  in line with its other end's port (two rounds), a lane apart from the others on that side,
+  in line with its other end's port (two rounds), a lane apart from the others on that side
+  (closer on a short side),
   runs out STUB, then at right angles (Z or L) with CORNER-rounded bends, the middle run moved
-  by its lane; a dot at both ports; power cables (with a power core) thicker and darker; the
-  name and type on a tag on the longest straight run (two lines, or the name alone, when it
+  by its lane as far as the route allows; a dot at both ports; power cables (with a power core)
+  thicker and darker; the
+  name and type on a tag on the longest straight run, moved along it or onto another run to keep
+  clear of other tags (two lines, or the name alone, when it
   does not fit; the tooltip has it all) (place texts sit on paper over
   lines passing behind); a click on a cable (tag or line) or on it in the tree ("Cables")
   opens CablePanel in place of the canvas: a row per core, wire number, both ends
 - Mechanical links (Travel in sim/, no nodes): a group's member motor (WorkspaceGroup.drive)
-  moves its part, e.g. a gate, from 0 to 1 in travel_time at full speed, forwards (clockwise;
+  moves its part, e.g. a gate, from 0 to 1 in travel_time at full speed (the rated speed of its
+  fastest speed step), forwards (clockwise;
   a plain Motor while it has power) towards 1; it starts at start; member limit switches
   (stops: designation -> 0-1) are operated at an end while the part is there, between the ends
   within Travel.BAND (both blocks of a switch, through its actuator); the part stops at the
@@ -191,13 +216,16 @@ Architecture and conventions of the code base. Read this before changing the cod
   them for a simulation (SchematicView.load_document gives them to Simulator.travels); the
   simulator moves them with the motors (IDEAL: every step; REALISTIC: an event where the part
   reaches an end or a switch's band, Travel.time_to_next_event) and logs "SQ1 actuated" /
-  "let go". The canvas draws the link as dashed lines from the motor to the switches and the
+  "let go". The canvas draws the link (between members of the group only) as dashed lines from
+  the motor to the switches and the
   way along the bottom of the group's frame: a tick per switch, the start (Edit) or where the
   part is (Simulate, SchematicView.travel_positions)
 - Keys: SchematicDocument.key_bindings (designation -> key name as OS.get_keycode_string, e.g.
   "A", "F2"; saved as "keys") for push buttons and switches (can_have_key); set_key keeps a key
   on one device (undoable through SchematicEditor.edit_workspace), device_of_key finds it; a
-  renamed device keeps its key. "Bind a key…" in the context menus of the schematic, an opened
+  renamed device keeps its key unless the new name has its own (a block joining a device) or
+  cannot take one; deleting the last part of a device drops its key, field position, group
+  membership and link role. "Bind a key…" in the context menus of the schematic, an opened
   station (StationPanel) and the workspace tree opens KeyPrompt (window_input: Esc, Enter, Tab
   and combinations with Ctrl/Alt/Meta are ignored, Space and F11 refused, Delete/Backspace takes
   the key off). While simulating main.gd's _bound_key runs before the shortcuts (no Ctrl/Alt/
@@ -221,9 +249,16 @@ Architecture and conventions of the code base. Read this before changing the cod
   slotted TS35 rails, open slotted ducts, white labels, push-in terminals, orange glow on energized
   coils, voltage colours on terminals while simulating. The look follows the circuit (CabinetDevices):
   breakers and fuse holders 1-4 poles, contactors 3 (also for 1-2) or 4 main poles plus a front
-  auxiliary block beyond two auxiliary contacts, the overload relay fitted under the contactor its
-  heaters follow, relays one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
-  3-4: wide socket), time relays 1-3 changeover contacts, bridge rectifiers one dark module, PLCs
+  auxiliary block (four contacts) beyond two auxiliary contacts and 9 mm auxiliary blocks of two
+  contacts mounted on their sides beyond six (CabinetParts.side_blocks: the first on the right,
+  the second on the left, further ones outside them; the overload relay stays under the
+  contactor itself; a changeover contact takes an NC and an NO place), the overload relay fitted
+  under the contactor its heaters follow (drawn there only, even when it is on a rail too; on a
+  rail of its own it sits on a mounting unit with its heaters' terminals 1 3 5 on top), relays
+  one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
+  3-4: wide socket), time relays 1-3 changeover contacts (more contacts on further relays or
+  time relays beside it, their coils, A1#2 …, wired to the first one's), bridge rectifiers one
+  dark module, PLCs
   four modules in Siemens grey; breakers print their characteristic and rating ("B2", "C16");
   terminal strips from terminal labels ("X2:4" = strip X2, plain "4" = strip X1), their
   terminals in the order set in the sidebar (SchematicDocument.strip_orders, saved; arrows move
@@ -233,9 +268,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   lane of its own (down a side duct to another duct); a contactor with its overload relay under
   it has a wiring channel on both sides (CabinetLayout.WIRE_CHANNEL): wires from its bottom
   terminals run across its front at heights clear of its screws (CabinetParts.CONTACTOR_OUT_Y)
-  out to the nearer side and down beside the relay, never across it; colours by conductor
+  out to the nearer side and down beside the relay, never across it; wires from the auxiliary
+  contact blocks are led round the contactor's terminals along its edge
+  (CabinetWiring._lead_aside); colours by conductor
   (CabinetDevices.conductors): red = phase of the control circuit (L), light blue = N (and the
-  DC - pole), grey = main power circuit (L2/L3 and the terminals of main contacts, overload relay
+  DC - pole, a rectifier's - too), grey = main power circuit (L2/L3 and the terminals of main
+  contacts, overload relay
   heaters, 3~ motors, fuses and breakers of 2-4 poles), green-yellow = PE; wires go into the
   top of strip terminals, wires near each other share the nearest slot; the supply comes in
   from outside: one cable per source (AC, DC) through a gland in the top of the enclosure, one
@@ -245,7 +283,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   buttons, switches, lamps, motors; field_device finds the part: the one whose lead the
   terminal is on, else the first on its net) send field wires out of their bottom entries to
   the bottom duct and out through a gland in the bottom of the enclosure, one cable for each
-  cable of the workspace from this switchboard (its name "W2" on the gland, all the buttons and
+  cable of the workspace from this switchboard, with a core for each net as on the workspace
+  (the first of its terminals; the others joined inside; a net going on to another switchboard
+  leaves the same way in the cable between the two, on both boards; the plate is wide enough for
+  a slot of the bottom duct to each cable, CabinetWiring.bottom_slots, glands side by side
+  narrower where they would meet) (its name "W2" on the gland, all the buttons and
   lamps of a station in one; CabinetWiring.build(doc, layout, k, board)), one per part for parts
   without a place ("-SB1" on the gland), cores coloured like the other wires (a PE or N terminal gives a PE or
   N core). Strip terminals on a PE wire are PE terminals, on an N wire blue N
@@ -269,10 +311,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   its own supply 2L1-2N, 3L1-3N ..., inputs and outputs numbered on (I9.., Q5..); a module works
   while its own L1-N has voltage and the PLC works (Plc.module_power, logged), its inputs are on
   with voltage against its own N, it draws Plc.MODULE_DRAW; the circuit check wants the modules'
-  supplies wired. Terminal indices come from the instance (input_terminal, output_terminal,
+  supplies wired (the commons of a compact CPU and its digital modules, 1M, 3L+ 3M, only while
+  inputs or outputs using them are wired; it hints at analog modules on the AC supply). Terminal
+  indices come from the instance (input_terminal, output_terminal,
   module_terminal, module_terminals); the properties add a module after the last one or take
   the last one off, so the other terminals keep their numbers (names given by hand stay). Analog:
-  the 24 V and 12/24 V versions read I7 I8 I1 I2 also as AI1-AI4 (Plc.ANALOG_VERSIONS); analog
+  the 24 V and 12/24 V versions read I7 I8 I1 I2 also as AI1-AI4 (volts from a sensor or an AQ
+  at the input's threshold also switch the digital input) (Plc.ANALOG_VERSIONS); analog
   modules (Module.AI2: nL+ nM nU1 nU2, AI numbered on after the PLC's own; Module.AQ2: nL+ nM
   AQ1 AQ2; always 24 V DC, Plc.module_rating) up to Plc.MAX_ANALOG 8 of each; terminal roles
   (Plc.Role: supply, DI, DQ, AI, AQ) place them on the symbol and in the switchboard. The
@@ -286,8 +331,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   AND OR NOT NAND NOR XOR with 4/4/1/4/4/2 inputs, on-/off-delay, latching relay, pulse relay,
   up/down counter, analog input AI / output AQ connectors, analog threshold trigger, analog
   comparator (On / Off with hysteresis), analog amplifier (gain, offset; PlcRuntime.analog holds
-  the analog block values, a digital source reads 0 / 1000); numbered B001; worked through in signal order, a feedback loop starting at
-  the lowest number) and a ladder diagram (one PlcRung along one power rail, no networks: rows
+  the analog block values, a digital source reads 0 / 1000); numbered B001; worked through in
+  signal order, a feedback loop starting at its lowest-numbered block) and a ladder diagram (one
+  PlcRung along one power rail, no networks: rows
   of 8 cell columns, cells wire/NO/NC/P/N (edge contacts, closed for one scan) with operands
   I Q M T C, comparing contacts AI >= value / AI < value, vertical links at the right side of a
   cell, a coil per row: assignment, negated, S, R, SD, SF, CU, CD, AQ (value while powered, 0
@@ -328,7 +374,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   same grey, open terminal blocks without covers, RUN/STOP ERROR MAINT, channel lights DI a /
   DQ a, network port X1 P1 with LINK Rx/Tx, memory card slot X50; a module's DIAG light
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
-  clicking it while simulating; one per PLC. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
+  clicking it while simulating; one per PLC; keys it does not use (releases too) go to main.gd,
+  Space stays in the window for Space+drag. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
   PlcCanvas, drawn on schematic paper in a ScrollContainer: wheel scrolls, Ctrl+wheel zooms at
   the mouse, middle / right drag or Space+drag pans; a right press that does not move is a
   click) switched at the top (the PLC runs the one shown), a palette of tools on the left, the
@@ -337,7 +384,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   numbers, connections between the copies kept). LAD: the power rail runs the whole height,
   spare rows below the last one, anything placed anywhere along it; Insert / Delete row.
   Simulation (Edit mode, as in LOGO!Soft Comfort): a Plc of its own runs a copy of the program
-  with switches I1-I8 and lamps Q1-Q4 below the diagram and the time running; read-only meanwhile. In Edit mode it edits a copy and sends each finished change to main.gd, which applies
+  with switches I1-I8 and lamps Q1-Q4 below the diagram and the time running; read-only
+  meanwhile. In Edit mode it edits a copy and sends each finished change that alters the program
+  to main.gd, which applies
   it with SchematicEditor.apply_properties (undoable; Ctrl+Z / Ctrl+Y in the window too). While
   simulating it shows the simulated PLC read-only: signals that are 1, the power flow, times
   and counts, 1 in PlcCanvas.ON (red), 0 in PlcCanvas.OFF (blue) as in the programming software. Windows rebind when the document is loaded or edited and close
@@ -355,7 +404,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
   wires reached by PE alone are drawn in the PE colour, StepResult.REACH_PE),
   DC supplies + and - (a separate source: loads work between two conductors of the same source;
-  AC joined to DC is a short; the - pole is drawn like N; a + supply has a voltage,
+  AC joined to DC is a short; a short that no protective device interrupts drops out only the
+  sources it is on (the mains, the DC source, an inverter's outputs) while it lasts, only the
+  fault path shown; the - pole is drawn like N; a + supply has a voltage,
   PowerSupply.voltage 12/24/48/110/220 V, default 24 V, each a source bit of its own, all sharing
   the - poles, so two + of different voltages joined are a short), TB = bridge rectifier (Rectifier, a Load
   with terminals ~1 ~2 + -: while its input has voltage its + and - are DC poles, output taken as
@@ -425,7 +476,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   output frequency follows the target along the ramps (Vfd.advance; IDEAL: snap), through 0
   when reversing. The simulator: its 24V-0V a DC source and its 10V an analog source while it
   has its supply, its output nets source bits of their own (PowerSupply.BIT_VFD_U/V/W, AC,
-  mains on them is a short, V and W swapped in reverse) that the motors take as phases; a motor
+  mains on them is a short, V and W swapped in reverse; a short on its output or its 24 V trips
+  it, Vfd.tripped: output off, logged, until the run command is given anew or the supply
+  returns) that the motors take as phases; a motor
   on them runs at frequency ThreePhaseMotor.frequency (fraction of 50 Hz): with V/f the torque
   and the currents depend on the slip frequency alone, so MotorModel is solved at the speed
   shifted by (1 - frequency) in the field's direction (ThreePhaseMotor._solve); it draws on
@@ -435,7 +488,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   display, O I M OK and arrow keys, warning label, control and motor terminals at the bottom
 - Simulator modes: IDEAL (instant, solver default, used by most tests) and REALISTIC (Armature
   pick-up/drop-out times, NC breaks at 30 % before NO makes at 100 %, event-driven steps;
-  documents default to realistic)
+  documents default to realistic). IDEAL switches coils one at a time until nothing changes:
+  coils switching round in a circle are frozen (reported as oscillating) while the others
+  settle, and a short or too high a voltage between two coil switchings trips and burns nothing,
+  only the settled state counts; S of a time relay is applied before its power
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, WireRouter, SymbolGeometry,
   ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile; the workspace: Workspace,
   Switchboard, WorkspaceGroup, ControlBox) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
@@ -445,7 +501,9 @@ Architecture and conventions of the code base. Read this before changing the cod
 - UI look: `ui/app_theme.gd` (AppTheme) builds the whole Godot theme in code from colour tokens
   (dark/light), system fonts (MSDF font for schematic text), line icons as inline SVG via
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of
-  per-control colours. No stretch scaling: the window uses content_scale_factor (View > Interface size)
+  per-control colours. No stretch scaling: the window uses content_scale_factor (View >
+  Interface size); popups and context menus open through AppTheme.popup_at_mouse (at the mouse
+  in window pixels, at the window's content_scale_factor, never at the drawing's zoom)
 - `ui/timing/` TimingChart, EventLog, TimingPanel (Simulate mode, bottom); the chart ends with
   rows of currents (motor lines, poles of fuses, breakers and overload relays; autoscaled, rated
   current dashed)
@@ -497,8 +555,10 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Buttons/switches with the same designation share one actuator (multi-block devices); ids of
   switching elements are "<designation>:<terminals>"; any component may have custom terminal names
 - Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
-- Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION on
-  format changes and keep older versions loading
+- Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION
+  on format changes and keep older versions loading; values of the wrong type load as defaults
+  (DocumentSerializer helpers); ProjectFile.save and RecoveryFile.write go through
+  ProjectFile.write_atomically (<path>.tmp, checked, renamed)
 - Recovery (RecoveryFile, no nodes, in user://recovery): main.gd writes a copy of the edited
   schematic and the file it came from after every edit (_mark_dirty; written to a .tmp first),
   removed when it is saved, replaced (new, open, example) and on quit. Each run of the program is
