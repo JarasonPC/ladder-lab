@@ -32,6 +32,7 @@ func add_buttons() -> void:
 		add.tooltip_text = tips[kind]
 		add.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		add.pressed.connect(func() -> void:
+			commit_pending()
 			select.call(document.control_panels()[b].items.size())
 			edit.call(func(doc: SchematicDocument) -> void: doc.add_control_item(b, kind as ControlBoxItem.Kind)))
 		row.add_child(add)
@@ -47,6 +48,7 @@ func add_all_button(tooltip: String) -> void:
 	add_all.tooltip_text = tooltip
 	add_all.disabled = not _has_unlisted_devices()
 	add_all.pressed.connect(func() -> void:
+		commit_pending()
 		edit.call(func(doc: SchematicDocument) -> void: doc.fill_control_box(b)))
 	list.add_child(add_all)
 
@@ -55,7 +57,6 @@ func add_all_button(tooltip: String) -> void:
 func item_editor(i: int) -> void:
 	var b: int = panel
 	var item: ControlBoxItem = document.control_panels()[b].items[i]
-	var data: Dictionary = item.to_data()
 	var card: PanelContainer = PanelContainer.new()
 	card.theme_type_variation = "FunctionCard"
 	list.add_child(card)
@@ -64,6 +65,11 @@ func item_editor(i: int) -> void:
 	card.add_child(fields)
 	var apply: Callable = func(changed: Dictionary) -> void:
 		edit.call(func(doc: SchematicDocument) -> void: doc.set_control_item(b, i, changed))
+	# The item as it is now, with a plate text typed before committed first
+	# (the tools take no focus, so the text field still has it).
+	var data: Callable = func() -> Dictionary:
+		commit_pending()
+		return document.control_panels()[b].items[i].to_data()
 
 	make_caption(fields, tr("Kind"))
 	var kinds: OptionButton = make_option(fields)
@@ -73,8 +79,8 @@ func item_editor(i: int) -> void:
 	kinds.item_selected.connect(func(k: int) -> void:
 		# The first device of the new kind not on a station or door yet: one
 		# already on one would show twice.
+		var changed: Dictionary = data.call()
 		var listed: Dictionary[String, bool] = document.control_panel_devices()
-		var changed: Dictionary = data.duplicate()
 		changed["kind"] = ControlBoxItem.KINDS[k]
 		changed["designation"] = ""
 		for d: String in document.control_devices(k):
@@ -100,21 +106,26 @@ func item_editor(i: int) -> void:
 			device.add_item(tr("%s (not in the schematic)") % d)
 	device.select(choices.find(item.designation))
 	device.item_selected.connect(func(k: int) -> void:
-		var changed: Dictionary = data.duplicate()
+		var changed: Dictionary = data.call()
 		changed["designation"] = choices[k]
 		apply.call(changed))
 
 	make_caption(fields, tr("Text on the plate"))
 	fields.add_child(make_text_field(item.label, item.designation, func(text: String) -> void:
-		var changed: Dictionary = data.duplicate()
+		# The field also commits when it goes with the tools after another
+		# change: then the item may have moved, or be gone.
+		var at: int = document.control_panels()[b].items.find(item) if b < document.control_panels().size() else -1
+		if at < 0:
+			return
+		var changed: Dictionary = item.to_data()
 		changed["label"] = text
-		apply.call(changed)))
+		edit.call(func(doc: SchematicDocument) -> void: doc.set_control_item(b, at, changed))))
 
 	make_caption(fields, tr("Colour"))
 	# Lamps and lit caps are never black.
 	var palette: PackedStringArray = ControlBoxItem.LAMP_COLORS if item.kind == ControlBoxItem.Kind.LAMP or not item.lamp.is_empty() else ControlBoxItem.COLORS
 	fields.add_child(make_color_choice(palette, item.color, func(color: String) -> void:
-		var changed: Dictionary = data.duplicate()
+		var changed: Dictionary = data.call()
 		changed["color"] = color
 		apply.call(changed)))
 
@@ -129,7 +140,7 @@ func item_editor(i: int) -> void:
 			lamp.add_item(tr("None") if d.is_empty() else d)
 		lamp.select(lamps.find(item.lamp))
 		lamp.item_selected.connect(func(k: int) -> void:
-			var changed: Dictionary = data.duplicate()
+			var changed: Dictionary = data.call()
 			changed["lamp"] = lamps[k]
 			apply.call(changed))
 
@@ -141,6 +152,7 @@ func item_editor(i: int) -> void:
 		var move: Button = make_tool("arrow_left" if step < 0 else "arrow_right", tr("Move it one place back") if step < 0 else tr("Move it one place on"))
 		move.disabled = i + step < 0 or i + step >= count
 		move.pressed.connect(func() -> void:
+			commit_pending()
 			select.call(i + step)
 			edit.call(func(doc: SchematicDocument) -> void: doc.move_control_item(b, i, step)))
 		actions.add_child(move)
@@ -149,9 +161,20 @@ func item_editor(i: int) -> void:
 	actions.add_child(spacer)
 	var remove: Button = make_button(tr("Remove"), "delete")
 	remove.pressed.connect(func() -> void:
+		commit_pending()
 		select.call(-1)
 		edit.call(func(doc: SchematicDocument) -> void: doc.remove_control_item(b, i)))
 	actions.add_child(remove)
+
+
+## Commits a text typed into a field of the tools and not yet entered, before
+## another change of the panel.
+func commit_pending() -> void:
+	if list == null or not list.is_inside_tree():
+		return
+	var focused: Control = list.get_viewport().gui_get_focus_owner()
+	if focused != null and list.is_ancestor_of(focused):
+		focused.release_focus()
 
 
 func _has_unlisted_devices() -> bool:

@@ -53,7 +53,16 @@ const SIDE_TOP: int = 1
 const SIDE_RIGHT: int = 2
 const SIDE_BOTTOM: int = 3
 
-var document: SchematicDocument
+var document: SchematicDocument:
+	set(value):
+		if value != document:
+			# Another document (undo, redo, a new or opened file): a press,
+			# drag or resize under way was of places it may not have.
+			_press = {}
+			_dragging = false
+			_drag = Vector2.ZERO
+			_resizing = -1
+		document = value
 ## Things are dragged only while editing.
 var editing: bool = false
 var zoom: float = 1.0
@@ -735,9 +744,12 @@ func _moved(key: String, at: Vector2) -> Vector2:
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), SchematicTheme.BACKGROUND)
 	if document == null:
+		_place_faces([])
 		return
 	var list: Array[Dictionary] = items()
 	if list.is_empty():
+		# The faces of stations of another document go too.
+		_place_faces([])
 		var font: Font = get_theme_font("font", "Label")
 		var hint: String = tr("Add a switchboard or a control station with the buttons above.") if editing else tr("The workspace is empty. Add switchboards and control stations in Edit mode.")
 		draw_string(font, Vector2(0.0, size.y * 0.5), hint, HORIZONTAL_ALIGNMENT_CENTER, size.x, get_theme_font_size("font_size", "Label"), SchematicTheme.PATH_TEXT)
