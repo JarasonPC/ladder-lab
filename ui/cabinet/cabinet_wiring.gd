@@ -132,17 +132,23 @@ func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], condu
 			cables[cable] = []
 		cables[cable].append(point)
 	# One core for each net in a cable, as the workspace counts them (see
-	# [WorkspaceCables]): to the first of its terminals; the others on that
-	# net are joined to it inside the switchboard.
+	# [WorkspaceCables]): to the first of its terminals that sits on the lead
+	# of a part outside (else the first of them, e.g. one on the lead of a
+	# breaker inside); the others on that net are joined to it inside the
+	# switchboard.
 	for cable: String in cables:
 		var points: Array = cables[cable]
 		points.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return p["at"].x < q["at"].x)
-		var seen: Dictionary[int, bool] = {}
+		var first: Dictionary[int, int] = {}
+		for i: int in points.size():
+			var n: int = net[points[i]["key"]]
+			if not first.has(n) or (points[i].get("on_lead", false) and not points[first[n]].get("on_lead", false)):
+				first[n] = i
+		var chosen: Array = first.values()
+		chosen.sort()
 		var cores: Array = []
-		for point: Dictionary in points:
-			if not seen.has(net[point["key"]]):
-				seen[net[point["key"]]] = true
-				cores.append(point)
+		for i: int in chosen:
+			cores.append(points[i])
 		cables[cable] = cores
 	var middle: Callable = func(points: Array) -> float:
 		var sum: float = 0.0
@@ -399,7 +405,8 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 							# The field side: the wire out to the part outside.
 							var part: String = CabinetDevices.field_device(_circuit, key, net)
 							if not part.is_empty():
-								_field.append({"key": key, "at": below, "duct": rail + 1, "up": false, "field": part, "kind": terminals[i]["kind"]})
+								# "on_lead": the terminal sits on the lead of that part (else the part was found on its net).
+								_field.append({"key": key, "at": below, "duct": rail + 1, "up": false, "field": part, "kind": terminals[i]["kind"], "on_lead": owner != null and owner.designation == part})
 			CabinetLayout.MISSING_DEVICE:
 				pass
 			_:
