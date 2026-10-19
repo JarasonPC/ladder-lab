@@ -17,6 +17,11 @@ const MIN_AMPERES: float = 0.1
 const MAX_AMPERES: float = 10000.0
 const MIN_START_RATIO: float = 2.0
 const MAX_START_RATIO: float = 12.0
+## Limits of the times t1 and t2 of time relays (seconds).
+const SHORTEST_DELAY: float = 0.1
+const LONGEST_DELAY: float = 3600.0
+## Least span of a temperature sensor's range (°C).
+const RANGE_STEP: float = 1.0
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -97,30 +102,31 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 ## Never pushes errors, so it can check untrusted files.
 static func from_dict(d: Dictionary) -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(str(d.get("title", "")))
-	doc.horizontal = bool(d.get("horizontal", false))
-	doc.realistic_timing = d.get("switching", "realistic") != "ideal"
+	doc.horizontal = _bool(d, "horizontal", false)
+	doc.realistic_timing = str(d.get("switching", "realistic")) != "ideal"
 	var components: Variant = d.get("components", [])
 	var wires: Variant = d.get("wires", [])
-	# Files before version 11 have a single page.
-	var raw_pages: Variant = d.get("pages", [""])
-	if not (components is Array and wires is Array and raw_pages is Array) or (raw_pages as Array).is_empty():
+	if not (components is Array and wires is Array):
 		return null
+	# Files before version 11 have a single page; damaged titles are left empty.
+	var raw_pages: Variant = d.get("pages", [""])
 	var titles: PackedStringArray = PackedStringArray()
-	for title: Variant in raw_pages:
-		if not (title is String):
-			return null
-		titles.append((title as String).strip_edges())
+	if raw_pages is Array:
+		for title: Variant in raw_pages:
+			titles.append((title as String).strip_edges() if title is String else "")
+	if titles.is_empty():
+		titles.append("")
 	doc.pages = titles
 	for cd: Variant in components:
 		if not (cd is Dictionary):
 			return null
 		var c: CircuitComponent = component_from_dict(cd)
 		var cell: Vector2i = _cell(cd.get("cell", null))
-		var on_page: Variant = cd.get("page", 0)
-		if c == null or cell == INVALID_CELL or not _fits(doc.circuit, c) or not (on_page is int or on_page is float) or int(on_page) < 0 or int(on_page) >= titles.size():
+		var on_page: int = _int(cd, "page", 0)
+		if c == null or cell == INVALID_CELL or not _fits(doc.circuit, c) or on_page < 0 or on_page >= titles.size():
 			return null
-		doc.page = int(on_page)
-		doc.add(c, cell, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
+		doc.page = on_page
+		doc.add(c, cell, _int(cd, "rotation", 0), _bool(cd, "mirrored", false))
 		doc.get_placement(c.id).labels_from_data(cd.get("labels", {}))
 		doc.get_placement(c.id).strips_from_data(cd.get("strips", {}))
 	for wd: Variant in wires:
@@ -141,15 +147,15 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			corners.append(cell)
 		doc.connect_terminals(a, b, corners)
 		var route: WireRoute = doc.get_route(doc.get_wire_count() - 1)
-		route.number = str(wd.get("number", ""))
+		var number: Variant = wd.get("number", "")
+		route.number = str(number).strip_edges() if (number is String or number is int or number is float) else ""
 		var raw_offsets: Variant = wd.get("number_offsets", [])
 		if raw_offsets is Array and (raw_offsets as Array).size() == 2:
 			for end: int in 2:
 				var o: Variant = raw_offsets[end]
 				if o is Array and (o as Array).size() == 2 and (o[0] is float or o[0] is int) and (o[1] is float or o[1] is int):
 					route.number_offsets[end] = Vector2(float(o[0]), float(o[1]))
-	var shown: Variant = d.get("page", 0)
-	doc.page = int(shown) if (shown is int or shown is float) else 0
+	doc.page = _int(d, "page", 0)
 	# Control boxes are only design data around the circuit: malformed ones are left out.
 	var raw_boxes: Variant = d.get("control_boxes", [])
 	if raw_boxes is Array:
@@ -409,8 +415,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 	var kind: String = str(d.get("type", ""))
 	if designation.is_empty() or designation.contains(":") or not TYPES.has(kind):
 		return null
-	var contact: SwitchingElement.ContactType = NC if d.get("contact", "NO") == "NC" else NO
-	var sequence: int = clampi(int(d.get("sequence", 1)), 0, 9)
+	var contact: SwitchingElement.ContactType = NC if str(d.get("contact", "NO")) == "NC" else NO
+	var sequence: int = clampi(_int(d, "sequence", 1), 0, 9)
 	match kind:
 		"supply":
 			var conductor: int = maxi(CONDUCTORS.find(str(d.get("conductor", "L"))), 0)
@@ -434,18 +440,18 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"limit_switch":
 			return LimitSwitch.new(designation, contact, sequence)
 		"contact":
-			return Contact.new(designation, contact, sequence, bool(d.get("delayed", false)))
+			return Contact.new(designation, contact, sequence, _bool(d, "delayed", false))
 		"changeover":
-			return ChangeoverContact.new(designation, sequence, bool(d.get("delayed", false)))
+			return ChangeoverContact.new(designation, sequence, _bool(d, "delayed", false))
 		"fuse":
 			if _poles(d, 1, 1) > 1:
 				var multi_fuse: ThreePoleFuse = ThreePoleFuse.new(designation)
 				multi_fuse.poles = _poles(d, 1, 1)
-				multi_fuse.holder = bool(d.get("holder", false))
+				multi_fuse.holder = _bool(d, "holder", false)
 				multi_fuse.rated_current = _amperes(d, "rated_current", ThreePoleFuse.DEFAULT_RATED_CURRENT)
 				return multi_fuse
 			var fuse: Fuse = Fuse.new(designation)
-			fuse.holder = bool(d.get("holder", false))
+			fuse.holder = _bool(d, "holder", false)
 			fuse.rated_current = _amperes(d, "rated_current", Fuse.DEFAULT_RATED_CURRENT)
 			return fuse
 		"breaker":
@@ -461,7 +467,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			breaker.characteristic = characteristic as CircuitBreaker.Characteristic
 			return breaker
 		"overload_relay":
-			var relay: OverloadRelay = OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0), 3 if int(d.get("poles", 0)) == 3 else 0)
+			var relay: OverloadRelay = OverloadRelay.new(designation, _seconds_or(d, "trip_delay", OverloadRelay.DEFAULT_TRIP_DELAY, 3600.0), 3 if _int(d, "poles", 0) == 3 else 0)
 			relay.setting = _amperes(d, "setting", OverloadRelay.DEFAULT_SETTING)
 			return relay
 		"main_contacts":
@@ -471,7 +477,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"fuse3":
 			# Files before version 9.
 			var fuse3: ThreePoleFuse = ThreePoleFuse.new(designation)
-			fuse3.holder = bool(d.get("holder", false))
+			fuse3.holder = _bool(d, "holder", false)
 			return fuse3
 		"breaker3":
 			# Files before version 9.
@@ -480,8 +486,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"motor3":
 			var motor_kind: int = maxi(MOTOR_KINDS.find(str(d.get("motor_kind", "standard"))), 0)
 			var motor3: ThreePhaseMotor = ThreePhaseMotor.new(designation, motor_kind as ThreePhaseMotor.Kind)
-			motor3.terminal_box = bool(d.get("terminal_box", false))
-			motor3.delta_bridges = d.get("connection", "star") == "delta"
+			motor3.terminal_box = _bool(d, "terminal_box", false)
+			motor3.delta_bridges = str(d.get("connection", "star")) == "delta"
 			motor3.coast_time = _seconds_or(d, "coast_time", ThreePhaseMotor.DEFAULT_COAST_TIME, 3600.0)
 			motor3.brake_time = _seconds_or(d, "brake_time", ThreePhaseMotor.DEFAULT_BRAKE_TIME, 3600.0)
 			motor3.rated_current = _amperes(d, "rated_current", ThreePhaseMotor.DEFAULT_RATED_CURRENT)
@@ -490,18 +496,20 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			motor3.rated_power = clampf(_number_or(d, "rated_power", ThreePhaseMotor.DEFAULT_RATED_POWER), 0.01, 10000.0)
 			motor3.rated_speed = clampf(_number_or(d, "rated_speed", ThreePhaseMotor.DEFAULT_RATED_SPEED), 100.0, 2990.0)
 			motor3.power_factor = clampf(_number_or(d, "power_factor", MotorModel.DEFAULT_POWER_FACTOR), 0.3, 0.97)
-			motor3.show_plate = bool(d.get("show_plate", false))
+			motor3.show_plate = _bool(d, "show_plate", false)
 			return motor3
 		"overload_contact":
 			return OverloadContact.new(designation, contact)
 		"coil":
-			var coil_kind: Coil.Kind = Coil.Kind.RELAY if d.get("kind", "contactor") == "relay" else Coil.Kind.CONTACTOR
+			var coil_kind: Coil.Kind = Coil.Kind.RELAY if str(d.get("kind", "contactor")) == "relay" else Coil.Kind.CONTACTOR
 			return Coil.new(designation, coil_kind, _seconds(d, "pick_up"), _seconds(d, "drop_out"))
 		"timer":
 			var mode: int = maxi(TimerRelay.MODE_NAMES.find(str(d.get("mode", "on_delay"))), 0)
-			var timer: TimerRelay = TimerRelay.new(designation, mode as TimerRelay.Mode, maxf(float(d.get("delay", 1.0)), 0.0), _seconds(d, "pick_up"), _seconds(d, "drop_out"))
-			timer.control_input = bool(d.get("control_input", false))
-			timer.delay2 = _seconds_or(d, "delay2", 1.0, 360000.0)
+			# Times as the properties allow: zero times would keep the
+			# simulation switching at one instant.
+			var timer: TimerRelay = TimerRelay.new(designation, mode as TimerRelay.Mode, _delay(d, "delay"), _seconds(d, "pick_up"), _seconds(d, "drop_out"))
+			timer.control_input = _bool(d, "control_input", false)
+			timer.delay2 = _delay(d, "delay2")
 			return timer
 		"rectifier":
 			return Rectifier.new(designation)
@@ -519,16 +527,20 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			drive.max_frequency = clampf(_number_or(d, "max_frequency", Vfd.DEFAULT_MAX_FREQUENCY), 1.0, Vfd.HIGHEST_FREQUENCY)
 			drive.ramp_up = clampf(_number_or(d, "ramp_up", Vfd.DEFAULT_RAMP), 0.0, Vfd.LONGEST_RAMP)
 			drive.ramp_down = clampf(_number_or(d, "ramp_down", Vfd.DEFAULT_RAMP), 0.0, Vfd.LONGEST_RAMP)
-			drive.fixed_frequency = clampf(_number_or(d, "fixed_frequency", Vfd.DEFAULT_FIXED), 0.0, drive.max_frequency)
-			drive.keypad_frequency = clampf(_number_or(d, "keypad_frequency", Vfd.DEFAULT_MAX_FREQUENCY), 0.0, drive.max_frequency)
+			# They may be above the maximum frequency: the drive holds them to
+			# it while running, so lowering the maximum for a while loses nothing.
+			drive.fixed_frequency = clampf(_number_or(d, "fixed_frequency", Vfd.DEFAULT_FIXED), 0.0, Vfd.HIGHEST_FREQUENCY)
+			drive.keypad_frequency = clampf(_number_or(d, "keypad_frequency", Vfd.DEFAULT_MAX_FREQUENCY), 0.0, Vfd.HIGHEST_FREQUENCY)
 			return drive
 		"temp_sensor":
 			var sensor: TemperatureSensor = TemperatureSensor.new(designation)
 			sensor.range_min = clampf(_number_or(d, "range_min", TemperatureSensor.DEFAULT_MIN), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
 			sensor.range_max = clampf(_number_or(d, "range_max", TemperatureSensor.DEFAULT_MAX), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
 			if sensor.range_max <= sensor.range_min:
-				sensor.range_min = TemperatureSensor.DEFAULT_MIN
-				sensor.range_max = TemperatureSensor.DEFAULT_MAX
+				# A bound set past the other keeps the lower one: the upper
+				# one goes just above it (the lower one below the top).
+				sensor.range_max = minf(sensor.range_min + RANGE_STEP, TemperatureSensor.HIGHEST)
+				sensor.range_min = minf(sensor.range_min, sensor.range_max - RANGE_STEP)
 			sensor.temperature = clampf(_number_or(d, "temperature", TemperatureSensor.DEFAULT_TEMPERATURE), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
 			return sensor
 		"lamp":
@@ -552,6 +564,29 @@ static func _seconds(d: Dictionary, key: String) -> float:
 static func _amperes(d: Dictionary, key: String, fallback: float) -> float:
 	var value: float = _number_or(d, key, fallback)
 	return value if value >= MIN_AMPERES and value <= MAX_AMPERES else fallback
+
+
+## A time t1 or t2 of a time relay: within [constant SHORTEST_DELAY] -
+## [constant LONGEST_DELAY], 1 s if missing or invalid.
+static func _delay(d: Dictionary, key: String) -> float:
+	return clampf(_number_or(d, key, 1.0), SHORTEST_DELAY, LONGEST_DELAY)
+
+
+## A true / false value (a number counts as true unless 0), [param fallback]
+## if missing or of another type.
+static func _bool(d: Dictionary, key: String, fallback: bool) -> bool:
+	var value: Variant = d.get(key, null)
+	if value is bool:
+		return value
+	if value is int or value is float:
+		return float(value) != 0.0
+	return fallback
+
+
+## A whole number, [param fallback] if missing or not a number.
+static func _int(d: Dictionary, key: String, fallback: int) -> int:
+	var value: Variant = d.get(key, null)
+	return int(value) if value is int or value is float else fallback
 
 
 static func _number_or(d: Dictionary, key: String, fallback: float) -> float:

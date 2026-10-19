@@ -39,13 +39,7 @@ static func write(doc: SchematicDocument, file_path: String, path: String = own_
 	if made != OK:
 		return made
 	var data: Dictionary = {"format": FORMAT, "file": file_path, "project": ProjectFile.to_dict(doc)}
-	var temporary: String = path + ".tmp"
-	var file: FileAccess = FileAccess.open(temporary, FileAccess.WRITE)
-	if file == null:
-		return FileAccess.get_open_error()
-	file.store_string(JSON.stringify(data))
-	file.close()
-	return DirAccess.rename_absolute(temporary, path)
+	return ProjectFile.write_atomically(path, JSON.stringify(data))
 
 
 ## Removes the recovery copy [param path], if there is one.
@@ -107,7 +101,7 @@ static func read(path: String) -> Dictionary:
 	if json.parse(FileAccess.get_file_as_string(path)) != OK or not (json.data is Dictionary):
 		return {"error": "%s is damaged and cannot be opened."}
 	var data: Dictionary = json.data
-	if data.get("format", "") != FORMAT or not (data.get("project", null) is Dictionary):
+	if str(data.get("format", "")) != FORMAT or not (data.get("project", null) is Dictionary):
 		return {"error": "%s is damaged and cannot be opened."}
 	var result: Dictionary = ProjectFile.from_dict(data["project"])
 	if result.has("document"):

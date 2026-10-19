@@ -52,7 +52,7 @@ func test_sensor_output() -> void:
 	assert_eq(copy.temperature, 50.0)
 	assert_eq(copy.rating, "24dc")
 	var bad: TemperatureSensor = DocumentSerializer.component_from_dict({"type": "temp_sensor", "designation": "BT2", "range_min": 80, "range_max": 10}) as TemperatureSensor
-	assert_eq(bad.range_max, TemperatureSensor.DEFAULT_MAX, "an empty range falls back")
+	assert_eq([bad.range_min, bad.range_max], [80.0, 81.0], "an empty range keeps its lower bound")
 
 
 func test_operands() -> void:

@@ -551,6 +551,8 @@ func paste() -> void:
 		return
 	_record()
 	var ids: PackedStringArray = document().insert(_clipboard, _mouse_cell - _clipboard_origin)
+	# Junctions copied without the wires they joined go.
+	document().cleanup_junctions()
 	_clear_selection()
 	for id: String in ids:
 		selected_components[id] = true
@@ -971,7 +973,8 @@ func _place_at(cell: Vector2i) -> void:
 	if ["contact", "changeover", "push_button", "latching_switch", "limit_switch"].has(data["type"]):
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
 	if data["type"] == "terminal" and str(data.get("label", "")).is_empty():
-		data["label"] = str(data["designation"]).trim_prefix("X")
+		# The next free number, also past those of strip terminals on leads.
+		data["label"] = doc.next_strip_label()
 	if data["type"] == "connector" and str(data.get("label", "")).is_empty():
 		data["label"] = doc.next_connector_label()
 	_follow_device(data)
@@ -1240,7 +1243,8 @@ func _finish_wire(key: String, wire_index: int) -> void:
 		var cell: Vector2i = doc.wire_cell_near(wire_index, _mouse_point)
 		preview = _route_to(cell)
 		end_key = doc.split_wire(wire_index, cell)
-	if end_key.is_empty() or end_key == _wire_start:
+	if end_key.is_empty() or end_key == _wire_start or doc.wire_between(_wire_start, end_key) >= 0:
+		# Nothing to join, or the two terminals have a wire already.
 		history.discard_last()
 		_cancel_tool()
 		return
