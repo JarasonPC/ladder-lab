@@ -405,3 +405,21 @@ func test_ratings_saved() -> void:
 	var older: SchematicDocument = DocumentSerializer.from_dict(old)
 	assert_eq(_motor(older).rated_current, ThreePhaseMotor.DEFAULT_RATED_CURRENT, "files before version 16 get the defaults")
 	assert_eq(older.circuit.get_overload_relay("F1").setting, OverloadRelay.DEFAULT_SETTING)
+
+
+func test_motor_of_small_rated_slip_runs_up_in_star() -> void:
+	# 3 kW, 7 A, 2970 min⁻¹ (1 % slip): without deep bars it started with
+	# 0.45 times its rated torque, in star a third of that, below the load.
+	var doc: SchematicDocument = ExampleCircuits.star_delta_3()
+	var m: ThreePhaseMotor = _motor(doc)
+	m.rated_power = 3.0
+	m.rated_current = 7.0
+	m.rated_speed = 2970.0
+	m.run_up_time = 1.0
+	assert_almost_eq(m.model().rotor_power(1.0) / m.model().rotor_power(m.rated_slip()), MotorModel.MIN_START_TORQUE, 0.01, "starting torque direct on line")
+	var sim: Simulator = _sim(doc, true)
+	(doc.circuit.get_component("SB2") as PushButton).press()
+	_run(sim, 10.0, 0.01)
+	assert_eq(m.state, ST.STAR)
+	assert_gt(m.rotor_speed, 0.9, "runs up in star")
+	assert_lt(m.max_line_current(), m.rated_current, "and draws less than in delta")
