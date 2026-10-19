@@ -400,9 +400,7 @@ func _paint_place(canvas: CanvasItem, index: int) -> void:
 func _paint_top(canvas: CanvasItem) -> void:
 	var p: CabinetPainter = _painter(canvas)
 	for wire: Dictionary in _wiring.wires:
-		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"])
-	for mouth: Dictionary in _wiring.mouths:
-		CabinetParts.clamp_mouth(p, mouth["at"], mouth["up"], mouth["width"])
+		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"], wire["pins"])
 	# The marker sleeves over every wire, so a wire running past never hides one.
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], wire["width"])

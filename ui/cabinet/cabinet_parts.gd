@@ -1905,13 +1905,20 @@ const WIRE_COLORS: Array[Color] = [Color("d6262b"), Color("5cb8f0"), Color("a3a8
 const WIRE_PE_STRIPE := Color("f2d630")
 ## Length of the bare ferrule at each end of a wire.
 const FERRULE: float = 1.8
+## Insulating collar of a ferrule: its length and its colour on thin
+## (control) and thick (power) wires.
+const COLLAR: float = 2.8
+const COLLAR_THIN := Color("f2c81e")
+const COLLAR_THICK := Color("2f6fd4")
 
 
 ## A wire of [param conductor] ([enum CabinetDevices.Conductor]) along
 ## [param points] (mm), [param width] mm thick: bends rounded, shaded like
-## round insulation, a ferrule at both ends ([param bare_start]: none at
-## the first, a core coming out of a cable).
-static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, width: float, bare_start: bool = false) -> void:
+## round insulation, an insulated ferrule at both ends ([param bare_start]:
+## none at the first, a core coming out of a cable): [param pins] mm of its
+## metal showing at the first and the last end (0 where it is all inside
+## the terminal), then its collar.
+static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, width: float, bare_start: bool = false, pins: Vector2 = Vector2(FERRULE, FERRULE)) -> void:
 	if points.size() < 2:
 		return
 	var color: Color = WIRE_COLORS[conductor]
@@ -1932,9 +1939,20 @@ static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, 
 	for end: int in range(1 if bare_start else 0, 2):
 		var tip: Vector2 = points[0] if end == 0 else points[points.size() - 1]
 		var next: Vector2 = points[1] if end == 0 else points[points.size() - 2]
-		var back: Vector2 = tip + (next - tip).normalized() * minf(FERRULE, tip.distance_to(next))
-		p.line(tip, back, METAL_DARK, width + 0.2)
-		p.line(tip, back, METAL, maxf(width - 0.5, 0.3))
+		var along: Vector2 = (next - tip).normalized()
+		var pin: float = minf(pins.x if end == 0 else pins.y, tip.distance_to(next))
+		if pin > 0.0:
+			p.line(tip, tip + along * pin, METAL_DARK, width + 0.2)
+			p.line(tip, tip + along * pin, METAL, maxf(width - 0.5, 0.3))
+		# The collar, widening away from the terminal.
+		var a: Vector2 = tip + along * pin
+		var b: Vector2 = tip + along * minf(pin + COLLAR, tip.distance_to(next))
+		var across: Vector2 = along.orthogonal()
+		var collar: Color = COLLAR_THICK if width >= 2.0 else COLLAR_THIN
+		var near: float = (width + 0.5) * 0.5
+		var far: float = (width + 1.2) * 0.5
+		p.polygon(PackedVector2Array([a - across * near, a + across * near, b + across * far, b - across * far]), collar, collar.darkened(0.5), 0.15)
+		p.line(a.lerp(b, 0.35) - across * near * 0.6, b - across * far * 0.6, collar.lightened(0.4), 0.25)
 
 
 ## Yellow of the wire marker sleeves.
@@ -1950,6 +1968,36 @@ const MARKER_MIN: float = 5.5
 const MARKER_FROM: float = 5.4
 ## How much thicker a sleeve is than its wire.
 const MARKER_GROW: float = 0.9
+
+
+## Where a wire goes into terminal [param name] of a device of [param kind]
+## described by [param desc] (see [method terminal_points]): the height (mm
+## from the device's top) of the face of the terminal's tier the wire comes
+## through, from above when [param up]: the top or bottom face for the outer
+## tiers of a contactor and an overload relay and for a breaker, the step
+## where the inner tier begins for the inner ones. NAN where the wire goes
+## in at the edge of the screw.
+static func wire_entry(kind: int, desc: Dictionary, name: String, up: bool) -> float:
+	match kind:
+		CabinetDevices.Kind.BREAKER:
+			return 0.0 if up else MODULE_H
+		CabinetDevices.Kind.CONTACTOR:
+			var aux: Array = desc.get("aux", [["13", "NO", "14"], ["21", "NC", "22"]])
+			if name.is_valid_int() and int(name) <= 2 * int(desc.get("poles", 3)) and int(name) >= 1:
+				return 0.0 if up else CONTACTOR.y
+			if name in [aux[0][0], aux[1][0], "A1"] and up:
+				return 5.1
+			if name in [aux[0][2], aux[1][2], "A2"] and not up:
+				return CONTACTOR.y - 11.5
+		CabinetDevices.Kind.OVERLOAD:
+			var base: float = OVERLOAD_BASE if desc.get("standalone", false) else 0.0
+			if name in ["1", "3", "5"] and up:
+				return 0.0
+			if name in ["2", "4", "6"] and not up:
+				return base + OVERLOAD.y
+			if OVERLOAD_AUX.has(name) and not up:
+				return base + OVERLOAD.y - 9.6
+	return NAN
 
 
 ## Length of the marker sleeve saying [param mark].
@@ -1988,24 +2036,6 @@ static func wire_markers(p: CabinetPainter, spans: Array[PackedVector2Array], ma
 		p.canvas.draw_set_transform((a + b) * 0.5, 0.0 if lying else -PI * 0.5)
 		p.canvas.draw_string(font, Vector2(-text_w * 0.5, shift).round(), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("111111"))
 		p.canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
-
-
-## Depth of a terminal's clamp opening seen from the front: the ferrule
-## goes all the way in.
-const MOUTH: float = 2.0
-
-
-## The clamp opening of a device terminal the wires go into, at [param at]
-## (the edge of the screw on the side the wires come from; [param up]: from
-## above), [param width] mm across the wires in it: a dark opening over the
-## wire ends with the clamp's edge inside.
-static func clamp_mouth(p: CabinetPainter, at: Vector2, up: bool, width: float) -> void:
-	var w: float = width + 1.2
-	var r: Rect2 = Rect2(at.x - w * 0.5, at.y - MOUTH if up else at.y, w, MOUTH)
-	p.rect(r.grow(0.25), Color(1, 1, 1, 0.18), 0.6)
-	p.rect(r, HOLE, 0.5)
-	var edge: float = r.end.y - 0.45 if up else r.position.y + 0.15
-	p.rect(Rect2(r.position.x + 0.5, edge, w - 1.0, 0.3), METAL_DARK, 0.1)
 
 
 ## [param points] with every bend rounded off to [param radius] mm (less
