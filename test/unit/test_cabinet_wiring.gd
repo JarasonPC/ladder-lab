@@ -614,7 +614,7 @@ func test_pe_goes_through_a_distribution_block_for_more_than_two_loads() -> void
 		elif place["kind"] == CabinetLayout.STRIP and place["designation"] == "X1":
 			strip_x1 = place
 	assert_false(block.is_empty(), "three loads: a PE distribution block")
-	assert_eq(block["desc"]["connections"], 6, "the smallest size taking the loads and the incoming PE")
+	assert_eq(block["desc"]["connections"], CabinetParts.PE_SIZES[0], "the smallest size taking the loads and the incoming PE")
 	assert_eq(block["index"], -1, "added by the switchboard, not an item of the rail")
 	assert_eq(block["rail"], strip_x1["rail"], "on the rail of the strip the incoming PE lands on")
 	assert_true(block["origin"].x > strip_x1["origin"].x, "right after it")
