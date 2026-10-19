@@ -133,6 +133,9 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 		elif cores.has(n):
 			points.push_front(cores[n])
 		for pair: Vector2i in wiring._tree(points, cores.has(n) and entry.is_empty()):
+			if _bridged(points[pair.x], points[pair.y]):
+				# A plug-in bridge joins them, no wire.
+				continue
 			edges.append({"net": n, "conductor": c, "a": points[pair.x], "b": points[pair.y], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
 	var cables: Array[Dictionary] = WorkspaceCables.cables(doc)
@@ -431,21 +434,26 @@ func _glands() -> void:
 ## A terminal of a strip is one terminal for each net it joins.
 func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for place: Dictionary in layout.places:
+	for p: int in layout.places.size():
+		var place: Dictionary = layout.places[p]
 		var rail: int = place["rail"]
 		var centre: float = layout.rails[rail].get_center().y
 		var origin: Vector2 = place["origin"]
 		match place["kind"]:
 			CabinetLayout.STRIP:
 				var terminals: Array = place["desc"]["terminals"]
+				var bridges: Array = place["desc"].get("bridges", [])
+				var run: int = 0
 				for i: int in terminals.size():
+					if i == 0 or not (i - 1 < bridges.size() and bridges[i - 1]):
+						run = i
 					var at: Vector2 = origin + CabinetParts.strip_entry(i, k)
 					var below: Vector2 = origin + CabinetParts.strip_entry(i, k, true)
 					var nets: Dictionary[int, bool] = {}
 					for key: String in terminals[i]["keys"]:
 						if net.has(key) and not nets.has(net[key]):
 							nets[net[key]] = true
-							result.append({"key": key, "at": at, "duct": rail, "up": true})
+							result.append({"key": key, "at": at, "duct": rail, "up": true, "bridge": p * 1000 + run})
 							var owner: CircuitComponent = _circuit.get_terminal_owner(key)
 							if owner is PowerSupply:
 								# The supply comes in on the field side.
@@ -580,8 +588,35 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 	return pairs
 
 
-## Length of the route between two terminals (near enough to compare).
+## Which neighbouring terminals of a strip ([param terminals] as in
+## [method CabinetDevices.strips]) a plug-in bridge joins: element i is true
+## when terminal i and the next are on the same net of [param net].
+static func strip_bridges(terminals: Array, net: Dictionary[String, int]) -> Array[bool]:
+	var result: Array[bool] = []
+	var nets: Array[int] = []
+	for t: Dictionary in terminals:
+		var n: int = -1
+		for key: String in t["keys"]:
+			if net.has(key):
+				n = net[key]
+				break
+		nets.append(n)
+	for i: int in maxi(terminals.size() - 1, 0):
+		result.append(nets[i] >= 0 and nets[i] == nets[i + 1])
+	return result
+
+
+## Whether points [param a] and [param b] (of [method _terminals]) are tops
+## of strip terminals one plug-in bridge joins.
+static func _bridged(a: Dictionary, b: Dictionary) -> bool:
+	return a.get("bridge", -1) >= 0 and a.get("bridge", -1) == b.get("bridge", -1)
+
+
+## Length of the route between two terminals (near enough to compare); none
+## between terminals a plug-in bridge joins.
 func _length(a: Dictionary, b: Dictionary) -> float:
+	if _bridged(a, b):
+		return 0.0
 	var da: Rect2 = _across[a["duct"]]
 	var db: Rect2 = _across[b["duct"]]
 	var ax: float = a["at"].x

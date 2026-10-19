@@ -54,7 +54,8 @@ var ducts: Array[Dictionary] = []
 var rails: Array[Rect2] = []
 ## Places on the rails: {"rail", "index", "kind" (CabinetDevices.Kind, STRIP or
 ## MISSING_DEVICE), "designation", "desc" (see [method CabinetDevices.describe];
-## for a strip {"terminals": [...]}), "origin" (top-left of the drawing),
+## for a strip {"terminals": [...], "bridges" (see
+## [method CabinetWiring.strip_bridges])}), "origin" (top-left of the drawing),
 ## "size", "rect" (answers clicks), "label_at", "label_w" (no label when 0),
 ## and for a contactor with its overload relay "under_origin",
 ## "under_rect", "under_label_at", "under_designation", "channel" (room for
@@ -105,6 +106,7 @@ static func duct_size(wires: int) -> float:
 static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[float]) -> CabinetLayout:
 	var layout: CabinetLayout = CabinetLayout.new()
 	var strips: Dictionary = CabinetDevices.strips(doc)
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
 	var board_rails: Array[CabinetRail] = doc.switchboards[board].rails if board >= 0 and board < doc.switchboards.size() else ([] as Array[CabinetRail])
 	# Each rail: its places relative to the rail's centre line and its extent.
 	var rows: Array[Dictionary] = []
@@ -123,7 +125,7 @@ static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[fl
 		for i: int in rail.items.size():
 			if rail.items[i].kind == CabinetItem.Kind.DEVICE and fitted.has(rail.items[i].designation):
 				continue
-			var place: Dictionary = _place(doc, strips, rail.items[i], k)
+			var place: Dictionary = _place(doc, strips, rail.items[i], k, net)
 			place["rail"] = r
 			place["index"] = i
 			var slot: float = maxf(place["size"].x + 2.0 * place.get("channel", 0.0), place["label_w"])
@@ -201,12 +203,12 @@ static func describe_again(doc: SchematicDocument, place: Dictionary) -> void:
 
 
 ## Place of [param item], relative to the rail's centre line at x = 0.
-static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem, k: float) -> Dictionary:
+static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem, k: float, net: Dictionary[String, int]) -> Dictionary:
 	var place: Dictionary = {"designation": item.designation, "label_w": 0.0}
 	if item.kind == CabinetItem.Kind.STRIP:
 		var terminals: Array = strips.get(item.designation, [])
 		place["kind"] = STRIP if not terminals.is_empty() else MISSING_DEVICE
-		place["desc"] = {"terminals": terminals}
+		place["desc"] = {"terminals": terminals, "bridges": CabinetWiring.strip_bridges(terminals, net)}
 		if not terminals.is_empty():
 			_box(place, Vector2(CabinetParts.terminal_strip_width(terminals.size(), k), CabinetParts.TERMINAL.y))
 			return place

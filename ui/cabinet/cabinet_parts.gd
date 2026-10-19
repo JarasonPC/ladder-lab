@@ -1591,9 +1591,19 @@ static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> fl
 	var x: float = 0.0
 	_end_stop(q, x, group)
 	x += q.snap(END_STOP_W)
+	var first: float = x
 	for item: Dictionary in items:
 		_terminal(q, x, pitch, item)
 		x += pitch
+	# Plug-in bridges over the terminals they join.
+	var run: int = -1
+	for i: int in items.size():
+		var joined: bool = items[i].get("bridge", false)
+		if joined and run < 0:
+			run = i
+		if not joined and run >= 0:
+			_bridge(q, first + pitch * (run + 0.5), first + pitch * (i + 0.5), items[i].get("kind", "L"))
+			run = -1
 	# End plate.
 	q.hgradient(Rect2(x, 0.8, q.snap(1.4), TERMINAL.y - 1.6), TERMINAL_GREY.darkened(0.15), TERMINAL_GREY.darkened(0.35), 0.3)
 	x += q.snap(1.4)
@@ -1668,6 +1678,27 @@ static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -
 	var tag: Rect2 = Rect2(x + p.snap(0.5), h * 0.5 - 4.5, w - p.snap(1.0), 9.0)
 	p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
 	p.text_centered(tag.get_center(), str(item.get("label", "")), 2.4, Color("111111"), true, w - 0.8)
+
+
+## Height of a plug-in bridge's bar on a terminal strip, between the test
+## sockets and the marker tags.
+const BRIDGE_Y: float = 15.6
+const BRIDGE_RED := Color("d8312b")
+
+
+## A plug-in bridge joining the terminals from centre [param a] to centre
+## [param b] (mm along the strip): a bar with a pin into each terminal, red
+## (blue on N terminals).
+static func _bridge(p: CabinetPainter, a: float, b: float, kind: String) -> void:
+	var color: Color = Color("2f6fd4") if kind == "N" else BRIDGE_RED
+	var bar: Rect2 = Rect2(a - 1.3, BRIDGE_Y, b - a + 2.6, 2.6)
+	p.rect(bar.grow(0.15), color.darkened(0.5), 0.6)
+	p.gradient(bar, color.lightened(0.25), color.darkened(0.12), 0.5)
+	var pitch: float = p.snap(TERMINAL.x)
+	var x: float = a
+	while x <= b + 0.01:
+		p.circle(Vector2(x, bar.get_center().y), 0.55, color.darkened(0.45))
+		x += pitch
 
 
 static func _end_stop(p: CabinetPainter, x: float, group: String) -> void:
