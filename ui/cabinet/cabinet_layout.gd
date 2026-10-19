@@ -204,10 +204,10 @@ static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[fl
 			if not pe.is_empty() and ((rail.items[i].kind == CabinetItem.Kind.STRIP and rail.items[i].designation == pe["after"]) or (pe["after"].is_empty() and last)):
 				var block: Dictionary = {"designation": "PE", "label_w": 0.0, "kind": PE_BLOCK, "desc": pe, "rail": r, "index": -1}
 				_box(block, CabinetParts.pe_block_size(pe["connections"]))
-				# Room on both sides for its wires' leads (see [CabinetWiring]).
-				var room: float = CabinetWiring.PE_LEAD + ceili(pe["connections"] / 4.0) * CabinetWiring.LANE + CabinetWiring.WIRE_W
+				# Room on its left for its wires' leads (see [CabinetWiring]).
+				var room: float = CabinetWiring.PE_LEAD + ceili(pe["connections"] / 2.0) * CabinetWiring.LANE + CabinetWiring.WIRE_W
 				block["origin"] = Vector2(x + room, block["origin"].y)
-				x += block["size"].x + 2.0 * room + GAP
+				x += block["size"].x + room + GAP
 				added.append(block)
 			for put: Dictionary in added:
 				row["places"].append(put)

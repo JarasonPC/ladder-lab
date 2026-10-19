@@ -316,11 +316,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   the incoming one, devices' PE terminals), it gets a PE distribution block by itself
   (CabinetLayout.pe_block: a place of kind PE_BLOCK, index -1, not a rail item and not
   selectable, right after the strip the incoming PE lands on, CabinetParts.PE_SIZES 7, 12 or 15
-  screw connections, drawn as made, standing across the rail: a brass bar in a yellow base, a green
-  cover with a hole over each screw from the front, wires in from the base's long sides by turns
-  left and right (CabinetParts.pe_side), out CabinetWiring.PE_LEAD (further for those further
-  along, so no lead crosses another) and on to the duct over (upper half) or under it, room
-  on both sides for the leads, CabinetParts.pe_block): PE is wired as a star from it, one wire to each
+  screw connections, drawn as made, standing across the rail: a brass bar in a yellow base under a
+  green cover with a round hole over each screw, the wires going into those holes, all from the
+  left (CabinetParts.pe_entry), out CabinetWiring.PE_LEAD past the block (further for those
+  further along, so no lead crosses another) and on to the duct over (upper half) or under it,
+  room on its left for the leads, CabinetParts.pe_block): PE is wired as a star from it, one wire to each
   connection and from each load, PE terminals not bridged then; in the parts list. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree with at most two wires in any
   terminal's clamp (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would
