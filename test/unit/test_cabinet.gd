@@ -296,3 +296,15 @@ func test_strip_terminals_move_along_the_strip() -> void:
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 	assert_eq(_strip_labels(copy, "X3"), ["1", "2", "4", "3", "7", "5", "6"], "the order is saved")
 
+
+
+func test_terminal_labels_on_one_line() -> void:
+	assert_eq(CabinetDevices.terminal_text("X2:6"), "X2-6")
+	assert_eq(CabinetDevices.terminal_text("6"), "X1-6", "strip X1 written too")
+	assert_eq(CabinetDevices.terminal_text("X1:PE"), "X1-PE")
+	assert_eq(CabinetDevices.terminal_text(""), "")
+	assert_eq(CabinetDevices.label_from_text("X2-6"), "X2:6", "typed as drawn")
+	assert_eq(CabinetDevices.label_from_text("X2:6"), "X2:6")
+	assert_eq(CabinetDevices.label_from_text("X1-7"), "7", "on X1 the number alone")
+	assert_eq(CabinetDevices.label_from_text(" 8 "), "8")
+	assert_eq(CabinetDevices.label_from_text("PE"), "PE")
