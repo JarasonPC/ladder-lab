@@ -75,8 +75,11 @@ func setup(net_of: PackedInt32Array, net_count: int, edges: PackedInt32Array, ed
 ## Solves for [param draws] (current drawn by the parts at each terminal) with
 ## the closed switching paths [param paths] (terminal pairs). Terminals in
 ## [param sources] (supply points, outputs of working rectifiers) feed their
-## nets, which are held at fixed potential.
-func solve(draws: PackedVector2Array, paths: PackedInt32Array, sources: PackedInt32Array) -> void:
+## nets, which are held at fixed potential. [param returns] pairs source
+## terminals (+, -) of a source with a return pole of its own (a rectifier, a
+## drive's 24 V): what it delivers on + comes back on its own -, even where
+## that is joined to other - poles.
+func solve(draws: PackedVector2Array, paths: PackedInt32Array, sources: PackedInt32Array, returns: PackedInt32Array = PackedInt32Array()) -> void:
 	var path_count: int = paths.size() / 2
 	var ground: PackedByteArray = PackedByteArray()
 	ground.resize(_net_count)
@@ -165,6 +168,15 @@ func solve(draws: PackedVector2Array, paths: PackedInt32Array, sources: PackedIn
 		balance[_net_of[t]] += terminal_currents[t]
 	var fed: PackedByteArray = PackedByteArray()
 	fed.resize(_net_count)
+	for k: int in range(0, returns.size(), 2):
+		var plus: int = _net_of[returns[k]]
+		var minus: int = _net_of[returns[k + 1]]
+		if fed[plus] == 1 or plus == minus:
+			continue
+		fed[plus] = 1
+		terminal_currents[returns[k]] -= balance[plus]
+		terminal_currents[returns[k + 1]] += balance[plus]
+		balance[minus] += balance[plus]
 	for t: int in sources:
 		var n: int = _net_of[t]
 		if fed[n] == 0:

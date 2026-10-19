@@ -18,7 +18,7 @@ var motor: CircuitComponent
 var time: float = 10.0
 ## The limit switches and where they are (0-1), in the same order.
 var switches: Array[LatchingSwitch] = []
-var at: PackedFloat32Array = PackedFloat32Array()
+var at: PackedFloat64Array = PackedFloat64Array()
 ## Where the part is, 0-1 (simulation state).
 var position: float = 0.0
 
@@ -39,8 +39,10 @@ func add_switch(switch: LatchingSwitch, where: float) -> void:
 func velocity() -> float:
 	var speed: float = 0.0
 	if motor is ThreePhaseMotor:
+		# Full speed is the rated speed of the fastest speed step: at its low
+		# speed a Dahlander motor moves the part at about half the rate.
 		var m: ThreePhaseMotor = motor as ThreePhaseMotor
-		speed = m.shaft * (-1.0 if m.shaft_direction == ThreePhaseMotor.Direction.COUNTERCLOCKWISE else 1.0)
+		speed = m.top_speed_share()
 	elif motor is Load:
 		speed = 1.0 if (motor as Load).energized and not (motor as Load).burnt else 0.0
 	return speed / time
@@ -73,12 +75,13 @@ func apply() -> Array[LatchingSwitch]:
 
 
 ## Seconds until the part reaches an end or a switch is operated or let go,
-## INF while it stands still.
+## INF while it stands still. It is just past the edge of a switch's band
+## then, so the switch is surely operated or let go there.
 func time_to_next_event() -> float:
 	var v: float = velocity()
 	if absf(v) < 1e-9:
 		return INF
-	var edges: PackedFloat32Array = PackedFloat32Array([0.0, 1.0])
+	var edges: PackedFloat64Array = PackedFloat64Array([0.0, 1.0])
 	for where: float in at:
 		edges.append(where - BAND)
 		edges.append(where + BAND)
@@ -87,4 +90,4 @@ func time_to_next_event() -> float:
 		var d: float = (edge - position) / v
 		if d > 1e-9:
 			best = minf(best, d)
-	return best
+	return best + 1e-9 if best < INF else INF

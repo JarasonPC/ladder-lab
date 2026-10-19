@@ -36,6 +36,9 @@ const MODE_NAMES: PackedStringArray = ["on_delay", "off_delay", "pulse_on_power"
 const MODE_CODES: PackedStringArray = ["F2", "", "F1", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]
 ## On time of the pulse generator (F7).
 const GENERATOR_PULSE: float = 0.5
+## Shortest step of the repeating functions (F7, F10, F11), so a cycle set
+## to zero times still takes time instead of switching endlessly at once.
+const MIN_CYCLE_STEP: float = 0.001
 const _EPSILON: float = 1e-9
 
 var mode: Mode
@@ -175,18 +178,20 @@ func _power_on() -> void:
 	_cancel()
 	output = false
 	match mode:
-		Mode.ON_DELAY, Mode.PULSE_GENERATOR:
+		Mode.ON_DELAY:
 			_start(delay)
+		Mode.PULSE_GENERATOR:
+			_start(maxf(delay, MIN_CYCLE_STEP))
 		Mode.OFF_DELAY, Mode.TEST:
 			output = true
 		Mode.PULSE_ON_POWER:
 			output = true
 			_start(delay)
 		Mode.CYCLE_PAUSE_FIRST:
-			_start(delay2)
+			_start(maxf(delay2, MIN_CYCLE_STEP))
 		Mode.CYCLE_PULSE_FIRST:
 			output = true
-			_start(delay)
+			_start(maxf(delay, MIN_CYCLE_STEP))
 	if control:
 		_press()
 
@@ -247,11 +252,11 @@ func _timeout() -> void:
 			output = false
 		Mode.PULSE_GENERATOR:
 			output = not output
-			_start(GENERATOR_PULSE if output else delay)
+			_start(GENERATOR_PULSE if output else maxf(delay, MIN_CYCLE_STEP))
 		Mode.CYCLE_PAUSE_FIRST, Mode.CYCLE_PULSE_FIRST:
 			# t1 on, t2 off.
 			output = not output
-			_start(delay if output else delay2)
+			_start(maxf(delay if output else delay2, MIN_CYCLE_STEP))
 		Mode.ON_OFF_DELAY:
 			output = control
 		Mode.SHIFTED_PULSE:
