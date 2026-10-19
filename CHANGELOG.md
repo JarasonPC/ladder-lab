@@ -12,7 +12,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   between its own wires
 - Every terminal strip entry in a switchboard takes one wire with one marker sleeve: where a
   strip terminal has to join two wires and no plug-in bridge to a neighbour of its net does,
-  it gets a second block beside it, bridged, with its name tag across both
+  it is a terminal for two wires, twice as wide, with two entries side by side at each end
 
 ### Fixed
 - The terminal strip labels of a motor or of three poles side by side are all written alike,
