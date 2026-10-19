@@ -218,6 +218,12 @@ func _box() -> int:
 func _rebuild() -> void:
 	if _list == null:
 		return
+	# A text typed and not entered yet is committed before its field goes (its
+	# edit rebuilds the list first); one left as the simulation starts
+	# commits nothing.
+	_item_tools.document = _document
+	_item_tools.editing = _editing
+	_item_tools.commit_pending()
 	for child: Node in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()

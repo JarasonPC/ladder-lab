@@ -25,6 +25,27 @@ What changed in each LadderLab version. Version numbers follow the rules in
   at some zoom levels they drifted off the terminals along the strip
 - In the switchboard the wires of a rotary cam switch of two or more poles are grey like the
   rest of the main power circuit; L1 fed through one was red, like a control circuit's phase
+- Changing a 3~ motor's kind or turning a rotary cam switch from 0-I into I-0-II keeps every
+  wire on its terminal; the PE wire moved onto U2 (or a phase onto PE), and a cam switch's
+  L2 onto the common of its first pole
+- Pressing Delete, Ctrl+Z or Ctrl+Y while dragging a wire, a wire number or a marking no
+  longer moves another wire or stops with an error when the mouse moves on
+- Delete after Select all (or Shift+click) removes everything selected, not only a strip
+  terminal mark highlighted before
+- Switching the layout between vertical and horizontal takes markings and wire numbers moved
+  beside their part or wire along to the same side
+- Mains on a frequency inverter's 24 V blows the fuse or trips the breaker in its way; the
+  short lasted with the whole mains down
+- With instant switching a motor on a frequency inverter above 60 Hz runs at its speed; it
+  stopped at 1.2 times its rated speed
+- A PLC switching an output from Q8 on back and forth through its own wiring is reported as
+  oscillating, like one switching Q1-Q7
+- On a station or a switchboard door, a plate text typed and not entered is kept when the
+  item is then moved, removed or its colour, device or kind changed; moving it put a copy of
+  the item in place of its neighbour, and other changes were undone
+- A control station shown as its face no longer stays on the workspace after a new or opened
+  schematic with no places; undo while dragging a group on the workspace no longer stops
+  with an error
 
 ## 0.4.5 – 2026-10-19
 

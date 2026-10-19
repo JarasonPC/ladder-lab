@@ -835,3 +835,105 @@ func test_station_shown_as_its_face_on_the_workspace() -> void:
 	canvas.queue_redraw()
 	await wait_process_frames(2)
 	assert_false(faces.has(box.name), "back to its tile")
+
+
+## A station panel whose edits apply to [param doc] and rebuild it, as in the
+## program.
+func _applying_station_panel(doc: SchematicDocument) -> StationPanel:
+	var panel: StationPanel = _station_panel(doc)
+	panel.edit_requested.connect(func(change: Callable) -> void:
+		change.call(doc)
+		panel.set_document(doc, true))
+	return panel
+
+
+## The plate text field of the selected item, typed into and not entered.
+func _typed_plate_text(panel: StationPanel, designation: String, text: String) -> void:
+	panel.select_device(designation)
+	for field: Node in (panel.get("_list") as VBoxContainer).find_children("*", "LineEdit", true, false):
+		if (field as LineEdit).placeholder_text == designation:
+			(field as LineEdit).grab_focus()
+			(field as LineEdit).text = text
+			return
+	fail_test("no plate text field")
+
+
+func test_plate_text_typed_then_item_moved_keeps_every_item() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(0)
+	var box: ControlBox = doc.control_boxes[0]
+	var before: Array = box.items.map(func(item: ControlBoxItem) -> String: return item.designation)
+	var panel: StationPanel = _applying_station_panel(doc)
+	_typed_plate_text(panel, before[0], "Typed")
+	for button: Node in (panel.get("_list") as VBoxContainer).find_children("*", "Button", true, false):
+		if (button as Button).tooltip_text == tr("Move it one place on"):
+			(button as Button).pressed.emit()
+			break
+	var after: Array = box.items.map(func(item: ControlBoxItem) -> String: return item.designation)
+	var moved: Array = before.duplicate()
+	moved[0] = before[1]
+	moved[1] = before[0]
+	assert_eq(after, moved, "moved, no item lost or doubled")
+	assert_eq(box.items[1].label, "Typed", "the text went with its item")
+
+
+func test_plate_text_typed_then_colour_chosen_keeps_both() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(0)
+	var box: ControlBox = doc.control_boxes[0]
+	var panel: StationPanel = _applying_station_panel(doc)
+	_typed_plate_text(panel, box.items[0].designation, "Typed")
+	for option: Node in (panel.get("_list") as VBoxContainer).find_children("*", "OptionButton", true, false):
+		var colours: OptionButton = option as OptionButton
+		if colours.item_count == ControlBoxItem.COLORS.size() and colours.get_item_text(0) == tr(ControlBoxItem.COLOR_TITLES[0]):
+			colours.item_selected.emit(ControlBoxItem.COLORS.find("black"))
+			break
+	assert_eq(box.items[0].label, "Typed")
+	assert_eq(box.items[0].color, "black")
+
+
+func test_plate_text_typed_then_items_in_a_row_changed_keeps_both() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(0)
+	var box: ControlBox = doc.control_boxes[0]
+	var panel: StationPanel = _applying_station_panel(doc)
+	_typed_plate_text(panel, box.items[0].designation, "Typed")
+	for option: Node in (panel.get("_list") as VBoxContainer).find_children("*", "OptionButton", true, false):
+		if (option as OptionButton).item_count == ControlBox.MAX_COLUMNS:
+			(option as OptionButton).item_selected.emit(0)
+			break
+	assert_eq(box.columns, 1)
+	assert_eq(box.items[0].label, "Typed", "the text is kept, the panel rebuilt once at a time")
+
+
+func test_group_dragged_while_undo_replaces_the_document() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(0)
+	var before: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	doc.add_group(Vector2(0.0, 400.0))
+	var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
+	add_child_autofree(canvas)
+	canvas.document = doc
+	for item: Dictionary in canvas.items():
+		if item["kind"] == "group":
+			canvas.set("_press", item)
+	canvas.set("_dragging", true)
+	canvas.set("_drag", Vector2(200.0, 0.0))
+	# Undo: the document without the group.
+	canvas.document = before
+	assert_false(canvas.get("_dragging"), "the drag ends")
+	assert_false(canvas.items().any(func(item: Dictionary) -> bool: return item["kind"] == "group"))
+
+
+func test_station_face_goes_with_a_document_with_an_empty_workspace() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("face")
+	doc.add(PushButton.new("SB1", NO), Vector2i(5, 5))
+	var box: ControlBox = doc.add_control_box("Gate", 1, Vector2(100.0, 50.0))
+	box.items.append(ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, "SB1"))
+	doc.set_station_face(0, ControlBox.DEFAULT_FACE)
+	var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
+	canvas.size = Vector2(800.0, 600.0)
+	add_child_autofree(canvas)
+	canvas.document = doc
+	await wait_process_frames(2)
+	assert_eq(canvas.find_children("*", "ControlBoxView", false, false).size(), 1, "the face is shown")
+	canvas.document = SchematicDocument.new()
+	canvas.queue_redraw()
+	await wait_process_frames(3)
+	assert_eq(canvas.find_children("*", "ControlBoxView", false, false).size(), 0, "and goes with its document")

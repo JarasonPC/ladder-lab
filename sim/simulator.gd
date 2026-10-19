@@ -141,6 +141,9 @@ var _drives: Array[Vfd] = []
 var _drive_nets: PackedInt32Array = PackedInt32Array()
 var _drive_terms: PackedInt32Array = PackedInt32Array()
 var _drive_powered: PackedByteArray = PackedByteArray()
+## [member _drive_powered] before the sources a short is on drop out: the
+## fault path runs from the 24 V of the drives as they were.
+var _drive_fed: PackedByteArray = PackedByteArray()
 var _drive_inputs: PackedInt32Array = PackedInt32Array()
 var _drive_ai: PackedFloat32Array = PackedFloat32Array()
 var _motor_drive: PackedInt32Array = PackedInt32Array()
@@ -420,6 +423,7 @@ func _build() -> void:
 	_plc_analog.fill(PackedFloat32Array())
 	_drive_powered.resize(_drives.size())
 	_drive_powered.fill(0)
+	_drive_fed = _drive_powered.duplicate()
 	_drive_inputs.resize(_drives.size())
 	_drive_inputs.fill(0)
 	_drive_ai.resize(_drives.size())
@@ -539,7 +543,7 @@ func _source_points() -> Array[Array]:
 			points.append([_rectifier_out_nets[2 * r], PowerSupply.BIT_DC_RECTIFIED, keys[2]])
 			points.append([_rectifier_out_nets[2 * r + 1], PowerSupply.BIT_DC_MINUS, keys[3]])
 	for d: int in _drives.size():
-		if _drive_powered[d] == 1:
+		if _drive_fed[d] == 1:
 			var keys: PackedStringArray = _drives[d].get_terminal_keys()
 			points.append([_drive_net(d, Vfd.SUPPLY_24V), PowerSupply.BIT_DC_PLUS, keys[Vfd.SUPPLY_24V]])
 			points.append([_drive_net(d, Vfd.ZERO_V), PowerSupply.BIT_DC_MINUS, keys[Vfd.ZERO_V]])
@@ -1122,6 +1126,7 @@ func _record_trace() -> void:
 func _evaluate(passing: bool = false) -> PackedByteArray:
 	var uf: UnionFind = _union_closed()
 	var masks: Dictionary[int, int] = _root_masks(uf)
+	_drive_fed = _drive_powered.duplicate()
 	var faults: Dictionary[int, bool] = {}
 	for root: int in masks:
 		if not _is_single_source(masks[root]):
@@ -1479,8 +1484,9 @@ func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 					_motor_drive[m] = d
 
 
-## One byte per coil (bit 0 coil power, bit 1 timed output), then one per
-## protective device (tripped), so a trip is never mistaken for a repeat.
+## One byte per coil (bit 0 coil power, bit 1 timed output), then per PLC its
+## power and its outputs eight to a byte (see [method _plc_bytes]), then one
+## per protective device (tripped), so a trip is never mistaken for a repeat.
 func _signature() -> PackedByteArray:
 	var sig: PackedByteArray = PackedByteArray()
 	for i: int in _coil_indices:
@@ -1493,11 +1499,14 @@ func _signature() -> PackedByteArray:
 		sig.append(b)
 	for i: int in _plc_indices:
 		var plc: Plc = _loads[i] as Plc
-		var outputs: int = 1 if plc.energized else 0
+		sig.append(1 if plc.energized else 0)
+		var outputs: PackedByteArray = PackedByteArray()
+		outputs.resize(_plc_bytes(plc) - 1)
+		outputs.fill(0)
 		for k: int in plc.output_count():
 			if plc.output_on(k):
-				outputs |= 2 << k
-		sig.append(outputs)
+				outputs[k >> 3] |= 1 << (k & 7)
+		sig.append_array(outputs)
 	for device: CircuitComponent in _protective:
 		sig.append(device.protection_state())
 	for i: int in _plc_indices:
@@ -1507,17 +1516,26 @@ func _signature() -> PackedByteArray:
 	return sig
 
 
-## Designations of coils whose state differs anywhere in [param states].
+## Bytes of [param plc] in [method _signature]: its power, then its outputs.
+static func _plc_bytes(plc: Plc) -> int:
+	return 1 + ceili(plc.output_count() / 8.0)
+
+
+## Designations of coils and PLCs whose state differs anywhere in
+## [param states].
 func _changing_tags(states: Array[PackedByteArray]) -> PackedStringArray:
 	var tags: PackedStringArray = PackedStringArray()
 	if states.is_empty():
 		return tags
-	var indices: PackedInt32Array = _coil_indices + _plc_indices
-	for j: int in indices.size():
+	var at: int = 0
+	for i: int in _coil_indices + _plc_indices:
+		var size: int = _plc_bytes(_loads[i] as Plc) if _loads[i] is Plc else 1
+		var first: PackedByteArray = states[0].slice(at, at + size)
 		for s: PackedByteArray in states:
-			if s[j] != states[0][j]:
-				tags.append(_loads[indices[j]].designation)
+			if s.slice(at, at + size) != first:
+				tags.append(_loads[i].designation)
 				break
+		at += size
 	return tags
 
 
@@ -1734,7 +1752,7 @@ func _current_graph(include_loads: bool, feeding: Dictionary[int, bool]) -> Dict
 			add.call(vertex_of.call(PowerSupply.BIT_DC_MINUS), _terminal_index[keys[3]], _EDGE_OUTPUT, r)
 	# The 24 V of the drives that have their supply, like a DC supply.
 	for d: int in _drives.size():
-		if _drive_powered[d] == 1:
+		if _drive_fed[d] == 1:
 			add.call(vertex_of.call(PowerSupply.BIT_DC_PLUS), _drive_term(d, Vfd.SUPPLY_24V), _EDGE_VIRTUAL, -1)
 			add.call(vertex_of.call(PowerSupply.BIT_DC_MINUS), _drive_term(d, Vfd.ZERO_V), _EDGE_VIRTUAL, -1)
 	return {"a": edge_a, "b": edge_b, "kind": edge_kind, "ref": edge_ref, "hub": hub, "hub_edges": hub_edges, "vertices": terminal_count + 1 + conductor_vertex.size()}

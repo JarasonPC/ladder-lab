@@ -279,6 +279,11 @@ func _board() -> int:
 func _rebuild() -> void:
 	if _list == null:
 		return
+	# A text typed on a door item and not entered yet is committed before its
+	# field goes (see StationPanel).
+	_door_tools.document = _document
+	_door_tools.editing = _editing
+	_door_tools.commit_pending()
 	for child: Node in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()

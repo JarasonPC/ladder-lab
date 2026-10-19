@@ -609,3 +609,43 @@ func test_examples_stay_clean_when_parts_move_and_turn() -> void:
 		doc.drag_components(start, delta)
 		_assert_routes_valid(doc)
 		assert_eq(_misleading_wires(doc), PackedStringArray(), "H1 moved by %s" % delta)
+
+
+## Pairs of terminal keys of every wire, sorted, to compare wiring.
+static func _wiring(doc: SchematicDocument) -> Array[String]:
+	var pairs: Array[String] = []
+	for wire: PackedStringArray in doc.circuit.get_wires():
+		var ends: Array = Array(wire)
+		ends.sort()
+		pairs.append("-".join(ends))
+	pairs.sort()
+	return pairs
+
+
+func test_motor_of_another_kind_keeps_its_wires_on_their_terminals() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	for s: Array in [["L1", PowerSupply.Conductor.L, 2], ["L2", PowerSupply.Conductor.L2, 4], ["L3", PowerSupply.Conductor.L3, 6], ["PE", PowerSupply.Conductor.PE, 8]]:
+		doc.add(PowerSupply.new(s[0], s[1]), Vector2i(s[2], 1))
+	doc.add(ThreePhaseMotor.new("M1"), Vector2i(10, 10))
+	for t: Array in [["L1", "M1:U1"], ["L2", "M1:V1"], ["L3", "M1:W1"], ["PE", "M1:PE"]]:
+		doc.connect_terminals(t[0], t[1])
+	var wiring: Array[String] = _wiring(doc)
+	assert_true(doc.replace_component("M1", ThreePhaseMotor.new("M1", ThreePhaseMotor.Kind.STAR_DELTA)))
+	assert_eq(_wiring(doc), wiring, "PE stays on PE, not on U2")
+	doc.connect_terminals("L1", "M1:U2")
+	assert_true(doc.replace_component("M1", ThreePhaseMotor.new("M1")))
+	assert_eq(_wiring(doc), wiring, "U2's wire goes, PE's stays")
+	_assert_routes_valid(doc)
+
+
+func test_cam_switch_with_more_positions_keeps_its_wires_on_their_terminals() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	for s: Array in [["L1", PowerSupply.Conductor.L, 2], ["L2", PowerSupply.Conductor.L2, 4], ["L3", PowerSupply.Conductor.L3, 6]]:
+		doc.add(PowerSupply.new(s[0], s[1]), Vector2i(s[2], 1))
+	doc.add(CamSwitch.new("RB1"), Vector2i(10, 6))
+	for t: Array in [["L1", "RB1:1"], ["L2", "RB1:3"], ["L3", "RB1:5"]]:
+		doc.connect_terminals(t[0], t[1])
+	var wiring: Array[String] = _wiring(doc)
+	assert_true(doc.replace_component("RB1", CamSwitch.new("RB1", CamSwitch.Positions.CHANGEOVER)))
+	assert_eq(_wiring(doc), wiring, "L1 L2 L3 stay on 1 3 5")
+	_assert_routes_valid(doc)

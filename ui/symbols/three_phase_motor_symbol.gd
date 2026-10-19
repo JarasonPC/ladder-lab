@@ -49,7 +49,6 @@ func _draw_shape(color: Color, width: float) -> void:
 	if _terminal_box():
 		_draw_terminal_box(motor, color)
 		return
-	var names: PackedStringArray = motor.get_terminal_names()
 	var windings: int = motor.winding_terminal_count()
 	# PE: from the frame to the left, then down to its terminal.
 	var pe_cell: Vector2 = Vector2(SymbolGeometry.MOTOR_PE_CELL) * G

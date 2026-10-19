@@ -369,7 +369,6 @@ func _all_functions_button(timer: TimerRelay) -> void:
 		var popup: TimerFunctionsPopup = TimerFunctionsPopup.new()
 		popup.popup_hide.connect(popup.queue_free)
 		add_child(popup)
-		var names: PackedStringArray = timer.get_terminal_names()
 		popup.setup(TimerFunctionsPopup.function_titles(_input_name(timer)), timer.mode, _input_name(timer))
 		popup.function_chosen.connect(func(mode_name: String) -> void: _emit("mode", mode_name))
 		popup.popup_centered(popup.size))

@@ -258,6 +258,8 @@ func begin_place(template: Dictionary) -> void:
 
 
 func undo() -> void:
+	# A drag under way ends first (a part dragged back leaves no undo step).
+	_end_drags()
 	if not history.can_undo():
 		return
 	_cancel_tool()
@@ -265,6 +267,7 @@ func undo() -> void:
 
 
 func redo() -> void:
+	_end_drags()
 	if not history.can_redo():
 		return
 	_cancel_tool()
@@ -272,8 +275,11 @@ func redo() -> void:
 
 
 func delete_selection() -> void:
-	if not selected_marking.is_empty() and selected_marking["kind"] == "strip":
-		# Delete on a strip terminal removes just that terminal mark.
+	# A drag under way would go on with wires and parts no longer there.
+	_end_drags()
+	if not selected_marking.is_empty() and selected_marking["kind"] == "strip" and selected_wires.is_empty() and selected_components.keys().all(func(id: String) -> bool: return id == selected_marking["component"]):
+		# Delete on a strip terminal removes just that terminal mark (unless
+		# more was selected since).
 		_record()
 		document().set_strip_terminal(selected_marking["component"], selected_marking["index"], "")
 		selected_marking = {}
@@ -608,6 +614,7 @@ func paste() -> void:
 ## Selects everything on the page shown.
 func select_all() -> void:
 	_cancel_tool()
+	selected_marking = {}
 	for c: CircuitComponent in document().components_on_page():
 		selected_components[c.id] = true
 	for w: int in document().wires_on_page():
@@ -726,11 +733,7 @@ func leave_page() -> void:
 	if tool == Tool.WIRE:
 		_cancel_tool()
 	_close_inline()
-	_dragging = false
-	_boxing = false
-	_wire_drag = -1
-	_number_drag = Vector2i(-1, -1)
-	_marking_drag = false
+	_end_drags()
 	_clear_selection()
 
 
@@ -1719,13 +1722,32 @@ func _cancel_tool() -> void:
 	tool = Tool.SELECT
 	_wire_start = ""
 	_wire_points.clear()
-	_dragging = false
-	_boxing = false
+	_end_drags()
 	if _ghost != null:
 		_ghost.free()
 		_ghost = null
 	_emit_hint()
 	queue_redraw()
+
+
+## Ends any drag of parts, a wire segment, a wire number or a marking as when
+## the button is let go, and drops a frame selection: after a delete, undo or
+## redo they would go on with parts and wires no longer there.
+func _end_drags() -> void:
+	var applied: bool = (_marking_drag and _marking_drag_recorded) or (_number_drag.x >= 0 and _number_drag_recorded) or (_wire_drag >= 0 and _wire_drag_recorded)
+	if _dragging and _drag_recorded:
+		if DocumentSerializer.to_dict(document()) == _drag_snapshot:
+			history.discard_last()
+		else:
+			applied = true
+	_dragging = false
+	_drag_start = {}
+	_boxing = false
+	_wire_drag = -1
+	_number_drag = Vector2i(-1, -1)
+	_marking_drag = false
+	if applied:
+		_changed()
 
 
 func _rebuild_ghost() -> void:
