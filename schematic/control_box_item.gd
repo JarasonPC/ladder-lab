@@ -44,7 +44,7 @@ static func default_color(p_kind: Kind) -> String:
 static func kind_of(c: CircuitComponent) -> int:
 	if c is PushButton:
 		return Kind.BUTTON
-	if c is LatchingSwitch and not (c is LimitSwitch):
+	if (c is LatchingSwitch and not (c is LimitSwitch)) or c is CamSwitch:
 		return Kind.SWITCH
 	if c is Lamp:
 		return Kind.LAMP

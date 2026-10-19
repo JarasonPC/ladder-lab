@@ -12,6 +12,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   number, where there is room; they can be typed that way too
 - Several selected parts can be lined up vertically or horizontally (right click), the same
   number of free cells apart; a ruler on the drawing shows the cells while you choose it
+- Rotary cam switch: 1-4 poles with the positions 0-I (off / on) or I-0-II (forward / off /
+  reverse, each pole a changeover with the off position in the middle); a click turns it on
+  to the next position, on a control station its knob turns left or right
 
 ### Simulation
 - 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while

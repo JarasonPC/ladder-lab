@@ -9,6 +9,8 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = MainContactsSymbol.new()
 	elif component is ThreePoleFuse:
 		symbol = ThreePoleFuseSymbol.new()
+	elif component is CamSwitch:
+		symbol = CamSwitchSymbol.new()
 	elif component is MotorBreaker:
 		symbol = BreakerSymbol.new()
 	elif component is ThreePhaseMotor:

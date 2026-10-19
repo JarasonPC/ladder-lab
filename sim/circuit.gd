@@ -221,12 +221,12 @@ func set_connector_label(connector: PageConnector, label: String) -> void:
 	topology_version += 1
 
 
-## The push button, switch or limit switch with designation
-## [param designation] (its first block), or null: what a click or the
-## control panel operates.
+## The push button, switch, rotary cam switch or limit switch with
+## designation [param designation] (its first block), or null: what a click
+## or the control panel operates.
 func get_operator(designation: String) -> CircuitComponent:
 	for c: CircuitComponent in _components:
-		if c.designation == designation and (c is PushButton or c is LatchingSwitch):
+		if c.designation == designation and (c is PushButton or c is LatchingSwitch or c is CamSwitch):
 			return c
 	return null
 

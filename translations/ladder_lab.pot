@@ -3414,3 +3414,63 @@ msgstr ""
 
 msgid "PLC programs"
 msgstr ""
+
+msgid "Rotary cam switch (0-I or I-0-II)"
+msgstr ""
+
+msgid "Rotary cam switch"
+msgstr ""
+
+msgid "Positions"
+msgstr ""
+
+msgid "0-I (off / on)"
+msgstr ""
+
+msgid "I-0-II (forward / off / reverse)"
+msgstr ""
+
+msgid "0-I: each pole closes 1-2, 3-4 ... in position I. I-0-II: each pole joins its common 2, 4 ... to 1, 3 ... in I and to 1', 3' ... in II. While simulating, a click turns it on to the next position (0, I, 0, II)."
+msgstr ""
+
+msgid "Turned by hand: off 0, on I"
+msgstr ""
+
+msgid "Rotary cam switch with the positions 0 (off) and I (on): every pole is a make contact closed in position I. While simulating, a click turns it over; on a control station or a switchboard door its knob is turned to the left or the right."
+msgstr ""
+
+#, c-format
+msgid "Closed to %s in position I."
+msgstr ""
+
+msgid "Turned by hand: I forward, 0 off, II reverse"
+msgstr ""
+
+msgid "Rotary cam switch with the positions I, 0 (off, in the middle) and II: every pole joins its common to its I side in position I and to its II side in position II, never to both. Wired with two phases swapped between the I and the II sides, it runs a motor forward in I and in reverse in II. While simulating, a click turns it on to the next position (0, I, 0, II); on a control station or a switchboard door its knob is turned to the left or the right."
+msgstr ""
+
+#, c-format
+msgid "Pole %d, I side"
+msgstr ""
+
+#, c-format
+msgid "Pole %d, II side"
+msgstr ""
+
+#, c-format
+msgid "Closed to %s in position II."
+msgstr ""
+
+#, c-format
+msgid "Pole %d, common"
+msgstr ""
+
+#, c-format
+msgid "Switched between %s and %s; open in position 0."
+msgstr ""
+
+msgid "Snap action: it switches at once, every pole together."
+msgstr ""
+
+msgid "knob, stays where it is turned"
+msgstr ""

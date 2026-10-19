@@ -11,7 +11,7 @@ extends HBoxContainer
 ## A push button was pressed (true) or let go (false) on the station.
 signal button_held(designation: String, pressed: bool)
 ## A switch was turned over on the station.
-signal switch_toggled(designation: String)
+signal switch_toggled(designation: String, steps: int)
 ## A change of the station: [param change] is called with the document.
 signal edit_requested(change: Callable)
 ## A key should be bound to push button or switch [param designation].
@@ -19,6 +19,16 @@ signal key_bind_requested(designation: String)
 
 ## English names of [enum ControlBoxItem.Kind] (translated with tr()).
 const KIND_TITLES: PackedStringArray = ["Push button", "Switch", "Signal lamp"]
+## English name of a switch item showing a rotary cam switch.
+const CAM_SWITCH_TITLE: String = "Rotary cam switch"
+## English name of what [param item] shows (translated with tr()): its kind,
+## a rotary cam switch for a switch item showing one.
+static func item_title(doc: SchematicDocument, item: ControlBoxItem) -> String:
+	if item.kind == ControlBoxItem.Kind.SWITCH and doc != null and doc.circuit.get_operator(item.designation) is CamSwitch:
+		return CAM_SWITCH_TITLE
+	return KIND_TITLES[item.kind]
+
+
 ## How large the station is drawn at first (Ctrl+wheel zooms it).
 const ZOOM: float = 2.0
 
@@ -61,7 +71,7 @@ func _ready() -> void:
 	center.add_child(zoom_box)
 	_view = ControlBoxView.new()
 	_view.button_held.connect(func(designation: String, pressed: bool) -> void: button_held.emit(designation, pressed))
-	_view.switch_toggled.connect(func(designation: String) -> void: switch_toggled.emit(designation))
+	_view.switch_toggled.connect(func(designation: String, steps: int) -> void: switch_toggled.emit(designation, steps))
 	_view.item_clicked.connect(func(index: int) -> void:
 		_selected_item = index
 		_rebuild_queued = true)

@@ -32,6 +32,10 @@ const SENSOR_OUTPUT_CELL := Vector2i(2, 0)
 const VFD_HEIGHT: int = 6
 const VFD_CONTROL_X: int = 10
 const VFD_WIDTH: int = 28
+## Rotary cam switch I-0-II: cells from one pole to the next (each pole's
+## common a cell right of its I side, its II side a cell further; room for
+## the terminal numbers between the poles).
+const CAM_CHANGEOVER_SPACING: int = 4
 
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
@@ -44,6 +48,10 @@ const DIR_LEFT: int = 8
 static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]:
 	var names: PackedStringArray = c.get_terminal_names()
 	var result: Dictionary[String, Vector2i] = {}
+	if c is CamSwitch:
+		for i: int in names.size():
+			result[names[i]] = cam_terminal_cell(c as CamSwitch, i)
+		return result
 	if _is_three_pole(c):
 		# Poles side by side, POLE_SPACING apart: 1, 3, 5 on top, 2, 4, 6 below.
 		for i: int in names.size():
@@ -97,6 +105,9 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 ## (0 for supplies and page connectors, whose wire may come from any side).
 static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> int:
 	var names: PackedStringArray = c.get_terminal_names()
+	if c is CamSwitch:
+		var cam: CamSwitch = c as CamSwitch
+		return DIR_UP if names.find(terminal_name) % cam.pole_terminals() == cam.pole_terminals() - 1 else DIR_DOWN
 	if _is_three_pole(c):
 		return DIR_DOWN if names.find(terminal_name) % 2 == 0 else DIR_UP
 	if c is ThreePhaseMotor:
@@ -137,6 +148,11 @@ static func local_body(c: CircuitComponent) -> Rect2:
 	if c is ChangeoverContact:
 		var changeover_left: float = -1.55 if (c as ChangeoverContact).delayed else -0.85
 		return Rect2(changeover_left, 0.75, 1.2 - changeover_left, 1.4)
+	if c is CamSwitch:
+		var cam: CamSwitch = c as CamSwitch
+		var cam_span: float = cam_terminal_cell(cam, c.get_terminal_names().size() - 2).x
+		var cam_left: float = -1.75 if cam.positions == CamSwitch.Positions.OFF_ON else -1.0
+		return Rect2(cam_left, 0.75, cam_span + 0.35 - cam_left, 1.4)
 	if _is_three_pole(c):
 		var poles: int = c.get_terminal_names().size() / 2
 		var span: float = (poles - 1) * POLE_SPACING
@@ -283,6 +299,20 @@ static func vfd_terminal_cell(index: int) -> Vector2i:
 	if index < Vfd.DO2C:
 		return Vector2i((index - Vfd.FIRST_BOTTOM) * POLE_SPACING, VFD_HEIGHT)
 	return Vector2i(VFD_CONTROL_X + (index - Vfd.DO2C) * PLC_OUTPUT_PITCH, VFD_HEIGHT)
+
+
+## Cell of terminal [param index] of a rotary cam switch: 0-I as the other
+## multi-pole devices (1, 3, 5 on top, 2, 4, 6 below); I-0-II each pole's I
+## side on top, its II side two cells to the right, its common below between
+## them.
+static func cam_terminal_cell(cam: CamSwitch, index: int) -> Vector2i:
+	var per: int = cam.pole_terminals()
+	var pole: int = index / per
+	var k: int = index % per
+	if cam.positions == CamSwitch.Positions.CHANGEOVER:
+		var x: int = pole * CAM_CHANGEOVER_SPACING
+		return [Vector2i(x, 0), Vector2i(x + 2, 0), Vector2i(x + 1, SPAN)][k]
+	return Vector2i(pole * POLE_SPACING, 0 if k == 0 else SPAN)
 
 
 static func _is_three_pole(c: CircuitComponent) -> bool:

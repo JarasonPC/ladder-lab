@@ -339,7 +339,7 @@ func _bound_key(key: InputEventKey) -> bool:
 	if device is PushButton:
 		_keys_down[designation] = true
 		view.hold_button(designation, true)
-	elif device is LatchingSwitch:
+	elif device is LatchingSwitch or device is CamSwitch:
 		view.toggle_switch(designation)
 	return true
 

@@ -14,7 +14,7 @@ enum Diagram { NONE, TIMER, TRIP_CURVE }
 ## Designation letters of the parts made from palette templates, for the
 ## datasheets of the parts library (see [method of_template]).
 const LETTERS: Dictionary[String, String] = {
-	"push_button": "SB", "latching_switch": "RB", "limit_switch": "SQ", "contact": "KM",
+	"push_button": "SB", "latching_switch": "RB", "cam_switch": "RB", "limit_switch": "SQ", "contact": "KM",
 	"changeover": "KA", "coil": "KM", "timer": "KT", "lamp": "H", "motor": "M", "motor3": "M",
 	"fuse": "FU", "breaker": "FA", "overload_relay": "F", "overload_contact": "F",
 	"main_contacts": "KM", "terminal": "X", "rectifier": "TB", "connector": "PC", "plc": "A",
@@ -108,6 +108,8 @@ func _build() -> void:
 		_overload_contact(component as OverloadContact)
 	elif component is ProtectiveDevice or component is MotorBreaker or component is ThreePoleFuse:
 		_protective()
+	elif component is CamSwitch:
+		_cam_switch(component as CamSwitch)
 	elif component is SwitchingElement:
 		_switching(component as SwitchingElement)
 	elif component is ChangeoverContact:
@@ -412,6 +414,26 @@ func _switching(element: SwitchingElement) -> void:
 		_contact_rows(names, no, operated)
 		_data(tr("Belongs to"), element.designation)
 	_marking_data()
+
+
+func _cam_switch(cam: CamSwitch) -> void:
+	var names: PackedStringArray = _names()
+	if cam.positions == CamSwitch.Positions.OFF_ON:
+		summary = tr("Turned by hand: off 0, on I") + _poles_text(cam.poles)
+		description.append(tr("Rotary cam switch with the positions 0 (off) and I (on): every pole is a make contact closed in position I. While simulating, a click turns it over; on a control station or a switchboard door its knob is turned to the left or the right."))
+		_pole_rows(cam.poles, tr("Closed to %s in position I."), tr("Closed to %s in position I."))
+		_data(tr("Positions"), "0 – I")
+	else:
+		summary = tr("Turned by hand: I forward, 0 off, II reverse") + _poles_text(cam.poles)
+		description.append(tr("Rotary cam switch with the positions I, 0 (off, in the middle) and II: every pole joins its common to its I side in position I and to its II side in position II, never to both. Wired with two phases swapped between the I and the II sides, it runs a motor forward in I and in reverse in II. While simulating, a click turns it on to the next position (0, I, 0, II); on a control station or a switchboard door its knob is turned to the left or the right."))
+		for p: int in cam.poles:
+			_row(names[3 * p], tr("Pole %d, I side") % (p + 1), tr("Closed to %s in position I.") % names[3 * p + 2])
+			_row(names[3 * p + 1], tr("Pole %d, II side") % (p + 1), tr("Closed to %s in position II.") % names[3 * p + 2])
+			_row(names[3 * p + 2], tr("Pole %d, common") % (p + 1), tr("Switched between %s and %s; open in position 0.") % [names[3 * p], names[3 * p + 1]])
+		_data(tr("Positions"), "I – 0 – II")
+	features.append(tr("Snap action: it switches at once, every pole together."))
+	_data(tr("Poles"), str(cam.poles))
+	_data(tr("Actuator"), tr("knob, stays where it is turned"))
 
 
 func _changeover(c: ChangeoverContact) -> void:

@@ -118,6 +118,11 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Temperature at the start (°C)"), "temperature", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 0.5)
 			_group = null
 			_note(tr("Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."), "MutedLabel")
+		"cam_switch":
+			_choice(tr("Poles"), "poles", [1, 2, 3, 4], ["1", "2", "3", "4"])
+			_choice(tr("Positions"), "positions", Array(CamSwitch.POSITION_NAMES), [tr("0-I (off / on)"), tr("I-0-II (forward / off / reverse)")])
+			_group = null
+			_note(tr("0-I: each pole closes 1-2, 3-4 ... in position I. I-0-II: each pole joins its common 2, 4 ... to 1, 3 ... in I and to 1', 3' ... in II. While simulating, a click turns it on to the next position (0, I, 0, II)."), "MutedLabel")
 		"changeover":
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")

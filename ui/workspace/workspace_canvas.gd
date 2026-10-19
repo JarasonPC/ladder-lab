@@ -23,7 +23,7 @@ signal edit_requested(change: Callable)
 ## go while simulating.
 signal button_held(designation: String, pressed: bool)
 ## A switch on a station shown as its face was clicked while simulating.
-signal switch_toggled(designation: String)
+signal switch_toggled(designation: String, steps: int)
 
 ## Reach (pixels) of the handle resizing a station's face.
 const HANDLE: float = 9.0
@@ -809,7 +809,7 @@ func _place_faces(list: Array[Dictionary]) -> void:
 		if face == null:
 			face = ControlBoxView.new()
 			face.button_held.connect(func(designation: String, pressed: bool) -> void: button_held.emit(designation, pressed))
-			face.switch_toggled.connect(func(designation: String) -> void: switch_toggled.emit(designation))
+			face.switch_toggled.connect(func(designation: String, steps: int) -> void: switch_toggled.emit(designation, steps))
 			add_child(face)
 			_faces[box.name] = face
 		face.document = document

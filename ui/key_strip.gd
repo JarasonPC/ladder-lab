@@ -86,6 +86,8 @@ class _Chips extends Control:
 			if device is LatchingSwitch:
 				# The positions as marked on switches: I on, 0 off.
 				text += "  " + ("I" if (device as LatchingSwitch).switched_on else "0")
+			elif device is CamSwitch:
+				text += "  " + CamSwitch.MARKS[(device as CamSwitch).position]
 			result.append({"key": doc.key_bindings[designation], "text": text, "where": where, "lit": lit})
 		return result
 

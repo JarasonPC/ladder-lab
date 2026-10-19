@@ -36,7 +36,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   (TimerFunctionsPopup). The palette has one time relay. Any 3~ motor can be drawn as its
   terminal box (standard motors with star/delta bridges, drawing only)
 - One palette part per family: fuse/fuse holder, breaker and main contacts have 1-4 poles, the
-  overload relay none or 3 (set in the properties; 3 from the palette); a contact designated like an overload relay
+  overload relay none or 3 (set in the properties; 3 from the palette), the rotary cam switch 1-4 poles with
+  0-I or I-0-II positions (3 poles 0-I from the palette); a contact designated like an overload relay
   becomes its OverloadContact; a contact of a time relay KT is delayed by default (no separate
   delayed contacts in the palette). Parts of one device share a designation whatever their
   type: a contact, changeover or main contacts named like a push button, switch or limit switch
@@ -508,7 +509,14 @@ Architecture and conventions of the code base. Read this before changing the cod
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
 - Device designations: A = PLC, BT = temperature sensor, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
-  button, RB = rotary switch, SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
+  button, RB = rotary switch (also the rotary cam switch, CamSwitch: a knob turned by hand,
+  snap action, starts at 0, its position simulation state; 0-I poles 1-2, 3-4 … closed in I,
+  drawn as NO contacts; I-0-II poles I side 1, 3 … / II side 1', 3' … / common 2, 4 … below
+  between them, SymbolGeometry.CAM_CHANGEOVER_SPACING apart, the blade straight up in 0; one
+  turn actuator on the left on a dashed link, the positions written under the designation; a
+  click turns it on 0 → I → 0 → II (CamSwitch.step_on), a station turns it left or right
+  (CamSwitch.turn, switch_toggled's steps); a station shows it as a square black front with
+  the positions round a handle; Circuit.get_operator returns it, no contacts follow it), SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
   or operated by a mechanical link),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;

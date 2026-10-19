@@ -11,7 +11,7 @@ signal key_pressed(event: InputEventKey)
 signal edit_requested(change: Callable)
 signal cabinet_edit_requested(change: Callable)
 signal button_held(designation: String, pressed: bool)
-signal switch_toggled(designation: String)
+signal switch_toggled(designation: String, steps: int)
 signal operate_requested(designation: String)
 signal key_bind_requested(designation: String)
 
