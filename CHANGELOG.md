@@ -6,6 +6,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- Selector switches can have the positions I-0-II (e.g. manual / off / auto): each block of the
+  switch is operated in position I or in position II (set in its properties)
+
+### Panels
+- A rotary cam switch is drawn bigger than a selector switch on a control station
+
 ## 0.4.4 – 2026-10-19
 
 ### Schematic editor
@@ -16,10 +23,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   number of free cells apart; a ruler on the drawing shows the cells while you choose it
 - Rotary cam switch: 1-4 poles with the positions 0-I (off / on) or I-0-II (forward / off /
   reverse, each pole a changeover with the off position in the middle); a click turns it on
-  to the next position, on a control station its knob turns left or right; it is drawn there
-  bigger than a selector switch
-- Selector switches can have the positions I-0-II (e.g. manual / off / auto): each block of the
-  switch is operated in position I or in position II (set in its properties)
+  to the next position, on a control station its knob turns left or right
 
 ### Simulation
 - 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while
