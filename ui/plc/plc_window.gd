@@ -37,6 +37,11 @@ var _program: PlcProgram = null
 ## The program of the PLC shown, as last bound ([method _normalised]): an
 ## edit leaving the program like this changes nothing.
 var _bound_data: Dictionary = {}
+## Saving the program to a file of its own and reading one back.
+var _export_button: Button
+var _import_button: Button
+var _file_dialog: FileDialog
+var _error: AcceptDialog
 var _fbd: PlcFbdCanvas
 var _lad: PlcLadCanvas
 var _fbd_scroll: ScrollContainer
@@ -209,6 +214,24 @@ func _build() -> void:
 	_mode_label.theme_type_variation = "MutedLabel"
 	_mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tools.add_child(_mode_label)
+	_export_button = Button.new()
+	_export_button.theme_type_variation = "ToolButton"
+	_export_button.focus_mode = Control.FOCUS_NONE
+	_export_button.icon = AppTheme.icon("download")
+	_export_button.pressed.connect(_ask_file.bind(FileDialog.FILE_MODE_SAVE_FILE))
+	tools.add_child(_export_button)
+	_import_button = Button.new()
+	_import_button.theme_type_variation = "ToolButton"
+	_import_button.focus_mode = Control.FOCUS_NONE
+	_import_button.pressed.connect(_ask_file.bind(FileDialog.FILE_MODE_OPEN_FILE))
+	tools.add_child(_import_button)
+	_file_dialog = FileDialog.new()
+	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_file_dialog.use_native_dialog = true
+	_file_dialog.file_selected.connect(_on_file_chosen)
+	add_child(_file_dialog)
+	_error = AcceptDialog.new()
+	add_child(_error)
 	for zoom_in: bool in [false, true]:
 		var z: Button = Button.new()
 		z.theme_type_variation = "ToolButton"
@@ -374,6 +397,11 @@ func _show() -> void:
 	var testing: bool = _sim_plc != null
 	for b: Button in _language_buttons:
 		b.disabled = monitoring or testing
+	_export_button.text = tr("Export…")
+	_export_button.tooltip_text = tr("Saves the program to a file of its own, to use it in another PLC")
+	_import_button.text = tr("Import…")
+	_import_button.tooltip_text = tr("Replaces the program with one saved to a file (Ctrl+Z brings it back)")
+	_import_button.disabled = monitoring or testing
 	if plc != null:
 		_fbd.address = plc.address
 		_lad.address = plc.address
@@ -652,6 +680,47 @@ func _feed_inputs() -> void:
 func _light(lamp: Panel, on: bool) -> void:
 	lamp.add_theme_stylebox_override("panel", AppTheme.box(Color("ffb000") if on else AppTheme.bg2, 6, 0.0, 0.0, AppTheme.border, 1))
 	(lamp.get_child(0) as Label).add_theme_color_override("font_color", Color("1d1f22") if on else AppTheme.text_muted)
+
+
+## Asks where to save the program ([param mode] save) or which program file
+## to read (open).
+func _ask_file(mode: FileDialog.FileMode) -> void:
+	_file_dialog.file_mode = mode
+	_file_dialog.title = tr("Export PLC program") if mode == FileDialog.FILE_MODE_SAVE_FILE else tr("Import PLC program")
+	_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [ProjectFile.PLC_EXTENSION, tr("PLC program")]])
+	if mode == FileDialog.FILE_MODE_SAVE_FILE:
+		_file_dialog.current_file = "%s.%s" % [component_id.get_slice(":", 0) if not component_id.is_empty() else "plc", ProjectFile.PLC_EXTENSION]
+	_file_dialog.popup_centered_ratio(0.6)
+
+
+func _on_file_chosen(path: String) -> void:
+	if _file_dialog.file_mode == FileDialog.FILE_MODE_SAVE_FILE:
+		if path.get_extension().to_lower() != ProjectFile.PLC_EXTENSION:
+			path += "." + ProjectFile.PLC_EXTENSION
+		if ProjectFile.save_plc_program(_program, path) != OK:
+			_show_error(tr("Could not save %s.") % path.get_file())
+		return
+	import_program(path)
+
+
+## Replaces the program with the one in file [param path] (one undoable
+## edit). Returns false when the file is not a PLC program.
+func import_program(path: String) -> bool:
+	if monitoring or _sim_plc != null:
+		return false
+	var result: Dictionary = ProjectFile.load_plc_program(path)
+	if result.has("error"):
+		_show_error(tr(result["error"]) % path.get_file())
+		return false
+	_program = result["program"]
+	_show()
+	_on_canvas_changed()
+	return true
+
+
+func _show_error(text: String) -> void:
+	_error.dialog_text = text
+	_error.popup_centered()
 
 
 func _on_language(language: int) -> void:

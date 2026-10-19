@@ -35,6 +35,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   workspace and in the parts list
 
 ### Files and export
+- PLC programs can be exported to a file and imported into another PLC (PLC window)
 - The export preview has a largest sheet size (A5 to A0): pages go on the smallest sheet they
   fit on up to it, larger ones are scaled down onto it
 

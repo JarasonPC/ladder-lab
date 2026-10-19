@@ -67,6 +67,32 @@ const FORMAT: String = "ladder-lab"
 const VERSION: int = 30
 
 
+## PLC program files (see [method save_plc_program]).
+const PLC_EXTENSION: String = "plcprog"
+const PLC_FORMAT: String = "ladder-lab-plc"
+const PLC_VERSION: int = 1
+
+
+## Writes PLC program [param program] to [param path] on its own (JSON
+## {format, version, program}, written as [method write_atomically] does),
+## to use it again in another PLC. Returns OK or the file error.
+static func save_plc_program(program: PlcProgram, path: String) -> Error:
+	var data: Dictionary = {"format": PLC_FORMAT, "version": PLC_VERSION, "program": program.to_data()}
+	return write_atomically(path, JSON.stringify(data, "\t") + "\n")
+
+
+## Reads a PLC program file: {"program": PlcProgram} or {"error": English
+## message with one %s for the file name}. Damaged parts of the program are
+## left out (see [method PlcProgram.from_data]).
+static func load_plc_program(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {"error": "Could not open %s."}
+	var json: JSON = JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK or not (json.data is Dictionary) or (json.data as Dictionary).get("format", "") != PLC_FORMAT:
+		return {"error": "%s is not a PLC program of LadderLab."}
+	return {"program": PlcProgram.from_data((json.data as Dictionary).get("program", {}))}
+
+
 ## Writes [param doc] to [param path]. Returns OK or the file error. The
 ## file is written next to it first and only then put in its place, so a
 ## write that fails (a full disk) never spoils the file saved before.
