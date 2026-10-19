@@ -60,7 +60,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   oversampling_with_scale, so text stays sharp); the
   palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; symbols too wide
   for a tile draw a simpler version there, SchematicSymbol.preview_rect: the inverter its power
-  part, PLCs a box saying "PLC relay" / "PLC CPU", 3~ motors a circle with "M 3~" and beside it
+  part, PLCs a box saying "PLC relay" / "PLC CPU", the temperature sensor a thermometer → U, 3~ motors a circle with "M 3~" and beside it
   Y over Δ (star/delta) or the number of speeds over "Dahl." / "speed"; the 1~ motor has its
   "M"; tiles show the rating a new part gets); the timing panel is resized by its top edge and the grip before the
   event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
@@ -416,7 +416,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   after the AC cut), so DC applied at once brakes best; a star/delta motor running shows a large Y or Δ under "M3~"
 - Temperature sensor (TemperatureSensor, "BT1", a Load on L+-M rated 24 V DC, output U): puts
   0-10 V on U over its range (range_min..range_max °C, saved with the start temperature);
-  drawn as a converter (box with a diagonal, θ in, U out; TemperatureSensorSymbol), its range,
+  drawn as a transmitter (box holding a resistor varying with θ, IEC 60617 S00561, as a Pt100,
+  and U; TemperatureSensorSymbol; in the palette a thermometer → U), its range,
   temperature and volts written beside it; while simulating a click opens a slider
   (SchematicView.set_temperature); outside the switchboard like buttons and lamps
 - Frequency inverter (Vfd, "TA1", modelled on the small Siemens drives, never with maker names or
