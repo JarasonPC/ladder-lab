@@ -315,8 +315,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   more than CabinetLayout.PE_LOADS (2) loads take PE in a switchboard (strip terminals on PE but
   the incoming one, devices' PE terminals), it gets a PE distribution block by itself
   (CabinetLayout.pe_block: a place of kind PE_BLOCK, index -1, not a rail item and not
-  selectable, right after the strip the incoming PE lands on, CabinetParts.PE_SIZES 6-24
-  push-in connections, CabinetParts.pe_block): PE is wired as a star from it, one wire to each
+  selectable, right after the strip the incoming PE lands on, CabinetParts.PE_SIZES 7, 12 or 15
+  screw connections, drawn as made: a brass bar in a yellow base, a green cover with a hole over
+  each screw from the front, wires in from the base's long side, CabinetParts.pe_block): PE is wired as a star from it, one wire to each
   connection and from each load, PE terminals not bridged then; in the parts list. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree with at most two wires in any
   terminal's clamp (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would

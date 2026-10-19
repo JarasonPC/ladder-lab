@@ -492,9 +492,10 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 			CabinetLayout.MISSING_DEVICE:
 				pass
 			CabinetLayout.PE_BLOCK:
-				# Its connections, one wire each, joined inside like bridged ones.
+				# Its screw connections, one wire each, joined by its bar like
+				# bridged terminals.
 				for i: int in place["desc"]["connections"]:
-					result.append({"key": place["desc"]["key"], "at": origin + CabinetParts.pe_entry(i), "duct": rail, "up": true, "bridge": p * 1000, "room": 1, "block": true})
+					result.append({"key": place["desc"]["key"], "at": origin + CabinetParts.pe_entry(i), "duct": rail, "up": true, "bridge": p * 1000, "room": 1, "block": true, "clamp": true})
 			_:
 				var beside: Rect2 = Rect2()
 				if place.has("under_rect"):

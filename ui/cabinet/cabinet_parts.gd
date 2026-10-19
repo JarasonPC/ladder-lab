@@ -1680,50 +1680,54 @@ static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -
 	p.text_centered(tag.get_center(), str(item.get("label", "")), 2.4, Color("111111"), true, w - 0.8)
 
 
-## PE distribution block: its connections' pitch, its height, the sizes
-## it is made in, and how far its push-in openings are from its top.
-const PE_PITCH: float = 4.0
-const PE_BLOCK_H: float = 22.0
-const PE_SIZES: Array[int] = [6, 12, 18, 24]
-const PE_ENTRY: float = 3.0
+## PE distribution block: the pitch of its screws, its height, the sizes it
+## is made in (screw connections).
+const PE_PITCH: float = 7.0
+const PE_BLOCK_H: float = 18.0
+const PE_SIZES: Array[int] = [7, 12, 15]
+const PE_YELLOW := Color("f2cf1f")
+const PE_GREEN := Color("2fae5c")
 
 
-## Size of a PE distribution block with [param connections] push-in
+## Size of a PE distribution block with [param connections] screw
 ## connections in a row.
 static func pe_block_size(connections: int) -> Vector2:
-	return Vector2(connections * PE_PITCH + 4.0, PE_BLOCK_H)
+	return Vector2(connections * PE_PITCH + 6.0, PE_BLOCK_H)
 
 
-## Where connection [param i] of a PE distribution block takes its wire
-## (from above, into its push-in opening), from the block's top-left.
+## Where connection [param i] of a PE distribution block takes its wire,
+## from the block's top-left: into the opening in the top of its yellow
+## base, over its screw.
 static func pe_entry(i: int) -> Vector2:
-	return Vector2(2.0 + PE_PITCH * (i + 0.5), PE_ENTRY)
+	return Vector2(3.0 + PE_PITCH * (i + 0.5), 0.0)
 
 
-## PE distribution block (on a DIN rail) with [param connections] push-in
-## connections in a row along its top: a green and yellow body, the openings
-## with the springs' edges inside and their release slots, "PE" and the
-## protective earth sign on the front.
+## PE distribution block on a DIN rail with [param connections] screw
+## connections, as made: a brass bar in a yellow base with the wire openings
+## along its top and bottom, under a green cover with a round hole over each
+## screw (the screw deep inside) and the connections' numbers.
 static func pe_block(p: CabinetPainter, connections: int) -> void:
 	var size: Vector2 = pe_block_size(connections)
-	var body: Rect2 = Rect2(Vector2.ZERO, size)
-	p.rect(body.grow(0.3), Color(0, 0, 0, 0.3), 1.2)
-	p.gradient(body, Color("4fae58"), Color("358a3e"), 1.0, Color("24602a"), 0.2)
-	p.gradient(Rect2(0.0, size.y * 0.42, size.x, size.y * 0.24), Color("f6dc3c"), Color("dcbd1f"))
+	var base: Rect2 = Rect2(Vector2.ZERO, size)
+	p.rect(base.grow(0.3), Color(0, 0, 0, 0.3), 1.0)
+	p.gradient(base, PE_YELLOW.lightened(0.15), PE_YELLOW.darkened(0.12), 0.8, PE_YELLOW.darkened(0.45), 0.15)
 	for i: int in connections:
-		var at: Vector2 = pe_entry(i)
-		p.rect(Rect2(at - Vector2(1.2, 1.2), Vector2(2.4, 2.4)), HOLE, 0.6)
-		p.rect(Rect2(at + Vector2(-0.8, 0.3), Vector2(1.6, 0.4)), METAL_DARK, 0.15)
-		p.rect(Rect2(at.x - 0.6, 5.6, 1.2, 2.2), Color("24602a"), 0.4)
-	var mid: Vector2 = Vector2(size.x * 0.5, size.y * 0.54)
-	p.text_centered(mid + Vector2(-3.0, 0.0), "PE", 3.0, Color("111111"), true)
-	# The protective earth sign: a circle round an earth.
-	var sign: Vector2 = mid + Vector2(4.0, 0.0)
-	p.circle(sign, 2.2, Color.TRANSPARENT, Color("111111"), 0.25)
-	p.line(sign + Vector2(0.0, -1.5), sign + Vector2(0.0, 0.2), Color("111111"), 0.25)
-	for k: int in 3:
-		var half: float = 1.3 - 0.4 * k
-		p.line(sign + Vector2(-half, 0.2 + 0.55 * k), sign + Vector2(half, 0.2 + 0.55 * k), Color("111111"), 0.25)
+		var x: float = pe_entry(i).x
+		# The wire openings in the base, top and bottom.
+		for y: float in [0.3, size.y - 2.3]:
+			p.rect(Rect2(x - 1.6, y, 3.2, 2.0), Color("3a2a12"), 0.5)
+			p.rect(Rect2(x - 1.1, y + (1.1 if y < 1.0 else 0.2), 2.2, 0.6), Color("c9963c"), 0.2)
+	var cover: Rect2 = Rect2(1.2, 2.6, size.x - 2.4, size.y - 5.2)
+	p.rect(cover.grow(0.2), Color(0, 0, 0, 0.25), 1.6)
+	p.gradient(cover, PE_GREEN.lightened(0.12), PE_GREEN.darkened(0.12), 1.4, PE_GREEN.darkened(0.45), 0.15)
+	for i: int in connections:
+		var at: Vector2 = Vector2(pe_entry(i).x, cover.position.y + cover.size.y * 0.42)
+		p.circle(at, 2.5, Color("173d22"))
+		# The screw deep in the hole.
+		p.circle(at + Vector2(0.15, 0.2), 1.5, Color("8f969c"))
+		p.line(at + Vector2(-1.0, 0.2), at + Vector2(1.3, 0.2), Color("4d5358"), 0.3)
+		p.line(at + Vector2(0.15, -0.95), at + Vector2(0.15, 1.35), Color("4d5358"), 0.3)
+		p.text_centered(Vector2(at.x, cover.end.y - 1.4), str(i + 1), 1.4, PE_GREEN.darkened(0.4), false)
 
 
 ## Height of a plug-in bridge's bar on a terminal strip, between the test
