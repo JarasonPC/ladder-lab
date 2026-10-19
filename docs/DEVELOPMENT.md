@@ -647,7 +647,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   moved parts are re-routed if no longer clean. Several selected parts turn and mirror together
   (rotate_components, mirror_components, flip_components: about the middle of their terminals,
   or the terminal nearest to it when turning about the middle would leave the cells, so four
-  turns or a turn back put everything back; wires between them turned along); a single part turns about its first terminal. Branch dots
+  turns or a turn back put everything back; wires between them turned along); a single part turns about its first terminal.
+  Several selected parts (junctions left out) line up from the right click menu ("Line up
+  vertically… / horizontally…", SchematicDocument.line_up / line_up_cells): in their order
+  along the line, the first stays, the others follow in its column or row (first terminals in
+  line), a set number of free cells apart (between the cells each part takes,
+  component_cells: body and terminals out to whole cells; asked for in a dialog, 1-50, kept
+  for the next time); while asked, the editor draws a ruler beside them (beyond their
+  markings, a tick and number at every cell, the cells each part will take marked) and keeps
+  the dialog off it. Branch dots
   join wires of one net only
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
   through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are

@@ -10,6 +10,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Phase supplies placed one after the other become L1, L2, L3 (not L1, L1, L1)
 - Terminal marks are written on one line, "X2-6" (and "X1-6"), instead of the strip over the
   number, where there is room; they can be typed that way too
+- Several selected parts can be lined up vertically or horizontally (right click), the same
+  number of free cells apart; a ruler on the drawing shows the cells while you choose it
 
 ### Simulation
 - 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while

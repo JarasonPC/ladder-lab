@@ -887,6 +887,85 @@ func flip_components(ids: PackedStringArray) -> void:
 	_transform_components(ids, _flip, func(v: Vector2i) -> Vector2i: return Vector2i(v.x, twice - v.y))
 
 
+## The cells component [param c] takes on the drawing: its body and its
+## terminals, out to whole cells.
+func component_cells(c: CircuitComponent) -> Rect2i:
+	var r: Rect2 = component_body(c)
+	for cell: Vector2i in _anchors(c).values():
+		r = r.expand(Vector2(cell))
+	var start: Vector2i = Vector2i(floori(r.position.x), floori(r.position.y))
+	return Rect2i(start, Vector2i(ceili(r.end.x), ceili(r.end.y)) - start)
+
+
+## The cells components [param ids] (junctions left out) would take lined up
+## by [method line_up], in their order along the line: the first stays where it
+## is, the others follow [param spacing] free cells apart, their first
+## terminals in line with the first's (same column for [param vertical], same
+## row otherwise). Keys are component ids.
+func line_up_cells(ids: PackedStringArray, vertical: bool, spacing: int) -> Dictionary[String, Rect2i]:
+	var axis: int = 1 if vertical else 0
+	var across: int = 1 - axis
+	var parts: Array[CircuitComponent] = []
+	for given: String in ids:
+		var c: CircuitComponent = circuit.get_component(given)
+		if c != null and not (c is Junction):
+			parts.append(c)
+	# Along the line as they stand now, by their middles.
+	var middles: Dictionary[String, Vector2] = {}
+	for c: CircuitComponent in parts:
+		middles[c.id] = Rect2(component_cells(c)).get_center()
+	parts.sort_custom(func(a: CircuitComponent, b: CircuitComponent) -> bool:
+		if middles[a.id][axis] != middles[b.id][axis]:
+			return middles[a.id][axis] < middles[b.id][axis]
+		if middles[a.id][across] != middles[b.id][across]:
+			return middles[a.id][across] < middles[b.id][across]
+		return a.id < b.id)
+	var result: Dictionary[String, Rect2i] = {}
+	if parts.is_empty():
+		return result
+	var line: int = (_anchors(parts[0]).values()[0] as Vector2i)[across]
+	var next: int = component_cells(parts[0]).position[axis]
+	for c: CircuitComponent in parts:
+		var cells: Rect2i = component_cells(c)
+		var shift: Vector2i = Vector2i.ZERO
+		shift[axis] = next - cells.position[axis]
+		shift[across] = line - (_anchors(c).values()[0] as Vector2i)[across]
+		result[c.id] = Rect2i(cells.position + shift, cells.size)
+		next += cells.size[axis] + spacing
+	return result
+
+
+## Lines components [param ids] up in a column ([param vertical]) or a row,
+## [param spacing] free cells apart (see [method line_up_cells]). Wires
+## between two parts moved alike move along, the others of the moved parts
+## are re-routed.
+func line_up(ids: PackedStringArray, vertical: bool, spacing: int) -> void:
+	var shifts: Dictionary[String, Vector2i] = {}
+	var cells: Dictionary[String, Rect2i] = line_up_cells(ids, vertical, spacing)
+	for id: String in cells:
+		var shift: Vector2i = cells[id].position - component_cells(circuit.get_component(id)).position
+		if shift != Vector2i.ZERO:
+			shifts[id] = shift
+	var moved: Dictionary[String, bool] = {}
+	var keys: Dictionary[String, Vector2i] = {}
+	for id: String in shifts:
+		_placements[id].cell += shifts[id]
+		moved[id] = true
+		for key: String in circuit.get_component(id).get_terminal_keys():
+			keys[key] = shifts[id]
+	var rerouted: PackedInt32Array = PackedInt32Array()
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		var a: bool = keys.has(wires[i][0])
+		var b: bool = keys.has(wires[i][1])
+		if a and b and keys[wires[i][0]] == keys[wires[i][1]]:
+			for k: int in _routes[i].corners.size():
+				_routes[i].corners[k] += keys[wires[i][0]]
+		elif a or b:
+			rerouted.append(i)
+	_reroute(rerouted, moved)
+
+
 ## Twice the point components [param ids] turn about: the middle of their
 ## terminals. Turning must land on cells, so the point's x and y must be both
 ## whole or both halves; when the middle is not, the terminal nearest to it

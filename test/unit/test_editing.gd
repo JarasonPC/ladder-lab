@@ -553,6 +553,46 @@ func test_parts_mirrored_together_swap_places() -> void:
 	assert_eq(doc.wire_points(0), [Vector2i(0, 3), Vector2i(0, 5), Vector2i(4, 5), Vector2i(4, 3)] as Array[Vector2i])
 
 
+func test_line_up_in_a_row() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(9, 1))
+	doc.add(Coil.new("KM1"), Vector2i(4, 6))
+	doc.add(Junction.new("J1"), Vector2i(12, 8))
+	doc.connect_terminals("H1:X2", "H2:X2", [Vector2i(0, 5), Vector2i(9, 5)] as Array[Vector2i])
+	doc.line_up(PackedStringArray(["H2", "KM1", "H1", "J1"]), false, 2)
+	assert_eq(doc.get_placement("H1").cell, Vector2i(0, 0), "the first part stays")
+	assert_eq(doc.get_placement("J1").cell, Vector2i(12, 8), "junctions stay with their wires")
+	# Left to right as they stood: H1, KM1, H2; first terminals on one row,
+	# two free cells between neighbours.
+	var order: Array[String] = ["H1", "KM1", "H2"]
+	for i: int in order.size():
+		var c: CircuitComponent = doc.circuit.get_component(order[i])
+		assert_eq(doc.terminal_cell(c.get_terminal_keys()[0]).y, 0, order[i])
+		if i > 0:
+			var before: Rect2i = doc.component_cells(doc.circuit.get_component(order[i - 1]))
+			assert_eq(doc.component_cells(c).position.x - before.end.x, 2, "%s two cells on" % order[i])
+	_assert_routes_valid(doc)
+
+
+func test_line_up_in_a_column_moves_wires_along() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Contact.new("K1", NO), Vector2i(3, 0))
+	doc.add(Lamp.new("H1"), Vector2i(8, 9))
+	doc.add(Lamp.new("H2"), Vector2i(10, 20))
+	doc.connect_terminals("H1:X2", "H2:X1")
+	var cells: Dictionary[String, Rect2i] = doc.line_up_cells(PackedStringArray(["H1", "H2", "K1:13-14"]), true, 3)
+	doc.line_up(PackedStringArray(["H1", "H2", "K1:13-14"]), true, 3)
+	for id: String in cells:
+		assert_eq(doc.component_cells(doc.circuit.get_component(id)), cells[id], id)
+	assert_eq(doc.terminal_cell("H1:X1").x, 3, "one column")
+	assert_eq(doc.terminal_cell("H2:X1").x, 3)
+	assert_eq(doc.component_cells(doc.circuit.get_component("H1")).position.y, doc.component_cells(doc.circuit.get_component("K1:13-14")).end.y + 3)
+	assert_eq(doc.component_cells(doc.circuit.get_component("H2")).position.y, doc.component_cells(doc.circuit.get_component("H1")).end.y + 3)
+	_assert_routes_valid(doc)
+	assert_eq(doc.wire_points(0).back(), doc.terminal_cell("H2:X1"))
+
+
 func test_examples_stay_clean_when_parts_move_and_turn() -> void:
 	# Every part of an example nudged, and the control column of the first
 	# one turned: no wire ends up looking connected where it is not, as long

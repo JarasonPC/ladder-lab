@@ -456,6 +456,30 @@ msgstr ""
 msgid "Mirror top-bottom"
 msgstr ""
 
+msgid "Line up vertically…"
+msgstr ""
+
+msgid "One under another, the same number of cells apart"
+msgstr ""
+
+msgid "Line up horizontally…"
+msgstr ""
+
+msgid "Side by side, the same number of cells apart"
+msgstr ""
+
+msgid "Line up vertically"
+msgstr ""
+
+msgid "Line up horizontally"
+msgstr ""
+
+msgid "Line up"
+msgstr ""
+
+msgid "Free cells between the parts:"
+msgstr ""
+
 msgid "Cut"
 msgstr ""
 

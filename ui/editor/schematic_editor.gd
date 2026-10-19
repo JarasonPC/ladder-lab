@@ -9,7 +9,9 @@ extends Node2D
 ## Place: choose a palette entry, click to place (repeatable), R/F turn the
 ## symbol before placing. Right click or Esc ends the current tool.
 ## Right click opens a menu with "Change to" (switch a contact, coil or load
-## to another type, keeping its wires), rotate, mirror, cut/copy/paste, delete.
+## to another type, keeping its wires), rotate, mirror, line up (several
+## parts in a column or a row, a set number of cells apart, with a ruler on
+## the drawing while the number is asked for), cut/copy/paste, delete.
 ## Keys: R rotate, F mirror, Delete remove, Ctrl+Z undo, Ctrl+Y redo,
 ## Ctrl+X/C/V cut/copy/paste, Ctrl+A select all.
 
@@ -33,7 +35,7 @@ enum Tool { SELECT, PLACE, WIRE }
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, GO_TO = 100 }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, LINE_UP_VERTICAL, LINE_UP_HORIZONTAL, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 ## Phase conductors as the palette names them, in phase order.
@@ -122,6 +124,16 @@ var _change_options: Array[Dictionary] = []
 ## Where the page connector of the context menu continues (see
 ## [method SchematicDocument.connector_targets]).
 var _go_to_targets: Array[Dictionary] = []
+## Asks how many free cells to leave between parts lined up (see
+## [method SchematicDocument.line_up]).
+var _line_up_dialog: ConfirmationDialog
+var _line_up_caption: Label
+var _line_up_spin: SpinBox
+## The line-up being asked for, {"ids": PackedStringArray, "vertical": bool};
+## its ruler is drawn while the dialog is open.
+var _line_up: Dictionary = {}
+## Free cells between parts lined up, kept for the next time.
+var line_up_spacing: int = 2
 
 
 func _ready() -> void:
@@ -135,6 +147,34 @@ func _ready() -> void:
 	_change_menu.id_pressed.connect(func(i: int) -> void:
 		if selected_components.size() == 1:
 			change_type(selected_components.keys()[0], _change_options[i]["template"]))
+	_build_line_up_dialog()
+
+
+func _build_line_up_dialog() -> void:
+	_line_up_dialog = ConfirmationDialog.new()
+	_line_up_dialog.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_line_up_caption = Label.new()
+	_line_up_caption.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_line_up_caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_line_up_caption)
+	_line_up_spin = SpinBox.new()
+	_line_up_spin.min_value = 1
+	_line_up_spin.max_value = 50
+	_line_up_spin.step = 1
+	_line_up_spin.rounded = true
+	_line_up_spin.update_on_text_changed = true
+	_line_up_spin.custom_minimum_size.x = 120.0
+	_line_up_spin.value_changed.connect(func(_v: float) -> void: queue_redraw())
+	row.add_child(_line_up_spin)
+	_line_up_dialog.add_child(row)
+	_line_up_dialog.register_text_enter(_line_up_spin.get_line_edit())
+	_line_up_dialog.confirmed.connect(_apply_line_up)
+	_line_up_dialog.canceled.connect(func() -> void:
+		_line_up = {}
+		queue_redraw())
+	add_child(_line_up_dialog)
 
 
 ## Palette entries of the same family as [param c] (switching elements,
@@ -575,6 +615,101 @@ func select_all() -> void:
 	_selection_updated()
 
 
+## The selected parts that can be lined up (junctions stay with their wires).
+func _line_up_ids() -> PackedStringArray:
+	var ids: PackedStringArray = PackedStringArray()
+	for id: String in selected_components:
+		if not (document().circuit.get_component(id) is Junction):
+			ids.append(id)
+	return ids
+
+
+## Asks how many free cells to leave between the selected parts, then lines
+## them up one under another ([param vertical]) or side by side (see
+## [method SchematicDocument.line_up]); a ruler along the line shows the cells
+## and where the parts will be meanwhile.
+func ask_line_up(vertical: bool) -> void:
+	var ids: PackedStringArray = _line_up_ids()
+	if ids.size() < 2:
+		return
+	_cancel_tool()
+	_line_up = {"ids": ids, "vertical": vertical}
+	_line_up_dialog.title = tr("Line up vertically") if vertical else tr("Line up horizontally")
+	_line_up_dialog.ok_button_text = tr("Line up")
+	_line_up_dialog.cancel_button_text = tr("Cancel")
+	_line_up_caption.text = tr("Free cells between the parts:")
+	_line_up_spin.set_value_no_signal(line_up_spacing)
+	AppTheme.popup_at_mouse(_line_up_dialog, Vector2(16, 16))
+	_keep_dialog_off_ruler()
+	_line_up_spin.get_line_edit().grab_focus()
+	_line_up_spin.get_line_edit().select_all()
+	queue_redraw()
+
+
+func _apply_line_up() -> void:
+	if _line_up.is_empty():
+		return
+	_line_up_spin.apply()
+	line_up_spacing = int(_line_up_spin.value)
+	var vertical: bool = _line_up["vertical"]
+	var ids: PackedStringArray = PackedStringArray()
+	for id: String in _line_up["ids"]:
+		if document().circuit.has_component_id(id):
+			ids.append(id)
+	_line_up = {}
+	queue_redraw()
+	if ids.size() < 2:
+		return
+	_record()
+	document().line_up(ids, vertical, line_up_spacing)
+	_changed()
+
+
+## What the ruler of the line-up being asked for runs beside (grid units):
+## the parts as they stand and as they will be lined up, with their markings
+## when [param markings].
+func _line_up_area(markings: bool = true) -> Rect2:
+	var doc: SchematicDocument = document()
+	var area: Rect2 = Rect2()
+	var first: bool = true
+	var cells: Dictionary[String, Rect2i] = doc.line_up_cells(_line_up["ids"], _line_up["vertical"], int(_line_up_spin.value))
+	for id: String in cells:
+		var now: Rect2i = doc.component_cells(doc.circuit.get_component(id))
+		var drawn: Rect2 = Rect2(now)
+		var symbol: SchematicSymbol = view.get_symbol(id)
+		if markings and symbol != null:
+			for rect: Rect2 in symbol.text_rects:
+				drawn = drawn.merge(Rect2((rect.position + symbol.position) / G, rect.size / G))
+		var moved: Rect2 = Rect2(drawn.position + Vector2(cells[id].position - now.position), drawn.size)
+		area = drawn.merge(moved) if first else area.merge(drawn).merge(moved)
+		first = false
+	return area
+
+
+## Moves the line-up dialog where it leaves the parts and the ruler in sight
+## (beside them, as far as the window allows).
+func _keep_dialog_off_ruler() -> void:
+	var host: Window = _line_up_dialog.get_parent().get_window()
+	if not host.gui_embed_subwindows:
+		return
+	var area: Rect2 = _line_up_area().grow(2.5)
+	var screen: Rect2 = get_global_transform_with_canvas() * Rect2(area.position * G, area.size * G)
+	var room: Rect2 = host.get_visible_rect()
+	var size: Vector2 = Vector2(_line_up_dialog.size)
+	var spots: Array[Vector2] = [
+		Vector2(screen.position.x, screen.end.y + 8.0),
+		Vector2(screen.position.x, screen.position.y - size.y - 8.0),
+		Vector2(screen.end.x + 8.0, screen.position.y),
+		Vector2(screen.position.x - size.x - 8.0, screen.position.y),
+	]
+	if Rect2(Vector2(_line_up_dialog.position), size).intersects(screen):
+		for spot: Vector2 in spots:
+			var at: Vector2 = spot.clamp(room.position, (room.end - size).max(room.position))
+			if not Rect2(at, size).intersects(screen):
+				_line_up_dialog.position = Vector2i(at)
+				return
+
+
 ## Applies [param change] (called with the document) to the pages (add,
 ## rename, move, delete) as one undoable edit.
 func edit_pages(change: Callable) -> void:
@@ -736,6 +871,12 @@ func _open_context_menu() -> void:
 		_menu.add_item(tr("Rotate"), MenuId.ROTATE, KEY_R)
 		_menu.add_item(tr("Mirror left-right"), MenuId.MIRROR, KEY_F)
 		_menu.add_item(tr("Mirror top-bottom"), MenuId.FLIP, KEY_MASK_SHIFT | KEY_F)
+		if _line_up_ids().size() >= 2:
+			_menu.add_separator()
+			_menu.add_item(tr("Line up vertically…"), MenuId.LINE_UP_VERTICAL)
+			_menu.set_item_tooltip(_menu.item_count - 1, tr("One under another, the same number of cells apart"))
+			_menu.add_item(tr("Line up horizontally…"), MenuId.LINE_UP_HORIZONTAL)
+			_menu.set_item_tooltip(_menu.item_count - 1, tr("Side by side, the same number of cells apart"))
 		_menu.add_separator()
 		_menu.add_item(tr("Cut"), MenuId.CUT, KEY_MASK_CTRL | KEY_X)
 		_menu.add_item(tr("Copy"), MenuId.COPY, KEY_MASK_CTRL | KEY_C)
@@ -771,6 +912,8 @@ func _on_menu_id(id: int) -> void:
 			delete_selection()
 		MenuId.SELECT_ALL:
 			select_all()
+		MenuId.LINE_UP_VERTICAL, MenuId.LINE_UP_HORIZONTAL:
+			ask_line_up(id == MenuId.LINE_UP_VERTICAL)
 		MenuId.DATASHEET:
 			if selected_components.size() == 1:
 				datasheet_requested.emit(selected_components.keys()[0])
@@ -1785,11 +1928,72 @@ func _draw() -> void:
 			points.append(preview[i])
 		if points.size() >= 2:
 			draw_polyline(_pixels(points), PREVIEW_COLOR, 2.5)
+	if not _line_up.is_empty():
+		_draw_line_up_ruler()
 	# Selection box.
 	if _boxing:
 		var box: Rect2 = Rect2(_box_origin * G, Vector2.ZERO).expand(_mouse_point * G)
 		draw_rect(box, Color(SELECTION_COLOR, 0.1))
 		draw_rect(box, SELECTION_COLOR, false, 1.0)
+
+
+## The ruler of the line-up being asked for: along the top of a row or the
+## left of a column, a tick at every cell numbered from the first part, and
+## the cells each part will take with the spacing in the dialog marked.
+func _draw_line_up_ruler() -> void:
+	var doc: SchematicDocument = document()
+	var vertical: bool = _line_up["vertical"]
+	var axis: int = 1 if vertical else 0
+	var across: int = 1 - axis
+	var area: Rect2 = _line_up_area()
+	var parts: Rect2 = _line_up_area(false)
+	var from: int = floori(parts.position[axis])
+	var to: int = ceili(parts.end[axis]) + 2
+	# The band, beyond the parts and their markings, half a cell thick.
+	var band_near: float = area.position[across] - 0.5
+	var band_far: float = band_near - 0.5
+	var band: Callable = func(a: float, b: float) -> Rect2:
+		var start: Vector2 = Vector2.ZERO
+		var end: Vector2 = Vector2.ZERO
+		start[axis] = a
+		end[axis] = b
+		start[across] = band_far
+		end[across] = band_near
+		return Rect2(start * G, (end - start) * G)
+	# Paper under the band and its numbers, so they read over anything drawn there.
+	var backing: Rect2 = band.call(float(from) - 0.5, float(to) + 0.5)
+	backing = backing.expand(backing.position - (Vector2(1.6, 0.0) if vertical else Vector2(0.0, 0.8)) * G)
+	draw_rect(backing, SchematicTheme.BACKGROUND)
+	var cells: Dictionary[String, Rect2i] = doc.line_up_cells(_line_up["ids"], vertical, int(_line_up_spin.value))
+	for id: String in cells:
+		draw_rect(band.call(float(cells[id].position[axis]), float(cells[id].end[axis])), Color(SELECTION_COLOR, 0.3))
+	draw_rect(band.call(float(from), float(to)), SchematicTheme.LINE, false, 1.0)
+	# Numbers on every cell, or every fifth when the cells are small on screen.
+	var on_screen: float = G * get_global_transform_with_canvas().get_scale().x
+	var every: int = 1 if on_screen >= 16.0 else 5
+	var font: Font = AppTheme.schematic_font()
+	var font_size: int = 9
+	for n: int in range(0, to - from + 1):
+		var at: float = float(from + n)
+		var tick: float = 0.35 if n % 5 == 0 else 0.2
+		var a: Vector2 = Vector2.ZERO
+		var b: Vector2 = Vector2.ZERO
+		a[axis] = at
+		b[axis] = at
+		a[across] = band_near
+		b[across] = band_near - tick
+		draw_line(a * G, b * G, SchematicTheme.LINE, 1.0)
+		if n % every != 0:
+			continue
+		var text: String = str(n)
+		var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		var ascent: float = font.get_ascent(font_size)
+		var pos: Vector2
+		if vertical:
+			pos = Vector2(band_far * G - text_size.x - 3.0, at * G + ascent * 0.5 - 1.0)
+		else:
+			pos = Vector2(at * G - text_size.x * 0.5, band_far * G - 3.0)
+		draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, SchematicTheme.TEXT)
 
 
 func _pixels(points: Array[Vector2i]) -> PackedVector2Array:
