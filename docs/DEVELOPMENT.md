@@ -507,8 +507,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   frozen) are offered, the newest first: Restore (opened unsaved, Save writes to its file),
   Discard, Later (offered again at the next start)
 - File association (FileAssociation): an exported Windows build registers .ladder for the current
-  user (HKCU via `reg import`, redone only when the exe moved); a .ladder path among the
-  command-line arguments is opened at start
+  user (HKCU via `reg import`, redone only when the exe moved) unless File > Open .ladder files
+  with LadderLab is turned off (setting files/associate; turning it off deletes the keys); a
+  .ladder path among the command-line arguments is opened at start
+- PRIVACY.md and CODE_SIGNING.md (signing policy for SignPath) describe every network request
+  and system change the program makes: keep them true when adding one
 - Version: `application/config/version` in project.godot (semantic, e.g. 0.2.0); releases are
   GitHub Releases tagged `v<version>`. Updates (Help menu): UpdateChecker asks the GitHub API for
   the latest release at start (Help > Check for updates at startup, saved) and on request;

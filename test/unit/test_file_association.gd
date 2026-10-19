@@ -17,3 +17,16 @@ func test_registry_opens_files_with_the_executable() -> void:
 	assert_string_contains(text, "[HKEY_CURRENT_USER\\Software\\Classes\\LadderLab.Schematic]\r\n@=\"Schéma \\\"LadderLab\\\"\"")
 	assert_string_contains(text, "@=\"C:\\\\Program Files\\\\LadderLab\\\\LadderLab.exe,0\"")
 	assert_string_contains(text, "@=\"\\\"C:\\\\Program Files\\\\LadderLab\\\\LadderLab.exe\\\" \\\"%1\\\"\"")
+
+
+func test_unregistering_removes_every_key_registering_writes() -> void:
+	var text: String = FileAssociation.registry_text("C:/LadderLab/LadderLab.exe", "LadderLab schematic")
+	var keys: PackedStringArray = FileAssociation.registry_keys()
+	for line: String in text.split("\r\n"):
+		if line.begins_with("["):
+			var key: String = line.trim_prefix("[").trim_suffix("]")
+			var covered: bool = false
+			for removed: String in keys:
+				covered = covered or key == removed or key.begins_with(removed + "\\")
+			assert_true(covered, "left behind: " + key)
+	assert_false(FileAssociation.available(), "only exported Windows builds register")

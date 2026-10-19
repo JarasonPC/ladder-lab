@@ -3,7 +3,8 @@ extends RefCounted
 ## Lets the operating system open .ladder files with LadderLab: an exported
 ## Windows build registers the extension for the current user (no admin
 ## rights needed), and a schematic double-clicked in Explorer arrives as a
-## command-line argument.
+## command-line argument. File > Open .ladder files with LadderLab turns it
+## off, which removes the registration again.
 
 const PROG_ID: String = "LadderLab.Schematic"
 ## Last registration imported, so the registry is written only when the
@@ -19,10 +20,15 @@ static func file_from_args(args: PackedStringArray) -> String:
 	return ""
 
 
+## Only an exported Windows build registers itself (not the editor).
+static func available() -> bool:
+	return OS.get_name() == "Windows" and OS.has_feature("template")
+
+
 ## Registers .ladder for the running executable when it is an exported
 ## Windows build; [param description] is the file type name Explorer shows.
 static func register(description: String) -> void:
-	if OS.get_name() != "Windows" or not OS.has_feature("template"):
+	if not available():
 		return
 	var text: String = registry_text(OS.get_executable_path(), description)
 	if FileAccess.file_exists(REG_PATH):
@@ -39,6 +45,21 @@ static func register(description: String) -> void:
 	var global_path: String = ProjectSettings.globalize_path(REG_PATH).replace("/", "\\")
 	if OS.execute("reg", ["import", global_path]) != 0:
 		DirAccess.remove_absolute(REG_PATH)
+
+
+## Removes the registration written by [method register].
+static func unregister() -> void:
+	if not available():
+		return
+	for key: String in registry_keys():
+		OS.execute("reg", ["delete", key, "/f"])
+	DirAccess.remove_absolute(REG_PATH)
+
+
+## The registry keys [method register] creates (with their subkeys).
+static func registry_keys() -> PackedStringArray:
+	var classes: String = "HKEY_CURRENT_USER\\Software\\Classes\\"
+	return [classes + "." + ProjectFile.EXTENSION, classes + PROG_ID]
 
 
 ## Contents of the .reg file that associates .ladder with [param exe_path].

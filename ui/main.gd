@@ -8,7 +8,7 @@ extends Node
 enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
-enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT }
+enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20, CABLES_CZECH = 40, CABLES_HARMONISED }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
@@ -56,6 +56,9 @@ var _update_button: Button
 var _update_checker: UpdateChecker
 ## Look for a newer version at every start (remembered).
 var _check_updates: bool = true
+## Windows opens .ladder files with this LadderLab (remembered; exported
+## Windows builds only).
+var _associate_files: bool = true
 ## Newer release found ({"version", "url", "notes"}), or {}.
 var _new_release: Dictionary = {}
 ## The running check was asked for in the Help menu, so its result is shown.
@@ -194,7 +197,8 @@ func _ready() -> void:
 	_apply_ui_scale()
 	_apply_theme()
 	TranslationServer.set_locale(LOCALES[_locale_index])
-	FileAssociation.register(tr("LadderLab schematic"))
+	if _associate_files:
+		FileAssociation.register(tr("LadderLab schematic"))
 	_build_ui()
 	_build_dialogs()
 	_update_checker = UpdateChecker.new()
@@ -890,6 +894,11 @@ func _rebuild_file_menu() -> void:
 	popup.add_item(tr("Export as PDF…"), FileMenuId.EXPORT_PDF)
 	popup.add_item(tr("Title block…"), FileMenuId.TITLE_BLOCK)
 	popup.set_item_tooltip(popup.item_count - 1, tr("Texts of the title block on exported sheets: drawn by, checked by, company, ..."))
+	if FileAssociation.available():
+		popup.add_separator()
+		popup.add_check_item(tr("Open .ladder files with LadderLab"), FileMenuId.ASSOCIATE)
+		popup.set_item_checked(popup.item_count - 1, _associate_files)
+		popup.set_item_tooltip(popup.item_count - 1, tr("A double-click on a .ladder file in Explorer opens it in this LadderLab (registered for your Windows user only); turning it off removes the registration"))
 	popup.add_separator()
 	popup.add_item(tr("Quit"), FileMenuId.QUIT, KEY_MASK_CTRL | KEY_Q)
 	_recent_menu.clear()
@@ -1453,6 +1462,14 @@ func _on_file_menu(id: int) -> void:
 			_show_title_block_dialog()
 		FileMenuId.QUIT:
 			_confirm_discard(_quit)
+		FileMenuId.ASSOCIATE:
+			_associate_files = not _associate_files
+			if _associate_files:
+				FileAssociation.register(tr("LadderLab schematic"))
+			else:
+				FileAssociation.unregister()
+			_save_settings()
+			_rebuild_file_menu()
 
 
 func _on_recent_pressed(index: int) -> void:
@@ -2020,6 +2037,7 @@ func _load_settings() -> void:
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 		_check_updates = bool(config.get_value("updates", "check_at_start", true))
+		_associate_files = bool(config.get_value("files", "associate", true))
 
 
 func _save_settings() -> void:
@@ -2049,6 +2067,7 @@ func _save_settings() -> void:
 			config.set_value("view", bar.name + "_zoom", bar.zoom)
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.set_value("updates", "check_at_start", _check_updates)
+	config.set_value("files", "associate", _associate_files)
 	config.save(SETTINGS_PATH)
 
 

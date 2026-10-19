@@ -3222,3 +3222,9 @@ msgid "%d terminal"
 msgid_plural "%d terminals"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Open .ladder files with LadderLab"
+msgstr ""
+
+msgid "A double-click on a .ladder file in Explorer opens it in this LadderLab (registered for your Windows user only); turning it off removes the registration"
+msgstr ""

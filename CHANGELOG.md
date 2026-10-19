@@ -6,6 +6,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Files and export
+- File > Open .ladder files with LadderLab (Windows): turns the file association on or off;
+  turning it off removes it from the registry again
+
 ### Fixed
 - The PLC, compact PLC and frequency inverter are readable in the palette (drawn smaller there),
   and no palette symbol has lines too thin to see

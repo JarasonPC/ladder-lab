@@ -63,6 +63,14 @@ godot --headless -s addons/gut/gut_cmdln.gd
 
 How the code is organised is described in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
+## Code signing, privacy and security
+
+- [Code signing policy](CODE_SIGNING.md): how the Windows builds are made and signed, and
+  what LadderLab changes on your computer
+- [Privacy policy](PRIVACY.md): LadderLab collects no data; its only automatic network
+  request is the update check, which can be turned off
+- [Security](SECURITY.md): how to report a security problem privately
+
 ## Reporting problems
 
 Report bugs and suggest improvements in the
