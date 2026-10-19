@@ -18,8 +18,11 @@ const MARGIN: float = 5.0
 const GAP: float = 2.0
 const PAD: float = 4.0
 ## Room on both sides of a contactor with an overload relay under it for
-## the wires from the contactor's bottom terminals (see [CabinetWiring]).
+## the wires from the contactor's bottom terminals (see [CabinetWiring]),
+## and more for the two wires of each auxiliary contact block mounted on
+## its side (on the side with more of them).
 const WIRE_CHANNEL: float = 6.0
+const SIDE_BLOCK_CHANNEL: float = 3.0
 ## Narrowest room for the rails.
 const MIN_CONTENT: float = 100.0
 ## Size of an empty place (device not in the circuit).
@@ -163,9 +166,11 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 			var overload: String = place["desc"].get("overload", "")
 			if not overload.is_empty():
 				place["under_designation"] = overload
-				place["channel"] = WIRE_CHANNEL
+				# The first side block goes on the right (see CabinetParts.side_blocks).
+				place["channel"] = WIRE_CHANNEL + SIDE_BLOCK_CHANNEL * ceili(CabinetParts.side_block_count(aux) / 2.0)
 				place["under_desc"] = CabinetDevices.describe(doc, overload)
-				place["under_origin"] = Vector2(0.0, place["origin"].y + CabinetParts.CONTACTOR.y)
+				# Under the contactor itself, between its side blocks.
+				place["under_origin"] = Vector2(CabinetParts.contactor_left(aux), place["origin"].y + CabinetParts.CONTACTOR.y)
 				place["under_rect"] = Rect2(place["under_origin"], CabinetParts.OVERLOAD)
 				place["under_label_at"] = place["under_origin"] + Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0)
 				place["bottom"] = place["under_label_at"].y + 2.6

@@ -366,6 +366,17 @@ const CONTACTOR_INNER_X4: Array[float] = [14.0, 23.2, 41.4]
 const CONTACTOR_INNER_DROP: float = 0.8
 const CONTACTOR_INNER_DROP4: float = 0.4
 const AUX_BLOCK_X: Array[float] = [7.6, 17.9, 28.2, 38.5]
+## Auxiliary contacts built into a contactor, on the auxiliary contact block
+## on its front and on each block mounted on its side.
+const AUX_BUILT_IN: int = 2
+const AUX_FRONT: int = 4
+const AUX_SIDE: int = 2
+## Width of an auxiliary contact block mounted on a contactor's side and its
+## screw columns from the edge against the contactor: the inner tiers'
+## (second contact) nearer, the outer tiers' (first contact) further.
+const SIDE_BLOCK_W: float = 9.0
+const SIDE_BLOCK_X: Array[float] = [2.5, 6.5]
+const SIDE_SCREW: float = 1.6
 ## Heights across a contactor clear of its screws and markings, under the
 ## auxiliary contact block, the inner bottom tier and the power outputs:
 ## wires from its bottom terminals run out to the side there when an
@@ -416,10 +427,19 @@ static func _power_label(p: CabinetPainter, at: Vector2, digit: String, name: St
 ## poles (also for 1 or 2: the unused ones stay free, as on a real one) or
 ## 4. [param aux] names the auxiliary contacts ([top number, kind, bottom
 ## number]): the first two are built in, up to four more sit in an
-## auxiliary contact block clipped onto the front. [param highlight] glows
+## auxiliary contact block clipped onto the front, the others two to a block
+## mounted on its side (see [method side_blocks]). [param highlight] glows
 ## round the window while the coil has power. [param reach]: terminal name
 ## -> colour of voltage reach.
 static func contactor(p: CabinetPainter, on: bool, highlight: bool = false, aux: Array = [["13", "NO", "14"], ["21", "NC", "22"]], reach: Dictionary = {}, poles: int = 3) -> void:
+	var blocks: Array[float] = side_blocks(aux.size())
+	for b: int in blocks.size():
+		var first: int = AUX_BUILT_IN + AUX_FRONT + AUX_SIDE * b
+		_side_block(p, blocks[b], b % 2 == 0, aux.slice(first, first + AUX_SIDE), reach)
+	_contactor_body(p.shifted(Vector2(contactor_left(aux.size()), 0.0)), on, highlight, aux, reach, poles)
+
+
+static func _contactor_body(p: CabinetPainter, on: bool, highlight: bool, aux: Array, reach: Dictionary, poles: int) -> void:
 	var w: float = CONTACTOR.x
 	var h: float = CONTACTOR.y
 	var four: bool = poles >= 4
@@ -492,14 +512,95 @@ static func contactor(p: CabinetPainter, on: bool, highlight: bool = false, aux:
 	p.text(sx + Vector2(4.4, 9.0), _printed(aux[1][2]), 1.1, BLOCK_WHITE, 0, false)
 	p.rect(Rect2(34.0, 30.4, 8.0, 9.2), BLOCK_RECESS, 0.4)
 	p.rect(Rect2(34.3, 30.8, 2.6, 8.4), Color("8c9094"), 0.2)
-	if aux.size() > 2:
-		_aux_block(p, on, highlight, aux.slice(2, 6), reach)
+	if aux.size() > AUX_BUILT_IN:
+		_aux_block(p, on, highlight, aux.slice(AUX_BUILT_IN, AUX_BUILT_IN + AUX_FRONT), reach)
 
 
 ## Where the designation label of a contactor goes: on its label holder, or
 ## on the auxiliary contact block when it has one.
 static func contactor_label_at(aux_count: int) -> Vector2:
-	return Vector2(22.7, 38.4) if aux_count > 2 else Vector2(22.7, 46.6)
+	return Vector2(contactor_left(aux_count) + 22.7, 38.4 if aux_count > AUX_BUILT_IN else 46.6)
+
+
+## Number of auxiliary contact blocks mounted on the sides of a contactor
+## with [param aux_count] auxiliary contacts: as many as the contacts beyond
+## its own and the front block's need.
+static func side_block_count(aux_count: int) -> int:
+	return ceili(maxi(aux_count - AUX_BUILT_IN - AUX_FRONT, 0) / float(AUX_SIDE))
+
+
+## Left edges of the auxiliary contact blocks on the sides of a contactor
+## with [param aux_count] auxiliary contacts, from the left edge of its
+## drawing, in the order of the contacts on them: as on real ones the first
+## on the right, the second on the left, further ones outside them in turn.
+static func side_blocks(aux_count: int) -> Array[float]:
+	var left: float = contactor_left(aux_count)
+	var result: Array[float] = []
+	for b: int in side_block_count(aux_count):
+		var out: int = floori(b / 2.0)
+		result.append(left + CONTACTOR.x + out * SIDE_BLOCK_W if b % 2 == 0 else left - (out + 1) * SIDE_BLOCK_W)
+	return result
+
+
+## Where the contactor itself starts in the drawing of one with
+## [param aux_count] auxiliary contacts: right of the side blocks on its left.
+static func contactor_left(aux_count: int) -> float:
+	return floori(side_block_count(aux_count) / 2.0) * SIDE_BLOCK_W
+
+
+## Screws of a side block with its left edge at [param x], [param right] of
+## the contactor: top and bottom of its first contact (outer tiers, in the
+## column away from the contactor, level with the power terminals), then of
+## its second (inner tiers, level with the contactor's own), so the wire from
+## an inner screw passes the outer one.
+static func side_block_screws(x: float, right: bool) -> Array[Vector2]:
+	var inner: float = x + (SIDE_BLOCK_X[0] if right else SIDE_BLOCK_W - SIDE_BLOCK_X[0])
+	var outer: float = x + (SIDE_BLOCK_X[1] if right else SIDE_BLOCK_W - SIDE_BLOCK_X[1])
+	return [Vector2(outer, 5.6), Vector2(outer, CONTACTOR.y - 6.9), Vector2(inner, 12.7), Vector2(inner, 58.8)]
+
+
+## Auxiliary contact block mounted on the side of a contactor, 9 mm wide,
+## [param x] its left edge, [param right] of the contactor: a narrow housing
+## like the contactor's with the screws of its two contacts
+## ([param contacts], as in [method contactor]; a place left free keeps its
+## screws) in the tiers top and bottom, their numbers and kinds printed
+## between them over a contact symbol each, and the latch it clips on with.
+static func _side_block(p: CabinetPainter, x: float, right: bool, contacts: Array, reach: Dictionary) -> void:
+	var w: float = SIDE_BLOCK_W
+	var h: float = CONTACTOR.y
+	p.gradient(Rect2(x + 0.1, 0.6, w - 0.2, h - 1.2), BLOCK_LIGHT, BLOCK_BODY, 0.8, Color("2e3034"), 0.15)
+	p.rect(Rect2(x + 0.6, 1.0, w - 1.2, 15.6), BLOCK_DARK, 0.6, Color("2e3034"), 0.15)
+	p.rect(Rect2(x + 0.6, 55.2, w - 1.2, 20.8), BLOCK_DARK, 0.6, Color("2e3034"), 0.15)
+	# The seam against the contactor.
+	var seam: float = x + 0.1 if right else x + w - 0.1
+	p.line(Vector2(seam, 0.6), Vector2(seam, h - 0.6), Color("1f2124"), 0.25)
+	var screws: Array[Vector2] = side_block_screws(x, right)
+	for c: int in AUX_SIDE:
+		var named: bool = c < contacts.size()
+		var top: Vector2 = screws[2 * c]
+		var bottom: Vector2 = screws[2 * c + 1]
+		_block_screw(p, top, SIDE_SCREW, reach.get(contacts[c][0], Color.TRANSPARENT) if named else Color.TRANSPARENT)
+		_block_screw(p, bottom, SIDE_SCREW, reach.get(contacts[c][2], Color.TRANSPARENT) if named else Color.TRANSPARENT)
+		if not named:
+			continue
+		var cx: float = top.x
+		p.text(Vector2(cx, 19.6), _printed(contacts[c][0]), 1.5, BLOCK_WHITE, 0, true, 3.8)
+		p.text(Vector2(cx, 21.6), str(contacts[c][1]), 1.1, BLOCK_WHITE, 0, false, 3.8)
+		p.text(Vector2(cx, 49.4), str(contacts[c][1]), 1.1, BLOCK_WHITE, 0, false, 3.8)
+		p.text(Vector2(cx, 52.0), _printed(contacts[c][2]), 1.5, BLOCK_WHITE, 0, true, 3.8)
+		# The contact symbol: an NO blade stands open, an NC one rests
+		# against its stop.
+		p.line(Vector2(cx, 23.4), Vector2(cx, 26.4), BLOCK_WHITE, 0.12)
+		p.line(Vector2(cx, 31.2), Vector2(cx, 34.2), BLOCK_WHITE, 0.12)
+		if str(contacts[c][1]) == "NC":
+			p.line(Vector2(cx, 26.4), Vector2(cx + 1.1, 26.4), BLOCK_WHITE, 0.12)
+			p.line(Vector2(cx, 31.2), Vector2(cx + 1.1, 26.1), BLOCK_WHITE, 0.12)
+		else:
+			p.line(Vector2(cx, 31.2), Vector2(cx - 1.2, 26.8), BLOCK_WHITE, 0.12)
+	# The latch.
+	p.rect(Rect2(x + 1.6, 38.0, w - 3.2, 7.4), BLOCK_RECESS, 0.4)
+	for i: int in 3:
+		p.rect(Rect2(x + 2.2, 39.2 + 2.0 * i, w - 4.4, 0.9), Color("5a5e63"), 0.2)
 
 
 ## Auxiliary contact block clipped onto the front of a contactor: up to four
@@ -538,13 +639,14 @@ static func _printed(name: Variant) -> String:
 ## at a height between the block's screws and the inner tier. Relative to
 ## the contactor: {"x": Vector2 (outermost and innermost x of the wires
 ## there), "top": Vector2 (heights nearest the block and nearest the inner
-## tier above it), "bottom": the same below it}.
-static func aux_block_leads(poles: int) -> Dictionary:
+## tier above it), "bottom": the same below it}. [param left]: where the
+## contactor starts in its drawing (see [method contactor_left]).
+static func aux_block_leads(poles: int, left: float = 0.0) -> Dictionary:
 	var four: bool = poles >= 4
 	var first: float = (CONTACTOR_POWER_X4 if four else CONTACTOR_POWER_X)[0]
 	var radius: float = (2.1 if four else 2.3) + 0.65
 	return {
-		"x": Vector2(1.4, first - radius - CabinetWiring.POWER_W * 0.5 - 0.3),
+		"x": Vector2(left + 1.4, left + first - radius - CabinetWiring.POWER_W * 0.5 - 0.3),
 		"top": Vector2(22.4 - 2.85 - 1.0, 12.7 + 3.15 + 1.0),
 		"bottom": Vector2(48.0 + 2.85 + 1.0, 58.8 - 3.15 - 1.0),
 	}
@@ -1609,7 +1711,7 @@ static func device_size(desc: Dictionary) -> Vector2:
 		CabinetDevices.Kind.RELAY:
 			return relay_size(int(desc["poles"]))
 		CabinetDevices.Kind.CONTACTOR:
-			return CONTACTOR
+			return CONTACTOR + Vector2(SIDE_BLOCK_W * side_block_count((desc.get("aux", []) as Array).size()), 0.0)
 		CabinetDevices.Kind.OVERLOAD:
 			return OVERLOAD + Vector2(0.0, OVERLOAD_BASE if desc.get("standalone", false) else 0.0)
 		CabinetDevices.Kind.RECTIFIER:
@@ -1671,19 +1773,28 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 			var four: bool = int(desc.get("poles", 3)) >= 4
 			var power_x: Array[float] = CONTACTOR_POWER_X4 if four else CONTACTOR_POWER_X
 			var radius: float = 2.1 if four else 2.3
-			for j: int in power_x.size():
-				points[str(2 * j + 1)] = Vector3(power_x[j], 5.6, radius + 0.55)
-				points[str(2 * j + 2)] = Vector3(power_x[j] + 0.6, CONTACTOR.y - 6.9, radius + 0.65)
 			var aux: Array = desc.get("aux", [["13", "NO", "14"], ["21", "NC", "22"]])
+			var left: float = contactor_left(aux.size())
+			for j: int in power_x.size():
+				points[str(2 * j + 1)] = Vector3(left + power_x[j], 5.6, radius + 0.55)
+				points[str(2 * j + 2)] = Vector3(left + power_x[j] + 0.6, CONTACTOR.y - 6.9, radius + 0.65)
 			var top_names: Array = [aux[0][0], aux[1][0], "A1"]
 			var bottom_names: Array = [aux[0][2], aux[1][2], "A2"]
 			var inner_x: Array[float] = CONTACTOR_INNER_X4 if four else CONTACTOR_INNER_X
 			for j: int in 3:
-				points[top_names[j]] = Vector3(inner_x[j], 12.7, 3.15)
-				points[bottom_names[j]] = Vector3(inner_x[j] + (CONTACTOR_INNER_DROP4 if four else CONTACTOR_INNER_DROP), 58.8, 3.15)
-			for k: int in mini(aux.size() - 2, 4):
-				points[aux[k + 2][0]] = Vector3(AUX_BLOCK_X[k], 22.4, 2.85)
-				points[aux[k + 2][2]] = Vector3(AUX_BLOCK_X[k], 48.0, 2.85)
+				points[top_names[j]] = Vector3(left + inner_x[j], 12.7, 3.15)
+				points[bottom_names[j]] = Vector3(left + inner_x[j] + (CONTACTOR_INNER_DROP4 if four else CONTACTOR_INNER_DROP), 58.8, 3.15)
+			for k: int in mini(aux.size() - AUX_BUILT_IN, AUX_FRONT):
+				points[aux[k + AUX_BUILT_IN][0]] = Vector3(left + AUX_BLOCK_X[k], 22.4, 2.85)
+				points[aux[k + AUX_BUILT_IN][2]] = Vector3(left + AUX_BLOCK_X[k], 48.0, 2.85)
+			var blocks: Array[float] = side_blocks(aux.size())
+			for b: int in blocks.size():
+				var screws: Array[Vector2] = side_block_screws(blocks[b], b % 2 == 0)
+				for c: int in AUX_SIDE:
+					var k: int = AUX_BUILT_IN + AUX_FRONT + AUX_SIDE * b + c
+					if k < aux.size():
+						points[aux[k][0]] = Vector3(screws[2 * c].x, screws[2 * c].y, SIDE_SCREW + 0.55)
+						points[aux[k][2]] = Vector3(screws[2 * c + 1].x, screws[2 * c + 1].y, SIDE_SCREW + 0.55)
 		CabinetDevices.Kind.OVERLOAD:
 			var base: float = 0.0
 			if desc.get("standalone", false):

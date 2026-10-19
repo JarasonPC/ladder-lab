@@ -25,9 +25,6 @@ const DEFAULT_STRIP: String = "X1"
 const RELAY_CONTACTS: int = 4
 const TIMER_CONTACTS: int = 3
 const UNIT: String = "#"
-## Auxiliary contacts a contactor has room for: two built in, four on the
-## auxiliary contact block on its front.
-const AUX_CONTACTS: int = 6
 
 
 ## Kind of device [param c] is in the switchboard, NONE for parts that are
@@ -84,7 +81,7 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ## - FUSE: "closed", "blown"
 ## - CONTACTOR: "aux" ([first terminal, "NO" / "NC", last terminal] per
 ##   auxiliary contact, the built-in ones first, a changeover contact as an
-##   NC and an NO one), "left_out" (contacts beyond [constant AUX_CONTACTS]),
+##   NC and an NO one; every one has a place, see [method CabinetParts.contactor]),
 ##   "on" (armature pulled in), "energized" (coil has power), "overload"
 ##   (designation of the overload relay under it, or "")
 ## - RELAY: "on", "energized"; more than [constant RELAY_CONTACTS]
@@ -246,8 +243,7 @@ static func _describe_coil(doc: SchematicDocument, coil: Coil, d: Dictionary) ->
 		for spare: Array in spares:
 			if aux.size() < 2 and not terminals.has(spare[0]) and not terminals.has(spare[2]):
 				aux.append(spare)
-		d["aux"] = aux.slice(0, AUX_CONTACTS)
-		d["left_out"] = maxi(aux.size() - AUX_CONTACTS, 0)
+		d["aux"] = aux
 		var under: Dictionary[String, String] = overloads_under_contactors(circuit)
 		d["overload"] = under.get(coil.designation, "")
 	else:

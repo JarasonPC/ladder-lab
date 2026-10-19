@@ -225,9 +225,6 @@ func _get_tooltip(at_position: Vector2) -> String:
 			return "-%s – %s" % [place["designation"], tr("not in the schematic")]
 		_:
 			text = tr(CabinetPanel.KIND_TITLES[place["kind"]]) + " -" + str(place["designation"])
-	var left_out: int = int(place["desc"].get("left_out", 0))
-	if left_out > 0:
-		text += "\n" + tr_n("%d auxiliary contact does not fit on it and is not wired", "%d auxiliary contacts do not fit on it and are not wired", left_out) % left_out
 	if simulating and not _operated(index, false).is_empty():
 		text += "\n" + tr("Click to operate it")
 	return text

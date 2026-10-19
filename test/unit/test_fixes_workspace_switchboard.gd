@@ -480,10 +480,10 @@ func test_changeover_contact_on_a_contactor_is_wired_on_both_sides() -> void:
 	var wiring: CabinetWiring = _wiring(doc)
 	for key: String in ["KM1:11", "KM1:12", "KM1:14"]:
 		assert_true(_wire(wiring, key), key + " is wired")
-	assert_eq(CabinetDevices.describe(doc, "KM1")["left_out"], 0)
+	assert_eq((CabinetDevices.describe(doc, "KM1")["aux"] as Array).size(), 2)
 	for s: int in range(2, 7):
 		_add(doc, Contact.new("KM1", NO, s))
-	assert_eq(CabinetDevices.describe(doc, "KM1")["left_out"], 1, "an NC and an NO place for the changeover contact, five more: one does not fit")
+	assert_eq((CabinetDevices.describe(doc, "KM1")["aux"] as Array).size(), 7, "an NC and an NO place for the changeover contact, five more")
 
 
 func test_net_continuing_into_another_switchboard_leaves_in_its_cable() -> void:
