@@ -3322,3 +3322,27 @@ msgstr "Skrýt vše"
 
 msgid "%s currents"
 msgstr "%s proudy"
+
+msgid "Qty"
+msgstr "Ks"
+
+msgid "Cable gland"
+msgstr "Kabelová vývodka"
+
+msgid "for Ø %s mm, none fits"
+msgstr "pro Ø %s mm se žádná nehodí"
+
+msgid "%s, clamps Ø %s–%s mm"
+msgstr "%s, svírá Ø %s–%s mm"
+
+msgid "%d NO"
+msgstr "%d NO"
+
+msgid "%d NC"
+msgstr "%d NC"
+
+msgid "%d CO"
+msgstr "%d přepínací"
+
+msgid "aux. %s"
+msgstr "pomocné %s"

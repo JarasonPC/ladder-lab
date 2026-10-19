@@ -132,7 +132,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   it on a sheet of its own (CabinetView SWITCHBOARD_WIDTH wide), the workspace
   (WorkspaceCanvas at zoom 1 around WorkspaceCanvas.bounds) and the parts list (PartsList.rows:
   devices under the place they sit in, terminal strips with their count, the groups' and other
-  parts in the field, what has no place, the cables with type and ends; PartsSheet tables on A4
+  parts in the field, what has no place, the cables with type and ends; within a place identical
+  parts (same name and data) are one row with a quantity, designations shortened "-KM1…-KM3"
+  (PartsList.designations); a button's or switch's contact blocks and a coil's or breaker's
+  auxiliary contacts in its data (PartsList.contacts_of); each switchboard and station lists a
+  cable gland per cable coming in, sized by WorkspaceCables.gland from the cable's estimated
+  outer diameter (WorkspaceCables.outer_diameter: copper, insulation, LAY_UP, sheath), PG sizes
+  with Czech cable names, metric M with European ones; PartsSheet tables on A4
   portrait, PartsSheet.split never ends a sheet with a heading); what the schematic has nothing
   of is greyed out. SheetRenderer.sheets lists the sheets, numbered in turn across the PDF; no
   keys of the keyboard on any sheet. Each page on an A4/A3 sheet

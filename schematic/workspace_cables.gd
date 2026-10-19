@@ -42,6 +42,14 @@ const RESISTIVITY: float = 0.0225
 const DROP_LIMIT: float = 4.0
 ## Cross-section of a cable without power cores (control circuits).
 const CONTROL_SECTION: float = 1.5
+## How many core diameters across a bundle of n cores laid up round each
+## other is (index n; beyond the list it grows with √n).
+const LAY_UP: PackedFloat32Array = [0.0, 1.0, 2.0, 2.16, 2.42, 2.7, 3.0, 3.0, 3.45, 3.8, 4.0, 4.0, 4.16, 4.41, 4.41, 4.7, 4.7, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0]
+## Cable glands: what each size clamps, outer diameters in mm (smallest
+## first): metric (EN 62444) and the older PG sizes still named in Czech
+## practice ("PG vývodka").
+const GLANDS_METRIC: Array[Array] = [["M12", 3.0, 6.5], ["M16", 4.5, 10.0], ["M20", 7.0, 13.0], ["M25", 9.0, 17.0], ["M32", 11.0, 21.0], ["M40", 19.0, 28.0], ["M50", 27.0, 35.0], ["M63", 34.0, 45.0]]
+const GLANDS_PG: Array[Array] = [["PG7", 3.0, 6.5], ["PG9", 4.0, 8.0], ["PG11", 5.0, 10.0], ["PG13,5", 6.0, 12.0], ["PG16", 10.0, 14.0], ["PG21", 13.0, 18.0], ["PG29", 18.0, 25.0], ["PG36", 22.0, 32.0], ["PG42", 32.0, 38.0], ["PG48", 37.0, 44.0]]
 ## Cross-sections of control cables (PVC control cables come in 1 mm²) and of
 ## shielded sensor cables.
 const CONTROL_CABLE_SECTION: float = 1.0
@@ -313,6 +321,47 @@ static func type_and_length(cable: Dictionary) -> String:
 	if length <= 0.0:
 		return type_text(cable)
 	return "%s, %s m" % [type_text(cable), section_text(length)]
+
+
+## Outer diameter of [param cable] in mm, estimated as cable makers' tables
+## give it: copper of its cross-section (stranded but in PVC control and
+## feeder cables), insulated, the cores laid up ([constant LAY_UP]) and
+## sheathed (rubber thicker than PVC, a shield under the sheath of a sensor
+## cable).
+static func outer_diameter(cable: Dictionary) -> float:
+	var mm2: float = float(cable.get("section", CONTROL_SECTION))
+	var kind: Use = int(cable.get("use", Use.FIELD)) as Use
+	var rubber: bool = kind == Use.MOTOR or kind == Use.FIELD
+	var solid: bool = kind == Use.CONTROL or kind == Use.FEEDER
+	var copper: float = sqrt(4.0 * mm2 / PI) * (1.0 if solid else 1.15)
+	var steps: PackedFloat32Array = [1.5, 2.5, 6.0, 16.0, 35.0]
+	var rubber_wall: PackedFloat32Array = [0.8, 1.0, 1.0, 1.2, 1.4, 1.6]
+	var pvc_wall: PackedFloat32Array = [0.6, 0.7, 0.8, 1.0, 1.2, 1.4]
+	var step: int = steps.size()
+	for i: int in steps.size():
+		if mm2 <= steps[i] + 0.001:
+			step = i
+			break
+	if kind == Use.SENSOR:
+		step = 0
+	var core: float = copper + 2.0 * (rubber_wall[step] if rubber else pvc_wall[step]) * (0.6 if kind == Use.SENSOR else 1.0)
+	var cores: int = maxi((cable["cores"] as Array).size(), 1)
+	var across: float = LAY_UP[cores] if cores < LAY_UP.size() else LAY_UP[LAY_UP.size() - 1] * sqrt(cores / float(LAY_UP.size() - 1))
+	var sheath: float = ([1.8, 1.8, 1.8, 2.2, 2.2, 2.8] as Array)[step] if rubber else ([1.2, 1.2, 1.2, 1.4, 1.4, 1.8] as Array)[step]
+	if kind == Use.SENSOR:
+		sheath = 1.2
+	return across * core + 2.0 * sheath
+
+
+## The cable gland for [param cable] as [member naming] names glands (PG in
+## Czech practice, metric otherwise): {"size", "from", "to" (mm it clamps)},
+## the smallest whose range takes its outer diameter ({} when none does).
+static func gland(cable: Dictionary) -> Dictionary:
+	var diameter: float = outer_diameter(cable)
+	for entry: Array in (GLANDS_PG if naming == Naming.CZECH else GLANDS_METRIC):
+		if diameter >= float(entry[1]) and diameter <= float(entry[2]):
+			return {"size": entry[0], "from": entry[1], "to": entry[2]}
+	return {}
 
 
 ## A cross-section as written on cables: "0,75", "2,5", "10".

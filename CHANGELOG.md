@@ -18,6 +18,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A control station can be shown on the workspace as the station itself (right click, Edit mode):
   its buttons and switches work right there while simulating, its lamps light, and its corner
   sizes it
+- Parts list: identical parts of a place are one row with their quantity, buttons and switches
+  list their contact blocks, contactors and breakers their auxiliary contacts, and each
+  switchboard and station lists its cable glands sized for the cables (PG or metric)
 - Motors in the field turn on the workspace while simulating, as fast and in the direction they run
 - Workspace cables get a type by their use: CGSG-J to motors and limit switches, JYTY-O to
   control stations, shielded LiYCY to sensors, CYKY-J between switchboards (View > Cable types:
