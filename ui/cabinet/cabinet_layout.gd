@@ -18,8 +18,11 @@ const MARGIN: float = 5.0
 const GAP: float = 2.0
 const PAD: float = 4.0
 ## Room on both sides of a contactor with an overload relay under it for
-## the wires from the contactor's bottom terminals (see [CabinetWiring]).
+## the wires from the contactor's bottom terminals (see [CabinetWiring]),
+## and more for the two wires of each auxiliary contact block mounted on
+## its side (on the side with more of them).
 const WIRE_CHANNEL: float = 6.0
+const SIDE_BLOCK_CHANNEL: float = 3.0
 ## Narrowest room for the rails.
 const MIN_CONTENT: float = 100.0
 ## Size of an empty place (device not in the circuit).
@@ -57,11 +60,20 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 	# Each rail: its places relative to the rail's centre line and its extent.
 	var rows: Array[Dictionary] = []
 	var content: float = MIN_CONTENT
+	# Overload relays fitted under a contactor in a switchboard are drawn
+	# there, not again where they are on a rail.
+	var fitted: Dictionary[String, bool] = {}
+	var under: Dictionary[String, String] = CabinetDevices.overloads_under_contactors(doc.circuit)
+	for contactor: String in under:
+		if doc.cabinet_has(CabinetItem.Kind.DEVICE, contactor):
+			fitted[under[contactor]] = true
 	for r: int in board_rails.size():
 		var rail: CabinetRail = board_rails[r]
 		var row: Dictionary = {"places": [], "top": -EMPTY_ROW * 0.5, "bottom": EMPTY_ROW * 0.5}
 		var x: float = 0.0
 		for i: int in rail.items.size():
+			if rail.items[i].kind == CabinetItem.Kind.DEVICE and fitted.has(rail.items[i].designation):
+				continue
 			var place: Dictionary = _place(doc, strips, rail.items[i], k)
 			place["rail"] = r
 			place["index"] = i
@@ -73,6 +85,12 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 			row["bottom"] = maxf(row["bottom"], place["bottom"])
 		content = maxf(content, x - GAP)
 		rows.append(row)
+	# Wide enough for a slot of the bottom duct to each field cable (the
+	# duct reaches MARGIN past the rails on both sides).
+	var slots: int = CabinetWiring.bottom_slots(doc, board, strips)
+	if slots > 0:
+		var pitch: float = CabinetParts.DUCT_FINGER + CabinetParts.DUCT_SLOT
+		content = maxf(content, slots * pitch + 2.0 * CabinetParts.DUCT_END + CabinetParts.DUCT_FINGER - 2.0 * MARGIN + 0.1)
 	var x0: float = FRAME + SIDE_DUCT + MARGIN
 	layout.size.x = 2.0 * x0 + content
 	var y: float = FRAME + 2.0
@@ -148,9 +166,11 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 			var overload: String = place["desc"].get("overload", "")
 			if not overload.is_empty():
 				place["under_designation"] = overload
-				place["channel"] = WIRE_CHANNEL
+				# The first side block goes on the right (see CabinetParts.side_blocks).
+				place["channel"] = WIRE_CHANNEL + SIDE_BLOCK_CHANNEL * ceili(CabinetParts.side_block_count(aux) / 2.0)
 				place["under_desc"] = CabinetDevices.describe(doc, overload)
-				place["under_origin"] = Vector2(0.0, place["origin"].y + CabinetParts.CONTACTOR.y)
+				# Under the contactor itself, between its side blocks.
+				place["under_origin"] = Vector2(CabinetParts.contactor_left(aux), place["origin"].y + CabinetParts.CONTACTOR.y)
 				place["under_rect"] = Rect2(place["under_origin"], CabinetParts.OVERLOAD)
 				place["under_label_at"] = place["under_origin"] + Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0)
 				place["bottom"] = place["under_label_at"].y + 2.6
@@ -164,8 +184,11 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 			_box(place, CabinetParts.device_size(place["desc"]))
 			_label(place, Vector2(CabinetParts.PLC.x * 0.5, -3.5), 16.0)
 		CabinetDevices.Kind.OVERLOAD:
+			# On a rail of its own: on a mounting unit with the terminals
+			# of its heaters (1, 3, 5) on top.
+			place["desc"]["standalone"] = true
 			_box(place, CabinetParts.device_size(place["desc"]))
-			_label(place, Vector2(CabinetParts.OVERLOAD.x * 0.5, CabinetParts.OVERLOAD.y + 4.0), 12.0)
+			_label(place, Vector2(CabinetParts.OVERLOAD.x * 0.5, place["size"].y + 4.0), 12.0)
 		_:
 			place["kind"] = MISSING_DEVICE
 			_box(place, MISSING)

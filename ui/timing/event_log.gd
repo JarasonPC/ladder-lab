@@ -22,6 +22,8 @@ var _entries: Array[Dictionary] = []
 var _title: Button
 var _clear: Button
 var _list: ItemList
+## New entries were added: the list scrolls to its end once it is laid out.
+var _to_end: bool = false
 
 
 func _ready() -> void:
@@ -48,6 +50,11 @@ func _ready() -> void:
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.focus_mode = Control.FOCUS_NONE
 	add_child(_list)
+	# The scroll bar learns the new length only when the list is laid out.
+	_list.get_v_scroll_bar().changed.connect(func() -> void:
+		if _to_end:
+			_to_end = false
+			_list.get_v_scroll_bar().value = _list.get_v_scroll_bar().max_value)
 	expanded = expanded
 	retranslate()
 
@@ -61,6 +68,7 @@ func add_events(events: Array[Dictionary]) -> void:
 	while _entries.size() > MAX_ENTRIES:
 		_entries.pop_front()
 		_list.remove_item(0)
+	_to_end = true
 	_list.get_v_scroll_bar().value = _list.get_v_scroll_bar().max_value
 
 

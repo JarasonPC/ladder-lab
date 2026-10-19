@@ -1479,7 +1479,8 @@ msgstr ""
 msgid "Temperature at %s"
 msgstr ""
 
-msgid "Volts on the analog input (0-10 V = 0-1000)"
+#, c-format
+msgid "Volts on the analog input (0-10 V = 0-%d)"
 msgstr ""
 
 msgid "Gain"
@@ -1494,7 +1495,8 @@ msgstr ""
 msgid "Off threshold"
 msgstr ""
 
-msgid "Value (0-1000 = 0-10 V)"
+#, c-format
+msgid "Value (0-%d = 0-10 V)"
 msgstr ""
 
 msgid "Analog"
@@ -1521,10 +1523,12 @@ msgstr ""
 msgid "Analog output"
 msgstr ""
 
-msgid "Brings an analog input into the diagram: 0-10 V as 0-1000."
+#, c-format
+msgid "Brings an analog input into the diagram: 0-10 V as 0-%d."
 msgstr ""
 
-msgid "Puts the value at Ax (0-1000) on an analog output as 0-10 V."
+#, c-format
+msgid "Puts the value at Ax (0-%d) on an analog output as 0-10 V."
 msgstr ""
 
 msgid "Gain x Ax + offset: the output comes on above On and goes off at Off or below (with On below Off: on between them)."
@@ -1545,13 +1549,16 @@ msgstr ""
 msgid "Analog output coil"
 msgstr ""
 
-msgid "Closed while the analog input is at the value or above it (0-1000 = 0-10 V)."
+#, c-format
+msgid "Closed while the analog input is at the value or above it (0-%d = 0-10 V)."
 msgstr ""
 
-msgid "Closed while the analog input is below the value (0-1000 = 0-10 V)."
+#, c-format
+msgid "Closed while the analog input is below the value (0-%d = 0-10 V)."
 msgstr ""
 
-msgid "Puts the value (0-1000) on the analog output as 0-10 V while it gets power, 0 without."
+#, c-format
+msgid "Puts the value (0-%d) on the analog output as 0-10 V while it gets power, 0 without."
 msgstr ""
 
 msgid "Compact PLC (CPU 24 V DC, transistor outputs)"
@@ -1679,19 +1686,7 @@ msgstr ""
 msgid "Editing the program of %s"
 msgstr ""
 
-msgid "Add network"
-msgstr ""
-
-msgid "Click an element to see its state. Ctrl+wheel zooms."
-msgstr ""
-
-msgid "Drag from a block's output (right) to an input (left) to connect them. Right click an input to remove its connection. Delete removes the selected block."
-msgstr ""
-
 msgid "Click to place the block. Esc or a right click ends placing."
-msgstr ""
-
-msgid "Click an element to select it, a network's title to select the network. Delete removes the selection."
 msgstr ""
 
 msgid "Click a cell to link its right side with the row below (click again to remove the link)."
@@ -1832,10 +1827,6 @@ msgstr ""
 msgid "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
 msgstr ""
 
-#, c-format
-msgid "Network %d"
-msgstr ""
-
 msgid "Select"
 msgstr ""
 
@@ -1870,9 +1861,6 @@ msgid "Count down"
 msgstr ""
 
 msgid "Erase"
-msgstr ""
-
-msgid "Network"
 msgstr ""
 
 msgid "Closed while its operand is 1."
@@ -3222,6 +3210,46 @@ msgid "%d terminal"
 msgid_plural "%d terminals"
 msgstr[0] ""
 msgstr[1] ""
+
+#, c-format
+msgid "Function %s of time relay %s works with its control input S, which is turned off."
+msgstr ""
+
+#, c-format
+msgid "Terminal %s is not connected, but the inputs or outputs using it are."
+msgstr ""
+
+#, c-format
+msgid "Analog module %s of %s takes 24 V DC on %s and %s, not the AC supply."
+msgstr ""
+
+msgid "The circuit has no + supply."
+msgstr ""
+
+msgid "The circuit has no - supply."
+msgstr ""
+
+#, c-format
+msgid "%s: short circuit, output off"
+msgstr ""
+
+msgid "Forward"
+msgstr ""
+
+msgid "Star"
+msgstr ""
+
+msgid "Delta"
+msgstr ""
+
+msgid "Voltage on"
+msgstr ""
+
+msgid "Fault"
+msgstr ""
+
+msgid "Start"
+msgstr ""
 
 msgid "Open .ladder files with LadderLab"
 msgstr ""

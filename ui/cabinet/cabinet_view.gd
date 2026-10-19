@@ -109,11 +109,12 @@ func drawn_size() -> Vector2:
 ## Zooms by [param factor] keeping the point [param at] (pixels in the
 ## view) where it is on the screen, by scrolling the panel.
 func zoom_at(factor: float, at: Vector2) -> void:
-	var old_k: float = _k()
+	# The point of the plate under the mouse (the plate is drawn from
+	# [method _origin], centred while narrower than the view).
+	var on_plate: Vector2 = (at - _origin()) / _k()
 	zoom *= factor
-	var shift: Vector2 = at / old_k * (_k() - old_k)
 	await get_tree().process_frame
-	_scroll_by(shift)
+	_scroll_by(_origin() + on_plate * _k() - at)
 
 
 ## Scrolls the switchboard sideways (its own scroller) and down (the panel's).
@@ -271,7 +272,7 @@ func _draw() -> void:
 				var r: Rect2 = place["rect"]
 				if place.has("under_rect"):
 					r = r.merge(place["under_rect"])
-				var px: Rect2 = Rect2(r.position * k, r.size * k).grow(3.0)
+				var px: Rect2 = Rect2(_origin() + r.position * k, r.size * k).grow(3.0)
 				draw_rect(px, AppTheme.accent, false, 2.0)
 
 

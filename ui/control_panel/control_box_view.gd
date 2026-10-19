@@ -244,11 +244,16 @@ func _draw() -> void:
 		_rounded(cells[selected].grow(-2.0), Color.TRANSPARENT, 6, AppTheme.accent, 2)
 	if not b.title.is_empty():
 		var bold: Font = AppTheme.bold_font()
-		var title_size: Vector2 = bold.get_string_size(b.title, HORIZONTAL_ALIGNMENT_LEFT, -1, PLATE_FONT_SIZE)
+		# Between the cover's bottom screws, cut short with an ellipsis.
+		var room: float = cover.size.x - 2.0 * 18.0
+		var title: String = b.title
+		while title.length() > 1 and bold.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, PLATE_FONT_SIZE).x > room:
+			title = title.left(title.length() - 2) + "…"
+		var title_size: Vector2 = bold.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, PLATE_FONT_SIZE)
 		var at: Vector2 = Vector2(w * 0.5 - 3.5 - title_size.x * 0.5, size.y - PAD_BOTTOM * 0.5 - 4.0)
 		# Embossed lettering, like the maker's name on the cover.
-		draw_string(bold, at + Vector2(0, 1), b.title, HORIZONTAL_ALIGNMENT_LEFT, w - 30.0, PLATE_FONT_SIZE, Color(1, 1, 1, 0.6))
-		draw_string(bold, at, b.title, HORIZONTAL_ALIGNMENT_LEFT, w - 30.0, PLATE_FONT_SIZE, TITLE_TEXT)
+		draw_string(bold, at + Vector2(0, 1), title, HORIZONTAL_ALIGNMENT_LEFT, -1, PLATE_FONT_SIZE, Color(1, 1, 1, 0.6))
+		draw_string(bold, at, title, HORIZONTAL_ALIGNMENT_LEFT, -1, PLATE_FONT_SIZE, TITLE_TEXT)
 
 
 func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:

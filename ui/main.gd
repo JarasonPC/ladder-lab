@@ -84,6 +84,9 @@ var _check_button: Button
 var _number_button: Button
 var _numbers_toggle: Button
 var _sim_tools: HBoxContainer
+## The simulation's speed, switching, view and clamp: a group of its own, so
+## the toolbar can wrap between it and the run controls in a narrow window.
+var _sim_options: HBoxContainer
 var _switching_select: OptionButton
 var _timing_panel: TimingPanel
 var _key_strip: KeyStrip
@@ -209,6 +212,8 @@ func _ready() -> void:
 	_sheet_renderer = SheetRenderer.new()
 	add_child(_sheet_renderer)
 	view.stepped.connect(_on_stepped)
+	# Logged once per step here: _on_stepped also runs to show the status again.
+	view.stepped.connect(func(result: StepResult) -> void: _timing_panel.event_log.add_events(result.events))
 	view.page_requested.connect(_show_page)
 	editor.page_requested.connect(_show_page)
 	editor.edited.connect(_refresh_pages)
@@ -230,8 +235,8 @@ func _ready() -> void:
 	editor.edited.connect(_workspace.refresh)
 	view.stepped.connect(_workspace.show_step)
 	view.stepped.connect(func(_result: StepResult) -> void: _workspace.show_travels(view.travel_positions()))
-	_workspace.edit_requested.connect(editor.edit_workspace)
-	_workspace.cabinet_edit_requested.connect(editor.edit_cabinet)
+	_workspace.edit_requested.connect(_edit_workspace)
+	_workspace.cabinet_edit_requested.connect(_edit_cabinet)
 	_workspace.button_held.connect(view.hold_button)
 	_workspace.switch_toggled.connect(view.toggle_switch)
 	_workspace.operate_requested.connect(view.operate_device)
@@ -299,7 +304,8 @@ func _input(event: InputEvent) -> void:
 	if key == null:
 		return
 	var focus: Control = get_viewport().gui_get_focus_owner()
-	if focus is LineEdit or focus is TextEdit:
+	# A key let go while typing still lets its button go.
+	if (focus is LineEdit or focus is TextEdit) and key.pressed:
 		return
 	if _bound_key(key):
 		get_viewport().set_input_as_handled()
@@ -313,21 +319,25 @@ func _input(event: InputEvent) -> void:
 ## While simulating, a key bound to a push button holds it down while the key
 ## is down; one bound to a switch turns it over. Returns true when the key is bound.
 func _bound_key(key: InputEventKey) -> bool:
-	if mode != Mode.SIMULATE or view.document == null or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+	if mode != Mode.SIMULATE or view.document == null:
 		return false
 	var designation: String = view.document.device_of_key(OS.get_keycode_string(key.keycode))
 	if designation.is_empty():
+		return false
+	if not key.pressed:
+		# Let go whatever modifiers went down meanwhile, or the button stays held.
+		if _keys_down.erase(designation):
+			view.hold_button(designation, false)
+		return true
+	if key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return false
 	if key.echo:
 		return true
 	var device: CircuitComponent = view.document.circuit.get_operator(designation)
 	if device is PushButton:
-		if key.pressed:
-			_keys_down[designation] = true
-		else:
-			_keys_down.erase(designation)
-		view.hold_button(designation, key.pressed)
-	elif device is LatchingSwitch and key.pressed:
+		_keys_down[designation] = true
+		view.hold_button(designation, true)
+	elif device is LatchingSwitch:
 		view.toggle_switch(designation)
 	return true
 
@@ -430,6 +440,9 @@ func _build_ui() -> void:
 	_help_menu = _menu(bar)
 	_help_menu.get_popup().id_pressed.connect(_on_help_menu)
 	_help_menu.about_to_popup.connect(_rebuild_help_menu)
+	# F1 is shown in the menu but handled by _shortcut, which opens the
+	# selected part's datasheet (the menu would always open the list).
+	_help_menu.set_disable_shortcuts(true)
 	_update_button = _button(bar, func() -> void: OS.shell_open(_new_release.get("url", ReleaseCheck.RELEASES_PAGE)), "download")
 	_update_button.theme_type_variation = "PrimaryButton"
 	_update_button.visible = false
@@ -510,21 +523,23 @@ func _build_ui() -> void:
 	_time_label = _label(_sim_tools)
 	_time_label.theme_type_variation = "TimeLabel"
 	_time_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_sim_tools.add_child(_spacer(6))
-	_speed_select = _option(_sim_tools)
+	_sim_options = HBoxContainer.new()
+	_sim_options.add_theme_constant_override("separation", 4)
+	bar.add_child(_sim_options)
+	_speed_select = _option(_sim_options)
 	for s: float in SPEEDS:
 		_speed_select.add_item("×%s" % str(s))
 	_speed_select.select(SPEEDS.find(1.0))
 	_speed_select.item_selected.connect(func(i: int) -> void: view.speed = SPEEDS[i])
-	_switching_select = _option(_sim_tools)
+	_switching_select = _option(_sim_options)
 	_switching_select.add_item("")
 	_switching_select.add_item("")
 	_switching_select.item_selected.connect(_on_switching_selected)
-	_view_select = _option(_sim_tools)
+	_view_select = _option(_sim_options)
 	_view_select.add_item("")
 	_view_select.add_item("")
 	_view_select.item_selected.connect(func(i: int) -> void: _set_current_view(i == 1))
-	_clamp_toggle = _tool(_sim_tools, func() -> void:
+	_clamp_toggle = _tool(_sim_options, func() -> void:
 		view.clamp_tool = _clamp_toggle.button_pressed
 		for window: PageWindow in _page_windows():
 			window.view.clamp_tool = _clamp_toggle.button_pressed, "clamp")
@@ -603,6 +618,8 @@ func _build_ui() -> void:
 	bottom.add_child(status)
 	_status_label = _label(status)
 	_status_label.add_theme_font_size_override("font_size", AppTheme.SMALL_FONT_SIZE)
+	_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_WORD_ELLIPSIS
+	get_viewport().size_changed.connect(_fit_status_label)
 	_hint_label = _label(status)
 	_hint_label.theme_type_variation = "MutedLabel"
 	_hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -633,8 +650,7 @@ func _build_page_bar() -> Control:
 	_page_tabs.tab_rmb_clicked.connect(_open_page_menu)
 	_page_tabs.active_tab_rearranged.connect(func(to: int) -> void:
 		if not _updating_pages:
-			var from: int = edit_doc.page
-			editor.edit_pages(func(doc: SchematicDocument) -> void: doc.move_page(from, to)))
+			_move_page(edit_doc.page, to))
 	_page_tabs.gui_input.connect(func(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb != null and mb.pressed and mb.double_click and mb.button_index == MOUSE_BUTTON_LEFT and mode == Mode.EDIT:
@@ -685,7 +701,8 @@ func _build_dialogs() -> void:
 	add_child(_error_dialog)
 	_recovery_dialog = ConfirmationDialog.new()
 	_recovery_discard_button = _recovery_dialog.add_button("", true, "discard")
-	_recovery_dialog.confirmed.connect(_restore_recovery)
+	# A copy offered after another was restored replaces that one: ask first.
+	_recovery_dialog.confirmed.connect(func() -> void: _confirm_discard(_restore_recovery))
 	_recovery_dialog.custom_action.connect(func(_action: StringName) -> void:
 		_recovery_dialog.hide()
 		RecoveryFile.remove(_recovery_path)
@@ -728,7 +745,9 @@ func _build_dialogs() -> void:
 	add_child(_about_dialog)
 	_key_prompt = KeyPrompt.new()
 	_key_prompt.chosen.connect(func(designation: String, key: String) -> void:
-		editor.edit_workspace(func(doc: SchematicDocument) -> void: doc.set_key(designation, key)))
+		# The same key again (or none taken off none) changes nothing.
+		if key != edit_doc.key_bindings.get(designation, ""):
+			editor.edit_workspace(func(doc: SchematicDocument) -> void: doc.set_key(designation, key)))
 	add_child(_key_prompt)
 	_retranslate_dialogs()
 
@@ -841,6 +860,10 @@ func _retranslate() -> void:
 		bar.retranslate()
 	_workspace.retranslate()
 	for window: PlaceWindow in _place_windows():
+		window.retranslate()
+	for window: PlcWindow in _plc_windows():
+		window.retranslate()
+	for window: PageWindow in _page_windows():
 		window.retranslate()
 	if _datasheet_window != null:
 		_datasheet_window.retranslate()
@@ -1169,6 +1192,7 @@ func _update_mode_ui() -> void:
 	_palette_bar.visible = editing and schematic
 	_update_side_bar()
 	_sim_tools.visible = not editing
+	_sim_options.visible = not editing
 	_time_label.visible = not editing
 	_timing_panel.show_parts(_show_chart, _show_log)
 	_timing_panel.visible = not editing
@@ -1193,13 +1217,32 @@ func _update_title() -> void:
 # --- Documents and modes ----------------------------------------------------------
 
 func _set_mode(new_mode: Mode) -> void:
+	if new_mode == mode:
+		return
 	mode = new_mode
 	if mode == Mode.SIMULATE:
+		# Leaving Edit mode first finishes a marking being typed, in the
+		# schematic rather than in the copy the simulation runs on.
+		editor.active = false
 		_start_simulation()
 	else:
 		view.load_document(edit_doc, false)
 	_update_mode_ui()
 	_fit_camera_later()
+
+
+## An edit of the workspace or a control station (undoable). Taken in Edit
+## mode only: a text field finished after Simulate was clicked would change
+## the copy the simulation runs on.
+func _edit_workspace(change: Callable) -> void:
+	if mode == Mode.EDIT:
+		editor.edit_workspace(change)
+
+
+## An edit of a switchboard (undoable), in Edit mode only as above.
+func _edit_cabinet(change: Callable) -> void:
+	if mode == Mode.EDIT:
+		editor.edit_cabinet(change)
 
 
 ## Asks for the key of push button or switch [param designation] (Edit mode).
@@ -1216,11 +1259,12 @@ func _ask_key(designation: String) -> void:
 
 ## Shows the schematic or the workspace; the simulation runs on in both.
 func _set_area(new_area: Area) -> void:
+	if new_area == area:
+		return
 	area = new_area
 	_schematic_button.set_pressed_no_signal(area == Area.SCHEMATIC)
 	_workspace_button.set_pressed_no_signal(area == Area.WORKSPACE)
 	_update_mode_ui()
-	_on_stepped(view.last_result)
 	if area == Area.SCHEMATIC:
 		_fit_camera_later()
 
@@ -1267,10 +1311,11 @@ func _on_timing_parts_toggled(show_chart: bool, show_log: bool) -> void:
 ## (Re)starts the simulation on a fresh copy of the edited schematic.
 func _start_simulation() -> void:
 	_keys_down.clear()
+	# Cleared before loading: loading runs the first step, which logs too.
+	_timing_panel.event_log.clear()
 	view.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
 	_timing_panel.chart.set_document(view.document, view.trace)
-	_timing_panel.event_log.clear()
 	_key_strip.document = view.document
 	_key_strip.visible = mode == Mode.SIMULATE and _key_strip.has_keys()
 	_update_run_button()
@@ -1295,7 +1340,6 @@ func _show_document(doc: SchematicDocument, fit: bool) -> void:
 		view.load_document(edit_doc, false)
 	_layout_select.select(1 if doc.horizontal else 0)
 	_switching_select.select(0 if doc.realistic_timing else 1)
-	_check_panel.hide()
 	_refresh_pages()
 	if fit:
 		_fit_camera()
@@ -1305,7 +1349,11 @@ func _show_document(doc: SchematicDocument, fit: bool) -> void:
 func _replace_document(doc: SchematicDocument, path: String) -> void:
 	_workspace_fit = true
 	editor.history.clear()
-	editor._clear_selection()
+	# Also drops a marking being typed, which belongs to the schematic replaced.
+	editor.leave_page()
+	# Check results of another schematic (an undo keeps them, re-checked).
+	_check_panel.hide()
+	_show_example(-1)
 	_show_document(doc, true)
 	_file_path = path
 	_dirty = false
@@ -1315,20 +1363,28 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 
 ## An empty schematic of one page, as the program starts.
 func _start_blank() -> void:
-	_example_index = -1
-	_circuit_select.select(-1)
-	_circuit_select.text = tr("Example circuits…")
 	_replace_document(SchematicDocument.new(tr("New schematic")), "")
 
 
 func _load_example() -> void:
-	_example_index = _circuit_select.selected
-	_replace_document(ExampleCircuits.build(_example_index, _layout_select.selected == 1), "")
+	var index: int = _circuit_select.selected
+	_replace_document(ExampleCircuits.build(index, _layout_select.selected == 1), "")
+	_show_example(index)
+
+
+## The example drop-down shows example [param index], or "Example circuits…"
+## (-1) for a schematic that is not an example (new, opened, restored), so
+## any example can be picked again.
+func _show_example(index: int) -> void:
+	_example_index = index
+	_circuit_select.select(index)
+	if index < 0:
+		_circuit_select.text = tr("Example circuits…")
 
 
 func _on_example_selected(index: int) -> void:
 	# Keep showing the current example until the user agreed to leave the schematic.
-	_circuit_select.select(_example_index)
+	_show_example(_example_index)
 	_confirm_discard(func() -> void:
 		_circuit_select.select(index)
 		_load_example())
@@ -1424,6 +1480,8 @@ func _single_selected() -> CircuitComponent:
 func _on_run_pressed() -> void:
 	view.running = not view.running
 	_update_run_button()
+	# Paused, no step comes to say so.
+	_show_status(view.last_result)
 
 
 func set_language(index: int) -> void:
@@ -1515,6 +1573,8 @@ func _restore_recovery() -> void:
 	_replace_document(result["document"], result["file"])
 	_mark_dirty()
 	RecoveryFile.remove(_recovery_path)
+	# Copies of other sessions that did not close properly come next.
+	_offer_recovery()
 
 
 ## Runs [param action] right away, or after asking what to do with unsaved
@@ -1666,19 +1726,19 @@ func _open_export_preview(pdf: bool) -> void:
 	_export_pdf = pdf
 	_export_images.clear()
 	_export_layouts.clear()
-	_export_preview.open(pdf, _export_contents, {
-		"stations": not edit_doc.control_boxes.is_empty(),
-		"switchboards": not edit_doc.switchboards.is_empty(),
-		"workspace": not (edit_doc.places().is_empty() and Workspace.field_devices(edit_doc.circuit).is_empty()),
-	})
+	_export_preview.open(pdf, _export_contents, SheetRenderer.available(edit_doc))
 	_render_preview()
 
 
-## Renders the sheets the preview shows, as they will be saved.
+## Renders the sheets the preview shows, as they will be saved; until they
+## are there, the preview shows nothing and cannot be saved.
 func _render_preview() -> void:
 	_export_render += 1
 	var ticket: int = _export_render
 	var pdf: bool = _export_pdf
+	_export_images = []
+	_export_layouts = []
+	_export_preview.rendering()
 	_prepare_export(_export_preview.contents() if pdf else {})
 	_sheet_renderer.wire_numbers = _export_preview.wire_numbers()
 	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages() if pdf else PackedInt32Array([edit_doc.page]))
@@ -1829,7 +1889,7 @@ func _open_page_menu(tab: int) -> void:
 
 func _popup_page_menu() -> void:
 	_page_menu.reset_size()
-	_page_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(_page_menu)
 
 
 func _on_page_menu(id: int) -> void:
@@ -1838,13 +1898,30 @@ func _on_page_menu(id: int) -> void:
 		PageMenuId.RENAME:
 			_show_rename_dialog(index)
 		PageMenuId.MOVE_LEFT, PageMenuId.MOVE_RIGHT:
-			var to: int = index + (-1 if id == PageMenuId.MOVE_LEFT else 1)
-			editor.edit_pages(func(doc: SchematicDocument) -> void: doc.move_page(index, to))
+			_move_page(index, index + (-1 if id == PageMenuId.MOVE_LEFT else 1))
 		PageMenuId.DELETE:
-			editor.edit_pages(func(doc: SchematicDocument) -> void: doc.remove_page(index))
+			_remove_page(index)
 			_fit_camera()
 		PageMenuId.WINDOW:
 			open_page_window(index)
+
+
+## Moves page [param index] to place [param to] (undoable); page windows
+## go on showing the pages they showed.
+func _move_page(index: int, to: int) -> void:
+	for window: PageWindow in _page_windows():
+		window.page_moved(index, to)
+	editor.edit_pages(func(doc: SchematicDocument) -> void: doc.move_page(index, to))
+
+
+## Deletes page [param index] with everything on it (undoable); a window
+## showing it closes, the others go on showing their pages.
+func _remove_page(index: int) -> void:
+	if edit_doc.pages.size() <= 1:
+		return
+	for window: PageWindow in _page_windows():
+		window.page_removed(index)
+	editor.edit_pages(func(doc: SchematicDocument) -> void: doc.remove_page(index))
 
 
 ## Opens page [param index] in a window of its own, following the main view
@@ -1872,8 +1949,8 @@ func open_place_window(kind: Workspace.Place, place_name: String) -> PlaceWindow
 	var window: PlaceWindow = PlaceWindow.new(kind, place_name)
 	window.content_scale_factor = get_window().content_scale_factor
 	window.key_pressed.connect(_on_window_key)
-	window.edit_requested.connect(editor.edit_workspace)
-	window.cabinet_edit_requested.connect(editor.edit_cabinet)
+	window.edit_requested.connect(_edit_workspace)
+	window.cabinet_edit_requested.connect(_edit_cabinet)
 	window.button_held.connect(view.hold_button)
 	window.switch_toggled.connect(view.toggle_switch)
 	window.operate_requested.connect(view.operate_device)
@@ -2108,6 +2185,21 @@ func _on_editor_hint(text: String) -> void:
 	_editor_hint = text
 	if mode == Mode.EDIT and area == Area.SCHEMATIC and _status_label != null:
 		_status_label.text = text
+		_fit_status_label()
+
+
+## The status keeps its whole text while the window has room for it, the
+## hint beside it giving way first; a status longer than the window is cut
+## short.
+func _fit_status_label() -> void:
+	if _status_label == null:
+		return
+	var row: HBoxContainer = _status_label.get_parent() as HBoxContainer
+	var bar: Control = row.get_parent() as Control
+	var room: float = get_viewport().get_visible_rect().size.x - bar.get_theme_stylebox("panel").get_minimum_size().x - row.get_theme_constant("separation") - _hint_label.get_combined_minimum_size().x
+	var font: Font = _status_label.get_theme_font("font")
+	var need: float = font.get_string_size(_status_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _status_label.get_theme_font_size("font_size")).x + _status_label.get_theme_stylebox("normal").get_minimum_size().x
+	_status_label.custom_minimum_size.x = clampf(ceilf(need), 0.0, floorf(room))
 
 
 func _on_stepped(result: StepResult) -> void:
@@ -2121,30 +2213,38 @@ func _on_stepped(result: StepResult) -> void:
 		_status_label.text = _editor_hint if area == Area.SCHEMATIC else ""
 		_status_label.remove_theme_color_override("font_color")
 		_hint_label.text = tr("Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else ""
+		_fit_status_label()
 		return
 	_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else tr("Open a control station to press its buttons, a switchboard to switch its breakers.")
 	_time_label.text = "%.3f s" % view.sim_time
 	_timing_panel.chart.set_time(view.sim_time)
-	_timing_panel.event_log.add_events(result.events)
+	_show_status(result)
+
+
+## The status bar while simulating: a fault or warning of [param result],
+## else running or paused. In the app theme's colours: the bar is not
+## schematic paper.
+func _show_status(result: StepResult) -> void:
 	var tripped: String = _tripped_protection()
 	if result.short_circuit:
 		_status_label.text = tr("NO FUSE and SHORT CIRCUIT! %s") % " → ".join(result.short_circuit_path)
-		_status_label.add_theme_color_override("font_color", SchematicTheme.FAULT)
+		_status_label.add_theme_color_override("font_color", AppTheme.danger)
 	elif not tripped.is_empty():
 		_status_label.text = tripped
-		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
+		_status_label.add_theme_color_override("font_color", AppTheme.warning)
 	elif not _motor_trouble().is_empty():
 		_status_label.text = _motor_trouble()
-		_status_label.add_theme_color_override("font_color", SchematicTheme.FAULT)
+		_status_label.add_theme_color_override("font_color", AppTheme.danger)
 	elif not result.chatter_hz.is_empty():
 		var parts: PackedStringArray = PackedStringArray()
 		for designation: String in result.chatter_hz:
 			parts.append(tr("%s is chattering (about %d Hz)") % [designation, roundi(result.chatter_hz[designation])])
 		_status_label.text = ", ".join(parts)
-		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
+		_status_label.add_theme_color_override("font_color", AppTheme.warning)
 	elif result.is_oscillating():
 		_status_label.text = tr("Oscillation: %s keeps switching on and off") % ", ".join(result.oscillating_tags)
-		_status_label.add_theme_color_override("font_color", SchematicTheme.WARNING)
+		_status_label.add_theme_color_override("font_color", AppTheme.warning)
 	else:
 		_status_label.text = tr("Running") if view.running else tr("Paused")
 		_status_label.remove_theme_color_override("font_color")
+	_fit_status_label()

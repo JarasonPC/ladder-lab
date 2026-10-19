@@ -49,4 +49,4 @@ func _draw_labels() -> void:
 	for i: int in names.size():
 		var x: float = (i % 2) * SymbolGeometry.POLE_SPACING * G + 0.3 * G
 		var y: float = 0.22 * G if i < 2 else 2.78 * G
-		draw_label(names[i], Vector2(x, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label(names[i], name_anchor(i, Vector2(x, y)), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)

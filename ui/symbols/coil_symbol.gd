@@ -81,8 +81,14 @@ func _draw_labels() -> void:
 		if timer.mode != TimerRelay.Mode.ON_DELAY and not code.is_empty():
 			var font: Font = AppTheme.schematic_font()
 			var size: int = 9
+			# Smaller where it would not fit inside the box lines (F10-F12 standing upright).
+			var room: float = SymbolGeometry.transform_rect(TIMER_BOX, placement).size.x - 3.5
+			while size > 6 and font.get_string_size(code, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > room:
+				size -= 1
 			var w: float = font.get_string_size(code, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 			var c: Vector2 = to_upright(TIMER_BOX.get_center())
-			draw_string(font, c + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), code, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.TEXT)
+			var pos: Vector2 = c + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0)
+			draw_string(font, pos, code, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.TEXT)
+			text_rects.append(Rect2(Vector2(pos.x, pos.y - font.get_ascent(size)), font.get_string_size(code, HORIZONTAL_ALIGNMENT_LEFT, -1, size)))
 		if names.size() > 2:
 			draw_label(names[2], Vector2(1.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)

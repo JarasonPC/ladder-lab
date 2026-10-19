@@ -15,7 +15,7 @@ const PIVOT := Vector2(0, 40)
 ## The blade keeps its length: both tips of a blade are as far from the pivot.
 const OPEN_TIP := Vector2(-13, 18)
 ## Closed, the NO blade lies along the fixed contact.
-const NO_CLOSED_TIP := Vector2(-1, 14.5)
+const NO_CLOSED_TIP := Vector2(0, 14.45)
 const NC_CLOSED_TIP := Vector2(10, 18)
 ## An open NC blade swings further away from its stop, on the same side.
 const NC_OPEN_TIP := Vector2(18, 23.9)

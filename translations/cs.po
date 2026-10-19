@@ -1488,8 +1488,9 @@ msgstr "PLC a snímače"
 msgid "Temperature at %s"
 msgstr "Teplota u %s"
 
-msgid "Volts on the analog input (0-10 V = 0-1000)"
-msgstr "Napětí na analogovém vstupu (0-10 V = 0-1000)"
+#, c-format
+msgid "Volts on the analog input (0-10 V = 0-%d)"
+msgstr "Napětí na analogovém vstupu (0-10 V = 0-%d)"
 
 msgid "Gain"
 msgstr "Zesílení"
@@ -1503,8 +1504,9 @@ msgstr "Práh zapnutí"
 msgid "Off threshold"
 msgstr "Práh vypnutí"
 
-msgid "Value (0-1000 = 0-10 V)"
-msgstr "Hodnota (0-1000 = 0-10 V)"
+#, c-format
+msgid "Value (0-%d = 0-10 V)"
+msgstr "Hodnota (0-%d = 0-10 V)"
 
 msgid "Analog"
 msgstr "Analogové"
@@ -1530,11 +1532,13 @@ msgstr "Analogový vstup"
 msgid "Analog output"
 msgstr "Analogový výstup"
 
-msgid "Brings an analog input into the diagram: 0-10 V as 0-1000."
-msgstr "Přivádí do schématu analogový vstup: 0-10 V jako 0-1000."
+#, c-format
+msgid "Brings an analog input into the diagram: 0-10 V as 0-%d."
+msgstr "Přivádí do schématu analogový vstup: 0-10 V jako 0-%d."
 
-msgid "Puts the value at Ax (0-1000) on an analog output as 0-10 V."
-msgstr "Dává hodnotu na Ax (0-1000) na analogový výstup jako 0-10 V."
+#, c-format
+msgid "Puts the value at Ax (0-%d) on an analog output as 0-10 V."
+msgstr "Dává hodnotu na Ax (0-%d) na analogový výstup jako 0-10 V."
 
 msgid "Gain x Ax + offset: the output comes on above On and goes off at Off or below (with On below Off: on between them)."
 msgstr "Zesílení x Ax + posun: výstup sepne nad prahem zapnutí a rozepne na prahu vypnutí a pod ním (je-li práh zapnutí pod prahem vypnutí: sepnut mezi nimi)."
@@ -1554,14 +1558,17 @@ msgstr "Porovnání: analogový vstup pod"
 msgid "Analog output coil"
 msgstr "Cívka analogového výstupu"
 
-msgid "Closed while the analog input is at the value or above it (0-1000 = 0-10 V)."
-msgstr "Sepnut, dokud je analogový vstup na hodnotě nebo nad ní (0-1000 = 0-10 V)."
+#, c-format
+msgid "Closed while the analog input is at the value or above it (0-%d = 0-10 V)."
+msgstr "Sepnut, dokud je analogový vstup na hodnotě nebo nad ní (0-%d = 0-10 V)."
 
-msgid "Closed while the analog input is below the value (0-1000 = 0-10 V)."
-msgstr "Sepnut, dokud je analogový vstup pod hodnotou (0-1000 = 0-10 V)."
+#, c-format
+msgid "Closed while the analog input is below the value (0-%d = 0-10 V)."
+msgstr "Sepnut, dokud je analogový vstup pod hodnotou (0-%d = 0-10 V)."
 
-msgid "Puts the value (0-1000) on the analog output as 0-10 V while it gets power, 0 without."
-msgstr "Dává hodnotu (0-1000) na analogový výstup jako 0-10 V, dokud má napájení, bez něj 0."
+#, c-format
+msgid "Puts the value (0-%d) on the analog output as 0-10 V while it gets power, 0 without."
+msgstr "Dává hodnotu (0-%d) na analogový výstup jako 0-10 V, dokud má napájení, bez něj 0."
 
 msgid "Compact PLC (CPU 24 V DC, transistor outputs)"
 msgstr "Kompaktní PLC (CPU 24 V DC, tranzistorové výstupy)"
@@ -1688,20 +1695,8 @@ msgstr "Online: program běžící v simulaci (ke změnám přepněte na Úpravy
 msgid "Editing the program of %s"
 msgstr "Úprava programu %s"
 
-msgid "Add network"
-msgstr "Přidat síť"
-
-msgid "Click an element to see its state. Ctrl+wheel zooms."
-msgstr "Klepnutím na prvek uvidíte jeho stav. Ctrl+kolečko mění zvětšení."
-
-msgid "Drag from a block's output (right) to an input (left) to connect them. Right click an input to remove its connection. Delete removes the selected block."
-msgstr "Tažením z výstupu bloku (vpravo) na vstup (vlevo) je spojíte. Pravým tlačítkem na vstup jeho spojení zrušíte. Delete odstraní vybraný blok."
-
 msgid "Click to place the block. Esc or a right click ends placing."
 msgstr "Klepnutím blok umístíte. Esc nebo pravé tlačítko umísťování ukončí."
-
-msgid "Click an element to select it, a network's title to select the network. Delete removes the selection."
-msgstr "Klepnutím vyberete prvek, klepnutím na název sítě celou síť. Delete odstraní výběr."
 
 msgid "Click a cell to link its right side with the row below (click again to remove the link)."
 msgstr "Klepnutím na buňku spojíte její pravou stranu s řádkem pod ní (dalším klepnutím spojení zrušíte)."
@@ -1841,10 +1836,6 @@ msgstr "Každá náběžná hrana na Trg výstup přepne; S jej nastaví, R vynu
 msgid "Counts the rising edges on Cnt, up or down while Dir is 1; R sets the count to 0. The output is on while the count has reached the preset."
 msgstr "Čítá náběžné hrany na Cnt, nahoru, nebo dolů, když je Dir 1; R vynuluje stav. Výstup je sepnutý, dokud stav dosahuje předvolby."
 
-#, c-format
-msgid "Network %d"
-msgstr "Síť %d"
-
 msgid "Select"
 msgstr "Vybrat"
 
@@ -1880,9 +1871,6 @@ msgstr "Čítání dolů"
 
 msgid "Erase"
 msgstr "Vymazat"
-
-msgid "Network"
-msgstr "Síť"
 
 msgid "Closed while its operand is 1."
 msgstr "Sepnutý, dokud je jeho operand 1."
@@ -3232,6 +3220,46 @@ msgid_plural "%d terminals"
 msgstr[0] "%d svorka"
 msgstr[1] "%d svorky"
 msgstr[2] "%d svorek"
+
+#, c-format
+msgid "Function %s of time relay %s works with its control input S, which is turned off."
+msgstr "Funkce %s časového relé %s pracuje s řídicím vstupem S, který je vypnutý."
+
+#, c-format
+msgid "Terminal %s is not connected, but the inputs or outputs using it are."
+msgstr "Svorka %s není připojena, ale vstupy nebo výstupy, které ji používají, připojeny jsou."
+
+#, c-format
+msgid "Analog module %s of %s takes 24 V DC on %s and %s, not the AC supply."
+msgstr "Analogový modul %s PLC %s se napájí 24 V DC na %s a %s, ne ze střídavého přívodu."
+
+msgid "The circuit has no + supply."
+msgstr "Obvod nemá přívod +."
+
+msgid "The circuit has no - supply."
+msgstr "Obvod nemá přívod -."
+
+#, c-format
+msgid "%s: short circuit, output off"
+msgstr "%s: zkrat, výstup vypnut"
+
+msgid "Forward"
+msgstr "Vpřed"
+
+msgid "Star"
+msgstr "Hvězda"
+
+msgid "Delta"
+msgstr "Trojúhelník"
+
+msgid "Voltage on"
+msgstr "Napětí zapnuto"
+
+msgid "Fault"
+msgstr "Porucha"
+
+msgid "Start"
+msgstr "Start"
 
 msgid "Open .ladder files with LadderLab"
 msgstr "Otevírat soubory .ladder v LadderLabu"

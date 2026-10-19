@@ -13,7 +13,8 @@ signal parts_toggled(show_chart: bool, show_log: bool)
 
 const WINDOWS: Array[float] = [0.02, 0.1, 0.5, 2.0, 10.0, 60.0]
 const MIN_HEIGHT: float = 140.0
-## Highest share of the window the panel may take.
+## Highest share of the window the panel may take (shown: of the height the
+## bars above and below it leave).
 const MAX_HEIGHT_SHARE: float = 0.75
 const MIN_LOG_WIDTH: float = 180.0
 const MAX_LOG_WIDTH: float = 900.0
@@ -34,7 +35,11 @@ var _window_label: Label
 var _window_select: OptionButton
 var _live: Button
 var _hint: Label
+## What the hint says, shown when it fits whole.
+var _hint_text: String = ""
 var _log_grip: Control
+## Chart part, grip and log side by side.
+var _split: HBoxContainer
 ## Dragging the top edge.
 var _dragging_edge: bool = false
 
@@ -67,6 +72,7 @@ func _ready() -> void:
 	var split: HBoxContainer = HBoxContainer.new()
 	split.add_theme_constant_override("separation", 3)
 	add_child(split)
+	_split = split
 	var left: VBoxContainer = VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(left)
@@ -77,6 +83,7 @@ func _ready() -> void:
 	_chart_title.pressed.connect(func() -> void: _toggle(not _show_chart, _show_log))
 	header.add_child(_chart_title)
 	var tools: HBoxContainer = HBoxContainer.new()
+	tools.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(tools)
 	_chart_tools = tools
 	_window_label = Label.new()
@@ -87,20 +94,22 @@ func _ready() -> void:
 	_window_select.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_window_select.focus_mode = Control.FOCUS_NONE
 	for w: float in WINDOWS:
-		_window_select.add_item(("%d ms" % roundi(w * 1000.0)) if w < 1.0 else ("%d s" % roundi(w)))
+		_window_select.add_item(span_text(w))
 	_window_select.item_selected.connect(func(i: int) -> void: chart.window = WINDOWS[i])
 	tools.add_child(_window_select)
 	_live = Button.new()
 	_live.icon = AppTheme.icon("follow", 16)
 	_live.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_live.focus_mode = Control.FOCUS_NONE
-	_live.pressed.connect(func() -> void:
-		chart.follow = true
-		chart.queue_redraw())
+	_live.pressed.connect(func() -> void: chart.follow_now())
 	tools.add_child(_live)
 	_hint = Label.new()
 	_hint.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_hint.theme_type_variation = "MutedLabel"
+	# The hint gives way first when the window is narrow.
+	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hint.clip_text = true
+	_hint.resized.connect(_fit_hint)
 	tools.add_child(_hint)
 	# The chart sits in a rounded card.
 	var card: PanelContainer = PanelContainer.new()
@@ -116,6 +125,7 @@ func _ready() -> void:
 	chart = TimingChart.new()
 	chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chart.window_changed.connect(_on_window_changed)
+	chart.follow_changed.connect(func(_following: bool) -> void: _show_hint())
 	scroll.add_child(chart)
 	_log_grip = Control.new()
 	_log_grip.custom_minimum_size = Vector2(8, 0)
@@ -127,6 +137,11 @@ func _ready() -> void:
 	split.add_child(event_log)
 	_window_select.select(WINDOWS.find(0.1))
 	chart.window = 0.1
+	# The room left for the panel changes with the window, the interface
+	# size and the bars beside it: sizes are fitted at every layout.
+	var column: Container = get_parent() as Container
+	if column != null:
+		column.pre_sort_children.connect(_apply_sizes)
 	_apply_parts()
 	retranslate()
 
@@ -158,11 +173,31 @@ func _apply_parts() -> void:
 
 
 ## Rolled-in parts shrink to their titles, the whole panel when both are.
+## The height and the log width give way when the window has no room for
+## them (a small window, a large interface size); the chosen ones are kept.
 func _apply_sizes() -> void:
 	if event_log == null:
 		return
-	custom_minimum_size.y = panel_height if _show_chart or _show_log else 0.0
-	event_log.custom_minimum_size.x = log_width if _show_log and _show_chart else 0.0
+	custom_minimum_size.y = minf(panel_height, _room().y) if _show_chart or _show_log else 0.0
+	event_log.custom_minimum_size.x = minf(log_width, _room().x) if _show_log and _show_chart else 0.0
+
+
+## Largest height the panel may take and width the log may take: a share of
+## the height left by the bars above and below it, the width beside the
+## chart's title and tools.
+func _room() -> Vector2:
+	var column: Container = get_parent() as Container
+	if not is_inside_tree() or column == null:
+		return Vector2(INF, INF)
+	var window: Vector2 = get_viewport_rect().size
+	var others: float = 0.0
+	for child: Node in column.get_children():
+		if child != self and child is Control and (child as Control).visible:
+			others += (child as Control).get_combined_minimum_size().y
+	var frame: Vector2 = get_theme_stylebox("panel").get_minimum_size()
+	var gaps: float = 2.0 * _split.get_theme_constant("separation") + _log_grip.custom_minimum_size.x
+	var width: float = window.x - frame.x - gaps - _chart_part.get_combined_minimum_size().x
+	return Vector2(maxf(width, 0.0), maxf((window.y - others) * MAX_HEIGHT_SHARE, 0.0))
 
 
 func retranslate() -> void:
@@ -170,7 +205,7 @@ func retranslate() -> void:
 	_chart_title.tooltip_text = tr("Show or hide the timing chart")
 	_window_label.text = tr("Time span:")
 	_live.text = tr("Follow")
-	_hint.text = tr("Drag to look back, wheel zooms")
+	_show_hint()
 	event_log.retranslate()
 	_log_grip.tooltip_text = tr("Drag to share the width between the chart and the event log")
 	chart.queue_redraw()
@@ -212,13 +247,33 @@ func _on_log_grip_input(event: InputEvent) -> void:
 		resized_by_user.emit()
 
 
+## What to do with the chart: look back, or (while looking back) follow again.
+func _show_hint() -> void:
+	_hint_text = tr("Drag to look back, wheel zooms") if chart.follow else tr("Double click: follow")
+	_fit_hint()
+
+
+## The hint is shown whole or not at all.
+func _fit_hint() -> void:
+	var width: float = _hint.get_theme_font("font").get_string_size(_hint_text, HORIZONTAL_ALIGNMENT_LEFT, -1, _hint.get_theme_font_size("font_size")).x
+	_hint.text = _hint_text if width <= _hint.size.x else ""
+
+
+## The span zoomed to by the wheel: one of the choices, or written in the
+## field when it is between them.
 func _on_window_changed(seconds: float) -> void:
-	var best: int = 0
 	for i: int in WINDOWS.size():
-		if absf(log10(WINDOWS[i]) - log10(seconds)) < absf(log10(WINDOWS[best]) - log10(seconds)):
-			best = i
-	_window_select.select(best)
+		if is_equal_approx(WINDOWS[i], seconds):
+			_window_select.select(i)
+			return
+	_window_select.select(-1)
+	_window_select.text = span_text(seconds)
 
 
-static func log10(x: float) -> float:
-	return log(x) / log(10.0)
+## A time span as the choices write it: "20 ms", "2 s", "2.4 s".
+static func span_text(seconds: float) -> String:
+	if seconds < 1.0:
+		return "%d ms" % roundi(seconds * 1000.0)
+	if is_equal_approx(seconds, roundf(seconds)):
+		return "%d s" % roundi(seconds)
+	return "%.1f s" % seconds

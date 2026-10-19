@@ -151,51 +151,83 @@ func cable_paths() -> Array[Dictionary]:
 				var other: Vector2 = port_at.get(Vector2i(end.x, 1 - end.y), tiles[shown[end.x][["b", "a"][end.y]]].get_center())
 				wanted[end] = clampf(other.y if across else other.x, low, high)
 			list.sort_custom(func(p: Vector2i, q: Vector2i) -> bool: return wanted[p] < wanted[q])
+			# Closer together than a lane when the side is too short for them all.
+			var step: float = minf(LANE, (high - low) / maxf(list.size() - 1, 1))
 			var at: PackedFloat32Array = PackedFloat32Array()
 			for i: int in list.size():
-				at.append(wanted[list[i]] if i == 0 else maxf(wanted[list[i]], at[i - 1] + LANE))
+				at.append(wanted[list[i]] if i == 0 else maxf(wanted[list[i]], at[i - 1] + step))
 			for i: int in range(list.size() - 1, -1, -1):
-				at[i] = minf(at[i], high if i == list.size() - 1 else at[i + 1] - LANE)
+				at[i] = minf(at[i], high if i == list.size() - 1 else at[i + 1] - step)
 			for i: int in list.size():
 				var t: float = (at[i] - (tile.position.y if across else tile.position.x)) / (tile.size.y if across else tile.size.x)
 				port_at[list[i]] = _port(tile, areas[owner], side, t)
 				lane[list[i]] = (i - (list.size() - 1) * 0.5) * LANE
-	var font: Font = AppTheme.schematic_font()
+	var taken: Array[Rect2] = []
 	for c: int in shown.size():
 		var cable: Dictionary = shown[c]
 		var pa: Vector2 = port_at[Vector2i(c, 0)]
 		var pb: Vector2 = port_at[Vector2i(c, 1)]
 		var best: PackedVector2Array = _route(pa, sides[c].x, pb, sides[c].y, lane[Vector2i(c, 0)], _obstacles(areas, cable))
 		if best.is_empty():
+			# Its ports moved along their sides leave no way out at right
+			# angles: from the middles of the sides, as they were chosen.
+			pa = _port(tiles[cable["a"]], areas[cable["a"]], sides[c].x, 0.5)
+			pb = _port(tiles[cable["b"]], areas[cable["b"]], sides[c].y, 0.5)
+			best = _route(pa, sides[c].x, pb, sides[c].y, 0.0, _obstacles(areas, cable))
+		if best.is_empty():
 			best = PackedVector2Array([pa, pb])
 		var corners: PackedVector2Array = _straightened(best)
-		# The tag on the longest straight run.
-		var longest: int = 0
-		for i: int in corners.size() - 1:
-			if corners[i].distance_to(corners[i + 1]) > corners[longest].distance_to(corners[longest + 1]):
-				longest = i
-		var middle: Vector2 = (corners[longest] + corners[longest + 1]) * 0.5
-		var text: String = "%s · %s" % [cable["name"], WorkspaceCables.type_text(cable)]
-		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
-		var h: float = 16.0
-		# On a short run the name and the type go on two lines, on a shorter
-		# one only the name shows.
-		var room: float = corners[longest].distance_to(corners[longest + 1]) - 8.0
-		# Along a vertical run the tag's height counts.
-		var upright: bool = absf(corners[longest].x - corners[longest + 1].x) < 1.0
-		if (h if upright else w) > room:
-			text = "%s\n%s" % [cable["name"], WorkspaceCables.type_text(cable)]
-			w = font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
-			h = 30.0
-		if (h if upright else w) > room:
-			text = cable["name"]
-			w = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x + 10.0
-			h = 16.0
+		var tag: Dictionary = _tag(corners, cable, taken)
+		taken.append(tag["tag"])
 		var power: bool = false
 		for core: Dictionary in cable["cores"]:
 			power = power or core["conductor"] == CabinetDevices.Conductor.POWER
-		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": Rect2(middle - Vector2(w, h) * 0.5, Vector2(w, h)), "text": text, "power": power, "ports": PackedVector2Array([pa, pb])})
+		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": tag["tag"], "text": tag["text"], "power": power, "ports": PackedVector2Array([pa, pb])})
 	return result
+
+
+## Where the name tag of [param cable] goes on its track [param corners]:
+## {"tag" (Rect2), "text"}. On the longest straight run, with the name and
+## the type on one line, on two on a short run, only the name on a shorter
+## one; moved along its run, or onto another run, to keep clear of the tags
+## in [param taken]; where none is clear, in the middle of the longest run.
+static func _tag(corners: PackedVector2Array, cable: Dictionary, taken: Array[Rect2]) -> Dictionary:
+	var font: Font = AppTheme.schematic_font()
+	var type: String = WorkspaceCables.type_text(cable)
+	var texts: PackedStringArray = ["%s · %s" % [cable["name"], type], "%s\n%s" % [cable["name"], type], cable["name"]]
+	var sizes: Array[Vector2] = []
+	for i: int in texts.size():
+		var w: float = (font.get_multiline_string_size(texts[i], HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE) if i == 1 else font.get_string_size(texts[i], HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE)).x + 10.0
+		sizes.append(Vector2(w, 30.0 if i == 1 else 16.0))
+	var runs: Array = range(corners.size() - 1)
+	runs.sort_custom(func(i: int, j: int) -> bool: return corners[i].distance_to(corners[i + 1]) > corners[j].distance_to(corners[j + 1]))
+	var fallback: Dictionary = {}
+	for i: int in runs:
+		var a: Vector2 = corners[i]
+		var b: Vector2 = corners[i + 1]
+		var middle: Vector2 = (a + b) * 0.5
+		var room: float = a.distance_to(b) - 8.0
+		# Along a vertical run the tag's height counts.
+		var upright: bool = absf(a.x - b.x) < 1.0
+		for t: int in texts.size():
+			var along: float = sizes[t].y if upright else sizes[t].x
+			if along > room and t < texts.size() - 1:
+				continue
+			if fallback.is_empty():
+				fallback = {"tag": Rect2(middle - sizes[t] * 0.5, sizes[t]), "text": texts[t]}
+			# From the middle outwards, as far as the run takes it.
+			var slack: float = maxf(room - along, 0.0) * 0.5
+			var step: float = 0.0
+			while step <= slack:
+				for sign: float in [1.0, -1.0]:
+					var rect: Rect2 = Rect2(middle + (b - a).normalized() * step * sign - sizes[t] * 0.5, sizes[t])
+					var clear: bool = true
+					for other: Rect2 in taken:
+						clear = clear and not other.grow(2.0).intersects(rect)
+					if clear:
+						return {"tag": rect, "text": texts[t]}
+				step += LANE
+	return fallback
 
 
 ## The places a cable keeps clear of: all but its own ends.
@@ -222,12 +254,12 @@ static func _route(pa: Vector2, side_a: int, pb: Vector2, side_b: int, shift: fl
 	var routes: Array[PackedVector2Array] = []
 	if a_across and b_across:
 		for share: float in [0.5, 0.3, 0.7, 0.15, 0.85]:
-			var mx: float = lerpf(sa.x, sb.x, share) + shift
+			var mx: float = _shifted(lerpf(sa.x, sb.x, share), shift, sa.x, na.x, sb.x, nb.x)
 			if (mx - sa.x) * na.x >= 0.0 and (mx - sb.x) * nb.x >= 0.0:
 				routes.append(PackedVector2Array([pa, sa, Vector2(mx, sa.y), Vector2(mx, sb.y), sb, pb]))
 	elif not a_across and not b_across:
 		for share: float in [0.5, 0.3, 0.7, 0.15, 0.85]:
-			var my: float = lerpf(sa.y, sb.y, share) + shift
+			var my: float = _shifted(lerpf(sa.y, sb.y, share), shift, sa.y, na.y, sb.y, nb.y)
 			if (my - sa.y) * na.y >= 0.0 and (my - sb.y) * nb.y >= 0.0:
 				routes.append(PackedVector2Array([pa, sa, Vector2(sa.x, my), Vector2(sb.x, my), sb, pb]))
 	else:
@@ -244,6 +276,23 @@ static func _route(pa: Vector2, side_a: int, pb: Vector2, side_b: int, shift: fl
 		if hits == 0:
 			break
 	return best
+
+
+## The middle run at [param middle] moved by [param shift], but no further
+## than the stubs' ends [param a] and [param b] allow (the run must lie
+## out along both their normals [param na], [param nb]): with many cables
+## on one side a large shift would leave no route at all.
+static func _shifted(middle: float, shift: float, a: float, na: float, b: float, nb: float) -> float:
+	var low: float = -INF
+	var high: float = INF
+	for end: Vector2 in [Vector2(a, na), Vector2(b, nb)]:
+		if end.y > 0.0:
+			low = maxf(low, end.x)
+		elif end.y < 0.0:
+			high = minf(high, end.x)
+	if low > high or middle < low or middle > high:
+		return middle + shift
+	return clampf(middle + shift, low, high)
 
 
 static func _length(points: PackedVector2Array) -> float:
@@ -344,7 +393,14 @@ func items() -> Array[Dictionary]:
 	var positions: Dictionary[String, Vector2] = _positions()
 	for g: int in document.groups.size():
 		var group: WorkspaceGroup = document.groups[g]
-		result.append({"key": "+" + group.name, "kind": "group", "index": g, "name": group.name, "rect": Workspace.group_rect(group, positions), "tile": WorkspaceTile.Kind.GROUP})
+		var rect: Rect2 = Workspace.group_rect(group, positions)
+		var empty: bool = true
+		for member: String in group.members:
+			empty = empty and not positions.has(member)
+		if empty:
+			# A frame without members is dragged by its own position.
+			rect.position = _moved("+" + group.name, group.position)
+		result.append({"key": "+" + group.name, "kind": "group", "index": g, "name": group.name, "rect": rect, "tile": WorkspaceTile.Kind.GROUP})
 	for b: int in document.switchboards.size():
 		var board: Switchboard = document.switchboards[b]
 		result.append({"key": "+" + board.name, "kind": "switchboard", "index": b, "name": board.name, "rect": Rect2(_moved("+" + board.name, board.position), Workspace.PLACE_SIZE), "tile": WorkspaceTile.Kind.SWITCHBOARD})
@@ -641,17 +697,18 @@ func _draw() -> void:
 
 
 ## The mechanical links of groups: a dashed line (IEC mechanical link) from
-## the motor to each limit switch its part operates.
+## the motor to each limit switch its part operates; like the simulation
+## (see [method Workspace.travels]), only between members of the group.
 func _draw_links(list: Array[Dictionary]) -> void:
 	var tiles: Dictionary[String, Rect2] = {}
 	for item: Dictionary in list:
 		if item["kind"] == "field":
 			tiles[item["name"]] = _tile_rect(item)
 	for group: WorkspaceGroup in document.groups:
-		if group.drive.is_empty() or not tiles.has(group.drive):
+		if group.drive.is_empty() or not tiles.has(group.drive) or not group.members.has(group.drive):
 			continue
 		for designation: String in group.stops:
-			if tiles.has(designation):
+			if tiles.has(designation) and group.members.has(designation):
 				draw_dashed_line(tiles[group.drive].get_center(), tiles[designation].get_center(), SchematicTheme.LINE, 1.5, 6.0, true, true)
 
 
@@ -670,13 +727,15 @@ func _draw_group(item: Dictionary) -> void:
 	draw_string(font, at, "+" + group.name, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE + 1, SchematicTheme.DESIGNATION)
 	at.x += font.get_string_size("+" + group.name, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE + 1).x + 8.0
 	draw_string(font, at, group.title if not group.title.is_empty() else tr("Group"), HORIZONTAL_ALIGNMENT_LEFT, rect.end.x - at.x - 8.0, TEXT_SIZE, SchematicTheme.PATH_TEXT)
-	if not group.drive.is_empty():
+	if group.members.has(group.drive):
 		# The way the part travels along the bottom of the frame: a tick for
 		# each limit switch, the part where it starts (or is, while simulating).
 		var from: Vector2 = Vector2(rect.position.x + 14.0, rect.end.y - 9.0)
 		var length: float = rect.size.x - 28.0
 		draw_line(from, from + Vector2(length, 0.0), SchematicTheme.GROUP_EDGE, 4.0, true)
 		for designation: String in group.stops:
+			if not group.members.has(designation):
+				continue
 			var x: float = from.x + length * group.stops[designation]
 			draw_line(Vector2(x, from.y - 5.0), Vector2(x, from.y + 5.0), SchematicTheme.LINE, 1.5, true)
 		var simulating: bool = travel_positions.has(group.name)

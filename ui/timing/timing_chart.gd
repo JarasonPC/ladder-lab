@@ -10,6 +10,8 @@ extends Control
 ## follow again.
 
 signal window_changed(seconds: float)
+## The right edge started or stopped following the simulation time.
+signal follow_changed(following: bool)
 
 const ROW_HEIGHT: float = 28.0
 const LABEL_WIDTH: float = 70.0
@@ -20,6 +22,10 @@ const POWER_BAND := Color(0.9, 0.28, 0.3, 0.2)
 const LOAD_BAND := Color(1.0, 0.76, 0.2, 0.32)
 ## Height of a row of currents.
 const CURRENT_ROW_HEIGHT: float = 64.0
+## Lines L1, L2, L3, N in the schematic's colours of the paper that matches
+## the chart's background (the app theme), whatever paper is chosen.
+const LIGHT_PHASES: Array[Color] = [Color("d8693d"), Color("5c6a99"), Color("a597e0"), Color("1f9be6")]
+const DARK_PHASES: Array[Color] = [Color("ff8d4d"), Color("8f9de0"), Color("c2b2ff"), Color("46b4ff")]
 
 var trace: TraceRecorder
 ## Visible time span in seconds.
@@ -28,7 +34,11 @@ var window: float = 0.5:
 		window = clampf(value, MIN_WINDOW, MAX_WINDOW)
 		queue_redraw()
 ## True while the right edge follows the simulation time.
-var follow: bool = true
+var follow: bool = true:
+	set(value):
+		if value != follow:
+			follow = value
+			follow_changed.emit(follow)
 
 ## Rows: "label", "band" (signal shown as shaded band), "line" (analog signal),
 ## "step" (digital signal drawn as a step line); rows of currents have
@@ -75,7 +85,9 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 				wired[wire[1]] = true
 			for k: int in (c as Plc).output_count():
 				var t: int = (c as Plc).output_terminal(k)
-				if wired.has(keys[t]) or wired.has(keys[t + 1]):
+				# A relay output has two terminals, a transistor output one.
+				var relay: bool = (c as Plc).terminal_role(t) == Plc.Role.DQ
+				if wired.has(keys[t]) or (relay and wired.has(keys[t + 1])):
 					_rows.append({"label": "%s Q%d" % [c.designation, k + 1], "band": "", "line": "%s/Q%d" % [c.designation, k + 1], "step": ""})
 	for c: CircuitComponent in doc.circuit.get_components():
 		var count: int = 0
@@ -99,7 +111,8 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 			var signals: PackedStringArray = PackedStringArray()
 			for p: int in count:
 				signals.append("%s/I%d" % [c.designation, p + 1])
-			_rows.append({"label": c.designation, "currents": signals, "rated": rated})
+			# The rated current of a breaker or fuse (In), the setting of an overload relay (Ir).
+			_rows.append({"label": c.designation, "currents": signals, "rated": rated, "rated_label": "Ir" if c is OverloadRelay else "In"})
 	var height: float = 0.0
 	for row: Dictionary in _rows:
 		height += _row_height(row)
@@ -118,6 +131,14 @@ func set_time(now: float) -> void:
 	queue_redraw()
 
 
+## Follows the simulation time again, from now on and at once (also while
+## the simulation is paused).
+func follow_now() -> void:
+	follow = true
+	_end = _now
+	queue_redraw()
+
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
@@ -130,14 +151,15 @@ func _gui_input(event: InputEvent) -> void:
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
 			_dragging = mb.pressed
 			if mb.double_click:
-				follow = true
-				_end = _now
+				follow_now()
 		accept_event()
 		queue_redraw()
 	elif event is InputEventMouseMotion and _dragging:
 		var plot_width: float = maxf(size.x - LABEL_WIDTH, 1.0)
 		follow = false
-		_end = clampf(_end - (event as InputEventMouseMotion).relative.x / plot_width * window, window * 0.5, _now)
+		# Back to half a window before the start, never past now (in the
+		# first half window there is nothing to look back to).
+		_end = clampf(_end - (event as InputEventMouseMotion).relative.x / plot_width * window, minf(window * 0.5, _now), _now)
 		accept_event()
 		queue_redraw()
 
@@ -170,8 +192,6 @@ func _draw() -> void:
 		if row["line"] != "":
 			_draw_series(row["line"], start, plot, low, high, true, AppTheme.danger)
 		top += row_height
-	if not follow:
-		draw_string(font, Vector2(size.x - 206, size.y - 6), tr("Double click: follow"), HORIZONTAL_ALIGNMENT_RIGHT, 200, 11, AppTheme.text_faint)
 
 
 func _row_height(row: Dictionary) -> float:
@@ -198,8 +218,8 @@ func _draw_currents(row: Dictionary, start: float, plot: Rect2, top: float, heig
 		while x < size.x:
 			draw_line(Vector2(x, y), Vector2(minf(x + 4.0, size.x), y), AppTheme.text_faint, 1.0)
 			x += 8.0
-		draw_string(font, Vector2(plot.position.x + 3, y - 2), "In", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.text_faint)
-	var colors: Array[Color] = [SchematicTheme.LIVE, SchematicTheme.LIVE_L2, SchematicTheme.LIVE_L3, SchematicTheme.NEUTRAL]
+		draw_string(font, Vector2(plot.position.x + 3, y - 2), row["rated_label"], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.text_faint)
+	var colors: Array[Color] = LIGHT_PHASES if AppTheme.variant == AppTheme.Variant.LIGHT else DARK_PHASES
 	for i: int in signals.size():
 		_draw_series_scaled(signals[i], start, plot, low, high, scale, colors[i % colors.size()])
 
@@ -267,7 +287,9 @@ func _draw_grid(plot: Rect2, start: float, font: Font) -> void:
 	while t <= _end:
 		var x: float = _x(t, start, plot)
 		draw_line(Vector2(x, HEADER_HEIGHT), Vector2(x, size.y), AppTheme.chart_grid)
-		var text: String = ("%d ms" % roundi(t * 1000.0)) if window < 2.0 else ("%.1f s" % t)
+		# A mark a rounding error below zero is zero, not "-0.0 s".
+		var shown: float = 0.0 if absf(t) < step * 0.001 else t
+		var text: String = ("%d ms" % roundi(shown * 1000.0)) if window < 2.0 else ("%.1f s" % shown)
 		draw_string(font, Vector2(x + 3, 13), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, AppTheme.text_faint)
 		t += step
 

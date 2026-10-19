@@ -102,4 +102,13 @@ static func _num(value: float) -> String:
 
 static func _date() -> String:
 	var t: Dictionary = Time.get_datetime_dict_from_system()
-	return "D:%04d%02d%02d%02d%02d%02d" % [t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"]]
+	# The offset from UTC as it is now (daylight saving time included).
+	var offset: int = roundi((Time.get_unix_time_from_datetime_dict(t) - Time.get_unix_time_from_system()) / 60.0)
+	return date_text(t, offset)
+
+
+## PDF date of local time [param t] (as [method Time.get_datetime_dict_from_system]
+## gives it) [param offset] minutes ahead of UTC: "D:20250314093000+01'00'".
+static func date_text(t: Dictionary, offset: int) -> String:
+	var zone: String = "Z" if offset == 0 else "%s%02d'%02d'" % ["+" if offset > 0 else "-", floori(absi(offset) / 60.0), absi(offset) % 60]
+	return "D:%04d%02d%02d%02d%02d%02d%s" % [t["year"], t["month"], t["day"], t["hour"], t["minute"], t["second"], zone]

@@ -254,6 +254,9 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	var supply: bool = component is PowerSupply
 	var upright: bool = component is ThreePhaseMotor or component is TemperatureSensor or component is ProtectiveDevice or component.get_terminal_names().size() > 3
 	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)
+	if component is ChangeoverContact:
+		# Its common terminal (the pivot) comes on the left only turned once.
+		placement = Placement.new(Vector2i.ZERO, 1, true)
 	var symbol: SchematicSymbol = SymbolFactory.create(component, placement)
 	symbol.show_labels = supply
 	symbol.preview = true

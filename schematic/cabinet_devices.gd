@@ -19,6 +19,12 @@ enum Conductor { CONTROL, NEUTRAL, POWER, PE }
 
 ## Strip of the terminals whose label names none.
 const DEFAULT_STRIP: String = "X1"
+## Changeover contacts an auxiliary relay and a time relay have; more take
+## further relays beside them, whose coil terminals are named after the
+## first one's with UNIT and their number ("A1#2").
+const RELAY_CONTACTS: int = 4
+const TIMER_CONTACTS: int = 3
+const UNIT: String = "#"
 
 
 ## Kind of device [param c] is in the switchboard, NONE for parts that are
@@ -73,13 +79,16 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ## (terminal name on the device -> terminal key in the circuit) and the state:
 ## - BREAKER: "on", "rating" (characteristic and rated current, "B2")
 ## - FUSE: "closed", "blown"
-## - CONTACTOR: "aux" ([first terminal, "NO" / "NC" / "CO", last terminal]
-##   per auxiliary contact, the built-in ones first),
+## - CONTACTOR: "aux" ([first terminal, "NO" / "NC", last terminal] per
+##   auxiliary contact, the built-in ones first, a changeover contact as an
+##   NC and an NO one; every one has a place, see [method CabinetParts.contactor]),
 ##   "on" (armature pulled in), "energized" (coil has power), "overload"
 ##   (designation of the overload relay under it, or "")
-## - RELAY: "on", "energized"
+## - RELAY: "on", "energized"; more than [constant RELAY_CONTACTS]
+##   contacts take further relays beside it (see [method _extra_coils])
 ## - TIMER: "contacts", "code" (function, "F2"), "control" (name of the
-##   control input), "powered", "output"
+##   control input), "powered", "output"; more than
+##   [constant TIMER_CONTACTS] contacts take further time relays
 ## - OVERLOAD: "tripped"
 ## - RECTIFIER: "on" (its input has voltage)
 ## - PLC: "terminals" by the standard marking (L1, N, I1-I8, Q1.1-Q4.2, then
@@ -217,20 +226,31 @@ static func _describe_coil(doc: SchematicDocument, coil: Coil, d: Dictionary) ->
 			for k: int in names.size():
 				terminals[names[k]] = keys[k]
 			if c is ChangeoverContact:
-				aux.append([names[0], "CO", names[2]])
+				# Contactors have no changeover contacts: an NC and an NO one,
+				# their commons joined (the second named as in _extra_coils).
+				aux.append([names[0], "NC", names[1]])
+				aux.append([names[0] + UNIT + "2", "NO", names[2]])
+				terminals[names[0] + UNIT + "2"] = keys[0]
 			else:
 				aux.append([names[0], "NC" if (c as Contact).contact_type == SwitchingElement.ContactType.NC else "NO", names[1]])
-		# Two auxiliary contacts are built in; the unused ones keep their numbers.
-		for spare: Array in [["13", "NO", "14"], ["21", "NC", "22"]]:
-			if aux.size() < 2 and not terminals.has(spare[0]):
+		# Two auxiliary contacts are built in; the unused ones keep their
+		# numbers, or take the next free ones where a terminal of the
+		# contactor has those.
+		var spares: Array = [["13", "NO", "14"], ["21", "NC", "22"]]
+		for s: int in range(3, 10):
+			spares.append([str(s) + "3", "NO", str(s) + "4"])
+			spares.append([str(s) + "1", "NC", str(s) + "2"])
+		for spare: Array in spares:
+			if aux.size() < 2 and not terminals.has(spare[0]) and not terminals.has(spare[2]):
 				aux.append(spare)
-		d["aux"] = aux.slice(0, 6)
+		d["aux"] = aux
 		var under: Dictionary[String, String] = overloads_under_contactors(circuit)
 		d["overload"] = under.get(coil.designation, "")
 	else:
-		d["poles"] = clampi(contacts.size(), 1, 4)
-		for k: int in mini(contacts.size(), 4):
+		d["poles"] = maxi(contacts.size(), 1)
+		for k: int in contacts.size():
 			_map_changeover(contacts[k], str(k + 1), "1", "2", "4", terminals)
+		_extra_coils(coil_keys, PackedStringArray(["A1", "A2"]), ceili(contacts.size() / float(RELAY_CONTACTS)), terminals)
 	d["terminals"] = terminals
 
 
@@ -242,13 +262,27 @@ static func _describe_timer(doc: SchematicDocument, timer: TimerRelay, d: Dictio
 	if names.size() > 2:
 		terminals[names[2]] = keys[2]
 	var contacts: Array[CircuitComponent] = contacts_of(doc.circuit, timer.designation)
-	d["contacts"] = clampi(contacts.size(), 1, 3)
-	for k: int in mini(contacts.size(), 3):
+	d["contacts"] = maxi(contacts.size(), 1)
+	for k: int in contacts.size():
 		_map_changeover(contacts[k], str(k + 1), "5", "6", "8", terminals)
+	var coil: PackedStringArray = PackedStringArray(["A1", "A2"])
+	if names.size() > 2:
+		coil.append(names[2])
+	_extra_coils(keys, coil, ceili(contacts.size() / float(TIMER_CONTACTS)), terminals)
 	d["terminals"] = terminals
 	d["code"] = TimerRelay.code_of(timer.mode)
 	d["powered"] = timer.energized
 	d["output"] = timer.output
+
+
+## More contacts than one relay (time relay) has take further ones beside
+## it, their coils (and control inputs) wired to the first one's: the
+## terminals [param names] (keys [param keys]) of relay 2, 3, ... of
+## [param units] are named "A1#2", "A2#2", ... (see [constant UNIT]).
+static func _extra_coils(keys: PackedStringArray, names: PackedStringArray, units: int, terminals: Dictionary) -> void:
+	for u: int in range(2, units + 1):
+		for k: int in names.size():
+			terminals[names[k] + UNIT + str(u)] = keys[k]
 
 
 ## Puts the terminals of contact [param c] at the places of changeover
@@ -328,10 +362,11 @@ static func nets(circuit: Circuit) -> Dictionary[String, int]:
 
 
 ## Net number (see [method nets]) -> [enum Conductor] of every net. Nets
-## joined to the N supply or the - pole are NEUTRAL, nets joined to PE alone
-## PE; nets on the terminals of the power circuit (supplies L2 and L3, main
-## contacts, overload relay heaters, 3~ motors, fuses and breakers of two or
-## more poles) are POWER, all others CONTROL.
+## joined to the N supply or a - pole (of a supply point or a rectifier)
+## are NEUTRAL, nets joined to PE alone PE; nets on the terminals of the
+## power circuit (supplies L2 and L3, main contacts, overload relay heaters,
+## 3~ motors, fuses and breakers of two or more poles) are POWER, all
+## others CONTROL.
 static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictionary[int, Conductor]:
 	var neutral: Dictionary[int, bool] = {}
 	var pe: Dictionary[int, bool] = {}
@@ -347,6 +382,9 @@ static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictio
 				PowerSupply.Conductor.L2, PowerSupply.Conductor.L3:
 					power[net[keys[0]]] = true
 			continue
+		if c is Rectifier and keys.size() > 3:
+			# Its - output is the pole of a DC source like a - supply point.
+			neutral[net[keys[3]]] = true
 		var count: int = 0
 		if c is ThreePhaseMotor:
 			count = (c as ThreePhaseMotor).winding_terminal_count()

@@ -16,6 +16,8 @@ signal plc_requested(component_id: String)
 signal datasheet_requested(component_id: String)
 
 var _component_id: String = ""
+## The part shown (fields are built anew from it after a refused edit).
+var _component: CircuitComponent = null
 var _data: Dictionary = {}
 var _box: VBoxContainer
 var _title: Label
@@ -38,6 +40,7 @@ func show_component(component: CircuitComponent) -> void:
 		_box.remove_child(child)
 		child.queue_free()
 	_group = null
+	_component = component
 	_title = _note(tr("Properties"), "TitleLabel")
 	if component == null:
 		_component_id = ""
@@ -103,13 +106,15 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Maximum frequency (Hz)"), "max_frequency", 1.0, Vfd.HIGHEST_FREQUENCY, 1.0)
 			_number(tr("Ramp-up time (s)"), "ramp_up", 0.0, Vfd.LONGEST_RAMP, 0.1)
 			_number(tr("Ramp-down time (s)"), "ramp_down", 0.0, Vfd.LONGEST_RAMP, 0.1)
-			_number(tr("Fixed frequency, DI3 (Hz)"), "fixed_frequency", 0.0, Vfd.HIGHEST_FREQUENCY, 0.5)
-			_number(tr("Keypad setpoint (Hz)"), "keypad_frequency", 0.0, Vfd.HIGHEST_FREQUENCY, 0.5)
+			# Up to the maximum frequency, which the drive does not exceed.
+			_number(tr("Fixed frequency, DI3 (Hz)"), "fixed_frequency", 0.0, float(_data["max_frequency"]), 0.5)
+			_number(tr("Keypad setpoint (Hz)"), "keypad_frequency", 0.0, float(_data["max_frequency"]), 0.5)
 			_group = null
 			_note(tr("Supply 3 x 400 V on L1 L2 L3, the motor on U V W. DI1 runs, DI2 reverses, DI3 runs at the fixed frequency, DI4 stops the output at once (coast stop); the inputs are on with 24 V against DIC, from its own 24V-0V. AI1 takes 0-10 V (from its 10V reference, a PLC or a sensor) for 0 to the maximum frequency. DO2 closes while the motor runs. While simulating, click it for its keypad."), "MutedLabel")
 		"temp_sensor":
-			_number(tr("Range from (°C)"), "range_min", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 1.0)
-			_number(tr("Range to (°C)"), "range_max", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 1.0)
+			# Each bound stays a degree off the other one.
+			_number(tr("Range from (°C)"), "range_min", TemperatureSensor.LOWEST, float(_data["range_max"]) - 1.0, 1.0)
+			_number(tr("Range to (°C)"), "range_max", float(_data["range_min"]) + 1.0, TemperatureSensor.HIGHEST, 1.0)
 			_number(tr("Temperature at the start (°C)"), "temperature", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 0.5)
 			_group = null
 			_note(tr("Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."), "MutedLabel")
@@ -149,7 +154,7 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Run-down time (s)"), "coast_time", 0.0, 3600.0, 0.1)
 			_number(tr("DC braking time (s)"), "brake_time", 0.0, 3600.0, 0.1)
 	if not VoltageRating.offered(kind).is_empty() and not (component is CompactPlc):
-		_rating(kind)
+		_rating(component)
 	if not (component is Junction):
 		_orientation()
 		_datasheet_button()
@@ -172,8 +177,11 @@ func show_wire() -> void:
 	_note(tr("Double-click the wire or its number to number it. All wires joined to this one get the same number."), "MutedLabel")
 
 
-## Shows why the last change was refused.
+## Shows why the last change was refused; the fields show the part as it
+## stayed, not the refused value.
 func show_error(text: String) -> void:
+	if not text.is_empty() and _component != null and is_instance_valid(_component):
+		show_component(_component)
 	if _message != null:
 		_message.text = text
 
@@ -213,7 +221,7 @@ func _emit(key: String, value: Variant) -> void:
 	changed.emit(_component_id, data)
 
 
-func _choice(caption: String, key: String, values: Array, titles: Array) -> void:
+func _choice(caption: String, key: String, values: Array, titles: Array) -> OptionButton:
 	_label(caption)
 	var option: OptionButton = OptionButton.new()
 	option.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -222,6 +230,7 @@ func _choice(caption: String, key: String, values: Array, titles: Array) -> void
 	option.select(values.find(_data.get(key, values[0])))
 	option.item_selected.connect(func(i: int) -> void: _emit(key, values[i]))
 	_add(option)
+	return option
 
 
 func _number(caption: String, key: String, min_value: float, max_value: float, step: float) -> void:
@@ -375,7 +384,8 @@ func _input_name(timer: TimerRelay) -> String:
 
 ## Rated voltage of a coil, time relay, lamp or PLC: below it the part does
 ## not work, far above it burns out.
-func _rating(kind: String) -> void:
+func _rating(component: CircuitComponent) -> void:
+	var kind: String = _data["type"]
 	var values: Array = Array(VoltageRating.offered(kind))
 	var titles: Array = []
 	for name: String in values:
@@ -383,7 +393,11 @@ func _rating(kind: String) -> void:
 	if str(_data.get("rating", "")).is_empty():
 		values.push_front("")
 		titles.push_front(tr("Not set (works on any voltage)"))
-	_choice(tr("PLC version (supply and inputs)") if kind == "plc" else tr("Rated voltage"), "rating", values, titles)
+	var option: OptionButton = _choice(tr("PLC version (supply and inputs)") if kind == "plc" else tr("Rated voltage"), "rating", values, titles)
+	if component is Plc:
+		# A version whose own analog inputs leave too few for the modules.
+		for i: int in values.size():
+			option.set_item_disabled(i, not Plc.modules_fit((component as Plc).modules, values[i]))
 	_group = null
 	_note(tr("Too low a voltage and the part does not work; far too high a voltage (or DC on an AC coil) burns it out while simulating."), "MutedLabel")
 
@@ -517,25 +531,13 @@ static func _module_operands(plc: Plc, m: int) -> PackedStringArray:
 
 
 ## Emits the PLC with expansion modules [param list]; terminal names given
-## by hand stay on the terminals that are left.
+## by hand stay on the terminals that are left
+## ([method SchematicEditor.adapt_terminals]).
 func _emit_modules(list: Array[Plc.Module]) -> void:
-	var data: Dictionary = _data.duplicate()
 	var names: Array[String] = []
 	for module: Plc.Module in list:
 		names.append(Plc.MODULE_NAMES[module])
-	data["modules"] = names
-	if data.has("terminals"):
-		var custom: Array = data["terminals"]
-		var plain: Dictionary = data.duplicate()
-		plain.erase("terminals")
-		var merged: PackedStringArray = DocumentSerializer.component_from_dict(plain).default_terminal_names()
-		for i: int in mini(custom.size(), merged.size()):
-			merged[i] = str(custom[i])
-		if CircuitComponent.valid_terminal_names(merged):
-			data["terminals"] = Array(merged)
-		else:
-			data.erase("terminals")
-	changed.emit(_component_id, data)
+	_emit("modules", names)
 
 
 ## Time-current characteristic of a protective device.

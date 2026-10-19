@@ -67,13 +67,8 @@ func _draw() -> void:
 	_k = maxf(get_global_transform_with_canvas().get_scale().x, 0.05)
 	var unscale: Transform2D = Transform2D().scaled(Vector2.ONE / _k)
 	var t: Transform2D = SymbolGeometry.draw_transform(placement)
-	# Lying horizontally, switching symbols are drawn mirrored along their
-	# axis, so the blade pivots on the left and rises to the right.
-	_ends_swapped = flips_when_horizontal() and placement.rotation % 2 == 1
-	var shape_t: Transform2D = t
-	if _ends_swapped:
-		shape_t = t * Transform2D(Vector2(1, 0), Vector2(0, -1), Vector2(0, _span() * G))
-	draw_set_transform_matrix(shape_t * unscale)
+	_ends_swapped = ends_swapped()
+	draw_set_transform_matrix(shape_transform() * unscale)
 	if hovered and is_interactive():
 		var body: Rect2 = SymbolGeometry.local_body(component)
 		aa_rect(Rect2(body.position * G, body.size * G), SchematicTheme.HOVER)
@@ -92,7 +87,7 @@ func _draw() -> void:
 			_draw_keycap()
 	if has_fault():
 		draw_set_transform_matrix(unscale)
-		_draw_fault_marker(to_upright(Vector2(0.9 * G, 0.9 * G)))
+		_draw_fault_marker(to_upright(fault_anchor()))
 		draw_set_transform_matrix(Transform2D.IDENTITY)
 	drawn_scale = _k
 
@@ -147,7 +142,15 @@ func aa_dashed_line(from: Vector2, to: Vector2, color: Color, width: float = -1.
 
 
 func aa_rect(rect: Rect2, color: Color, filled: bool = true, width: float = -1.0) -> void:
-	draw_rect(Rect2(rect.position * _k, rect.size * _k), color, filled, _px(width) if not filled else -1.0)
+	if filled:
+		draw_rect(Rect2(rect.position * _k, rect.size * _k), color)
+		return
+	# An outline is a closed line (draw_rect's outline is not antialiased
+	# and thins away below zoom 1), starting in the middle of the top edge
+	# so that every corner is a joint; never thinner than a pixel, or the
+	# small boxes (PLC lights, display) fade away when zoomed out.
+	var top: Vector2 = Vector2(rect.get_center().x, rect.position.y)
+	aa_polyline(PackedVector2Array([top, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y), rect.position, top]), color, maxf(width, 1.0 / _k) if width > 0.0 else width)
 
 
 func aa_polygon(points: PackedVector2Array, color: Color) -> void:
@@ -180,6 +183,23 @@ func reach(terminal_index: int) -> int:
 ## horizontally (contacts, breakers, fuse holders). Override.
 func flips_when_horizontal() -> bool:
 	return false
+
+
+## True while the shape is drawn mirrored along its axis: lying horizontally,
+## switching symbols are, so the blade pivots on the left and rises to the
+## right. Turned once the second terminal (the pivot) is on the left
+## already; turned three times it is on the right.
+func ends_swapped() -> bool:
+	return flips_when_horizontal() and placement.rotation == 3
+
+
+## Transform the shape is drawn with (see [method ends_swapped]), local
+## pixels to upright node pixels.
+func shape_transform() -> Transform2D:
+	var t: Transform2D = SymbolGeometry.draw_transform(placement)
+	if ends_swapped():
+		t = t * Transform2D(Vector2(1, 0), Vector2(0, -1), Vector2(0, _span() * G))
+	return t
 
 
 ## Distance from the first to the last terminal along the symbol axis, in cells.
@@ -299,30 +319,164 @@ func _draw_terminals() -> void:
 			var line: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
 			aa_circle(at, TerminalBlockSymbol.RADIUS, SchematicTheme.BACKGROUND)
 			aa_arc(at, TerminalBlockSymbol.RADIUS, 0.0, TAU, 20, line, 1.6)
-			var d: float = TerminalBlockSymbol.RADIUS * 1.25
-			aa_line(at + Vector2(-d, d), at + Vector2(d, -d), line, 1.6)
+			var d: Vector2 = TerminalBlockSymbol.slash(placement)
+			aa_line(at - d, at + d, line, 1.6)
 		else:
 			aa_rect(Rect2(at - Vector2(s, s) * 0.5, Vector2(s, s)), fill)
 
 
-## Labels of the strip terminals on the leads, left of the lead; a terminal
-## of another strip than X1 ("X2:4") has the strip over its number, so
-## terminals two cells apart keep their labels apart.
+## Half the size of a strip terminal's mark (circle and slash) and a little
+## room: texts stay this far from the terminal along and across its lead.
+const STRIP_MARK: float = 8.5
+
+
+## Labels of the strip terminals; a terminal of another strip than X1
+## ("X2:4") has the strip over its number, so terminals two cells apart keep
+## their labels apart. Along a vertical wire left of it (right when the
+## symbol is mirrored or turned over), past the strip mark on the side of
+## the wire (away from the symbol); along a horizontal wire over the mark
+## (under it when turned the other way), or on one line past the mark where
+## that would meet a terminal name or another strip label, and first of all
+## where other terminals are in line across the wire (a motor); a supply
+## point's on one line over the mark. Of two terminals side by side (a changeover's NO and NC, a time
+## relay's A1 and S) each writes on its outer side.
 func _draw_strip_labels() -> void:
 	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
 	var names: PackedStringArray = component.get_terminal_names()
+	var t: Transform2D = SymbolGeometry.draw_transform(placement)
+	var font: Font = AppTheme.schematic_font()
 	for i: int in placement.strips:
-		if i < names.size():
-			var at: Vector2 = Vector2(cells[names[i]]) * G + Vector2(-0.55 * G, 0.0)
-			var label: String = placement.strips[i]
-			var colon: int = label.find(":")
-			if colon > 0:
-				# Up on the drawing, however the symbol is turned.
-				var up: Vector2 = SymbolGeometry.draw_transform(placement).affine_inverse().basis_xform(Vector2.UP).normalized()
-				draw_label(label.left(colon), at + up * 0.6 * G, SchematicTheme.TERMINAL_SIZE + 1, SchematicTheme.DESIGNATION, 0, ["strip", i])
-				draw_label(label.substr(colon + 1), at + up * 0.1 * G, SchematicTheme.TERMINAL_SIZE + 2, SchematicTheme.DESIGNATION, 0, ["strip", i])
+		if i >= names.size():
+			continue
+		var at: Vector2 = t * (Vector2(cells[names[i]]) * G)
+		var outward: Vector2 = -lead_vector(i)
+		var side: Vector2 = _strip_side(i, at, outward)
+		var label: String = placement.strips[i]
+		var choices: Array[Array] = [_strip_label_lines(label, at, outward, side, STACKED), _strip_label_lines(label, at, outward, -side, STACKED)]
+		if absf(outward.x) > 0.5:
+			var beyond: Array[Array] = [_strip_label_lines(label, at, outward, side, PAST_MARK), _strip_label_lines(label, at, outward, -side, PAST_MARK)]
+			if names.size() == 1:
+				# A supply point: on one line over the mark, close to the wire
+				# and clear of the wire it is joined to.
+				var over: Array[Array] = [_strip_label_lines(label, at, outward, side, OVER_MARK), _strip_label_lines(label, at, outward, -side, OVER_MARK)]
+				choices = over + beyond + choices
+			elif _crowded(i, at, outward):
+				# Terminals two cells apart across the wire (a motor, the
+				# poles of a breaker) leave no room for two lines between
+				# the wires.
+				choices = beyond + choices
 			else:
-				draw_label(label, at, SchematicTheme.TERMINAL_SIZE + 2, SchematicTheme.DESIGNATION, 0, ["strip", i])
+				choices += beyond
+		var chosen: Array = choices[0]
+		for choice: Array in choices:
+			if not _hits_markings(choice):
+				chosen = choice
+				break
+		for line: Array in chosen:
+			var rect: Rect2 = line[2]
+			_write(line[0], rect.position + Vector2(0.0, font.get_ascent(line[1])), line[1], SchematicTheme.DESIGNATION, ["strip", i])
+
+
+## How a strip label is written (see [method _strip_label_lines]): the strip
+## over the number beside the mark, on one line past the mark along a
+## horizontal wire, on one line over (or under) the mark.
+const STACKED: int = 0
+const PAST_MARK: int = 1
+const OVER_MARK: int = 2
+
+
+## Lines of strip label [param label] written at terminal [param at] on
+## [param side] of its wire in [param style]: [text, font size, Rect2 in
+## node coordinates] each.
+func _strip_label_lines(label: String, at: Vector2, outward: Vector2, side: Vector2, style: int) -> Array[Array]:
+	var font: Font = AppTheme.schematic_font()
+	var texts: PackedStringArray = PackedStringArray([label])
+	var sizes: PackedInt32Array = PackedInt32Array([SchematicTheme.TERMINAL_SIZE + (2 if style == STACKED else 1)])
+	var colon: int = label.find(":")
+	if colon > 0 and style == STACKED:
+		texts = PackedStringArray([label.left(colon), label.substr(colon + 1)])
+		sizes = PackedInt32Array([SchematicTheme.TERMINAL_SIZE + 1, SchematicTheme.TERMINAL_SIZE + 2])
+	var lines: Array[Array] = []
+	for k: int in texts.size():
+		var size: Vector2 = font.get_string_size(texts[k], HORIZONTAL_ALIGNMENT_LEFT, -1, sizes[k])
+		var middle: Vector2
+		if style == PAST_MARK:
+			middle = at + outward * (STRIP_MARK + 2.5 + size.x * 0.5) + side * (size.y * 0.5 + 2.0)
+		elif style == OVER_MARK:
+			middle = at + side * (STRIP_MARK + 1.0 + size.y * 0.5)
+		elif absf(outward.x) > 0.5:
+			# Over or under a horizontal wire, centred on the mark, the
+			# lines stacked away from the wire.
+			var away: float = (texts.size() - 1 - k if side.y < 0.0 else k) * 10.0
+			middle = at + side * (STRIP_MARK + 1.0 + size.y * 0.5 + away)
+		else:
+			# Beside a vertical wire, the line nearest the terminal level
+			# with it, the others further out along the wire.
+			var step: float = 10.0 * (k - texts.size() + 1 if outward.y < 0.0 else k)
+			middle = at + side * (STRIP_MARK + 2.5 + size.x * 0.5) + Vector2(0.0, step - 2.0 * signf(-outward.y))
+		lines.append([texts[k], sizes[k], Rect2(middle - size * 0.5, size)])
+	return lines
+
+
+## Screen direction of the lead of terminal [param index] into the symbol
+## (supplies and page connectors: up from the terminal to the circle or tag).
+func lead_vector(index: int) -> Vector2:
+	var name: String = component.get_terminal_names()[index]
+	var local: Vector2 = Vector2.UP
+	match SymbolGeometry.local_lead_direction(component, name):
+		SymbolGeometry.DIR_DOWN:
+			local = Vector2.DOWN
+		SymbolGeometry.DIR_LEFT:
+			local = Vector2.LEFT
+		SymbolGeometry.DIR_RIGHT:
+			local = Vector2.RIGHT
+	return SymbolGeometry.draw_transform(placement).basis_xform(local).round()
+
+
+## Side of the wire (a screen direction across it) on which strip terminal
+## [param index] at [param at] writes its label: that of the symbol's left
+## (its designation side), unless the terminal is one of a pair side by side
+## (no other terminal in line with them) and the other one is on that side.
+func _strip_side(index: int, at: Vector2, outward: Vector2) -> Vector2:
+	var t: Transform2D = SymbolGeometry.draw_transform(placement)
+	var across: Vector2 = Vector2(absf(outward.y), absf(outward.x))
+	var left: float = t.basis_xform(Vector2.LEFT).round().dot(across)
+	var side: Vector2 = across * (left if left != 0.0 else -1.0)
+	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
+	var names: PackedStringArray = component.get_terminal_names()
+	var beside: Array[Vector2] = []
+	for k: int in names.size():
+		var other: Vector2 = t * (Vector2(cells[names[k]]) * G) - at
+		if k != index and absf(other.dot(outward)) < 1.0:
+			beside.append(other)
+	if beside.size() == 1 and beside[0].dot(side) > 0.0:
+		side = -side
+	return side
+
+
+## True when another terminal of the symbol is in line with terminal
+## [param index] at [param at] across its wire, two cells away at most.
+func _crowded(index: int, at: Vector2, outward: Vector2) -> bool:
+	var t: Transform2D = SymbolGeometry.draw_transform(placement)
+	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
+	var names: PackedStringArray = component.get_terminal_names()
+	for k: int in names.size():
+		var other: Vector2 = t * (Vector2(cells[names[k]]) * G) - at
+		if k != index and absf(other.dot(outward)) < 1.0 and other.length() < 2.5 * G:
+			return true
+	return false
+
+
+## True when one of the [param lines] of a strip label (see [method
+## _strip_label_lines]) overlaps a terminal name or strip label written so
+## far.
+func _hits_markings(lines: Array) -> bool:
+	for m: Array in marking_rects:
+		if m[0] == "terminal" or m[0] == "strip":
+			for line: Array in lines:
+				if (line[2] as Rect2).grow(-1.0).intersects((m[2] as Rect2).grow_individual(2.0, 0.0, 2.0, 0.0)):
+					return true
+	return false
 
 
 ## Draws designation and terminal numbers. Override to add more.
@@ -380,18 +534,30 @@ func draw_heat(progress: float, anchor: Vector2, line: int) -> void:
 		draw_label("%d %%" % roundi(progress * 100.0), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.FAULT, line)
 
 
-## Terminal numbers of a multi-pole symbol: 1, 3, 5, 7 on top, 2, 4, 6, 8 below.
-func _draw_pole_labels() -> void:
+## Terminal numbers of a multi-pole symbol: 1, 3, 5, 7 on top, 2, 4, 6, 8
+## below; [param short_leads]: out beside the wire on a terminal strip (see
+## [method name_anchor]).
+func _draw_pole_labels(short_leads: bool = false) -> void:
 	var names: PackedStringArray = component.get_terminal_names()
 	for i: int in names.size():
 		var x: float = (i / 2) * SymbolGeometry.POLE_SPACING * G + 0.3 * G
 		var y: float = 0.4 * G if i % 2 == 0 else 2.6 * G
-		draw_label(names[i], Vector2(x, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label(names[i], name_anchor(i, Vector2(x, y)) if short_leads else Vector2(x, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 
 
 ## Local x of pole [param pole] (0-3) of a multi-pole symbol.
 static func pole_x(pole: int) -> float:
 	return pole * SymbolGeometry.POLE_SPACING * G
+
+
+## Local point the fault mark is drawn at: right of the body (away from the
+## designation), level with its middle, clear of its lines and terminal names.
+func fault_anchor() -> Vector2:
+	var body: Rect2 = SymbolGeometry.local_body(component)
+	# The upright bolt is taller than wide: further out when the body's
+	# right is up or down on the drawing.
+	var across: bool = absf(SymbolGeometry.draw_transform(placement).basis_xform(Vector2.RIGHT).x) > 0.5
+	return Vector2(body.end.x * G + (6.0 if across else 11.5), body.get_center().y * G)
 
 
 ## Small lightning bolt marking an injected fault.
@@ -417,15 +583,21 @@ func _designation_anchor() -> Vector2:
 
 
 ## Draws upright text at a local anchor. Text extends away from the symbol
-## axis: left/right of it when the anchor is to the side, above/below otherwise.
+## axis (a terminal's name away from its own lead): left/right of it when the
+## anchor is to the side, above/below otherwise.
 ## [param line] > 0 writes a further line: below the first one when the text is
 ## beside the symbol, further away from the symbol when it is above or below.
 ## [param marking]: what the text marks ([kind, index]); found from the text
-## when not given.
+## when not given. The name of a strip terminal keeps off its mark.
 func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Color, line: int = 0, marking: Array = []) -> void:
 	var font: Font = AppTheme.schematic_font()
+	if marking.is_empty():
+		marking = _marking_of(text)
+	var axis_x: float = 0.0
+	if not marking.is_empty() and marking[0] == "terminal":
+		axis_x = SymbolGeometry.local_terminals(component)[component.get_terminal_names()[marking[1]]].x * G
 	var anchor: Vector2 = SymbolGeometry.draw_transform(placement) * local_anchor
-	var axis_point: Vector2 = SymbolGeometry.draw_transform(placement) * Vector2(0.0, local_anchor.y)
+	var axis_point: Vector2 = SymbolGeometry.draw_transform(placement) * Vector2(axis_x, local_anchor.y)
 	var away: Vector2 = anchor - axis_point
 	var size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	var ascent: float = font.get_ascent(font_size)
@@ -442,13 +614,48 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 		pos.y += direction * line * line_height
 	# Markings the user dragged elsewhere; texts written with the
 	# designation (times, states, a lamp's label) move along with it.
-	if marking.is_empty():
-		marking = _marking_of(text)
 	if not marking.is_empty() and marking[0] == "designation":
 		_designation_anchor_drawn = local_anchor
 	if marking.is_empty() or marking[0] == "purpose":
 		if local_anchor == _designation_anchor_drawn:
 			pos += placement.labels.get("designation", Vector2.ZERO) * G
+	if not marking.is_empty() and marking[0] == "terminal" and placement.strips.has(marking[1]):
+		pos += _clear_of_strip_mark(marking[1], Rect2(Vector2(pos.x, pos.y - ascent), size), ascent)
+	_write(text, pos, font_size, color, marking)
+
+
+## Upright text in the middle of the local [param box] (a display, a
+## window); in a box turned upright its words go on lines of their own,
+## smaller where they would not fit.
+func write_in(text: String, box: Rect2, font_size: int) -> void:
+	var font: Font = AppTheme.schematic_font()
+	var room: Vector2 = SymbolGeometry.transform_rect(box, placement).size - Vector2(4.0, 2.0)
+	var lines: PackedStringArray = PackedStringArray([text])
+	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > room.x:
+		lines = text.split("  " if text.contains("  ") else " ", false)
+	var size: int = font_size
+	while size > 6:
+		var widest: float = 0.0
+		for line: String in lines:
+			widest = maxf(widest, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x)
+		if widest <= room.x and lines.size() * font.get_height(size) <= room.y:
+			break
+		size -= 1
+	# Lines one under the other on the drawing, whichever way the box is turned.
+	var down: Vector2 = SymbolGeometry.draw_transform(placement).basis_xform_inv(Vector2.DOWN)
+	for i: int in lines.size():
+		var at: Vector2 = to_upright(box.get_center() + down * (i - (lines.size() - 1) * 0.5) * font.get_height(size))
+		var width: float = font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		_write(lines[i], at + Vector2(-width * 0.5, font.get_ascent(size) * 0.5 - 1.0), size, SchematicTheme.TEXT, [])
+
+
+## Writes [param text] with its baseline starting at [param pos] (node
+## coordinates), moved by the offset the user dragged its marking by, and
+## remembers where.
+func _write(text: String, pos: Vector2, font_size: int, color: Color, marking: Array) -> void:
+	var font: Font = AppTheme.schematic_font()
+	var size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var ascent: float = font.get_ascent(font_size)
 	var own: Vector2 = Vector2.ZERO
 	if not marking.is_empty():
 		own = placement.labels.get(marking_key(marking[0], marking[1]), Vector2.ZERO)
@@ -457,6 +664,42 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 	text_rects.append(Rect2(Vector2(pos.x, pos.y - ascent), size))
 	if not marking.is_empty():
 		marking_rects.append([marking[0], marking[1], Rect2(Vector2(pos.x, pos.y - ascent), size), own])
+
+
+## Local anchor for the name of terminal [param index] for symbols with
+## leads too short for a name between a strip's mark and the body:
+## [param inside] beside the lead, or as far out beside the wire when the
+## terminal is on a terminal strip, on the other side of the wire than the
+## strip label.
+func name_anchor(index: int, inside: Vector2) -> Vector2:
+	if not placement.strips.has(index):
+		return inside
+	var cell: Vector2 = Vector2(SymbolGeometry.local_terminals(component)[component.get_terminal_names()[index]]) * G
+	var anchor: Vector2 = Vector2(inside.x, 2.0 * cell.y - inside.y)
+	var t: Transform2D = SymbolGeometry.draw_transform(placement)
+	var outward: Vector2 = -lead_vector(index)
+	if (t.basis_xform(anchor - cell)).dot(_strip_side(index, t * cell, outward)) > 0.0:
+		anchor.x = 2.0 * cell.x - anchor.x
+	return anchor
+
+
+## Shift that takes the name of strip terminal [param index], written at
+## [param rect] with [param ascent], off the strip mark: along the lead,
+## further into the symbol or out along the wire, whichever side of the
+## terminal it is on. Up and down the drawing its letters count (from the
+## top of the capitals to the baseline), not the room of the whole line.
+func _clear_of_strip_mark(index: int, rect: Rect2, ascent: float) -> Vector2:
+	var at: Vector2 = to_upright(Vector2(SymbolGeometry.local_terminals(component)[component.get_terminal_names()[index]]) * G)
+	var mark: Rect2 = Rect2(at - Vector2.ONE * STRIP_MARK, Vector2.ONE * STRIP_MARK * 2.0)
+	var cap: float = ascent * 0.72
+	rect = Rect2(rect.position.x, rect.position.y + ascent - cap, rect.size.x, cap)
+	if not rect.intersects(mark):
+		return Vector2.ZERO
+	var axis: Vector2 = lead_vector(index).abs()
+	var ahead: float = (rect.get_center() - at).dot(axis)
+	if ahead >= 0.0:
+		return axis * (mark.end.dot(axis) - rect.position.dot(axis))
+	return -axis * (rect.end.dot(axis) - mark.position.dot(axis))
 
 
 ## Key of a marking in [member Placement.labels]: "designation",

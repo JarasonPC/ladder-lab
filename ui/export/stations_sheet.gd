@@ -10,6 +10,8 @@ const ROOM := Vector2(52.0 * G, 31.0 * G)
 const CAPTION_H: float = 30.0
 const GAP: float = 40.0
 const CAPTION_SIZE: int = 15
+## Room between the name and the title in a caption.
+const CAPTION_GAP: float = 10.0
 
 var document: SchematicDocument
 ## The stations on this sheet: [{"box" (index), "at" (top-left of its
@@ -27,7 +29,7 @@ static func arrange(doc: SchematicDocument) -> Array[Array]:
 	var y: float = 0.0
 	var row_h: float = 0.0
 	for i: int in doc.control_boxes.size():
-		var size: Vector2 = box_size(doc, i) + Vector2(0.0, CAPTION_H)
+		var size: Vector2 = footprint(doc, i)
 		if x > 0.0 and x + size.x > ROOM.x:
 			x = 0.0
 			y += row_h + GAP
@@ -55,6 +57,23 @@ static func box_size(doc: SchematicDocument, index: int) -> Vector2:
 	return size
 
 
+## What station [param index] of [param doc] takes on the sheet: the box with
+## its caption above it, as wide as the wider of the two.
+static func footprint(doc: SchematicDocument, index: int) -> Vector2:
+	var box: Vector2 = box_size(doc, index)
+	var font: Font = AppTheme.schematic_font()
+	var caption: PackedStringArray = _caption(doc.control_boxes[index])
+	var width: float = font.get_string_size(caption[0], HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE).x + CAPTION_GAP
+	width += font.get_string_size(caption[1], HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE - 2).x
+	return Vector2(maxf(box.x, width), box.y + CAPTION_H)
+
+
+## The name and the title written above [param box].
+static func _caption(box: ControlBox) -> PackedStringArray:
+	var title: String = box.title if not box.title.is_empty() else String(TranslationServer.translate("Control station"))
+	return PackedStringArray(["+" + box.name, title])
+
+
 func _ready() -> void:
 	for entry: Dictionary in placed:
 		var view: ControlBoxView = ControlBoxView.new()
@@ -70,16 +89,15 @@ func _ready() -> void:
 func extent() -> Rect2:
 	var end: Vector2 = Vector2.ZERO
 	for entry: Dictionary in placed:
-		end = end.max(entry["at"] + box_size(document, entry["box"]) + Vector2(0.0, CAPTION_H))
+		end = end.max(entry["at"] + footprint(document, entry["box"]))
 	return Rect2(Vector2.ZERO, end / G)
 
 
 func _draw() -> void:
 	var font: Font = AppTheme.schematic_font()
 	for entry: Dictionary in placed:
-		var box: ControlBox = document.control_boxes[entry["box"]]
+		var caption: PackedStringArray = _caption(document.control_boxes[entry["box"]])
 		var at: Vector2 = entry["at"] + Vector2(0.0, CAPTION_H - 10.0)
-		draw_string(font, at, "+" + box.name, HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE, SchematicTheme.DESIGNATION)
-		var title: String = box.title if not box.title.is_empty() else tr("Control station")
-		var shift: float = font.get_string_size("+" + box.name, HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE).x + 10.0
-		draw_string(font, at + Vector2(shift, 0.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE - 2, SchematicTheme.TEXT)
+		draw_string(font, at, caption[0], HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE, SchematicTheme.DESIGNATION)
+		var shift: float = font.get_string_size(caption[0], HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE).x + CAPTION_GAP
+		draw_string(font, at + Vector2(shift, 0.0), caption[1], HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_SIZE - 2, SchematicTheme.TEXT)

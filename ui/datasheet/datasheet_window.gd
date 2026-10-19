@@ -225,8 +225,7 @@ func export_pdf(path: String) -> void:
 ## Images of the pages of [param p_sheet] on white paper at [constant
 ## EXPORT_SCALE] (a coroutine: await it).
 func render_pages(p_sheet: Datasheet) -> Array[Image]:
-	var dark_paper: bool = SchematicTheme.dark
-	SchematicTheme.use(false)
+	SheetRenderer.begin_white_paper()
 	var viewports: Array[SubViewport] = []
 	for layout: DatasheetLayout in DatasheetLayout.compose(p_sheet):
 		var viewport: SubViewport = SubViewport.new()
@@ -249,7 +248,7 @@ func render_pages(p_sheet: Datasheet) -> Array[Image]:
 			image.convert(Image.FORMAT_RGB8)
 		images.append(image)
 		viewport.queue_free()
-	SchematicTheme.use(dark_paper)
+	SheetRenderer.end_white_paper()
 	return images
 
 
@@ -262,7 +261,11 @@ class _Keys:
 
 	func _unhandled_input(event: InputEvent) -> void:
 		var key: InputEventKey = event as InputEventKey
-		if key == null or not key.pressed or key.echo:
+		if key == null or key.echo:
+			return
+		if not key.pressed:
+			# A push button held by its key is let go wherever the key comes up.
+			window.key_pressed.emit(key)
 			return
 		if key.keycode == KEY_ESCAPE:
 			window.hide()

@@ -40,6 +40,9 @@ var _junctions: Array[Vector2i] = []
 var _number_rects: Array = []
 ## Boxes (in cells) of the current path numbers drawn last.
 var _path_rects: Array[Rect2] = []
+## Clamp meters and the currents on the wires are read over the symbols:
+## they are drawn on this layer above them.
+var _readouts: Node2D
 
 
 func set_document(doc: SchematicDocument) -> void:
@@ -83,18 +86,29 @@ func _draw() -> void:
 		draw_circle(Vector2(cell) * G, 3.6, SchematicTheme.reach_color(_reach_at(cell, wires)))
 	if show_numbers:
 		_draw_wire_numbers()
-	if current_view and fault_wires.is_empty():
-		_draw_currents(wires)
-	_draw_clamps(wires)
+	_readouts.queue_redraw()
 	if show_path_numbers:
 		_draw_path_numbers()
 	else:
 		_path_rects.clear()
 
 
+func _init() -> void:
+	_readouts = Node2D.new()
+	_readouts.z_index = 1
+	_readouts.draw.connect(func() -> void:
+		if document == null:
+			return
+		var wires: PackedInt32Array = document.wires_on_page(page)
+		if current_view and fault_wires.is_empty():
+			_draw_currents(_readouts, wires)
+		_draw_clamps(_readouts, wires))
+	add_child(_readouts)
+
+
 ## Clamp meters: jaws around the wire and a display beside them with the
-## current of the wire (in either view).
-func _draw_clamps(wires: PackedInt32Array) -> void:
+## current of the wire (in either view), drawn on [param canvas].
+func _draw_clamps(canvas: CanvasItem, wires: PackedInt32Array) -> void:
 	var font: Font = AppTheme.schematic_font()
 	var size: int = 11
 	for w: int in clamps:
@@ -112,7 +126,7 @@ func _draw_clamps(wires: PackedInt32Array) -> void:
 		# Jaws: a ring open on the side of the display.
 		var side: Vector2 = Vector2(1, 0) if vertical else Vector2(0, -1)
 		var open_angle: float = side.angle()
-		draw_arc(at, 8.0, open_angle + 0.5, open_angle + TAU - 0.5, 24, SchematicTheme.TEXT, 2.5, true)
+		canvas.draw_arc(at, 8.0, open_angle + 0.5, open_angle + TAU - 0.5, 24, SchematicTheme.TEXT, 2.5, true)
 		var text: String
 		var color: Color = SchematicTheme.TEXT
 		if fault_wires.has(w):
@@ -125,15 +139,15 @@ func _draw_clamps(wires: PackedInt32Array) -> void:
 		var handle: Vector2 = at + side * 8.0
 		var box_at: Vector2 = handle + side * 10.0
 		var box: Rect2 = Rect2(box_at - Vector2(0.0, box_size.y * 0.5), box_size) if vertical else Rect2(box_at - Vector2(box_size.x * 0.5, box_size.y), box_size)
-		draw_line(handle, box_at, SchematicTheme.TEXT, 2.0)
-		draw_rect(box, SchematicTheme.BACKGROUND)
-		draw_rect(box, SchematicTheme.CURRENT, false, 1.5)
-		draw_string(font, box.position + Vector2(5.0, 3.0 + font.get_ascent(size)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+		canvas.draw_line(handle, box_at, SchematicTheme.TEXT, 2.0)
+		canvas.draw_rect(box, SchematicTheme.BACKGROUND)
+		canvas.draw_rect(box, SchematicTheme.CURRENT, false, 1.5)
+		canvas.draw_string(font, box.position + Vector2(5.0, 3.0 + font.get_ascent(size)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 
 ## Writes the current of every wire carrying one beside its longest segment:
-## right of a vertical one, above a horizontal one.
-func _draw_currents(wires: PackedInt32Array) -> void:
+## right of a vertical one, above a horizontal one (on [param canvas]).
+func _draw_currents(canvas: CanvasItem, wires: PackedInt32Array) -> void:
 	var font: Font = AppTheme.schematic_font()
 	var size: int = 9
 	for w: int in wires:
@@ -156,8 +170,8 @@ func _draw_currents(wires: PackedInt32Array) -> void:
 			pos = middle + Vector2(4.0, font.get_ascent(size) * 0.5)
 		else:
 			pos = middle + Vector2(-text_size.x * 0.5, -4.0)
-		draw_rect(Rect2(pos - Vector2(1.0, font.get_ascent(size)), text_size + Vector2(2.0, 0.0)), SchematicTheme.BACKGROUND)
-		draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.CURRENT)
+		canvas.draw_rect(Rect2(pos - Vector2(1.0, font.get_ascent(size)), text_size + Vector2(2.0, 0.0)), SchematicTheme.BACKGROUND)
+		canvas.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.CURRENT)
 
 
 ## Writes the wire numbers at the wire ends listed by

@@ -82,6 +82,10 @@ var frequency: float = 0.0
 var target: float = 0.0
 ## The output is switched on (running or ramping down; off after OFF2).
 var output: bool = false
+## Tripped by a short circuit on its output or its 24 V: the output stays
+## off until the run command is given anew or the supply comes back.
+var tripped: bool = false
+var _run_before: bool = false
 
 
 func default_terminal_names() -> PackedStringArray:
@@ -105,8 +109,11 @@ func update(p_powered: bool, input_bits: int, ai_volts: float) -> void:
 	analog_in = ai_volts
 	var run: bool = keypad_run if control == Command.KEYPAD else _input(0)
 	var reverse: bool = keypad_reverse if control == Command.KEYPAD else _input(1)
-	if not powered or _input(3):
-		# No supply, or coast stop: the output goes off at once.
+	if tripped and (not powered or (run and not _run_before)):
+		tripped = false
+	_run_before = run
+	if not powered or _input(3) or tripped:
+		# No supply, coast stop or tripped: the output goes off at once.
 		output = false
 		frequency = 0.0
 		target = 0.0
@@ -125,6 +132,18 @@ func update(p_powered: bool, input_bits: int, ai_volts: float) -> void:
 		output = true
 	elif frequency == 0.0:
 		output = false
+
+
+## A short circuit on its output or its 24 V: the output goes off at once
+## (see [member tripped]). False when it had tripped already.
+func trip() -> bool:
+	if tripped:
+		return false
+	tripped = true
+	output = false
+	frequency = 0.0
+	target = 0.0
+	return true
 
 
 ## The output jumps to its target (instant switching).

@@ -91,12 +91,18 @@ func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}) -> voi
 		check.set_pressed_no_signal(bool(chosen.get(CONTENTS[i], true)))
 		check.disabled = not bool(available.get(CONTENTS[i], true))
 	_update_numbers()
-	_images.clear()
-	_layouts.clear()
+	rendering()
+	popup_centered_ratio(0.75)
+
+
+## Empty until [method show_sheets] brings the sheets rendered again: what
+## was shown before is out of date, and is neither shown nor saved meanwhile.
+func rendering() -> void:
+	_images = []
+	_layouts = []
 	_picture.texture = null
 	_status.text = tr("Rendering…")
 	_update_buttons()
-	popup_centered_ratio(0.75)
 
 
 ## What the PDF is to hold, by the keys of [constant CONTENTS]; what has

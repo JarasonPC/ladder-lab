@@ -61,6 +61,32 @@ func show_page(index: int, focus_id: String = "") -> void:
 		fit()
 
 
+## Page [param index] is about to be moved to place [param to]: this window
+## goes on showing the page it shows, wherever that one ends up.
+func page_moved(index: int, to: int) -> void:
+	to = clampi(to, 0, view.document.pages.size() - 1)
+	if view.page == index:
+		view.page = to
+	elif index < view.page and view.page <= to:
+		view.page -= 1
+	elif to <= view.page and view.page < index:
+		view.page += 1
+
+
+## Page [param index] is about to be deleted: the window showing it closes,
+## the others go on showing their pages.
+func page_removed(index: int) -> void:
+	if view.page == index:
+		queue_free()
+	elif view.page > index:
+		view.page -= 1
+
+
+## The title in the language now chosen.
+func retranslate() -> void:
+	_update_title()
+
+
 ## Zooms and moves so the whole page is seen.
 func fit() -> void:
 	# Path numbers are drawn outside the bounds, above or left of the drawing.

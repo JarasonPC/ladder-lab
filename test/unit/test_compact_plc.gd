@@ -71,7 +71,7 @@ func test_inputs_and_transistor_outputs() -> void:
 	assert_false(h1.energized)
 	(circuit.get_component("S1") as PushButton).press()
 	sim.step()
-	assert_eq(a1.inputs & 1, 1, "%I0.0 with 24 V against 1M")
+	assert_true(a1.input_on(0), "%I0.0 with 24 V against 1M")
 	assert_true(h1.energized, "%Q0.0 switches 3L+ to the lamp")
 
 
@@ -90,7 +90,7 @@ func test_inputs_need_15_volts_and_burn_on_230() -> void:
 	circuit.connect_terminals("+.2", "A1:I0.1")
 	sim = Simulator.new(circuit)
 	sim.step()
-	assert_eq(a1.inputs & 2, 0, "12 V is too little")
+	assert_false(a1.input_on(1), "12 V is too little")
 	var other: CompactPlc = CompactPlc.new("A2", null)
 	circuit.add(PowerSupply.new("L", PowerSupply.Conductor.L))
 	circuit.add(PowerSupply.new("N", PowerSupply.Conductor.N))

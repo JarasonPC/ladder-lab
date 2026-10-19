@@ -72,8 +72,9 @@ var runtime: PlcRuntime
 var modules: Array[Module] = []
 ## One per output Q1, Q2 ...
 var output_armatures: Array[Armature] = []
-## Bit k: input I(k+1) is on (simulation state).
-var inputs: int = 0
+## 1 where input I(k+1) is on, one per input (simulation state; a PLC may
+## have more inputs than an int has bits).
+var inputs: PackedByteArray = PackedByteArray()
 ## Bit m: expansion module m has voltage on its supply (simulation state).
 var module_power: int = 0
 ## Volts on each analog input AI1, AI2 ... (simulation state).
@@ -260,6 +261,12 @@ func analog_input_terminal(k: int) -> int:
 	return input_terminal(BASE_ANALOG_INPUTS[k]) if k < base else _module_ai_terms[k - base]
 
 
+## Input I(n + 1) that analog input AI(k + 1) is also read as (the PLC's own
+## of an analog version), -1 for none.
+func analog_input_digital(k: int) -> int:
+	return BASE_ANALOG_INPUTS[k] if k < _base_analog() else -1
+
+
 ## Module of analog input AI(k + 1); -1 for the PLC's own.
 func analog_input_module(k: int) -> int:
 	var base: int = _base_analog()
@@ -313,7 +320,7 @@ func rated_draw() -> float:
 
 ## True when input I(k + 1) is on.
 func input_on(k: int) -> bool:
-	return (inputs >> k) & 1 == 1
+	return k < inputs.size() and inputs[k] != 0
 
 
 ## True when expansion module [param m] works: it has voltage on its supply
@@ -334,13 +341,15 @@ func all_modules() -> int:
 	return (1 << modules.size()) - 1
 
 
-## Takes the supply, the inputs, the supply of the expansion modules
-## ([member module_power]) and the volts on the analog inputs found by the
-## simulator; the program runs when the PLC is switched on and whenever an
-## input, a module or an analog input changed.
-func update(powered: bool, input_bits: int, module_bits: int, analog_volts: PackedFloat32Array = PackedFloat32Array()) -> void:
-	var changed: bool = input_bits != inputs or module_bits != module_power or analog_volts != analog_in
-	inputs = input_bits
+## Takes the supply, the inputs ([member inputs], 1 for each input that is
+## on), the supply of the expansion modules ([member module_power]) and the
+## volts on the analog inputs found by the simulator; the program runs when
+## the PLC is switched on and whenever an input, a module or an analog input
+## changed.
+func update(powered: bool, input_states: PackedByteArray, module_bits: int, analog_volts: PackedFloat32Array = PackedFloat32Array()) -> void:
+	var changed: bool = input_states != inputs or module_bits != module_power or analog_volts != analog_in
+	# A copy: the caller may change its array afterwards.
+	inputs = input_states.duplicate()
 	module_power = module_bits
 	analog_in = analog_volts
 	if powered != energized:
@@ -390,7 +399,9 @@ func advance(delta: float) -> void:
 		guard += 1
 	runtime.advance(remaining)
 	if pending:
-		_cycle_left -= remaining
+		# Past the guard the rest of a long step is skipped; the time left
+		# never goes below 0, or the next step would move the timers back.
+		_cycle_left = maxf(_cycle_left - remaining, 0.0)
 	_sync_targets()
 
 

@@ -131,11 +131,11 @@ static func kind_help(kind: String) -> String:
 		"count_up", "count_down":
 			return "Counts each time the coil gets power. The counter's contacts C close when the count has reached the preset."
 		"ge":
-			return "Closed while the analog input is at the value or above it (0-1000 = 0-10 V)."
+			return "Closed while the analog input is at the value or above it (0-%d = 0-10 V)."
 		"lt":
-			return "Closed while the analog input is below the value (0-1000 = 0-10 V)."
+			return "Closed while the analog input is below the value (0-%d = 0-10 V)."
 		"analog":
-			return "Puts the value (0-1000) on the analog output as 0-10 V while it gets power, 0 without."
+			return "Puts the value (0-%d) on the analog output as 0-10 V while it gets power, 0 without."
 	return ""
 
 
@@ -295,7 +295,7 @@ func delete_selection() -> void:
 
 ## Puts an empty row above the selected one (the elements below move down).
 func insert_row() -> void:
-	if not editable() or not selected.has("row") or int(selected["row"]) >= _ladder().row_count():
+	if not editable() or not selected.has("row") or int(selected["row"]) >= _ladder().row_count() or _ladder().row_count() >= PlcRung.MAX_ROWS:
 		return
 	_ladder().insert_row(selected["row"])
 	selected["row"] = int(selected["row"]) + 1
@@ -408,7 +408,7 @@ func _apply(what: String, r: int, c: int, select: bool) -> void:
 				operand = PlcProgram.operands(areas)[0]
 			var cell: Dictionary = {"kind": what, "operand": operand}
 			if what == "ge" or what == "lt":
-				cell["value"] = old.get("value", PlcRung.DEFAULT_VALUE)
+				cell["value"] = old.get("value", _default_value())
 			rung.set_cell(r, c, cell)
 		"wire":
 			if at_coil:
@@ -438,7 +438,7 @@ func _apply(what: String, r: int, c: int, select: bool) -> void:
 			elif what == "count_up" or what == "count_down":
 				coil["preset"] = old_coil.get("preset", PlcBlock.DEFAULT_PRESET)
 			elif what == "analog":
-				coil["value"] = old_coil.get("value", PlcRung.DEFAULT_VALUE)
+				coil["value"] = old_coil.get("value", _default_value())
 			rung.set_coil(r, coil)
 			rung.wire_to_coil(r)
 			c = PlcRung.COLUMNS
@@ -450,6 +450,11 @@ func _apply(what: String, r: int, c: int, select: bool) -> void:
 	update_size()
 	queue_redraw()
 	selection_changed.emit()
+
+
+## Value of a new comparing contact or AQ coil, on the PLC's scale.
+func _default_value() -> float:
+	return PlcRung.DEFAULT_VALUE * full_scale / PlcBlock.ANALOG_MAX
 
 
 ## First operand of [param area] no coil writes yet (else the first one).

@@ -15,8 +15,11 @@ extends RefCounted
 ## one (in the order components were added) is switched, which may move its
 ## contacts, until nothing wants to change. A circuit state seen twice while
 ## settling is an oscillation (e.g. a relay whose own NC contact feeds its
-## coil); it is reported in [StepResult] instead of looping, with
-## [member max_iterations] as a hard cap.
+## coil); it is reported in [StepResult] instead of looping and the coils
+## switching round stay as they are while the others settle, with
+## [member max_iterations] as a hard cap. A short or too high a voltage in
+## between (one coil switched before another) trips and burns nothing; the
+## state the coils settle in counts.
 ##
 ## [enum Mode] REALISTIC: coils get power at once but their [Armature] needs the
 ## pick-up or drop-out time to move, so NC contacts break before NO contacts
@@ -26,9 +29,11 @@ extends RefCounted
 ## reported as chattering; [member max_events] caps the work per step.
 ##
 ## Protection: when a short circuit's fault current flows through a fuse or
-## circuit breaker, it trips and the circuit is traced again. A short that no
-## protective device interrupts makes the supply drop out while it lasts and
-## is reported in [member StepResult.short_circuit].
+## circuit breaker, it trips and the circuit is traced again; a frequency
+## inverter with a short on its output or its 24 V trips itself. A short that
+## no protective device interrupts makes the sources it is on (the mains, the
+## DC source or the inverter outputs) drop out while it lasts and is reported
+## in [member StepResult.short_circuit].
 ##
 ## Currents: every load draws a current (coils and lamps a little, three-phase
 ## motors what their [MotorModel] gives for their supply and speed), and
@@ -66,6 +71,8 @@ const _EDGE_VIRTUAL: int = 3
 const _EDGE_OUTPUT: int = 4
 ## Page connectors with the same label (see [method Circuit.get_links]).
 const _EDGE_LINK: int = 5
+## Supply bits of the mains (L1-L3 and N, PE being N).
+const _MAINS_BITS: int = PowerSupply.BIT_L1 | PowerSupply.BIT_L2 | PowerSupply.BIT_L3 | PowerSupply.BIT_N
 
 var circuit: Circuit
 var mode: Mode = Mode.IDEAL
@@ -101,13 +108,13 @@ var _control_a2_first: Dictionary[int, bool] = {}
 var _coil_indices: PackedInt32Array = PackedInt32Array()
 ## Indices into [member _loads] of the PLCs, the nets of their inputs (from
 ## _plc_input_start[p] on for PLC p) and, from the last evaluation, which
-## inputs have voltage against their N (bit k: input k + 1).
+## inputs have voltage against their N (1 for each input that has).
 var _plc_indices: PackedInt32Array = PackedInt32Array()
 var _plc_input_nets: PackedInt32Array = PackedInt32Array()
 ## The net each input is on against (N, M, 1M ...), alongside.
 var _plc_input_ref_nets: PackedInt32Array = PackedInt32Array()
 var _plc_input_start: PackedInt32Array = PackedInt32Array()
-var _plc_inputs: PackedInt32Array = PackedInt32Array()
+var _plc_inputs: Array[PackedByteArray] = []
 ## Expansion modules of the PLCs: nets and terminal indices of their L1 and
 ## N (from _plc_module_start[p] on, two per module, -1 for a module without
 ## a supply of its own) and, from the last evaluation, which have voltage
@@ -177,6 +184,9 @@ var _path_current: PackedFloat32Array = PackedFloat32Array()
 ## Switching paths of each protective part, in pole order.
 var _device_paths: Dictionary[CircuitComponent, PackedInt32Array] = {}
 var _short: bool = false
+## Drives (index into [member _drives]) with a short on their output or
+## their 24 V, from the last evaluation.
+var _shorted_drives: PackedInt32Array = PackedInt32Array()
 ## Terminal index (into the current-flow graph) of every terminal key.
 var _terminal_index: Dictionary[String, int] = {}
 ## Terminal pairs joined by page connectors (see [method Circuit.get_links]).
@@ -202,15 +212,19 @@ func step(delta: float = 0.0) -> StepResult:
 		_advance_travels(0.0, result)
 		for actuator: Armature in _actuators:
 			actuator.snap(actuator.target)
-		if delta > 0.0:
-			for i: int in _coil_indices:
-				var coil: Coil = _loads[i] as Coil
+		# Every armature is where it heads, also one just freed from a stuck
+		# fault.
+		for i: int in _coil_indices:
+			var coil: Coil = _loads[i] as Coil
+			if delta > 0.0:
 				coil.advance(delta)
-				coil.snap()
-			for i: int in _plc_indices:
-				var plc: Plc = _loads[i] as Plc
+			coil.snap()
+		for i: int in _plc_indices:
+			var plc: Plc = _loads[i] as Plc
+			if delta > 0.0:
 				plc.advance(delta)
-				plc.snap()
+			plc.snap()
+		if delta > 0.0:
 			_advance_protection(delta, result)
 			_advance_motors(delta, result)
 			_advance_travels(delta, result)
@@ -399,7 +413,7 @@ func _build() -> void:
 	_rectifier_on.resize(_rectifiers.size())
 	_rectifier_on.fill(0)
 	_plc_inputs.resize(_plc_indices.size())
-	_plc_inputs.fill(0)
+	_plc_inputs.fill(PackedByteArray())
 	_plc_modules.resize(_plc_indices.size())
 	_plc_modules.fill(0)
 	_plc_analog.resize(_plc_indices.size())
@@ -448,10 +462,13 @@ func _union_closed() -> UnionFind:
 
 ## Supply bits reaching each group root. Rectifiers with voltage on their
 ## input add the DC poles on their outputs (one may feed the next); sets
-## [member _rectifier_on].
-func _root_masks(uf: UnionFind) -> Dictionary[int, int]:
+## [member _rectifier_on]. The sources in [param dead] (see
+## [method _sources_of]) give nothing: a short has made them drop out.
+func _root_masks(uf: UnionFind, dead: int = 0) -> Dictionary[int, int]:
 	var masks: Dictionary[int, int] = {}
 	for supply: PowerSupply in _supplies:
+		if supply.source_bit() & dead != 0:
+			continue
 		var root: int = uf.find(_net_of_key[supply.designation])
 		masks[root] = masks.get(root, 0) | supply.source_bit()
 	_rectifier_on.fill(0)
@@ -466,6 +483,8 @@ func _root_masks(uf: UnionFind) -> Dictionary[int, int]:
 			var b: int = masks.get(uf.find(_load_nets[2 * i + 1]), 0)
 			if _powers(a, b):
 				_rectifier_on[r] = 1
+				if dead & PowerSupply.DC_BITS != 0:
+					continue
 				changed = true
 				var plus: int = uf.find(_rectifier_out_nets[2 * r])
 				var minus: int = uf.find(_rectifier_out_nets[2 * r + 1])
@@ -482,10 +501,11 @@ func _root_masks(uf: UnionFind) -> Dictionary[int, int]:
 		_drive_powered[d] = 1 if powered else 0
 		if not powered:
 			continue
-		_add_mask(masks, uf.find(_drive_net(d, Vfd.SUPPLY_24V)), PowerSupply.BIT_DC_PLUS)
-		_add_mask(masks, uf.find(_drive_net(d, Vfd.ZERO_V)), PowerSupply.BIT_DC_MINUS)
+		if dead & PowerSupply.DC_BITS == 0:
+			_add_mask(masks, uf.find(_drive_net(d, Vfd.SUPPLY_24V)), PowerSupply.BIT_DC_PLUS)
+			_add_mask(masks, uf.find(_drive_net(d, Vfd.ZERO_V)), PowerSupply.BIT_DC_MINUS)
 		var drive: Vfd = _drives[d]
-		if drive.output:
+		if drive.output and dead & PowerSupply.VFD_BITS == 0:
 			var reverse: bool = drive.frequency < 0.0 or (drive.frequency == 0.0 and drive.target < 0.0)
 			_add_mask(masks, uf.find(_drive_net(d, Vfd.U)), PowerSupply.BIT_VFD_U)
 			_add_mask(masks, uf.find(_drive_net(d, Vfd.U + 1)), PowerSupply.BIT_VFD_W if reverse else PowerSupply.BIT_VFD_V)
@@ -541,6 +561,46 @@ static func _phase_of(mask: int) -> int:
 		PowerSupply.BIT_L3, PowerSupply.BIT_VFD_W:
 			return 3
 	return 0
+
+
+## Bits of every source that supply bits [param mask] belong to: the mains,
+## the DC source (its poles share the - pole) or the outputs of the frequency
+## inverters.
+static func _sources_of(mask: int) -> int:
+	var bits: int = 0
+	for source: int in [_MAINS_BITS, PowerSupply.DC_BITS, PowerSupply.VFD_BITS]:
+		if mask & source != 0:
+			bits |= source
+	return bits
+
+
+## Sources that drop out while a short lasts (see [method _sources_of]):
+## those reaching a group root in [param faults], and the supply of a
+## working rectifier whose output is shorted, as the fault current flows
+## through it from its input.
+func _dead_sources(uf: UnionFind, masks: Dictionary[int, int], faults: Dictionary[int, bool]) -> int:
+	var dead: int = 0
+	for root: int in faults:
+		dead |= _sources_of(masks[root])
+	for r: int in _rectifiers.size():
+		if _rectifier_on[r] == 1 and (faults.has(uf.find(_rectifier_out_nets[2 * r])) or faults.has(uf.find(_rectifier_out_nets[2 * r + 1]))):
+			var i: int = _rectifiers[r]
+			dead |= _sources_of(masks.get(uf.find(_load_nets[2 * i]), 0) | masks.get(uf.find(_load_nets[2 * i + 1]), 0))
+	return dead
+
+
+## True when drive [param d] feeds a group root in [param faults] from its
+## 24 V or 0 V or, while it is on, its output.
+func _drive_shorted(d: int, uf: UnionFind, faults: Dictionary[int, bool]) -> bool:
+	if _drive_powered[d] == 0:
+		return false
+	var terminals: Array[int] = [Vfd.SUPPLY_24V, Vfd.ZERO_V]
+	if _drives[d].output:
+		terminals.append_array([Vfd.U, Vfd.U + 1, Vfd.U + 2])
+	for t: int in terminals:
+		if faults.has(uf.find(_drive_net(d, t))):
+			return true
+	return false
 
 
 ## Applies what the last evaluation found to lamps, motors and the heating of
@@ -605,35 +665,57 @@ func _settle_coils(result: StepResult) -> void:
 	var history: Array[PackedByteArray] = []
 	var desired: PackedByteArray = PackedByteArray()
 	var settled: bool = false
+	# Coils and PLCs found switching round in a circle stay as they are while
+	# the others settle.
+	var frozen: Dictionary[String, bool] = {}
+	# While the coils switch one after the other, a short or too high a
+	# voltage may last only until the next one switches (e.g. a contactor's
+	# NC interlock opening): fuses and loads wait for the state they settle in.
+	var passing: bool = true
 
 	while result.iterations < max_iterations:
-		desired = _evaluate_protected(result)
+		desired = _evaluate(true) if passing else _evaluate_protected(result)
 		result.iterations += 1
 		var signature: PackedByteArray = _signature()
 		var key: String = signature.hex_encode()
 		if seen.has(key):
-			result.oscillating_tags = _changing_tags(history.slice(seen[key]))
-			break
+			var more: bool = false
+			for tag: String in _changing_tags(history.slice(seen[key])):
+				if not frozen.has(tag):
+					frozen[tag] = true
+					result.oscillating_tags.append(tag)
+					more = true
+			if not more:
+				break
+			seen.clear()
+			history.clear()
 		seen[key] = history.size()
 		history.append(signature)
+		var faulty: bool = passing and (_short or _any_too_high(desired))
 
 		var switched: bool = false
 		for i: int in _coil_indices:
 			var coil: Coil = _loads[i] as Coil
+			if frozen.has(coil.designation):
+				continue
 			var want: bool = (desired[i] & 1) == 1
-			if coil.energized != want:
-				coil.set_energized(want)
+			var control: bool = (desired[i] & 2) != 0
+			var control_changes: bool = _control_nets.has(i) and (coil as TimerRelay).control != control
+			if coil.energized != want or control_changes:
+				# The control input first: a time relay powered up together
+				# with a change of S starts with the new S.
+				if control_changes:
+					(coil as TimerRelay).set_control(control)
+				if coil.energized != want:
+					coil.set_energized(want)
 				coil.snap()
 				switched = true
 				break
-			if _control_nets.has(i) and (coil as TimerRelay).control != ((desired[i] & 2) != 0):
-				(coil as TimerRelay).set_control((desired[i] & 2) != 0)
-				coil.snap()
-				switched = true
-				break
-		if not switched:
+		if not switched and not faulty:
 			for p: int in _plc_indices.size():
 				var plc: Plc = _loads[_plc_indices[p]] as Plc
+				if frozen.has(plc.designation):
+					continue
 				var powered: bool = (desired[_plc_indices[p]] & 1) == 1
 				if plc.energized != powered or plc.inputs != _plc_inputs[p] or plc.module_power != _plc_modules[p] or plc.analog_in != _plc_analog[p]:
 					plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p])
@@ -644,7 +726,7 @@ func _settle_coils(result: StepResult) -> void:
 				plc.snap()
 				switched = true
 				break
-		if not switched:
+		if not switched and not faulty:
 			for d: int in _drives.size():
 				var drive: Vfd = _drives[d]
 				var before: Array = _drive_state(drive)
@@ -655,16 +737,32 @@ func _settle_coils(result: StepResult) -> void:
 					switched = true
 					break
 		if not switched:
+			if faulty:
+				# Settled with a short or too high a voltage: it is real.
+				passing = false
+				seen.clear()
+				history.clear()
+				continue
 			settled = true
 			break
 
-	if not settled and result.oscillating_tags.is_empty():
-		# Iteration cap reached without a repeated state.
-		result.oscillating_tags = _changing_tags(history)
+	if not settled:
+		if result.oscillating_tags.is_empty():
+			# A repeated state with nothing found switching round (e.g. a PLC
+			# program that keeps changing), or the iteration cap reached.
+			result.oscillating_tags = _changing_tags(history)
 		desired = _evaluate_protected(result)
 
-	result.stable = settled
+	result.stable = settled and result.oscillating_tags.is_empty()
 	_apply_outputs(desired, result)
+
+
+## True when a load in [param desired] has too high a voltage (bit 2).
+static func _any_too_high(desired: PackedByteArray) -> bool:
+	for b: int in desired:
+		if b & 4 != 0:
+			return true
+	return false
 
 
 func _finish(result: StepResult) -> void:
@@ -676,7 +774,8 @@ func _finish(result: StepResult) -> void:
 			result.terminal_currents[_terminal_keys[t]] = amps
 	if _short:
 		result.short_circuit_path = _find_short_path()
-	_find_current_paths(result)
+	# During a short only the fault path, though loads on other sources work.
+	_find_current_paths(result, not _short)
 	_find_live_parts(result)
 
 
@@ -718,6 +817,7 @@ func _step_realistic(delta: float) -> StepResult:
 		if events >= max_events:
 			# Too much going on: move on without tracing every event.
 			_advance_armatures(remaining, result)
+			_advance_travels(remaining, result)
 			time += remaining
 			result.stable = false
 			break
@@ -736,11 +836,19 @@ func _apply_power(result: StepResult) -> void:
 		for i: int in _coil_indices:
 			var coil: Coil = _loads[i] as Coil
 			var want: bool = (desired[i] & 1) == 1
+			var timer: TimerRelay = coil as TimerRelay
+			var output_before: bool = timer.output if timer != null else false
+			# The control input first: a time relay powered up together with
+			# a change of S starts with the new S.
+			if _control_nets.has(i):
+				timer.set_control((desired[i] & 2) != 0)
 			if coil.energized != want:
 				coil.set_energized(want)
 				_note_toggle(coil.designation)
-			if _control_nets.has(i):
-				(coil as TimerRelay).set_control((desired[i] & 2) != 0)
+			# Functions that switch the output with the power or S at once
+			# (F1 on at power on, F2 off at power off, F3 ...).
+			if timer != null and timer.output != output_before:
+				_log(result, "%s timed output on" if timer.output else "%s timed output off", [coil.designation])
 		for p: int in _plc_indices.size():
 			var plc: Plc = _loads[_plc_indices[p]] as Plc
 			var powered: bool = (desired[_plc_indices[p]] & 1) == 1
@@ -884,20 +992,26 @@ func _advance_travels(dt: float, result: StepResult) -> void:
 
 
 ## [method _evaluate], but first lets every fuse or breaker that carries the
-## fault current of a short circuit trip.
+## fault current of a short circuit trip. A frequency inverter with a short
+## on its output or its 24 V trips itself first (its output goes off).
 func _evaluate_protected(result: StepResult) -> PackedByteArray:
 	var desired: PackedByteArray = _evaluate()
 	while _burn_out(desired, result):
 		desired = _evaluate()
 	while _short:
-		var probe: StepResult = StepResult.new()
-		_find_current_paths(probe, false)
 		var tripped: bool = false
-		for i: int in probe.current_switch_paths:
-			var c: CircuitComponent = _switches[i]
-			if c.trip_path(_switch_paths[i]):
+		for d: int in _shorted_drives:
+			if _drives[d].trip():
 				tripped = true
-				_log(result, c.trip_message(), [c.designation])
+				_log(result, "%s: short circuit, output off", [_drives[d].designation])
+		if not tripped:
+			var probe: StepResult = StepResult.new()
+			_find_current_paths(probe, false)
+			for i: int in probe.current_switch_paths:
+				var c: CircuitComponent = _switches[i]
+				if c.trip_path(_switch_paths[i]):
+					tripped = true
+					_log(result, c.trip_message(), [c.designation])
 		if not tripped:
 			break
 		desired = _evaluate()
@@ -998,15 +1112,30 @@ func _record_trace() -> void:
 ## of the same source (phase and N, two phases, or + and -) through closed
 ## switching paths, and works out
 ## the motors and overload relays (applied by [method _apply_outputs]). Sets
-## [member _short]; during a short everything is without power.
-func _evaluate() -> PackedByteArray:
+## [member _short]; during a short the sources it is on drop out (see
+## [method _dead_sources]), the others go on working.
+##
+## [param passing]: the coils are still switching one after the other (see
+## [method _settle_coils]), so a short may last only until the next one
+## switches: nothing drops out, and the coils on a shorted group or with too
+## high a voltage stay as they are.
+func _evaluate(passing: bool = false) -> PackedByteArray:
 	var uf: UnionFind = _union_closed()
 	var masks: Dictionary[int, int] = _root_masks(uf)
-	_short = false
+	var faults: Dictionary[int, bool] = {}
 	for root: int in masks:
 		if not _is_single_source(masks[root]):
-			_short = true
-			break
+			faults[root] = true
+	_short = not faults.is_empty()
+	_shorted_drives.clear()
+	for d: int in _drives.size():
+		if _short and _drive_shorted(d, uf, faults):
+			_shorted_drives.append(d)
+	if _short and not passing:
+		# The fault path runs through the rectifiers as they were.
+		var rectifiers_on: PackedByteArray = _rectifier_on.duplicate()
+		masks = _root_masks(uf, _dead_sources(uf, masks, faults))
+		_rectifier_on = rectifiers_on
 
 	var result: PackedByteArray = PackedByteArray()
 	result.resize(_loads.size())
@@ -1017,13 +1146,6 @@ func _evaluate() -> PackedByteArray:
 	_motor_phases.fill(0)
 	_eval_uf = uf
 	_eval_masks = masks
-	if _short:
-		for m: int in _motors.size():
-			_motor_supply[m] = _unfed_motor(_motors[m])
-		_plc_inputs.fill(0)
-		_plc_modules.fill(0)
-		_plc_analog.fill(PackedFloat32Array())
-		return result
 	for i: int in _loads.size():
 		var a: int = masks.get(uf.find(_load_nets[2 * i]), 0)
 		var b: int = masks.get(uf.find(_load_nets[2 * i + 1]), 0)
@@ -1043,6 +1165,15 @@ func _evaluate() -> PackedByteArray:
 			var s: int = masks.get(uf.find(_control_nets[i]), 0)
 			if _powers(s, a if _control_a2_first.has(i) else b):
 				result[i] |= 2
+		if passing and _loads[i] is Coil and not _loads[i].burnt:
+			var held: bool = result[i] & 4 != 0 or faults.has(uf.find(_load_nets[2 * i])) or faults.has(uf.find(_load_nets[2 * i + 1]))
+			if _control_nets.has(i):
+				held = held or faults.has(uf.find(_control_nets[i]))
+			if held:
+				var coil: Coil = _loads[i] as Coil
+				result[i] = (result[i] & 4) | (1 if coil.energized else 0)
+				if coil is TimerRelay and (coil as TimerRelay).control:
+					result[i] |= 2
 	for p: int in _plc_indices.size():
 		# Expansion modules: on with voltage on their own L1-N.
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
@@ -1061,7 +1192,8 @@ func _evaluate() -> PackedByteArray:
 					overvoltage = true
 		_plc_modules[p] = on
 		# Inputs: on with voltage against the N (M, 1M) of their group.
-		var bits: int = 0
+		var bits: PackedByteArray = PackedByteArray()
+		bits.resize(plc.input_count())
 		var threshold: float = VoltageRating.input_threshold(plc.rating)
 		for k: int in plc.input_count():
 			var input: int = masks.get(uf.find(_plc_input_nets[_plc_input_start[p] + k]), 0)
@@ -1072,7 +1204,7 @@ func _evaluate() -> PackedByteArray:
 			if VoltageRating.state(plc.rating, volts, (input & PowerSupply.AC_BITS) == 0) == VoltageRating.State.BURNS:
 				overvoltage = true
 			elif volts >= threshold and (VoltageRating.kind(plc.rating) != VoltageRating.Kind.DC or (input & PowerSupply.AC_BITS) == 0):
-				bits |= 1 << k
+				bits[k] = 1
 		_plc_inputs[p] = bits
 		if overvoltage and not plc.burnt:
 			result[_plc_indices[p]] = 4
@@ -1092,12 +1224,19 @@ func _evaluate() -> PackedByteArray:
 	for p: int in _plc_indices.size():
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		var volts: PackedFloat32Array = PackedFloat32Array()
+		var inputs: PackedByteArray = _plc_inputs[p]
 		for k: int in plc.analog_input_count():
 			var root: int = uf.find(_plc_ai_nets[_plc_ai_start[p] + k])
 			var mask: int = masks.get(root, 0)
 			# A DC + pole on an analog input reads its voltage.
 			var dc: float = PowerSupply.dc_volts(mask) if _is_single_source(mask) else 0.0
 			volts.append(snappedf(analog.get(root, dc), 0.001))
+			# An input that is also an analog input switches on at its
+			# threshold whatever puts the volts on it (a sensor, an AQ).
+			var digital: int = plc.analog_input_digital(k)
+			if digital >= 0 and volts[k] >= VoltageRating.input_threshold(plc.rating):
+				inputs[digital] = 1
+		_plc_inputs[p] = inputs
 		_plc_analog[p] = volts
 	# Frequency inverters: DI1-DI4 on with 24 V against DIC, the volts on AI1.
 	for d: int in _drives.size():
@@ -1190,6 +1329,8 @@ func _compute_currents() -> void:
 	var paths: PackedInt32Array = PackedInt32Array()
 	var path_ids: PackedInt32Array = PackedInt32Array()
 	var sources: PackedInt32Array = _supply_terms.duplicate()
+	# Rectifiers and the drives' 24 V take back on their - what they deliver.
+	var returns: PackedInt32Array = PackedInt32Array()
 	if not _short and _eval_uf != null:
 		for i: int in _loads.size():
 			if _loads[i].energized and _loads[i].rated_draw() > 0.0:
@@ -1218,15 +1359,17 @@ func _compute_currents() -> void:
 			if _rectifier_on[r] == 1:
 				sources.append(_rectifier_out_terms[2 * r])
 				sources.append(_rectifier_out_terms[2 * r + 1])
+				returns.append_array(PackedInt32Array([_rectifier_out_terms[2 * r], _rectifier_out_terms[2 * r + 1]]))
 		for d: int in _drives.size():
 			if _drive_powered[d] == 1:
 				sources.append(_drive_term(d, Vfd.SUPPLY_24V))
 				sources.append(_drive_term(d, Vfd.ZERO_V))
+				returns.append_array(PackedInt32Array([_drive_term(d, Vfd.SUPPLY_24V), _drive_term(d, Vfd.ZERO_V)]))
 				_drive_input_draws(d, draws)
 				if _drives[d].output:
 					for t: int in 3:
 						sources.append(_drive_term(d, Vfd.U + t))
-	_flow.solve(draws, paths, sources)
+	_flow.solve(draws, paths, sources, returns)
 	# A working rectifier draws on its input what its output delivers.
 	var feeding: bool = false
 	for r: int in _rectifiers.size():
@@ -1239,7 +1382,7 @@ func _compute_currents() -> void:
 				draws[_load_terms[2 * i + 1]] -= v.normalized() * out
 				feeding = true
 	if feeding:
-		_flow.solve(draws, paths, sources)
+		_flow.solve(draws, paths, sources, returns)
 	_path_current.fill(0.0)
 	for k: int in path_ids.size():
 		_path_current[path_ids[k]] = _flow.path_currents[k].length()
@@ -1276,6 +1419,10 @@ func _load_voltage(i: int) -> Vector2:
 func _voltage_between(a: int, b: int) -> Vector2:
 	var mask_a: int = _eval_masks.get(_eval_uf.find(a), 0)
 	var mask_b: int = _eval_masks.get(_eval_uf.find(b), 0)
+	if _powers(mask_a, mask_b) and mask_a & PowerSupply.AC_BITS == 0:
+		# DC: a load draws its rated current between any two poles (also two
+		# + of different voltages), from the higher to the lower.
+		return Vector2(signf(PowerSupply.dc_volts(mask_a) - PowerSupply.dc_volts(mask_b)), 0.0)
 	return _potential_of(mask_a) - _potential_of(mask_b)
 
 
@@ -1585,6 +1732,11 @@ func _current_graph(include_loads: bool, feeding: Dictionary[int, bool]) -> Dict
 			var keys: PackedStringArray = _loads[_rectifiers[r]].get_terminal_keys()
 			add.call(vertex_of.call(PowerSupply.BIT_DC_RECTIFIED), _terminal_index[keys[2]], _EDGE_OUTPUT, r)
 			add.call(vertex_of.call(PowerSupply.BIT_DC_MINUS), _terminal_index[keys[3]], _EDGE_OUTPUT, r)
+	# The 24 V of the drives that have their supply, like a DC supply.
+	for d: int in _drives.size():
+		if _drive_powered[d] == 1:
+			add.call(vertex_of.call(PowerSupply.BIT_DC_PLUS), _drive_term(d, Vfd.SUPPLY_24V), _EDGE_VIRTUAL, -1)
+			add.call(vertex_of.call(PowerSupply.BIT_DC_MINUS), _drive_term(d, Vfd.ZERO_V), _EDGE_VIRTUAL, -1)
 	return {"a": edge_a, "b": edge_b, "kind": edge_kind, "ref": edge_ref, "hub": hub, "hub_edges": hub_edges, "vertices": terminal_count + 1 + conductor_vertex.size()}
 
 

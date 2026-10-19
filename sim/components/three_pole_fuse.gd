@@ -48,7 +48,6 @@ func heat_up(dt: float, currents: PackedFloat32Array) -> bool:
 		var current: float = currents[p] if is_path_closed(p) else 0.0
 		if _heat(p).advance(dt, current) and is_path_closed(p):
 			blown[p] = 1
-			heat[p].progress = 0.0
 			any = true
 	return any
 

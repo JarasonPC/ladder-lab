@@ -41,7 +41,14 @@ var view: SchematicView
 var history: UndoHistory = UndoHistory.new()
 var active: bool = false:
 	set(value):
+		# Unchanged (e.g. a View menu toggle refreshing the window): the tool
+		# in use goes on.
+		if value == active:
+			return
 		active = value
+		if not value and _inline != null:
+			# A marking being typed is taken, as when its field loses focus.
+			_commit_inline(_inline.text)
 		_cancel_tool()
 		visible = value
 
@@ -69,6 +76,8 @@ var _drag_applied: Vector2i = Vector2i.ZERO
 var _drag_recorded: bool = false
 ## Placements and wire routes when the drag began (SchematicDocument.drag_start).
 var _drag_start: Dictionary = {}
+## The document as the drag's undo step recorded it ({} after a turn).
+var _drag_snapshot: Dictionary = {}
 ## Dragging one segment of a wire sideways (tidying the route).
 var _wire_drag: int = -1
 var _wire_drag_segment: int = -1
@@ -154,11 +163,12 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 		# One multifunction time relay, whatever its function and inputs.
 		return c is TimerRelay
 	for key: String in template:
-		if key == "delay":
+		# Set in the properties, not by the palette entry.
+		if key == "delay" or key == "cpu":
 			continue
 		if not d.has(key) or d[key] != template[key]:
 			return false
-	if d.get("holder", false) != template.get("holder", false):
+	if d.get("holder", false) != template.get("holder", false) or d.get("family", "") != template.get("family", ""):
 		return false
 	return true
 
@@ -291,6 +301,8 @@ func flip_selection() -> void:
 ## slanted segment).
 func _turned_while_dragging() -> void:
 	if _dragging and _drag_recorded:
+		# The turn is an undo step of its own after the drag's.
+		_drag_snapshot = {}
 		_drag_start = document().drag_start(PackedStringArray(selected_components.keys()))
 		_press_point += Vector2(_drag_applied)
 		_drag_applied = Vector2i.ZERO
@@ -328,6 +340,7 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 		if new_kind != coil.kind and not (old is TimerRelay) and data["designation"] == old.designation and SchematicDocument._designation_prefix(old.designation) == old_prefix and not _designation_shared(old):
 			data["designation"] = doc.next_device_designation(new_prefix)
 	_follow_device(data, old.designation)
+	adapt_terminals(data, old.default_terminal_names())
 	# A contact given the designation of a device that already has a contact
 	# with its numbers takes the next free sequence digit (13-14 -> 23-24).
 	if (data["type"] == "contact" or data["type"] == "changeover") and data["designation"] != old.designation and not data.has("terminals"):
@@ -342,22 +355,69 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 		return tr("%s is already used in this circuit.") % replacement.id
 	if not _designation_free(old, replacement):
 		return tr("%s is already the designation of another device.") % replacement.designation
+	var renaming: bool = replacement.designation != old.designation and (old is Coil or old is OverloadRelay)
+	if renaming:
+		var clash: String = _rename_clash(old, replacement.designation)
+		if not clash.is_empty():
+			return tr("%s is already used in this circuit.") % clash
+	# A coil turned into a time relay (or back): its contacts become delayed
+	# ones (or plain ones), as a contact drawn for it would be.
+	var timing_changed: bool = old is Coil and replacement is Coil and (old is TimerRelay) != (replacement is TimerRelay)
 	history.record(snapshot)
 	doc.replace_component(component_id, replacement)
-	if replacement.designation != old.designation and (old is Coil or old is OverloadRelay):
-		# The device was renamed: its contacts go along with it.
-		for part: CircuitComponent in doc.circuit.get_components():
-			if part.designation != old.designation or _designation_group(part) != _designation_group(old):
+	if renaming or timing_changed:
+		# The device was renamed (or turned into a time relay or back): its
+		# contacts go along with it.
+		for part: CircuitComponent in doc.circuit.get_components().duplicate():
+			if part == replacement or part.designation != old.designation or _designation_group(part) != _designation_group(old):
 				continue
 			var part_data: Dictionary = DocumentSerializer.component_to_dict(part)
 			part_data["designation"] = replacement.designation
+			if timing_changed and part_data.has("delayed"):
+				part_data["delayed"] = replacement is TimerRelay
 			var renamed: CircuitComponent = DocumentSerializer.component_from_dict(part_data)
+			if renamed != null and not _can_replace(part, renamed) and (part is Contact or part is ChangeoverContact):
+				# The device already has a contact with these numbers (e.g.
+				# one drawn for it before): the next free sequence digit.
+				part_data["sequence"] = doc.next_contact_sequence(replacement.designation)
+				renamed = DocumentSerializer.component_from_dict(part_data)
 			if renamed != null and _can_replace(part, renamed):
 				doc.replace_component(part.id, renamed)
-	selected_components.clear()
-	selected_components[replacement.id] = true
+	# The selection follows the part only when it was selected: a PLC
+	# program edited in its window leaves the selection alone.
+	if selected_components.has(component_id):
+		selected_components.clear()
+		selected_components[replacement.id] = true
 	_changed()
 	return ""
+
+
+## Custom terminal names in [param data] of a part whose standard names were
+## [param before], when the edit changes those (poles, the control input S,
+## another CPU, modules, another contact): each name given by hand goes to
+## the terminal with the same standard name, those of terminals that are gone
+## are dropped, all of them if they would clash with the new ones.
+static func adapt_terminals(data: Dictionary, before: PackedStringArray) -> void:
+	if not (data.get("terminals") is Array) or (data["terminals"] as Array).size() != before.size():
+		return
+	var custom: Array = data["terminals"]
+	var plain: Dictionary = data.duplicate()
+	plain.erase("terminals")
+	var probe: CircuitComponent = DocumentSerializer.component_from_dict(plain)
+	if probe == null:
+		return
+	var after: PackedStringArray = probe.default_terminal_names()
+	if after == before:
+		return
+	var names: PackedStringArray = after.duplicate()
+	for i: int in before.size():
+		var j: int = after.find(before[i])
+		if j >= 0:
+			names[j] = str(custom[i])
+	if names != after and probe.supports_custom_terminals() and CircuitComponent.valid_terminal_names(names):
+		data["terminals"] = Array(names)
+	else:
+		data.erase("terminals")
 
 
 ## Turns a component into another type of the same family (e.g. a switch NO
@@ -371,10 +431,25 @@ func change_type(component_id: String, template: Dictionary) -> String:
 		return ""
 	var data: Dictionary = template.duplicate()
 	var old_data: Dictionary = DocumentSerializer.component_to_dict(old)
+	if old_data["type"] == template["type"]:
+		# Another entry of the same type (fuse holder, another 3~ motor or
+		# PLC, contact NC): what was set stays, except what tells the entries
+		# apart.
+		data = old_data.duplicate()
+		for entry: Dictionary in Palette.ENTRIES:
+			if entry["template"]["type"] == template["type"]:
+				for key: String in entry["template"]:
+					if not template.has(key):
+						data.erase(key)
+		data.merge(template, true)
+		if data.get("motor_kind", "standard") != "standard":
+			data.erase("connection")
 	if old_data.has("poles") and not data.has("poles"):
 		data["poles"] = old_data["poles"]
 	if VoltageRating.offered(template["type"]).has(str(old_data.get("rating", ""))):
 		data["rating"] = old_data["rating"]
+	else:
+		data.erase("rating")
 	match _family(template["type"]):
 		"switching":
 			var element: SwitchingElement = old as SwitchingElement
@@ -415,6 +490,14 @@ func change_type(component_id: String, template: Dictionary) -> String:
 				data["designation"] = doc.next_device_designation(new_prefix)
 			if old is TimerRelay and template["type"] == "timer":
 				data["delay"] = (old as TimerRelay).delay
+			# A1 and A2 stay swapped; times set by hand go along, the
+			# defaults become those of the new type.
+			if old_data.has("terminals"):
+				data["terminals"] = old_data["terminals"]
+			var coil: Coil = old as Coil
+			if not (is_equal_approx(coil.pick_up_time, Coil.DEFAULT_PICK_UP[coil.kind]) and is_equal_approx(coil.drop_out_time, Coil.DEFAULT_DROP_OUT[coil.kind])):
+				data["pick_up"] = coil.pick_up_time
+				data["drop_out"] = coil.drop_out_time
 		"load":
 			data["designation"] = _new_designation(template)
 		"protection":
@@ -468,6 +551,8 @@ func paste() -> void:
 		return
 	_record()
 	var ids: PackedStringArray = document().insert(_clipboard, _mouse_cell - _clipboard_origin)
+	# Junctions copied without the wires they joined go.
+	document().cleanup_junctions()
 	_clear_selection()
 	for id: String in ids:
 		selected_components[id] = true
@@ -655,7 +740,7 @@ func _open_context_menu() -> void:
 	_menu.add_separator()
 	_menu.add_item(tr("Select all"), MenuId.SELECT_ALL, KEY_MASK_CTRL | KEY_A)
 	_menu.reset_size()
-	_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(_menu)
 
 
 func _on_menu_id(id: int) -> void:
@@ -849,7 +934,11 @@ func _on_left_released(shift: bool) -> void:
 		_dragging = false
 		_drag_start = {}
 		if _drag_recorded:
-			_changed()
+			if DocumentSerializer.to_dict(document()) == _drag_snapshot:
+				# Dragged back to where they were: nothing changed, no undo step.
+				history.discard_last()
+			else:
+				_changed()
 	if _boxing:
 		_boxing = false
 		var box: Rect2 = Rect2(_box_origin, Vector2.ZERO).expand(_mouse_point)
@@ -884,7 +973,8 @@ func _place_at(cell: Vector2i) -> void:
 	if ["contact", "changeover", "push_button", "latching_switch", "limit_switch"].has(data["type"]):
 		data["sequence"] = doc.next_contact_sequence(data["designation"])
 	if data["type"] == "terminal" and str(data.get("label", "")).is_empty():
-		data["label"] = str(data["designation"]).trim_prefix("X")
+		# The next free number, also past those of strip terminals on leads.
+		data["label"] = doc.next_strip_label()
 	if data["type"] == "connector" and str(data.get("label", "")).is_empty():
 		data["label"] = doc.next_connector_label()
 	_follow_device(data)
@@ -952,14 +1042,15 @@ static func _device_role(c: CircuitComponent) -> String:
 ## overload relay or circuit breaker, or any number of push buttons, switches
 ## and limit switches (sharing one actuator), with any number of contacts.
 func _designation_free(old: CircuitComponent, replacement: CircuitComponent) -> bool:
-	var roles: Array[String] = [_device_role(replacement)]
+	var parts: Array[CircuitComponent] = [replacement]
 	for c: CircuitComponent in document().circuit.get_components():
 		if c != old and c.designation == replacement.designation:
-			roles.append(_device_role(c))
-	if roles.size() == 1:
+			parts.append(c)
+	if parts.size() == 1:
 		return true
 	var device: String = ""
-	for role: String in roles:
+	for part: CircuitComponent in parts:
+		var role: String = _device_role(part)
 		if role.is_empty():
 			return false
 		if role == "contact":
@@ -968,7 +1059,46 @@ func _designation_free(old: CircuitComponent, replacement: CircuitComponent) -> 
 			device = role
 		elif role != device or role != "operator":
 			return false
+	if device.is_empty():
+		return true
+	# Contacts only of a kind the device takes (the circuit links them).
+	for part: CircuitComponent in parts:
+		if _device_role(part) == "contact" and not _contact_of(part, device):
+			return false
 	return true
+
+
+## True when the contact [param c] works as part of a device of [param role]
+## ([method _device_role]): main contacts of a coil or of a button, switch or
+## limit switch, changeover contacts also of a breaker (auxiliary contacts),
+## a plain contact also of an overload relay (it becomes its overload
+## contact), an overload contact of an overload relay alone.
+static func _contact_of(c: CircuitComponent, role: String) -> bool:
+	if c is OverloadContact:
+		return role == "overload"
+	if c is MainContacts:
+		return role == "coil" or role == "operator"
+	if c is ChangeoverContact:
+		return role != "overload"
+	return role != "overload" or not (c as Contact).delayed
+
+
+## Id of a part of the device [param old] that cannot take the designation
+## [param designation] it is renamed to, because a part of that name with
+## its numbers exists already (main contacts, overload contacts); "" when
+## all can go along (contacts take the next free sequence digit).
+func _rename_clash(old: CircuitComponent, designation: String) -> String:
+	for part: CircuitComponent in document().circuit.get_components():
+		if part == old or part.designation != old.designation or _designation_group(part) != _designation_group(old):
+			continue
+		if part is Contact or part is ChangeoverContact:
+			continue
+		var part_data: Dictionary = DocumentSerializer.component_to_dict(part)
+		part_data["designation"] = designation
+		var renamed: CircuitComponent = DocumentSerializer.component_from_dict(part_data)
+		if renamed != null and not _can_replace(part, renamed):
+			return renamed.id
+	return ""
 
 
 ## A contact follows the device it is designated to: a contact (or
@@ -1113,7 +1243,8 @@ func _finish_wire(key: String, wire_index: int) -> void:
 		var cell: Vector2i = doc.wire_cell_near(wire_index, _mouse_point)
 		preview = _route_to(cell)
 		end_key = doc.split_wire(wire_index, cell)
-	if end_key.is_empty() or end_key == _wire_start:
+	if end_key.is_empty() or end_key == _wire_start or doc.wire_between(_wire_start, end_key) >= 0:
+		# Nothing to join, or the two terminals have a wire already.
 		history.discard_last()
 		_cancel_tool()
 		return
@@ -1177,7 +1308,8 @@ func _drag_to(delta: Vector2i) -> void:
 	if delta == _drag_applied or selected_components.is_empty():
 		return
 	if not _drag_recorded:
-		_record()
+		_drag_snapshot = DocumentSerializer.to_dict(document())
+		history.record(_drag_snapshot)
 		_drag_recorded = true
 		_drag_start = document().drag_start(PackedStringArray(selected_components.keys()))
 	document().drag_components(_drag_start, delta)
@@ -1362,8 +1494,12 @@ func _commit_inline(value: String) -> void:
 			names[index] = value
 			data["terminals"] = names
 		"purpose":
+			if value == (c as Lamp).purpose:
+				return
 			data["purpose"] = value
 		"label":
+			if value == ((c as PageConnector).label if c is PageConnector else (c as TerminalBlock).label):
+				return
 			data["label"] = value
 	var error: String = apply_properties(c.id, data)
 	if not error.is_empty():
@@ -1446,6 +1582,8 @@ func _record() -> void:
 
 
 func _restore(snapshot: Dictionary) -> void:
+	# A marking being typed belongs to the state left.
+	_close_inline()
 	_clear_selection()
 	document_replaced.emit(DocumentSerializer.from_dict(snapshot))
 	edited.emit()

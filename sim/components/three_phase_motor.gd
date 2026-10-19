@@ -272,6 +272,17 @@ func rpm() -> float:
 	return rotor_speed * synchronous_rpm()
 
 
+## Shaft speed as a fraction of the rated speed of the fastest speed step,
+## negative counterclockwise (0 at standstill).
+func top_speed_share() -> float:
+	if shaft <= 0.0:
+		return 0.0
+	var fastest: float = 0.0
+	for s: int in model().sync_speed.size():
+		fastest = maxf(fastest, model().rated_speed(s))
+	return rotor_speed / fastest
+
+
 ## Rated speed of each speed step, min⁻¹, slowest first.
 func rated_speeds() -> PackedFloat32Array:
 	var speeds: PackedFloat32Array = PackedFloat32Array()

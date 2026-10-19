@@ -22,7 +22,10 @@ signal redo_requested
 ## A key this window does not use (the main window's shortcuts).
 signal key_pressed(event: InputEventKey)
 
-const SIZE: Vector2 = Vector2(1180, 720)
+## Wide enough for a whole row of the ladder diagram beside the palette and
+## the side panel.
+const SIZE: Vector2 = Vector2(1260, 720)
+const PALETTE_WIDTH: float = 210.0
 const SIDE_WIDTH: float = 250.0
 
 ## The PLC shown (in the edited schematic or in the simulation).
@@ -31,6 +34,9 @@ var plc: Plc = null
 var monitoring: bool = false
 
 var _program: PlcProgram = null
+## The program of the PLC shown, as last bound ([method _normalised]): an
+## edit leaving the program like this changes nothing.
+var _bound_data: Dictionary = {}
 var _fbd: PlcFbdCanvas
 var _lad: PlcLadCanvas
 var _fbd_scroll: ScrollContainer
@@ -79,16 +85,40 @@ func _ready() -> void:
 ## Shows [param p_plc]: editable when [param simulating] is false, else its
 ## running state.
 func bind(p_plc: Plc, simulating: bool) -> void:
-	var same: bool = _program != null and not simulating and not monitoring and p_plc.program.to_data() == _program.to_data()
+	_bound_data = _normalised(p_plc.program)
+	var same: bool = _program != null and not simulating and not monitoring and _bound_data == _normalised(_program)
+	var same_io: bool = plc != null and _io_layout(plc) == _io_layout(p_plc)
 	plc = p_plc
 	monitoring = simulating
-	if same:
-		# This window's own change came back from the schematic.
+	if same and same_io:
+		# This window's own change came back from the schematic, or something
+		# else of the PLC changed: the program and what is being edited stay,
+		# the names of its operands come from the new PLC.
+		if is_node_ready():
+			_fbd.address = plc.address
+			_lad.address = plc.address
+			_fbd.queue_redraw()
+			_lad.queue_redraw()
 		return
 	_sim_plc = null
-	_program = p_plc.program if simulating else p_plc.program.duplicate_program()
+	if not same:
+		_program = p_plc.program if simulating else p_plc.program.duplicate_program()
 	if is_node_ready():
 		_show()
+
+
+## [param p]'s data as it is edited here (with its ladder diagram, which a
+## new program lacks until it is shown), to tell whether two are the same.
+static func _normalised(p: PlcProgram) -> Dictionary:
+	var copy: PlcProgram = p.duplicate_program()
+	copy.ladder()
+	return copy.to_data()
+
+
+## What the window shows of [param p] besides the program: its kind,
+## version, inputs and outputs.
+static func _io_layout(p: Plc) -> Array:
+	return [p.get_script(), p.rating, p.default_terminal_names()]
 
 
 ## The simulation moved on: redraw the signals.
@@ -99,6 +129,12 @@ func show_step() -> void:
 	if _live != null:
 		var info: Dictionary = _canvas().selection_info()
 		_live.text = info.get("live", "")
+
+
+## Shows the texts again in the language now chosen.
+func retranslate() -> void:
+	if is_node_ready():
+		_show()
 
 
 ## State of the running program shown: the simulated PLC's, the one of the
@@ -185,7 +221,7 @@ func _build() -> void:
 	column.add_child(middle)
 	var left: PanelContainer = PanelContainer.new()
 	left.theme_type_variation = "LeftPanel"
-	left.custom_minimum_size = Vector2(190, 0)
+	left.custom_minimum_size = Vector2(PALETTE_WIDTH, 0)
 	middle.add_child(left)
 	var palette_scroll: ScrollContainer = ScrollContainer.new()
 	palette_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -289,7 +325,7 @@ func _build_io() -> void:
 		spin.max_value = Plc.ANALOG_VOLTS
 		spin.step = 0.1
 		spin.custom_minimum_size = Vector2(120, 34)
-		spin.tooltip_text = tr("Volts on the analog input (0-10 V = 0-1000)")
+		spin.tooltip_text = tr("Volts on the analog input (0-10 V = 0-%d)") % roundi(_full_scale())
 		spin.value_changed.connect(func(_v: float) -> void: _feed_inputs())
 		_io.add_child(spin)
 		_analog_inputs.append(spin)
@@ -338,6 +374,8 @@ func _show() -> void:
 	if plc != null:
 		_fbd.address = plc.address
 		_lad.address = plc.address
+	_fbd.full_scale = _full_scale()
+	_lad.full_scale = _full_scale()
 	_fbd.show_program(_program, _runtime())
 	_lad.show_program(_program, _runtime())
 	title = tr("%s – PLC program – LadderLab") % component_id
@@ -384,6 +422,10 @@ func _build_palette() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.text = "%s   %s" % [entry["symbol"], tr(entry["title"])]
+		# Long titles are cut short (in full in the tooltip), so the palette
+		# keeps its width and leaves the room to the diagram.
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		b.tooltip_text = tr(entry["title"])
 		b.disabled = (monitoring or _sim_plc != null) and entry["id"] != ""
 		b.button_pressed = entry["id"] == _canvas().tool
 		var id: String = entry["id"]
@@ -447,22 +489,26 @@ func _build_side() -> void:
 		_side.add_child(option)
 	if info.has("time"):
 		_caption(tr("Time (s)"))
-		_side.add_child(_spin(float(info["time"]), 0.0, 3600.0, 0.01, func(v: float) -> void: canvas.set_property("time", v)))
+		_side.add_child(_spin(float(info["time"]), 0.0, PlcBlock.MAX_TIME, 0.01, func(v: float) -> void: canvas.set_property("time", v)))
 	if info.has("preset"):
 		_caption(tr("Preset (count)"))
-		_side.add_child(_spin(float(info["preset"]), 1.0, 9999.0, 1.0, func(v: float) -> void: canvas.set_property("preset", int(v))))
-	for p: Array in [["gain", tr("Gain"), -PlcBlock.MAX_GAIN, PlcBlock.MAX_GAIN, 0.01], ["offset", tr("Offset"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["on", tr("On threshold"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["off", tr("Off threshold"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["value", tr("Value (0-1000 = 0-10 V)"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0]]:
+		_side.add_child(_spin(float(info["preset"]), 1.0, PlcCounter.MAX_VALUE, 1.0, func(v: float) -> void: canvas.set_property("preset", int(v))))
+	# An analog output takes no value below 0.
+	var lowest_value: float = 0.0 if info.get("areas", "") == "AQ" else -PlcBlock.MAX_ANALOG
+	for p: Array in [["gain", tr("Gain"), -PlcBlock.MAX_GAIN, PlcBlock.MAX_GAIN, 0.01], ["offset", tr("Offset"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["on", tr("On threshold"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["off", tr("Off threshold"), -PlcBlock.MAX_ANALOG, PlcBlock.MAX_ANALOG, 1.0], ["value", tr("Value (0-%d = 0-10 V)") % roundi(_full_scale()), lowest_value, PlcBlock.MAX_ANALOG, 1.0]]:
 		if info.has(p[0]):
 			var key: String = p[0]
 			_caption(p[1])
 			_side.add_child(_spin(float(info[key]), p[2], p[3], p[4], func(v: float) -> void: canvas.set_property(key, v)))
-	if monitoring:
+	if monitoring or _sim_plc != null:
 		_live = Label.new()
 		_live.theme_type_variation = "TimeLabel"
 		_live.text = info.get("live", "")
 		_side.add_child(_live)
 	if not str(info.get("help", "")).is_empty():
-		_note(tr(info["help"]))
+		# Analog help texts name the program's value for 10 V.
+		var help: String = tr(info["help"])
+		_note(help % roundi(_full_scale()) if help.contains("%d") else help)
 	if not monitoring and _sim_plc == null:
 		var delete: Button = Button.new()
 		delete.icon = AppTheme.icon("delete")
@@ -523,7 +569,7 @@ func _set_test_simulation(on: bool) -> void:
 		_sim_plc = plc.duplicate_plc(_program.duplicate_program()) if plc != null else Plc.new(component_id, _program.duplicate_program())
 		_sim_time = 0.0
 		_canvas().tool = ""
-		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules(), _analog_volts())
+		_sim_plc.update(true, _input_states(), _sim_plc.all_modules(), _analog_volts())
 		_sim_plc.snap()
 	else:
 		_sim_plc = null
@@ -562,13 +608,24 @@ func _io_note() -> String:
 	return note
 
 
-## Bits of the input switches that are on.
-func _input_bits() -> int:
-	var bits: int = 0
-	for k: int in _input_switches.size():
-		if _input_switches[k].button_pressed:
-			bits |= 1 << k
-	return bits
+## 1 for each input that is on: its switch is, or (an input that is also an
+## analog input) the volts set on it reach the input's threshold.
+func _input_states() -> PackedByteArray:
+	var states: PackedByteArray = PackedByteArray()
+	for switch: Button in _input_switches:
+		states.append(1 if switch.button_pressed else 0)
+	if _sim_plc != null:
+		var threshold: float = VoltageRating.input_threshold(_sim_plc.rating)
+		for k: int in _analog_inputs.size():
+			var digital: int = _sim_plc.analog_input_digital(k)
+			if digital >= 0 and digital < states.size() and _analog_inputs[k].value >= threshold:
+				states[digital] = 1
+	return states
+
+
+## The program's value for 10 V on the PLC shown.
+func _full_scale() -> float:
+	return plc.full_scale() if plc != null else PlcBlock.ANALOG_MAX
 
 
 ## Volts set on the analog inputs of the test simulation.
@@ -581,7 +638,7 @@ func _analog_volts() -> PackedFloat32Array:
 
 func _feed_inputs() -> void:
 	if _sim_plc != null:
-		_sim_plc.update(true, _input_bits(), _sim_plc.all_modules(), _analog_volts())
+		_sim_plc.update(true, _input_states(), _sim_plc.all_modules(), _analog_volts())
 		_sim_plc.snap()
 		show_step()
 
@@ -604,11 +661,15 @@ func _on_canvas_changed() -> void:
 	if monitoring or _sim_plc != null:
 		return
 	_canvas().update_size()
+	if _normalised(_program) == _bound_data:
+		# A wire dropped on paper, a wire drawn over one ...: no undo step.
+		return
 	program_edited.emit(component_id, _program.to_data())
 
 
 ## Takes the keys the diagrams leave: undo and redo, the rest goes to the
-## main window.
+## main window, releases too (a push button held by its key lets go). Space
+## stays here: held, it lets a left drag move the diagram.
 class KeyCatcher:
 	extends Node
 
@@ -616,12 +677,12 @@ class KeyCatcher:
 
 	func _unhandled_input(event: InputEvent) -> void:
 		var key: InputEventKey = event as InputEventKey
-		if key == null or not key.pressed or key.echo:
+		if key == null or key.echo or key.keycode == KEY_SPACE:
 			return
 		var ctrl: bool = key.ctrl_pressed or key.meta_pressed
-		if ctrl and key.keycode == KEY_Z and not key.shift_pressed:
+		if key.pressed and ctrl and key.keycode == KEY_Z and not key.shift_pressed:
 			window.undo_requested.emit()
-		elif ctrl and (key.keycode == KEY_Y or (key.keycode == KEY_Z and key.shift_pressed)):
+		elif key.pressed and ctrl and (key.keycode == KEY_Y or (key.keycode == KEY_Z and key.shift_pressed)):
 			window.redo_requested.emit()
 		else:
 			window.key_pressed.emit(key)

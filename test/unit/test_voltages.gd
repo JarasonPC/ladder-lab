@@ -151,11 +151,11 @@ func test_plc_versions() -> void:
 	sim = Simulator.new(circuit)
 	var r: StepResult = sim.step()
 	assert_true(a1.energized, "12/24 V DC on 24 V")
-	assert_eq(a1.inputs, 1, "a 24 V input")
+	assert_eq(a1.inputs, PackedByteArray([1, 0, 0, 0, 0, 0, 0, 0]), "a 24 V input")
 	assert_true(a2.burnt, "230 V on a 12/24 V PLC")
 	assert_true(_logged(r, "A2 burnt out: too high a voltage for 12/24 V DC"))
 	assert_true(a3.energized)
-	assert_eq(a3.inputs, 1)
+	assert_eq(a3.inputs, PackedByteArray([1, 0, 0, 0, 0, 0, 0, 0]))
 
 
 func test_plc_input_overvoltage_burns_it() -> void:

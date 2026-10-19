@@ -172,10 +172,14 @@ class _Composer:
 			at += size * DatasheetLayout.LINE
 		return at - size * DatasheetLayout.LINE + size * 0.45
 
-	## A section heading over [param width] from [param x]; returns the y below it.
+	## A section heading over [param width] from [param x], on more lines when
+	## it is longer; returns the y below it.
 	func _heading(text: String, x: float, width: float, top: float) -> float:
-		page.add_text(Vector2(x, top + DatasheetLayout.HEADING), text.to_upper(), DatasheetLayout.HEADING, Face.BOLD)
-		var rule: float = top + DatasheetLayout.HEADING + 4.0
+		var at: float = top
+		for line: String in DatasheetLayout.wrap(text.to_upper(), Face.BOLD, DatasheetLayout.HEADING, width):
+			page.add_text(Vector2(x, at + DatasheetLayout.HEADING), line, DatasheetLayout.HEADING, Face.BOLD)
+			at += DatasheetLayout.HEADING * DatasheetLayout.LINE
+		var rule: float = at - DatasheetLayout.HEADING * DatasheetLayout.LINE + DatasheetLayout.HEADING + 4.0
 		page.add_line(Vector2(x, rule), Vector2(x + width, rule))
 		return rule + 6.0
 
@@ -214,15 +218,12 @@ class _Composer:
 	## A table under heading [param title]: [param widths] of all columns but
 	## the last; rows with an empty first cell are headings (terminal table).
 	func _table(title: String, captions: Array, widths: Array, rows: Array[PackedStringArray], terminals: bool) -> void:
-		var head_h: float = DatasheetLayout.HEADING + 30.0
-		if y + head_h + 20.0 > DatasheetLayout.BOTTOM:
-			_new_page(false)
-		y = _table_head(title, captions, widths)
-		var even: bool = false
+		# The cells of every row and its height first.
+		var all_cells: Array[Array] = []
+		var heights: Array[float] = []
 		for row: PackedStringArray in rows:
 			var cells: Array[PackedStringArray] = []
-			var heading: bool = terminals and row[0].is_empty()
-			if heading:
+			if terminals and row[0].is_empty():
 				cells.append(DatasheetLayout.wrap(row[1], Face.BOLD, DatasheetLayout.SMALL, right - left - 12.0))
 			else:
 				var x: float = left
@@ -233,8 +234,18 @@ class _Composer:
 			var lines: int = 1
 			for cell: PackedStringArray in cells:
 				lines = maxi(lines, cell.size())
-			var h: float = lines * DatasheetLayout.SMALL * DatasheetLayout.LINE + 8.0
-			if y + h > DatasheetLayout.BOTTOM:
+			all_cells.append(cells)
+			heights.append(lines * DatasheetLayout.SMALL * DatasheetLayout.LINE + 8.0)
+		var head_h: float = DatasheetLayout.HEADING + 30.0
+		if y + head_h + _kept(rows, heights, 0, terminals) > DatasheetLayout.BOTTOM:
+			_new_page(false)
+		y = _table_head(title, captions, widths)
+		var even: bool = false
+		for i: int in rows.size():
+			var cells: Array = all_cells[i]
+			var heading: bool = terminals and rows[i][0].is_empty()
+			var h: float = heights[i]
+			if y + _kept(rows, heights, i, terminals) > DatasheetLayout.BOTTOM:
 				_new_page(false)
 				y = _table_head(title + " " + tr("(continued)"), captions, widths)
 				even = false
@@ -255,6 +266,14 @@ class _Composer:
 			if terminals:
 				page.terminal_rows += 1
 		y += 16.0
+
+	## Height row [param i] needs at the foot of a page: a heading never ends
+	## a page, it goes on with the row under it.
+	func _kept(rows: Array[PackedStringArray], heights: Array[float], i: int, terminals: bool) -> float:
+		if i >= rows.size():
+			return 0.0
+		var heading: bool = terminals and rows[i][0].is_empty()
+		return heights[i] + (heights[i + 1] if heading and i + 1 < rows.size() else 0.0)
 
 	func _table_head(title: String, captions: Array, widths: Array) -> float:
 		var at: float = _heading(title, left, right - left, y) + 2.0
@@ -288,7 +307,9 @@ class _Composer:
 			height += h
 		var diagram_h: float = DatasheetLayout.diagram_height(sheet)
 		if diagram:
-			height = maxf(height, DatasheetLayout.HEADING + 12.0 + diagram_h)
+			# A long title of the diagram takes more lines.
+			var title_lines: int = DatasheetLayout.wrap(sheet.diagram_title.to_upper(), Face.BOLD, DatasheetLayout.HEADING, width).size()
+			height = maxf(height, DatasheetLayout.HEADING + 12.0 + (title_lines - 1) * DatasheetLayout.HEADING * DatasheetLayout.LINE + diagram_h)
 		if y + height > DatasheetLayout.BOTTOM:
 			_new_page(false)
 		var at: float = _heading(tr("Technical data"), left, width, y)

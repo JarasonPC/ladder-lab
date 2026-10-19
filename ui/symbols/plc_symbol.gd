@@ -120,17 +120,22 @@ func _draw_labels() -> void:
 	for i: int in names.size():
 		var cell: Vector2 = Vector2(cells[i])
 		var y: float = 0.5 * G if cell.y == 0.0 else (SymbolGeometry.PLC_HEIGHT - 0.5) * G
+		if placement.rotation % 2 == 1:
+			# Turned, the names run across the leads: level with the
+			# terminal, between the lead and the box they would reach the box.
+			y = cell.y * G
 		draw_label(names[i], Vector2(cell.x * G + 0.3 * G, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	var kind: String = "CPU" if plc is CompactPlc else "PLC"
 	var display: String = kind + ("  RUN" if plc.energized else "  " + ("LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD"))
-	_centered(display, DISPLAY.get_center(), 11, SchematicTheme.TEXT)
+	write_in(display, DISPLAY, 11)
 	for m: int in plc.modules.size():
-		_centered(module_text(plc.modules[m]), module_window(plc, m).get_center(), 11, SchematicTheme.TEXT)
+		write_in(module_text(plc.modules[m]), module_window(plc, m), 11)
 	for k: int in plc.output_count():
 		if plc.terminal_role(plc.output_terminal(k)) != Plc.Role.DQ:
 			continue
 		var cell_a: Vector2 = Vector2(cells[plc.output_terminal(k)]) * G
-		_centered("Q%d" % (k + 1), Vector2(cell_a.x + G, CONTACT_Y - 0.9 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT)
+		# Between the display and the open blade.
+		_centered("Q%d" % (k + 1), Vector2(cell_a.x + G, CONTACT_Y - 0.7 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT)
 
 
 ## What a module is, as written on it: "4 DI  4 DQ", "2 AI", "2 AQ".

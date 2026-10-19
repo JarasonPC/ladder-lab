@@ -130,7 +130,7 @@ func _open_item_menu(index: int) -> void:
 	var key: String = _document.key_bindings.get(item.designation, "")
 	_menu.add_item(tr("Bind a key…") + ("  [%s]" % key if not key.is_empty() else ""))
 	_menu.reset_size()
-	_menu.popup_on_parent(Rect2i(Vector2i(get_viewport().get_mouse_position()), Vector2i.ZERO))
+	AppTheme.popup_at_mouse(_menu)
 
 
 func _process(_delta: float) -> void:
@@ -237,10 +237,16 @@ func _item_editor(b: int, i: int) -> void:
 		kinds.add_item(tr(t))
 	kinds.select(item.kind)
 	kinds.item_selected.connect(func(k: int) -> void:
-		var devices: PackedStringArray = _document.control_devices(k)
+		# The first device of the new kind not on a station yet: one already
+		# on a station would show twice.
+		var listed: Dictionary[String, bool] = _document.control_panel_devices()
 		var changed: Dictionary = data.duplicate()
 		changed["kind"] = ControlBoxItem.KINDS[k]
-		changed["designation"] = devices[0] if not devices.is_empty() else ""
+		changed["designation"] = ""
+		for d: String in _document.control_devices(k):
+			if not listed.has(d):
+				changed["designation"] = d
+				break
 		changed["color"] = ControlBoxItem.default_color(k as ControlBoxItem.Kind)
 		apply.call(changed))
 
@@ -358,15 +364,18 @@ func _tool(icon_name: String, tooltip: String) -> Button:
 
 
 ## Line edit that reports its text once, when Enter is pressed or it loses
-## focus, and only when the text changed.
+## focus, and only when the text changed. Not when it loses focus because
+## the simulation started: the station then shows the simulation's copy of
+## the document, which is never edited.
 func _text_field(text: String, placeholder: String, on_commit: Callable) -> LineEdit:
 	var field: LineEdit = LineEdit.new()
 	field.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	field.text = text
 	field.placeholder_text = placeholder
 	var state: Dictionary = {"done": false}
+	var edited: SchematicDocument = _document
 	var commit: Callable = func() -> void:
-		if state["done"] or field.text.strip_edges() == text:
+		if state["done"] or field.text.strip_edges() == text or not _editing or _document != edited:
 			return
 		state["done"] = true
 		on_commit.call(field.text.strip_edges())

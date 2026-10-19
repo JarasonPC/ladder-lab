@@ -126,13 +126,17 @@ func test_keypad_control_and_phase_loss() -> void:
 	assert_false(drive.output)
 
 
-func test_mains_on_the_output_is_a_short() -> void:
+func test_mains_on_the_output_trips_it() -> void:
 	_build()
 	_switch(1, true)
 	sim.step()
 	circuit.connect_terminals("L1", "TA1:V")
 	sim = Simulator.new(circuit)
-	assert_true(sim.step().short_circuit)
+	var r: StepResult = sim.step()
+	assert_true(drive.tripped, "a short on its output trips it")
+	assert_false(drive.output)
+	assert_false(r.short_circuit, "and so ends the short")
+	assert_eq(r.events[0]["text"] % r.events[0]["args"], "TA1: short circuit, output off")
 
 
 func test_draws_from_its_supply() -> void:

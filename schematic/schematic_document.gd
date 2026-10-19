@@ -79,6 +79,16 @@ func connect_terminals(key_a: String, key_b: String, corners: Array[Vector2i] = 
 	return true
 
 
+## Index of a wire between terminals [param key_a] and [param key_b] (either
+## way round), or -1.
+func wire_between(key_a: String, key_b: String) -> int:
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for i: int in wires.size():
+		if (wires[i][0] == key_a and wires[i][1] == key_b) or (wires[i][0] == key_b and wires[i][1] == key_a):
+			return i
+	return -1
+
+
 ## Sets the schematic title and the title block texts (both stripped of
 ## surrounding spaces). Returns false when nothing changed.
 func set_title_block(new_title: String, block: TitleBlock) -> bool:
@@ -696,16 +706,34 @@ func number_wires(first: int = 1) -> void:
 		return best
 	nets.sort_custom(func(a: PackedInt32Array, b: PackedInt32Array) -> bool:
 		return order.call(a) < order.call(b))
-	var n: int = first
+	var supplied: Array[bool] = []
+	var numbered_keys: Dictionary[String, bool] = {}
 	for net: PackedInt32Array in nets:
-		var supplied: bool = false
+		var fed: bool = false
 		for w: int in net:
 			for key: String in circuit.get_wires()[w]:
 				if circuit.get_terminal_owner(key) is PowerSupply:
-					supplied = true
+					fed = true
+		supplied.append(fed)
+		if not fed:
+			for w: int in net:
+				for key: String in circuit.get_wires()[w]:
+					numbered_keys[key] = true
+	# Connectors that keep their label (on a supplied net or on no wire)
+	# would join a net given that label as its number: those numbers are skipped.
+	var kept_labels: Dictionary[String, bool] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if c is PageConnector and not numbered_keys.has(c.get_terminal_keys()[0]):
+			kept_labels[(c as PageConnector).label] = true
+	var n: int = first
+	for i: int in nets.size():
+		var net: PackedInt32Array = nets[i]
+		if not supplied[i]:
+			while kept_labels.has(str(n)):
+				n += 1
 		for w: int in net:
-			_routes[w].number = "" if supplied else str(n)
-		if not supplied:
+			_routes[w].number = "" if supplied[i] else str(n)
+		if not supplied[i]:
 			_label_connectors(net, str(n))
 			n += 1
 
@@ -718,6 +746,30 @@ func remove_component(component_id: String) -> void:
 	for i: int in circuit.remove(c):
 		_routes.remove_at(i)
 	_placements.erase(c.id)
+	if circuit.get_component(c.designation) == null:
+		_forget_device(c.designation)
+
+
+## Drops what the keys and the workspace keep of device [param designation]
+## once its last part is gone, so a new part given that name starts afresh:
+## its key, its place in the field, its group and its part in a mechanical link.
+func _forget_device(designation: String) -> void:
+	key_bindings.erase(designation)
+	field_positions.erase(designation)
+	for group: WorkspaceGroup in groups:
+		_leave_group(group, designation)
+
+
+## Takes [param designation] out of [param group], with its part in the
+## group's mechanical link (as drive or as a stop).
+func _leave_group(group: WorkspaceGroup, designation: String) -> void:
+	var members: PackedStringArray = group.members
+	if members.has(designation):
+		members.remove_at(members.find(designation))
+		group.members = members
+	if group.drive == designation:
+		group.drive = ""
+	group.stops.erase(designation)
 
 
 ## Moves components by [param delta] cells. Wires between two moved
@@ -844,8 +896,9 @@ func _turn_pivot(ids: PackedStringArray) -> Vector2i:
 	var nearest_key: String = ""
 	var nearest_distance: int = 1 << 30
 	for given: String in ids:
-		for key: String in circuit.get_component(given).get_terminal_keys():
-			var twice: Vector2i = terminal_cell(key) * 2
+		var anchors: Dictionary[String, Vector2i] = _anchors(circuit.get_component(given))
+		for key: String in anchors:
+			var twice: Vector2i = anchors[key] * 2
 			var distance: int = (twice - middle).length_squared()
 			if distance < nearest_distance or (distance == nearest_distance and key < nearest_key):
 				nearest = twice
@@ -854,16 +907,27 @@ func _turn_pivot(ids: PackedStringArray) -> Vector2i:
 	return nearest
 
 
-## Cells spanned by the terminals of components [param ids].
+## Cells spanned by the terminals of components [param ids] (see [method _anchors]).
 func _terminal_span(ids: PackedStringArray) -> Rect2i:
 	var span: Rect2i = Rect2i()
 	var first: bool = true
 	for given: String in ids:
-		for key: String in circuit.get_component(given).get_terminal_keys():
-			var cell: Vector2i = terminal_cell(key)
+		for cell: Vector2i in _anchors(circuit.get_component(given)).values():
 			span = Rect2i(cell, Vector2i.ZERO) if first else span.expand(cell)
 			first = false
 	return span
+
+
+## Cells that place component [param c] when parts are turned together: its
+## terminals (by key), or for a part without terminals (an overload relay
+## without poles) the cell it is placed at (by its id).
+func _anchors(c: CircuitComponent) -> Dictionary[String, Vector2i]:
+	var result: Dictionary[String, Vector2i] = {}
+	for key: String in c.get_terminal_keys():
+		result[key] = terminal_cell(key)
+	if result.is_empty():
+		result[c.id] = _placements[c.id].cell
+	return result
 
 
 ## Turns or mirrors each of components [param ids] in place ([param change]
@@ -892,10 +956,11 @@ func _transform_components(ids: PackedStringArray, change: Callable, map: Callab
 		elif a or b:
 			rerouted.append(i)
 	for id: String in moved:
-		var key: String = circuit.get_component(id).get_terminal_keys()[0]
-		var target: Vector2i = map.call(terminal_cell(key))
+		# Its first terminal (or its cell) lands where the map takes it.
+		var c: CircuitComponent = circuit.get_component(id)
+		var target: Vector2i = map.call(_anchors(c).values()[0])
 		change.call(id)
-		_placements[id].cell += target - terminal_cell(key)
+		_placements[id].cell += target - (_anchors(c).values()[0] as Vector2i)
 	for i: int in along:
 		var corners: Array[Vector2i] = []
 		for corner: Vector2i in along[i]:
@@ -1018,27 +1083,58 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 				remove_wire(i)
 				break
 	var p: Placement = _placements[old_id]
+	# Where its terminals and its body are, to see whether its wires must be
+	# re-routed.
+	var before: Array[Vector2i] = _terminal_cells(old, p)
+	var body: Rect2 = component_body(old)
 	if not circuit.replace(old, new_component, mapping):
 		return false
-	# Strip terminals on its leads follow their terminal.
+	# Strip terminals on its leads and the dragged markings of its terminals
+	# follow their terminal.
 	var strips: Dictionary[int, String] = {}
 	for index: int in p.strips:
 		if index < mapping.size() and mapping[index] >= 0:
 			strips[mapping[index]] = p.strips[index]
 	p.strips = strips
+	var labels: Dictionary[String, Vector2] = {}
+	for key: String in p.labels:
+		var parts: PackedStringArray = key.split(":")
+		if parts.size() == 2 and (parts[0] == "terminal" or parts[0] == "strip") and parts[1].is_valid_int():
+			var index: int = int(parts[1])
+			if index >= 0 and index < mapping.size() and mapping[index] >= 0:
+				labels["%s:%d" % [parts[0], mapping[index]]] = p.labels[key]
+		else:
+			labels[key] = p.labels[key]
+	p.labels = labels
 	_placements.erase(old_id)
 	_placements[new_component.id] = p
-	_reroute_component(new_component.id)
+	# Only a part whose terminals or body moved (other poles, modules, ...)
+	# has its wires re-routed: a plain edit leaves the drawing as it is.
+	if _terminal_cells(new_component, p) != before or component_body(new_component) != body:
+		_reroute_component(new_component.id)
 	if new_component.designation != old.designation and circuit.get_component(old.designation) == null:
-		# The last part of the device was renamed: the stations, switchboards
-		# and the workspace follow.
+		# The last part of the device was renamed: the stations, switchboards,
+		# the workspace and its key follow (see the rename functions for a
+		# device that had the new name already, or is of another kind now).
 		rename_control_device(old.designation, new_component.designation)
 		rename_cabinet_device(old.designation, new_component.designation)
 		rename_field_device(old.designation, new_component.designation)
 		if key_bindings.has(old.designation):
-			key_bindings[new_component.designation] = key_bindings[old.designation]
+			var key: String = key_bindings[old.designation]
 			key_bindings.erase(old.designation)
+			if not key_bindings.has(new_component.designation) and can_have_key(new_component.designation):
+				key_bindings[new_component.designation] = key
 	return true
+
+
+## Grid cells of the terminals of [param c] placed by [param p], in the
+## order of its terminals.
+static func _terminal_cells(c: CircuitComponent, p: Placement) -> Array[Vector2i]:
+	var local: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(c)
+	var cells: Array[Vector2i] = []
+	for name: String in c.get_terminal_names():
+		cells.append(p.cell + SymbolGeometry.transform_cell(local[name], p))
+	return cells
 
 
 ## Inserts a [Junction] at [param cell] on wire [param index], splitting the
@@ -1648,6 +1744,15 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 		renamed[designation] = new_designation
 		reserved[new_designation] = true
 
+	# Strip terminals on the copies get free numbers on their strips, else
+	# copies and originals would share one terminal.
+	var numbers: Dictionary[String, Dictionary] = {}
+	var strips: Dictionary = CabinetDevices.strips(self)
+	for strip: String in strips:
+		numbers[strip] = {}
+		for t: Dictionary in strips[strip]:
+			numbers[strip][t["label"]] = true
+	var relabelled: Dictionary[String, String] = {}
 	var new_ids: PackedStringArray = PackedStringArray()
 	var key_map: Dictionary[String, String] = {}
 	for cd: Dictionary in components:
@@ -1658,6 +1763,9 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 				d["designation"] = next_supply_designation(conductor as PowerSupply.Conductor)
 			"junction":
 				d["designation"] = next_designation("J")
+			"terminal":
+				d["designation"] = renamed.get(d["designation"], d["designation"])
+				d["label"] = _pasted_strip_label(str(d.get("label", "")), numbers, relabelled)
 			_:
 				d["designation"] = renamed.get(d["designation"], d["designation"])
 		var c: CircuitComponent = DocumentSerializer.component_from_dict(d)
@@ -1677,6 +1785,9 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 		add(c, Vector2i(int(cell[0]), int(cell[1])) + offset, int(cd.get("rotation", 0)), bool(cd.get("mirrored", false)))
 		_placements[c.id].labels_from_data(cd.get("labels", {}))
 		_placements[c.id].strips_from_data(cd.get("strips", {}))
+		var lead_strips: Dictionary[int, String] = _placements[c.id].strips
+		for index: int in lead_strips:
+			lead_strips[index] = _pasted_strip_label(lead_strips[index], numbers, relabelled)
 		new_ids.append(c.id)
 	for wd: Dictionary in data.get("wires", []):
 		if not key_map.has(wd["a"]) or not key_map.has(wd["b"]):
@@ -1695,6 +1806,34 @@ static func _designation_prefix(designation: String) -> String:
 			break
 		prefix += ch
 	return prefix if not prefix.is_empty() else "X"
+
+
+## Label for a pasted strip terminal labelled [param label]: the same while
+## its strip has no such terminal, else the next free number on the strip.
+## [param numbers]: strip -> labels in use there (updated);
+## [param relabelled]: labels given so far in this paste, so copies that
+## shared a terminal still share one.
+static func _pasted_strip_label(label: String, numbers: Dictionary[String, Dictionary], relabelled: Dictionary[String, String]) -> String:
+	label = label.strip_edges()
+	if label.is_empty():
+		return label
+	if relabelled.has(label):
+		return relabelled[label]
+	var parts: PackedStringArray = CabinetDevices.split_label(label)
+	if not numbers.has(parts[0]):
+		numbers[parts[0]] = {}
+	var used: Dictionary = numbers[parts[0]]
+	var result: String = label
+	if used.has(parts[1]):
+		var highest: int = 0
+		for number: Variant in used:
+			if str(number).is_valid_int():
+				highest = maxi(highest, int(str(number)))
+		parts[1] = str(highest + 1)
+		result = parts[1] if parts[0] == CabinetDevices.DEFAULT_STRIP else parts[0] + ":" + parts[1]
+	used[parts[1]] = true
+	relabelled[label] = result
+	return result
 
 
 func _reroute_component(component_id: String) -> void:
@@ -1720,10 +1859,13 @@ func _merge_at_junction(junction: Junction, unordered: PackedInt32Array) -> void
 		second.reverse()
 	var merged: Array[Vector2i] = first
 	merged.append_array(second.slice(1))
+	# The merged wire keeps the net's number.
+	var number: String = _routes[wires[0]].number if not _routes[wires[0]].number.is_empty() else _routes[wires[1]].number
 	remove_component(junction.id)
 	if key_a == key_b:
 		return
 	connect_terminals(key_a, key_b, merged.slice(1, merged.size() - 1))
+	_routes[get_wire_count() - 1].number = number
 	normalize_route(get_wire_count() - 1)
 
 
@@ -1775,9 +1917,13 @@ func free_spot() -> Vector2:
 	for box: ControlBox in control_boxes:
 		right = maxf(right, box.position.x + Workspace.PLACE_SIZE.x)
 		top = minf(top, box.position.y)
+	# A group's frame is round its members where they stand, also those not
+	# put anywhere yet (drawn in its frame).
+	var positions: Dictionary[String, Vector2] = Workspace.field_positions(self)
 	for group: WorkspaceGroup in groups:
-		right = maxf(right, Workspace.group_rect(group, field_positions).end.x)
-		top = minf(top, group.position.y)
+		var frame: Rect2 = Workspace.group_rect(group, positions)
+		right = maxf(right, frame.end.x)
+		top = minf(top, frame.position.y)
 	if right == -INF:
 		return Vector2.ZERO
 	return Vector2(right + Workspace.SPACING, top)
@@ -1851,7 +1997,8 @@ func move_place(kind: Workspace.Place, index: int, at: Vector2) -> void:
 
 
 ## Puts part [param designation] in the field at [param at], in group
-## [param group] (-1 for none).
+## [param group] (-1 for none). A part leaving a group leaves its mechanical
+## link too.
 func place_field_device(designation: String, at: Vector2, group: int = -1) -> void:
 	if Workspace.field_component(circuit, designation) == null:
 		return
@@ -1860,9 +2007,9 @@ func place_field_device(designation: String, at: Vector2, group: int = -1) -> vo
 		var members: PackedStringArray = groups[g].members
 		if g == group and not members.has(designation):
 			members.append(designation)
-		elif g != group and members.has(designation):
-			members.remove_at(members.find(designation))
-		groups[g].members = members
+			groups[g].members = members
+		elif g != group:
+			_leave_group(groups[g], designation)
 
 
 ## Sets the mechanical link of group [param index]: member motor
@@ -1908,8 +2055,15 @@ func name_places() -> void:
 
 
 ## Points the place and group of part [param old_designation] in the field
-## to [param new_designation].
+## to [param new_designation]. When that is no part in the field (another
+## type) or one placed already (a block joining a limit switch), the old
+## name's place, group and link go instead.
 func rename_field_device(old_designation: String, new_designation: String) -> void:
+	if Workspace.field_component(circuit, new_designation) == null or field_positions.has(new_designation) or Workspace.group_of(self, new_designation) >= 0:
+		field_positions.erase(old_designation)
+		for group: WorkspaceGroup in groups:
+			_leave_group(group, old_designation)
+		return
 	_rename_cable_end("-" + old_designation, "-" + new_designation)
 	if field_positions.has(old_designation):
 		field_positions[new_designation] = field_positions[old_designation]
@@ -2146,14 +2300,19 @@ func control_devices(kind: int) -> PackedStringArray:
 
 
 ## Points every station item (and lamp under one) showing device
-## [param old_designation] to [param new_designation].
+## [param old_designation] to [param new_designation], if that is a device of
+## the item's kind (a button turned into a limit switch leaves its item); a
+## device shown on a station already keeps its items, the old name's go empty.
 func rename_control_device(old_designation: String, new_designation: String) -> void:
+	var device: CircuitComponent = circuit.get_operator(new_designation)
+	var kind: int = ControlBoxItem.kind_of(device if device != null else circuit.get_component(new_designation))
+	var shown: bool = control_panel_devices().has(new_designation)
 	for box: ControlBox in control_boxes:
 		for item: ControlBoxItem in box.items:
-			if item.designation == old_designation:
-				item.designation = new_designation
-			if item.lamp == old_designation:
-				item.lamp = new_designation
+			if item.designation == old_designation and item.kind == kind:
+				item.designation = "" if shown else new_designation
+			if item.lamp == old_designation and kind == ControlBoxItem.Kind.LAMP:
+				item.lamp = "" if shown else new_designation
 
 
 func _has_control_item(box_index: int, item_index: int) -> bool:
@@ -2292,12 +2451,19 @@ func fill_cabinet(board: int) -> int:
 
 
 ## Points every switchboard place of device [param old_designation] to
-## [param new_designation].
+## [param new_designation]. A device with a place already keeps it, the
+## old name's place goes.
 func rename_cabinet_device(old_designation: String, new_designation: String) -> void:
+	var placed: bool = cabinet_has(CabinetItem.Kind.DEVICE, new_designation)
 	for board: Switchboard in switchboards:
 		for rail: CabinetRail in board.rails:
-			for item: CabinetItem in rail.items:
-				if item.kind == CabinetItem.Kind.DEVICE and item.designation == old_designation:
+			for i: int in range(rail.items.size() - 1, -1, -1):
+				var item: CabinetItem = rail.items[i]
+				if item.kind != CabinetItem.Kind.DEVICE or item.designation != old_designation:
+					continue
+				if placed:
+					rail.items.remove_at(i)
+				else:
 					item.designation = new_designation
 
 
@@ -2321,18 +2487,34 @@ func move_strip_terminals(strip: String, labels: PackedStringArray, target: Stri
 			highest = maxi(highest, int(t["label"]))
 	# Old terminal label -> its label in the target strip.
 	var renamed: Dictionary[String, String] = {}
+	# The target's order goes on with the moved terminals in their order.
+	var order: PackedStringArray = PackedStringArray()
+	for t: Dictionary in strips.get(target, []):
+		order.append(t["label"])
 	for t: Dictionary in strips.get(strip, []):
 		var label: String = t["label"]
 		if not labels.has(label):
 			continue
 		var number: String = label
-		if taken.has(number):
+		while taken.has(number):
 			highest += 1
 			number = str(highest)
 		taken[number] = true
+		order.append(number)
 		renamed[label] = number if target == CabinetDevices.DEFAULT_STRIP else target + ":" + number
 	if renamed.is_empty():
 		return 0
+	if strip_orders.has(strip) or strip_orders.has(target):
+		strip_orders[target] = order
+	if strip_orders.has(strip):
+		var rest: PackedStringArray = PackedStringArray()
+		for label: String in strip_orders[strip]:
+			if not renamed.has(label):
+				rest.append(label)
+		if rest.is_empty():
+			strip_orders.erase(strip)
+		else:
+			strip_orders[strip] = rest
 	for c: CircuitComponent in circuit.get_components():
 		if c is TerminalBlock:
 			var block: TerminalBlock = c as TerminalBlock

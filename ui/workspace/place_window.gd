@@ -2,9 +2,9 @@ class_name PlaceWindow
 extends Window
 ## A switchboard or control station of the workspace in a window of its own,
 ## e.g. on a second monitor, opened by a right click on it. It shows the same
-## schematic or simulation as the main window and closes when its place is
-## gone. Ctrl+wheel zooms the station; keys nothing here uses go to the main
-## window's shortcuts.
+## schematic or simulation as the main window, follows its place when it is
+## renamed and closes when it is gone. Ctrl+wheel zooms the station; keys
+## nothing here uses go to the main window's shortcuts.
 
 ## A key was pressed in this window (the main window handles the shortcuts).
 signal key_pressed(event: InputEventKey)
@@ -19,6 +19,8 @@ var kind: Workspace.Place
 var place_name: String
 var _panel: Control
 var _document: SchematicDocument
+## Where the place was among those of its kind (see [method WorkspaceView.follow_place]).
+var _at: Vector2i = Vector2i(-1, -1)
 
 
 func _init(p_kind: Workspace.Place, p_name: String) -> void:
@@ -52,7 +54,7 @@ func _ready() -> void:
 ## closes the window when [param doc] has no such place.
 func set_document(doc: SchematicDocument, editing: bool) -> void:
 	_document = doc
-	if not _exists():
+	if not _follow():
 		queue_free()
 		return
 	_panel.call("set_document", doc, editing)
@@ -61,7 +63,7 @@ func set_document(doc: SchematicDocument, editing: bool) -> void:
 
 ## Shows the document again after an edit; closes when the place is gone.
 func refresh() -> void:
-	if not _exists():
+	if not _follow():
 		queue_free()
 		return
 	_panel.call("refresh")
@@ -89,14 +91,21 @@ func _update_title() -> void:
 	title = "+%s %s – LadderLab" % [place_name, text]
 
 
-func _exists() -> bool:
+## False when the place is gone; takes its new name when it was renamed.
+func _follow() -> bool:
 	if _document == null:
 		return true
+	var index: int = WorkspaceView.follow_place(_document, kind, place_name, _at)
+	if index < 0:
+		return false
 	var list: Array = _document.switchboards if kind == Workspace.Place.SWITCHBOARD else _document.control_boxes
-	for place: Variant in list:
-		if (place as RefCounted).get("name") == place_name:
-			return true
-	return false
+	_at = Vector2i(index, list.size())
+	place_name = str((list[index] as RefCounted).get("name"))
+	if _panel is CabinetPanel:
+		(_panel as CabinetPanel).board_name = place_name
+	elif _panel is StationPanel:
+		(_panel as StationPanel).station_name = place_name
+	return true
 
 
 ## Passes on the keys nothing in the window used (text fields keep theirs).

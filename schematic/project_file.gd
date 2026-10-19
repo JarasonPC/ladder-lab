@@ -60,15 +60,29 @@ const FORMAT: String = "ladder-lab"
 const VERSION: int = 27
 
 
-## Writes [param doc] to [param path]. Returns OK or the file error.
+## Writes [param doc] to [param path]. Returns OK or the file error. The
+## file is written next to it first and only then put in its place, so a
+## write that fails (a full disk) never spoils the file saved before.
 static func save(doc: SchematicDocument, path: String) -> Error:
-	var data: Dictionary = to_dict(doc)
-	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	return write_atomically(path, JSON.stringify(to_dict(doc), "\t") + "\n")
+
+
+## Writes [param text] to [param path] through a temporary file beside it
+## (path + ".tmp"), checking every step. Returns OK or the file error.
+static func write_atomically(path: String, text: String) -> Error:
+	var temporary: String = path + ".tmp"
+	var file: FileAccess = FileAccess.open(temporary, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
-	file.store_string(JSON.stringify(data, "\t") + "\n")
+	var stored: bool = file.store_string(text)
+	file.flush()
+	# What did not reach the disk (it is full) leaves the file short.
+	var complete: bool = stored and file.get_error() == OK and file.get_length() == text.to_utf8_buffer().size()
 	file.close()
-	return OK
+	if not complete:
+		DirAccess.remove_absolute(temporary)
+		return ERR_FILE_CANT_WRITE
+	return DirAccess.rename_absolute(temporary, path)
 
 
 ## Reads a schematic. Returns {"document": SchematicDocument} on success or
@@ -97,7 +111,7 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 
 ## Reads parsed file contents; see [method load_file].
 static func from_dict(data: Dictionary) -> Dictionary:
-	if data.get("format", "") != FORMAT:
+	if str(data.get("format", "")) != FORMAT:
 		return {"error": "%s is not a LadderLab file."}
 	var version: Variant = data.get("version", 0)
 	if not (version is float or version is int) or int(version) < 1:
