@@ -304,9 +304,14 @@ func transpose() -> void:
 		p.cell = Vector2i(p.cell.y, p.cell.x)
 		p.rotation = posmod(3 - p.rotation, 4)
 		p.mirrored = not p.mirrored
+		# Markings dragged beside a part stay beside it.
+		for key: String in p.labels:
+			p.labels[key] = Vector2(p.labels[key].y, p.labels[key].x)
 	for route: WireRoute in _routes:
 		for i: int in route.corners.size():
 			route.corners[i] = Vector2i(route.corners[i].y, route.corners[i].x)
+		for end: int in route.number_offsets.size():
+			route.number_offsets[end] = Vector2(route.number_offsets[end].y, route.number_offsets[end].x)
 	horizontal = not horizontal
 
 
@@ -1146,20 +1151,27 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 	if old == null:
 		return false
 	old_id = old.id
-	# Terminals keep their wires by position; a PLC's by their standard name
-	# (another CPU size moves its outputs). Wires on terminals the new
-	# component no longer has go away.
+	# Terminals keep their wires by their standard name (a motor of another
+	# kind keeps its PE, a cam switch with more positions its 1-6, another
+	# CPU size moves a PLC's outputs), the others by position where no name
+	# took it (a PLC's only by name). Wires on terminals the new component
+	# no longer has go away.
 	var new_count: int = new_component.get_terminal_keys().size()
 	var old_keys: PackedStringArray = old.get_terminal_keys()
-	var mapping: PackedInt32Array = PackedInt32Array(range(old_keys.size()))
+	var new_names: PackedStringArray = new_component.default_terminal_names()
+	var old_names: PackedStringArray = old.default_terminal_names()
+	var mapping: PackedInt32Array = PackedInt32Array()
+	mapping.resize(old_keys.size())
+	var taken: Dictionary[int, bool] = {}
 	for k: int in old_keys.size():
-		if k >= new_count:
-			mapping[k] = -1
-	if old is Plc and new_component is Plc:
-		var new_names: PackedStringArray = new_component.default_terminal_names()
-		var old_names: PackedStringArray = old.default_terminal_names()
+		mapping[k] = new_names.find(old_names[k]) if k < old_names.size() else -1
+		if mapping[k] >= 0:
+			taken[mapping[k]] = true
+	if not (old is Plc and new_component is Plc):
 		for k: int in old_keys.size():
-			mapping[k] = new_names.find(old_names[k])
+			if mapping[k] < 0 and k < new_count and not taken.has(k):
+				mapping[k] = k
+				taken[k] = true
 	for i: int in range(circuit.get_wires().size() - 1, -1, -1):
 		var wire: PackedStringArray = circuit.get_wires()[i]
 		for k: int in old_keys.size():

@@ -34,6 +34,15 @@ func test_transpose_makes_horizontal_paths() -> void:
 	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(16, 20))
 
 
+func test_transpose_takes_dragged_markings_along() -> void:
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(0))
+	doc.set_label_offset("SB1:13-14", "designation", Vector2(1.0, 0.5))
+	doc.set_wire_number_offset(0, 1, Vector2(0.5, -2.0))
+	doc.transpose()
+	assert_eq(doc.get_placement("SB1:13-14").labels["designation"], Vector2(0.5, 1.0), "one cell right of the part: one cell below it")
+	assert_eq(doc.get_route(0).number_offsets[1], Vector2(-2.0, 0.5))
+
+
 func test_rotated_body_hit() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
 	doc.add(Lamp.new("H1"), Vector2i(10, 10), 1)
