@@ -363,7 +363,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminals in the order set in the sidebar (SchematicDocument.strip_orders, saved; arrows move
   the picked terminals along the strip), else by label; neighbouring terminals of one net
   are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
-  desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). Where
+  desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). A strip
+  terminal takes one wire in each entry; one that has to join a second wire where no bridge
+  to a neighbour of its net does gets a block more right after it, bridged, its marker tag
+  across both (CabinetWiring.doubled, asked for while wiring; CabinetLayout.build lays out
+  again with them, CabinetLayout._with_blocks: the same terminal again, "span" 0, the first
+  "span" its number of blocks; the field side of the first block only; the parts list counts
+  the blocks and their bridges from the layout). Where
   more than CabinetLayout.BUS_LOADS (2) loads take N or PE in a switchboard (strip terminals on
   the net but the incoming one, devices' terminals on it), it gets an N or PE distribution block
   by itself (CabinetLayout.bus_blocks, N first: a place of kind BUS_BLOCK, index -1, not a rail
@@ -377,7 +383,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   room on its left for the leads, CabinetParts.bus_block): the net is wired as a star from it, one wire to each
   connection and from each load, its strip terminals not bridged then (CabinetLayout.bus_nets); in the parts list. Wired after the circuit (CabinetWiring): each net
   joins its terminals on the rails along the shortest tree with at most two wires in any
-  terminal's clamp (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would
+  device terminal's clamp and one in a strip terminal's entry (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would
   branch; a clamp keeps room for a wire on to another switchboard), every wire straight from its terminal
   towards the duct over or under its rail, past its sleeve, then one bend slanting into a slot
   between the fingers (CabinetWiring._slants: wires whose slants lie side by side bend at one

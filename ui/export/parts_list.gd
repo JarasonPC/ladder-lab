@@ -22,11 +22,16 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 		var part: Array[Dictionary] = []
 		var buses: Array[Dictionary] = CabinetLayout.bus_blocks(doc, b, strips, net)
 		var apart: Dictionary[int, bool] = CabinetLayout.bus_nets(buses)
+		# Its strips as laid out: with the blocks added for a second wire.
+		var blocks: Dictionary = strips.duplicate()
+		for place: Dictionary in CabinetLayout.build(doc, 2.0, b).places:
+			if place["kind"] == CabinetLayout.STRIP:
+				blocks[place["designation"]] = place["desc"]["terminals"]
 		for rail: CabinetRail in board.rails:
 			for item: CabinetItem in rail.items:
 				if item.kind == CabinetItem.Kind.STRIP:
-					part.append(_strip(item.designation, strips))
-					part.append_array(_bridges(item.designation, strips, net, apart))
+					part.append(_strip(item.designation, blocks))
+					part.append_array(_bridges(item.designation, blocks, net, apart))
 					continue
 				part.append(_device(doc, item.designation))
 				# An overload relay fitted under its contactor.

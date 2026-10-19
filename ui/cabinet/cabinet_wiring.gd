@@ -108,6 +108,10 @@ var _right: float = 0.0
 # Every screw of the devices on the rails, wired or not: centre and radius
 # (mm) as x, y, z.
 var _screws: Array[Vector3] = []
+## Strip terminals ("X2:5", strip and label) that take more wires than
+## they have blocks (one wire each) -> how many more: laid out again with
+## that many blocks more beside them ([method CabinetLayout.build]).
+var doubled: Dictionary[String, int] = {}
 # Wires come out from behind each overload relay (by its position) so far.
 var _behind_taken: Dictionary[Vector2, int] = {}
 
@@ -544,7 +548,11 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 					for key: String in terminals[i]["keys"]:
 						if net.has(key) and not nets.has(net[key]):
 							nets[net[key]] = true
-							result.append({"key": key, "at": at, "duct": rail, "up": true, "bridge": p * 1000 + run})
+							# One wire into each block of a strip terminal.
+							result.append({"key": key, "at": at, "duct": rail, "up": true, "bridge": p * 1000 + run, "room": 1, "strip": "%s:%s" % [place["designation"], terminals[i]["label"]]})
+							if terminals[i].get("span", 1) == 0:
+								# A block more of the terminal before: its top alone.
+								continue
 							var owner: CircuitComponent = _circuit.get_terminal_owner(key)
 							if owner is PowerSupply:
 								# The supply comes in on the field side.
@@ -649,9 +657,10 @@ func _behind_height(relay: Rect2) -> float:
 
 ## Pairs of indices into [param points] joining them all along the
 ## shortest routes (a minimum spanning tree) with at most CLAMP_WIRES wires
-## in any terminal's clamp, so nets are looped from terminal to terminal
-## where they would branch; terminals a plug-in bridge joins take no wire
-## between them. [param single]: the first point gets one wire only (a core
+## in any terminal's clamp (one in a strip terminal's), so nets are looped
+## from terminal to terminal where they would branch; terminals a plug-in
+## bridge joins take no wire between them. A strip terminal takes a second
+## wire only where nothing else can (see [member doubled]). [param single]: the first point gets one wire only (a core
 ## of an incoming cable goes to one terminal).
 func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 	var pairs: Array[Vector2i] = []
@@ -686,7 +695,25 @@ func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 					best = d
 					pair = Vector2i(j, i)
 		if pair.x < 0:
-			break
+			# No terminal joined has room left in its clamp: the nearest
+			# strip terminal takes one more wire, in a block more beside it
+			# (see [member doubled]).
+			for j: int in points.size():
+				if not joined[j] or (room[j] <= 0 and not points[j].has("strip")):
+					continue
+				for i: int in points.size():
+					if joined[i] or (room[i] <= 0 and not points[i].has("strip")):
+						continue
+					var d: float = _length(points[j], points[i])
+					if d < best:
+						best = d
+						pair = Vector2i(j, i)
+			if pair.x < 0:
+				break
+			for end: int in [pair.x, pair.y]:
+				if room[end] <= 0:
+					doubled[points[end]["strip"]] = doubled.get(points[end]["strip"], 0) + 1
+					room[end] += 1
 		joined[pair.y] = true
 		if not _bridged(points[pair.x], points[pair.y]):
 			room[pair.x] -= 1

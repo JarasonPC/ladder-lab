@@ -1582,8 +1582,10 @@ static func vfd(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> 
 
 ## A strip of push-in terminal blocks (svorkovnice) between two end stops
 ## with the strip's name on the first one. [param items]: {"label", "kind":
-## "L" | "N" | "PE", "reach": Color}; "reach" rings the wire entries (voltage
-## reach). Terminals sit on whole pixels so every one looks the same.
+## "L" | "N" | "PE", "reach": Color, "span"}; "reach" rings the wire entries
+## (voltage reach); "span": blocks one terminal takes (bridged, its marker
+## tag across them all), 0 on the blocks after its first. Terminals sit on
+## whole pixels so every one looks the same.
 ## Returns the width in mm.
 static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> float:
 	var q: CabinetPainter = p.snapped()
@@ -1595,6 +1597,13 @@ static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> fl
 	for item: Dictionary in items:
 		_terminal(q, x, pitch, item)
 		x += pitch
+	# Marker tags with the terminal names, across all the blocks of a terminal.
+	for i: int in items.size():
+		var span: int = items[i].get("span", 1)
+		if span > 0:
+			var tag: Rect2 = Rect2(first + pitch * i + q.snap(0.5), TERMINAL.y * 0.5 - 4.5, pitch * span - q.snap(1.0), 9.0)
+			q.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
+			q.text_centered(tag.get_center(), str(items[i].get("label", "")), 2.4, Color("111111"), true, tag.size.x - 0.3)
 	# Plug-in bridges over the terminals they join.
 	var run: int = -1
 	for i: int in items.size():
@@ -1638,7 +1647,7 @@ static func _terminal_color(kind: String) -> Color:
 
 ## One push-in terminal [param w] mm wide: at both ends a wire entry with
 ## the clamp's spring inside, the orange push button that opens it and a
-## test socket; the marker tag in the middle.
+## test socket (the marker tag in the middle: see [method terminal_strip]).
 static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -> void:
 	var kind: String = item.get("kind", "L")
 	var body: Color = _terminal_color(kind)
@@ -1674,10 +1683,6 @@ static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -
 		p.line(Vector2(cx - bw * 0.3, button.get_center().y), Vector2(cx + bw * 0.3, button.get_center().y), PUSH_ORANGE.darkened(0.35), 0.35)
 		# Test socket.
 		p.circle(Vector2(cx, at.call(14.2)), 0.7, HOLE)
-	# Marker tag with the terminal name.
-	var tag: Rect2 = Rect2(x + p.snap(0.5), h * 0.5 - 4.5, w - p.snap(1.0), 9.0)
-	p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
-	p.text_centered(tag.get_center(), str(item.get("label", "")), 2.4, Color("111111"), true, w - 0.8)
 
 
 ## Distribution block (N or PE, see [method bus_block]): the pitch of its

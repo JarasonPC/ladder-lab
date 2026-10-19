@@ -485,6 +485,43 @@ func test_wires_from_a_contactors_outputs_come_out_beside_its_overload_relay() -
 	assert_true(found > 0, "KM2's outputs are wired on")
 
 
+func test_one_wire_in_each_strip_terminal_entry() -> void:
+	# A strip terminal that has to join two wires gets a block more beside
+	# it, bridged, its tag across both, where no plug-in bridge to a
+	# neighbour of its net does.
+	var k: float = 2.0
+	var doubled: int = 0
+	for example: int in ExampleCircuits.count():
+		var doc: SchematicDocument = ExampleCircuits.build(example)
+		var layout: CabinetLayout = CabinetLayout.build(doc, k)
+		var pitch: float = roundf(CabinetParts.TERMINAL.x * k) / k
+		var wires: Dictionary[Vector3i, int] = {}
+		for wire: Dictionary in layout.wiring.wires:
+			var path: PackedVector2Array = wire["points"]
+			for end: Vector2 in [path[0], path[path.size() - 1]]:
+				for p: int in layout.places.size():
+					var place: Dictionary = layout.places[p]
+					if place["kind"] != CabinetLayout.STRIP or not (place["rect"] as Rect2).grow(0.5).has_point(end):
+						continue
+					var x: float = end.x - place["origin"].x - roundf(CabinetParts.END_STOP_W * k) / k
+					var entry: Vector3i = Vector3i(p, floori(x / pitch), 1 if end.y > place["rect"].get_center().y else 0)
+					wires[entry] = wires.get(entry, 0) + 1
+		for entry: Vector3i in wires:
+			assert_eq(wires[entry], 1, "example %d: one wire into terminal %d of place %d (%s)" % [example, entry.y, entry.x, "bottom" if entry.z == 1 else "top"])
+		for place: Dictionary in layout.places:
+			if place["kind"] != CabinetLayout.STRIP:
+				continue
+			var terminals: Array = place["desc"]["terminals"]
+			for i: int in terminals.size():
+				var span: int = terminals[i].get("span", 1)
+				if span > 1:
+					doubled += 1
+					for b: int in range(i, i + span - 1):
+						assert_true(place["desc"]["bridges"][b], "example %d: the blocks of %s bridged" % [example, terminals[i]["label"]])
+						assert_eq(terminals[b + 1]["span"], 0, "the block more takes no tag of its own")
+	assert_gt(doubled, 0, "some strip terminal had to be doubled")
+
+
 func test_wires_cross_only_in_the_ducts() -> void:
 	# Each wire bends once past its sleeve and slants into its slot; the slots
 	# take them in the order of their terminals, so wires heading apart cross
