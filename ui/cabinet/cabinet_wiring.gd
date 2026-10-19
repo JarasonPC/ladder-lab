@@ -62,6 +62,9 @@ const SLANT_MIN: float = 1.5
 const SLANT_MAX: float = 6.0
 ## Room between two marker sleeves one above the other.
 const MARKER_SPACE: float = 0.5
+## What the cores to the switchboard's own door are named in place of a
+## cable (see [member wires]): they leave as one bundle, the door harness.
+const DOOR: String = "@door"
 
 ## The wires: {"net": int, "conductor": [enum CabinetDevices.Conductor],
 ## "width": float, "points": PackedVector2Array (mm, from one terminal to
@@ -69,7 +72,8 @@ const MARKER_SPACE: float = 0.5
 ## going down behind it), "from", "to" (terminal keys in the circuit; for a core of a
 ## cable "from" names the cable), "external" (true for a core of a cable:
 ## it starts at the gland), "cable" ("AC", "DC", or what is written on a
-## field cable: the workspace cable's name, "-SB1" for a part without a place),
+## field cable: the workspace cable's name, "-SB1" for a part without a place,
+## [constant DOOR] for the door harness),
 ## "mark" (what its marker sleeves say: the wire number, else the supply
 ## conductor's name, else ""), "pins" (Vector2: how much of the ferrule
 ## shows at its first and its last end, see [method CabinetParts.wire]),
@@ -78,7 +82,8 @@ const MARKER_SPACE: float = 0.5
 var wires: Array[Dictionary] = []
 ## Cable glands (mm): {"rect", "bottom" (in the bottom of the enclosure,
 ## a field cable going out; else the supply coming in at the top),
-## "cable"}.
+## "cable"}; the door harness ([constant DOOR]) leaves the same way, through
+## a flexible conduit to the door hinge instead of a gland.
 var glands: Array[Dictionary] = []
 ## Wires side by side at the busiest point of each duct, in the order of
 ## [member CabinetLayout.ducts] (across from the top, then down the left and
@@ -304,7 +309,10 @@ static func bottom_slots(doc: SchematicDocument, board: int, strips: Dictionary)
 					if part.is_empty():
 						continue
 					var station: int = Workspace.station_of(doc, part)
+					var door: int = Workspace.door_of(doc, part)
 					var to: String = "+" + doc.control_boxes[station].name if station >= 0 else "-" + part
+					if door >= 0:
+						to = DOOR if door == board else "+" + doc.switchboards[door].name
 					if not ends.has(to):
 						ends[to] = {}
 					ends[to][net[key]] = true
@@ -334,8 +342,9 @@ static func _board_cables(doc: SchematicDocument, board: int, cables: Array[Dict
 
 
 ## Part outside (designation) -> name of the workspace cable from switchboard
-## [param board] to where the part is (its station, itself in the field);
-## [param cables]: those of [method WorkspaceCables.cables].
+## [param board] to where the part is (its station, the door of another
+## switchboard, itself in the field), [constant DOOR] for a part on its own
+## door; [param cables]: those of [method WorkspaceCables.cables].
 static func _cable_names(doc: SchematicDocument, board: int, cables: Array[Dictionary]) -> Dictionary[String, String]:
 	var result: Dictionary[String, String] = {}
 	if board < 0 or board >= doc.switchboards.size():
@@ -349,13 +358,24 @@ static func _cable_names(doc: SchematicDocument, board: int, cables: Array[Dicti
 				if not designation.is_empty():
 					on.append(designation)
 		stations["+" + box.name] = on
+	for b: int in doc.switchboards.size():
+		var on: PackedStringArray = PackedStringArray()
+		for item: ControlBoxItem in doc.switchboards[b].door.items:
+			for designation: String in [item.designation, item.lamp]:
+				if not designation.is_empty():
+					if b == board:
+						result[designation] = DOOR
+					else:
+						on.append(designation)
+		stations["+" + doc.switchboards[b].name] = on
 	for cable: Dictionary in cables:
 		var other: String = cable["b"] if cable["a"] == here else (cable["a"] if cable["b"] == here else "")
 		if other.begins_with("-"):
 			result[other.substr(1)] = cable["name"]
 		elif stations.has(other):
 			for designation: String in stations[other]:
-				result[designation] = cable["name"]
+				if not result.has(designation):
+					result[designation] = cable["name"]
 	return result
 
 
@@ -448,7 +468,7 @@ func _glands() -> void:
 		edges[b].x = maxf(edges[b].x, between + 0.5)
 	for cable: String in order:
 		var y: float = _bottom - 1.0 if bottom[cable] else 0.0
-		glands.append({"rect": Rect2(edges[cable].x, y, edges[cable].y - edges[cable].x, CabinetLayout.FRAME + 1.0), "bottom": bottom[cable], "cable": cable})
+		glands.append({"rect": Rect2(edges[cable].x, y, edges[cable].y - edges[cable].x, CabinetLayout.FRAME + 1.0), "bottom": bottom[cable], "cable": cable, "door": cable == DOOR})
 
 
 ## Every terminal on the rails a wire can go to: {"key" (terminal key in

@@ -89,9 +89,11 @@ static func _programs(doc: SchematicDocument) -> Array[Plc]:
 	return result
 
 
-## True when something sits on the rails of [param board] (an empty
-## enclosure needs no sheet).
+## True when something sits on the rails or the door of [param board] (an
+## empty enclosure needs no sheet).
 static func _fitted(board: Switchboard) -> bool:
+	if not board.door.items.is_empty():
+		return true
 	for rail: CabinetRail in board.rails:
 		if not rail.items.is_empty():
 			return true
@@ -222,6 +224,19 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			cabinet.size = cabinet.drawn_size()
 			frame.page_title = "+%s  %s" % [board.name, board.title if not board.title.is_empty() else tr("Switchboard")]
 			extent = Rect2(Vector2.ZERO, cabinet.size / G)
+			if not board.door.items.is_empty():
+				# Its door beside it, at the same scale.
+				var door: DoorView = DoorView.new()
+				door.document = copy
+				door.board = spec["board"]
+				door.box_index = copy.door_panel(spec["board"])
+				door.show_keys = false
+				door.enclosure = cabinet.plate_size()
+				var k: float = cabinet.drawn_size().x / maxf(cabinet.plate_size().x, 1.0)
+				door.size = door.door_size() * k + Vector2(8.0, 8.0)
+				door.position = Vector2(cabinet.size.x + 2.0 * G, -4.0)
+				content.add_child(door)
+				extent = extent.merge(Rect2(door.position / G, door.size / G))
 		"plc":
 			var plc: Plc = copy.circuit.get_component(spec["id"]) as Plc
 			var lad: bool = plc.program.language == PlcProgram.Language.LAD

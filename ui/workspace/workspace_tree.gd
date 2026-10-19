@@ -94,6 +94,20 @@ func refresh() -> void:
 	_filling = false
 
 
+## Entries of the push buttons, switches and lamps [param items] of place
+## [param place_name] (a station, or a switchboard's door).
+func _control_items(head: TreeItem, kind: Workspace.Place, place_name: String, items: Array[ControlBoxItem], filter: String) -> void:
+	for item: ControlBoxItem in items:
+		var what: String = tr(StationPanel.item_title(document, item))
+		if not item.label.is_empty():
+			what += " · " + item.label
+		if not item.designation.is_empty():
+			_entry(head, "-" + item.designation, what, {"place": kind, "name": place_name, "designation": item.designation, "kind": "control"}, filter)
+		if not item.lamp.is_empty():
+			# The signal lamp inside an illuminated button or switch.
+			_entry(head, "-" + item.lamp, tr(StationPanel.KIND_TITLES[ControlBoxItem.Kind.LAMP]), {"place": kind, "name": place_name, "designation": item.lamp, "kind": "control"}, filter)
+
+
 func _fill(root: TreeItem) -> void:
 	var filter: String = _search.text.strip_edges().to_lower()
 	for board: Switchboard in document.switchboards:
@@ -104,18 +118,12 @@ func _fill(root: TreeItem) -> void:
 				var c: CircuitComponent = CabinetDevices.device(document.circuit, place.designation)
 				var what: String = tr("Terminal strip") if strip else (tr(CabinetPanel.KIND_TITLES[CabinetDevices.kind_of(c)]) if c != null else tr("not in the schematic"))
 				_entry(head, "-" + place.designation, what, {"place": Workspace.Place.SWITCHBOARD, "name": board.name, "designation": place.designation, "kind": "strip" if strip else "device"}, filter)
+		# The buttons, switches and lamps on its door.
+		_control_items(head, Workspace.Place.SWITCHBOARD, board.name, board.door.items, filter)
 		_finish(head, filter)
 	for box: ControlBox in document.control_boxes:
 		var head: TreeItem = _place(root, Workspace.Place.STATION, box.name, box.title if not box.title.is_empty() else tr("Control station"))
-		for item: ControlBoxItem in box.items:
-			var what: String = tr(StationPanel.item_title(document, item))
-			if not item.label.is_empty():
-				what += " · " + item.label
-			if not item.designation.is_empty():
-				_entry(head, "-" + item.designation, what, {"place": Workspace.Place.STATION, "name": box.name, "designation": item.designation, "kind": "control"}, filter)
-			if not item.lamp.is_empty():
-				# The signal lamp inside an illuminated button or switch.
-				_entry(head, "-" + item.lamp, tr(StationPanel.KIND_TITLES[ControlBoxItem.Kind.LAMP]), {"place": Workspace.Place.STATION, "name": box.name, "designation": item.lamp, "kind": "control"}, filter)
+		_control_items(head, Workspace.Place.STATION, box.name, box.items, filter)
 		_finish(head, filter)
 	for group: WorkspaceGroup in document.groups:
 		var head: TreeItem = _place(root, Workspace.Place.GROUP, group.name, group.title if not group.title.is_empty() else tr("Group"))

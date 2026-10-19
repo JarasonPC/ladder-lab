@@ -7,18 +7,35 @@ extends HBoxContainer
 ## they show the circuit and breakers, fuse holders and overload relays are
 ## operated on them. While editing, the tools beside the drawing add and fill
 ## rails; every change is emitted as one undoable edit of the document (see
-## [method SchematicEditor.edit_cabinet]).
+## [method SchematicEditor.edit_cabinet]). Its door (Inside | Door at the
+## top) is drawn by a [DoorView] and holds push buttons, switches and lamps
+## like a control station, edited and operated the same way.
 
 ## A breaker, fuse holder or overload relay was clicked while simulating.
 signal operate_requested(designation: String)
 ## A change of the switchboard: [param change] is called with the document.
 signal edit_requested(change: Callable)
+## A change of its door (see [method SchematicEditor.edit_workspace]).
+signal door_edit_requested(change: Callable)
+## A push button on the door was pressed (true) or let go (false).
+signal button_held(designation: String, pressed: bool)
+## A switch on the door was turned (see [signal ControlBoxView.switch_toggled]).
+signal switch_toggled(designation: String, steps: int)
+## A key should be bound to push button or switch [param designation].
+signal key_bind_requested(designation: String)
 
 ## English names of [enum CabinetDevices.Kind] (translated with tr()).
 const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay", "Bridge rectifier", "PLC", "Frequency inverter"]
 
 ## Name of the switchboard shown ([member Switchboard.name]).
 var board_name: String = ""
+## The door is shown instead of the inside.
+var door_shown: bool = false:
+	set(value):
+		door_shown = value
+		if _door_button != null:
+			(_door_button if value else _inside_button).button_pressed = true
+		_rebuild_queued = true
 var _document: SchematicDocument
 var _editing: bool = false
 var _selected: Vector2i = Vector2i(-1, -1)
@@ -33,6 +50,16 @@ var _view: CabinetView
 var _across: ScrollContainer
 var _zoom_row: HBoxContainer
 var _rebuild_queued: bool = false
+## Scrolls the switchboard down; hidden while the door is shown.
+var _down: ScrollContainer
+var _inside_button: Button
+var _door_button: Button
+var _door: DoorView
+## Item of the door selected for editing, -1 for none.
+var _door_selected: int = -1
+var _door_tools: ControlItemTools = ControlItemTools.new()
+var _menu: PopupMenu
+var _menu_device: String = ""
 
 
 func _ready() -> void:
@@ -45,10 +72,31 @@ func _ready() -> void:
 	var left: VBoxContainer = VBoxContainer.new()
 	left.add_theme_constant_override("separation", 6)
 	margin.add_child(left)
+	var top: HBoxContainer = HBoxContainer.new()
+	left.add_child(top)
+	# Inside | Door as one segmented switch.
+	var track: PanelContainer = PanelContainer.new()
+	track.theme_type_variation = "SegmentTrack"
+	top.add_child(track)
+	var segments: HBoxContainer = HBoxContainer.new()
+	segments.add_theme_constant_override("separation", 2)
+	track.add_child(segments)
+	var sides: ButtonGroup = ButtonGroup.new()
+	_inside_button = _button("", "cabinet")
+	_door_button = _button("", "panel")
+	for side_button: Button in [_inside_button, _door_button]:
+		side_button.theme_type_variation = "SegmentButton"
+		side_button.toggle_mode = true
+		side_button.button_group = sides
+		segments.add_child(side_button)
+	(_door_button if door_shown else _inside_button).button_pressed = true
+	_inside_button.pressed.connect(func() -> void: door_shown = false)
+	_door_button.pressed.connect(func() -> void: door_shown = true)
 	_zoom_row = HBoxContainer.new()
 	_zoom_row.add_theme_constant_override("separation", 2)
 	_zoom_row.alignment = BoxContainer.ALIGNMENT_END
-	left.add_child(_zoom_row)
+	_zoom_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(_zoom_row)
 	_note = Label.new()
 	_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_note.theme_type_variation = "MutedLabel"
@@ -58,6 +106,23 @@ func _ready() -> void:
 	down.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	down.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_child(down)
+	_down = down
+	_door = DoorView.new()
+	_door.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_door.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(_door)
+	_door.button_held.connect(func(designation: String, pressed: bool) -> void: button_held.emit(designation, pressed))
+	_door.switch_toggled.connect(func(designation: String, steps: int) -> void: switch_toggled.emit(designation, steps))
+	_door.item_clicked.connect(func(index: int) -> void:
+		_door_selected = index
+		_rebuild_queued = true)
+	_door.item_menu.connect(_open_door_menu)
+	_door_tools.edit = func(change: Callable) -> void: door_edit_requested.emit(change)
+	_door_tools.select = func(index: int) -> void: _door_selected = index
+	_menu = PopupMenu.new()
+	_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_menu.id_pressed.connect(func(_id: int) -> void: key_bind_requested.emit(_menu_device))
+	add_child(_menu)
 	_across = ScrollContainer.new()
 	_across.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_across.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -99,6 +164,7 @@ func set_document(doc: SchematicDocument, editing: bool) -> void:
 	_editing = editing
 	if not editing:
 		_selected = Vector2i(-1, -1)
+		_door_selected = -1
 	_rebuild()
 
 
@@ -126,6 +192,38 @@ func select_item(kind: CabinetItem.Kind, designation: String) -> void:
 				return
 
 
+## Shows the door with the item of device [param designation] selected
+## (Edit mode; also the lamp inside a button).
+func select_door_device(designation: String) -> void:
+	var b: int = _board()
+	if b < 0:
+		return
+	door_shown = true
+	if not _editing:
+		return
+	var items: Array[ControlBoxItem] = _document.switchboards[b].door.items
+	for i: int in items.size():
+		if items[i].designation == designation or items[i].lamp == designation:
+			_door_selected = i
+	_rebuild_queued = true
+
+
+## Right click on door item [param index]: bind a key to its button or switch (Edit mode).
+func _open_door_menu(index: int) -> void:
+	var b: int = _board()
+	if not _editing or b < 0 or index >= _document.switchboards[b].door.items.size():
+		return
+	var item: ControlBoxItem = _document.switchboards[b].door.items[index]
+	if item.designation.is_empty() or not _document.can_have_key(item.designation):
+		return
+	_menu_device = item.designation
+	_menu.clear()
+	var key: String = _document.key_bindings.get(item.designation, "")
+	_menu.add_item(tr("Bind a key…") + ("  [%s]" % key if not key.is_empty() else ""))
+	_menu.reset_size()
+	AppTheme.popup_at_mouse(_menu)
+
+
 ## Voltage reach of the last simulation step (terminal key -> reach code).
 func show_step(result: StepResult) -> void:
 	_view.reach = result.terminal_reach
@@ -136,8 +234,12 @@ func _process(_delta: float) -> void:
 		_rebuild_queued = false
 		_rebuild()
 	if not _editing and is_visible_in_tree():
-		# Levers, carriers, LEDs and voltage colours follow the simulation.
-		_view.queue_redraw()
+		# Levers, carriers, LEDs and voltage colours follow the simulation;
+		# so do the buttons, switches and lamps on the door.
+		if door_shown:
+			_door.queue_redraw()
+		else:
+			_view.queue_redraw()
 
 
 ## Index of the switchboard shown, -1 when the document has none of that name.
@@ -158,10 +260,21 @@ func _rebuild() -> void:
 		child.queue_free()
 	var b: int = _board()
 	_tools.visible = _editing and b >= 0
+	_inside_button.text = tr("Inside")
+	_inside_button.tooltip_text = tr("The DIN rails with the devices and their wiring")
+	_door_button.text = tr("Door")
+	_door_button.tooltip_text = tr("The push buttons, switches and signal lamps on the door")
+	_down.visible = not door_shown
+	_door.visible = door_shown
+	_zoom_row.visible = not door_shown
 	if b < 0:
 		_note.visible = false
 		_view.document = null
 		_view.refresh()
+		_door.document = null
+		return
+	if door_shown:
+		_rebuild_door(b)
 		return
 	var rails: Array[CabinetRail] = _document.switchboards[b].rails
 	if _selected.x >= rails.size() or (_selected.x >= 0 and _selected.y >= rails[_selected.x].items.size()):
@@ -194,6 +307,47 @@ func _rebuild() -> void:
 	fill.pressed.connect(func() -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet(b)))
 	_list.add_child(fill)
+
+
+## The door of switchboard [param b] and, while editing, its tools: items
+## in a row, buttons adding items, the selected item's fields.
+func _rebuild_door(b: int) -> void:
+	var door: ControlBox = _document.switchboards[b].door
+	if _door_selected >= door.items.size():
+		_door_selected = -1
+	_view.document = _document
+	_view.board = b
+	_view.refresh()
+	var panel: int = _document.door_panel(b)
+	_door.document = _document
+	_door.box_index = panel
+	_door.board = b
+	_door.simulating = not _editing
+	_door.selected = _door_selected
+	if _view.plate_size().x > 0.0:
+		_door.enclosure = _view.plate_size()
+	_door.queue_redraw()
+	_note.visible = door.items.is_empty()
+	_note.text = tr("No push buttons, switches or lamps on this door yet.") if _editing else tr("No push buttons, switches or lamps on this door yet. Add them in Edit mode.")
+	if not _editing:
+		return
+	var tools: ControlItemTools = _door_tools
+	tools.document = _document
+	tools.panel = panel
+	tools.list = _list
+	tools.editing = _editing
+	tools.make_caption(_list, tr("Items in a row"))
+	var columns: OptionButton = tools.make_option(_list)
+	for n: int in range(1, ControlBox.MAX_COLUMNS + 1):
+		columns.add_icon_item(AppTheme.icon("columns"), str(n))
+	columns.select(door.columns - 1)
+	columns.item_selected.connect(func(k: int) -> void:
+		door_edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_control_box(panel, "", k + 1)))
+	tools.add_buttons()
+	tools.add_all_button(tr("Put every push button, switch and signal lamp that is not on a station or a door yet on this door"))
+	if _door_selected >= 0:
+		_list.add_child(HSeparator.new())
+		tools.item_editor(_door_selected)
 
 
 ## Zooming the drawing: out, in, back to the panel width (made once,

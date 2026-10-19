@@ -76,10 +76,12 @@ class _Chips extends Control:
 				continue
 			var text: String = "-" + designation
 			var where: String = ""
-			for box: ControlBox in doc.control_boxes:
-				for item: ControlBoxItem in box.items:
+			var panels: Array[ControlBox] = doc.control_panels()
+			for i: int in panels.size():
+				for item: ControlBoxItem in panels[i].items:
 					if item.designation == designation:
-						where = "+" + box.name
+						# A station, or the door of a switchboard.
+						where = "+" + (panels[i].name if i < doc.control_boxes.size() else doc.switchboards[i - doc.control_boxes.size()].name)
 						if not item.label.is_empty():
 							text = item.label
 			var lit: bool = device is PushButton and (device as SwitchingElement).get_travel() > 0.5

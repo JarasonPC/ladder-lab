@@ -907,6 +907,9 @@ func _draw_place(item: Dictionary) -> void:
 				else:
 					devices += 1
 		summary = tr_n("%d device", "%d devices", devices) % devices + ", " + tr_n("%d terminal strip", "%d terminal strips", strips) % strips
+		if not board.door.items.is_empty():
+			# And what is on its door.
+			summary += ", " + tr_n("%d item", "%d items", board.door.items.size()) % board.door.items.size()
 	else:
 		var box: ControlBox = document.control_boxes[item["index"]]
 		title = box.title if not box.title.is_empty() else tr("Control station")
@@ -916,8 +919,9 @@ func _draw_place(item: Dictionary) -> void:
 	draw_string(font, Vector2(x, rect.position.y + 17.0), "+" + str(item["name"]), HORIZONTAL_ALIGNMENT_LEFT, w, NAME_SIZE, SchematicTheme.DESIGNATION)
 	draw_string(font, Vector2(x, rect.position.y + 34.0), title, HORIZONTAL_ALIGNMENT_LEFT, w, TEXT_SIZE, SchematicTheme.TEXT)
 	var keys: PackedStringArray = PackedStringArray()
-	if item["kind"] == "station" and show_keys:
-		for station_item: ControlBoxItem in document.control_boxes[item["index"]].items:
+	if show_keys:
+		var items: Array[ControlBoxItem] = document.control_boxes[item["index"]].items if item["kind"] == "station" else document.switchboards[item["index"]].door.items
+		for station_item: ControlBoxItem in items:
 			var key: String = document.key_bindings.get(station_item.designation, "") if station_item.kind != ControlBoxItem.Kind.LAMP else ""
 			if not key.is_empty():
 				keys.append(key)

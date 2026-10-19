@@ -433,8 +433,8 @@ static func _name(doc: SchematicDocument, list: Array[Dictionary]) -> void:
 
 ## Where each part of the circuit sits, by designation: "+RA1" for a device
 ## in a switchboard (an overload relay fitted under its contactor where the
-## contactor is), "+ST1" for a button, switch or lamp on a station, "-M1" for
-## a part in the field. Parts with no place are left out.
+## contactor is) or a button, switch or lamp on its door, "+ST1" for one on a
+## station, "-M1" for a part in the field. Parts with no place are left out.
 static func _locations(doc: SchematicDocument) -> Dictionary[String, String]:
 	var result: Dictionary[String, String] = {}
 	for board: Switchboard in doc.switchboards:
@@ -451,6 +451,11 @@ static func _locations(doc: SchematicDocument) -> Dictionary[String, String]:
 			for designation: String in [item.designation, item.lamp]:
 				if not designation.is_empty():
 					result[designation] = "+" + box.name
+	for board: Switchboard in doc.switchboards:
+		for item: ControlBoxItem in board.door.items:
+			for designation: String in [item.designation, item.lamp]:
+				if not designation.is_empty():
+					result[designation] = "+" + board.name
 	for designation: String in Workspace.field_devices(doc.circuit):
 		result[designation] = "-" + designation
 	return result

@@ -35,15 +35,12 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 		# The distribution blocks the switchboard adds by itself.
 		for bus: Dictionary in buses:
 			part.append({"designation": "", "quantity": 1, "name": tr("N distribution block") if bus["neutral"] else tr("PE distribution block"), "data": tr_n("%d connection", "%d connections", bus["connections"]) % bus["connections"]})
+		# The buttons, switches and lamps on its door.
+		part.append_array(_controls(doc, board.door))
 		part.append_array(_glands(doc, "+" + board.name))
 		_add(result, "+%s  %s" % [board.name, board.title if not board.title.is_empty() else tr("Switchboard")], part)
 	for box: ControlBox in doc.control_boxes:
-		var part: Array[Dictionary] = []
-		for item: ControlBoxItem in box.items:
-			if not item.designation.is_empty():
-				part.append(_control(doc, item))
-			if not item.lamp.is_empty() and item.lamp != item.designation:
-				part.append(_device(doc, item.lamp))
+		var part: Array[Dictionary] = _controls(doc, box)
 		part.append_array(_glands(doc, "+" + box.name))
 		_add(result, "+%s  %s" % [box.name, box.title if not box.title.is_empty() else tr("Control station")], part)
 	for group: WorkspaceGroup in doc.groups:
@@ -66,6 +63,18 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 		cables.append({"designation": cable["name"], "quantity": 1, "name": tr("Cable"), "data": "%s   %s – %s" % [WorkspaceCables.type_and_length(cable), cable["a"], cable["b"]]})
 	_add(result, tr("Cables"), cables)
 	return result
+
+
+## Rows of the push buttons, switches and lamps on [param box] (a station or
+## a door), with the lamps inside buttons.
+func _controls(doc: SchematicDocument, box: ControlBox) -> Array[Dictionary]:
+	var part: Array[Dictionary] = []
+	for item: ControlBoxItem in box.items:
+		if not item.designation.is_empty():
+			part.append(_control(doc, item))
+		if not item.lamp.is_empty() and item.lamp != item.designation:
+			part.append(_device(doc, item.lamp))
+	return part
 
 
 ## Adds the rows of a place under [param heading], identical parts (same

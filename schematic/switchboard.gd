@@ -2,13 +2,21 @@ class_name Switchboard
 extends RefCounted
 ## A switchboard (rozvaděč, location "+RA1") of the workspace: its DIN rails
 ## ([CabinetRail]) with the devices and terminal strips of the circuit, top to
-## bottom, and where it sits on the workspace. Design data only.
+## bottom, the push buttons, switches and signal lamps on its door, and where
+## it sits on the workspace. Design data only.
+
+## Items in a row on a new door.
+const DOOR_COLUMNS: int = 3
 
 ## Location designation without the "+", e.g. "RA1".
 var name: String = ""
 ## Free text, e.g. "Main switchboard"; may be empty.
 var title: String = ""
 var rails: Array[CabinetRail] = []
+## The door: its push buttons, switches and signal lamps in rows of its
+## columns, as on a control station (its name, title, position and face
+## unused).
+var door: ControlBox = ControlBox.new("", DOOR_COLUMNS)
 ## Top-left corner of its tile on the workspace.
 var position: Vector2 = Vector2.ZERO
 
@@ -25,6 +33,8 @@ func to_data() -> Dictionary:
 	var d: Dictionary = {"name": name, "position": [position.x, position.y], "rails": list}
 	if not title.is_empty():
 		d["title"] = title
+	if not door.items.is_empty() or door.columns != DOOR_COLUMNS:
+		d["door"] = {"columns": door.columns, "items": door.to_data()["items"]}
 	return d
 
 
@@ -43,4 +53,10 @@ static func from_data(data: Variant) -> Switchboard:
 			var rail: CabinetRail = CabinetRail.from_data(raw)
 			if rail != null:
 				board.rails.append(rail)
+	var raw_door: Variant = d.get("door", null)
+	if raw_door is Dictionary:
+		var door: ControlBox = ControlBox.from_data(raw_door)
+		if door != null:
+			board.door = door
+	board.door.name = ""
 	return board
