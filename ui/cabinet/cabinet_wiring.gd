@@ -61,7 +61,9 @@ const MARKER_SPACE: float = 0.5
 ## it starts at the gland), "cable" ("AC", "DC", or what is written on a
 ## field cable: the workspace cable's name, "-SB1" for a part without a place),
 ## "mark" (what its marker sleeves say: the wire number, else the supply
-## conductor's name, else ""), "markers" (its marker sleeves, each as
+## conductor's name, else ""), "pins" (Vector2: how much of the ferrule
+## shows at its first and its last end, see [method CabinetParts.wire]),
+## "markers" (its marker sleeves, each as
 ## PackedVector2Array [from, to] in mm along the wire; see [method _markers])}.
 var wires: Array[Dictionary] = []
 ## Cable glands (mm): {"rect", "bottom" (in the bottom of the enclosure,
@@ -486,8 +488,14 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 		if not terminals.has(name) or not net.has(terminals[name]):
 			continue
 		var up: bool = origin.y + p.y < centre
-		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z))
-		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up}
+		# Into the face of the terminal's tier, else at the edge of its screw.
+		var entry: float = CabinetParts.wire_entry(kind, desc, name, up)
+		if not up and beside.has_area() and entry > CabinetParts.CONTACTOR_OUT_Y[CabinetParts.CONTACTOR_OUT_Y.size() - 1] - LEG_STEP:
+			# The overload relay under the contactor covers that face: the
+			# wire goes in by the screw and out to the side above the relay.
+			entry = NAN
+		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z) if is_nan(entry) else entry)
+		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up, "clamp": true}
 		if not up and beside.has_area():
 			var out: Array[float] = []
 			for y: float in CabinetParts.CONTACTOR_OUT_Y:
@@ -653,7 +661,7 @@ func _route(edges: Array[Dictionary]) -> void:
 			"net": edges[e]["net"], "conductor": edges[e]["conductor"], "width": edges[e]["width"],
 			"points": _clean(points), "from": edges[e]["a"]["key"], "to": edges[e]["b"]["key"],
 			"external": edges[e]["a"].get("external", false), "cable": edges[e]["a"].get("cable", ""),
-			"mark": edges[e]["mark"],
+			"mark": edges[e]["mark"], "pins": Vector2(_pin(route["a"]), _pin(route["b"])),
 		})
 		reaches.append(Vector2(_reach(route["a"]), _reach(route["b"])))
 	_markers(reaches)
@@ -678,6 +686,11 @@ func _fan(ends: Array[Dictionary], shared: Dictionary[int, int]) -> void:
 		var at: Vector2 = point["at"]
 		var away: float = -1.0 if point["up"] else 1.0
 		var x: float = at.x + (end["index"] - (count - 1) * 0.5) * steps[point["id"]]
+		if point.get("clamp", false):
+			# A device terminal's clamp takes them side by side, each ferrule in.
+			end["x"] = x
+			end["start"] = Vector2(x, at.y)
+			continue
 		end["via"] = PackedVector2Array([Vector2(end["x"], at.y + away * FAN_FROM), Vector2(x, at.y + away * FAN_FROM)])
 		end["x"] = x
 
@@ -793,7 +806,11 @@ func _fan_step(point: Dictionary, count: int, ends: Array[Dictionary]) -> float:
 	var in_way: Array[Vector3] = []
 	for screw: Vector3 in _screws:
 		var ahead: float = (screw.y - at.y) * away
-		if ahead > 0.0 and ahead < way + screw.z:
+		if absf(screw.x - at.x) < 0.01 and ahead <= 0.0:
+			# The terminal's own.
+			continue
+		# Ahead of the terminal, also one standing over the face it goes in at.
+		if ahead > -screw.z and ahead < way + screw.z:
 			in_way.append(screw)
 	var hits: Callable = func(spread: float, screw: Vector3) -> bool:
 		for i: int in count:
@@ -810,6 +827,13 @@ func _fan_step(point: Dictionary, count: int, ends: Array[Dictionary]) -> float:
 			return step
 		step -= 0.1
 	return SHARED
+
+
+## How much of the ferrule shows at [param end] (one of the ends of
+## [method _route]): none where it goes all the way into a device
+## terminal's clamp, a little going into a strip terminal's opening.
+static func _pin(end: Dictionary) -> float:
+	return 0.0 if end["point"].get("clamp", false) else CabinetParts.FERRULE
 
 
 ## How far a wire runs from its terminal at [param end] (one of the ends of

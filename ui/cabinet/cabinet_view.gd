@@ -9,7 +9,7 @@ extends Control
 ## relay. While editing, a click selects a place.
 ##
 ## Painted in layers ([Layer]: the plate with its rails and ducts, each place
-## on its own, the wires with the labels, the selection) that are painted
+## on its own with its labels, the wires, the selection) that are painted
 ## again only when what they show changed, so a simulation step paints only
 ## the devices that changed and moving the view paints nothing. While the
 ## zoom changes the layers painted last are scaled, and painted sharp again
@@ -335,10 +335,7 @@ func _draw() -> void:
 	for i: int in _places.size():
 		var place: Dictionary = _layout.places[i]
 		_repaint(_places[i], [at, place, _place_reach(place)])
-	var labels: Array = []
-	for place: Dictionary in _layout.places:
-		labels.append([place.get("label_at"), place["label_w"], place["designation"], place.get("under_label_at"), place.get("under_designation")])
-	_repaint(_top, [at, _wiring.get_instance_id(), labels])
+	_repaint(_top, [at, _wiring.get_instance_id()])
 	var mark: Rect2 = Rect2()
 	if not simulating:
 		for place: Dictionary in _layout.places:
@@ -390,17 +387,24 @@ func _paint_base(canvas: CanvasItem) -> void:
 		CabinetParts.duct(p.shifted(r.position), r.size.y if duct["vertical"] else r.size.x, r.size.x if duct["vertical"] else r.size.y, duct["vertical"])
 
 
+## A place with its labels, under the wires running past them.
 func _paint_place(canvas: CanvasItem, index: int) -> void:
-	if index < _layout.places.size():
-		_draw_place(_painter(canvas), _layout.places[index])
+	if index >= _layout.places.size():
+		return
+	var p: CabinetPainter = _painter(canvas)
+	var place: Dictionary = _layout.places[index]
+	_draw_place(p, place)
+	if place["label_w"] > 0.0:
+		CabinetParts.label(p, place["label_at"], "-" + str(place["designation"]), place["label_w"])
+	if place.has("under_label_at"):
+		CabinetParts.label(p, place["under_label_at"], "-" + str(place["under_designation"]), 12.0)
 
 
-## The wires with their marker sleeves, the cable glands and the labels of
-## the places.
+## The wires with their marker sleeves and the cable glands.
 func _paint_top(canvas: CanvasItem) -> void:
 	var p: CabinetPainter = _painter(canvas)
 	for wire: Dictionary in _wiring.wires:
-		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"])
+		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"], wire["pins"])
 	# The marker sleeves over every wire, so a wire running past never hides one.
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], wire["width"])
@@ -410,11 +414,6 @@ func _paint_top(canvas: CanvasItem) -> void:
 			# The cable's name (or the part it goes to), on a tag over the gland.
 			var r: Rect2 = gland["rect"]
 			CabinetParts.label(p, r.get_center() + Vector2(0.0, -0.6), str(gland["cable"]), r.size.x - 1.0)
-	for place: Dictionary in _layout.places:
-		if place["label_w"] > 0.0:
-			CabinetParts.label(p, place["label_at"], "-" + str(place["designation"]), place["label_w"])
-		if place.has("under_label_at"):
-			CabinetParts.label(p, place["under_label_at"], "-" + str(place["under_designation"]), 12.0)
 
 
 ## The outline of the place selected for editing.

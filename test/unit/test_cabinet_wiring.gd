@@ -363,3 +363,56 @@ func test_no_wire_goes_back_into_its_own_terminal() -> void:
 		for wire: Dictionary in wiring.wires:
 			var path: PackedVector2Array = wire["points"]
 			assert_true(path[0].distance_to(path[path.size() - 1]) > CabinetWiring.FAN, "%d: %s-%s joins two terminals" % [example, wire["from"], wire["to"]])
+
+
+## The end of [param wire] at terminal [param key] and how much of its
+## ferrule shows there.
+func _end_at(wire: Dictionary, key: String) -> Array:
+	var path: PackedVector2Array = wire["points"]
+	if wire["from"] == key:
+		return [path[0], wire["pins"].x]
+	return [path[path.size() - 1], wire["pins"].y]
+
+
+func test_wires_go_into_the_face_of_their_terminals_tier() -> void:
+	var doc: SchematicDocument = _doc()
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0)
+	var contactor: Vector2 = Vector2.ZERO
+	for place: Dictionary in layout.places:
+		if place["designation"] == "KM1":
+			contactor = place["origin"]
+	# KM1:1 in the outer tier: at the contactor's top face; KM1:13 in the
+	# inner tier: at the step where it begins, its wire over the outer tier.
+	var power: Array = _end_at(_wire(wiring, "FU1:2", "KM1:1"), "KM1:1")
+	assert_almost_eq(float(power[0].y), contactor.y, 0.01, "the outer tier's top face")
+	var control: Array = _end_at(_wire(wiring, "FU2:2", "KM1:13"), "KM1:13")
+	assert_almost_eq(float(control[0].y), contactor.y + 5.1, 0.01, "the step to the inner tier")
+	var screw: Vector3 = CabinetParts.terminal_points(CabinetDevices.Kind.CONTACTOR, CabinetDevices.describe(doc, "KM1"))["13"]
+	assert_true(control[0].y < contactor.y + screw.y - screw.z, "past the screw, not onto it")
+	assert_eq(control[1], 0.0, "the ferrule all the way in")
+	# A strip terminal: the ferrule shows going into the push-in opening.
+	var motor: Dictionary = _wire(wiring, "KM1:2", "M1:U1")
+	assert_almost_eq(float(_end_at(motor, "M1:U1")[1]), CabinetParts.FERRULE, 0.001)
+
+
+func test_labels_sit_on_the_plate_clear_of_the_ducts() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(14)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var across: Array[Rect2] = []
+	for duct: Dictionary in layout.ducts:
+		if not duct["vertical"]:
+			across.append(duct["rect"])
+	for place: Dictionary in layout.places:
+		var labels: Array[Vector2] = []
+		if place["label_w"] > 0.0:
+			labels.append(place["label_at"])
+		if place.has("under_label_at"):
+			labels.append(place["under_label_at"])
+		for at: Vector2 in labels:
+			var r: Rect2 = Rect2(at - Vector2(8.0, 2.6), Vector2(16.0, 5.2))
+			for duct: Rect2 in across:
+				assert_false(duct.intersects(r), "-%s: the label keeps off the duct" % place["designation"])
+			var device: Rect2 = place["rect"]
+			if not device.encloses(r):
+				assert_true(absf(at.y - device.position.y) >= CabinetLayout.LABEL_OFF - 0.01 or absf(at.y - device.end.y) >= CabinetLayout.LABEL_OFF - 0.01 or place.has("under_rect"), "-%s: past the wire ends" % place["designation"])

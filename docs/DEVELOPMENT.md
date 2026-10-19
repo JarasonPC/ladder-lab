@@ -320,7 +320,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   DC - pole, a rectifier's - too), grey = main power circuit (L2/L3 and the terminals of main
   contacts, overload relay
   heaters, 3~ motors, fuses and breakers of 2-4 poles), green-yellow = PE; wires go into the
-  top of strip terminals, wires near each other share the nearest slot; every wire carries a
+  top of strip terminals, wires near each other share the nearest slot; a wire to a device
+  terminal goes into the face of the terminal's tier, past the screw (CabinetParts.wire_entry:
+  the outer tiers' top or bottom face, the step where an inner tier begins, a time relay's wire
+  slots, a VFD's terminal recesses; at the screw for a fuse holder's deep opening and for a
+  contactor's power outputs over its overload relay), wires sharing such a terminal side by
+  side; every wire end has an insulated ferrule collar (CabinetParts.COLLAR, yellow on control,
+  blue on power wires), its metal showing only going into a strip terminal (wire "pins");
+  device labels sit on the plate CabinetLayout.LABEL_OFF over (or under) their device, drawn
+  with the place under the wires (a contactor's on its front); every wire carries a
   yellow marker sleeve at each terminal end with its wire number printed along it (bottom to
   top; the supply conductor's name "L1", "N", "PE" on a net without a number;
   CabinetWiring._marks), CabinetParts.MARKER_FROM from the end and before the bend into the
