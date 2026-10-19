@@ -311,7 +311,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   one (SchematicDocument.move_strip_terminals relabels them, "5" -> "X2:5", a taken number
   becomes the next free one; a new strip gets a place right after the old one). The drawing
   zooms (CabinetView.zoom over fitting the width and the height, CabinetView.fit_height, centred
-  across: buttons, Ctrl+wheel over it; right or middle drag moves it); each switchboard is laid out
+  across: buttons, Ctrl+wheel over it; right or middle drag moves it; painted in layers,
+  CabinetView.Layer: plate/rails/ducts, each place, wires/glands/labels, selection, each painted
+  again only when what it shows changed, the layers scaled while the zoom changes and painted
+  sharp CabinetView.ZOOM_SETTLE after it; while simulating the places are only described again,
+  CabinetLayout.describe_again); each switchboard is laid out
   and wired on its own (CabinetLayout.build(doc, k, board), CabinetView.board). Edited in
   CabinetPanel beside the drawing (undoable, "Fill from the schematic" fills the opened
   switchboard), breakers, fuse holders and overload relays operated there while simulating.

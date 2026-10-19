@@ -610,3 +610,44 @@ func test_ctrl_wheel_zoom_keeps_the_point_under_the_mouse() -> void:
 	var now: Vector2 = view.get_global_transform() * (view.call("_origin") + on_plate * float(view.call("_k")))
 	assert_almost_eq(now.x, on_screen.x, 2.0, "the point under the mouse stays there")
 	assert_almost_eq(now.y, on_screen.y, 2.0)
+
+
+func test_switchboard_paints_again_only_what_changed() -> void:
+	var view: CabinetView = CabinetView.new()
+	view.document = ExampleCircuits.build(9)
+	view.simulating = true
+	view.size = Vector2(900.0, 600.0)
+	add_child_autofree(view)
+	await wait_process_frames(3)
+	var painted: Dictionary = view.get("_painted")
+	var before: Dictionary = painted.duplicate()
+	view.queue_redraw()
+	await wait_process_frames(2)
+	for layer: Variant in before:
+		assert_true(is_same(painted[layer], before[layer]), "nothing changed, nothing painted")
+	# Voltage on one contactor's terminals: only its place is painted again.
+	var layout: CabinetLayout = view.get("_layout")
+	var contactor: Dictionary = {}
+	for place: Dictionary in layout.places:
+		if contactor.is_empty() and place["kind"] == CabinetDevices.Kind.CONTACTOR:
+			contactor = place
+	var reach: Dictionary[String, int] = {}
+	for name: String in contactor["desc"]["terminals"]:
+		reach[contactor["desc"]["terminals"][name]] = StepResult.REACH_L1
+	view.reach = reach
+	before = painted.duplicate()
+	view.queue_redraw()
+	await wait_process_frames(2)
+	var again: int = 0
+	for layer: Variant in before:
+		if not is_same(painted[layer], before[layer]):
+			again += 1
+	assert_eq(again, 1, "the contactor alone")
+	# Zooming scales the painting until the zoom settles.
+	var layers: Node2D = view.get("_layers")
+	view.zoom = 2.0
+	await wait_process_frames(2)
+	assert_gt(layers.scale.x, 1.5, "scaled while zooming")
+	await wait_seconds(CabinetView.ZOOM_SETTLE + 0.1)
+	await wait_process_frames(2)
+	assert_eq(layers.scale, Vector2.ONE, "painted sharp at the new scale")

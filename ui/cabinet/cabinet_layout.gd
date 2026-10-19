@@ -133,6 +133,19 @@ func place_at(point: Vector2, under: Array = []) -> int:
 	return -1
 
 
+## Describes the device of [param place] again (its simulation state
+## changed); where it is stays as laid out.
+static func describe_again(doc: SchematicDocument, place: Dictionary) -> void:
+	if place["kind"] == STRIP or place["kind"] == MISSING_DEVICE:
+		return
+	var desc: Dictionary = CabinetDevices.describe(doc, place["designation"])
+	if place["kind"] == CabinetDevices.Kind.OVERLOAD:
+		desc["standalone"] = true
+	place["desc"] = desc
+	if place.has("under_designation"):
+		place["under_desc"] = CabinetDevices.describe(doc, place["under_designation"])
+
+
 ## Place of [param item], relative to the rail's centre line at x = 0.
 static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem, k: float) -> Dictionary:
 	var place: Dictionary = {"designation": item.designation, "label_w": 0.0}
