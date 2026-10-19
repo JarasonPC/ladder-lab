@@ -253,7 +253,8 @@ func _draw_path_numbers() -> void:
 		var rect: Rect2 = Rect2(center - box * 0.5, box)
 		_path_rects.append(Rect2(rect.position / G, rect.size / G))
 		draw_rect(rect, SchematicTheme.BACKGROUND)
-		draw_rect(rect, SchematicTheme.PATH_TEXT, false, 1.0)
+		# One screen pixel at any zoom: a 1.0 wide frame loses its edges below zoom 1.
+		draw_rect(rect, SchematicTheme.PATH_TEXT, false, -1.0)
 		var text: String = str(i + 1)
 		var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 		draw_string(font, center + Vector2(-w * 0.5, font.get_ascent(size) * 0.5 - 1.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SchematicTheme.PATH_TEXT)

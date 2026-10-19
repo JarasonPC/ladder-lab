@@ -7,6 +7,9 @@ extends SchematicSymbol
 ## drawn in the power circuit: each conductor bent into the thermal mark.
 
 const BOX := Rect2(-16, 14, 32, 32)
+## Housing of the three heaters, low enough to leave the terminal numbers
+## above and below it clear.
+const HEATER_BOX := Rect2(-14, 15, 2 * SymbolGeometry.POLE_SPACING * G + 28, 30)
 
 
 func is_interactive() -> bool:
@@ -30,7 +33,7 @@ func _draw_shape(color: Color, width: float) -> void:
 
 ## Three heaters inside one box spanning the poles.
 func _draw_heaters(relay: OverloadRelay, color: Color, width: float) -> void:
-	var box: Rect2 = Rect2(-14, 12, 2 * SymbolGeometry.POLE_SPACING * G + 28, 36)
+	var box: Rect2 = HEATER_BOX
 	if relay.tripped:
 		aa_rect(box, Color(SchematicTheme.WARNING, 0.45))
 	elif relay.is_heating():
@@ -53,8 +56,10 @@ func _draw_labels() -> void:
 	var relay: OverloadRelay = component as OverloadRelay
 	var anchor: Vector2 = Vector2(-1.1 * G, 1.5 * G)
 	if relay.poles == 3:
-		anchor = Vector2(-1.2 * G, 1.5 * G)
-		_draw_pole_labels()
+		# Further out when terminal 2 is on a terminal strip, clear of the
+		# strip's label.
+		anchor = Vector2(-1.4 * G if placement.strips.has(1) else -1.2 * G, 1.5 * G)
+		_draw_pole_labels(true)
 	draw_label(designation_text(), anchor, SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	if relay.poles == 3:
 		# The current setting, then how far it has heated up.

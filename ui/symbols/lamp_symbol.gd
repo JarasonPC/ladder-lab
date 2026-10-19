@@ -21,10 +21,24 @@ func _draw_shape(color: Color, width: float) -> void:
 
 func _draw_labels() -> void:
 	super()
-	var side: bool = is_side_label(_designation_anchor())
-	draw_rating(_designation_anchor(), 1 if side or (component as Lamp).purpose.is_empty() else 2)
 	var purpose: String = (component as Lamp).purpose
+	# Lines further on are written down the drawing beside or under the
+	# lamp, up it over the lamp.
+	var down: bool = is_side_label(_designation_anchor()) or _under()
+	draw_rating(_designation_anchor(), 1 if down or purpose.is_empty() else 2)
 	if not purpose.is_empty():
 		# Above the designation, as in the guide ("Chod" over "-H3").
-		var anchor: Vector2 = _designation_anchor()
-		draw_label(purpose, anchor, SchematicTheme.LABEL_SIZE - 1, SchematicTheme.PURPOSE_TEXT, -1 if is_side_label(anchor) else 1)
+		draw_label(purpose, _designation_anchor(), SchematicTheme.LABEL_SIZE - 1, SchematicTheme.PURPOSE_TEXT, -1 if down else 1)
+
+
+func _designation_anchor() -> Vector2:
+	# Under the lamp with a purpose: a line further down, so that the purpose
+	# fits between the lamp and the designation.
+	if _under() and not (component as Lamp).purpose.is_empty():
+		return Vector2(-2.2 * G, 1.5 * G)
+	return super()
+
+
+## True when the designation is written under the lamp.
+func _under() -> bool:
+	return SymbolGeometry.draw_transform(placement).basis_xform(Vector2.LEFT).y > 0.5

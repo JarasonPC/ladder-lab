@@ -73,13 +73,19 @@ func _draw_labels() -> void:
 	for i: int in names.size():
 		var cell: Vector2 = Vector2(SymbolGeometry.vfd_terminal_cell(i))
 		var y: float = 0.5 * G if cell.y == 0.0 else (SymbolGeometry.VFD_HEIGHT - 0.5) * G
+		if placement.rotation % 2 == 1:
+			# Turned, the names run across the leads: level with the
+			# terminal, between the lead and the box they would reach the box.
+			y = cell.y * G
 		draw_label(names[i], Vector2(cell.x * G + 0.3 * G, y), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-	_centered("3~ 50 Hz", POWER.position + Vector2(1.9 * G, 0.6 * G), 10)
+	# Turned upright, the mains text needs its width of room from the edge
+	# the supply leads come in at.
+	_centered("3~ 50 Hz", POWER.position + Vector2(1.9 * G, 0.6 * G if placement.rotation % 2 == 0 else 1.3 * G), 10)
 	_centered("3~ f", POWER.end - Vector2(1.5 * G, 0.6 * G), 10)
 	var state: String = "%.1f Hz" % absf(drive.frequency) if drive.output else ("STOP" if drive.powered else "f  0-%d Hz" % roundi(drive.max_frequency))
 	if drive.output and drive.frequency < 0.0:
 		state = "◀ " + state
-	_centered(state, WINDOW.get_center(), 11)
+	write_in(state, WINDOW, 11)
 	_centered("DO2", Vector2(SymbolGeometry.vfd_terminal_cell(Vfd.DO2C).x * G + 1.2 * G, CONTACT_Y - 0.9 * G), SchematicTheme.TERMINAL_SIZE)
 
 

@@ -23,10 +23,12 @@ func _draw_shape(color: Color, width: float) -> void:
 
 
 func _draw_labels() -> void:
-	super()
 	var sensor: TemperatureSensor = component as TemperatureSensor
 	var names: PackedStringArray = component.get_terminal_names()
-	draw_label(names[2], Vector2(SymbolGeometry.SENSOR_OUTPUT_CELL.x * G + 0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
+	draw_label(names[0], name_anchor(0, Vector2(0.35 * G, 0.4 * G)), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	draw_label(names[1], name_anchor(1, Vector2(0.35 * G, 2.6 * G)), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+	draw_label(names[2], name_anchor(2, Vector2(SymbolGeometry.SENSOR_OUTPUT_CELL.x * G + 0.35 * G, 0.4 * G)), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	_centered("θ", BOX.position + Vector2(0.75 * G, 0.4 * G), 12)
 	_centered("U", BOX.end - Vector2(0.75 * G, 0.4 * G), 11)
 	var anchor: Vector2 = _designation_anchor()
@@ -38,7 +40,8 @@ func _draw_labels() -> void:
 
 
 func _designation_anchor() -> Vector2:
-	return Vector2(-1.1 * G, 1.5 * G)
+	# Further out when M is on a terminal strip, clear of the strip's label.
+	return Vector2(-1.4 * G if placement.strips.has(1) else -1.1 * G, 1.5 * G)
 
 
 func is_interactive() -> bool:

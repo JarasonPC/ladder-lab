@@ -10,8 +10,14 @@ func _draw_shape(_color: Color, _width: float) -> void:
 	var line: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
 	aa_circle(Vector2.ZERO, RADIUS, SchematicTheme.BACKGROUND)
 	aa_arc(Vector2.ZERO, RADIUS, 0.0, TAU, 20, line, 1.6)
-	var d: float = RADIUS * 1.25
-	aa_line(Vector2(-d, d), Vector2(d, -d), line, 1.6)
+	var d: Vector2 = slash(placement)
+	aa_line(-d, d, line, 1.6)
+
+
+## Half the slash of a strip terminal's mark in local pixels of a symbol
+## placed by [param p]: always "/" on the drawing, however it is turned.
+static func slash(p: Placement) -> Vector2:
+	return SymbolGeometry.draw_transform(p).basis_xform_inv(Vector2(RADIUS, -RADIUS) * 1.25)
 
 
 func _draw_labels() -> void:

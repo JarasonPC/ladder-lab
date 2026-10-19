@@ -817,8 +817,9 @@ static func plc_start_stop() -> SchematicDocument:
 	doc.add(Plc.new("A1", plc_start_stop_program()), Vector2i(px, 17))
 	doc.add(Coil.new("KM1"), Vector2i(px + 2, 25))
 	doc.add(_lamp("H2", "Delayed"), Vector2i(px + 7, 25))
-	doc.add(Contact.new("KM1", NO, 1), Vector2i(px + 22, 20))
-	doc.add(_lamp("H1", "Running"), Vector2i(px + 22, 25))
+	# A cell right of the PLC's box: its designation clears the box.
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(px + 23, 20))
+	doc.add(_lamp("H1", "Running"), Vector2i(px + 23, 25))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(16, n_row))
 
 	doc.connect_terminals("L1.2", "FA2:1", _c([Vector2i(19, 1)]))
@@ -835,9 +836,9 @@ static func plc_start_stop() -> SchematicDocument:
 	doc.connect_terminals("A1:Q2.2", "H2:X1")
 	doc.connect_terminals("KM1:A2", "N", _c([Vector2i(px + 2, n_row)]))
 	doc.connect_terminals("H2:X2", "N", _c([Vector2i(px + 7, n_row)]))
-	doc.connect_terminals("FA2:2", "KM1:13", _c([Vector2i(19, 6), Vector2i(px + 22, 6)]))
+	doc.connect_terminals("FA2:2", "KM1:13", _c([Vector2i(19, 6), Vector2i(px + 23, 6)]))
 	doc.connect_terminals("KM1:14", "H1:X1")
-	doc.connect_terminals("H1:X2", "N", _c([Vector2i(px + 22, n_row)]))
+	doc.connect_terminals("H1:X2", "N", _c([Vector2i(px + 23, n_row)]))
 	return doc
 
 
