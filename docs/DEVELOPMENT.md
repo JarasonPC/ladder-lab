@@ -485,7 +485,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   slips s and 2 - s, zero sequence 1/(r2 + j x); calibrated to In at rated slip and cos φ and
   Ia at standstill; floating terminals and star points solved by nodal analysis. Torque
   (positive minus negative sequence rotor power) against a fan-like load (25 % at standstill,
-  rated at rated speed, x OVERLOAD_FACTOR when overloaded) and inertia from run_up_time gives
+  ThreePhaseMotor.load_level times rated at rated speed, set in the properties as "load" in % of
+  the rated torque, saved; at least OVERLOAD_FACTOR when overloaded; the symbol shows the torque
+  in N·m while simulating, ThreePhaseMotor.torque_nm from rated_torque = 9550 P / n) and inertia from run_up_time gives
   ThreePhaseMotor.rotor_speed (signed, fraction of the fastest synchronous speed; shaft =
   |speed| / rated speed of the step). REALISTIC: runs up in steps of at most MOTOR_STEP while
   not settled; IDEAL: snap_speed() jumps to the speed where torque meets load. Rating plate

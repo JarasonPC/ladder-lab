@@ -423,3 +423,27 @@ func test_motor_of_small_rated_slip_runs_up_in_star() -> void:
 	assert_eq(m.state, ST.STAR)
 	assert_gt(m.rotor_speed, 0.9, "runs up in star")
 	assert_lt(m.max_line_current(), m.rated_current, "and draws less than in delta")
+
+
+func test_load_setting_and_torque_in_newton_metres() -> void:
+	var doc: SchematicDocument = _motor_on(K.STANDARD, {"U1": "L1", "V1": "L2", "W1": "L3"})
+	var m: ThreePhaseMotor = _motor(doc)
+	m.rated_power = 4.0
+	m.rated_speed = 1440.0
+	assert_almost_eq(m.rated_torque(), 9549.3 * 4.0 / 1440.0, 0.05, "9550 P / n")
+	var sim: Simulator = _sim(doc)
+	sim.step()
+	assert_almost_eq(m.torque, 1.0, 0.02, "rated load at rated speed")
+	assert_almost_eq(m.torque_nm(), m.rated_torque(), 0.5)
+	var loaded: float = m.rpm()
+	m.load_level = 0.5
+	sim.step()
+	assert_gt(m.rpm(), loaded, "half the load: less slip")
+	assert_almost_eq(m.torque, 0.5, 0.02)
+	# Saved with the motor.
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq((copy.circuit.get_component("M1") as ThreePhaseMotor).load_level, 0.5)
+	var data: Dictionary = DocumentSerializer.to_dict(doc)
+	for c: Dictionary in data["components"]:
+		c.erase("load")
+	assert_eq((DocumentSerializer.from_dict(data).circuit.get_component("M1") as ThreePhaseMotor).load_level, 1.0, "older files: rated load")

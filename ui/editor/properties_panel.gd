@@ -150,6 +150,8 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Rated speed (min⁻¹)"), "rated_speed", 100.0, 2990.0, 5.0)
 			_number(tr("Power factor cos φ"), "power_factor", 0.3, 0.97, 0.01)
 			_number(tr("Starting current Ia / In"), "start_ratio", DocumentSerializer.MIN_START_RATIO, DocumentSerializer.MAX_START_RATIO, 0.1)
+			_number(tr("Load (% of rated torque)"), "load", 0.0, DocumentSerializer.MAX_LOAD, 5.0)
+			_note(tr("Rated torque %s N·m. The load needs a quarter of it at standstill, the rest grows with the square of the speed (fan, pump).") % String.num(snappedf((component as ThreePhaseMotor).rated_torque(), 0.1)), "MutedLabel")
 			_number(tr("Run-up time (s)"), "run_up_time", 0.0, 600.0, 0.1)
 			_number(tr("Run-down time (s)"), "coast_time", 0.0, 3600.0, 0.1)
 			_number(tr("DC braking time (s)"), "brake_time", 0.0, 3600.0, 0.1)

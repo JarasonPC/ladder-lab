@@ -736,3 +736,36 @@ func test_rotate_selection_turns_several_parts_together() -> void:
 	assert_eq(doc.wire_points(0).size(), 2, "the wire between them stays straight")
 	editor.undo()
 	assert_eq(editor.document().terminal_cell("H2:X1"), Vector2i(5, 9))
+
+
+func test_contact_renamed_to_an_overload_relay_on_another_page() -> void:
+	var doc: SchematicDocument = editor.document()
+	doc.pages = PackedStringArray(["Power", "Control"])
+	doc.page = 0
+	doc.add(OverloadRelay.new("F1", OverloadRelay.DEFAULT_TRIP_DELAY, 3), Vector2i(10, 3))
+	doc.page = 1
+	var contact: Contact = Contact.new("KM1", SwitchingElement.ContactType.NC, 1)
+	doc.add(contact, Vector2i(14, 3))
+	doc.page = 1
+	view.page = 1
+	view.load_document(doc, false)
+	assert_not_null(view.get_symbol(contact.id), "page 2 shown")
+	# Renamed on the drawing.
+	editor.set("_inline_target", {"component": contact.id, "kind": "designation"})
+	editor.call("_commit_inline", "-F1")
+	var renamed: CircuitComponent = editor.document().circuit.get_component("F1:95-96")
+	assert_true(renamed is OverloadContact, "the relay on page 1 makes it its 95-96")
+	var symbol: SchematicSymbol = view.get_symbol("F1:95-96")
+	assert_not_null(symbol, "drawn")
+	if symbol != null:
+		assert_true(symbol.component is OverloadContact, "drawn as the overload contact")
+		assert_true(symbol.is_interactive(), "linked to its relay")
+	# The relay renamed on its page: the contact on the other page follows.
+	editor.document().page = 0
+	view.page = 0
+	view.load_document(editor.document(), false)
+	var relay: OverloadRelay = editor.document().circuit.get_overload_relay("F1")
+	var relay_data: Dictionary = DocumentSerializer.component_to_dict(relay)
+	relay_data["designation"] = "F7"
+	assert_eq(editor.apply_properties(relay.id, relay_data), "")
+	assert_true(editor.document().circuit.get_component("F7:95-96") is OverloadContact, "follows the renamed relay")

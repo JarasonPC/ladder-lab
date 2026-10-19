@@ -60,7 +60,9 @@ const FORMAT: String = "ladder-lab"
 ## 28: type names, cross-sections and lengths set on cables of the workspace
 ## ("cable_settings": "+RA1|+ST1" -> {"type", "section", "length"}; missing
 ## before: none).
-const VERSION: int = 28
+## 29: load of three-phase motors ("load", % of the rated torque; missing
+## before: 100).
+const VERSION: int = 29
 
 
 ## Writes [param doc] to [param path]. Returns OK or the file error. The

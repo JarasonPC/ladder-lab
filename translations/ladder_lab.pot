@@ -3289,3 +3289,9 @@ msgstr ""
 
 msgid "More than the %s %% usually kept to: a larger cross-section is needed."
 msgstr ""
+
+msgid "Load (% of rated torque)"
+msgstr ""
+
+msgid "Rated torque %s N·m. The load needs a quarter of it at standstill, the rest grows with the square of the speed (fan, pump)."
+msgstr ""

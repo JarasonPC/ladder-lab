@@ -17,6 +17,8 @@ const MIN_AMPERES: float = 0.1
 const MAX_AMPERES: float = 10000.0
 const MIN_START_RATIO: float = 2.0
 const MAX_START_RATIO: float = 12.0
+## Most load a 3~ motor can be given, % of its rated torque.
+const MAX_LOAD: float = 200.0
 ## Limits of the times t1 and t2 of time relays (seconds).
 const SHORTEST_DELAY: float = 0.1
 const LONGEST_DELAY: float = 3600.0
@@ -311,6 +313,7 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["rated_power"] = motor.rated_power
 		d["rated_speed"] = motor.rated_speed
 		d["power_factor"] = motor.power_factor
+		d["load"] = motor.load_level * 100.0
 		if motor.show_plate:
 			d["show_plate"] = true
 	elif c is SwitchingElement:
@@ -513,6 +516,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			motor3.rated_speed = clampf(_number_or(d, "rated_speed", ThreePhaseMotor.DEFAULT_RATED_SPEED), 100.0, 2990.0)
 			motor3.power_factor = clampf(_number_or(d, "power_factor", MotorModel.DEFAULT_POWER_FACTOR), 0.3, 0.97)
 			motor3.show_plate = _bool(d, "show_plate", false)
+			motor3.load_level = clampf(_number_or(d, "load", 100.0), 0.0, MAX_LOAD) / 100.0
 			return motor3
 		"overload_contact":
 			return OverloadContact.new(designation, contact)

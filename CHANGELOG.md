@@ -6,6 +6,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Simulation
+- 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while
+  simulating
+
 ### Panels
 - PLC ladder diagram: the chosen contact or coil is shown faintly where a click puts it
 - PLC ladder diagram: wires are drawn as in the schematic: click where the wire starts, click
