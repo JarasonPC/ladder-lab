@@ -12,6 +12,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   on two lines; a strip label no longer runs onto a terminal of its own part (a motor's PE)
 - In the switchboard the wires go into the middle of their strip terminals at every zoom;
   at some zoom levels they drifted off the terminals along the strip
+- In the switchboard the wires of a rotary cam switch of two or more poles are grey like the
+  rest of the main power circuit; L1 fed through one was red, like a control circuit's phase
 
 ## 0.4.5 – 2026-10-19
 

@@ -365,8 +365,8 @@ static func nets(circuit: Circuit) -> Dictionary[String, int]:
 ## joined to the N supply or a - pole (of a supply point or a rectifier)
 ## are NEUTRAL, nets joined to PE alone PE; nets on the terminals of the
 ## power circuit (supplies L2 and L3, main contacts, overload relay heaters,
-## 3~ motors, fuses and breakers of two or more poles) are POWER, all
-## others CONTROL.
+## 3~ motors, fuses, breakers and rotary cam switches of two or more poles)
+## are POWER, all others CONTROL.
 static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictionary[int, Conductor]:
 	var neutral: Dictionary[int, bool] = {}
 	var pe: Dictionary[int, bool] = {}
@@ -388,7 +388,7 @@ static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictio
 		var count: int = 0
 		if c is ThreePhaseMotor:
 			count = (c as ThreePhaseMotor).winding_terminal_count()
-		elif c is OverloadRelay or c is MainContacts or (c is PoleDevice and (c as PoleDevice).poles > 1):
+		elif c is OverloadRelay or c is MainContacts or (c is PoleDevice and (c as PoleDevice).poles > 1) or (c is CamSwitch and (c as CamSwitch).poles > 1):
 			count = keys.size()
 		elif c is Vfd:
 			for t: int in [Vfd.L1, Vfd.L1 + 1, Vfd.L1 + 2, Vfd.U, Vfd.U + 1, Vfd.U + 2]:
