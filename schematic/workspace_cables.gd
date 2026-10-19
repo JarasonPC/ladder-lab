@@ -69,7 +69,9 @@ const TYPES: Dictionary[Use, Array] = {
 static var naming: Naming = Naming.CZECH
 
 ## A cable: {"key" (its two ends, "+RA1|+ST1"), "name" ("W1"), "a", "b" (the
-## ends: "+RA1" a switchboard or station, "-M1" a part in the field), "cores":
+## ends: "+RA1" a switchboard or station, "-M1" a part in the field), "cores"
+## (one for each net, one for each strip terminal on the lead of a part at
+## the other end where a net has two or more of them, see [method _split]):
 ## [{"net", "conductor" ([enum CabinetDevices.Conductor]), "a", "b" (what the
 ## core lands on at each end, e.g. "X2:3", "SB1:13"), "number" (wire number,
 ## may be empty)}], the PE core last, "use" ([enum Use], see [method use]),
@@ -96,6 +98,8 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 			_land(ends, net[keys[i]], place, "%s:%s" % [c.designation, names[i]])
 	var strips: Dictionary = CabinetDevices.strips(doc)
 	var strip_labels: Dictionary[String, bool] = {}
+	# Strip terminal label -> the terminal keys it joins.
+	var strip_keys: Dictionary[String, PackedStringArray] = {}
 	for strip: String in strips:
 		var b: int = Workspace.switchboard_of(doc, CabinetItem.Kind.STRIP, strip)
 		if b < 0:
@@ -104,6 +108,7 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 		for t: Dictionary in strips[strip]:
 			var label: String = "%s:%s" % [strip, t["label"]]
 			strip_labels[label] = true
+			strip_keys[label] = t["keys"]
 			for key: String in t["keys"]:
 				if not net.has(key):
 					continue
@@ -157,7 +162,8 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 			var key: String = a + "|" + b
 			if not found.has(key):
 				found[key] = {"key": key, "name": "", "a": a, "b": b, "cores": []}
-			found[key]["cores"].append({"net": n, "conductor": conductor.get(n, CabinetDevices.Conductor.CONTROL), "a": _labels(ends[n][a]), "b": _labels(ends[n][b]), "number": numbers.get(n, "")})
+			for core: Array in _split(ends[n][a], ends[n][b], strip_keys):
+				found[key]["cores"].append({"net": n, "conductor": conductor.get(n, CabinetDevices.Conductor.CONTROL), "a": _labels(core[0]), "b": _labels(core[1]), "number": numbers.get(n, "")})
 	var result: Array[Dictionary] = []
 	for key: String in found:
 		var cable: Dictionary = found[key]
@@ -489,6 +495,26 @@ static func _labels(list: Array) -> PackedStringArray:
 	for label: Variant in list:
 		result.append(str(label))
 	return result
+
+
+## The cores of one net between two places that land on [param a] and
+## [param b] there: [what a core lands on at a, at b] for each. Strip
+## terminals ([param strip_keys]: label -> terminal keys) on the leads of
+## parts at the other end each have a core of their own to that part, two
+## or more of them; else one core lands on them all.
+static func _split(a: Array, b: Array, strip_keys: Dictionary[String, PackedStringArray]) -> Array:
+	for side: int in 2:
+		var strips: Array = a if side == 0 else b
+		var parts: Array = b if side == 0 else a
+		var leads: Array = []
+		for label: Variant in strips:
+			for key: String in strip_keys.get(str(label), PackedStringArray()):
+				if parts.has(key):
+					leads.append([[label], [key]] if side == 0 else [[key], [label]])
+					break
+		if leads.size() >= 2:
+			return leads
+	return [[a, b]]
 
 
 ## Wire number of each net that has one.
