@@ -3295,3 +3295,12 @@ msgstr ""
 
 msgid "Rated torque %s N·m. The load needs a quarter of it at standstill, the rest grows with the square of the speed (fan, pump)."
 msgstr ""
+
+msgid "Show as a tile"
+msgstr ""
+
+msgid "Show as the control station"
+msgstr ""
+
+msgid "Shown as the station itself, its buttons and switches work on the workspace while simulating; drag its corner to size it"
+msgstr ""

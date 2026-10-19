@@ -164,7 +164,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   WorkspaceCanvas draws on schematic paper (SchematicTheme, follows White schematic paper)
   solid tiles (WorkspaceTile: switchboard teal, station blue, field grey, white signs; also the
   tree's icons): the place's tile with "+RA1", its title and what it holds, a part's tile with
-  "-M1"; wheel zooms at the mouse, right / middle drag pans, a right click without a drag asks
+  "-M1"; a station can be shown as its face instead (place menu in Edit mode, ControlBox.face_scale,
+  saved as "face", SchematicDocument.set_station_face, undoable): a ControlBoxView over the canvas at
+  its place and scale (WorkspaceCanvas._place_faces; Workspace.place_size gives its size to cables,
+  groups and free spots), operated there while simulating (button_held / switch_toggled; a click
+  on its housing does not open it then), resized in Edit mode by the handle at its corner
+  (ControlBox.MIN_FACE-MAX_FACE); wheel zooms at the mouse, right / middle drag pans, a right click without a drag asks
   for a menu (Open, Open in a new window, Rename…, Delete; on parts Show in the schematic, Take
   out of the group; on empty paper Add … here), left drag moves (Edit mode, one undoable edit
   at the drop, SchematicEditor.edit_workspace), a click on a switchboard or station opens it:
