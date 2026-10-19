@@ -245,6 +245,10 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	var data: Dictionary = template.duplicate()
 	var conductor: String = str(data.get("conductor", ""))
 	data["designation"] = ("L1" if conductor == "L" else conductor) if not conductor.is_empty() else "X1"
+	# The rating a new part gets (coils show its AC / DC mark).
+	var ratings: PackedStringArray = VoltageRating.offered(data["type"]) if data.get("family", "") != "compact" else PackedStringArray()
+	if not ratings.is_empty() and not data.has("rating"):
+		data["rating"] = ratings[0]
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	var supply: bool = component is PowerSupply
 	var upright: bool = component is ThreePhaseMotor or component.get_terminal_names().size() > 3

@@ -16,8 +16,7 @@ const DISPLAY := Rect2(7.0 * G, 2.0 * G, 6.0 * G, 1.2 * G)
 ## Height of the output contacts.
 const CONTACT_Y: float = 4.3 * G
 ## The palette's smaller PLC: four terminals on top, two outputs below.
-const PREVIEW_BOX := Rect2(-G, G, 8.0 * G, (SymbolGeometry.PLC_HEIGHT - 2) * G)
-const PREVIEW_DISPLAY := Rect2(G, 2.0 * G, 4.0 * G, 1.2 * G)
+const PREVIEW_BOX := Rect2(0.0, 0.0, 7.0 * G, 4.0 * G)
 
 
 func _draw_shape(color: Color, width: float) -> void:
@@ -83,32 +82,19 @@ func _draw_output_contact(left: float, right: float, travel: float, color: Color
 	draw_blade(pivot, tip, color, width)
 
 
-## The palette shows a smaller PLC: the whole module is too wide to read on
-## a tile.
+## The palette shows a box saying what the PLC is: the whole module is too
+## wide to read on a tile.
 func preview_rect() -> Rect2:
-	return Rect2(PREVIEW_BOX.position.x, 0.0, PREVIEW_BOX.size.x, SymbolGeometry.PLC_HEIGHT * G)
+	return PREVIEW_BOX
 
 
-## A box with four terminals on top and the display; below two relay
-## outputs, or four transistor outputs with their lights (compact CPU).
+## A box with "PLC" over "relay" (logic module with relay outputs) or "CPU"
+## (compact PLC).
 func _draw_preview(color: Color, width: float) -> void:
-	var bottom: float = SymbolGeometry.PLC_HEIGHT * G
-	for i: int in 4:
-		var x: float = i * SymbolGeometry.POLE_SPACING * G
-		aa_line(Vector2(x, 0.0), Vector2(x, PREVIEW_BOX.position.y), color, width)
 	aa_rect(PREVIEW_BOX, color, false, width)
-	aa_rect(PREVIEW_DISPLAY, color, false, 1.2)
-	if component is CompactPlc:
-		for i: int in 4:
-			var x: float = i * SymbolGeometry.POLE_SPACING * G
-			aa_line(Vector2(x, bottom), Vector2(x, PREVIEW_BOX.end.y), color, width)
-			aa_rect(Rect2(x - 4.0, PREVIEW_BOX.end.y - 11.0, 8.0, 6.0), color, false, 1.0)
-		return
-	for left: float in [0.0, 4.0 * G]:
-		var right: float = left + SymbolGeometry.POLE_SPACING * G
-		aa_line(Vector2(left, bottom), Vector2(left, CONTACT_Y), color, width)
-		aa_line(Vector2(right, bottom), Vector2(right, CONTACT_Y), color, width)
-		_draw_output_contact(left, right, 0.0, color, width)
+	var c: Vector2 = PREVIEW_BOX.get_center()
+	draw_preview_text("PLC", c + Vector2(0.0, -15.0), 32)
+	draw_preview_text("CPU" if component is CompactPlc else tr("relay"), c + Vector2(0.0, 17.0), 30)
 
 
 ## Box of expansion module [param m] (-1: the PLC itself; local pixels).

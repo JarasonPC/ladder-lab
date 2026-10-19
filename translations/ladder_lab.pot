@@ -3228,3 +3228,12 @@ msgstr ""
 
 msgid "A double-click on a .ladder file in Explorer opens it in this LadderLab (registered for your Windows user only); turning it off removes the registration"
 msgstr ""
+
+msgid "Dahl."
+msgstr ""
+
+msgid "speed"
+msgstr ""
+
+msgid "relay"
+msgstr ""

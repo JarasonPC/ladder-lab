@@ -18,7 +18,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   magnetic releases. Fuses can be fuse holders (holder = true: can be opened by clicking). No dot
   grid by default; while placing, guide lines run through the new part's terminals.
   Voltage colour goes on the wires up to the terminal squares only; symbols stay in the line
-  colour, except coils.
+  colour, except coils. A coil (not a time relay) rated for AC or DC carries a band across the
+  end of its box with "~" or "⎓" (top of the box lying horizontally).
   Symbols draw shapes through SchematicSymbol.aa_* helpers (antialiased with a one-pixel edge at
   any zoom; the view redraws them when the zoom changes); lying horizontally, switching symbols
   are drawn mirrored along their axis so the blade pivots on the left. Every moving part (blades,
@@ -58,9 +59,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   are SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with
   oversampling_with_scale, so text stays sharp); the
   palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; symbols too wide
-  for a tile, PLCs and the inverter, draw a smaller version there, SchematicSymbol.preview_rect;
-  3~ motors there are a circle with "M 3~" and their winding marks beside it: Y over Δ,
-  Δ over YY, a Y per separate winding; the 1~ motor has its "M"); the timing panel is resized by its top edge and the grip before the
+  for a tile draw a simpler version there, SchematicSymbol.preview_rect: the inverter its power
+  part, PLCs a box saying "PLC relay" / "PLC CPU", 3~ motors a circle with "M 3~" and beside it
+  Y over Δ (star/delta) or the number of speeds over "Dahl." / "speed"; the 1~ motor has its
+  "M"; tiles show the rating a new part gets); the timing panel is resized by its top edge and the grip before the
   event log, its chart and event log roll in and out by a click on their titles; widths, heights and zooms are saved in the settings
 - The program starts with as little as possible: an empty schematic of one page (no example
   loaded; the example list reads "Example circuits…") and the palette; the properties panel

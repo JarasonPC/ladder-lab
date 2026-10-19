@@ -86,47 +86,47 @@ func _draw_shape(color: Color, width: float) -> void:
 		aa_polygon(PackedVector2Array([tip + forward * 7.0, tip - side * 4.5, tip + side * 4.5]), SchematicTheme.LINE)
 
 
-## Middle of the column of winding marks right of the circle in the palette.
-const PREVIEW_MARKS_X: float = CENTER.x + RADIUS + 18.0
+## Middle of the column right of the circle in the palette (winding marks
+## or what the motor is) and its width.
+const PREVIEW_MARKS_X: float = CENTER.x + RADIUS + 22.0
+const PREVIEW_COLUMN: float = 44.0
 
 
-## The palette shows the circle with "M 3~" and, beside it, how its windings
-## are connected; the leads alone would not tell the kinds apart on a tile.
+## The palette shows the circle with "M 3~" and, beside it, what kind of
+## motor it is; the leads alone would not tell the kinds apart on a tile.
 func preview_rect() -> Rect2:
 	var circle: Rect2 = Rect2(CENTER - Vector2.ONE * RADIUS, Vector2.ONE * 2.0 * RADIUS)
 	if (component as ThreePhaseMotor).kind == ThreePhaseMotor.Kind.STANDARD:
 		return circle
-	return circle.expand(Vector2(PREVIEW_MARKS_X + 16.0, CENTER.y))
+	return circle.expand(Vector2(PREVIEW_MARKS_X + PREVIEW_COLUMN * 0.5, CENTER.y))
 
 
-## Circle with "M 3~"; right of it a column of winding marks, one row per
-## speed: star over delta (star/delta), delta over double star (Dahlander),
-## a star per winding (separate windings).
+## Circle with "M 3~"; right of it star over delta (star/delta), or the
+## number of speeds over "Dahl." (Dahlander) or "speed" (separate windings).
 func _draw_preview(motor: ThreePhaseMotor, color: Color, width: float) -> void:
 	aa_arc(CENTER, RADIUS, 0.0, TAU, 40, color, width)
-	var rows: Array[String] = []
+	var lines: PackedStringArray = PackedStringArray()
 	match motor.kind:
 		ThreePhaseMotor.Kind.STAR_DELTA:
-			rows = ["Y", "D"]
+			_draw_star_mark(Vector2(PREVIEW_MARKS_X, CENTER.y - 13.0), 10.0, color, width)
+			_draw_delta_mark(Vector2(PREVIEW_MARKS_X, CENTER.y + 13.0), 10.0, color, width)
 		ThreePhaseMotor.Kind.DAHLANDER:
-			rows = ["D", "YY"]
+			lines = ["2", tr("Dahl.")]
 		ThreePhaseMotor.Kind.TWO_WINDINGS:
-			rows = ["Y", "Y"]
+			lines = ["2", tr("speed")]
 		ThreePhaseMotor.Kind.THREE_WINDINGS:
-			rows = ["Y", "Y", "Y"]
-	var pitch: float = 2.0 * RADIUS / maxf(rows.size(), 1)
-	var r: float = minf(pitch * 0.4, 10.0)
-	for row: int in rows.size():
-		var y: float = CENTER.y - RADIUS + pitch * (row + 0.5)
-		var marks: String = rows[row]
-		for m: int in marks.length():
-			var x: float = PREVIEW_MARKS_X + (m - (marks.length() - 1) * 0.5) * 1.8 * r
-			if marks[m] == "Y":
-				_draw_star_mark(Vector2(x, y), r * (0.8 if marks.length() > 1 else 1.0), color, width)
-			else:
-				_draw_delta_mark(Vector2(x, y), r, color, width)
+			lines = ["3", tr("speed")]
 	draw_preview_text("M", CENTER + Vector2(0.0, -7.0), 24)
 	draw_preview_text("3~", CENTER + Vector2(0.0, 12.0), 17)
+	if not lines.is_empty():
+		draw_preview_text(lines[0], Vector2(PREVIEW_MARKS_X, CENTER.y - 10.0), 26)
+		# The word as large as the column takes.
+		var font: Font = AppTheme.schematic_font()
+		var size: int = 17
+		var w: float = font.get_string_size(lines[1], HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		if w > PREVIEW_COLUMN:
+			size = maxi(floori(size * PREVIEW_COLUMN / w), 8)
+		draw_preview_text(lines[1], Vector2(PREVIEW_MARKS_X, CENTER.y + 14.0), size)
 
 
 ## Star: three arms from the middle, two up and one down (centred on its height).

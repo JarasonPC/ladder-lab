@@ -7,8 +7,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
-- The motors in the palette are drawn as a simple circle with "M 3~" and their windings beside
-  it (star/delta, Dahlander, two or three windings), so they are told apart at a glance
+- Contactor and relay coils show what they are rated for: a band in the coil box with "~" for
+  AC or "⎓" for DC
+- The palette tells the parts apart at a glance: the motors are a circle with "M 3~" and
+  star/delta, Dahlander or the number of speeds beside it, the PLCs say "PLC relay" and
+  "PLC CPU"
 
 ## 0.4.1 – 2026-10-19
 

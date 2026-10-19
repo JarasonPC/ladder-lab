@@ -4,10 +4,14 @@ extends SchematicSymbol
 ## S00312 (on-delay, crossed) or S00311 (off-delay, filled); the other
 ## functions of a multifunction relay show their code (F1-F9) in that box, which
 ## is filled while the output R is on. A control input S enters from the top
-## right.
+## right. A band across the left end of a coil's box shows the supply it is
+## rated for: "~" AC, "⎓" DC (none without a rating, nor on time relays);
+## lying horizontally as in the palette, it is the top of the box.
 
 const BOX := Rect2(-14, 20, 28, 20)
 const TIMER_BOX := Rect2(-28, 20, 14, 20)
+## Band of the AC / DC mark at the left end of the box.
+const SUPPLY_BAND := Rect2(-14, 20, 8, 20)
 
 
 func _draw_shape(color: Color, width: float) -> void:
@@ -17,6 +21,8 @@ func _draw_shape(color: Color, width: float) -> void:
 	if coil.energized:
 		aa_rect(BOX, SchematicTheme.COIL_ON)
 	aa_rect(BOX, color, false, width)
+	if VoltageRating.TABLE.has(coil.rating) and not coil is TimerRelay:
+		_draw_supply_mark(VoltageRating.kind(coil.rating), color, width)
 	if coil is TimerRelay:
 		var timer: TimerRelay = coil as TimerRelay
 		if timer.output:
@@ -32,6 +38,27 @@ func _draw_shape(color: Color, width: float) -> void:
 			# Control input S: from its terminal down into the coil box.
 			var s: Vector2 = Vector2(G, 0)
 			aa_polyline(PackedVector2Array([s, Vector2(G, 10), Vector2(8, 10), Vector2(8, BOX.position.y)]), lead_color(2), lead_width(2))
+
+
+## The band and its mark: a sine wave for AC, a line over three dashes for
+## DC, both along the band.
+func _draw_supply_mark(kind: VoltageRating.Kind, color: Color, width: float) -> void:
+	var band: Rect2 = SUPPLY_BAND
+	aa_line(Vector2(band.end.x, band.position.y), band.end, color, width)
+	var mid: float = band.get_center().x
+	var top: float = band.position.y + 3.5
+	var length: float = band.size.y - 7.0
+	if kind == VoltageRating.Kind.DC:
+		aa_line(Vector2(mid - 1.5, top), Vector2(mid - 1.5, top + length), color, 1.5)
+		for i: int in 3:
+			var y: float = top + i * length * 0.4
+			aa_line(Vector2(mid + 1.8, y), Vector2(mid + 1.8, y + length * 0.2), color, 1.5)
+		return
+	var wave: PackedVector2Array = PackedVector2Array()
+	for i: int in 17:
+		var f: float = i / 16.0
+		wave.append(Vector2(mid - 2.2 * sin(f * TAU), top + f * length))
+	aa_polyline(wave, color, 1.5)
 
 
 func _draw_labels() -> void:
