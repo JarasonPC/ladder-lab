@@ -1,7 +1,7 @@
 class_name PartsSheet
 extends Node2D
 ## A sheet of the parts list for the export ([PartsList]): a table with the
-## designation, name and data of each device, headed by the place it sits
+## designation, quantity, name and data of each device, headed by the place it sits
 ## in; on A4 portrait ([method split] shares the rows out over the sheets).
 
 const G: float = float(SymbolGeometry.GRID)
@@ -13,8 +13,8 @@ const TEXT_SIZE: int = 12
 ## Smallest size a text too long for its cell shrinks to; beyond it, it is
 ## cut short with "…".
 const MIN_TEXT_SIZE: int = 9
-## Column edges, as parts of the width.
-const COLUMNS: Array[float] = [0.0, 0.16, 0.5, 1.0]
+## Column edges, as parts of the width: designation, quantity, name, data.
+const COLUMNS: Array[float] = [0.0, 0.2, 0.27, 0.52, 1.0]
 
 ## Rows of this sheet (see [method PartsList.rows]).
 var rows: Array = []
@@ -68,7 +68,7 @@ func _draw() -> void:
 	for part: float in COLUMNS:
 		x.append(SIZE.x * part)
 	var pad: float = 6.0
-	var titles: PackedStringArray = [tr("Designation"), tr("Name"), tr("Data")]
+	var titles: PackedStringArray = [tr("Designation"), tr("Qty"), tr("Name"), tr("Data")]
 	for c: int in titles.size():
 		draw_string(bold, Vector2(x[c] + pad, HEAD_H - 9.0), titles[c], HORIZONTAL_ALIGNMENT_LEFT, x[c + 1] - x[c] - 2.0 * pad, TEXT_SIZE, SchematicTheme.TEXT)
 	draw_line(Vector2(0.0, HEAD_H), Vector2(SIZE.x, HEAD_H), line, 1.5)
@@ -82,7 +82,7 @@ func _draw() -> void:
 			# A place heads the rows after it across the whole table.
 			_cell(bold, Vector2(pad, baseline), row["text"], SIZE.x - 2.0 * pad, SchematicTheme.DESIGNATION)
 		else:
-			var texts: Array = [row["designation"], row["name"], row["data"]]
+			var texts: Array = [row["designation"], str(row.get("quantity", 1)), row["name"], row["data"]]
 			for c: int in texts.size():
 				var color: Color = SchematicTheme.DESIGNATION if c == 0 else SchematicTheme.TEXT
 				_cell(font, Vector2(x[c] + pad, baseline), str(texts[c]), x[c + 1] - x[c] - 2.0 * pad, color)

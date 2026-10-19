@@ -3312,3 +3312,27 @@ msgstr ""
 
 msgid "%s currents"
 msgstr ""
+
+msgid "Qty"
+msgstr ""
+
+msgid "Cable gland"
+msgstr ""
+
+msgid "for Ø %s mm, none fits"
+msgstr ""
+
+msgid "%s, clamps Ø %s–%s mm"
+msgstr ""
+
+msgid "%d NO"
+msgstr ""
+
+msgid "%d NC"
+msgstr ""
+
+msgid "%d CO"
+msgstr ""
+
+msgid "aux. %s"
+msgstr ""

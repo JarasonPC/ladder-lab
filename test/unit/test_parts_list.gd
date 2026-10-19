@@ -52,10 +52,12 @@ func test_parts_by_place() -> void:
 	assert_true(texts[1].begins_with("-FA1|Circuit breaker|Circuit breaker C"), texts[1])
 	assert_eq(texts[2], "-KM1|Contactor|")
 	assert_eq(texts[3], "-X2|Terminal strip|1 terminal")
-	assert_eq(texts[4], "+ST1  Gate")
-	assert_eq(texts[5], "-SB1|Push button|Green, „Start“")
-	assert_eq(texts[6], "In the field")
-	assert_eq(texts[7], "-M1|Motor|4 kW, 8.2 A")
+	assert_true(texts[4].begins_with("W1|Cable gland|PG"), "a gland for the cable to the station: " + texts[4])
+	assert_eq(texts[5], "+ST1  Gate")
+	assert_eq(texts[6], "-SB1|Push button|Green, „Start“, 1 NO")
+	assert_true(texts[7].begins_with("W1|Cable gland|"))
+	assert_eq(texts[8], "In the field")
+	assert_eq(texts[9], "-M1|Motor|4 kW, 8.2 A")
 	assert_true(texts.has("Cables"))
 	for text: String in texts:
 		assert_false(text.contains("not in the schematic"), text)
@@ -67,7 +69,7 @@ func test_unplaced_parts() -> void:
 	var texts: PackedStringArray = _texts(PartsList.new().rows(doc))
 	var at: int = texts.find("Not placed")
 	assert_true(at >= 0)
-	assert_eq(texts[at + 1], "-SB1|Push button|")
+	assert_eq(texts[at + 1], "-SB1|Push button|1 NO")
 
 
 func test_rows_shared_out_over_sheets() -> void:
@@ -127,3 +129,50 @@ func test_export_holds_what_is_ticked() -> void:
 	for spec: Dictionary in renderer.sheets(doc, PackedInt32Array([0])):
 		kinds.append(spec["kind"])
 	assert_eq(kinds, PackedStringArray(["workspace", "parts"]), "nothing for what the schematic does not have")
+
+
+func test_identical_parts_are_one_row_with_their_count() -> void:
+	var doc: SchematicDocument = _doc()
+	for name: String in ["KM2", "KM3", "KA5"]:
+		doc.add(Coil.new(name), Vector2i(40, 4 * doc.circuit.get_components().size()))
+		doc.add_cabinet_item(0, 0, CabinetItem.Kind.DEVICE, name)
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(50, 4))
+	doc.add(Contact.new("KM2", NO, 1), Vector2i(50, 8))
+	doc.add(Contact.new("KM3", NO, 1), Vector2i(50, 12))
+	var rows: Array[Dictionary] = PartsList.new().rows(doc)
+	var contactors: Dictionary = {}
+	for row: Dictionary in rows:
+		if row.get("name", "") == "Contactor":
+			contactors[row["designation"]] = row
+	assert_true(contactors.has("-KM1…-KM3"), "KM1 to KM3 alike: %s" % [contactors.keys()])
+	assert_eq(contactors["-KM1…-KM3"]["quantity"], 3)
+	assert_eq(contactors["-KM1…-KM3"]["data"], "aux. 1 NO")
+	assert_eq(PartsList.designations(PackedStringArray(["-KM1", "-KM2", "-KA5", "-KA6", "-KM9"])), "-KM1, -KM2, -KA5, -KA6, -KM9")
+	assert_eq(PartsList.designations(PackedStringArray(["-KM1", "-KM2", "-KM3", "-KM4"])), "-KM1…-KM4")
+
+
+func test_contact_blocks_of_a_button() -> void:
+	var doc: SchematicDocument = _doc()
+	doc.add(Contact.new("SB1", SwitchingElement.ContactType.NC, 2), Vector2i(30, 12))
+	assert_eq(PartsList.new().contacts_of(doc, "SB1"), "1 NO + 1 NC")
+
+
+func test_gland_sizes_follow_the_cable() -> void:
+	var power: Array = []
+	for i: int in 4:
+		power.append({"conductor": CabinetDevices.Conductor.POWER if i < 3 else CabinetDevices.Conductor.PE})
+	var motor: Dictionary = {"cores": power, "use": WorkspaceCables.Use.MOTOR, "section": 2.5}
+	# H07RN-F 4G2,5 is about 13.5 mm across.
+	assert_almost_eq(WorkspaceCables.outer_diameter(motor), 13.5, 1.0)
+	var control: Array = []
+	for i: int in 7:
+		control.append({"conductor": CabinetDevices.Conductor.CONTROL})
+	var station: Dictionary = {"cores": control, "use": WorkspaceCables.Use.CONTROL, "section": 1.0}
+	# JYTY-O 7x1 is about 9 mm across.
+	assert_almost_eq(WorkspaceCables.outer_diameter(station), 9.0, 1.0)
+	WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED
+	assert_eq(WorkspaceCables.gland(motor)["size"], "M25", "just over the 13 mm of an M20")
+	assert_eq(WorkspaceCables.gland(station)["size"], "M16")
+	WorkspaceCables.naming = WorkspaceCables.Naming.CZECH
+	assert_eq(WorkspaceCables.gland(motor)["size"], "PG16")
+	assert_eq(WorkspaceCables.gland(station)["size"], "PG11")
