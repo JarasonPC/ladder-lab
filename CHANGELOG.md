@@ -8,6 +8,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ### Schematic editor
 - Phase supplies placed one after the other become L1, L2, L3 (not L1, L1, L1)
+- Terminal marks are written on one line, "X2-6" (and "X1-6"), instead of the strip over the
+  number, where there is room; they can be typed that way too
 
 ### Simulation
 - 3~ motors have a load setting (% of the rated torque) and show their torque in N·m while

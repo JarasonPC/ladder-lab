@@ -126,8 +126,35 @@ func rebuild() -> void:
 			(symbol as PageConnectorSymbol).reference = document.connector_reference(c.id)
 		add_child(symbol)
 		_symbols[c.id] = symbol
+	_find_nearby_terminals()
 	_update_visuals()
 	rebuilt.emit()
+
+
+## Tells each symbol with strip terminals where the terminals of other parts
+## within three cells of its own are, so its strip labels keep off them.
+func _find_nearby_terminals() -> void:
+	var cells: Dictionary[String, PackedVector2Array] = {}
+	for id: String in _symbols:
+		var own: PackedVector2Array = PackedVector2Array()
+		for key: String in document.circuit.get_component(id).get_terminal_keys():
+			own.append(Vector2(document.terminal_cell(key)))
+		cells[id] = own
+	for id: String in _symbols:
+		var symbol: SchematicSymbol = _symbols[id]
+		if symbol.placement.strips.is_empty():
+			continue
+		var origin: Vector2 = Vector2(symbol.placement.cell)
+		var near: PackedVector2Array = PackedVector2Array()
+		for other: String in cells:
+			if other == id:
+				continue
+			for cell: Vector2 in cells[other]:
+				for mine: Vector2 in cells[id]:
+					if cell.distance_to(mine) <= 3.0:
+						near.append((cell - origin) * SymbolGeometry.GRID)
+						break
+		symbol.nearby_terminals = near
 
 
 ## Shows the document and the simulation of [param view] (page [member page]),

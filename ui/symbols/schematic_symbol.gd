@@ -34,6 +34,9 @@ var marking_rects: Array = []
 ## Every text written at the last draw (markings, times, states), in node
 ## coordinates: what the symbol covers beyond its body.
 var text_rects: Array[Rect2] = []
+## Terminals of other parts near this one, node coordinates (set by the
+## view): strip labels keep off them.
+var nearby_terminals: PackedVector2Array = PackedVector2Array()
 ## Local anchor the designation was last written at (texts written there
 ## follow it when it is dragged).
 var _designation_anchor_drawn: Vector2 = Vector2(INF, INF)
@@ -367,22 +370,38 @@ func _draw_strip_labels() -> void:
 				choices = beyond + choices
 			else:
 				choices += beyond
-		var chosen: Array = choices[0]
+		# Where one line does not fit (terminals close together), a size
+		# smaller, then the strip over the number.
+		for style: int in [SMALL, TWO_LINES]:
+			choices += [_strip_label_lines(label, at, outward, side, style), _strip_label_lines(label, at, outward, -side, style)]
+		# The first clear of texts and marks, else the first clear of marks.
+		var chosen: Array = []
 		for choice: Array in choices:
-			if not _hits_markings(choice):
+			if not _hits_markings(choice) and not _hits_marks(choice, i, cells, names, t):
 				chosen = choice
 				break
+		if chosen.is_empty():
+			chosen = choices[0]
+			for choice: Array in choices:
+				if not _hits_marks(choice, i, cells, names, t):
+					chosen = choice
+					break
 		for line: Array in chosen:
 			var rect: Rect2 = line[2]
 			_write(line[0], rect.position + Vector2(0.0, font.get_ascent(line[1])), line[1], SchematicTheme.DESIGNATION, ["strip", i])
 
 
-## How a strip label is written (see [method _strip_label_lines]): the strip
-## over the number beside the mark, on one line past the mark along a
-## horizontal wire, on one line over (or under) the mark.
+## How a strip label is written (see [method _strip_label_lines]), always
+## strip and number on one line ("X2-6", [method CabinetDevices.terminal_text])
+## but the last: beside the mark, on one line past the mark along a
+## horizontal wire, on one line over (or under) the mark, beside the mark a
+## size smaller, the strip over the number beside the mark (where nothing
+## else fits).
 const STACKED: int = 0
 const PAST_MARK: int = 1
 const OVER_MARK: int = 2
+const SMALL: int = 3
+const TWO_LINES: int = 4
 
 
 ## Lines of strip label [param label] written at terminal [param at] on
@@ -390,11 +409,10 @@ const OVER_MARK: int = 2
 ## node coordinates] each.
 func _strip_label_lines(label: String, at: Vector2, outward: Vector2, side: Vector2, style: int) -> Array[Array]:
 	var font: Font = AppTheme.schematic_font()
-	var texts: PackedStringArray = PackedStringArray([label])
-	var sizes: PackedInt32Array = PackedInt32Array([SchematicTheme.TERMINAL_SIZE + (2 if style == STACKED else 1)])
-	var colon: int = label.find(":")
-	if colon > 0 and style == STACKED:
-		texts = PackedStringArray([label.left(colon), label.substr(colon + 1)])
+	var texts: PackedStringArray = PackedStringArray([CabinetDevices.terminal_text(label)])
+	var sizes: PackedInt32Array = PackedInt32Array([SchematicTheme.TERMINAL_SIZE + (2 if style == STACKED else (0 if style == SMALL else 1))])
+	if style == TWO_LINES:
+		texts = CabinetDevices.split_label(label)
 		sizes = PackedInt32Array([SchematicTheme.TERMINAL_SIZE + 1, SchematicTheme.TERMINAL_SIZE + 2])
 	var lines: Array[Array] = []
 	for k: int in texts.size():
@@ -467,6 +485,25 @@ func _crowded(index: int, at: Vector2, outward: Vector2) -> bool:
 	return false
 
 
+## True when one of the [param lines] of the strip label of terminal
+## [param index] runs onto the strip mark of another terminal of the symbol
+## ([param cells], [param names] and [param t] as in [method
+## _draw_strip_labels]) or onto a terminal of a part nearby
+## ([member nearby_terminals], e.g. the next supply point of L1 L2 L3).
+func _hits_marks(lines: Array, index: int, cells: Dictionary[String, Vector2i], names: PackedStringArray, t: Transform2D) -> bool:
+	var points: PackedVector2Array = nearby_terminals.duplicate()
+	for k: int in placement.strips:
+		if k != index and k < names.size():
+			points.append(t * (Vector2(cells[names[k]]) * G))
+	for point: Vector2 in points:
+		# The circle with its slash.
+		var mark: Rect2 = Rect2(point - Vector2(7.5, 7.5), Vector2(15.0, 15.0))
+		for line: Array in lines:
+			if (line[2] as Rect2).grow_individual(-1.0, -2.5, -1.0, -3.0).intersects(mark):
+				return true
+	return false
+
+
 ## True when one of the [param lines] of a strip label (see [method
 ## _strip_label_lines]) overlaps a terminal name or strip label written so
 ## far.
@@ -476,6 +513,11 @@ func _hits_markings(lines: Array) -> bool:
 			for line: Array in lines:
 				if (line[2] as Rect2).grow(-1.0).intersects((m[2] as Rect2).grow_individual(2.0, 0.0, 2.0, 0.0)):
 					return true
+	# Nor any other text written so far (ratings, ranges).
+	for r: Rect2 in text_rects:
+		for line: Array in lines:
+			if (line[2] as Rect2).grow_individual(-1.0, -2.5, -1.0, -3.0).intersects(r.grow_individual(-1.0, -2.5, -1.0, -3.0)):
+				return true
 	return false
 
 

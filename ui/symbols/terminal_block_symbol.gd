@@ -21,7 +21,8 @@ static func slash(p: Placement) -> Vector2:
 
 
 func _draw_labels() -> void:
-	var text: String = (component as TerminalBlock).label
+	# Strip and number on one line: "X2-6".
+	var text: String = CabinetDevices.terminal_text((component as TerminalBlock).label)
 	if text.is_empty():
 		text = component.designation
 	draw_label(text, Vector2(-0.55 * G, 0.0), SchematicTheme.TERMINAL_SIZE + 2, SchematicTheme.DESIGNATION)

@@ -1417,11 +1417,11 @@ func _edit_marking(c: CircuitComponent, kind: String, index: int) -> bool:
 		"terminal":
 			text = c.get_terminal_names()[index]
 		"strip":
-			text = document().get_placement(c.id).strips.get(index, "")
+			text = CabinetDevices.terminal_text(document().get_placement(c.id).strips.get(index, ""))
 		"purpose":
 			text = (c as Lamp).purpose
 		"label":
-			text = (c as PageConnector).label if c is PageConnector else (c as TerminalBlock).label
+			text = (c as PageConnector).label if c is PageConnector else CabinetDevices.terminal_text((c as TerminalBlock).label)
 	var symbol: SchematicSymbol = view.get_symbol(c.id)
 	var rect: Rect2 = symbol.marking_rect(kind, index)
 	var at: Vector2 = symbol.position + (rect.position if rect.has_area() else Vector2.ZERO)
@@ -1485,6 +1485,7 @@ func _commit_inline(value: String) -> void:
 	if c == null:
 		return
 	if target["kind"] == "strip":
+		value = CabinetDevices.label_from_text(value)
 		if value != document().get_placement(c.id).strips.get(target["index"], "") and not value.is_empty():
 			_record()
 			document().set_strip_terminal(c.id, target["index"], value)
@@ -1517,6 +1518,8 @@ func _commit_inline(value: String) -> void:
 				return
 			data["purpose"] = value
 		"label":
+			if c is TerminalBlock:
+				value = CabinetDevices.label_from_text(value)
 			if value == ((c as PageConnector).label if c is PageConnector else (c as TerminalBlock).label):
 				return
 			data["label"] = value

@@ -508,6 +508,27 @@ static func split_label(label: String) -> PackedStringArray:
 	return PackedStringArray([DEFAULT_STRIP, label])
 
 
+## A terminal label as written on the drawing: strip and number on one
+## line, "X2:6" -> "X2-6", plain "6" -> "X1-6" ("" stays "").
+static func terminal_text(label: String) -> String:
+	if label.strip_edges().is_empty():
+		return label
+	var parts: PackedStringArray = split_label(label.strip_edges())
+	return "%s-%s" % [parts[0], parts[1]]
+
+
+## A terminal label as typed, as kept: "X2-6" or "X2:6" -> "X2:6", one on
+## strip X1 ("X1-6", "X1:6") just its number "6"; other text as it is.
+static func label_from_text(text: String) -> String:
+	text = text.strip_edges()
+	var dash: int = text.find("-")
+	# A strip name starts with a capital letter ("X2-6"), the number follows the dash.
+	if not text.contains(":") and dash > 0 and dash < text.length() - 1 and text.left(1) != text.left(1).to_lower():
+		text = text.left(dash) + ":" + text.substr(dash + 1)
+	var parts: PackedStringArray = split_label(text)
+	return parts[1] if parts[0] == DEFAULT_STRIP and text.contains(":") else text
+
+
 static func _add_terminal(found: Dictionary, label: String, key: String) -> void:
 	label = label.strip_edges()
 	if label.is_empty():

@@ -53,8 +53,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   another terminal of the same part swaps the two (coils: also a "Swap A1 and A2" button; a
   time relay's A1/A2 are only swapped, never renamed; its S counts against whichever is A2)
 - Terminals (TerminalBlock, "X1", free label) sit on wires, or on a component's lead, supply
-  points included (Placement.strips: terminal index -> label, drawn instead of the square, a
-  label of another strip than X1 on two lines, strip over number; beside a vertical wire past
+  points included (Placement.strips: terminal index -> label "X2:6" or "6" on X1, drawn instead
+  of the square, written strip and number on one line "X2-6" / "X1-6"
+  (CabinetDevices.terminal_text; typed that way too, label_from_text), a size smaller or
+  strip over number only where one line would run onto a mark, its own symbol's or a nearby
+  part's (SchematicSymbol.nearby_terminals, set by the view); beside a vertical wire past
   the mark (the outer side for two terminals side by side), over the mark along a horizontal
   wire, or on one line past the mark where other terminals stand in line across the wire
   (motors) and for supply points; a strip terminal's number keeps off its mark; Delete on the
