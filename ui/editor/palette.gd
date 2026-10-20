@@ -115,6 +115,29 @@ const INSTALLATION_ENTRIES: Array[Dictionary] = [
 	{"title": "Fridge", "template": {"type": "appliance", "kind": "fridge"}},
 ]
 
+## Entries of a residential installation's floor plan: the light switches
+## and the parts its circuits feed, put where the plan is clicked.
+const PLAN_ENTRIES: Array[Dictionary] = [
+	{"title": "Switch no. 1 (one-way)", "template": {"type": "light_switch", "circuit": "1"}},
+	{"title": "Switch no. 2 (two-pole)", "template": {"type": "light_switch", "circuit": "2"}},
+	{"title": "Switch no. 4 (two-way with an off position)", "template": {"type": "light_switch", "circuit": "4"}},
+	{"title": "Switch no. 5 (series, two rockers)", "template": {"type": "light_switch", "circuit": "5"}},
+	{"title": "Switch no. 5B (double two-way, 6+6)", "template": {"type": "light_switch", "circuit": "5B"}},
+	{"title": "Switch no. 6 (two-way, staircase)", "template": {"type": "light_switch", "circuit": "6"}},
+	{"title": "Switch no. 7 (intermediate)", "template": {"type": "light_switch", "circuit": "7"}},
+	{"title": "Luminaire", "template": {"type": "luminaire"}},
+	{"title": "Socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 1}},
+	{"title": "Double socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 2}},
+	{"title": "Water heater", "template": {"type": "appliance", "kind": "water_heater"}},
+	{"title": "Oven", "template": {"type": "appliance", "kind": "oven"}},
+	{"title": "Induction hob", "template": {"type": "appliance", "kind": "hob"}},
+	{"title": "Microwave", "template": {"type": "appliance", "kind": "microwave"}},
+	{"title": "Washing machine", "template": {"type": "appliance", "kind": "washing_machine"}},
+	{"title": "Dishwasher", "template": {"type": "appliance", "kind": "dishwasher"}},
+	{"title": "Heater", "template": {"type": "appliance", "kind": "heater"}},
+	{"title": "Fridge", "template": {"type": "appliance", "kind": "fridge"}},
+]
+
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
 const MAX_ICON_SCALE: float = 0.7
 const ICON_PADDING: float = 3.0
@@ -129,6 +152,15 @@ var environment: SchematicDocument.Kind = SchematicDocument.Kind.INDUSTRIAL:
 		if value == environment:
 			return
 		environment = value
+		if _list != null:
+			_build()
+## Offers what a residential installation's floor plan takes
+## ([constant PLAN_ENTRIES]) rather than its single-line diagram's parts.
+var plan: bool = false:
+	set(value):
+		if value == plan:
+			return
+		plan = value
 		if _list != null:
 			_build()
 ## Offers the parts of a house installation of either kind.
@@ -162,7 +194,7 @@ func entries() -> Array[Dictionary]:
 		SchematicDocument.Kind.PROTOTYPE:
 			return RESIDENTIAL_ENTRIES
 		SchematicDocument.Kind.RESIDENTIAL:
-			return INSTALLATION_ENTRIES
+			return PLAN_ENTRIES if plan else INSTALLATION_ENTRIES
 	return ENTRIES
 
 

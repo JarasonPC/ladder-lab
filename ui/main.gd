@@ -277,6 +277,8 @@ func _ready() -> void:
 	_palette.template_chosen.connect(func(t: Dictionary) -> void:
 		if _single_line_shown():
 			_single_line.begin_place(t)
+		elif area == Area.WORKSPACE:
+			_floor_plan.begin_place_template(t)
 		else:
 			editor.begin_place(t))
 	_check_panel.issue_selected.connect(_on_issue_selected)
@@ -1373,7 +1375,10 @@ func _update_mode_ui() -> void:
 	_numbers_toggle.visible = schematic and not single_line
 	_layout_select.visible = schematic and not single_line
 	_clamp_toggle.visible = schematic and not single_line
-	_palette_bar.visible = editing and schematic
+	# A residential installation's floor plan takes its parts from the palette too.
+	var plan_parts: bool = not schematic and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
+	_palette.plan = plan_parts
+	_palette_bar.visible = editing and (schematic or plan_parts)
 	_lesson_bar.visible = schematic and _lesson_run != null
 	_update_side_bar()
 	_sim_tools.visible = not editing

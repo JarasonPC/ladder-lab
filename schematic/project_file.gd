@@ -96,7 +96,10 @@ const FORMAT: String = "ladder-lab"
 ## ("single_line": columns of circuits and RCD groups, each circuit's
 ## device, phase, the parts it feeds, destination, room, cable, ripple
 ## control; the supply cable and the SPD).
-const VERSION: int = 41
+## 42: the lighting drawn on the floor plan of a residential installation
+## ("links": [part, port, part, port]) and its rooms' "number",
+## "environment" and "lux" (missing: the usual ones).
+const VERSION: int = 42
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network
