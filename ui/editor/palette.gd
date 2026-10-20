@@ -139,6 +139,15 @@ const PLAN_ENTRIES: Array[Dictionary] = [
 	{"title": "Dishwasher", "template": {"type": "appliance", "kind": "dishwasher"}},
 	{"title": "Heater", "template": {"type": "appliance", "kind": "heater"}},
 	{"title": "Fridge", "template": {"type": "appliance", "kind": "fridge"}},
+	{"title": "Kitchen worktop", "template": {"type": "fixture", "kind": "worktop"}},
+	{"title": "Bath", "template": {"type": "fixture", "kind": "bath"}},
+	{"title": "Shower tray", "template": {"type": "fixture", "kind": "shower"}},
+	{"title": "Washbasin", "template": {"type": "fixture", "kind": "basin"}},
+	{"title": "WC", "template": {"type": "fixture", "kind": "wc"}},
+	{"title": "Double bed", "template": {"type": "fixture", "kind": "bed"}},
+	{"title": "Wardrobe", "template": {"type": "fixture", "kind": "wardrobe"}},
+	{"title": "Table", "template": {"type": "fixture", "kind": "table"}},
+	{"title": "Sofa", "template": {"type": "fixture", "kind": "sofa"}},
 ]
 
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
@@ -224,6 +233,8 @@ static func group_of(template: Dictionary) -> String:
 			return "outlets"
 		"appliance":
 			return "appliances"
+		"fixture":
+			return "furniture"
 		"rcd", "afdd":
 			return "protection"
 		"supply", "terminal", "rectifier", "connector":
@@ -265,6 +276,8 @@ func _group_title(group: String) -> String:
 			return tr("Lights and sockets")
 		"appliances":
 			return tr("Appliances")
+		"furniture":
+			return tr("Furniture and fixtures")
 	return tr("Power circuit")
 
 
@@ -410,7 +423,7 @@ func refresh_paper() -> void:
 
 
 ## [param component] on a paper tile of [param button] as the floor plan draws it.
-func _add_plan_icon(button: Button, component: CircuitComponent) -> void:
+func _add_plan_icon(button: Button, component: CircuitComponent, fixture: String = "") -> void:
 	var paper: Panel = Panel.new()
 	_tiles.append(paper)
 	_style_tile(paper)
@@ -421,6 +434,7 @@ func _add_plan_icon(button: Button, component: CircuitComponent) -> void:
 	button.add_child(paper)
 	var glyph: PlanGlyph = PlanGlyph.new()
 	glyph.component = component
+	glyph.fixture = fixture
 	glyph.size = TILE.size
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	paper.add_child(glyph)
@@ -447,6 +461,9 @@ func retranslate() -> void:
 ## three-pole devices, motors and the temperature sensor upright. Supplies
 ## show their conductor name in the circle.
 func _add_icon(button: Button, template: Dictionary) -> void:
+	if template.get("type", "") == "fixture":
+		_add_plan_icon(button, null, str(template.get("kind", "")))
+		return
 	var data: Dictionary = template.duplicate()
 	var conductor: String = str(data.get("conductor", ""))
 	data["designation"] = ("L1" if conductor == "L" else conductor) if not conductor.is_empty() else "X1"

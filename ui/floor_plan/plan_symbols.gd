@@ -174,3 +174,52 @@ static func draw_unit(item: CanvasItem, at: Vector2, facing: Vector2, s: float, 
 		var b: Vector2 = at - along * (UNIT.x * 0.5 - inset) * s + into * inset * s
 		var depth: Vector2 = into * (UNIT.y - 2.0 * inset) * s
 		item.draw_polyline(PackedVector2Array([a, b, b + depth, a + depth, a]), color, width, true)
+
+
+## Furniture or a fixture of [param kind] (see [constant FloorPlan.FIXTURES])
+## over screen rectangle [param rect], facing [param into] from its back:
+## its outline and what tells it apart (a bath's tub, a shower's cross, a
+## basin's bowl, a WC's cistern and bowl, a bed's pillows, a sofa's back and
+## arms, a wardrobe's diagonal, a worktop's front edge).
+static func draw_fixture(item: CanvasItem, kind: String, rect: Rect2, into: Vector2, color: Color, width: float) -> void:
+	var along: Vector2 = into.orthogonal().abs()
+	var w: float = absf(rect.size.dot(along))
+	var d: float = absf(rect.size.dot(into))
+	var back: Vector2 = rect.get_center() - into * d * 0.5
+	# A point u across (from the middle), v out from the back.
+	var at: Callable = func(u: float, v: float) -> Vector2: return back + along * u + into * v
+	var box: Callable = func(u0: float, v0: float, u1: float, v1: float) -> void:
+		item.draw_polyline(PackedVector2Array([at.call(u0, v0), at.call(u1, v0), at.call(u1, v1), at.call(u0, v1), at.call(u0, v0)]), color, width, true)
+	var oval: Callable = func(cu: float, cv: float, ru: float, rv: float) -> void:
+		var points: PackedVector2Array = PackedVector2Array()
+		for k: int in 25:
+			var t: float = TAU * k / 24.0
+			points.append(at.call(cu + cos(t) * ru, cv + sin(t) * rv))
+		item.draw_polyline(points, color, width, true)
+	box.call(-w * 0.5, 0.0, w * 0.5, d)
+	match kind:
+		"worktop":
+			item.draw_line(at.call(-w * 0.5, d * 0.85), at.call(w * 0.5, d * 0.85), color, width, true)
+		"bath":
+			box.call(-w * 0.5 + d * 0.1, d * 0.1, w * 0.5 - d * 0.1, d * 0.9)
+			item.draw_arc(at.call(-w * 0.5 + d * 0.25, d * 0.5), d * 0.06, 0.0, TAU, 12, color, width, true)
+		"shower":
+			item.draw_line(at.call(-w * 0.5, 0.0), at.call(w * 0.5, d), color, width, true)
+			item.draw_line(at.call(w * 0.5, 0.0), at.call(-w * 0.5, d), color, width, true)
+		"basin":
+			oval.call(0.0, d * 0.55, w * 0.38, d * 0.33)
+		"wc":
+			box.call(-w * 0.45, 0.0, w * 0.45, d * 0.25)
+			oval.call(0.0, d * 0.6, w * 0.38, d * 0.36)
+		"bed":
+			var pillows: int = 2 if w > d * 0.6 else 1
+			var pw: float = w / pillows
+			for k: int in pillows:
+				box.call(-w * 0.5 + pw * k + pw * 0.12, d * 0.05, -w * 0.5 + pw * (k + 1) - pw * 0.12, d * 0.2)
+			item.draw_line(at.call(-w * 0.5, d * 0.3), at.call(w * 0.5, d * 0.3), color, width, true)
+		"wardrobe":
+			item.draw_line(at.call(-w * 0.5, 0.0), at.call(w * 0.5, d), color, width, true)
+		"sofa":
+			box.call(-w * 0.5, 0.0, w * 0.5, d * 0.25)
+			box.call(-w * 0.5, 0.0, -w * 0.5 + d * 0.2, d)
+			box.call(w * 0.5 - d * 0.2, 0.0, w * 0.5, d)

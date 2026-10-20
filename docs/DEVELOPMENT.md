@@ -396,6 +396,17 @@ Architecture and conventions of the code base. Read this before changing the cod
   evenly or from its left or top end every so far (row_points), each made by
   FloorPlanCanvas.add_part (the palette's way: a component on the circuit chosen, on the plan
   facing into the room). Selections on the plan are drawn in SchematicTheme.SELECTED.
+  Notes (FloorPlan.Note: text, at, label; saved "notes"): Tool.NOTE, pressed where it points,
+  let go where its text goes, then note_requested(-1) with pending_note -> FloorPlanView's
+  note dialog; a double click edits (empty: taken away); its point or its text dragged
+  (note_at); a dot, a leader to the nearer end of the underline (_draw_notes). Furniture and
+  fixtures (FloorPlan.Fixture: kind of FIXTURES, rect, facing; saved "fixtures"): the palette's
+  "fixture" templates (Palette.PLAN_ENTRIES, group "furniture", PlanGlyph.fixture) put by
+  fixture_at_point, the back against the wall within AGAINST_WALL; dragged (move_fixture, back
+  to a wall facing its way), R turns it (turn_fixture), a double click sizes it
+  (fixture_requested, resize_fixture); drawn faint under the parts (PlanSymbols.draw_fixture).
+  A socket put behind a kitchen worktop (over_worktop) is WORKTOP_SOCKET_HEIGHT high
+  (FloorPlanCanvas.add_part). Notes and fixtures move with their room.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

@@ -5421,3 +5421,39 @@ msgstr ""
 #, c-format
 msgid "Parts in a row along a wall of room %s"
 msgstr ""
+
+msgid "Furniture and fixtures"
+msgstr ""
+
+msgid "Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away"
+msgstr ""
+
+msgid "Note"
+msgstr ""
+
+msgid "Depth"
+msgstr ""
+
+msgid "Kitchen worktop"
+msgstr ""
+
+msgid "Bath"
+msgstr ""
+
+msgid "Shower tray"
+msgstr ""
+
+msgid "Washbasin"
+msgstr ""
+
+msgid "Double bed"
+msgstr ""
+
+msgid "Wardrobe"
+msgstr ""
+
+msgid "Table"
+msgstr ""
+
+msgid "Sofa"
+msgstr ""

@@ -480,3 +480,43 @@ func _component_of(template: Dictionary, designation: String) -> CircuitComponen
 	var data: Dictionary = template.duplicate()
 	data["designation"] = designation
 	return DocumentSerializer.component_from_dict(data)
+
+
+func test_notes_and_furniture() -> void:
+	var doc: SchematicDocument = _house()
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	var plan: FloorPlan = doc.floor_plan
+	# A worktop dropped near the room's top wall goes against it, facing down.
+	var worktop: FloorPlan.Fixture = plan.fixture_at_point("worktop", Vector2(5.0, 0.4))
+	assert_eq(worktop.facing, 1)
+	assert_eq(worktop.rect, Rect2(3.8, 0.0, 2.4, 0.6), "its back on the wall, in the middle where dropped")
+	plan.fixtures.append(worktop)
+	assert_true(plan.over_worktop(Vector2(4.5, 0.0)))
+	assert_false(plan.over_worktop(Vector2(6.5, 0.0)), "past its end")
+	doc.single_line.add(doc, _component_of({"type": "breaker"}, "FA9"), 0)
+	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, "FA9", Vector2(4.5, 0.1))
+	assert_almost_eq((doc.circuit.get_component(socket) as SocketOutlet).height, FloorPlan.WORKTOP_SOCKET_HEIGHT, 1e-6, "over the worktop at 1.10 m")
+	# Turned, resized, moved with its room, saved.
+	plan.turn_fixture(0)
+	assert_eq(plan.fixtures[0].facing, 2)
+	assert_eq(plan.fixtures[0].rect.size, Vector2(0.6, 2.4))
+	plan.resize_fixture(0, 3.0, 0.65)
+	assert_almost_eq(plan.fixtures[0].extent().x, 3.0, 1e-6)
+	var note: FloorPlan.Note = FloorPlan.Note.new()
+	note.text = "Vývod pro digestoř\nh 2,20"
+	note.at = Vector2(5.0, 1.0)
+	note.label = Vector2(5.5, 0.5)
+	plan.notes.append(note)
+	plan.move_room(1, Vector2(3.0, 1.0))
+	assert_eq(plan.notes[0].at, Vector2(5.0, 2.0), "the note moves with its room")
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.notes.size(), 1)
+	assert_eq(again.notes[0].text, "Vývod pro digestoř\nh 2,20")
+	assert_eq(again.fixtures.size(), 1)
+	assert_eq(again.fixtures[0].kind, "worktop")
+	assert_eq(again.fixtures[0].facing, 2)
+	# The canvas finds them.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	assert_eq(canvas.note_at(canvas.to_screen(plan.notes[0].at))["end"], "anchor")
+	assert_eq(canvas.fixture_at(canvas.to_screen(plan.fixtures[0].rect.get_center())), 0)

@@ -5436,3 +5436,39 @@ msgstr "Svítidla rozložená po místnosti %s"
 #, c-format
 msgid "Parts in a row along a wall of room %s"
 msgstr "Prvky v řadě podél zdi místnosti %s"
+
+msgid "Furniture and fixtures"
+msgstr "Nábytek a zařizovací předměty"
+
+msgid "Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away"
+msgstr "Poznámka: stiskněte tam, kam ukazuje, táhněte tam, kde má být její text, a napište jej; dvojklik poznámku upraví, prázdný text ji odstraní"
+
+msgid "Note"
+msgstr "Poznámka"
+
+msgid "Depth"
+msgstr "Hloubka"
+
+msgid "Kitchen worktop"
+msgstr "Kuchyňská linka"
+
+msgid "Bath"
+msgstr "Vana"
+
+msgid "Shower tray"
+msgstr "Sprchová vanička"
+
+msgid "Washbasin"
+msgstr "Umyvadlo"
+
+msgid "Double bed"
+msgstr "Manželská postel"
+
+msgid "Wardrobe"
+msgstr "Šatní skříň"
+
+msgid "Table"
+msgstr "Stůl"
+
+msgid "Sofa"
+msgstr "Pohovka"

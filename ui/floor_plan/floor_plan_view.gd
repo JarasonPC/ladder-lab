@@ -6,7 +6,8 @@ extends VBoxContainer
 ## drawn (Room, by dragging) or added ready-made (Add room), doors and
 ## windows put in walls (Door, Window), the walls' thickness set (Walls),
 ## luminaires spread over a selected room or parts in a row along a
-## selected wall (Array), and a part chosen in the list is put where the plan is
+## selected wall (Array), notes with leaders written (Note), furniture put
+## in from the palette (a double click sets its size, R turns it), and a part chosen in the list is put where the plan is
 ## clicked next. A residential installation also draws its lighting (Wire),
 ## takes new parts from the palette ([method begin_place_template]) onto
 ## the circuit chosen beside the plan (where a selected part's circuit is
@@ -36,6 +37,16 @@ var _wire_button: Button
 var _join_button: Button
 var _window_button: Button
 var _dimension_button: Button
+var _note_button: Button
+var _note_dialog: ConfirmationDialog
+var _note_text: TextEdit
+## The note the dialog edits, -1 for a new one.
+var _note: int = -1
+var _fixture_dialog: ConfirmationDialog
+var _fixture_width: SpinBox
+var _fixture_depth: SpinBox
+## The fixture the dialog edits.
+var _fixture: int = -1
 var _measure_button: Button
 var _walls_button: Button
 var _window_dialog: ConfirmationDialog
@@ -131,6 +142,7 @@ func _ready() -> void:
 	_join_button = _tool_button("join", FloorPlanCanvas.Tool.JOIN, group)
 	_dimension_button = _tool_button("plan_dimension", FloorPlanCanvas.Tool.DIMENSION, group)
 	_measure_button = _tool_button("plan_measure", FloorPlanCanvas.Tool.MEASURE, group)
+	_note_button = _tool_button("plan_note", FloorPlanCanvas.Tool.NOTE, group)
 	_select_button.set_pressed_no_signal(true)
 	_presets = MenuButton.new()
 	_presets.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -216,6 +228,8 @@ func _ready() -> void:
 	canvas.length_requested.connect(_ask_length)
 	canvas.door_requested.connect(_ask_door)
 	canvas.window_requested.connect(_ask_window)
+	canvas.note_requested.connect(_ask_note)
+	canvas.fixture_requested.connect(_ask_fixture)
 	canvas.resized.connect(func() -> void:
 		if _fit_pending and canvas.size.x > 10.0 and _document != null:
 			_fit_pending = false
@@ -318,6 +332,29 @@ func _ready() -> void:
 		_window_dialog.register_text_enter((field as SpinBox).get_line_edit())
 	_window_dialog.confirmed.connect(_apply_window)
 	add_child(_window_dialog)
+	_note_dialog = ConfirmationDialog.new()
+	_note_text = TextEdit.new()
+	_note_text.custom_minimum_size = Vector2(320, 90)
+	_note_text.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	_note_dialog.add_child(_note_text)
+	_note_dialog.confirmed.connect(_apply_note)
+	add_child(_note_dialog)
+	_fixture_dialog = ConfirmationDialog.new()
+	var fixture_grid: GridContainer = GridContainer.new()
+	fixture_grid.columns = 2
+	_fixture_dialog.add_child(fixture_grid)
+	_fixture_width = _metres()
+	_fixture_depth = _metres()
+	for field: SpinBox in [_fixture_width, _fixture_depth]:
+		field.min_value = 0.2
+		field.max_value = 10.0
+		var label: Label = Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		fixture_grid.add_child(label)
+		fixture_grid.add_child(field)
+		_fixture_dialog.register_text_enter(field.get_line_edit())
+	_fixture_dialog.confirmed.connect(_apply_fixture)
+	add_child(_fixture_dialog)
 	_array_dialog = ConfirmationDialog.new()
 	var array_column: VBoxContainer = VBoxContainer.new()
 	_array_dialog.add_child(array_column)
@@ -459,7 +496,7 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _presets, _array_button, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	_update_array_button()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
@@ -490,6 +527,16 @@ func retranslate() -> void:
 	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
 	_dimension_button.tooltip_text = tr("Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away")
 	_measure_button.tooltip_text = tr("Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn")
+	_note_button.tooltip_text = tr("Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away")
+	_note_dialog.title = tr("Note")
+	_note_dialog.ok_button_text = tr("OK")
+	_note_dialog.cancel_button_text = tr("Cancel")
+	_fixture_dialog.ok_button_text = tr("OK")
+	_fixture_dialog.cancel_button_text = tr("Cancel")
+	var fixture_labels: Array[String] = [tr("Width"), tr("Depth")]
+	var fixture_grid: GridContainer = _fixture_width.get_parent() as GridContainer
+	for k: int in fixture_labels.size():
+		(fixture_grid.get_child(2 * k) as Label).text = fixture_labels[k]
 	_array_button.tooltip_text = tr("Array: luminaires spread over the selected room in rows and columns, or sockets and wall luminaires in a row along the selected wall, on the circuit chosen")
 	_array_dialog.title = tr("Array")
 	_array_dialog.ok_button_text = tr("Put them in")
@@ -560,7 +607,7 @@ func begin_place_template(template: Dictionary) -> void:
 	canvas.placing = ""
 	canvas.placing_template = template
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
-	for button: Button in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.grab_focus()
@@ -749,6 +796,64 @@ func _apply_window() -> void:
 		window.width = width
 		window.sill = sill
 		window.height = height)
+
+
+## Asks the text of note [param index] (-1: a new one where the canvas keeps it).
+func _ask_note(index: int) -> void:
+	if not _editing:
+		return
+	_note = index
+	_note_text.text = _document.floor_plan.notes[index].text if index >= 0 and index < _document.floor_plan.notes.size() else ""
+	_note_dialog.reset_size()
+	_note_dialog.popup_centered()
+	_note_text.grab_focus()
+
+
+## A new note with the text typed, or the note's text changed (taken away
+## when it is left empty).
+func _apply_note() -> void:
+	var text: String = _note_text.text.strip_edges()
+	var index: int = _note
+	if index < 0:
+		if text.is_empty() or canvas.pending_note.size() != 2:
+			return
+		var anchor: Vector2 = canvas.pending_note[0]
+		var label: Vector2 = canvas.pending_note[1]
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			var note: FloorPlan.Note = FloorPlan.Note.new()
+			note.text = text
+			note.at = anchor
+			note.label = label
+			doc.floor_plan.notes.append(note))
+		return
+	if index >= _document.floor_plan.notes.size():
+		return
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		if text.is_empty():
+			doc.floor_plan.notes.remove_at(index)
+		else:
+			doc.floor_plan.notes[index].text = text)
+
+
+func _ask_fixture(index: int) -> void:
+	if not _editing or index < 0 or index >= _document.floor_plan.fixtures.size():
+		return
+	_fixture = index
+	var fixture: FloorPlan.Fixture = _document.floor_plan.fixtures[index]
+	_fixture_dialog.title = tr(FloorPlan.FIXTURE_NAMES.get(fixture.kind, "Furniture and fixtures"))
+	_fixture_width.value = fixture.extent().x
+	_fixture_depth.value = fixture.extent().y
+	_fixture_dialog.reset_size()
+	_fixture_dialog.popup_centered()
+
+
+func _apply_fixture() -> void:
+	var index: int = _fixture
+	if index < 0 or index >= _document.floor_plan.fixtures.size():
+		return
+	var width: float = _fixture_width.value
+	var depth: float = _fixture_depth.value
+	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.resize_fixture(index, width, depth))
 
 
 ## A count field from [param low] to [param high].

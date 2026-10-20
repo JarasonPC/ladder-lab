@@ -78,6 +78,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   it exactly that far
 - Floor plan: Array spreads luminaires over a selected room in rows and columns, or puts
   sockets and wall luminaires in a row along a selected wall, evenly or every so far
+- Floor plan: notes with a leader to the point they are about, printed with the plan
+- Floor plan: furniture and fixtures from the palette (kitchen worktop, bath, shower tray,
+  washbasin, WC, bed, wardrobe, table, sofa), drawn faintly with their backs against a wall;
+  R turns one, a double click sets its size; a socket behind the worktop goes at 1.10 m
 - Floor plan: selected rooms, parts, doors and windows are drawn in the selection colour,
   which shows on white paper
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its

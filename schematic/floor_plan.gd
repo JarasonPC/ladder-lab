@@ -30,6 +30,22 @@ const WINDOW_HEIGHT: float = 1.25
 ## walls between rooms (on their line) when none is set (m).
 const OUTER_WALL: float = 0.3
 const INNER_WALL: float = 0.15
+## Furniture and fixtures drawn faintly on the plan, by kind: their width
+## along the wall their back is against and their depth into the room (m),
+## and their names (English source text).
+const FIXTURES: Dictionary[String, Vector2] = {
+	"worktop": Vector2(2.4, 0.6), "bath": Vector2(1.7, 0.75), "shower": Vector2(0.9, 0.9),
+	"basin": Vector2(0.6, 0.45), "wc": Vector2(0.4, 0.65), "bed": Vector2(1.6, 2.0),
+	"wardrobe": Vector2(1.6, 0.6), "table": Vector2(1.4, 0.8), "sofa": Vector2(2.0, 0.9),
+}
+const FIXTURE_NAMES: Dictionary[String, String] = {
+	"worktop": "Kitchen worktop", "bath": "Bath", "shower": "Shower tray", "basin": "Washbasin",
+	"wc": "WC", "bed": "Double bed", "wardrobe": "Wardrobe", "table": "Table", "sofa": "Sofa",
+}
+## A socket put on the wall behind a kitchen worktop is this high (m).
+const WORKTOP_SOCKET_HEIGHT: float = 1.1
+## A fixture dropped this close to a wall (m) goes against it.
+const AGAINST_WALL: float = 0.8
 ## A new dimension this far from its wall or line (m).
 const DIMENSION_OFFSET: float = 0.5
 ## Thinnest and thickest wall offered (m).
@@ -231,6 +247,31 @@ class Dimension:
 	var offset: float = DIMENSION_OFFSET
 
 
+## A note printed with the plan: its text (lines split by line breaks), the
+## point it points to and where its text starts (m).
+class Note:
+	var text: String = ""
+	var at: Vector2 = Vector2.ZERO
+	var label: Vector2 = Vector2.ZERO
+
+
+## A piece of furniture or a fixture (one of [constant FIXTURES]): the
+## rectangle it covers (m) and the way it faces into the room from its back
+## (an index into [constant FACING]).
+class Fixture:
+	var kind: String = "table"
+	var rect: Rect2 = Rect2()
+	var facing: int = 1
+
+	## Its width along its back and its depth (m).
+	func extent() -> Vector2:
+		return Vector2(rect.size.y, rect.size.x) if facing % 2 == 0 else rect.size
+
+	## The middle of its back.
+	func back() -> Vector2:
+		return rect.get_center() - FACING[facing] * extent().y * 0.5
+
+
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
 var windows: Array[WindowOpening] = []
@@ -238,6 +279,8 @@ var windows: Array[WindowOpening] = []
 var outer_wall: float = OUTER_WALL
 var inner_wall: float = INNER_WALL
 var dimensions: Array[Dimension] = []
+var notes: Array[Note] = []
+var fixtures: Array[Fixture] = []
 ## Where each part (by designation) and the consumer unit ([constant UNIT])
 ## are (m).
 var parts: Dictionary[String, Vector2] = {}
@@ -249,7 +292,71 @@ var links: Array[Link] = []
 
 
 func is_empty() -> bool:
-	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty()
+	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty() and notes.is_empty() and fixtures.is_empty()
+
+
+## A fixture of [param kind] at [param point]: its back against the wall
+## within [constant AGAINST_WALL] (in the middle there), else facing down
+## with its middle there.
+func fixture_at_point(kind: String, point: Vector2) -> Fixture:
+	var fixture: Fixture = Fixture.new()
+	fixture.kind = kind
+	var size: Vector2 = FIXTURES.get(kind, Vector2.ONE)
+	var wall: Dictionary = wall_near(point, AGAINST_WALL)
+	fixture.facing = int(wall["facing"]) if not wall.is_empty() else 1
+	var into: Vector2 = FACING[fixture.facing]
+	var along: Vector2 = into.orthogonal().abs()
+	var back: Vector2 = wall["at"] if not wall.is_empty() else snap(point) - into * size.y * 0.5
+	if not wall.is_empty():
+		# Along the wall where the point is.
+		back = snap(back + along * (point - back).dot(along))
+	var center: Vector2 = back + into * size.y * 0.5
+	var shape: Vector2 = Vector2(size.y, size.x) if fixture.facing % 2 == 0 else size
+	fixture.rect = Rect2(center - shape * 0.5, shape)
+	return fixture
+
+
+## Fixture [param index] moved by [param by] (m), against a wall again when
+## its back comes near one facing its way.
+func move_fixture(index: int, by: Vector2) -> void:
+	var fixture: Fixture = fixtures[index]
+	fixture.rect.position += by
+	var wall: Dictionary = wall_near(fixture.back(), 0.3)
+	if not wall.is_empty() and int(wall["facing"]) == fixture.facing:
+		fixture.rect.position += Vector2(wall["at"]) - fixture.back() - FACING[fixture.facing].orthogonal().abs() * (Vector2(wall["at"]) - fixture.back()).dot(FACING[fixture.facing].orthogonal().abs())
+
+
+## Fixture [param index] [param width] wide along its back and [param depth]
+## deep (m), its back where it was.
+func resize_fixture(index: int, width: float, depth: float) -> void:
+	var fixture: Fixture = fixtures[index]
+	var back: Vector2 = fixture.back()
+	var center: Vector2 = back + FACING[fixture.facing] * depth * 0.5
+	var shape: Vector2 = Vector2(depth, width) if fixture.facing % 2 == 0 else Vector2(width, depth)
+	fixture.rect = Rect2(center - shape * 0.5, shape)
+
+
+## Fixture [param index] turned a quarter round its middle.
+func turn_fixture(index: int) -> void:
+	var fixture: Fixture = fixtures[index]
+	var center: Vector2 = fixture.rect.get_center()
+	fixture.facing = (fixture.facing + 1) % 4
+	var size: Vector2 = Vector2(fixture.rect.size.y, fixture.rect.size.x)
+	fixture.rect = Rect2(center - size * 0.5, size)
+
+
+## Whether [param point] on a wall is behind a kitchen worktop: on the
+## worktop's back.
+func over_worktop(point: Vector2) -> bool:
+	for fixture: Fixture in fixtures:
+		if fixture.kind != "worktop":
+			continue
+		var along: Vector2 = FACING[fixture.facing].orthogonal().abs()
+		var back: Vector2 = fixture.back()
+		var off: Vector2 = point - back
+		if absf(off.dot(FACING[fixture.facing])) < 0.06 and absf(off.dot(along)) <= fixture.extent().x * 0.5 + 0.001:
+			return true
+	return false
 
 
 ## The ends of dimension [param dim] (m): its wall's, or its two points.
@@ -509,6 +616,13 @@ func move_room(index: int, to: Vector2) -> void:
 	for opening: Opening in openings():
 		if room.contains(opening.at, 0.01):
 			opening.at += by
+	for note: Note in notes:
+		if room.contains(note.at, 0.01):
+			note.at += by
+			note.label += by
+	for fixture: Fixture in fixtures:
+		if room.contains(fixture.rect.get_center(), 0.01):
+			fixture.rect.position += by
 	for i: int in room.points.size():
 		room.points[i] += by
 
@@ -997,6 +1111,16 @@ func to_data() -> Dictionary:
 		result["windows"] = window_list
 	if not is_equal_approx(outer_wall, OUTER_WALL) or not is_equal_approx(inner_wall, INNER_WALL):
 		result["walls"] = [outer_wall, inner_wall]
+	if not notes.is_empty():
+		var note_list: Array = []
+		for note: Note in notes:
+			note_list.append({"text": note.text, "at": [note.at.x, note.at.y], "label": [note.label.x, note.label.y]})
+		result["notes"] = note_list
+	if not fixtures.is_empty():
+		var fixture_list: Array = []
+		for fixture: Fixture in fixtures:
+			fixture_list.append({"kind": fixture.kind, "rect": [fixture.rect.position.x, fixture.rect.position.y, fixture.rect.size.x, fixture.rect.size.y], "facing": fixture.facing})
+		result["fixtures"] = fixture_list
 	if not dimensions.is_empty():
 		var dimension_list: Array = []
 		for dim: Dimension in dimensions:
@@ -1063,6 +1187,26 @@ static func from_data(raw: Variant) -> FloorPlan:
 	if _numbers(d.get("walls", []), 2):
 		plan.outer_wall = clampf(float(d["walls"][0]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
 		plan.inner_wall = clampf(float(d["walls"][1]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
+	var note_list: Variant = d.get("notes", [])
+	if note_list is Array:
+		for nd: Variant in note_list:
+			if nd is Dictionary and nd.get("text", null) is String and _numbers(nd.get("at", []), 2) and _numbers(nd.get("label", []), 2):
+				var note: Note = Note.new()
+				note.text = (nd["text"] as String).left(500)
+				note.at = Vector2(float(nd["at"][0]), float(nd["at"][1]))
+				note.label = Vector2(float(nd["label"][0]), float(nd["label"][1]))
+				plan.notes.append(note)
+	var fixture_list: Variant = d.get("fixtures", [])
+	if fixture_list is Array:
+		for fd: Variant in fixture_list:
+			if fd is Dictionary and FIXTURES.has(str(fd.get("kind", ""))) and _numbers(fd.get("rect", []), 4):
+				var fixture: Fixture = Fixture.new()
+				fixture.kind = str(fd["kind"])
+				var fr: Array = fd["rect"]
+				fixture.rect = Rect2(float(fr[0]), float(fr[1]), clampf(float(fr[2]), 0.1, 10.0), clampf(float(fr[3]), 0.1, 10.0))
+				var face: Variant = fd.get("facing", 1)
+				fixture.facing = clampi(int(face), 0, 3) if (face is int or face is float) else 1
+				plan.fixtures.append(fixture)
 	var dimension_list: Variant = d.get("dimensions", [])
 	if dimension_list is Array:
 		for dd: Variant in dimension_list:
