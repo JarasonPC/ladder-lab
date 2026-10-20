@@ -7,13 +7,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
-- Wiring helpers, each turned on or off under View > Wiring: "Wire facing terminals" in the
-  right click menu wires the free terminals of the selected parts that face each other with
-  straight wires in one go (on by default); "Wire all poles at once" makes a wire drawn
-  between breakers, contactors, overload relays, motors or supply points in a row take the
-  poles beside it along (Shift: that wire alone); "Wire parts placed in line" gives a part
-  placed or dropped straight wires to the free terminals it faces. The wires to come are
-  shown dashed first
+- "Wire facing terminals" in the right click menu wires the free terminals of the selected
+  parts that face each other with straight wires in one go
+- Wiring helpers under Settings > Wiring: "Wire all poles at once" makes a wire drawn between
+  breakers, contactors, overload relays, motors or supply points in a row take the poles
+  beside it along (Shift: that wire alone); "Wire parts placed in line" gives a part placed
+  or dropped straight wires to the free terminals it faces. The wires to come are shown
+  dashed first
 
 ### Panels
 - Two wires that have to go into one strip terminal share a twin ferrule (one pin, the
@@ -30,6 +30,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   where it was drawn
 - The welcome card on the first start asks for the language first (English or Čeština) and
   offers the tour and the first lesson in it
+- A Settings menu beside View holds the wiring helpers, the cable type names and the
+  language, which have moved there from View
 
 ## 0.5.0 – 2026-10-20
 

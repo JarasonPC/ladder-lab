@@ -132,6 +132,19 @@ func test_wire_facing_terminals_of_the_selection_in_one_step() -> void:
 	assert_eq(editor.document().get_wire_count(), 0, "one undo step")
 
 
+func test_right_click_menu_offers_wiring_facing_terminals() -> void:
+	var editor: SchematicEditor = _editor(_power_column())
+	editor.select_all()
+	_at(editor, Vector2(6, 12))
+	editor._open_context_menu()
+	var menu: PopupMenu = editor._menu
+	var index: int = menu.get_item_index(SchematicEditor.MenuId.WIRE_FACING)
+	assert_true(index >= 0, "always in the menu with two or more parts selected")
+	assert_string_contains(menu.get_item_text(index), "(12)")
+	assert_false(menu.is_item_disabled(index))
+	menu.hide()
+
+
 func test_a_wire_between_poles_takes_the_others_along() -> void:
 	var editor: SchematicEditor = _editor(_power_column())
 	var doc: SchematicDocument = editor.document()

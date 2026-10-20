@@ -529,6 +529,9 @@ msgstr ""
 msgid "View"
 msgstr ""
 
+msgid "Settings"
+msgstr ""
+
 msgid "Edit"
 msgstr ""
 
@@ -662,12 +665,6 @@ msgid "Grid while editing"
 msgstr ""
 
 msgid "Wiring"
-msgstr ""
-
-msgid "Wire facing terminals (right click)"
-msgstr ""
-
-msgid "The right click menu wires the free terminals of the selected parts that face each other"
 msgstr ""
 
 msgid "Wire all poles at once"

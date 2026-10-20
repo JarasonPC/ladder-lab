@@ -65,7 +65,7 @@ const TYPES: Dictionary[Use, Array] = {
 	Use.CONTROL: [["JYTY-J", "JYTY-O"], ["H05VV5-F", "H05VV5-F"]],
 }
 
-## Naming of [method type_text] (View menu, kept in the user settings).
+## Naming of [method type_text] (Settings menu, kept in the user settings).
 static var naming: Naming = Naming.CZECH
 
 ## A cable: {"key" (its two ends, "+RA1|+ST1"), "name" ("W1"), "a", "b" (the
