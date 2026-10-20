@@ -1899,9 +1899,10 @@ static func network_switch(p: CabinetPainter, desc: Dictionary, reach: Dictionar
 	p.gradient(Rect2(0.3, 0.0, w - 0.6, h), PLC_BODY, PLC_TIER, 0.8, PLC_EDGE, 0.15)
 	p.rect(Rect2(1.6, 3.0, w - 3.2, 13.0), CPU_BLOCK, 0.6)
 	var points: Dictionary = terminal_points(CabinetDevices.Kind.SWITCH, desc)
+	var names: Dictionary = desc.get("names", {})
 	for name: String in ["L+", "M"]:
 		var at: Vector3 = points[name]
-		p.text(Vector2(at.x, 20.4), name, 1.6, PLC_DARK, 0, false)
+		p.text(Vector2(at.x, 20.4), str(names.get(name, name)), 1.6, PLC_DARK, 0, false)
 		_modular_screw_small(p, Vector2(at.x, at.y), reach.get(name, Color.TRANSPARENT), at.z)
 	p.gradient(Rect2(1.2, 22.0, w - 2.4, h - 28.0), PLC_FRONT, PLC_BODY, 0.6, PLC_EDGE, 0.15)
 	var powered: bool = desc.get("powered", false)
@@ -1912,7 +1913,8 @@ static func network_switch(p: CabinetPainter, desc: Dictionary, reach: Dictionar
 	var links: Array = desc.get("links", [])
 	for k: int in NetworkSwitch.PORTS:
 		var x: float = switch_port_x(k)
-		p.text_centered(Vector2(x, SWITCH_PORT_BOTTOM - RJ45_SOCKET.y - 7.6), "P%d" % (k + 1), 1.5, PLC_DARK, false)
+		var port: String = "P%d" % (k + 1)
+		p.text_centered(Vector2(x, SWITCH_PORT_BOTTOM - RJ45_SOCKET.y - 7.6), str(names.get(port, port)), 1.5, PLC_DARK, false)
 		p.rect(Rect2(x - 1.2, SWITCH_PORT_BOTTOM - RJ45_SOCKET.y - 4.6, 2.4, 1.8), LED_GREEN if k < links.size() and bool(links[k]) else LED_OFF, 0.2)
 		rj45_socket(p, Vector2(x, SWITCH_PORT_BOTTOM))
 

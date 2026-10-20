@@ -45,9 +45,10 @@ extends RefCounted
 ## starting current flows while they do); with instant switching they are at
 ## their final speed at once.
 ## Ethernet: the port of each PLC and the ports of the network switches
-## take no part in the electrical circuit. A net holding two ports is an
-## Ethernet cable between them (a net with more ports is no working cable:
-## Ethernet needs a switch to join more); a [NetworkSwitch] with its supply
+## take no part in the electrical circuit. A net holding two ports and no
+## other terminal is an Ethernet cable between them (a net with more ports,
+## or wired to anything else, is no working cable: Ethernet needs a switch
+## to join more); a [NetworkSwitch] with its supply
 ## joins its ports. Each working PLC reads what its network inputs name
 ## (see [member PlcProgram.network]) from the working PLC at that IP
 ## address on its network, on the same subnet, both addresses unique there
@@ -149,6 +150,12 @@ var _plc_port_nets: PackedInt32Array = PackedInt32Array()
 var _switch_loads: PackedInt32Array = PackedInt32Array()
 var _switch_port_nets: PackedInt32Array = PackedInt32Array()
 var _ports_on_net: Dictionary[int, int] = {}
+## Nets of ports that also reach another terminal (no working cable).
+var _ports_wired_wrong: Dictionary[int, bool] = {}
+## Networks found for the switches working last ([method _segments]): the
+## switches' power and what it gave.
+var _segments_for: PackedByteArray = PackedByteArray()
+var _segments_found: Dictionary[int, int] = {}
 ## Connections of a PLC to a partner that work ("A2>192.168.0.1"), as
 ## last logged.
 var _connections: Dictionary[String, bool] = {}
@@ -350,6 +357,9 @@ func _build() -> void:
 	_switch_loads.clear()
 	_switch_port_nets.clear()
 	_ports_on_net.clear()
+	_ports_wired_wrong.clear()
+	_segments_for = PackedByteArray()
+	_segments_found = {}
 	_sensor_outputs.clear()
 	_proximity_indices.clear()
 	_pots.clear()
@@ -468,6 +478,14 @@ func _build() -> void:
 		elif c is PowerSupply:
 			_supplies.append(c as PowerSupply)
 			_supply_terms.append(index[keys[0]])
+	if not _ports_on_net.is_empty():
+		var ports: Dictionary[String, bool] = CabinetDevices.network_keys(circuit)
+		for c: CircuitComponent in circuit.get_components():
+			if c is Junction or c is PageConnector:
+				continue
+			for key: String in c.get_terminal_keys():
+				if not ports.has(key) and _ports_on_net.has(_net_of_key[key]):
+					_ports_wired_wrong[_net_of_key[key]] = true
 	_rectifier_on.resize(_rectifiers.size())
 	_rectifier_on.fill(0)
 	_plc_inputs.resize(_plc_indices.size())
@@ -1602,23 +1620,31 @@ func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 					_motor_drive[m] = d
 
 
-## One byte per coil (bit 0 coil power, bit 1 timed output), then per PLC its
-## power and its outputs eight to a byte (see [method _plc_bytes]), then one
-## per protective device (tripped), so a trip is never mistaken for a repeat.
 # --- Ethernet ------------------------------------------------------------------------
+
+## True when [param net] is a working Ethernet cable: two ports and nothing else.
+func _is_cable(net: int) -> bool:
+	return _ports_on_net.get(net, 0) == 2 and not _ports_wired_wrong.has(net)
+
 
 ## Network each Ethernet port is on, by its net: the root of the nets joined
 ## by cables and by the switches working in [param desired]; -1 for a port
-## on no working cable (none plugged in, or a net joining more than two
-## ports).
+## on no working cable (none plugged in, a net joining more than two ports
+## or wired to anything else). Found again only when a switch's power
+## changed.
 func _segments(desired: PackedByteArray) -> Dictionary[int, int]:
+	var powered: PackedByteArray = PackedByteArray()
+	for s: int in _switch_loads.size():
+		powered.append(desired[_switch_loads[s]] & 1)
+	if powered == _segments_for and not _segments_found.is_empty():
+		return _segments_found
 	var uf: UnionFind = UnionFind.new(_net_count)
 	for s: int in _switch_loads.size():
-		if (desired[_switch_loads[s]] & 1) == 1:
+		if powered[s] == 1:
 			var first: int = -1
 			for k: int in NetworkSwitch.PORTS:
 				var net: int = _switch_port_nets[s * NetworkSwitch.PORTS + k]
-				if _ports_on_net[net] != 2:
+				if not _is_cable(net):
 					continue
 				if first < 0:
 					first = net
@@ -1626,7 +1652,9 @@ func _segments(desired: PackedByteArray) -> Dictionary[int, int]:
 					uf.union(first, net)
 	var segments: Dictionary[int, int] = {}
 	for net: int in _ports_on_net:
-		segments[net] = uf.find(net) if _ports_on_net[net] == 2 else -1
+		segments[net] = uf.find(net) if _is_cable(net) else -1
+	_segments_for = powered
+	_segments_found = segments
 	return segments
 
 
@@ -1637,7 +1665,7 @@ func _network_reads(desired: PackedByteArray) -> Array[Array]:
 	var reads: Array[Array] = []
 	var any: bool = false
 	for i: int in _plc_indices:
-		any = any or not (_loads[i] as Plc).program.network.is_empty()
+		any = any or not (_loads[i] as Plc).program.used_network().is_empty()
 	if not any:
 		for p: int in _plc_indices.size():
 			reads.append([PackedByteArray(), PackedFloat32Array()])
@@ -1647,11 +1675,12 @@ func _network_reads(desired: PackedByteArray) -> Array[Array]:
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		var digital: PackedByteArray = PackedByteArray()
 		var analog: PackedFloat32Array = PackedFloat32Array()
-		if not plc.program.network.is_empty():
+		var sources: Dictionary[String, Dictionary] = plc.program.used_network()
+		if not sources.is_empty():
 			digital.resize(PlcProgram.AREA_SIZES["NI"])
 			analog.resize(PlcProgram.AREA_SIZES["NAI"])
-			for operand: String in plc.program.network:
-				var source: Dictionary = plc.program.network[operand]
+			for operand: String in sources:
+				var source: Dictionary = sources[operand]
 				var partner: Plc = _partner(p, source["ip"], segments)
 				if partner == null:
 					continue
@@ -1704,18 +1733,19 @@ func _show_links(desired: PackedByteArray, result: StepResult) -> void:
 				working[net] = working.get(net, 0) + 1
 	for p: int in _plc_indices.size():
 		var net: int = _plc_port_nets[p]
-		(_loads[_plc_indices[p]] as Plc).port_link = (desired[_plc_indices[p]] & 1) == 1 and _ports_on_net[net] == 2 and working.get(net, 0) == 2
+		(_loads[_plc_indices[p]] as Plc).port_link = (desired[_plc_indices[p]] & 1) == 1 and _is_cable(net) and working.get(net, 0) == 2
 	for s: int in _switch_loads.size():
 		var hub: NetworkSwitch = _loads[_switch_loads[s]] as NetworkSwitch
 		for k: int in NetworkSwitch.PORTS:
 			var net: int = _switch_port_nets[s * NetworkSwitch.PORTS + k]
-			hub.links[k] = 1 if hub.energized and _ports_on_net[net] == 2 and working.get(net, 0) == 2 else 0
+			hub.links[k] = 1 if hub.energized and _is_cable(net) and working.get(net, 0) == 2 else 0
 	var segments: Dictionary[int, int] = _segments(desired)
 	var now: Dictionary[String, bool] = {}
 	for p: int in _plc_indices.size():
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
-		for operand: String in plc.program.network:
-			var ip: String = plc.program.network[operand]["ip"]
+		var sources: Dictionary[String, Dictionary] = plc.program.used_network()
+		for operand: String in sources:
+			var ip: String = sources[operand]["ip"]
 			var key: String = "%s>%s" % [plc.designation, ip]
 			if now.has(key):
 				continue
@@ -1729,6 +1759,9 @@ func _show_links(desired: PackedByteArray, result: StepResult) -> void:
 	_connections = now
 
 
+## One byte per coil (bit 0 coil power, bit 1 timed output), then per PLC its
+## power and its outputs eight to a byte (see [method _plc_bytes]), then one
+## per protective device (tripped), so a trip is never mistaken for a repeat.
 func _signature() -> PackedByteArray:
 	var sig: PackedByteArray = PackedByteArray()
 	for i: int in _coil_indices:

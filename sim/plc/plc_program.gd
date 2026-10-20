@@ -99,6 +99,28 @@ func block(id: int) -> PlcBlock:
 	return null
 
 
+## The partners of the network inputs the program in [member language]
+## uses (an entry of [member network] for an input no block or contact
+## names any more is kept, but reads nothing).
+func used_network() -> Dictionary[String, Dictionary]:
+	var used: Dictionary[String, Dictionary] = {}
+	if network.is_empty():
+		return used
+	var operands: PackedStringArray = PackedStringArray()
+	if language == Language.FBD:
+		for b: PlcBlock in blocks:
+			operands.append(b.operand)
+	else:
+		for rung: PlcRung in rungs:
+			for r: int in rung.row_count():
+				for c: int in PlcRung.COLUMNS:
+					operands.append(str(rung.get_cell(r, c).get("operand", "")))
+	for operand: String in operands:
+		if network.has(operand):
+			used[operand] = network[operand]
+	return used
+
+
 ## True for an IPv4 address written as four numbers 0-255 ("192.168.0.1").
 static func valid_ip(ip: String) -> bool:
 	var parts: PackedStringArray = ip.split(".")

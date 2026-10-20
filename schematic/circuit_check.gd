@@ -150,8 +150,9 @@ static func _network_issues(circuit: Circuit) -> Array[Dictionary]:
 				issues.append(_issue("PLCs %s and %s have the same IP address %s on one network.", [plcs[i].designation, plcs[j].designation, plcs[i].ip_address], [plcs[i].id, plcs[j].id]))
 	for plc: Plc in plcs:
 		var asked: Dictionary[String, bool] = {}
-		for operand: String in plc.program.network:
-			var ip: String = plc.program.network[operand]["ip"]
+		var sources: Dictionary[String, Dictionary] = plc.program.used_network()
+		for operand: String in sources:
+			var ip: String = sources[operand]["ip"]
 			if asked.has(ip):
 				continue
 			asked[ip] = true
