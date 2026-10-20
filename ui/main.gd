@@ -641,6 +641,9 @@ func _build_ui() -> void:
 	_lesson_panel.check_requested.connect(_check_lesson)
 	_lesson_panel.marks_changed.connect(_refresh_lesson_marks)
 	_welcome = WelcomeCard.new()
+	# The language first, before the tour or a lesson is offered in it.
+	_welcome.languages = LOCALE_NAMES
+	_welcome.language_chosen.connect(set_language)
 	_welcome.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_welcome.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_welcome.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 20)

@@ -6,6 +6,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Application
+- The welcome card on the first start asks for the language first (English or Čeština) and
+  offers the tour and the first lesson in it
+
 ## 0.5.0 – 2026-10-20
 
 ### Panels
