@@ -4421,3 +4421,82 @@ msgstr ""
 #, c-format
 msgid "A tripped %s stops %s"
 msgstr ""
+
+msgid "A PLC reads a potentiometer"
+msgstr ""
+
+msgid "Wire a potentiometer to the analog input of a compact PLC; its program lights a lamp once you turn it past half."
+msgstr ""
+
+msgid "Above half"
+msgstr ""
+
+msgid "Place a 10 V supply point"
+msgstr ""
+
+msgid "Place + supply (DC) under the - point on the right, a little way down. In its properties set Voltage against - to 10 V (reference): the analog input reads 0-10 V, so the potentiometer is fed from 10 V, not from the 24 V of the PLC."
+msgstr ""
+
+msgid "All - points are one pole: the 10 V and the 24 V share it."
+msgstr ""
+
+msgid "Add the potentiometer"
+msgstr ""
+
+msgid "Place Potentiometer between the - point and the 10 V point. It is -RP1: 1 and 3 are the ends of its track, 2 the wiper that runs from 1 to 3 as it is turned clockwise."
+msgstr ""
+
+msgid "Wire its track"
+msgstr ""
+
+msgid "Wire 1 of -RP1 to - and 3 to the 10 V point. Turned fully anticlockwise the wiper gives 0 V, fully clockwise 10 V."
+msgstr ""
+
+msgid "Wire the wiper to the analog input"
+msgstr ""
+
+msgid "Wire 2 of -RP1 to AI0 of -A1. The PLC reads 0-10 V there as 0-27648 (%IW64); its analog inputs take their 0 V from 2M, wired to - already."
+msgstr ""
+
+msgid "Click Simulate at the top. -A1 starts running its program: an analog threshold trigger between AI0 and the output Q0.0."
+msgstr ""
+
+msgid "Turn it past half"
+msgstr ""
+
+msgid "Click -RP1 and drag the slider past 50 %. At half the range (5 V, 13824) the trigger switches Q0.0 on and -H1 lights."
+msgstr ""
+
+msgid "Put -RP1 on a control station from the workspace to turn it with the mouse wheel like a real knob."
+msgstr ""
+
+msgid "Turn it back a little"
+msgstr ""
+
+msgid "Turn -RP1 back to 45 %: -H1 stays lit. The trigger switches off only under 40 % (4 V), so it does not flicker while the value wavers round the threshold. Turn it under 40 % to see it go dark."
+msgstr ""
+
+msgid "Set it finer"
+msgstr ""
+
+msgid "Back in Edit, click -RP1 and set Turns to 10 in its properties: the whole track then takes ten turns of the knob, and each notch moves the value ten times less."
+msgstr ""
+
+#, c-format
+msgid "%s lights when %s is turned past half"
+msgstr ""
+
+#, c-format
+msgid "%s stays dark while %s is under half"
+msgstr ""
+
+#, c-format
+msgid "%s stays lit with %s turned back to 45 %%"
+msgstr ""
+
+#, c-format
+msgid "%s goes dark with %s under 40 %%"
+msgstr ""
+
+msgid "10 V (reference)"
+msgstr ""

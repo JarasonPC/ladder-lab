@@ -8,7 +8,8 @@ extends CircuitComponent
 ## that the fuse clears; + and - are the poles of a separate DC source (e.g. a
 ## rectifier for DC braking of motors). The AC source has 230 V between a
 ## phase and N (400 V between two phases); a + supply has its [member voltage]
-## (12, 24, 48, 110 or 220 V) against the - poles, which all DC supplies share.
+## (12, 24, 48, 110 or 220 V, or 10 V as a reference for potentiometers)
+## against the - poles, which all DC supplies share.
 
 enum Conductor { L, N, L2, L3, DC_PLUS, DC_MINUS, PE }
 
@@ -26,7 +27,10 @@ const BIT_DC_110: int = 256
 const BIT_DC_220: int = 512
 ## The + of a bridge rectifier ([constant RECTIFIED_VOLTS]).
 const BIT_DC_RECTIFIED: int = 1024
-const DC_PLUS_BITS: int = BIT_DC_PLUS | BIT_DC_12 | BIT_DC_48 | BIT_DC_110 | BIT_DC_220 | BIT_DC_RECTIFIED
+## The + pole of 10 V (a reference for potentiometers; above the bits of
+## the frequency inverters' outputs, added after them).
+const BIT_DC_10: int = 16384
+const DC_PLUS_BITS: int = BIT_DC_PLUS | BIT_DC_12 | BIT_DC_48 | BIT_DC_110 | BIT_DC_220 | BIT_DC_RECTIFIED | BIT_DC_10
 ## The motor outputs U V W of frequency inverters (an AC source of their
 ## own, at their frequency).
 const BIT_VFD_U: int = 2048
@@ -40,8 +44,8 @@ const DC_BITS: int = DC_PLUS_BITS | BIT_DC_MINUS
 ## Volts between a phase and N.
 const PHASE_VOLTS: float = 230.0
 ## Voltages a + supply can have, the first the default.
-const DC_VOLTAGES: PackedFloat32Array = [24.0, 12.0, 48.0, 110.0, 220.0]
-const DC_VOLTAGE_BITS: PackedInt32Array = [BIT_DC_PLUS, BIT_DC_12, BIT_DC_48, BIT_DC_110, BIT_DC_220]
+const DC_VOLTAGES: PackedFloat32Array = [24.0, 12.0, 48.0, 110.0, 220.0, 10.0]
+const DC_VOLTAGE_BITS: PackedInt32Array = [BIT_DC_PLUS, BIT_DC_12, BIT_DC_48, BIT_DC_110, BIT_DC_220, BIT_DC_10]
 ## Mean DC of a bridge rectifier fed with 230 V AC (0.9 x 230 V).
 const RECTIFIED_VOLTS: float = 207.0
 

@@ -68,7 +68,8 @@ class Goal:
 	var names: PackedStringArray = PackedStringArray()
 	## Each {"do": [[role, action], ...], "wait": seconds, "wait_delay":
 	## role (wait its time relay's delay as well), "expect": {role: bool}}.
-	## Actions: "press", "release", "on", "off", "trip".
+	## Actions: "press", "release", "on", "off", "trip", "set <per cent>"
+	## (a potentiometer).
 	var phases: Array[Dictionary] = []
 	## Roles whose parts the goal needs; missing, it fails at once.
 	var needs: PackedStringArray = PackedStringArray()

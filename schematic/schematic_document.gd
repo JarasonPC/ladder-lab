@@ -1848,6 +1848,19 @@ func next_ip(reserved: Dictionary[String, bool] = {}) -> String:
 	return Plc.DEFAULT_IP
 
 
+## Saved program [param data] with the partners of its network inputs at
+## the addresses [param readdressed] gives them (old -> new).
+static func _readdressed_program(data: Variant, readdressed: Dictionary[String, String]) -> Variant:
+	if not (data is Dictionary) or not ((data as Dictionary).get("network") is Dictionary):
+		return data
+	var copy: Dictionary = (data as Dictionary).duplicate(true)
+	for operand: Variant in copy["network"]:
+		var source: Variant = copy["network"][operand]
+		if source is Dictionary and readdressed.has(str(source.get("ip", ""))):
+			source["ip"] = readdressed[str(source["ip"])]
+	return copy
+
+
 ## True when a PLC answers at [param ip].
 func _ip_taken(ip: String) -> bool:
 	for c: CircuitComponent in circuit.get_components():
@@ -2062,17 +2075,27 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 	var relabelled: Dictionary[String, String] = {}
 	var new_ids: PackedStringArray = PackedStringArray()
 	var key_map: Dictionary[String, String] = {}
+	# A copied PLC answers at an address of its own; copies reading one
+	# another read the copies' new addresses.
 	var ips: Dictionary[String, bool] = {}
+	var readdressed: Dictionary[String, String] = {}
+	var new_ips: Array[String] = []
+	for cd: Dictionary in components:
+		if cd["type"] != "plc":
+			continue
+		var ip: String = str(cd.get("ip", ""))
+		var given: String = next_ip(ips) if ips.has(ip) or _ip_taken(ip) else ip
+		if not readdressed.has(ip):
+			readdressed[ip] = given
+		new_ips.append(given)
+		ips[given] = true
 	for cd: Dictionary in components:
 		var d: Dictionary = cd.duplicate()
 		match d["type"]:
 			"plc":
 				d["designation"] = renamed.get(d["designation"], d["designation"])
-				# A copied PLC answers at an address of its own.
-				var ip: String = str(d.get("ip", ""))
-				if ips.has(ip) or _ip_taken(ip):
-					d["ip"] = next_ip(ips)
-				ips[str(d.get("ip", ""))] = true
+				d["ip"] = new_ips.pop_front()
+				d["program"] = _readdressed_program(d.get("program", {}), readdressed)
 			"supply":
 				var conductor: int = maxi(DocumentSerializer.CONDUCTORS.find(str(d.get("conductor", "L"))), 0)
 				d["designation"] = next_supply_designation(conductor as PowerSupply.Conductor)

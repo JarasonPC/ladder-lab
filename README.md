@@ -13,7 +13,7 @@ contact numbering 13-14 / 21-22, coils A1-A2.
 
 ## Features
 
-- **Schematic editor**: supplies (L1 L2 L3 N PE, DC + and - of 12-220 V), push buttons,
+- **Schematic editor**: supplies (L1 L2 L3 N PE, DC + and - of 10-220 V), push buttons,
   switches (0-I or I-0-II), rotary cam switches (1-4 poles, 0-I or I-0-II), limit switches, NO / NC / changeover contacts, contactors and relays,
   multifunction time relays (F1-F12), lamps, fuses and fuse holders, circuit breakers,
   overload relays, three-phase motors (star/delta, Dahlander, separate windings, drawn as

@@ -272,7 +272,7 @@ func test_ladder_contact_reads_a_network_input() -> void:
 # --- Schematic, files, switchboards, cables --------------------------------------
 
 ## A1 and the switch KF1 in +RA1, A3 in +RA2: A1 P1 - KF1 P1, A3 P1 - KF1 P2.
-func _doc() -> SchematicDocument:
+func _doc(port: String = "P1") -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new("network")
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(0, 0))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(0, 40))
@@ -282,13 +282,18 @@ func _doc() -> SchematicDocument:
 	a3.ip_address = "192.168.0.3"
 	doc.add(a3, Vector2i(60, 10))
 	doc.add(Plc.new("A1", _source_program()), Vector2i(10, 10))
-	doc.add(NetworkSwitch.new("KF1"), Vector2i(10, 30))
+	var hub: NetworkSwitch = NetworkSwitch.new("KF1")
+	if port != "P1":
+		var names: PackedStringArray = hub.default_terminal_names()
+		names[NetworkSwitch.port_terminal(0)] = port
+		hub.custom_terminals = names
+	doc.add(hub, Vector2i(10, 30))
 	for plc: String in ["A1", "A3"]:
 		doc.connect_terminals("L", plc + ":L1")
 		doc.connect_terminals(plc + ":N", "N")
 	doc.connect_terminals("+", "KF1:L+")
 	doc.connect_terminals("KF1:M", "-")
-	doc.connect_terminals("A1:P1", "KF1:P1")
+	doc.connect_terminals("A1:P1", "KF1:" + port)
 	doc.connect_terminals("A3:P1", "KF1:P2")
 	doc.add_switchboard()
 	doc.add_cabinet_rail(0)
@@ -336,7 +341,7 @@ func test_check_finds_ethernet_mistakes() -> void:
 	(doc.circuit.get_component("A3") as Plc).ip_address = "192.168.0.1"
 	assert_has(_texts(doc), "PLCs %s and %s have the same IP address %s on one network.")
 	(doc.circuit.get_component("A3") as Plc).ip_address = "192.168.0.3"
-	(doc.circuit.get_component("A3") as Plc).program.set_network_source("NI2", "192.168.0.9", "M1")
+	(doc.circuit.get_component("A3") as Plc).program.set_network_source("NI1", "192.168.0.9", "M1")
 	assert_has(_texts(doc), "Network input %s of %s reads from %s, but no PLC on its network has that IP address.")
 	doc.connect_terminals("L", "KF1:P4")
 	assert_has(_texts(doc), "Ethernet port %s is wired to %s: an Ethernet cable joins two ports only.")
@@ -417,3 +422,53 @@ func test_facing_ports_pair_with_ports_only() -> void:
 	assert_eq(pairs.size(), 3, "port to port")
 	for pair: PackedStringArray in pairs:
 		assert_false(pair.has("H1:X1"), "never a port to a lamp")
+
+
+func test_network_input_no_longer_in_the_program_reads_nothing() -> void:
+	var p: PlcProgram = _reader_program("192.168.0.1")
+	assert_eq(p.used_network().keys(), ["NI1"])
+	p.blocks[0].operand = "NI2"
+	assert_true(p.used_network().is_empty(), "NI1 is set but no block reads it")
+	assert_true(p.network.has("NI1"), "kept, should the block read it again")
+	var doc: SchematicDocument = _doc()
+	(doc.circuit.get_component("A3") as Plc).program.set_network_source("NI5", "192.168.0.9", "M1")
+	assert_eq(_texts(doc), PackedStringArray(), "no block reads NI5: nothing to check")
+
+
+func test_cable_wired_to_anything_else_does_not_work() -> void:
+	_build()
+	circuit.connect_terminals("A1:P1", "A2:P1")
+	circuit.connect_terminals("A2:P1", "H3:X2")
+	sim.step()
+	_press(true)
+	assert_false(h2.energized, "as the check says: no working cable")
+	assert_false(a2.port_link)
+
+
+func test_pasted_plcs_read_their_copies() -> void:
+	var doc: SchematicDocument = _doc()
+	(doc.circuit.get_component("A3") as Plc).ip_address = "192.168.0.2"
+	(doc.circuit.get_component("A3") as Plc).program.set_network_source("NI1", "192.168.0.1", "Q1")
+	var ids: PackedStringArray = doc.insert(doc.extract(PackedStringArray(["A1", "A3"])), Vector2i(0, 80))
+	var copies: Dictionary[String, Plc] = {}
+	for id: String in ids:
+		var c: CircuitComponent = doc.circuit.get_component(id)
+		if c is Plc:
+			copies["source" if (c as Plc).program.network.is_empty() else "reader"] = c as Plc
+	assert_eq(copies.size(), 2)
+	assert_eq([copies["source"].ip_address, copies["reader"].ip_address].filter(func(ip: String) -> bool: return ip == "192.168.0.3" or ip == "192.168.0.4").size(), 2, "addresses of their own")
+	assert_eq(copies["reader"].program.network_source("NI1")["ip"], copies["source"].ip_address, "the copy of A1, not A1")
+
+
+func test_renamed_switch_port_keeps_its_cable() -> void:
+	var doc: SchematicDocument = _doc("X1P1")
+	var desc: Dictionary = CabinetDevices.describe(doc, "KF1")
+	assert_true((desc["terminals"] as Dictionary).has("P1"))
+	assert_eq(desc["names"]["P1"], "X1P1")
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0, 0)
+	var wiring: CabinetWiring = CabinetWiring.build(doc, layout, 2.0, 0)
+	var inside: int = 0
+	for wire: Dictionary in wiring.wires:
+		if wire["conductor"] == CabinetDevices.Conductor.NETWORK and not wire["external"]:
+			inside += 1
+	assert_eq(inside, 1, "A1 to the switch's renamed port")
