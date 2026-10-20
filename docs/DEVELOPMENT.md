@@ -124,7 +124,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   wire colour). TourOverlay (CanvasLayer 3): the window dimmed but for the control of the
   step (clicks there go through, _has_point), a card beside it, steps that wait for the
   control to be used (Next does it), Esc; main.gd builds its stops and puts the mode and
-  area back after it. WelcomeCard over the drawing until it is answered (settings
+  area back after it. WelcomeCard over the drawing until it is answered: first the language (main.gd
+  LOCALE_NAMES, asked in both languages at once, set_language), then the tour or the first
+  lesson in it (settings
   "tutorial"/"welcomed"; finished lessons "tutorial"/"finished")
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page

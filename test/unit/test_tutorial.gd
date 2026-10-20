@@ -3,7 +3,7 @@ extends GutTest
 ## lesson starts on its own schematic, ticks its steps as the drawing and
 ## the simulation get there, rings what it is about, checks its goals and
 ## ends with another schematic; the tour shows every stop and waits for
-## Simulate; the welcome card is offered once.
+## Simulate; the welcome card asks the language first and is offered once.
 
 const Main: GDScript = preload("res://ui/main.gd")
 const MAIN_SCENE: String = "res://main.tscn"
@@ -410,3 +410,19 @@ func test_tour_started_again_from_its_last_stop_puts_back_the_first_mode() -> vo
 	main.start_tour()
 	main._tour.stop(true)
 	assert_eq(main.mode, Main.Mode.EDIT)
+
+
+func test_welcome_asks_the_language_first() -> void:
+	main._welcomed = false
+	var welcome: WelcomeCard = main._welcome
+	assert_true(welcome.asking_language(), "the language before the tour and the lesson")
+	assert_false(welcome._tour.is_visible_in_tree())
+	var czech: Button = welcome._language_page.get_child(2).get_child(1)
+	assert_eq(czech.text, "Čeština")
+	czech.pressed.emit()
+	assert_eq(TranslationServer.get_locale(), "cs")
+	assert_eq(main._locale_index, 1)
+	assert_false(welcome.asking_language())
+	assert_eq(welcome._tour.text, "Projít prohlídku", "offered in the language chosen")
+	assert_false(main._welcomed, "answered only with the tour, the lesson or Not now")
+	TranslationServer.set_locale("en")
