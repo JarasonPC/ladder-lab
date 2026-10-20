@@ -720,6 +720,11 @@ func _draw() -> void:
 		_draw_links(font)
 	else:
 		_draw_cables(s, font)
+	# Each part's designation where it is clear of the other symbols and
+	# designations.
+	_taken = []
+	for designation: String in plan().parts:
+		_taken.append(_symbol_box(designation, s))
 	for designation: String in plan().parts:
 		_draw_part(designation, s, font)
 	if editing and tool == Tool.ROOM and _press.get("kind", "") == "new_room":
@@ -1063,10 +1068,66 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 				height_text = _height((c as Appliance).height)
 	# The designation beside the symbol, away from its wall.
 	var center: Vector2 = to_screen(_shown_at(designation) + symbol_center(designation) - plan().parts[designation])
-	var text_at: Vector2 = center + Vector2(0.22 * s + 2.0, -2.0)
+	var text_at: Vector2 = _label_spot(designation, center, into, label, height_text, s, font)
 	draw_string(font, text_at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
 	if not height_text.is_empty():
 		draw_string(font, text_at + Vector2(0, TEXT_SIZE), height_text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE - 1, SchematicTheme.TEXT)
+
+
+## Screen boxes of the symbols and the designations drawn so far.
+var _taken: Array[Rect2] = []
+
+
+## The box round the symbol of part [param designation] on screen.
+func _symbol_box(designation: String, s: float) -> Rect2:
+	var center: Vector2 = to_screen(_shown_at(designation) + symbol_center(designation) - plan().parts[designation])
+	var half: float = 0.2 * s
+	return Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0)
+
+
+## Where the designation [param label] (with [param height_text] under it)
+## of part [param designation] goes: beside its symbol at [param center], on
+## the side into the room ([param into]) first, else right, left, below or
+## above, the first clear of the other symbols and designations, a step
+## further out when none is. Takes the box it gets.
+func _label_spot(designation: String, center: Vector2, into: Vector2, label: String, height_text: String, s: float, font: Font) -> Vector2:
+	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+	if not height_text.is_empty():
+		width = maxf(width, font.get_string_size(height_text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE - 1).x)
+	var height: float = TEXT_SIZE * (2.0 if not height_text.is_empty() else 1.0)
+	var ascent: float = font.get_ascent(TEXT_SIZE)
+	var sides: Array[Vector2] = []
+	if into != Vector2.ZERO:
+		sides.append(into)
+	for side: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
+		if not sides.has(side):
+			sides.append(side)
+	var own: Rect2 = _symbol_box(designation, s)
+	var first: Vector2 = Vector2.INF
+	for step: int in 3:
+		var gap: float = 0.22 * s + 2.0 + step * TEXT_SIZE
+		for side: Vector2 in sides:
+			# The box's top left, its near edge [gap] from the centre.
+			var corner: Vector2 = center + Vector2(gap, -2.0 - ascent)
+			if side == Vector2.LEFT:
+				corner = center + Vector2(-gap - width, -2.0 - ascent)
+			elif side == Vector2.DOWN:
+				corner = center + Vector2(-width * 0.5, gap)
+			elif side == Vector2.UP:
+				corner = center + Vector2(-width * 0.5, -gap - height)
+			var box: Rect2 = Rect2(corner, Vector2(width, height))
+			if first == Vector2.INF:
+				first = corner
+			var clear: bool = true
+			for other: Rect2 in _taken:
+				if other != own and other.intersects(box):
+					clear = false
+					break
+			if clear:
+				_taken.append(box)
+				return corner + Vector2(0, ascent)
+	_taken.append(Rect2(first, Vector2(width, height)))
+	return first + Vector2(0, ascent)
 
 
 static func _height(height: float) -> String:

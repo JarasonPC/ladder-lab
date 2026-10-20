@@ -27,6 +27,8 @@ const PAPERS: Array[Dictionary] = [
 ## The largest paper used unless another is chosen, and the smallest used
 ## while a larger one is allowed.
 const DEFAULT_LARGEST: String = "A3"
+## A drawing grown to fill its paper is drawn at most this much larger.
+const MAX_GROW: float = 2.0
 const SMALLEST: String = "A4"
 
 ## "A5" to "A0".
@@ -34,7 +36,8 @@ var paper_name: String = "A4"
 var portrait: bool = false
 ## Paper width and height in millimetres, as the sheet is seen.
 var paper_mm: Vector2 = Vector2.ZERO
-## Millimetres per grid cell on the paper (at most [constant CELL_MM]).
+## Millimetres per grid cell on the paper (at most [constant CELL_MM], or
+## [constant MAX_GROW] times it for a drawing grown to fill its paper).
 var cell_mm: float = CELL_MM
 ## The whole paper, the frame and the title block, in grid cells.
 var sheet: Rect2 = Rect2()
@@ -43,8 +46,9 @@ var title_block: Rect2 = Rect2()
 
 
 ## Sheet for a drawing covering [param drawing] (grid cells), on paper up
-## to [param largest] ("A5" to "A0").
-static func fit(drawing: Rect2, largest: String = DEFAULT_LARGEST) -> SheetLayout:
+## to [param largest] ("A5" to "A0"); with [param grow] drawn larger on the
+## paper chosen, to fill it (up to [constant MAX_GROW]).
+static func fit(drawing: Rect2, largest: String = DEFAULT_LARGEST, grow: bool = false) -> SheetLayout:
 	var best: SheetLayout = null
 	var top: int = maxi(paper_index(largest), 0)
 	var bottom: int = mini(paper_index(SMALLEST), top)
@@ -56,10 +60,14 @@ static func fit(drawing: Rect2, largest: String = DEFAULT_LARGEST) -> SheetLayou
 				size = Vector2(size.y, size.x)
 			var room: Vector2 = _room(size)
 			var needed: Vector2 = Vector2(maxf(drawing.size.x, 1.0), maxf(drawing.size.y, 1.0)) * CELL_MM
-			var scale: float = minf(1.0, minf(room.x / needed.x, room.y / needed.y))
+			var fill: float = minf(room.x / needed.x, room.y / needed.y)
+			var scale: float = minf(1.0, fill)
 			if best == null or scale > best.cell_mm / CELL_MM + 1e-6:
 				best = _make(drawing, paper["name"], upright, size, CELL_MM * scale)
 			if scale >= 1.0:
+				# With [param grow] drawn larger, as large as the paper takes.
+				if grow and fill > 1.0:
+					return _make(drawing, paper["name"], upright, size, CELL_MM * minf(fill, MAX_GROW))
 				return best
 	return best
 
