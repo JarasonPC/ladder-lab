@@ -12,6 +12,11 @@ signal edit_requested(change: Callable)
 ## Rocker [param rocker] of light switch [param designation] was clicked
 ## while simulating.
 signal switch_toggled(designation: String, rocker: int)
+## A change of the consumer unit's rails (see [CabinetPanel]).
+signal cabinet_edit_requested(change: Callable)
+## Device [param designation] of the consumer unit was operated while
+## simulating (a breaker switched, a fuse replaced).
+signal operate_requested(designation: String)
 
 var canvas: FloorPlanCanvas
 var _document: SchematicDocument
@@ -30,6 +35,10 @@ var _list: ItemList
 var _list_hint: Label
 ## Designations in the list, by item index.
 var _listed: PackedStringArray = PackedStringArray()
+## The consumer unit opened in place of the plan, null while the plan shows.
+var _unit: CabinetPanel
+var _back_button: Button
+var _body: HBoxContainer
 var _rename_dialog: ConfirmationDialog
 var _rename_field: LineEdit
 var _renaming: int = -1
@@ -45,6 +54,14 @@ func _ready() -> void:
 	_bar.custom_minimum_size.y = 30.0
 	bar.add_child(_bar)
 	var group: ButtonGroup = ButtonGroup.new()
+	_back_button = Button.new()
+	_back_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_back_button.theme_type_variation = "ToolButton"
+	_back_button.focus_mode = Control.FOCUS_NONE
+	_back_button.icon = AppTheme.icon("chevron_left")
+	_back_button.visible = false
+	_back_button.pressed.connect(close_unit)
+	_bar.add_child(_back_button)
 	_select_button = _tool_button("select", FloorPlanCanvas.Tool.SELECT, group)
 	_room_button = _tool_button("room", FloorPlanCanvas.Tool.ROOM, group)
 	_door_button = _tool_button("door", FloorPlanCanvas.Tool.DOOR, group)
@@ -74,6 +91,7 @@ func _ready() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 0)
 	add_child(body)
+	_body = body
 	var side_panel: PanelContainer = PanelContainer.new()
 	side_panel.theme_type_variation = "LeftPanel"
 	side_panel.custom_minimum_size.x = 200.0
@@ -103,6 +121,7 @@ func _ready() -> void:
 	canvas.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
 	canvas.switch_toggled.connect(func(designation: String, rocker: int) -> void: switch_toggled.emit(designation, rocker))
 	canvas.rename_requested.connect(_ask_rename)
+	canvas.unit_requested.connect(open_unit)
 	canvas.placed.connect(func() -> void:
 		_select_button.button_pressed = true
 		_list.deselect_all())
@@ -148,6 +167,11 @@ func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> v
 	_editing = editing
 	canvas.document = doc
 	canvas.editing = editing
+	if _unit != null:
+		if _board_index(FloorPlan.UNIT.trim_prefix("+")) < 0:
+			close_unit()
+		else:
+			_unit.set_document(doc, editing)
 	if not editing:
 		canvas.tool = FloorPlanCanvas.Tool.SELECT
 		canvas.placing = ""
@@ -161,12 +185,57 @@ func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> v
 	refresh()
 
 
+## Opens the consumer unit (switchboard "RD1") in place of the plan, made
+## first in Edit mode when there is none.
+func open_unit() -> void:
+	if _document == null:
+		return
+	var unit_name: String = FloorPlan.UNIT.trim_prefix("+")
+	if _board_index(unit_name) < 0:
+		if not _editing:
+			return
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.ensure_consumer_unit())
+	if _unit == null:
+		_unit = CabinetPanel.new()
+		_unit.board_name = unit_name
+		_unit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_unit.edit_requested.connect(func(change: Callable) -> void: cabinet_edit_requested.emit(change))
+		_unit.door_edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
+		_unit.operate_requested.connect(func(designation: String) -> void: operate_requested.emit(designation))
+		add_child(_unit)
+		_unit.set_document(_document, _editing)
+	_body.visible = false
+	refresh()
+
+
+## Back from the consumer unit to the plan.
+func close_unit() -> void:
+	if _unit != null:
+		_unit.queue_free()
+		_unit = null
+	_body.visible = true
+	refresh()
+
+
+func _board_index(board_name: String) -> int:
+	for i: int in _document.switchboards.size():
+		if _document.switchboards[i].name == board_name:
+			return i
+	return -1
+
+
 ## Follows an edit of the document.
 func refresh() -> void:
 	if _document == null:
 		return
+	var plan_shown: bool = _unit == null
+	if _unit != null:
+		_unit.refresh()
+	_back_button.visible = not plan_shown
+	_back_button.text = tr("Floor plan") if not plan_shown else ""
 	for button: Control in [_select_button, _room_button, _door_button, _presets, _delete_button]:
-		button.visible = _editing
+		button.visible = _editing and plan_shown
+	_fit_button.visible = plan_shown
 	(_side.get_parent() as Control).visible = _editing
 	_listed = _document.floor_plan.unplaced(_document.circuit)
 	_list.clear()
@@ -177,8 +246,10 @@ func refresh() -> void:
 
 
 ## The simulation stepped: lights, sockets and appliances are drawn anew.
-func show_step(_result: StepResult) -> void:
+func show_step(result: StepResult) -> void:
 	canvas.queue_redraw()
+	if _unit != null:
+		_unit.show_step(result)
 
 
 func retranslate() -> void:

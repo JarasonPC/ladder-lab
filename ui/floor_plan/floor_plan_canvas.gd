@@ -24,6 +24,9 @@ signal switch_toggled(designation: String, rocker: int)
 signal rename_requested(index: int)
 ## [member placing] was put on the plan.
 signal placed
+## The consumer unit should open (a click on it while simulating, a double
+## click while editing).
+signal unit_requested
 
 enum Tool { SELECT, ROOM, DOOR, PLACE }
 
@@ -38,6 +41,9 @@ const WALL: float = 0.08
 const EDGE_GRAB: float = 6.0
 ## A part within this (m) of the mouse is under it.
 const PART_GRAB: float = 0.25
+## Height of the legend under the plan on a sheet (m).
+const LEGEND_HEIGHT: float = 2.6
+const LEGEND_WIDTH: float = 16.0
 const NAME_SIZE: int = 14
 const TEXT_SIZE: int = 11
 
@@ -52,6 +58,9 @@ var placing: String = ""
 var zoom: float = 1.0
 ## Screen position of the plan's origin.
 var offset: Vector2 = Vector2(60.0, 60.0)
+## Drawn for a sheet: the legend of the symbols and the standard heights
+## under the plan (see [method paper_area]).
+var legend: bool = false
 ## What is selected: {"kind": "room" / "door" / "part", "index", "designation"}.
 var selected: Dictionary = {}
 
@@ -78,6 +87,16 @@ func to_plan(point: Vector2) -> Vector2:
 
 func to_screen(point: Vector2) -> Vector2:
 	return offset + point * PX * zoom
+
+
+## What a sheet of the plan shows (m): the plan with a margin and, under
+## it, room for the legend.
+func paper_area() -> Rect2:
+	var area: Rect2 = plan().bounds().grow(0.8)
+	if not area.has_area():
+		area = Rect2(0, 0, 4, 3)
+	# The legend's two columns need their width.
+	return Rect2(area.position, Vector2(maxf(area.size.x, LEGEND_WIDTH), area.size.y + LEGEND_HEIGHT))
 
 
 ## Shows everything, as large as fits.
@@ -208,6 +227,10 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					_operate(mb.position)
 				return
 			if mb.pressed and mb.double_click and tool == Tool.SELECT:
+				if part_at(mb.position) == FloorPlan.UNIT:
+					unit_requested.emit()
+					_press = {}
+					return
 				var room: int = plan().room_at(to_plan(mb.position))
 				if room >= 0 and part_at(mb.position).is_empty():
 					rename_requested.emit(room)
@@ -275,7 +298,10 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				var ceiling: bool = document.circuit.get_component(designation) is Luminaire
 				placing = ""
 				tool = Tool.SELECT
-				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.place(designation, m, ceiling))
+				edit_requested.emit(func(doc: SchematicDocument) -> void:
+					doc.floor_plan.place(designation, m, ceiling)
+					if designation == FloorPlan.UNIT:
+						doc.ensure_consumer_unit())
 				placed.emit()
 		"part":
 			if _dragging:
@@ -308,6 +334,9 @@ func _release(press: Dictionary, point: Vector2) -> void:
 ## A click while simulating: a switch's rocker is switched.
 func _operate(point: Vector2) -> void:
 	var designation: String = part_at(point)
+	if designation == FloorPlan.UNIT:
+		unit_requested.emit()
+		return
 	var sw: LightSwitch = document.circuit.get_component(designation) as LightSwitch if not designation.is_empty() else null
 	if sw == null:
 		return
@@ -396,7 +425,7 @@ func _next_room_name() -> String:
 
 func _tooltip(designation: String) -> String:
 	if designation == FloorPlan.UNIT:
-		return tr("Consumer unit %s") % FloorPlan.UNIT
+		return tr("Consumer unit %s") % FloorPlan.UNIT + "\n" + (tr("Double-click to open it") if editing else tr("Click to open it and switch its breakers"))
 	var c: CircuitComponent = document.circuit.get_component(designation)
 	if c == null:
 		return designation
@@ -454,9 +483,57 @@ func _draw() -> void:
 		var at: Vector2 = wall_point.get("at", FloorPlan.snap(m))
 		draw_circle(to_screen(at), 4.0, SchematicTheme.HOVER)
 		draw_string(font, to_screen(at) + Vector2(8, -6), ("-" if placing != FloorPlan.UNIT else "") + placing, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
+	if legend:
+		_draw_legend(s, font)
 	if plan().rooms.is_empty() and editing:
 		var hint: String = tr("Draw a room: pick Room and drag, or add one of the ready rooms.")
 		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, Color(SchematicTheme.LINE, 0.6))
+
+
+## The legend under the plan: the symbols used and the heights parts are
+## mounted at unless another one is written beside them.
+func _draw_legend(s: float, font: Font) -> void:
+	var area: Rect2 = paper_area()
+	var top: Vector2 = to_screen(Vector2(area.position.x + 0.4, area.end.y - LEGEND_HEIGHT + 0.5))
+	var color: Color = SchematicTheme.LINE
+	draw_string(font, top, tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, color)
+	var rows: Array = [
+		["switch", tr("Switch (its number: lines and ticks)"), tr("%s m over the floor") % _num(LightSwitch.STANDARD_HEIGHT)],
+		["socket", tr("Socket outlet 230 V with the protective pin"), tr("%s m over the floor") % _num(SocketOutlet.STANDARD_HEIGHT)],
+		["luminaire", tr("Luminaire"), tr("on the ceiling, %s m") % _num(Luminaire.STANDARD_HEIGHT)],
+		["appliance", tr("Appliance, its connection"), tr("%s m over the floor") % _num(Appliance.STANDARD_HEIGHT)],
+		["unit", tr("Consumer unit"), ""],
+		["cable", tr("Cable, a tick per core"), ""],
+	]
+	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
+	for i: int in rows.size():
+		var column: int = i / 3
+		var at: Vector2 = top + Vector2(column * 8.0 * s, (0.45 + (i % 3) * 0.55) * s)
+		var symbol: Vector2 = at + Vector2(0.3 * s, -0.08 * s)
+		match rows[i][0]:
+			"switch":
+				PlanSymbols.draw_switch(self, LightSwitch.new("SF0"), symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width)
+			"socket":
+				PlanSymbols.draw_socket(self, SocketOutlet.new("XD0"), symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width, false)
+			"luminaire":
+				PlanSymbols.draw_luminaire(self, symbol, s, color, width, false)
+			"appliance":
+				PlanSymbols.draw_appliance(self, Appliance.new("EB0"), symbol + Vector2(0, -0.25 * s), Vector2.DOWN, s * 0.7, color, width, false)
+			"unit":
+				PlanSymbols.draw_unit(self, symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s * 0.8, color, width)
+			"cable":
+				draw_dashed_line(symbol - Vector2(0.25 * s, 0), symbol + Vector2(0.25 * s, 0), SchematicTheme.DESIGNATION, 1.4, 6.0)
+				for k: int in 3:
+					var p: Vector2 = symbol + Vector2((k - 1) * 4.0, 0)
+					draw_line(p + Vector2(-3, 5), p + Vector2(3, -5), SchematicTheme.DESIGNATION, 1.2, true)
+		var text: String = rows[i][1] + ("  –  " + rows[i][2] if not str(rows[i][2]).is_empty() else "")
+		draw_string(font, at + Vector2(0.75 * s, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+	var note: String = tr("Heights are to the middle of the box; a height other than these is written beside the part (h).")
+	draw_string(font, top + Vector2(0, 2.0 * s), note, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+
+
+static func _num(metres: float) -> String:
+	return String.num(metres, 2).pad_decimals(2)
 
 
 func _draw_grid(s: float) -> void:

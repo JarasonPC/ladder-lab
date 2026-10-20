@@ -2282,6 +2282,19 @@ func add_switchboard(at: Variant = null) -> Switchboard:
 	return board
 
 
+## The consumer unit of a house installation: switchboard "RD1" (see
+## [constant FloorPlan.UNIT]), made with the devices that have no place
+## yet on its rails when there is none. Returns its index.
+func ensure_consumer_unit() -> int:
+	var unit_name: String = FloorPlan.UNIT.trim_prefix("+")
+	for i: int in switchboards.size():
+		if switchboards[i].name == unit_name:
+			return i
+	switchboards.append(Switchboard.new(unit_name, free_spot()))
+	fill_cabinet(switchboards.size() - 1)
+	return switchboards.size() - 1
+
+
 ## Adds an empty group at [param at] (a free spot when not a Vector2).
 func add_group(at: Variant = null) -> WorkspaceGroup:
 	var group: WorkspaceGroup = WorkspaceGroup.new(next_place_name(Workspace.Place.GROUP), at if at is Vector2 else free_spot())

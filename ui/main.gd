@@ -290,6 +290,8 @@ func _ready() -> void:
 	view.stepped.connect(_floor_plan.show_step)
 	_floor_plan.edit_requested.connect(_edit_workspace)
 	_floor_plan.switch_toggled.connect(view.toggle_light_switch)
+	_floor_plan.cabinet_edit_requested.connect(_edit_cabinet)
+	_floor_plan.operate_requested.connect(view.operate_device)
 	editor.key_bind_requested.connect(_ask_key)
 	editor.edited.connect(func() -> void:
 		for window: PlaceWindow in _place_windows():
@@ -2091,7 +2093,7 @@ func _open_export_preview(pdf: bool) -> void:
 	_export_pdf = pdf
 	_export_images.clear()
 	_export_layouts.clear()
-	_export_preview.open(pdf, _export_contents, SheetRenderer.available(edit_doc), _export_paper)
+	_export_preview.open(pdf, _export_contents, SheetRenderer.available(edit_doc), _export_paper, edit_doc.residential)
 	_render_preview()
 
 
