@@ -36,6 +36,10 @@ func after_all() -> void:
 
 
 func before_each() -> void:
+	# Every test starts as a first run, whatever lessons the settings saved
+	# before (they are put back after all).
+	if FileAccess.file_exists(SETTINGS):
+		DirAccess.remove_absolute(SETTINGS)
 	main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
