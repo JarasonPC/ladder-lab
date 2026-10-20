@@ -49,6 +49,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "PLC (logic module, 8 inputs, 4 relay outputs)", "template": {"type": "plc"}},
 	{"title": "Compact PLC (CPU 24 V DC, transistor outputs)", "template": {"type": "plc", "family": "compact", "cpu": "8di6dq"}},
 	{"title": "Temperature sensor (0-10 V)", "template": {"type": "temp_sensor"}},
+	{"title": "Network switch (Ethernet, 4 ports)", "template": {"type": "network_switch"}},
 ]
 
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
@@ -91,7 +92,7 @@ static func group_of(template: Dictionary) -> String:
 			return "loads"
 		"fuse", "breaker", "overload_relay", "overload_contact":
 			return "protection"
-		"plc", "temp_sensor":
+		"plc", "temp_sensor", "network_switch":
 			return "plc"
 	return "power"
 

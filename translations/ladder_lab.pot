@@ -143,6 +143,14 @@ msgstr ""
 msgid "%s is chattering"
 msgstr ""
 
+#, c-format
+msgid "%s: connection to %s (%s) established"
+msgstr ""
+
+#, c-format
+msgid "%s: connection to %s lost"
+msgstr ""
+
 msgid "Check"
 msgstr ""
 
@@ -1516,6 +1524,12 @@ msgstr ""
 msgid "Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."
 msgstr ""
 
+msgid "Supply 24 V DC on L+ and M. While it has its supply it joins the Ethernet cables plugged into its ports P1-P4 into one network, so more than two PLCs can talk to one another; a port lights up while it has a link."
+msgstr ""
+
+msgid "A cable joins two ports only: more than two PLCs need a switch between them."
+msgstr ""
+
 msgid "2 analog inputs 0-10 V"
 msgstr ""
 
@@ -1525,7 +1539,17 @@ msgstr ""
 msgid "Analog inputs read 0-10 V as 0-1000 (the 12/24 V and 24 V versions: I7, I8, I1, I2 as AI1-AI4); analog outputs put 0-1000 out as 0-10 V. Analog modules need 24 V DC on L+ and M."
 msgstr ""
 
+msgid "IP address (Ethernet port P1)"
+msgstr ""
+
+#, c-format
+msgid "Subnet mask %s: PLCs talk to one another when the first three numbers of their addresses are the same and no two have the same address."
+msgstr ""
+
 msgid "Temperature sensor (0-10 V)"
+msgstr ""
+
+msgid "Network switch (Ethernet, 4 ports)"
 msgstr ""
 
 msgid "PLC and sensors"
@@ -1537,6 +1561,9 @@ msgstr ""
 
 #, c-format
 msgid "Volts on the analog input (0-10 V = 0-%d)"
+msgstr ""
+
+msgid "Stands for what the partner PLC sends (in the schematic it comes over Ethernet)"
 msgstr ""
 
 msgid "Gain"
@@ -1564,6 +1591,9 @@ msgstr ""
 msgid "Analog output AQ"
 msgstr ""
 
+msgid "Network analog input NAI"
+msgstr ""
+
 msgid "Analog threshold trigger"
 msgstr ""
 
@@ -1571,6 +1601,12 @@ msgid "Analog comparator"
 msgstr ""
 
 msgid "Analog amplifier"
+msgstr ""
+
+msgid "Network input"
+msgstr ""
+
+msgid "Network analog input"
 msgstr ""
 
 msgid "Analog input"
@@ -1594,6 +1630,12 @@ msgid "The difference Ax - Ay: the output comes on above On and goes off at Off 
 msgstr ""
 
 msgid "Passes gain x Ax + offset on as an analog value."
+msgstr ""
+
+msgid "Brings a signal of another PLC in over Ethernet: the input, output or flag chosen above, read from the PLC at the IP address above. 0 while that PLC cannot be reached."
+msgstr ""
+
+msgid "Brings an analog value of another PLC in over Ethernet: the analog input or output chosen above, read from the PLC at the IP address above, in that PLC's scale. 0 while that PLC cannot be reached."
 msgstr ""
 
 msgid "Compare: analog input at or above"
@@ -1712,6 +1754,9 @@ msgstr ""
 msgid "Frequency inverter"
 msgstr ""
 
+msgid "Network switch"
+msgstr ""
+
 #, c-format
 msgid "%s: output off"
 msgstr ""
@@ -1800,6 +1845,9 @@ msgid "Constant 1 (hi)"
 msgstr ""
 
 msgid "Constant 0 (lo)"
+msgstr ""
+
+msgid "Network input NI"
 msgstr ""
 
 msgid "AND"
@@ -1977,6 +2025,19 @@ msgid "An empty row above this one (Insert)"
 msgstr ""
 
 msgid "Delete row"
+msgstr ""
+
+msgid "Partner PLC (IP address)"
+msgstr ""
+
+msgid "Operand read there"
+msgstr ""
+
+msgid "That is this PLC's own address."
+msgstr ""
+
+#, c-format
+msgid "Read over Ethernet from the PLC at this address (subnet mask %s; this PLC: %s); 0 while it cannot be reached. Wire the Ethernet ports P1 of the PLCs together, through a network switch for more than two."
 msgstr ""
 
 msgid "Blocks selected"
@@ -2416,6 +2477,16 @@ msgstr ""
 msgid "Supply"
 msgstr ""
 
+msgid "Ports"
+msgstr ""
+
+#, c-format
+msgid "%d × RJ45, 10/100 Mbit/s"
+msgstr ""
+
+msgid "0 V of the supply."
+msgstr ""
+
 #, c-format
 msgid "Rated voltage against %s powers the relay and starts the function."
 msgstr ""
@@ -2780,6 +2851,16 @@ msgstr ""
 msgid "It runs its program (function block or ladder diagram; double-click it) whenever an input changes or a timer of the program ends, until the program settles. Losing power resets the program."
 msgstr ""
 
+msgid "Its Ethernet port P1 takes a cable to another PLC, or to a network switch for more than two. Its network inputs NI1-NI64 and NAI1-NAI32 read an input, output, flag or analog value of the PLC at an IP address set in the program; they are 0 while it cannot be reached."
+msgstr ""
+
+msgid "Ethernet"
+msgstr ""
+
+#, c-format
+msgid "1 × RJ45, 10/100 Mbit/s, IP address %s, mask %s"
+msgstr ""
+
 #, c-format
 msgid "Module %d: %s"
 msgstr ""
@@ -2867,6 +2948,16 @@ msgstr ""
 msgid "0-10 V for 0-%s in the program; 0 V while it does not work."
 msgstr ""
 
+msgid "Ethernet port"
+msgstr ""
+
+msgid "RJ45 socket, 10/100 Mbit/s, crossed over by itself: a cable to a PLC or another switch."
+msgstr ""
+
+#, c-format
+msgid "RJ45 socket: an Ethernet cable to another PLC or to a network switch; IP address %s."
+msgstr ""
+
 msgid "+24 V DC supply of the CPU."
 msgstr ""
 
@@ -2904,6 +2995,9 @@ msgstr ""
 
 #, c-format
 msgid "Other supply terminal of module %d; its inputs are on against it."
+msgstr ""
+
+msgid "Unmanaged Ethernet switch, 4 ports, 24 V DC"
 msgstr ""
 
 msgid "Temperature transmitter, output 0-10 V"
@@ -3295,6 +3389,26 @@ msgid "Analog module %s of %s takes 24 V DC on %s and %s, not the AC supply."
 msgstr ""
 
 msgid "The circuit has no + supply."
+msgstr ""
+
+#, c-format
+msgid "Ethernet port %s is wired to %s: an Ethernet cable joins two ports only."
+msgstr ""
+
+#, c-format
+msgid "The Ethernet cable from %s joins %s ports: more than two are joined only through a network switch."
+msgstr ""
+
+#, c-format
+msgid "PLCs %s and %s have the same IP address %s on one network."
+msgstr ""
+
+#, c-format
+msgid "Network input %s of %s reads from %s, but no PLC on its network has that IP address."
+msgstr ""
+
+#, c-format
+msgid "Network input %s of %s reads from %s (%s), which is not on its subnet (%s, mask %s)."
 msgstr ""
 
 msgid "The circuit has no - supply."

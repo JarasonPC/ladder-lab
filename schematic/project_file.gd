@@ -69,13 +69,19 @@ const FORMAT: String = "ladder-lab"
 ## "positions": "I-0-II" and "operated_in" I or II; missing: 0-I).
 ## 33: the door of a switchboard ("door": columns and items like a control
 ## station's; missing before: an empty door).
-const VERSION: int = 33
+## 34: Ethernet: the IP address of PLCs ("ip"; missing before: 192.168.0.1),
+## the port P1 added after their other terminals (custom terminal names of
+## older PLCs get it added), network switches ("network_switch"), the
+## network inputs of PLC programs ("network" in the program; missing
+## before: none).
+const VERSION: int = 34
 
 
-## PLC program files (see [method save_plc_program]).
+## PLC program files (see [method save_plc_program]). 2: the network
+## inputs' partners ("network" in the program; missing before: none).
 const PLC_EXTENSION: String = "plcprog"
 const PLC_FORMAT: String = "ladder-lab-plc"
-const PLC_VERSION: int = 1
+const PLC_VERSION: int = 2
 
 
 ## Writes PLC program [param program] to [param path] on its own (JSON

@@ -10,7 +10,10 @@ extends RefCounted
 ## station to the next). The cores between two places make one cable, named
 ## W1, W2, ... ([member SchematicDocument.cable_names] keeps the names), and
 ## gets a type as a real cable by what it is used for ([method use],
-## [method type_text]). No nodes.
+## [method type_text]). An Ethernet cable between the ports of two PLCs (or
+## a PLC and a network switch) in two places is a cable of its own, never a
+## core of another (key "+RA1|+RA2|A1:P1", the port it starts from at the
+## first end). No nodes.
 
 ## How cable types are written: Czech designations ("CGSG-J 3x2,5") or their
 ## European equivalents ("H07RN-F 3G2,5").
@@ -19,8 +22,9 @@ enum Naming { CZECH, HARMONISED }
 ## flexible), to a limit switch (rubber flexible, on the machine), to a
 ## sensor (shielded, analog signal), between switchboards with power cores (a
 ## feeder, laid fixed), any other control cable (control stations, control
-## cores between switchboards: PVC control cable).
-enum Use { MOTOR, FIELD, SENSOR, FEEDER, CONTROL }
+## cores between switchboards: PVC control cable), an Ethernet cable between
+## two ports (Cat 6, four shielded pairs).
+enum Use { MOTOR, FIELD, SENSOR, FEEDER, CONTROL, ETHERNET }
 
 ## Copper cross-sections (mm²) with the most current (A) each is taken for,
 ## smallest first (a flexible rubber cable laid on a surface, protected for
@@ -63,7 +67,13 @@ const TYPES: Dictionary[Use, Array] = {
 	Use.SENSOR: [["LiYCY", "LiYCY"], ["H05VVC4V5-K", "H05VVC4V5-K"]],
 	Use.FEEDER: [["CYKY-J", "CYKY-O"], ["NYY-J", "NYY-O"]],
 	Use.CONTROL: [["JYTY-J", "JYTY-O"], ["H05VV5-F", "H05VV5-F"]],
+	Use.ETHERNET: [["Cat 6 S/FTP", "Cat 6 S/FTP"], ["Cat 6 S/FTP", "Cat 6 S/FTP"]],
 }
+## How an Ethernet cable's conductors are written (four pairs of AWG 23),
+## its outer diameter (mm) and the cross-section of a conductor (mm²).
+const ETHERNET_CORES: String = "4x2xAWG23"
+const ETHERNET_DIAMETER: float = 7.2
+const ETHERNET_SECTION: float = 0.26
 
 ## Naming of [method type_text] (Settings menu, kept in the user settings).
 static var naming: Naming = Naming.CZECH
@@ -160,6 +170,9 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 				a = pair[1]
 				b = pair[0]
 			var key: String = a + "|" + b
+			if conductor.get(n, CabinetDevices.Conductor.CONTROL) == CabinetDevices.Conductor.NETWORK:
+				# A cable of its own, from the port at its first end.
+				key += "|" + str(ends[n][a][0])
 			if not found.has(key):
 				found[key] = {"key": key, "name": "", "a": a, "b": b, "cores": []}
 			for core: Array in _split(ends[n][a], ends[n][b], strip_keys):
@@ -193,6 +206,8 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 ## the one by its use, written with the cores as European types are while
 ## [member naming] is European.
 static func type_text(cable: Dictionary) -> String:
+	if int(cable.get("use", Use.FIELD)) == Use.ETHERNET:
+		return "%s %s" % [type_name(cable), ETHERNET_CORES]
 	var cores: int = (cable["cores"] as Array).size()
 	var pe: bool = false
 	for core: Dictionary in cable["cores"]:
@@ -254,6 +269,9 @@ static func voltage_drop(doc: SchematicDocument, cable: Dictionary) -> Dictionar
 	var power: bool = false
 	for core: Dictionary in cable["cores"]:
 		power = power or core["conductor"] == CabinetDevices.Conductor.POWER
+		if core["conductor"] == CabinetDevices.Conductor.NETWORK:
+			# Carries data, no load current.
+			return {}
 	if power:
 		var motors: Array[ThreePhaseMotor] = []
 		for end: String in [cable["a"], cable["b"]]:
@@ -301,8 +319,11 @@ static func voltage_drop(doc: SchematicDocument, cable: Dictionary) -> Dictionar
 ## What [param cable] is used for: a motor at one end makes it a motor cable,
 ## else a sensor a sensor cable, else another part in the field (a limit
 ## switch) a field cable; one between switchboards and stations is a feeder
-## when it has power cores, else a control cable.
+## when it has power cores, else a control cable. An Ethernet cable is one.
 static func use(doc: SchematicDocument, cable: Dictionary) -> Use:
+	for core: Dictionary in cable["cores"]:
+		if core["conductor"] == CabinetDevices.Conductor.NETWORK:
+			return Use.ETHERNET
 	var kinds: Array[Workspace.Field] = []
 	for end: String in [cable["a"], cable["b"]]:
 		var c: CircuitComponent = Workspace.field_component(doc.circuit, end.substr(1)) if end.begins_with("-") else null
@@ -337,6 +358,8 @@ static func type_and_length(cable: Dictionary) -> String:
 static func outer_diameter(cable: Dictionary) -> float:
 	var mm2: float = float(cable.get("section", CONTROL_SECTION))
 	var kind: Use = int(cable.get("use", Use.FIELD)) as Use
+	if kind == Use.ETHERNET:
+		return ETHERNET_DIAMETER
 	var rubber: bool = kind == Use.MOTOR or kind == Use.FIELD
 	var solid: bool = kind == Use.CONTROL or kind == Use.FEEDER
 	var copper: float = sqrt(4.0 * mm2 / PI) * (1.0 if solid else 1.15)
@@ -388,6 +411,8 @@ static func section(doc: SchematicDocument, cable: Dictionary) -> float:
 	var kind: Use = int(cable.get("use", use(doc, cable))) as Use
 	if kind == Use.SENSOR:
 		return SENSOR_SECTION
+	if kind == Use.ETHERNET:
+		return ETHERNET_SECTION
 	if not power:
 		return CONTROL_CABLE_SECTION if kind == Use.CONTROL else CONTROL_SECTION
 	var amps: float = 0.0

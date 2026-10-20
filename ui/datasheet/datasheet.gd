@@ -18,7 +18,7 @@ const LETTERS: Dictionary[String, String] = {
 	"changeover": "KA", "coil": "KM", "timer": "KT", "lamp": "H", "motor": "M", "motor3": "M",
 	"fuse": "FU", "breaker": "FA", "overload_relay": "F", "overload_contact": "F",
 	"main_contacts": "KM", "terminal": "X", "rectifier": "TB", "connector": "PC", "plc": "A",
-	"temp_sensor": "BT", "vfd": "TA",
+	"temp_sensor": "BT", "vfd": "TA", "network_switch": "KF",
 }
 
 ## The part, as in the schematic (or made from a palette template).
@@ -134,6 +134,8 @@ func _build() -> void:
 		_motor3(component as ThreePhaseMotor)
 	elif component is Vfd:
 		_vfd(component as Vfd)
+	elif component is NetworkSwitch:
+		_network_switch()
 	else:
 		title = tr("Wire junction")
 
@@ -730,10 +732,14 @@ func _plc(plc: Plc) -> void:
 			summary += ", " + VoltageRating.text(plc.rating)
 		description.append(tr("Logic module with relay outputs: supply on L1 and N, inputs I1-I8 on with voltage against N, relay outputs Q1-Q4 each a free contact (Qn.1-Qn.2). Expansion modules clip on to its right, each with its own supply."))
 	description.append(tr("It runs its program (function block or ladder diagram; double-click it) whenever an input changes or a timer of the program ends, until the program settles. Losing power resets the program."))
+	description.append(tr("Its Ethernet port P1 takes a cable to another PLC, or to a network switch for more than two. Its network inputs NI1-NI64 and NAI1-NAI32 read an input, output, flag or analog value of the PLC at an IP address set in the program; they are 0 while it cannot be reached."))
 	var heading_module: int = -2
 	for i: int in standard.size():
 		var m: int = plc.terminal_module(i)
-		if m != heading_module and not plc.modules.is_empty():
+		if i == plc.port_terminal():
+			if not plc.modules.is_empty():
+				_heading(tr("Ethernet"))
+		elif m != heading_module and not plc.modules.is_empty():
 			heading_module = m
 			_heading(tr("CPU") if m < 0 and compact else (tr("PLC") if m < 0 else tr("Module %d: %s") % [m + 2, _module_title(plc.modules[m])]))
 		_plc_row(plc, i, names, standard)
@@ -751,6 +757,7 @@ func _plc(plc: Plc) -> void:
 	else:
 		_data(tr("Output switching"), tr("relay, pick-up %s ms, drop-out %s ms") % [_num(Plc.RELAY_PICK_UP * 1000.0), _num(Plc.RELAY_DROP_OUT * 1000.0)])
 	_data(tr("Program"), tr("Ladder diagram (LAD)") if plc.program.language == PlcProgram.Language.LAD else tr("Function block diagram (FBD)"))
+	_data(tr("Ethernet"), tr("1 × RJ45, 10/100 Mbit/s, IP address %s, mask %s") % [plc.ip_address, Plc.SUBNET_MASK])
 
 
 func _module_title(module: Plc.Module) -> String:
@@ -797,6 +804,8 @@ func _plc_row(plc: Plc, i: int, names: PackedStringArray, standard: PackedString
 			var k: int = _index_of(plc.analog_output_count(), func(j: int) -> bool: return plc.analog_output_terminal(j) == i)
 			operand = plc.address("AQ%d" % (k + 1)).trim_prefix("%")
 			_row(names[i], tr("Analog output %s") % operand, tr("0-10 V for 0-%s in the program; 0 V while it does not work.") % _num(plc.full_scale()))
+		Plc.Role.NET:
+			_row(names[i], tr("Ethernet port"), tr("RJ45 socket: an Ethernet cable to another PLC or to a network switch; IP address %s.") % plc.ip_address)
 		_:
 			_row(names[i], tr("Supply"), _plc_supply_text(plc, i, m, standard[i]))
 
@@ -828,6 +837,20 @@ static func _index_of(count: int, test: Callable) -> int:
 		if test.call(j):
 			return j
 	return -1
+
+
+func _network_switch() -> void:
+	var names: PackedStringArray = _names()
+	summary = tr("Unmanaged Ethernet switch, 4 ports, 24 V DC")
+	description.append(tr("Supply 24 V DC on L+ and M. While it has its supply it joins the Ethernet cables plugged into its ports P1-P4 into one network, so more than two PLCs can talk to one another; a port lights up while it has a link."))
+	features.append(tr("A cable joins two ports only: more than two PLCs need a switch between them."))
+	_row(names[0], tr("Supply"), tr("+24 V DC against %s.") % names[1])
+	_row(names[1], tr("Supply"), tr("0 V of the supply."))
+	for k: int in NetworkSwitch.PORTS:
+		_row(names[NetworkSwitch.port_terminal(k)], tr("Ethernet port"), tr("RJ45 socket, 10/100 Mbit/s, crossed over by itself: a cable to a PLC or another switch."))
+	_data(tr("Supply"), "24 V DC")
+	_data(tr("Ports"), tr("%d × RJ45, 10/100 Mbit/s") % NetworkSwitch.PORTS)
+	_data(tr("Current drawn"), "%s mA" % _num(NetworkSwitch.DRAW * 1000.0))
 
 
 func _sensor(sensor: TemperatureSensor) -> void:

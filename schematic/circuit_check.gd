@@ -70,6 +70,9 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 			# supply of the PLC and of its expansion modules not.
 			issues.append_array(_plc_issues(c as Plc, connected, doc))
 			keys = _plc_supply(c as Plc)
+		if c is NetworkSwitch:
+			# Its ports may stay free, its supply not.
+			keys = keys.slice(0, NetworkSwitch.FIRST_PORT)
 		if c is TimerRelay and not (c as TimerRelay).control_input and TimerRelay.uses_control((c as TimerRelay).mode):
 			var code: String = TimerRelay.MODE_CODES[(c as TimerRelay).mode]
 			issues.append(_issue("Function %s of time relay %s works with its control input S, which is turned off.", [code, c.designation], [c.id]))
@@ -88,6 +91,78 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 		issues.append(_issue("The circuit has no L supply." if ac.has(PowerSupply.Conductor.N) else "The circuit has no N supply.", [], []))
 	if dc.size() == 1:
 		issues.append(_issue("The circuit has no - supply." if dc.has(PowerSupply.Conductor.DC_PLUS) else "The circuit has no + supply.", [], []))
+	issues.append_array(_network_issues(circuit))
+	return issues
+
+
+## Mistakes in the Ethernet: a port wired to anything but one other port
+## (a cable joins two ports; more need a network switch), two PLCs with one
+## IP address on one network, network inputs reading from an address no
+## PLC on the network has (or one on another subnet).
+static func _network_issues(circuit: Circuit) -> Array[Dictionary]:
+	var issues: Array[Dictionary] = []
+	var ports: Dictionary[String, bool] = CabinetDevices.network_keys(circuit)
+	if ports.is_empty():
+		return issues
+	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
+	# Net -> the ports on it and the other terminals on it.
+	var on_net: Dictionary[int, PackedStringArray] = {}
+	var others: Dictionary[int, PackedStringArray] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if c is Junction or c is PageConnector:
+			continue
+		for key: String in c.get_terminal_keys():
+			var n: int = net[key]
+			var list: Dictionary[int, PackedStringArray] = on_net if ports.has(key) else others
+			if not list.has(n):
+				list[n] = PackedStringArray()
+			list[n].append(key)
+	for n: int in on_net:
+		var keys: PackedStringArray = on_net[n]
+		var ids: Array = []
+		for key: String in keys:
+			ids.append(circuit.get_terminal_owner(key).id)
+		if others.has(n):
+			issues.append(_issue("Ethernet port %s is wired to %s: an Ethernet cable joins two ports only.", [keys[0], others[n][0]], ids))
+		elif keys.size() > 2:
+			issues.append(_issue("The Ethernet cable from %s joins %s ports: more than two are joined only through a network switch.", [keys[0], keys.size()], ids))
+	# Networks: the cables joined by the switches (taken as working).
+	var index: Dictionary[int, int] = {}
+	for n: int in on_net:
+		index[n] = index.size()
+	var groups: UnionFind = UnionFind.new(index.size())
+	for c: CircuitComponent in circuit.get_components():
+		if c is NetworkSwitch:
+			var all: PackedStringArray = c.get_terminal_keys()
+			for k: int in range(1, NetworkSwitch.PORTS):
+				groups.union(index[net[all[NetworkSwitch.port_terminal(0)]]], index[net[all[NetworkSwitch.port_terminal(k)]]])
+	var plcs: Array[Plc] = []
+	var network_of: Dictionary[Plc, int] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if c is Plc:
+			var n: int = net[c.get_terminal_keys()[(c as Plc).port_terminal()]]
+			plcs.append(c as Plc)
+			# A port on no working cable is a network of its own.
+			network_of[c as Plc] = groups.find(index[n]) if on_net[n].size() == 2 and not others.has(n) else -1 - plcs.size()
+	for i: int in plcs.size():
+		for j: int in range(i + 1, plcs.size()):
+			if network_of[plcs[i]] == network_of[plcs[j]] and plcs[i].ip_address == plcs[j].ip_address:
+				issues.append(_issue("PLCs %s and %s have the same IP address %s on one network.", [plcs[i].designation, plcs[j].designation, plcs[i].ip_address], [plcs[i].id, plcs[j].id]))
+	for plc: Plc in plcs:
+		var asked: Dictionary[String, bool] = {}
+		for operand: String in plc.program.network:
+			var ip: String = plc.program.network[operand]["ip"]
+			if asked.has(ip):
+				continue
+			asked[ip] = true
+			var partner: Plc = null
+			for other: Plc in plcs:
+				if other != plc and other.ip_address == ip and network_of[other] == network_of[plc]:
+					partner = other
+			if partner == null:
+				issues.append(_issue("Network input %s of %s reads from %s, but no PLC on its network has that IP address.", [operand, plc.designation, ip], [plc.id]))
+			elif not Plc.same_subnet(ip, plc.ip_address):
+				issues.append(_issue("Network input %s of %s reads from %s (%s), which is not on its subnet (%s, mask %s).", [operand, plc.designation, partner.designation, ip, plc.ip_address, Plc.SUBNET_MASK], [plc.id, partner.id]))
 	return issues
 
 

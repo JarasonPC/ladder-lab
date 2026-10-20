@@ -13,7 +13,8 @@ extends Plc
 ##
 ## The program sees the inputs, outputs and analog values in order as I1,
 ## Q1, AI1 ... ([PlcProgram]); [method address] writes them as the CPU's
-## addresses (%I0.0, %Q0.0, %IW64, %M0.0).
+## addresses (%I0.0, %Q0.0, %IW64, %M0.0). Its Ethernet port P1 is the
+## PROFINET port X1 P1 of the real ones.
 
 ## CPU sizes: 6 inputs / 4 outputs, 8 / 6, 14 / 10, each with 2 analog inputs.
 enum Cpu { DI6_DQ4, DI8_DQ6, DI14_DQ10 }
@@ -65,7 +66,9 @@ static func modules_fit_cpu(list: Array[Plc.Module], p_cpu: Cpu) -> bool:
 
 
 func duplicate_plc(p_program: PlcProgram) -> Plc:
-	return CompactPlc.new(designation, p_program, modules, cpu)
+	var copy: CompactPlc = CompactPlc.new(designation, p_program, modules, cpu)
+	copy.ip_address = ip_address
+	return copy
 
 
 func full_scale() -> float:

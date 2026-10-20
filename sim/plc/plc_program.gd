@@ -11,6 +11,12 @@ extends RefCounted
 ## also has timers T1-T16 and counters C1-C16 (the function block diagram
 ## has its timers and counters in its blocks). Design data only: the
 ## [PlcRuntime] of the [Plc] runs it.
+##
+## Network inputs NI1-NI64 and network analog inputs NAI1-NAI32 read an
+## operand of another PLC over Ethernet, as on the real logic modules: each
+## names its partner by IP address and the operand read there ([member
+## network]: I, Q or M of the partner for an NI, AI or AQ for an NAI). They
+## are 0 while the partner cannot be reached.
 
 enum Language { FBD, LAD }
 
@@ -18,16 +24,23 @@ const LANGUAGE_NAMES: PackedStringArray = ["fbd", "lad"]
 ## Count of each operand area: enough for the largest compact CPU with all
 ## its signal modules ([constant CompactPlc.CPU_MAX_INPUTS] ...); a PLC uses
 ## those it has.
-const AREA_SIZES: Dictionary[String, int] = {"I": 80, "Q": 80, "M": 16, "T": 16, "C": 16, "AI": 40, "AQ": 16}
-## Areas named by two letters: an areas string that is one of them means it
-## alone (else every letter of it is an area).
-const ANALOG_AREAS: PackedStringArray = ["AI", "AQ"]
+const AREA_SIZES: Dictionary[String, int] = {"I": 80, "Q": 80, "M": 16, "T": 16, "C": 16, "AI": 40, "AQ": 16, "NI": 64, "NAI": 32}
+## Areas holding analog values.
+const ANALOG_AREAS: PackedStringArray = ["AI", "AQ", "NAI"]
+## Areas named by more than one letter, the longest first: an areas string
+## is read from the left, one of these where it starts there, else a letter.
+const LONG_AREAS: PackedStringArray = ["NAI", "NI", "AI", "AQ"]
+## Areas of the partner's operands a network input may read.
+const REMOTE_AREAS: Dictionary[String, String] = {"NI": "IQM", "NAI": "AIAQ"}
 ## Most blocks of a function block diagram.
 const MAX_BLOCKS: int = 200
 
 var language: Language = Language.FBD
 var blocks: Array[PlcBlock] = []
 var rungs: Array[PlcRung] = []
+## Where each network input reads: "NI1" -> {"ip": "192.168.0.2",
+## "operand": "Q1"}; network inputs not in it read nothing.
+var network: Dictionary[String, Dictionary] = {}
 
 
 ## True if [param operand] is an operand of one of the [param areas]
@@ -41,19 +54,25 @@ static func valid_operand(operand: String, areas: String) -> bool:
 	return int(number) >= 1 and int(number) <= AREA_SIZES[area]
 
 
-## The areas of an areas string: "IQM" -> I, Q, M; "AI" -> AI.
+## The areas of an areas string: "IQM" -> I, Q, M; "AI" -> AI; "IQMNI" ->
+## I, Q, M, NI.
 static func area_list(areas: String) -> PackedStringArray:
-	if ANALOG_AREAS.has(areas):
-		return PackedStringArray([areas])
 	var list: PackedStringArray = PackedStringArray()
-	for area: String in areas:
+	var i: int = 0
+	while i < areas.length():
+		var area: String = areas[i]
+		for long: String in LONG_AREAS:
+			if areas.substr(i, long.length()) == long:
+				area = long
+				break
 		list.append(area)
+		i += area.length()
 	return list
 
 
-## Area of an operand: "I", "Q", "AI" ... ("" when it is none).
+## Area of an operand: "I", "Q", "AI", "NI" ... ("" when it is none).
 static func area_of(operand: String) -> String:
-	for area: String in ANALOG_AREAS:
+	for area: String in LONG_AREAS:
 		if operand.begins_with(area):
 			return area
 	return operand.left(1) if AREA_SIZES.has(operand.left(1)) else ""
@@ -78,6 +97,37 @@ func block(id: int) -> PlcBlock:
 		if b.id == id:
 			return b
 	return null
+
+
+## True for an IPv4 address written as four numbers 0-255 ("192.168.0.1").
+static func valid_ip(ip: String) -> bool:
+	var parts: PackedStringArray = ip.split(".")
+	if parts.size() != 4:
+		return false
+	for part: String in parts:
+		if not part.is_valid_int() or str(int(part)) != part or int(part) < 0 or int(part) > 255:
+			return false
+	return true
+
+
+## Where network input [param operand] ("NI3", "NAI1") reads: {"ip",
+## "operand"}; empty when it is not set.
+func network_source(operand: String) -> Dictionary:
+	return network.get(operand, {})
+
+
+## Network input [param operand] reads [param remote] ("Q1", "AQ2") of the
+## PLC at [param ip]; an empty ip clears it.
+func set_network_source(operand: String, ip: String, remote: String) -> void:
+	if ip.is_empty():
+		network.erase(operand)
+	elif _valid_source(operand, ip, remote):
+		network[operand] = {"ip": ip, "operand": remote}
+
+
+static func _valid_source(operand: String, ip: String, remote: String) -> bool:
+	var area: String = area_of(operand)
+	return REMOTE_AREAS.has(area) and valid_operand(operand, area) and valid_ip(ip) and valid_operand(remote, REMOTE_AREAS[area])
 
 
 ## Number for a new block: one above the highest.
@@ -126,7 +176,10 @@ func to_data() -> Dictionary:
 	var rung_data: Array[Dictionary] = []
 	for rung: PlcRung in rungs:
 		rung_data.append(rung.to_data())
-	return {"language": LANGUAGE_NAMES[language], "blocks": block_data, "rungs": rung_data}
+	var sources: Dictionary = {}
+	for operand: String in network:
+		sources[operand] = network[operand].duplicate()
+	return {"language": LANGUAGE_NAMES[language], "blocks": block_data, "rungs": rung_data, "network": sources}
 
 
 ## A program from saved data. Malformed parts are left out (a block with a
@@ -158,6 +211,12 @@ static func from_data(d: Variant) -> PlcProgram:
 				program.rungs.append(rung)
 			elif not rung.is_empty():
 				program.rungs[0].append(rung)
+	var raw_network: Variant = data.get("network", {})
+	if raw_network is Dictionary:
+		for key: Variant in raw_network:
+			var source: Variant = raw_network[key]
+			if source is Dictionary:
+				program.set_network_source(str(key), str(source.get("ip", "")), str(source.get("operand", "")))
 	return program
 
 

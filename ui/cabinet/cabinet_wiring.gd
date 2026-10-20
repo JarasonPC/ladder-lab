@@ -9,6 +9,9 @@ extends RefCounted
 ## and comes out to the other terminal the same way. Wires from the bottom
 ## terminals of a contactor with an overload relay under it run across the
 ## contactor's front out to the nearer side and down beside the relay.
+## An Ethernet cable runs from port to port the same way, an RJ45 plug in
+## the socket at each end; to a PLC in another switchboard it leaves through
+## a gland of its own.
 ## Wires sharing a duct lie side by side, in lanes laid so they cross as
 ## few others as they can (see [method _lanes]). The supply comes in from outside:
 ## one cable per source (AC, DC) through a gland in the top of the
@@ -30,9 +33,11 @@ extends RefCounted
 
 ## Room between a duct and the bend into its slot.
 const BEND: float = 2.0
-## Thickness of a control wire and of a power wire.
+## Thickness of a control wire and of a power wire, and of an Ethernet
+## cable (drawn thinner than a real one, so it keeps to a lane of the duct).
 const WIRE_W: float = 1.6
 const POWER_W: float = 2.0
+const NETWORK_W: float = 3.0
 ## Room a wire takes in a duct and in a slot.
 const LANE: float = 2.2
 ## Room between two wires running out from under a contactor.
@@ -159,7 +164,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 		var star: bool = points.any(func(point: Dictionary) -> bool: return point.get("block", false))
 		if not entry.is_empty():
 			# The core lands on the supply's strip terminal from below.
-			edges.append({"net": n, "conductor": c, "a": cores[n], "b": entry, "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
+			edges.append({"net": n, "conductor": c, "a": cores[n], "b": entry, "width": width_of(c)})
 		elif cores.has(n):
 			points.push_front(cores[n])
 		if star:
@@ -175,7 +180,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 			# A core of the incoming cable starts at the cable.
 			var a: Dictionary = points[pair.y] if points[pair.y].get("external", false) else points[pair.x]
 			var b: Dictionary = points[pair.x] if a == points[pair.y] else points[pair.y]
-			edges.append({"net": n, "conductor": c, "a": a, "b": b, "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
+			edges.append({"net": n, "conductor": c, "a": a, "b": b, "width": width_of(c)})
 	wiring._bottom = layout.size.y - CabinetLayout.FRAME
 	wiring._right = layout.size.x - CabinetLayout.FRAME
 	for n: int in onward:
@@ -189,6 +194,16 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 	wiring._route(edges)
 	wiring._glands()
 	return wiring
+
+
+## Thickness of a wire or cable of [param c] ([enum CabinetDevices.Conductor]).
+static func width_of(c: CabinetDevices.Conductor) -> float:
+	match c:
+		CabinetDevices.Conductor.POWER:
+			return POWER_W
+		CabinetDevices.Conductor.NETWORK:
+			return NETWORK_W
+	return WIRE_W
 
 
 ## What the marker sleeves of each net say: its wire number, else the name
@@ -298,7 +313,7 @@ func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], condu
 				c = CabinetDevices.Conductor.PE
 			elif points[i].get("kind", "") == "N" and c == CabinetDevices.Conductor.CONTROL:
 				c = CabinetDevices.Conductor.NEUTRAL
-			edges.append({"net": n, "conductor": c, "a": core, "b": points[i], "width": POWER_W if c == CabinetDevices.Conductor.POWER else WIRE_W})
+			edges.append({"net": n, "conductor": c, "a": core, "b": points[i], "width": width_of(c)})
 
 
 ## Slots of the bottom duct the field cables of switchboard [param board]

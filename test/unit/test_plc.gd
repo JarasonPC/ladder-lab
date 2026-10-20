@@ -81,7 +81,7 @@ func _fbd_self_hold() -> PlcProgram:
 func test_terminals_and_paths() -> void:
 	var a1: Plc = Plc.new("A1")
 	var names: PackedStringArray = a1.get_terminal_names()
-	assert_eq(names.size(), 18)
+	assert_eq(names.size(), 19, "L1 N, I1-I8, Q1.1-Q4.2, the Ethernet port P1")
 	assert_eq(names[0], "L1")
 	assert_eq(names[1], "N")
 	assert_eq(names[a1.input_terminal(0)], "I1")
@@ -94,7 +94,8 @@ func test_expansion_module_terminals() -> void:
 	var modules: Array[Plc.Module] = [Plc.Module.DI4_DQ4, Plc.Module.DI8_DQ8]
 	var a1: Plc = Plc.new("A1", null, modules)
 	var names: PackedStringArray = a1.get_terminal_names()
-	assert_eq(names.slice(0, 18), Plc.standard_terminal_names(), "the PLC's own terminals first, unchanged")
+	assert_eq(names.slice(0, 18), Plc.standard_terminal_names().slice(0, 18), "the PLC's own terminals first, unchanged")
+	assert_eq(names[names.size() - 1], Plc.PORT_NAME, "the Ethernet port last")
 	assert_eq(names.slice(18, 26), PackedStringArray(["2L1", "2N", "I9", "I10", "I11", "I12", "Q5.1", "Q5.2"]))
 	assert_eq(names[a1.module_terminal(1)], "3L1")
 	assert_eq(a1.input_count(), 20)
@@ -107,7 +108,7 @@ func test_expansion_module_terminals() -> void:
 	assert_eq(a1.switch_paths().size(), 16)
 	assert_eq(a1.output_armatures.size(), 16)
 	assert_eq(a1.module_terminals(0), Vector2i(18, 32))
-	assert_eq(a1.module_terminals(1).y, names.size())
+	assert_eq(a1.module_terminals(1).y, names.size() - 1, "the port is in no module")
 
 
 func test_modules_fit_up_to_24_inputs_and_20_outputs() -> void:
@@ -601,7 +602,8 @@ func test_symbol_grows_with_its_modules() -> void:
 	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(a1)
 	assert_eq(cells.size(), a1.get_terminal_names().size())
 	var plain: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(Plc.new("A2"))
-	assert_eq(cells.slice(0, plain.size()), plain, "the PLC's own terminals stay put")
+	assert_eq(cells.slice(0, plain.size() - 1), plain.slice(0, plain.size() - 1), "the PLC's own terminals stay put")
+	assert_eq(cells[a1.port_terminal()], SymbolGeometry.PLC_PORT_CELL, "the Ethernet port on the left of the PLC's box")
 	assert_eq(cells[a1.module_terminal(0)], Vector2i(21, 0), "the first module a cell right of the PLC's box")
 	assert_eq(cells[a1.output_terminal(4)], Vector2i(21, SymbolGeometry.PLC_HEIGHT))
 	assert_eq(cells[a1.module_terminal(1)], Vector2i(42, 0))

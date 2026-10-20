@@ -4,7 +4,7 @@ extends Control
 ## solid tiles with their names, parts in the field (motors, limit switches,
 ## temperature sensors) as smaller tiles, groups as frames round their
 ## members, the cables between them (see [WorkspaceCables]) as tracks with
-## their name, power cables thicker. A click on a switchboard or
+## their name, power cables thicker, Ethernet cables green. A click on a switchboard or
 ## station opens it, a click on a cable lists its cores; in Edit mode
 ## everything is dragged around (a part dropped into a group's frame joins
 ## the group, dropped outside leaves it). The wheel zooms at the mouse, a
@@ -115,8 +115,8 @@ func cables() -> Array[Dictionary]:
 
 ## Where each cable is drawn: {"cable" (see [method WorkspaceCables.cables]),
 ## "points" (polyline, workspace units), "tag" (Rect2 of its name tag),
-## "text", "power" (it carries power cores), "ports" (where it leaves its two
-## ends)}. Cables run as tracks: out of the side of each end facing the
+## "text", "power" (it carries power cores), "network" (an Ethernet cable,
+## drawn in the network colour), "ports" (where it leaves its two ends)}. Cables run as tracks: out of the side of each end facing the
 ## other, each from a point of its own along that side, at right angles with
 ## rounded corners, round the places in their way where they can.
 func cable_paths() -> Array[Dictionary]:
@@ -212,7 +212,8 @@ func cable_paths() -> Array[Dictionary]:
 		var power: bool = false
 		for core: Dictionary in cable["cores"]:
 			power = power or core["conductor"] == CabinetDevices.Conductor.POWER
-		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": tag["tag"], "text": tag["text"], "power": power, "ports": PackedVector2Array([pa, pb])})
+		var network: bool = int(cable.get("use", -1)) == WorkspaceCables.Use.ETHERNET
+		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": tag["tag"], "text": tag["text"], "power": power, "network": network, "ports": PackedVector2Array([pa, pb])})
 	return result
 
 
@@ -762,7 +763,7 @@ func _draw() -> void:
 	var control: Color = SchematicTheme.LINE.lerp(SchematicTheme.BACKGROUND, 0.3)
 	for path: Dictionary in paths:
 		var on: bool = selected == "=" + str(path["cable"]["key"])
-		var color: Color = SchematicTheme.SELECTED if on else (SchematicTheme.LINE if path["power"] else control)
+		var color: Color = SchematicTheme.SELECTED if on else (SchematicTheme.LINE if path["power"] else (SchematicTheme.NETWORK if path["network"] else control))
 		draw_polyline(path["points"], color, (POWER_WIDTH if path["power"] else CABLE_WIDTH) + (1.0 if on else 0.0), true)
 		# A dot where it leaves each end, like a gland.
 		for port: Vector2 in path["ports"]:

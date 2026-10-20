@@ -1137,6 +1137,11 @@ const PLC := Vector2(72.0, 90.0)
 const PLC_MODULE_W: PackedFloat32Array = [36.0, 72.0, 36.0, 36.0]
 ## Height of its screws from the top and the bottom.
 const PLC_SCREW_Y: float = 8.6
+## The Ethernet socket on its front: its middle across (between the outputs
+## Q3 and Q4, where a cable going down passes between their screws) and its
+## bottom (over their marks).
+const PLC_PORT_X: float = 54.0
+const PLC_PORT_BOTTOM: float = 70.0
 ## Pitch of the screws on the top tier (L1 N I1-I8).
 const PLC_TOP_PITCH: float = 7.2
 ## The display and its backlight (on while the PLC has power).
@@ -1241,6 +1246,12 @@ static func plc(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> 
 		_plc_module(p, left, modules[m], m < working.size() and bool(working[m]), _plc_supply_text(desc))
 		left += PLC_MODULE_W[modules[m]]
 	_plc_output_marks(p, points, desc, h)
+	# The Ethernet socket between the outputs Q3 and Q4, its LINK light beside it.
+	var port: Vector3 = points[Plc.PORT_NAME]
+	rj45_socket(p, Vector2(port.x, PLC_PORT_BOTTOM))
+	var above: float = PLC_PORT_BOTTOM - RJ45_SOCKET.y - 2.2
+	p.text(Vector2(port.x - 1.2, above), "LAN", 1.4, PLC_DARK, 1, false)
+	led(p, Vector2(port.x + 2.4, above - 0.5), LED_GREEN, desc.get("link", false), 0.8)
 
 
 ## Front of an expansion module of [param module] kind whose left edge is at
@@ -1343,6 +1354,8 @@ const CPU_H: float = 100.0
 const SM_W: float = 45.0
 ## Height of the screws of the terminal blocks from the top and the bottom.
 const CPU_SCREW_Y: float = 9.0
+## Bottom of its Ethernet socket (over its lower terminal block).
+const CPU_PORT_BOTTOM: float = CPU_H - 23.0
 const CPU_BLOCK := Color("26292b")
 
 
@@ -1415,13 +1428,15 @@ static func _cpu_front(q: CabinetPainter, w: float, h: float, desc: Dictionary, 
 		own_outputs += 1 if plc.output_module(k) < 0 else 0
 	_channel_lights(q, Vector2(28.0, 44.0), "DI", inputs.slice(0, own_inputs))
 	_channel_lights(q, Vector2(28.0, 44.0 + ceili(own_inputs / 8.0) * 8.0 + 2.0), "DQ", outputs.slice(0, own_outputs))
-	# Network port with its lights, memory card slot.
-	q.rect(Rect2(4.0, h - 34.0, 13.0, 11.0), PLC_DARK, 0.8)
-	q.rect(Rect2(6.0, h - 32.0, 9.0, 6.5), Color("151718"), 0.4)
-	q.text(Vector2(4.0, h - 36.0), "X1 P1", 1.4, PLC_DARK, -1, false)
+	# Network port with its lights (over the gap between the first two
+	# screws below, where its cable goes down), memory card slot.
+	var port: float = terminal_points(CabinetDevices.Kind.PLC, desc)[Plc.PORT_NAME].x
+	rj45_socket(q, Vector2(port, CPU_PORT_BOTTOM))
+	q.text(Vector2(port - 6.5, h - 36.0), "X1 P1", 1.4, PLC_DARK, -1, false)
+	var link: bool = desc.get("link", false)
 	for j: int in 2:
 		var y: float = h - 41.0 - 4.0 * j
-		q.rect(Rect2(4.0, y - 1.0, 2.4, 1.8), LED_GREEN if powered and j == 0 else LED_OFF, 0.2)
+		q.rect(Rect2(4.0, y - 1.0, 2.4, 1.8), LED_GREEN if link else LED_OFF, 0.2)
 		q.text(Vector2(7.6, y + 0.6), ["LINK", "Rx/Tx"][j], 1.3, PLC_DARK, -1, false)
 	q.rect(Rect2(w - 7.0, 42.0, 2.4, 14.0), Color("9ba09d"), 0.4, PLC_EDGE, 0.15)
 	q.text(Vector2(w - 9.0, 60.0), "X50", 1.3, PLC_DARK, 1, false)
@@ -1814,6 +1829,8 @@ static func device_size(desc: Dictionary) -> Vector2:
 			return plc_size(desc)
 		CabinetDevices.Kind.VFD:
 			return VFD
+		CabinetDevices.Kind.SWITCH:
+			return SWITCH
 	return Vector2.ZERO
 
 
@@ -1844,6 +1861,87 @@ static func device(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}, 
 			plc(p, desc, reach)
 		CabinetDevices.Kind.VFD:
 			vfd(p, desc, reach)
+		CabinetDevices.Kind.SWITCH:
+			network_switch(p, desc, reach)
+
+
+# --- Ethernet ----------------------------------------------------------------------
+
+## Network switch (KF): four RJ45 ports in a row below, 45 mm wide, 100 mm
+## high, in the same grey as the PLCs; its supply L+ M on a terminal block
+## on top.
+const SWITCH := Vector2(45.0, 100.0)
+## Bottom of its sockets, the top face of its terminal block.
+const SWITCH_PORT_BOTTOM: float = SWITCH.y - 12.0
+const SWITCH_SCREW_TOP: float = 3.0
+## An RJ45 socket's opening and the plug in it (width across, length out of
+## the socket including its boot).
+const RJ45_SOCKET := Vector2(9.4, 9.0)
+const RJ45_PLUG_W: float = 8.2
+const RJ45_BODY: float = 6.0
+const RJ45_BOOT: float = 7.0
+const RJ45_CLEAR := Color(0.86, 0.9, 0.92, 0.9)
+
+
+## Middle of port P(k + 1) of a network switch across its front.
+static func switch_port_x(k: int) -> float:
+	return SWITCH.x * 0.5 + (k - (NetworkSwitch.PORTS - 1) * 0.5) * (RJ45_SOCKET.x + 1.0)
+
+
+## The switch described by [param desc] (see [method CabinetDevices.describe]):
+## the supply terminals on top, the power light, a LINK light over each port
+## lit while it has a link, the ports below.
+static func network_switch(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> void:
+	var w: float = SWITCH.x
+	var h: float = SWITCH.y
+	p.gradient(Rect2(0.3, 0.0, w - 0.6, h), PLC_BODY, PLC_TIER, 0.8, PLC_EDGE, 0.15)
+	p.rect(Rect2(1.6, 3.0, w - 3.2, 13.0), CPU_BLOCK, 0.6)
+	var points: Dictionary = terminal_points(CabinetDevices.Kind.SWITCH, desc)
+	for name: String in ["L+", "M"]:
+		var at: Vector3 = points[name]
+		p.text(Vector2(at.x, 20.4), name, 1.6, PLC_DARK, 0, false)
+		_modular_screw_small(p, Vector2(at.x, at.y), reach.get(name, Color.TRANSPARENT), at.z)
+	p.gradient(Rect2(1.2, 22.0, w - 2.4, h - 28.0), PLC_FRONT, PLC_BODY, 0.6, PLC_EDGE, 0.15)
+	var powered: bool = desc.get("powered", false)
+	p.rect(Rect2(4.0, 27.0, 3.0, 2.0), LED_GREEN if powered else LED_OFF, 0.3, PLC_DARK, 0.1)
+	p.text(Vector2(8.4, 28.7), "DC 24V", 1.5, PLC_DARK, -1, false)
+	p.text(Vector2(w - 4.0, 38.0), "SWITCH", 2.4, PLC_DARK, 1, true)
+	p.text(Vector2(w - 4.0, 41.6), "4× RJ45  10/100", 1.4, PLC_DARK, 1, false)
+	var links: Array = desc.get("links", [])
+	for k: int in NetworkSwitch.PORTS:
+		var x: float = switch_port_x(k)
+		p.text_centered(Vector2(x, SWITCH_PORT_BOTTOM - RJ45_SOCKET.y - 7.6), "P%d" % (k + 1), 1.5, PLC_DARK, false)
+		p.rect(Rect2(x - 1.2, SWITCH_PORT_BOTTOM - RJ45_SOCKET.y - 4.6, 2.4, 1.8), LED_GREEN if k < links.size() and bool(links[k]) else LED_OFF, 0.2)
+		rj45_socket(p, Vector2(x, SWITCH_PORT_BOTTOM))
+
+
+## An RJ45 socket seen from the front, the middle of its bottom edge at
+## [param bottom]: a dark opening with the latch slot at the bottom.
+static func rj45_socket(p: CabinetPainter, bottom: Vector2) -> void:
+	var r: Rect2 = Rect2(bottom - Vector2(RJ45_SOCKET.x * 0.5, RJ45_SOCKET.y), RJ45_SOCKET)
+	p.rect(r.grow(0.8), PLC_DARK, 0.8)
+	p.rect(r, Color("151718"), 0.4)
+	p.rect(Rect2(bottom.x - 1.6, bottom.y - 2.2, 3.2, 2.2), Color("2a2e31"), 0.2)
+
+
+## An RJ45 plug in a socket whose opening ends at [param tip], its cable
+## leaving along [param along]: the clear body with its gold contacts, the
+## boot round the cable.
+static func rj45_plug(p: CabinetPainter, tip: Vector2, along: Vector2) -> void:
+	var across: Vector2 = along.orthogonal()
+	var half: float = RJ45_PLUG_W * 0.5
+	var a: Vector2 = tip - along * 1.5
+	var b: Vector2 = tip + along * RJ45_BODY
+	p.polygon(PackedVector2Array([a - across * half, a + across * half, b + across * half, b - across * half]), RJ45_CLEAR, METAL_DARK, 0.2)
+	for i: int in 4:
+		var x: float = (i - 1.5) * 1.6
+		p.line(a + across * x + along * 0.6, a + across * x + along * 2.4, Color("d4a94a"), 0.5)
+	var c: Vector2 = b + along * RJ45_BOOT
+	var boot: Color = WIRE_COLORS[CabinetDevices.Conductor.NETWORK].lightened(0.15)
+	p.polygon(PackedVector2Array([b - across * half * 0.9, b + across * half * 0.9, c + across * half * 0.45, c - across * half * 0.45]), boot, boot.darkened(0.45), 0.2)
+	for i: int in 3:
+		var y: Vector2 = b + along * (2.0 + i * 1.6)
+		p.line(y - across * half * 0.7, y + across * half * 0.7, boot.darkened(0.25), 0.25)
 
 
 # --- Terminals and wires -----------------------------------------------------------
@@ -1954,6 +2052,11 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 						points[cnames[i]] = Vector3(cleft + 2.0 + (w - 4.0) / counts.x * (top + 0.5), CPU_SCREW_Y, minf(2.1, (w - 4.0) / counts.x * 0.5 - 0.35))
 						top += 1
 				cleft += w
+			# The Ethernet socket over the gap between the first two screws
+			# below (3L+ 3M), so its cable passes between them.
+			var first: Vector3 = points[cnames[cplc.output_terminal(0) - 2]]
+			var second: Vector3 = points[cnames[cplc.output_terminal(0) - 1]]
+			points[Plc.PORT_NAME] = Vector3((first.x + second.x) * 0.5, CPU_PORT_BOTTOM - RJ45_SOCKET.y * 0.5, 1.0)
 		CabinetDevices.Kind.PLC:
 			var plc: Plc = Plc.new("A", null, plc_modules(desc))
 			var standard: PackedStringArray = plc.default_terminal_names()
@@ -1983,6 +2086,12 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 						bottom += 1
 					points[standard[i]] = Vector3(left + x, y, 2.1)
 				left += width
+			points[Plc.PORT_NAME] = Vector3(PLC_PORT_X, PLC_PORT_BOTTOM - RJ45_SOCKET.y * 0.5, 1.0)
+		CabinetDevices.Kind.SWITCH:
+			points["L+"] = Vector3(SWITCH.x * 0.3, CPU_SCREW_Y, 2.1)
+			points["M"] = Vector3(SWITCH.x * 0.6, CPU_SCREW_Y, 2.1)
+			for k: int in NetworkSwitch.PORTS:
+				points["P%d" % (k + 1)] = Vector3(switch_port_x(k), SWITCH_PORT_BOTTOM - RJ45_SOCKET.y * 0.5, 1.0)
 		CabinetDevices.Kind.RECTIFIER:
 			var xs: Array[float] = [RECTIFIER.x * 0.28, RECTIFIER.x * 0.72]
 			var top: PackedStringArray = ["~1", "~2"]
@@ -1995,8 +2104,9 @@ static func terminal_points(kind: int, desc: Dictionary) -> Dictionary:
 
 ## Insulation colours of the wires ([enum CabinetDevices.Conductor]): red
 ## for the phase of the control circuit, light blue for the neutral, grey
-## for the main power circuit, green and yellow for PE.
-const WIRE_COLORS: Array[Color] = [Color("d6262b"), Color("5cb8f0"), Color("a3a8ad"), Color("3faa3c")]
+## for the main power circuit, green and yellow for PE; the sheath of an
+## Ethernet cable green, as industrial Ethernet cables are.
+const WIRE_COLORS: Array[Color] = [Color("d6262b"), Color("5cb8f0"), Color("a3a8ad"), Color("3faa3c"), Color("1f8f5f")]
 const WIRE_PE_STRIPE := Color("f2d630")
 ## Length of the bare ferrule at each end of a wire.
 const FERRULE: float = 1.8
@@ -2025,6 +2135,20 @@ static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, 
 	p.canvas.draw_polyline(path, color, maxf(w - 0.6, 1.0), true)
 	if conductor == CabinetDevices.Conductor.PE:
 		p.canvas.draw_polyline(path, WIRE_PE_STRIPE, maxf(w * 0.4, 1.0), true)
+	elif conductor == CabinetDevices.Conductor.NETWORK:
+		# A cable: an RJ45 plug at each end that is not out of sight or at
+		# the gland it comes in through.
+		var sheen: PackedVector2Array = PackedVector2Array()
+		for point: Vector2 in path:
+			sheen.append(point - Vector2(1, 1) * w * 0.18)
+		p.canvas.draw_polyline(sheen, color.lightened(0.3), maxf(w * 0.2, 1.0), true)
+		for end: int in range(1 if bare_start else 0, 2):
+			if (pins.x if end == 0 else pins.y) < 0.0:
+				continue
+			var tip: Vector2 = points[0] if end == 0 else points[points.size() - 1]
+			var next: Vector2 = points[1] if end == 0 else points[points.size() - 2]
+			rj45_plug(p, tip, (next - tip).normalized())
+		return
 	elif w >= 3.0:
 		# Light along the top and left of the round insulation.
 		var shine: PackedVector2Array = PackedVector2Array()
@@ -2104,6 +2228,11 @@ const MARKER_GROW: float = 0.9
 ## wire goes in at the edge of the screw (a fuse holder's deep opening).
 static func wire_entry(kind: int, desc: Dictionary, name: String, up: bool) -> float:
 	match kind:
+		CabinetDevices.Kind.PLC when name == Plc.PORT_NAME:
+			# Out of the bottom of the plug in its socket.
+			return CPU_PORT_BOTTOM if desc.get("family", "") == "compact" else PLC_PORT_BOTTOM
+		CabinetDevices.Kind.SWITCH:
+			return SWITCH_SCREW_TOP if up else SWITCH_PORT_BOTTOM
 		CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC:
 			return 0.0 if up else device_size(desc).y
 		CabinetDevices.Kind.CONTACTOR:

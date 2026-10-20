@@ -14,13 +14,16 @@ extends RefCounted
 ## above On and off at Off (of gain x Ax + offset), the analog comparator
 ## the same on the difference Ax - Ay, the analog amplifier passes gain x
 ## Ax + offset on. An analog pin fed by a digital block reads 0 or 1000.
+##
+## Network connectors NI and NAI bring a digital or analog operand of
+## another PLC in over Ethernet (see [member PlcProgram.network]).
 
 ## Saved block types.
-const TYPES: PackedStringArray = ["input", "output", "flag", "hi", "lo", "and", "or", "not", "nand", "nor", "xor", "on_delay", "off_delay", "latch", "pulse_relay", "counter", "analog_input", "analog_output", "analog_threshold", "analog_compare", "analog_amplifier"]
-## Types that bring an operand (I, Q, M, AI or AQ) into the diagram.
-const CONNECTORS: PackedStringArray = ["input", "output", "flag", "hi", "lo", "analog_input", "analog_output"]
+const TYPES: PackedStringArray = ["input", "output", "flag", "hi", "lo", "and", "or", "not", "nand", "nor", "xor", "on_delay", "off_delay", "latch", "pulse_relay", "counter", "analog_input", "analog_output", "analog_threshold", "analog_compare", "analog_amplifier", "network_input", "network_analog_input"]
+## Types that bring an operand (I, Q, M, AI, AQ, NI or NAI) into the diagram.
+const CONNECTORS: PackedStringArray = ["input", "output", "flag", "hi", "lo", "analog_input", "analog_output", "network_input", "network_analog_input"]
 ## Types whose output is an analog value.
-const ANALOG_OUTPUTS: PackedStringArray = ["analog_input", "analog_output", "analog_amplifier"]
+const ANALOG_OUTPUTS: PackedStringArray = ["analog_input", "analog_output", "analog_amplifier", "network_analog_input"]
 ## Analog values: 0-1000 for 0-10 V.
 const ANALOG_MAX: float = 1000.0
 const MAX_GAIN: float = 10.0
@@ -67,6 +70,10 @@ func _init(p_id: int, p_type: String, p_cell: Vector2i = Vector2i.ZERO) -> void:
 			operand = "AI1"
 		"analog_output":
 			operand = "AQ1"
+		"network_input":
+			operand = "NI1"
+		"network_analog_input":
+			operand = "NAI1"
 
 
 ## Names of the input pins of a block type ("" for the inputs of basic
@@ -96,7 +103,8 @@ static func pin_names(p_type: String) -> PackedStringArray:
 	return PackedStringArray()
 
 
-## Operand areas a connector may name: "I", "Q", "M" or "" (none).
+## Operand areas a connector may name: "I", "Q", "M", "AI", "AQ", "NI",
+## "NAI" or "" (none).
 static func operand_area(p_type: String) -> String:
 	match p_type:
 		"input":
@@ -109,6 +117,10 @@ static func operand_area(p_type: String) -> String:
 			return "AI"
 		"analog_output":
 			return "AQ"
+		"network_input":
+			return "NI"
+		"network_analog_input":
+			return "NAI"
 	return ""
 
 

@@ -6,7 +6,9 @@ extends Node2D
 ## wires reached by N in the neutral colour. Current view ([member
 ## current_view]): only wires that carry current are coloured, the thicker
 ## the more current, with the current written in the middle of their longest
-## segment. During a short the fault-current path blinks on top.
+## segment. During a short the fault-current path blinks on top. Ethernet
+## cables (to the ports of PLCs and network switches) are drawn dashed in
+## their own colour.
 
 const G: float = float(SymbolGeometry.GRID)
 
@@ -67,9 +69,14 @@ func _draw() -> void:
 
 	# Dead wires first, then N and DC -, then the phases and DC + on top.
 	var wires: PackedInt32Array = document.wires_on_page(page)
+	var network: Dictionary[int, bool] = document.network_wires()
 	for pass_codes: Array in [[StepResult.REACH_NONE], [StepResult.REACH_N, StepResult.REACH_PE, StepResult.REACH_DC_MINUS], [StepResult.REACH_L1, StepResult.REACH_L2, StepResult.REACH_L3, StepResult.REACH_DC_PLUS, StepResult.REACH_SEVERAL]]:
 		for w: int in wires:
 			var code: int = _reach(w)
+			if code == StepResult.REACH_NONE and network.has(w):
+				if pass_codes.has(code):
+					_draw_network(w)
+				continue
 			if pass_codes.has(code):
 				var width: float = SchematicTheme.LINE_WIDTH if code == StepResult.REACH_NONE else SchematicTheme.LIVE_WIDTH
 				if current_view and code != StepResult.REACH_NONE:
@@ -91,6 +98,13 @@ func _draw() -> void:
 		_draw_path_numbers()
 	else:
 		_path_rects.clear()
+
+
+## An Ethernet cable: long dashes along its route.
+func _draw_network(w: int) -> void:
+	var points: PackedVector2Array = _pixels(w)
+	for i: int in range(1, points.size()):
+		draw_dashed_line(points[i - 1], points[i], SchematicTheme.NETWORK, SchematicTheme.LIVE_WIDTH, 9.0, true, true)
 
 
 func _init() -> void:
