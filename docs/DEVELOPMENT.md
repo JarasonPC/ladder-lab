@@ -144,11 +144,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   (Palette.residential: RESIDENTIAL_ENTRIES or ENTRIES; Palette.all_entries both, each title
   once, for the datasheets and Change type). A house installation has no Workspace (the
   Schematic | Workspace switch is hidden). Its parts: light switches (LightSwitch "SF1",
-  numbered (řazení) as Czech installations do, the common marked P (přívod; files saved while
-  it was "L" load their wires on P, DocumentSerializer._renamed_terminal): 1 one-way P-1, 2 / 3
-  two / three poles 1-2 3-4 5-6, 5 two rockers on one P to 1 and 2, 5A a one-way rocker to 1
-  and a two-way one to 2 / 3, 5B two two-way rockers to 1 / 2 and 3 / 4, 6 two-way P to 1 or 2,
-  7 intermediate 1-3 2-4 or crosswise 1-4 2-3; "circuit" saved, changed in the properties; LightSwitch.on per rocker,
+  numbered (řazení) and their terminals marked as ČSN EN 60669-1 does, the incoming
+  terminals first: 1 one-way 1-2, 2 / 3 / 03 two / three / four poles 1-2 3-4 5-6 7-8, 4
+  two-way with an off position 1 to 2, off, to 3 (LightSwitch.position; a click goes on 2,
+  off, 3, off), 5 two rockers on one 1 to 2 and 3, 5B (6+6) two two-way rockers 1 to 2 / 3
+  and 4 to 5 / 6, 6 two-way 1 to 2 or 3, 6/2 two-pole two-way 1 to 3 / 5 and 2 to 4 / 6, 7
+  intermediate 1-2 3-4 or crosswise 1-4 3-2 (5A, 6+1, is not made any more and not offered);
+  "circuit" saved, changed in the properties; LightSwitch.on per rocker,
   simulation state, all off at the start); luminaires (Luminaire "EA1", a Load on L-N rated
   "230v" with the frame's PE, power in W, rated_draw P / 230 V); type E socket outlets
   (SocketOutlet "XD1", L N PE with PE in the middle, single or double, "gangs"; no load,
@@ -156,13 +158,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   ("height", standard LightSwitch / SocketOutlet / Luminaire.STANDARD_HEIGHT 1.2 / 0.3 / 2.6
   after Czech practice, ČSN 33 2130), written beside the part only when it is not the
   standard one ("h = 1.10 m", LightSwitchSymbol.height_text), as Czech installation drawings
-  do. LightSwitchSymbol is drawn as on Czech wiring diagrams, not as an IEC contact: a box
-  (SymbolGeometry.light_switch_box) with each terminal a small circle inside, P on top and
-  the outputs below (light_switch_cell; 5A / 5B a bar along the top to the second rocker's
-  pivot), a blade from P to the contact it touches (a one-way blade off stands off its
-  contact), the switch number under the designation; the intermediate switch has blades from
-  1 and 2, its crossing contacts bridged to 3 (straight) and to 4 (a U under the others). Each
-  blade is a lever (thick, a knob at its free end) turning about its pivot at one length
+  do. LightSwitchSymbol is drawn as on Czech wiring diagrams after the table of ČSN EN
+  60669-1, not as an IEC contact: a box (SymbolGeometry.light_switch_box) with each
+  terminal a small circle inside, the incoming ones on top and the outgoing ones below
+  (light_switch_cell), a lever from each incoming terminal to the contact it touches (a
+  one-way lever off stands off its contact; switch 4's points at a stop between its contacts
+  while off), the levers of one rocker joined by a dashed link, the switch number under the
+  designation; the intermediate switch has levers from 1 and 3, its crossing contacts
+  bridged to 2 (straight) and to 4 (a U under the others). Each
+  lever is thick, a knob at its free end, turning about its pivot at one length
   (blade_tip); off, a one-way lever stands short of its contact, turned OFF_TURN outward;
   hovered, the half of a two-rocker switch a click works is lit (the view redraws it as the
   mouse moves). The

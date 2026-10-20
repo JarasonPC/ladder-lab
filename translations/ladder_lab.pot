@@ -4578,8 +4578,6 @@ msgstr ""
 msgid "Light switch no. %s of a house installation"
 msgstr ""
 
-msgid "Flush-mounted light switch with rockers, numbered (řazení) as Czech installations number them. While simulating, a click on a rocker switches it over; it stays where it is put."
-msgstr ""
 
 #, c-format
 msgid "Pole %d, supply"
@@ -4593,61 +4591,35 @@ msgstr ""
 msgid "Pole %d, output"
 msgstr ""
 
-msgid "Common (P)"
-msgstr ""
 
 msgid "The supply of both rockers."
 msgstr ""
 
-msgid "Output 1"
-msgstr ""
 
 #, c-format
 msgid "Closed to %s by the first rocker."
 msgstr ""
 
-msgid "Output 2"
-msgstr ""
 
 #, c-format
 msgid "Closed to %s by the second rocker."
 msgstr ""
 
-msgid "Traveller 1"
-msgstr ""
 
 #, c-format
 msgid "Closed to %s at rest."
 msgstr ""
 
-msgid "Traveller 2"
-msgstr ""
 
 #, c-format
 msgid "Closed to %s switched over."
 msgstr ""
 
-#, c-format
-msgid "Closed to %s while the second rocker is at rest."
-msgstr ""
 
-msgid "Traveller 3"
-msgstr ""
 
-#, c-format
-msgid "Closed to %s while the second rocker is switched over."
-msgstr ""
 
-#, c-format
-msgid "Closed to %s while the first rocker is at rest."
-msgstr ""
 
-#, c-format
-msgid "Closed to %s while the first rocker is switched over."
-msgstr ""
 
-msgid "Traveller 4"
-msgstr ""
 
 msgid "Traveller in"
 msgstr ""
@@ -4720,8 +4692,6 @@ msgstr ""
 msgid "(standard)"
 msgstr ""
 
-msgid "Wired as Czech installations number switches, the common marked P: 1 switches P to 1; 2 and 3 switch two or three poles; 5 has two rockers on one P, to 1 and to 2; 5A a one-way rocker to 1 and a two-way rocker to 2 or 3; 5B two two-way rockers, to 1 or 2 and to 3 or 4; 6 (staircase) switches P over from 1 to 2; 7 (intermediate) joins 1-3 and 2-4, switched over 1-4 and 2-3. While simulating, click the rocker to switch it over."
-msgstr ""
 
 msgid "Rated power (W)"
 msgstr ""
@@ -4752,11 +4722,7 @@ msgstr ""
 msgid "5 - series (two rockers)"
 msgstr ""
 
-msgid "5A - one-way and two-way"
-msgstr ""
 
-msgid "5B - double two-way"
-msgstr ""
 
 msgid "6 - two-way (staircase)"
 msgstr ""
@@ -4785,11 +4751,7 @@ msgstr ""
 msgid "Switch no. 5 (series, two rockers)"
 msgstr ""
 
-msgid "Switch no. 5A (one-way and two-way)"
-msgstr ""
 
-msgid "Switch no. 5B (double two-way)"
-msgstr ""
 
 msgid "Switch no. 6 (two-way, staircase)"
 msgstr ""
@@ -5074,4 +5036,63 @@ msgid "Hall"
 msgstr ""
 
 msgid "Room"
+msgstr ""
+
+msgid "Flush-mounted switch for fixed installations with rockers, numbered (řazení) and its terminals marked after ČSN EN 60669-1. While simulating, a click on a rocker switches it over; it stays where it is put."
+msgstr ""
+
+msgid "Incoming"
+msgstr ""
+
+#, c-format
+msgid "To %s, off, or to %s."
+msgstr ""
+
+msgid "Outgoing"
+msgstr ""
+
+#, c-format
+msgid "Closed to %s in the first position."
+msgstr ""
+
+#, c-format
+msgid "Closed to %s in the second position."
+msgstr ""
+
+msgid "Traveller"
+msgstr ""
+
+#, c-format
+msgid "Incoming, rocker %d"
+msgstr ""
+
+#, c-format
+msgid "Pole %d, incoming"
+msgstr ""
+
+msgid "Numbered as switches for fixed installations (ČSN EN 60669-1): 1 joins 1-2; 2, 3 and 03 switch two, three or four poles 1-2, 3-4 ...; 4 switches 1 to 2, off, to 3; 5 has two rockers on one 1, to 2 and to 3; 5B (6+6) two two-way rockers, 1 to 2 or 3 and 4 to 5 or 6; 6 (staircase) switches 1 over from 2 to 3; 6/2 switches 1 from 3 to 5 and 2 from 4 to 6 together; 7 (intermediate) joins 1-2 and 3-4, switched over 1-4 and 3-2. While simulating, click the rocker to switch it over."
+msgstr ""
+
+msgid "03 - four-pole"
+msgstr ""
+
+msgid "4 - two-way with an off position"
+msgstr ""
+
+msgid "5B - double two-way (6+6)"
+msgstr ""
+
+msgid "6/2 - two-pole two-way"
+msgstr ""
+
+msgid "Switch no. 03 (four-pole)"
+msgstr ""
+
+msgid "Switch no. 4 (two-way with an off position)"
+msgstr ""
+
+msgid "Switch no. 5B (double two-way, 6+6)"
+msgstr ""
+
+msgid "Switch no. 6/2 (two-pole two-way)"
 msgstr ""

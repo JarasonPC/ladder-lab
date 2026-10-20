@@ -207,6 +207,17 @@ static func _fuse_hole(p: CabinetPainter, center: Vector2, reach: Color = Color.
 ## light grey housing and lever, the lever's ribbed grip in a dark recess
 ## at the bottom of the front (up = on), red window while on, green while
 ## off. A trip drops it to off, as on a real one.
+## The test button T of a residual current or arc fault device over the
+## last pole of a breaker front of [param poles] poles, [param note] (what
+## it detects) printed beside it.
+static func test_button(p: CabinetPainter, poles: int, note: String) -> void:
+	var cap: float = 22.5
+	var center: Vector2 = Vector2(MODULE_W * poles - 5.0, cap + 6.0)
+	p.circle(center, 3.0, Color("f2c230"), Color("8d7a20"), 0.2)
+	p.text_centered(center, "T", 2.4, MODULAR_PRINT)
+	p.text(Vector2(MODULE_W * (poles - 1) + 1.2, cap + 13.2), note, 2.2, MODULAR_PRINT, -1, true, MODULE_W - 2.4)
+
+
 static func breaker(p: CabinetPainter, poles: int, on: bool, rating: String = "B10", reach: Array = []) -> void:
 	var w: float = MODULE_W * poles
 	var cap: float = 22.5
@@ -1864,6 +1875,8 @@ static func device(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}, 
 	match int(desc.get("kind", CabinetDevices.Kind.NONE)):
 		CabinetDevices.Kind.BREAKER:
 			breaker(p, desc["poles"], desc["on"], desc["rating"], pole_reach)
+			if desc.has("test"):
+				test_button(p, desc["poles"], desc["test"])
 		CabinetDevices.Kind.FUSE:
 			fuse_holder(p, desc["poles"], desc["closed"], desc["blown"], pole_reach)
 		CabinetDevices.Kind.CONTACTOR:

@@ -6,9 +6,10 @@ extends RefCounted
 ## unit vector away from its wall; Vector2.ZERO on the ceiling). No nodes.
 ##
 ## Switch: a small circle with a line per contact into the room, ticks at
-## its end (one a pole: 1, 2, 3 ticks for switch 1, 2, 3); a two-way rocker
-## has a second line the other way (6), two rockers two lines fanned out
-## (5); the intermediate switch's lines cross (7). Socket: a half circle open
+## its end (one a pole: 1, 2, 3, 4 ticks for switch 1, 2, 3, 03); a two-way
+## rocker has a second line the other way (6; two ticks each for 6/2, a dot
+## in the circle for 4 with its off position), two rockers two lines fanned
+## out (5); the intermediate switch's lines cross (7). Socket: a half circle open
 ## to the room on a stem from the wall, its diameter drawn past it for the
 ## protective pin; a double socket two of them. Luminaire: a circle with a
 ## cross. Appliance: a square with its sign on a stem from the wall.
@@ -44,10 +45,16 @@ static func draw_switch(item: CanvasItem, sw: LightSwitch, at: Vector2, facing: 
 		"6":
 			_line(item, c, main, 1, s, color, width)
 			_line(item, c, -main, 1, s, color, width)
-		"5A":
+		"03":
+			_line(item, c, main, 4, s, color, width)
+		"4":
+			# Two-way with an off position: the two-way lines, a dot for off.
 			_line(item, c, main, 1, s, color, width)
-			_line(item, c, into.rotated(PI / 12.0), 1, s, color, width)
-			_line(item, c, -into.rotated(PI / 12.0), 1, s, color, width)
+			_line(item, c, -main, 1, s, color, width)
+			item.draw_circle(c, SWITCH_RADIUS * s * 0.35, color)
+		"6/2":
+			_line(item, c, main, 2, s, color, width)
+			_line(item, c, -main, 2, s, color, width)
 		"5B":
 			_line(item, c, main, 1, s, color, width)
 			_line(item, c, -main, 1, s, color, width)

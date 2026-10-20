@@ -56,8 +56,8 @@ const ENTRIES: Array[Dictionary] = [
 ]
 
 ## Entries of a house installation ([member SchematicDocument.residential]):
-## the supplies, the light switches numbered as Czech installations number
-## them (řazení), luminaires, socket outlets and the circuit breaker.
+## the supplies, the light switches numbered as ČSN EN 60669-1 numbers them
+## (řazení), luminaires, socket outlets, protection and appliances.
 const RESIDENTIAL_ENTRIES: Array[Dictionary] = [
 	{"title": "L1 supply", "template": {"type": "supply", "conductor": "L"}},
 	{"title": "L2 supply", "template": {"type": "supply", "conductor": "L2"}},
@@ -69,10 +69,12 @@ const RESIDENTIAL_ENTRIES: Array[Dictionary] = [
 	{"title": "Switch no. 1 (one-way)", "template": {"type": "light_switch", "circuit": "1"}},
 	{"title": "Switch no. 2 (two-pole)", "template": {"type": "light_switch", "circuit": "2"}},
 	{"title": "Switch no. 3 (three-pole)", "template": {"type": "light_switch", "circuit": "3"}},
+	{"title": "Switch no. 03 (four-pole)", "template": {"type": "light_switch", "circuit": "03"}},
+	{"title": "Switch no. 4 (two-way with an off position)", "template": {"type": "light_switch", "circuit": "4"}},
 	{"title": "Switch no. 5 (series, two rockers)", "template": {"type": "light_switch", "circuit": "5"}},
-	{"title": "Switch no. 5A (one-way and two-way)", "template": {"type": "light_switch", "circuit": "5A"}},
-	{"title": "Switch no. 5B (double two-way)", "template": {"type": "light_switch", "circuit": "5B"}},
+	{"title": "Switch no. 5B (double two-way, 6+6)", "template": {"type": "light_switch", "circuit": "5B"}},
 	{"title": "Switch no. 6 (two-way, staircase)", "template": {"type": "light_switch", "circuit": "6"}},
+	{"title": "Switch no. 6/2 (two-pole two-way)", "template": {"type": "light_switch", "circuit": "6/2"}},
 	{"title": "Switch no. 7 (intermediate)", "template": {"type": "light_switch", "circuit": "7"}},
 	{"title": "Luminaire", "template": {"type": "luminaire"}},
 	{"title": "Socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 1}},

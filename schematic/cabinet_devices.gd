@@ -117,6 +117,16 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 				var mb: MotorBreaker = c as MotorBreaker
 				d["on"] = mb.switched_on and not mb.tripped
 				d["rating"] = CircuitBreaker.rating_text(mb.characteristic, mb.rated_current)
+				# A residual current or arc fault device: its test button T
+				# and what it detects printed beside it.
+				if c is ResidualCurrentDevice:
+					var rcd: ResidualCurrentDevice = c as ResidualCurrentDevice
+					var ma: String = "%dmA" % roundi(rcd.residual_rating * 1000.0)
+					d["test"] = ma + " " + rcd.type if rcd.overcurrent else rcd.type
+					if not rcd.overcurrent:
+						d["rating"] = ma
+				elif c is ArcFaultDevice:
+					d["test"] = "AFDD"
 			else:
 				var cb: CircuitBreaker = c as CircuitBreaker
 				d["on"] = cb.switched_on and not cb.tripped
