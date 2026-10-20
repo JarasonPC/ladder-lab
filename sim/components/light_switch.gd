@@ -4,16 +4,17 @@ extends CircuitComponent
 ## as Czech installations number them (řazení). One or two rockers, each
 ## switched over by a click; snap action, it moves at once.
 ##
-## [code]1[/code] one-way (jednopólový): L to 1 while on.
+## The common terminal is marked P (přívod), as on Czech wiring diagrams.
+## [code]1[/code] one-way (jednopólový): P to 1 while on.
 ## [code]2[/code] two-pole (dvoupólový): 1-2 and 3-4 while on.
 ## [code]3[/code] three-pole (třípólový): 1-2, 3-4 and 5-6 while on.
-## [code]5[/code] series (sériový, lustrový): two rockers on one common L,
-## L to 1 by the first, L to 2 by the second.
-## [code]5A[/code] one-way and two-way on one common L: L to 1 by the first
-## rocker, L to 2 or 3 by the second.
-## [code]5B[/code] double two-way (dvojitý střídavý) on one common L: L to 1
-## or 2 by the first rocker, L to 3 or 4 by the second.
-## [code]6[/code] two-way (střídavý, schodišťový): L to 1, switched over to 2.
+## [code]5[/code] series (sériový, lustrový): two rockers on one common P,
+## P to 1 by the first, P to 2 by the second.
+## [code]5A[/code] one-way and two-way on one common P: P to 1 by the first
+## rocker, P to 2 or 3 by the second.
+## [code]5B[/code] double two-way (dvojitý střídavý) on one common P: P to 1
+## or 2 by the first rocker, P to 3 or 4 by the second.
+## [code]6[/code] two-way (střídavý, schodišťový): P to 1, switched over to 2.
 ## [code]7[/code] intermediate (křížový): 3 to 1 and 4 to 2, switched over
 ## crosswise to 3 to 2 and 4 to 1.
 
@@ -48,14 +49,14 @@ func default_terminal_names() -> PackedStringArray:
 		"3":
 			return PackedStringArray(["1", "2", "3", "4", "5", "6"])
 		"5", "6":
-			return PackedStringArray(["L", "1", "2"])
+			return PackedStringArray(["P", "1", "2"])
 		"5A":
-			return PackedStringArray(["L", "1", "2", "3"])
+			return PackedStringArray(["P", "1", "2", "3"])
 		"5B":
-			return PackedStringArray(["L", "1", "2", "3", "4"])
+			return PackedStringArray(["P", "1", "2", "3", "4"])
 		"7":
 			return PackedStringArray(["1", "2", "3", "4"])
-	return PackedStringArray(["L", "1"])
+	return PackedStringArray(["P", "1"])
 
 
 ## Rockers it has: two for 5, 5A and 5B, else one.

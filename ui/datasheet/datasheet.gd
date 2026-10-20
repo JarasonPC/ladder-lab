@@ -472,20 +472,20 @@ func _light_switch(sw: LightSwitch) -> void:
 				_row(names[2 * p], tr("Pole %d, supply") % (p + 1), tr("Closed to %s while on.") % names[2 * p + 1])
 				_row(names[2 * p + 1], tr("Pole %d, output") % (p + 1), tr("Closed to %s while on.") % names[2 * p])
 		"5":
-			_row(names[0], tr("Common (L)"), tr("The supply of both rockers."))
+			_row(names[0], tr("Common (P)"), tr("The supply of both rockers."))
 			_row(names[1], tr("Output 1"), tr("Closed to %s by the first rocker.") % names[0])
 			_row(names[2], tr("Output 2"), tr("Closed to %s by the second rocker.") % names[0])
 		"6":
-			_row(names[0], tr("Common (L)"), tr("Switched between %s and %s.") % [names[1], names[2]])
+			_row(names[0], tr("Common (P)"), tr("Switched between %s and %s.") % [names[1], names[2]])
 			_row(names[1], tr("Traveller 1"), tr("Closed to %s at rest.") % names[0])
 			_row(names[2], tr("Traveller 2"), tr("Closed to %s switched over.") % names[0])
 		"5A":
-			_row(names[0], tr("Common (L)"), tr("The supply of both rockers."))
+			_row(names[0], tr("Common (P)"), tr("The supply of both rockers."))
 			_row(names[1], tr("Output 1"), tr("Closed to %s by the first rocker.") % names[0])
 			_row(names[2], tr("Traveller 2"), tr("Closed to %s while the second rocker is at rest.") % names[0])
 			_row(names[3], tr("Traveller 3"), tr("Closed to %s while the second rocker is switched over.") % names[0])
 		"5B":
-			_row(names[0], tr("Common (L)"), tr("The supply of both rockers."))
+			_row(names[0], tr("Common (P)"), tr("The supply of both rockers."))
 			_row(names[1], tr("Traveller 1"), tr("Closed to %s while the first rocker is at rest.") % names[0])
 			_row(names[2], tr("Traveller 2"), tr("Closed to %s while the first rocker is switched over.") % names[0])
 			_row(names[3], tr("Traveller 3"), tr("Closed to %s while the second rocker is at rest.") % names[0])
@@ -496,7 +496,7 @@ func _light_switch(sw: LightSwitch) -> void:
 			_row(names[2], tr("Traveller out"), tr("To %s at rest, to %s switched over.") % [names[0], names[1]])
 			_row(names[3], tr("Traveller out"), tr("To %s at rest, to %s switched over.") % [names[1], names[0]])
 		_:
-			_row(names[0], tr("Common (L)"), tr("Closed to %s while on.") % names[1])
+			_row(names[0], tr("Common (P)"), tr("Closed to %s while on.") % names[1])
 			_row(names[1], tr("Output 1"), tr("Closed to %s while on.") % names[0])
 	features.append(tr("Snap action: it switches at once."))
 	_data(tr("Switch number (řazení)"), sw.circuit)

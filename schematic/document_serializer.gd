@@ -146,8 +146,8 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 	for wd: Variant in wires:
 		if not (wd is Dictionary):
 			return null
-		var a: String = str(wd.get("a", ""))
-		var b: String = str(wd.get("b", ""))
+		var a: String = _renamed_terminal(doc.circuit, str(wd.get("a", "")))
+		var b: String = _renamed_terminal(doc.circuit, str(wd.get("b", "")))
 		var raw_corners: Variant = wd.get("corners", [])
 		if not doc.circuit.has_terminal(a) or not doc.circuit.has_terminal(b) or not (raw_corners is Array):
 			return null
@@ -245,6 +245,16 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 						order.append(label)
 				doc.strip_orders[strip] = order
 	return doc
+
+
+## Terminal [param key] under its present name: the common of a light
+## switch was "L" before it was marked P as on Czech wiring diagrams.
+static func _renamed_terminal(circuit: Circuit, key: String) -> String:
+	if key.ends_with(":L") and not circuit.has_terminal(key):
+		var moved: String = key.trim_suffix(":L") + ":P"
+		if circuit.has_terminal(moved) and circuit.get_terminal_owner(moved) is LightSwitch:
+			return moved
+	return key
 
 
 ## Pole count "poles" (1-4) of a device, [param fallback] when missing or invalid.
