@@ -463,6 +463,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "luminaire"
 		d["power"] = (c as Luminaire).power
 		d["height"] = (c as Luminaire).height
+		if (c as Luminaire).wall:
+			d["wall"] = true
 	elif c is Lamp:
 		d["type"] = "lamp"
 		if not (c as Lamp).purpose.is_empty():
@@ -699,7 +701,8 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"luminaire":
 			var luminaire: Luminaire = Luminaire.new(designation)
 			luminaire.power = clampf(_number_or(d, "power", luminaire.power), Luminaire.MIN_POWER, Luminaire.MAX_POWER)
-			luminaire.height = _height(d, Luminaire.STANDARD_HEIGHT)
+			luminaire.wall = _bool(d, "wall", false)
+			luminaire.height = _height(d, luminaire.standard_height())
 			return luminaire
 		"socket":
 			var socket: SocketOutlet = SocketOutlet.new(designation, _int(d, "gangs", 1))

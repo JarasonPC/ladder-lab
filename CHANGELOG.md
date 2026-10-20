@@ -67,6 +67,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The floor plan sheet of a PDF export draws the plan as large as its paper takes, and the
   designations of parts close together (switches back to back on a wall) no longer print over
   each other: each goes where it is clear, into its room first
+- Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
+  wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers

@@ -337,3 +337,21 @@ func test_designations_kept_clear_of_each_other() -> void:
 	var again: Vector2 = canvas._label_spot("SF1", center, Vector2.RIGHT, "-SF1", "", s, font)
 	assert_ne(again, spot, "never on a designation already there")
 	assert_eq(canvas._taken.size(), 3, "each takes its place")
+
+
+func test_wall_luminaire_goes_onto_a_wall() -> void:
+	var lamp: Luminaire = DocumentSerializer.component_from_dict({"type": "luminaire", "wall": true, "designation": "EA2"}) as Luminaire
+	assert_true(lamp.wall)
+	assert_almost_eq(lamp.height, Luminaire.WALL_HEIGHT, 1e-6, "its own standard height")
+	var again: Luminaire = DocumentSerializer.component_from_dict(DocumentSerializer.component_to_dict(lamp)) as Luminaire
+	assert_true(again.wall, "saved and loaded")
+	assert_false(FloorPlanCanvas.on_ceiling(lamp))
+	assert_true(FloorPlanCanvas.on_ceiling(Luminaire.new("EA1")))
+	var doc: SchematicDocument = _house()
+	doc.add(lamp, Vector2i(20, 16))
+	doc.floor_plan.place("EA2", Vector2(3.9, 0.1), FloorPlanCanvas.on_ceiling(lamp))
+	assert_true(doc.floor_plan.facing.has("EA2"), "on the wall, facing into the room")
+	var titles: PackedStringArray = PackedStringArray()
+	for entry: Dictionary in Palette.PLAN_ENTRIES:
+		titles.append(entry["title"])
+	assert_true(titles.has("Wall luminaire"))

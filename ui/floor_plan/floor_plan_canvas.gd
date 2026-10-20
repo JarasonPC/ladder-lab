@@ -57,7 +57,9 @@ const EDGE_GRAB: float = 6.0
 ## A part within this (m) of the mouse is under it.
 const PART_GRAB: float = 0.25
 ## Height of the legend under the plan on a sheet (m).
-const LEGEND_HEIGHT: float = 2.6
+const LEGEND_HEIGHT: float = 3.1
+## Symbols in a column of that legend.
+const LEGEND_ROWS: int = 4
 const LEGEND_WIDTH: float = 16.0
 const NAME_SIZE: int = 14
 const TEXT_SIZE: int = 11
@@ -170,6 +172,12 @@ func fit() -> void:
 # --- Finding things -------------------------------------------------------------------
 
 ## Where part [param designation]'s symbol is centred (m).
+## Whether [param c] goes on the ceiling (a luminaire not on a wall), not
+## onto the nearest wall.
+static func on_ceiling(c: CircuitComponent) -> bool:
+	return c is Luminaire and not (c as Luminaire).wall
+
+
 func symbol_center(designation: String) -> Vector2:
 	var at: Vector2 = plan().parts[designation]
 	if not plan().facing.has(designation):
@@ -499,7 +507,7 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if not placing_template.is_empty():
 				var template: Dictionary = placing_template.duplicate()
 				var feeder: String = circuit
-				var ceiling_part: bool = template.get("type", "") == "luminaire"
+				var ceiling_part: bool = template.get("type", "") == "luminaire" and not template.get("wall", false)
 				edit_requested.emit(func(doc: SchematicDocument) -> void:
 					var data: Dictionary = template.duplicate()
 					data["designation"] = SingleLineCanvas.new_designation(doc, template)
@@ -514,7 +522,7 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				return
 			var designation: String = placing
 			if not designation.is_empty():
-				var ceiling: bool = document.circuit.get_component(designation) is Luminaire
+				var ceiling: bool = on_ceiling(document.circuit.get_component(designation))
 				placing = ""
 				tool = Tool.SELECT
 				edit_requested.emit(func(doc: SchematicDocument) -> void:
@@ -525,7 +533,7 @@ func _release(press: Dictionary, point: Vector2) -> void:
 		"part":
 			if _dragging:
 				var designation: String = press["designation"]
-				var ceiling: bool = document.circuit.get_component(designation) is Luminaire
+				var ceiling: bool = on_ceiling(document.circuit.get_component(designation))
 				var to: Vector2 = plan().parts[designation] + by
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.place(designation, to, ceiling))
 		"door":
@@ -734,13 +742,13 @@ func _draw() -> void:
 		draw_string(font, to_screen(drawn.end) + Vector2(6, 0), dims, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
 	if editing and tool == Tool.PLACE and not placing.is_empty():
 		var m: Vector2 = to_plan(_mouse)
-		var wall_point: Dictionary = {} if document.circuit.get_component(placing) is Luminaire else plan().wall_near(m)
+		var wall_point: Dictionary = {} if on_ceiling(document.circuit.get_component(placing)) else plan().wall_near(m)
 		var at: Vector2 = wall_point.get("at", FloorPlan.snap(m))
 		draw_circle(to_screen(at), 4.0, SchematicTheme.HOVER)
 		draw_string(font, to_screen(at) + Vector2(8, -6), ("-" if placing != FloorPlan.UNIT else "") + placing, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
 	if editing and tool == Tool.PLACE and not placing_template.is_empty():
 		var m: Vector2 = to_plan(_mouse)
-		var wall_point: Dictionary = {} if placing_template.get("type", "") == "luminaire" else plan().wall_near(m)
+		var wall_point: Dictionary = {} if placing_template.get("type", "") == "luminaire" and not placing_template.get("wall", false) else plan().wall_near(m)
 		draw_circle(to_screen(wall_point.get("at", FloorPlan.snap(m))), 4.0, SchematicTheme.HOVER)
 	if editing and tool == Tool.WIRE and _press.get("kind", "") == "new_link":
 		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.HOVER, 1.6, 5.0)
@@ -766,14 +774,15 @@ func _draw_legend(s: float, font: Font) -> void:
 		["switch", tr("Switch (its number: lines and ticks)"), tr("%s m over the floor") % _num(LightSwitch.STANDARD_HEIGHT)],
 		["socket", tr("Socket outlet 230 V with the protective pin"), tr("%s m over the floor") % _num(SocketOutlet.STANDARD_HEIGHT)],
 		["luminaire", tr("Luminaire"), tr("on the ceiling, %s m") % _num(Luminaire.STANDARD_HEIGHT)],
+		["wall_luminaire", tr("Wall luminaire"), tr("%s m over the floor") % _num(Luminaire.WALL_HEIGHT)],
 		["appliance", tr("Appliance, its connection"), tr("%s m over the floor") % _num(Appliance.STANDARD_HEIGHT)],
 		["unit", tr("Consumer unit"), ""],
 		["cable", tr("Cable, a tick per core"), ""],
 	]
 	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
 	for i: int in rows.size():
-		var column: int = i / 3
-		var at: Vector2 = top + Vector2(column * 8.0 * s, (0.45 + (i % 3) * 0.55) * s)
+		var column: int = i / LEGEND_ROWS
+		var at: Vector2 = top + Vector2(column * 8.0 * s, (0.45 + (i % LEGEND_ROWS) * 0.55) * s)
 		var symbol: Vector2 = at + Vector2(0.3 * s, -0.08 * s)
 		match rows[i][0]:
 			"switch":
@@ -782,6 +791,8 @@ func _draw_legend(s: float, font: Font) -> void:
 				PlanSymbols.draw_socket(self, SocketOutlet.new("XD0"), symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width, false)
 			"luminaire":
 				PlanSymbols.draw_luminaire(self, symbol, s, color, width, false)
+			"wall_luminaire":
+				PlanSymbols.draw_luminaire(self, symbol + Vector2(0, -0.15 * s), s, color, width, false, Vector2.DOWN)
 			"appliance":
 				PlanSymbols.draw_appliance(self, Appliance.new("EB0"), symbol + Vector2(0, -0.25 * s), Vector2.DOWN, s * 0.7, color, width, false)
 			"unit":
@@ -794,7 +805,7 @@ func _draw_legend(s: float, font: Font) -> void:
 		var text: String = rows[i][1] + ("  –  " + rows[i][2] if not str(rows[i][2]).is_empty() else "")
 		draw_string(font, at + Vector2(0.75 * s, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
 	var note: String = tr("Heights are to the middle of the box; a height other than these is written beside the part (h).")
-	draw_string(font, top + Vector2(0, 2.0 * s), note, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+	draw_string(font, top + Vector2(0, (0.45 + LEGEND_ROWS * 0.55) * s), note, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
 
 
 static func _num(metres: float) -> String:
@@ -1059,9 +1070,10 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 			if not is_equal_approx(socket.height, SocketOutlet.STANDARD_HEIGHT):
 				height_text = _height(socket.height)
 		elif c is Luminaire:
-			PlanSymbols.draw_luminaire(self, at, s, color, width, not editing and (c as Load).energized)
-			if not is_equal_approx((c as Luminaire).height, Luminaire.STANDARD_HEIGHT):
-				height_text = _height((c as Luminaire).height)
+			var luminaire: Luminaire = c as Luminaire
+			PlanSymbols.draw_luminaire(self, at, s, color, width, not editing and luminaire.energized, into if luminaire.wall else Vector2.ZERO)
+			if not is_equal_approx(luminaire.height, luminaire.standard_height()):
+				height_text = _height(luminaire.height)
 		elif c is Appliance:
 			PlanSymbols.draw_appliance(self, c as Appliance, at, into, s, color, width, not editing and (c as Load).energized)
 			if not is_equal_approx((c as Appliance).height, Appliance.STANDARD_HEIGHT):

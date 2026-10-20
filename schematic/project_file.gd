@@ -106,7 +106,8 @@ const FORMAT: String = "ladder-lab"
 ## 44: residual current devices of types "F", "B" and "B+" and selective
 ## ones ("selective"; missing: not selective); the single-line diagram's
 ## groups nested, under any protective device ("feeders" of a group hold
-## circuits and groups, each with its "kind"; missing: a circuit).
+## circuits and groups, each with its "kind"; missing: a circuit); wall
+## luminaires ("luminaire": "wall"; missing: on the ceiling).
 const VERSION: int = 44
 
 

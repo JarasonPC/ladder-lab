@@ -5353,3 +5353,9 @@ msgstr ""
 
 msgid "No RCD of 30 mA or less protects this circuit. ČSN 33 2000-4-41 asks for one on every circuit an ordinary person (laik) can reach: sockets, lighting and what is fed in a home."
 msgstr ""
+
+msgid "On the wall (wall luminaire)"
+msgstr ""
+
+msgid "Wall luminaire"
+msgstr ""
