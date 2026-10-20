@@ -483,6 +483,16 @@ func toggle_switch(designation: String, steps: int = 0) -> void:
 	_apply(simulator.step())
 
 
+## Switches rocker [param rocker] of light switch [param designation] over,
+## as from the floor plan (while simulating).
+func toggle_light_switch(designation: String, rocker: int) -> void:
+	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	if not simulating or not (c is LightSwitch):
+		return
+	(c as LightSwitch).toggle(rocker)
+	_apply(simulator.step())
+
+
 ## Sets what analog sensor [param designation] measures (while simulating),
 ## e.g. the temperature at a temperature sensor.
 func set_measured(designation: String, value: float) -> void:

@@ -5005,3 +5005,88 @@ msgstr "Porucha: jiskřící uvolněný spoj u %s"
 #, c-format
 msgid "%s: test button pressed"
 msgstr "%s: stisknuto testovací tlačítko"
+
+#, c-format
+msgid "Room %d"
+msgstr "Místnost %d"
+
+#, c-format
+msgid "Consumer unit %s"
+msgstr "Rozvodnice %s"
+
+msgid "Click to switch it"
+msgstr "Kliknutím jej přepnete"
+
+#, c-format
+msgid "Mounting height %s m"
+msgstr "Montážní výška %s m"
+
+msgid "Draw a room: pick Room and drag, or add one of the ready rooms."
+msgstr "Nakreslete místnost: zvolte Místnost a táhněte, nebo přidejte některou z připravených místností."
+
+msgid "Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling."
+msgstr "Vyberte přístroj a klikněte, kam patří: vypínače, zásuvky a spotřebiče jdou na nejbližší stěnu, svítidla na strop."
+
+msgid "Every part is on the plan."
+msgstr "Všechny přístroje jsou v půdorysu."
+
+msgid "Select and move rooms, doors and parts; drag a room's edge to resize it"
+msgstr "Výběr a přesun místností, dveří a přístrojů; tažením stěny místnosti změníte její velikost"
+
+msgid "Draw a room by dragging; it snaps to the walls of the others"
+msgstr "Nakreslete místnost tažením; přichytí se ke stěnám ostatních"
+
+msgid "Put a door in a wall by clicking it"
+msgstr "Kliknutím na stěnu do ní vložíte dveře"
+
+msgid "Add room"
+msgstr "Přidat místnost"
+
+msgid "Take the selected room, door or part away"
+msgstr "Odebrat vybranou místnost, dveře nebo přístroj"
+
+msgid "Not on the plan"
+msgstr "Není v půdorysu"
+
+msgid "Rename room"
+msgstr "Přejmenovat místnost"
+
+#, c-format
+msgid "Switch no. %s"
+msgstr "Vypínač řazení %s"
+
+msgid "Socket outlet"
+msgstr "Zásuvka"
+
+msgid "Floor plan"
+msgstr "Půdorys"
+
+msgid "Rooms, and where the switches, sockets, luminaires and appliances are, with the cables between them"
+msgstr "Místnosti a kde jsou vypínače, zásuvky, svítidla a spotřebiče, s kabely mezi nimi"
+
+msgid "Double-click a room to rename it; Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
+msgstr "Dvojklikem místnost přejmenujete; Delete odebere výběr; pravé tlačítko ukončí kreslení. Tažením pravým nebo prostředním tlačítkem posunete, kolečkem zvětšíte."
+
+msgid "Click a light switch on the plan to switch it (of two rockers, the side clicked). Right or middle drag pans, wheel zooms."
+msgstr "Kliknutím na vypínač v půdorysu jej přepnete (u dvou kolébek tu na straně kliknutí). Tažením pravým nebo prostředním tlačítkem posunete, kolečkem zvětšíte."
+
+msgid "Living room"
+msgstr "Obývací pokoj"
+
+msgid "Bedroom"
+msgstr "Ložnice"
+
+msgid "Kitchen"
+msgstr "Kuchyň"
+
+msgid "Bathroom"
+msgstr "Koupelna"
+
+msgid "WC"
+msgstr "WC"
+
+msgid "Hall"
+msgstr "Chodba"
+
+msgid "Room"
+msgstr "Pokoj"
