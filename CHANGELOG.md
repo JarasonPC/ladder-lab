@@ -6,6 +6,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Panels
+- Two wires that have to go into one strip terminal share a twin ferrule (one pin, the
+  collar round both wires) instead of a terminal twice as wide
+- Plug-in bridges on terminal strips are grey (blue on N) instead of red
+
 ## 0.5.0 – 2026-10-20
 
 ### Panels
@@ -15,9 +20,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Every terminal strip entry in a switchboard takes one wire with one marker sleeve: the
   wiring loops through the devices' terminals rather than a strip terminal, the terminals of
   one net stand side by side on their strip (unless you set the order) joined by a plug-in
-  bridge, and N or PE gets a distribution block from two loads on; two wires that still
-  have to go into one strip terminal share a twin ferrule
-- Plug-in bridges on terminal strips are grey (blue on N)
+  bridge, and N or PE gets a distribution block from two loads on; a strip terminal that
+  still has to join two wires is a terminal for two wires, twice as wide, with two entries
+  side by side at each end
 
 ### Application
 - Lessons (Help > Lessons): four lessons teach drawing and simulating circuits, from a lamp
