@@ -37,8 +37,12 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = TemperatureSensorSymbol.new()
 	elif component is ProximitySensor:
 		symbol = ProximitySensorSymbol.new()
+	elif component is Potentiometer:
+		symbol = PotentiometerSymbol.new()
 	elif component is Vfd:
 		symbol = VfdSymbol.new()
+	elif component is NetworkSwitch:
+		symbol = NetworkSwitchSymbol.new()
 	elif component is Lamp:
 		symbol = LampSymbol.new()
 	elif component is Motor:

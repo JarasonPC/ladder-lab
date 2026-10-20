@@ -44,7 +44,7 @@ func _build(p_cpu: CompactPlc.Cpu = CompactPlc.Cpu.DI8_DQ6, no_output_supply: bo
 
 func test_cpu_sizes_and_addresses() -> void:
 	var small: CompactPlc = CompactPlc.new("A1", null, [], CompactPlc.Cpu.DI6_DQ4)
-	assert_eq(small.get_terminal_names(), PackedStringArray(["L+", "M", "1M", "I0.0", "I0.1", "I0.2", "I0.3", "I0.4", "I0.5", "2M", "AI0", "AI1", "3L+", "3M", "Q0.0", "Q0.1", "Q0.2", "Q0.3"]))
+	assert_eq(small.get_terminal_names(), PackedStringArray(["L+", "M", "1M", "I0.0", "I0.1", "I0.2", "I0.3", "I0.4", "I0.5", "2M", "AI0", "AI1", "3L+", "3M", "Q0.0", "Q0.1", "Q0.2", "Q0.3", "P1"]))
 	assert_eq(small.input_count(), 6)
 	assert_eq(small.output_count(), 4)
 	assert_eq(small.analog_input_count(), 2)

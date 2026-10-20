@@ -20,14 +20,18 @@ var select: Callable
 var _swatches: Dictionary[String, Texture2D] = {}
 
 
-## Buttons that add a push button, a switch or a lamp to the panel.
+## Buttons that add a push button, a switch, a lamp or a potentiometer to
+## the panel (the potentiometer on a row of its own).
 func add_buttons() -> void:
 	var b: int = panel
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 2)
-	var titles: PackedStringArray = [tr("Button"), tr("Switch"), tr("Lamp")]
-	var tips: PackedStringArray = [tr("Add a push button"), tr("Add a switch"), tr("Add a signal lamp")]
-	for kind: int in 3:
+	var titles: PackedStringArray = [tr("Button"), tr("Switch"), tr("Lamp"), tr("Potentiometer")]
+	var tips: PackedStringArray = [tr("Add a push button"), tr("Add a switch"), tr("Add a signal lamp"), tr("Add a potentiometer")]
+	var row: HBoxContainer = null
+	for kind: int in titles.size():
+		if kind == 0 or kind == ControlBoxItem.Kind.POT:
+			row = HBoxContainer.new()
+			row.add_theme_constant_override("separation", 2)
+			list.add_child(row)
 		var add: Button = make_button(titles[kind], "plus")
 		add.tooltip_text = tips[kind]
 		add.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -36,7 +40,6 @@ func add_buttons() -> void:
 			select.call(document.control_panels()[b].items.size())
 			edit.call(func(doc: SchematicDocument) -> void: doc.add_control_item(b, kind as ControlBoxItem.Kind)))
 		row.add_child(add)
-	list.add_child(row)
 
 
 ## Button that puts every push button, switch and lamp not on a station or
@@ -121,15 +124,16 @@ func item_editor(i: int) -> void:
 		changed["label"] = text
 		edit.call(func(doc: SchematicDocument) -> void: doc.set_control_item(b, at, changed))))
 
-	make_caption(fields, tr("Colour"))
-	# Lamps and lit caps are never black.
-	var palette: PackedStringArray = ControlBoxItem.LAMP_COLORS if item.kind == ControlBoxItem.Kind.LAMP or not item.lamp.is_empty() else ControlBoxItem.COLORS
-	fields.add_child(make_color_choice(palette, item.color, func(color: String) -> void:
-		var changed: Dictionary = data.call()
-		changed["color"] = color
-		apply.call(changed)))
+	if item.kind != ControlBoxItem.Kind.POT:
+		make_caption(fields, tr("Colour"))
+		# Lamps and lit caps are never black.
+		var palette: PackedStringArray = ControlBoxItem.LAMP_COLORS if item.kind == ControlBoxItem.Kind.LAMP or not item.lamp.is_empty() else ControlBoxItem.COLORS
+		fields.add_child(make_color_choice(palette, item.color, func(color: String) -> void:
+			var changed: Dictionary = data.call()
+			changed["color"] = color
+			apply.call(changed)))
 
-	if item.kind != ControlBoxItem.Kind.LAMP:
+	if item.kind == ControlBoxItem.Kind.BUTTON or item.kind == ControlBoxItem.Kind.SWITCH:
 		make_caption(fields, tr("Signal lamp inside (illuminated)"))
 		var lamps: PackedStringArray = PackedStringArray([""])
 		lamps.append_array(document.control_devices(ControlBoxItem.Kind.LAMP))

@@ -20,9 +20,10 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   their terminal box if you like), bridge rectifiers, sensors for the PLC inputs (proximity
   sensors: inductive, capacitive, optical, magnetic, PNP / NPN, NO / NC / antivalent, wired
   1 BN / 3 BU / 4 BK / 2 WH as on the real ones; pressure, level, flow and temperature
-  transmitters 0-10 V), a frequency inverter, terminal strips and two PLCs: a logic module (8 inputs, 4 relay
+  transmitters 0-10 V; potentiometers of 1-10 turns), a frequency inverter, terminal strips and two PLCs: a logic module (8 inputs, 4 relay
   outputs, expansion and analog modules) and a compact 24 V DC CPU in three sizes with
-  signal modules. Coils, lamps and PLCs carry a rated voltage. Undo / redo, rotating and
+  signal modules, each with an Ethernet port and an IP address, and a network switch to join
+  more than two. Coils, lamps and PLCs carry a rated voltage. Undo / redo, rotating and
   mirroring (several parts together), wires that find their way around the symbols, wire
   numbering, multi-page schematics with page connectors.
 - **Datasheets**: every part has a datasheet laid out like a manufacturer's, built from the
@@ -41,20 +42,24 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   up/down counter, analog trigger, comparator and amplifier) or a ladder diagram (LAD: one
   endless power rail, NO/NC, edge and comparing contacts, coils, negated coils, set/reset,
   timer, counter and analog output coils), in the style of Siemens programming software; the
-  compact CPU's addresses as on the real one (%I0.0, %Q0.0, %IW64); a built-in simulation
+  compact CPU's addresses as on the real one (%I0.0, %Q0.0, %IW64); network inputs NI and
+  NAI read an input, output, flag or analog value of another PLC over Ethernet, as on the
+  real logic modules; a built-in simulation
   with input switches and output lamps tests the program on its own, and while the schematic
   is simulated it shows the running program (signals, power flow, times and counts).
 - **Workspace**: switchboards, control stations and groups of parts in the field (motors,
   limit switches, sensors) placed on a plan, with the cables between them worked out from the
   wiring, typed by their use (motor CGSG-J, control station JYTY-O, sensor LiYCY, feeder CYKY-J,
-  or their European equivalents) and sized; a click on a cable lists its cores.
+  or their European equivalents, Cat 6 for Ethernet between PLCs) and sized; a click on a
+  cable lists its cores.
 - **Control stations**: push buttons, selector switches, rotary cam switches, signal lamps
   and illuminated buttons drawn like real ones, also with the cover off (contact blocks and
   their wiring), that operate the simulated circuit.
 - **Switchboard** (rozvaděč): DIN rails with the breakers, fuse holders, contactors,
   overload relays, relays, time relays, PLCs, frequency inverters and terminal strips of the
   schematic, drawn like the real cabinet and wired after the circuit through the ducts, with
-  the field cables going out through glands; they show the simulation and breakers and fuses
+  the field cables going out through glands, Ethernet cables with RJ45 plugs in the PLCs' and
+  switches' ports; they show the simulation and breakers and fuses
   are switched there. Its door holds push buttons, switches and lamps like a control station.
 - **Export**: the page shown as PNG or a PDF on A4 / A3 sheets with a frame and title block,
   shown first in a preview; the PDF holds, as ticked, the schematic, the control stations,

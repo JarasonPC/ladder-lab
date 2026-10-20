@@ -3,7 +3,7 @@ extends RefCounted
 ## What the switchboard (rozvaděč) shows of a circuit: the devices that sit
 ## on DIN rails (circuit breakers, fuse holders, contactors with the overload
 ## relays fitted under them, auxiliary relays, time relays, bridge
-## rectifiers, PLCs) and the terminal strips, with everything their look depends on (poles, contacts, terminal
+## rectifiers, PLCs, network switches) and the terminal strips, with everything their look depends on (poles, contacts, terminal
 ## names) and their simulation state. Works on the circuit alone, no nodes.
 ##
 ## Terminal strips are made of the terminals on wires ([TerminalBlock]) and on
@@ -11,11 +11,12 @@ extends RefCounted
 ## of strip X2, a plain label "4" is terminal 4 of strip X1. Terminals with the
 ## same strip and label are one terminal.
 
-enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER, PLC, VFD }
+enum Kind { NONE, BREAKER, FUSE, CONTACTOR, RELAY, TIMER, OVERLOAD, RECTIFIER, PLC, VFD, SWITCH }
 ## Conductor a net is wired with in the switchboard (see [method conductors]):
 ## the phase of the control circuit (red), the neutral (light blue), the
-## main power circuit (grey) and the protective conductor.
-enum Conductor { CONTROL, NEUTRAL, POWER, PE }
+## main power circuit (grey), the protective conductor, and an Ethernet
+## cable between two ports (Cat 6, RJ45 plugs at its ends).
+enum Conductor { CONTROL, NEUTRAL, POWER, PE, NETWORK }
 
 ## Strip of the terminals whose label names none.
 const DEFAULT_STRIP: String = "X1"
@@ -47,6 +48,8 @@ static func kind_of(c: CircuitComponent) -> Kind:
 		return Kind.PLC
 	if c is Vfd:
 		return Kind.VFD
+	if c is NetworkSwitch:
+		return Kind.SWITCH
 	return Kind.NONE
 
 
@@ -99,6 +102,8 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ##   and "rating" (its version, see [VoltageRating])
 ## - VFD: "terminals", "powered", "output" (switched on), "frequency" (Hz,
 ##   negative in reverse)
+## - SWITCH: "terminals" (L+ M P1-P4), "powered", "links" (one bool per
+##   port with a link)
 static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 	var c: CircuitComponent = device(doc.circuit, designation)
 	if c == null:
@@ -147,6 +152,14 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 			d["powered"] = drive.powered
 			d["output"] = drive.output
 			d["frequency"] = drive.frequency
+		Kind.SWITCH:
+			var hub: NetworkSwitch = c as NetworkSwitch
+			d["terminals"] = _named_keys(c)
+			d["powered"] = hub.energized
+			var links: Array[bool] = []
+			for k: int in NetworkSwitch.PORTS:
+				links.append(hub.port_linked(k))
+			d["links"] = links
 	return d
 
 
@@ -182,6 +195,7 @@ static func _describe_plc(plc: Plc, d: Dictionary) -> void:
 		d["cpu"] = CompactPlc.CPU_NAMES[(plc as CompactPlc).cpu]
 	d["inputs"] = inputs
 	d["outputs"] = outputs
+	d["link"] = plc.energized and plc.port_link
 	d["language"] = "LAD" if plc.program.language == PlcProgram.Language.LAD else "FBD"
 
 
@@ -394,6 +408,10 @@ static func supply_nets(circuit: Circuit, net: Dictionary[String, int]) -> Dicti
 ## 3~ motors, fuses, breakers and rotary cam switches of two or more poles)
 ## are POWER, all others CONTROL.
 static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictionary[int, Conductor]:
+	var network: Dictionary[int, bool] = {}
+	for key: String in network_keys(circuit):
+		if net.has(key):
+			network[net[key]] = true
 	var neutral: Dictionary[int, bool] = {}
 	var pe: Dictionary[int, bool] = {}
 	var power: Dictionary[int, bool] = {}
@@ -428,7 +446,9 @@ static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictio
 		var n: int = net[key]
 		if result.has(n):
 			continue
-		if neutral.has(n):
+		if network.has(n):
+			result[n] = Conductor.NETWORK
+		elif neutral.has(n):
 			result[n] = Conductor.NEUTRAL
 		elif power.has(n):
 			result[n] = Conductor.POWER
@@ -437,6 +457,20 @@ static func conductors(circuit: Circuit, net: Dictionary[String, int]) -> Dictio
 		else:
 			result[n] = Conductor.CONTROL
 	return result
+
+
+## Terminal keys of the Ethernet ports (of the PLCs and the network
+## switches): they take Ethernet cables, not wires.
+static func network_keys(circuit: Circuit) -> Dictionary[String, bool]:
+	var keys: Dictionary[String, bool] = {}
+	for c: CircuitComponent in circuit.get_components():
+		if c is Plc:
+			keys[c.get_terminal_keys()[(c as Plc).port_terminal()]] = true
+		elif c is NetworkSwitch:
+			var all: PackedStringArray = c.get_terminal_keys()
+			for k: int in NetworkSwitch.PORTS:
+				keys[all[NetworkSwitch.port_terminal(k)]] = true
+	return keys
 
 
 ## True for a part that sits outside the switchboard and is wired to it

@@ -190,14 +190,15 @@ static func door_of(doc: SchematicDocument, designation: String) -> int:
 
 
 ## What has no place yet: devices and terminal strips not in a switchboard,
-## push buttons, switches and lamps not on a control station or a door. Each
+## push buttons, switches, lamps and potentiometers not on a control
+## station or a door. Each
 ## {"kind": "device", "strip" or "control", "designation"}, in that order.
 static func unplaced(doc: SchematicDocument) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for item: CabinetItem in doc.cabinet_unplaced():
 		result.append({"kind": "strip" if item.kind == CabinetItem.Kind.STRIP else "device", "designation": item.designation})
 	var listed: Dictionary[String, bool] = doc.control_panel_devices()
-	for kind: int in [ControlBoxItem.Kind.BUTTON, ControlBoxItem.Kind.SWITCH, ControlBoxItem.Kind.LAMP]:
+	for kind: int in [ControlBoxItem.Kind.BUTTON, ControlBoxItem.Kind.SWITCH, ControlBoxItem.Kind.LAMP, ControlBoxItem.Kind.POT]:
 		for designation: String in doc.control_devices(kind):
 			if not listed.has(designation):
 				result.append({"kind": "control", "designation": designation})

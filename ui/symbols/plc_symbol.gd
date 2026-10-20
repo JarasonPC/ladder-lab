@@ -9,6 +9,8 @@ extends SchematicSymbol
 ## inputs and outputs drawn alike and a window filled while they work.
 ## A compact CPU ([CompactPlc]) alike: its transistor outputs (and their
 ## supply 3L+ 3M) below, a small square over each output lit while it is on.
+## The Ethernet port P1 on the left of the box: an RJ45 socket lit while it
+## has a link.
 
 const G2: float = SymbolGeometry.POLE_SPACING * G
 const BOX := Rect2(-G, G, SymbolGeometry.PLC_WIDTH * G, (SymbolGeometry.PLC_HEIGHT - 2) * G)
@@ -27,7 +29,9 @@ func _draw_shape(color: Color, width: float) -> void:
 	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(plc)
 	for i: int in cells.size():
 		var x: float = cells[i].x * G
-		if cells[i].y == 0:
+		if i == plc.port_terminal():
+			aa_line(Vector2(x, cells[i].y * G), Vector2(BOX.position.x, cells[i].y * G), lead_color(i), lead_width(i))
+		elif cells[i].y == 0:
 			aa_line(Vector2(x, 0), Vector2(x, BOX.position.y), lead_color(i), lead_width(i))
 		elif plc.terminal_role(i) != Plc.Role.DQ:
 			aa_line(Vector2(x, cells[i].y * G), Vector2(x, BOX.end.y), lead_color(i), lead_width(i))
@@ -53,6 +57,7 @@ func _draw_shape(color: Color, width: float) -> void:
 	if plc.energized:
 		aa_rect(DISPLAY, SchematicTheme.COIL_ON)
 	aa_rect(DISPLAY, color, false, 1.2)
+	NetworkSwitchSymbol.draw_socket(self, Vector2(BOX.position.x + 9.0, SymbolGeometry.PLC_PORT_CELL.y * G), plc.port_link, color)
 	# Outputs: a relay's NO contact across its two terminals, a light over a
 	# transistor output.
 	for k: int in plc.output_count():
@@ -119,6 +124,10 @@ func _draw_labels() -> void:
 	var cells: Array[Vector2i] = SymbolGeometry.plc_terminal_cells(plc)
 	for i: int in names.size():
 		var cell: Vector2 = Vector2(cells[i])
+		if i == plc.port_terminal():
+			# Inside the box, right of its socket.
+			draw_label(names[i], Vector2(BOX.position.x + 17.0, cell.y * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+			continue
 		var y: float = 0.5 * G if cell.y == 0.0 else (SymbolGeometry.PLC_HEIGHT - 0.5) * G
 		if placement.rotation % 2 == 1:
 			# Turned, the names run across the leads: level with the

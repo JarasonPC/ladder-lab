@@ -44,6 +44,14 @@ extends RefCounted
 ## breaker trips at once. In realistic timing motors run up over time (the
 ## starting current flows while they do); with instant switching they are at
 ## their final speed at once.
+## Ethernet: the port of each PLC and the ports of the network switches
+## take no part in the electrical circuit. A net holding two ports is an
+## Ethernet cable between them (a net with more ports is no working cable:
+## Ethernet needs a switch to join more); a [NetworkSwitch] with its supply
+## joins its ports. Each working PLC reads what its network inputs name
+## (see [member PlcProgram.network]) from the working PLC at that IP
+## address on its network, on the same subnet, both addresses unique there
+## (0 when it cannot); the values pass at once, as the PLCs settle.
 ## Push buttons and switches move through their own actuators the same way
 ## (instantly in IDEAL mode). Injected faults (welded or open contacts, open
 ## or stuck coils, broken wires, overload) are taken into account.
@@ -71,6 +79,9 @@ const _EDGE_VIRTUAL: int = 3
 const _EDGE_OUTPUT: int = 4
 ## Page connectors with the same label (see [method Circuit.get_links]).
 const _EDGE_LINK: int = 5
+## Rounds in which PLCs pass network values on to one another at most in
+## one realistic event.
+const NETWORK_ROUNDS: int = 16
 ## Supply bits of the mains (L1-L3 and N, PE being N).
 const _MAINS_BITS: int = PowerSupply.BIT_L1 | PowerSupply.BIT_L2 | PowerSupply.BIT_L3 | PowerSupply.BIT_N
 
@@ -131,10 +142,23 @@ var _plc_ai_start: PackedInt32Array = PackedInt32Array()
 var _plc_aq_nets: PackedInt32Array = PackedInt32Array()
 var _plc_aq_start: PackedInt32Array = PackedInt32Array()
 var _plc_analog: Array[PackedFloat32Array] = []
+## Ethernet: the net of each PLC's port (in the order of _plc_indices), the
+## network switches (load index) and the nets of their ports
+## ([constant NetworkSwitch.PORTS] each), the ports on each net.
+var _plc_port_nets: PackedInt32Array = PackedInt32Array()
+var _switch_loads: PackedInt32Array = PackedInt32Array()
+var _switch_port_nets: PackedInt32Array = PackedInt32Array()
+var _ports_on_net: Dictionary[int, int] = {}
+## Connections of a PLC to a partner that work ("A2>192.168.0.1"), as
+## last logged.
+var _connections: Dictionary[String, bool] = {}
 ## Analog sensors (load index) and the net of their output.
 var _sensor_outputs: Dictionary[int, int] = {}
 ## Proximity sensors (load indices): loads with switching outputs.
 var _proximity_indices: PackedInt32Array = PackedInt32Array()
+## Potentiometers and the nets of their terminals 1, 2, 3 (three each).
+var _pots: Array[Potentiometer] = []
+var _pot_nets: PackedInt32Array = PackedInt32Array()
 ## Frequency inverters, the net and terminal index of each of their
 ## terminals ([constant Vfd.TERMINALS] per drive) and, from the last
 ## evaluation, whether their supply has the three phases, their inputs
@@ -322,8 +346,14 @@ func _build() -> void:
 	_plc_ai_start.clear()
 	_plc_aq_nets.clear()
 	_plc_aq_start.clear()
+	_plc_port_nets.clear()
+	_switch_loads.clear()
+	_switch_port_nets.clear()
+	_ports_on_net.clear()
 	_sensor_outputs.clear()
 	_proximity_indices.clear()
+	_pots.clear()
+	_pot_nets.clear()
 	_drives.clear()
 	_drive_nets.clear()
 	_drive_terms.clear()
@@ -386,6 +416,8 @@ func _build() -> void:
 			_plc_aq_start.append(_plc_aq_nets.size())
 			for k: int in plc.analog_output_count():
 				_plc_aq_nets.append(_net_of_key[keys[plc.analog_output_terminal(k)]])
+			_plc_port_nets.append(_net_of_key[keys[plc.port_terminal()]])
+			_count_port(_plc_port_nets[_plc_port_nets.size() - 1])
 			continue
 		if c is ProximitySensor:
 			# A load on 1-3 switching its outputs.
@@ -398,7 +430,11 @@ func _build() -> void:
 			continue
 		if not paths.is_empty():
 			continue
-		if c is ThreePhaseMotor:
+		if c is Potentiometer:
+			_pots.append(c as Potentiometer)
+			for t: int in 3:
+				_pot_nets.append(_net_of_key[keys[t]])
+		elif c is ThreePhaseMotor:
 			_motors.append(c as ThreePhaseMotor)
 			var windings: int = (c as ThreePhaseMotor).winding_terminal_count()
 			for t: int in MOTOR_TERMINALS:
@@ -414,6 +450,11 @@ func _build() -> void:
 				_rectifier_out_terms.append(index[keys[2]])
 				_rectifier_out_terms.append(index[keys[3]])
 			_loads.append(c as Load)
+			if c is NetworkSwitch:
+				_switch_loads.append(_loads.size() - 1)
+				for k: int in NetworkSwitch.PORTS:
+					_switch_port_nets.append(_net_of_key[keys[NetworkSwitch.port_terminal(k)]])
+					_count_port(_switch_port_nets[_switch_port_nets.size() - 1])
 			if c is AnalogSensor:
 				_sensor_outputs[_loads.size() - 1] = _net_of_key[keys[(c as AnalogSensor).output_terminal()]]
 			if c is TimerRelay and (c as TimerRelay).control_input and keys.size() > 2:
@@ -454,6 +495,10 @@ func _build() -> void:
 		_motor_supply.append(_unfed_motor(_motors[m]))
 	_path_current.resize(_switches.size())
 	_path_current.fill(0.0)
+
+
+func _count_port(net: int) -> void:
+	_ports_on_net[net] = _ports_on_net.get(net, 0) + 1
 
 
 func _add_switch_path(c: CircuitComponent, path: int, key_a: String, key_b: String) -> void:
@@ -627,6 +672,7 @@ func _apply_outputs(desired: PackedByteArray, result: StepResult) -> void:
 	for i: int in _loads.size():
 		if not (_loads[i] is Coil or _loads[i] is Plc):
 			_loads[i].energized = (desired[i] & 1) == 1
+	_show_links(desired, result)
 	for m: int in _motors.size():
 		var motor: ThreePhaseMotor = _motors[m]
 		var new_state: ThreePhaseMotor.State = _motor_states[m] as ThreePhaseMotor.State
@@ -742,13 +788,16 @@ func _settle_coils(result: StepResult) -> void:
 					switched = true
 					break
 		if not switched and not faulty:
+			var reads: Array[Array] = _network_reads(desired)
 			for p: int in _plc_indices.size():
 				var plc: Plc = _loads[_plc_indices[p]] as Plc
 				if frozen.has(plc.designation):
 					continue
 				var powered: bool = (desired[_plc_indices[p]] & 1) == 1
-				if plc.energized != powered or plc.inputs != _plc_inputs[p] or plc.module_power != _plc_modules[p] or plc.analog_in != _plc_analog[p]:
-					plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p])
+				var net_in: PackedByteArray = reads[p][0]
+				var net_analog: PackedFloat32Array = reads[p][1]
+				if plc.energized != powered or plc.inputs != _plc_inputs[p] or plc.module_power != _plc_modules[p] or plc.analog_in != _plc_analog[p] or plc.network_in != net_in or plc.network_analog_in != net_analog:
+					plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p], net_in, net_analog)
 				elif plc.pending:
 					plc.rescan()
 				else:
@@ -881,16 +930,28 @@ func _apply_power(result: StepResult) -> void:
 			# (F1 on at power on, F2 off at power off, F3 ...).
 			if timer != null and timer.output != output_before:
 				_log(result, "%s timed output on" if timer.output else "%s timed output off", [coil.designation])
-		for p: int in _plc_indices.size():
-			var plc: Plc = _loads[_plc_indices[p]] as Plc
-			var powered: bool = (desired[_plc_indices[p]] & 1) == 1
-			if powered != plc.energized:
-				_log(result, "%s switched on" if powered else "%s switched off", [plc.designation])
-			for m: int in plc.modules.size():
-				var module_on: bool = powered and (_plc_modules[p] >> m) & 1 == 1
-				if module_on != plc.module_on(m):
-					_log(result, "%s: expansion module %d switched on" if module_on else "%s: expansion module %d switched off", [plc.designation, m + 1])
-			plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p])
+		# PLCs reading one another over Ethernet pass their values on until
+		# none changes.
+		for turn: int in NETWORK_ROUNDS:
+			var reads: Array[Array] = _network_reads(desired)
+			var changed: bool = false
+			for p: int in _plc_indices.size():
+				var plc: Plc = _loads[_plc_indices[p]] as Plc
+				var powered: bool = (desired[_plc_indices[p]] & 1) == 1
+				if turn == 0:
+					if powered != plc.energized:
+						_log(result, "%s switched on" if powered else "%s switched off", [plc.designation])
+					for m: int in plc.modules.size():
+						var module_on: bool = powered and (_plc_modules[p] >> m) & 1 == 1
+						if module_on != plc.module_on(m):
+							_log(result, "%s: expansion module %d switched on" if module_on else "%s: expansion module %d switched off", [plc.designation, m + 1])
+				elif plc.network_in == reads[p][0] and plc.network_analog_in == reads[p][1]:
+					continue
+				else:
+					changed = true
+				plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p], reads[p][0], reads[p][1])
+			if turn > 0 and not changed:
+				break
 		for i: int in _proximity_indices:
 			var sensor: ProximitySensor = _loads[i] as ProximitySensor
 			sensor.energized = (desired[i] & 1) == 1
@@ -1263,6 +1324,15 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 	for d: int in _drives.size():
 		if _drive_powered[d] == 1:
 			analog[uf.find(_drive_net(d, Vfd.REF_10V))] = Vfd.ANALOG_VOLTS
+	# Potentiometers: their wiper's share of the volts between 1 and 3.
+	for k: int in _pots.size():
+		var ends: Array = [_known_volts(uf.find(_pot_nets[3 * k]), masks, analog), _known_volts(uf.find(_pot_nets[3 * k + 2]), masks, analog)]
+		var wiper: int = uf.find(_pot_nets[3 * k + 1])
+		_pots[k].volts = -1.0
+		if ends[0] != null and ends[1] != null:
+			_pots[k].volts = _pots[k].wiper_volts(ends[0], ends[1])
+			if wiper != uf.find(_pot_nets[3 * k]) and wiper != uf.find(_pot_nets[3 * k + 2]):
+				analog[wiper] = _pots[k].volts
 	for p: int in _plc_indices.size():
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		var volts: PackedFloat32Array = PackedFloat32Array()
@@ -1295,6 +1365,17 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 		_drive_ai[d] = snappedf(analog.get(ai_root, ai_dc), 0.001)
 	_evaluate_motors(uf, masks)
 	return result
+
+
+## Volts on net [param root] against the - poles where they are known: an
+## analog signal, a DC + pole, 0 on a - pole; null otherwise.
+static func _known_volts(root: int, masks: Dictionary[int, int], analog: Dictionary[int, float]) -> Variant:
+	if analog.has(root):
+		return analog[root]
+	var mask: int = masks.get(root, 0)
+	if not _is_single_source(mask) or mask & PowerSupply.DC_BITS == 0:
+		return null
+	return 0.0 if mask == PowerSupply.BIT_DC_MINUS else PowerSupply.dc_volts(mask)
 
 
 ## True when supply masks [param a] and [param b] give voltage: one supply
@@ -1524,6 +1605,130 @@ func _evaluate_motors(uf: UnionFind, masks: Dictionary[int, int]) -> void:
 ## One byte per coil (bit 0 coil power, bit 1 timed output), then per PLC its
 ## power and its outputs eight to a byte (see [method _plc_bytes]), then one
 ## per protective device (tripped), so a trip is never mistaken for a repeat.
+# --- Ethernet ------------------------------------------------------------------------
+
+## Network each Ethernet port is on, by its net: the root of the nets joined
+## by cables and by the switches working in [param desired]; -1 for a port
+## on no working cable (none plugged in, or a net joining more than two
+## ports).
+func _segments(desired: PackedByteArray) -> Dictionary[int, int]:
+	var uf: UnionFind = UnionFind.new(_net_count)
+	for s: int in _switch_loads.size():
+		if (desired[_switch_loads[s]] & 1) == 1:
+			var first: int = -1
+			for k: int in NetworkSwitch.PORTS:
+				var net: int = _switch_port_nets[s * NetworkSwitch.PORTS + k]
+				if _ports_on_net[net] != 2:
+					continue
+				if first < 0:
+					first = net
+				else:
+					uf.union(first, net)
+	var segments: Dictionary[int, int] = {}
+	for net: int in _ports_on_net:
+		segments[net] = uf.find(net) if _ports_on_net[net] == 2 else -1
+	return segments
+
+
+## What the network inputs of each PLC (in the order of _plc_indices) read
+## now: [NI values, NAI values], both empty for a PLC whose program reads
+## nothing over the network.
+func _network_reads(desired: PackedByteArray) -> Array[Array]:
+	var reads: Array[Array] = []
+	var any: bool = false
+	for i: int in _plc_indices:
+		any = any or not (_loads[i] as Plc).program.network.is_empty()
+	if not any:
+		for p: int in _plc_indices.size():
+			reads.append([PackedByteArray(), PackedFloat32Array()])
+		return reads
+	var segments: Dictionary[int, int] = _segments(desired)
+	for p: int in _plc_indices.size():
+		var plc: Plc = _loads[_plc_indices[p]] as Plc
+		var digital: PackedByteArray = PackedByteArray()
+		var analog: PackedFloat32Array = PackedFloat32Array()
+		if not plc.program.network.is_empty():
+			digital.resize(PlcProgram.AREA_SIZES["NI"])
+			analog.resize(PlcProgram.AREA_SIZES["NAI"])
+			for operand: String in plc.program.network:
+				var source: Dictionary = plc.program.network[operand]
+				var partner: Plc = _partner(p, source["ip"], segments)
+				if partner == null:
+					continue
+				var k: int = PlcProgram.operand_index(operand)
+				if PlcProgram.area_of(operand) == "NI":
+					digital[k] = 1 if partner.runtime.operand_value(source["operand"]) else 0
+				else:
+					analog[k] = partner.runtime.analog_value(source["operand"])
+		reads.append([digital, analog])
+	return reads
+
+
+## The working PLC at [param ip] that PLC [param p] (by its order) reaches
+## over Ethernet, or null: both work, are on one network, on one subnet, and
+## no other working PLC on it has either address.
+func _partner(p: int, ip: String, segments: Dictionary[int, int]) -> Plc:
+	var plc: Plc = _loads[_plc_indices[p]] as Plc
+	var segment: int = segments.get(_plc_port_nets[p], -1)
+	if not plc.energized or segment < 0 or ip == plc.ip_address or not Plc.same_subnet(ip, plc.ip_address):
+		return null
+	var found: Plc = null
+	for q: int in _plc_indices.size():
+		var other: Plc = _loads[_plc_indices[q]] as Plc
+		if q == p or not other.energized or segments.get(_plc_port_nets[q], -1) != segment:
+			continue
+		if other.ip_address == plc.ip_address:
+			# Two devices with one address: neither answers reliably.
+			return null
+		if other.ip_address == ip:
+			if found != null:
+				return null
+			found = other
+	return found
+
+
+## Lights the link of the ports (PLCs and switches) and logs connections of
+## the PLCs to their partners coming up or going down.
+func _show_links(desired: PackedByteArray, result: StepResult) -> void:
+	if _ports_on_net.is_empty():
+		return
+	# Working devices on each net of ports.
+	var working: Dictionary[int, int] = {}
+	for p: int in _plc_indices.size():
+		if (desired[_plc_indices[p]] & 1) == 1:
+			working[_plc_port_nets[p]] = working.get(_plc_port_nets[p], 0) + 1
+	for s: int in _switch_loads.size():
+		if (desired[_switch_loads[s]] & 1) == 1:
+			for k: int in NetworkSwitch.PORTS:
+				var net: int = _switch_port_nets[s * NetworkSwitch.PORTS + k]
+				working[net] = working.get(net, 0) + 1
+	for p: int in _plc_indices.size():
+		var net: int = _plc_port_nets[p]
+		(_loads[_plc_indices[p]] as Plc).port_link = (desired[_plc_indices[p]] & 1) == 1 and _ports_on_net[net] == 2 and working.get(net, 0) == 2
+	for s: int in _switch_loads.size():
+		var hub: NetworkSwitch = _loads[_switch_loads[s]] as NetworkSwitch
+		for k: int in NetworkSwitch.PORTS:
+			var net: int = _switch_port_nets[s * NetworkSwitch.PORTS + k]
+			hub.links[k] = 1 if hub.energized and _ports_on_net[net] == 2 and working.get(net, 0) == 2 else 0
+	var segments: Dictionary[int, int] = _segments(desired)
+	var now: Dictionary[String, bool] = {}
+	for p: int in _plc_indices.size():
+		var plc: Plc = _loads[_plc_indices[p]] as Plc
+		for operand: String in plc.program.network:
+			var ip: String = plc.program.network[operand]["ip"]
+			var key: String = "%s>%s" % [plc.designation, ip]
+			if now.has(key):
+				continue
+			var partner: Plc = _partner(p, ip, segments)
+			now[key] = partner != null
+			if now[key] != _connections.get(key, false):
+				if now[key]:
+					_log(result, "%s: connection to %s (%s) established", [plc.designation, partner.designation, ip])
+				else:
+					_log(result, "%s: connection to %s lost", [plc.designation, ip])
+	_connections = now
+
+
 func _signature() -> PackedByteArray:
 	var sig: PackedByteArray = PackedByteArray()
 	for i: int in _coil_indices:

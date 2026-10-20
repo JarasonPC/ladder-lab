@@ -24,6 +24,13 @@ extends Load
 ## until the program settles; each output Q closes its relay contact through
 ## an [Armature] with the switching times of a small relay. Losing power
 ## resets the program (outputs, flags, timers and counters to 0).
+##
+## Ethernet: the port P1 (one RJ45 socket, as on the real ones; the last
+## terminal, drawn on the left of the box) takes an Ethernet cable to the
+## port of another PLC or of a network switch ([NetworkSwitch]). The PLC
+## answers at [member ip_address] (subnet mask 255.255.255.0) while it has
+## power; the simulator puts what the program's network inputs read from
+## their partners into [member network_in] and [member network_analog_in].
 
 ## Expansion modules: 4 inputs and 4 relay outputs, 8 inputs and 8 relay
 ## outputs, 2 analog inputs, 2 analog outputs; the signal modules of the
@@ -33,8 +40,9 @@ enum Module { DI4_DQ4, DI8_DQ8, AI2, AQ2, SM_DI8, SM_DQ8, SM_DI8_DQ8, SM_AI4, SM
 ## What a terminal is: the supply of the PLC or of a module (or the common
 ## of a group of inputs or outputs), a digital input, one of the two
 ## terminals of a relay output, an analog input or output, a transistor
-## output (one terminal, switched to the supply of its group).
-enum Role { SUPPLY, DI, DQ, AI, AQ, TQ }
+## output (one terminal, switched to the supply of its group), the
+## Ethernet port (takes no part in the electrical circuit).
+enum Role { SUPPLY, DI, DQ, AI, AQ, TQ, NET }
 
 const MODULE_NAMES: PackedStringArray = ["4di4dq", "8di8dq", "2ai", "2aq", "sm_di8", "sm_dq8", "sm_di8dq8", "sm_ai4", "sm_aq2"]
 const MODULE_INPUTS: PackedInt32Array = [4, 8, 0, 0, 8, 0, 8, 0, 0]
@@ -65,9 +73,18 @@ const CYCLE_TIME: float = 0.01
 ## expansion module.
 const DRAW: float = 0.03
 const MODULE_DRAW: float = 0.02
+## Address of a new PLC, and the subnet mask all PLCs use: two devices
+## talk to each other when the first three numbers of their addresses are
+## the same.
+const DEFAULT_IP: String = "192.168.0.1"
+const SUBNET_MASK: String = "255.255.255.0"
+## Name of the Ethernet port.
+const PORT_NAME: String = "P1"
 
 var program: PlcProgram
 var runtime: PlcRuntime
+## IP address on the Ethernet port.
+var ip_address: String = DEFAULT_IP
 ## Expansion modules, from the PLC to the right.
 var modules: Array[Module] = []
 ## One per output Q1, Q2 ...
@@ -79,6 +96,13 @@ var inputs: PackedByteArray = PackedByteArray()
 var module_power: int = 0
 ## Volts on each analog input AI1, AI2 ... (simulation state).
 var analog_in: PackedFloat32Array = PackedFloat32Array()
+## What the network inputs NI1 ... and NAI1 ... read from their partners
+## (simulation state; empty: nothing).
+var network_in: PackedByteArray = PackedByteArray()
+var network_analog_in: PackedFloat32Array = PackedFloat32Array()
+## The Ethernet port has a link: a working device at the other end of its
+## cable (simulation state).
+var port_link: bool = false
 ## The last scans did not settle: the program is scanned again after
 ## [constant CYCLE_TIME].
 var pending: bool = false
@@ -106,6 +130,8 @@ var _bottom: PackedByteArray = PackedByteArray()
 var _input_refs: PackedInt32Array = PackedInt32Array()
 var _output_paths: Array[Vector2i] = []
 var _module_supply: PackedInt32Array = PackedInt32Array()
+## Index of the Ethernet port (after the modules' terminals).
+var _port: int = -1
 
 
 func _init(p_designation: String, p_program: PlcProgram = null, p_modules: Array[Module] = []) -> void:
@@ -115,6 +141,9 @@ func _init(p_designation: String, p_program: PlcProgram = null, p_modules: Array
 	runtime.full_scale = full_scale()
 	modules = p_modules.duplicate()
 	_lay_out()
+	# Last, so the other terminals keep their numbers in older files.
+	_port = _names.size()
+	_add(PORT_NAME, Role.NET, -1, 0)
 	var times: Vector2 = _switch_times()
 	for k: int in output_count():
 		output_armatures.append(Armature.new(times.x, times.y))
@@ -124,6 +153,7 @@ func _init(p_designation: String, p_program: PlcProgram = null, p_modules: Array
 func duplicate_plc(p_program: PlcProgram) -> Plc:
 	var copy: Plc = Plc.new(designation, p_program, modules)
 	copy.rating = rating
+	copy.ip_address = ip_address
 	return copy
 
 
@@ -198,6 +228,17 @@ func input_terminal(k: int) -> int:
 ## Index of the first terminal of output Q(k + 1) (the second follows it).
 func output_terminal(k: int) -> int:
 	return _output_terms[k]
+
+
+## Index of the Ethernet port P1.
+func port_terminal() -> int:
+	return _port
+
+
+## True when [param ip] is on the same subnet as [param other] (the first
+## three numbers alike, mask 255.255.255.0).
+static func same_subnet(ip: String, other: String) -> bool:
+	return ip.get_slice(".", 0) == other.get_slice(".", 0) and ip.get_slice(".", 1) == other.get_slice(".", 1) and ip.get_slice(".", 2) == other.get_slice(".", 2)
 
 
 ## Index of the L1 terminal of expansion module [param m] (its N follows it).
@@ -299,10 +340,10 @@ func _base_analog() -> int:
 
 
 ## Index of the first terminal of expansion module [param m] (-1: the PLC
-## itself, 0) and the index after its last.
+## itself, 0) and the index after its last (the Ethernet port is in none).
 func module_terminals(m: int) -> Vector2i:
 	var first: int = 0 if m < 0 else _module_terms[m]
-	var end: int = _names.size() if m + 1 >= _module_terms.size() else _module_terms[m + 1]
+	var end: int = (_port if _port >= 0 else _names.size()) if m + 1 >= _module_terms.size() else _module_terms[m + 1]
 	return Vector2i(first, end)
 
 
@@ -345,13 +386,16 @@ func all_modules() -> int:
 ## on), the supply of the expansion modules ([member module_power]) and the
 ## volts on the analog inputs found by the simulator; the program runs when
 ## the PLC is switched on and whenever an input, a module or an analog input
-## changed.
-func update(powered: bool, input_states: PackedByteArray, module_bits: int, analog_volts: PackedFloat32Array = PackedFloat32Array()) -> void:
-	var changed: bool = input_states != inputs or module_bits != module_power or analog_volts != analog_in
+## changed; so too when a network input changed ([param network_states] for
+## NI1 ..., [param network_values] for NAI1 ...; empty: all 0).
+func update(powered: bool, input_states: PackedByteArray, module_bits: int, analog_volts: PackedFloat32Array = PackedFloat32Array(), network_states: PackedByteArray = PackedByteArray(), network_values: PackedFloat32Array = PackedFloat32Array()) -> void:
+	var changed: bool = input_states != inputs or module_bits != module_power or analog_volts != analog_in or network_states != network_in or network_values != network_analog_in
 	# A copy: the caller may change its array afterwards.
 	inputs = input_states.duplicate()
 	module_power = module_bits
 	analog_in = analog_volts
+	network_in = network_states.duplicate()
+	network_analog_in = network_values.duplicate()
 	if powered != energized:
 		energized = powered
 		runtime.reset()
@@ -423,7 +467,7 @@ func time_to_next_event() -> float:
 ## for telling a repeated state apart.
 func state_signature() -> PackedByteArray:
 	var sig: PackedByteArray = PackedByteArray([1 if energized else 0])
-	sig.append_array(var_to_bytes([inputs, module_power, analog_in]))
+	sig.append_array(var_to_bytes([inputs, module_power, analog_in, network_in, network_analog_in]))
 	sig.append_array(var_to_bytes(runtime.snapshot()))
 	return sig
 
@@ -436,6 +480,12 @@ func _run() -> void:
 		var m: int = analog_input_module(k)
 		var volts: float = analog_in[k] if k < analog_in.size() and (m < 0 or module_on(m)) else 0.0
 		runtime.analog_inputs[k] = clampf(volts, 0.0, ANALOG_VOLTS) * full_scale() / ANALOG_VOLTS
+	runtime.network_inputs.fill(0)
+	for k: int in mini(network_in.size(), runtime.network_inputs.size()):
+		runtime.network_inputs[k] = network_in[k]
+	runtime.network_analog.fill(0.0)
+	for k: int in mini(network_analog_in.size(), runtime.network_analog.size()):
+		runtime.network_analog[k] = network_analog_in[k]
 	pending = not runtime.scan_until_stable()
 	_cycle_left = CYCLE_TIME
 

@@ -19,6 +19,11 @@ const MOTOR_PE_CELL := Vector2i(-2, 4)
 ## one output to the next (each output's two terminals are POLE_SPACING apart).
 const PLC_HEIGHT: int = 6
 const PLC_OUTPUT_PITCH: int = 5
+## PLC: its Ethernet port, on the left of the box (lead to the left).
+const PLC_PORT_CELL := Vector2i(-2, 2)
+## Network switch: its supply L+ M on top, the ports P1-P4 below.
+const SWITCH_HEIGHT: int = 4
+const SWITCH_WIDTH: int = 8
 ## Width in cells of the PLC's box; expansion modules follow it one cell apart.
 const PLC_WIDTH: int = 20
 const PLC_MODULE_GAP: int = 1
@@ -28,6 +33,9 @@ const PLC_ANALOG_OUTPUT_PITCH: int = 4
 ## Analog sensors: the output beside the supply's + (U, 2); a proximity
 ## sensor's output 4 there too, its second output 2 a step further.
 const SENSOR_OUTPUT_CELL := Vector2i(2, 0)
+## Potentiometer: from 1 down to 3, the wiper 2 to the right of the middle.
+const POT_SPAN: int = 4
+const POT_WIPER_CELL := Vector2i(2, 2)
 ## Frequency inverter: height (as a PLC's), where its control terminals
 ## start, its width from the left edge of its box.
 const VFD_HEIGHT: int = 6
@@ -68,11 +76,20 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		for i: int in names.size():
 			result[names[i]] = cells[i]
 		return result
+	if c is Potentiometer:
+		result[names[0]] = Vector2i.ZERO
+		result[names[1]] = POT_WIPER_CELL
+		result[names[2]] = Vector2i(0, POT_SPAN)
+		return result
 	if c is AnalogSensor or c is ProximitySensor:
 		result[names[0]] = Vector2i.ZERO
 		result[names[1]] = Vector2i(0, SPAN)
 		for i: int in range(2, names.size()):
 			result[names[i]] = SENSOR_OUTPUT_CELL * (i - 1)
+		return result
+	if c is NetworkSwitch:
+		for i: int in names.size():
+			result[names[i]] = switch_terminal_cell(i)
 		return result
 	if c is Vfd:
 		for i: int in names.size():
@@ -121,11 +138,18 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		return DIR_DOWN if names.find(terminal_name) < 2 else DIR_UP
 	if c is Plc:
 		var i: int = names.find(terminal_name)
+		if i == (c as Plc).port_terminal():
+			return DIR_LEFT
 		return DIR_DOWN if i >= 0 and plc_terminal_cells(c as Plc)[i].y == 0 else DIR_UP
+	if c is NetworkSwitch:
+		return DIR_DOWN if names.find(terminal_name) < NetworkSwitch.FIRST_PORT else DIR_UP
 	if c is TimerRelay and names.size() == 3:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if c is AnalogSensor or c is ProximitySensor:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
+	if c is Potentiometer:
+		var at: int = names.find(terminal_name)
+		return DIR_DOWN if at == 0 else (DIR_LEFT if at == 1 else DIR_UP)
 	if c is Vfd:
 		return DIR_UP if names.find(terminal_name) >= Vfd.FIRST_BOTTOM else DIR_DOWN
 	if names.size() == 3:
@@ -195,8 +219,12 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-0.3, 0.4, 2.6, 2.2)
 	if c is Plc:
 		return Rect2(-1.1, 0.9, plc_width(c as Plc) + 0.2, PLC_HEIGHT - 1.8)
+	if c is NetworkSwitch:
+		return Rect2(-1.1, 0.9, SWITCH_WIDTH + 0.2, SWITCH_HEIGHT - 1.8)
 	if c is AnalogSensor:
 		return Rect2(-0.95, 0.75, 3.9, 1.5)
+	if c is Potentiometer:
+		return Rect2(-0.55, 1.0, 2.0, 2.0)
 	if c is ProximitySensor:
 		return Rect2(-0.95, 0.75, 1.9 + SENSOR_OUTPUT_CELL.x * (c.get_terminal_names().size() - 2), 1.5)
 	if c is Vfd:
@@ -218,11 +246,20 @@ static func motor_terminal_cell(index: int, kind: ThreePhaseMotor.Kind = ThreePh
 	return Vector2i(3 * POLE_SPACING, index - 5)
 
 
+## Cell of network switch terminal [param index]: L+ M on top, the ports
+## below, two cells apart.
+static func switch_terminal_cell(index: int) -> Vector2i:
+	if index < NetworkSwitch.FIRST_PORT:
+		return Vector2i(index * POLE_SPACING, 0)
+	return Vector2i((index - NetworkSwitch.FIRST_PORT) * POLE_SPACING, SWITCH_HEIGHT)
+
+
 ## Cells of the PLC's terminals: on the PLC and on each expansion module, the
 ## supply, the inputs and the analog inputs along the top, two cells apart;
 ## below the two terminals of each relay output ([constant PLC_OUTPUT_PITCH]
 ## apart), analog outputs ([constant PLC_ANALOG_OUTPUT_PITCH] apart) and
-## the other terminals (transistor outputs, their supply) two cells apart.
+## the other terminals (transistor outputs, their supply) two cells apart;
+## the Ethernet port last, on the left ([constant PLC_PORT_CELL]).
 static func plc_terminal_cells(plc: Plc) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 	var origins: PackedInt32Array = plc_module_origins(plc)
@@ -247,6 +284,7 @@ static func plc_terminal_cells(plc: Plc) -> Array[Vector2i]:
 					bottom += PLC_ANALOG_OUTPUT_PITCH
 				_:
 					bottom += POLE_SPACING
+	cells.append(PLC_PORT_CELL)
 	return cells
 
 

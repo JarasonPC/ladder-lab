@@ -355,6 +355,9 @@ static func _place(doc: SchematicDocument, strips: Dictionary, item: CabinetItem
 		CabinetDevices.Kind.PLC:
 			_box(place, CabinetParts.device_size(place["desc"]))
 			_label(place, Vector2(CabinetParts.PLC.x * 0.5, -LABEL_OFF), 16.0)
+		CabinetDevices.Kind.SWITCH:
+			_box(place, CabinetParts.device_size(place["desc"]))
+			_label(place, Vector2(CabinetParts.SWITCH.x * 0.5, -LABEL_OFF), 16.0)
 		CabinetDevices.Kind.OVERLOAD:
 			# On a rail of its own: on a mounting unit with the terminals
 			# of its heaters (1, 3, 5) on top.

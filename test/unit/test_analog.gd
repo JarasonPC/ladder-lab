@@ -102,7 +102,7 @@ func test_analog_modules() -> void:
 	var a1: Plc = Plc.new("A1", null, modules)
 	var names: PackedStringArray = a1.get_terminal_names()
 	assert_eq(names.slice(a1.module_terminal(1), a1.module_terminal(2)), PackedStringArray(["3L+", "3M", "3U1", "3U2"]))
-	assert_eq(names.slice(a1.module_terminal(2)), PackedStringArray(["4L+", "4M", "AQ1", "AQ2"]))
+	assert_eq(names.slice(a1.module_terminal(2), a1.port_terminal()), PackedStringArray(["4L+", "4M", "AQ1", "AQ2"]))
 	assert_eq(a1.analog_input_count(), 2, "the 230 V version: AI1, AI2 on the module")
 	assert_eq(names[a1.analog_input_terminal(0)], "3U1")
 	a1.rating = "1224rc"

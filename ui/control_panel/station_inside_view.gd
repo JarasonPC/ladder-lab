@@ -4,7 +4,8 @@ extends Control
 ## off, in millimetres (see [CabinetPainter]), as large as fits: the grey
 ## housing, the backs of the devices with their contact blocks (NO green,
 ## NC red, CO both, lamp blocks white) and their screw terminals with their
-## numbers, each device's designation on a label, the cable glands in the top
+## numbers, a potentiometer's round body with its lugs and fastons, each
+## device's designation on a label, the cable glands in the top
 ## and the wires. While simulating the terminals are ringed in the colour of
 ## the voltage that reaches them and the lamp blocks light.
 
@@ -25,6 +26,12 @@ const NO_BAND := Color("2ea44f")
 const NC_BAND := Color("d63b3b")
 const LAMP_BODY := Color("f4f4f0")
 const PRINT := Color("26282b")
+const POT_BODY := Color("6b6f74")
+const POT_EDGE := Color("45484c")
+const BRASS := Color("d7b46a")
+const BRASS_DARK := Color("9c7c3a")
+## Insulation of a faston for 0.5-1.5 mm² (red as sold).
+const FASTON_SLEEVE := Color("c8393b")
 ## Pixels a wire number is written at least: below it the numbers on the
 ## sleeves are written beside them as well.
 const NUMBER_PX: float = 7.0
@@ -82,7 +89,7 @@ static func paint(p: CabinetPainter, inside: StationInside, reach_color: Callabl
 	for entry: Dictionary in inside.items:
 		_device(p, entry, reach_color, lamp_lit)
 	for wire: Dictionary in inside.wires:
-		CabinetParts.wire(p, wire["points"], wire["conductor"], StationInside.WIRE_W, wire["external"], Vector2.ZERO)
+		CabinetParts.wire(p, wire["points"], wire["conductor"], StationInside.WIRE_W, wire["external"], wire.get("pins", Vector2.ZERO))
 	for wire: Dictionary in inside.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], StationInside.WIRE_W)
 	# Drawn too small for the numbers on the sleeves to be read: each number
@@ -109,11 +116,15 @@ static func _number_beside(p: CabinetPainter, span: PackedVector2Array, mark: St
 ## blocks on it with their terminals, its designation on a label under it.
 static func _device(p: CabinetPainter, entry: Dictionary, reach_color: Callable, lamp_lit: Callable) -> void:
 	var center: Vector2 = entry["center"]
+	var blocks: Array = entry["blocks"]
+	if not blocks.is_empty() and blocks[0]["kind"] == "POT":
+		_pot(p, center, blocks[0], reach_color)
+		_device_label(p, entry)
+		return
 	if entry["cam"]:
 		p.rect(Rect2(center - Vector2.ONE * StationInside.BACK_HALF, Vector2.ONE * 2.0 * StationInside.BACK_HALF), BACK, 2.0)
 	else:
 		p.circle(center, 15.0, BACK)
-	var blocks: Array = entry["blocks"]
 	if not blocks.is_empty():
 		var first: Rect2 = blocks[0]["rect"]
 		var span: Rect2 = first
@@ -125,6 +136,12 @@ static func _device(p: CabinetPainter, entry: Dictionary, reach_color: Callable,
 			_block(p, block, reach_color, lamp_lit)
 	elif not entry["designation"].is_empty():
 		p.text_centered(center, "?", 6.0, CabinetParts.METAL)
+	_device_label(p, entry)
+
+
+## The designations of item [param entry] on a label.
+static func _device_label(p: CabinetPainter, entry: Dictionary) -> void:
+	var center: Vector2 = entry["center"]
 	var designations: PackedStringArray = PackedStringArray()
 	for designation: String in [entry["designation"], entry["lamp"]]:
 		if not designation.is_empty():
@@ -138,6 +155,31 @@ static func _device(p: CabinetPainter, entry: Dictionary, reach_color: Callable,
 		if entry.get("door", false):
 			at = center - Vector2(StationInside.BACK_HALF + width * 0.5 + 2.0, 0.0)
 		CabinetParts.label(p, at, " ".join(designations), width)
+
+
+## A potentiometer from behind: its round body with the shaft's nut, three
+## brass solder lugs on top (ringed in the voltage reaching them) with their
+## numbers on the body, and a red insulated faston pushed on each, the wire
+## leaving its top.
+static func _pot(p: CabinetPainter, center: Vector2, block: Dictionary, reach_color: Callable) -> void:
+	for t: Dictionary in block["terminals"]:
+		var at: Vector2 = t["at"]
+		var color: Color = reach_color.call(t["key"])
+		if color.a > 0.0:
+			p.circle(at, 2.4, Color(1, 1, 1, 0.85))
+			p.circle(at, 2.1, color)
+		p.rect(Rect2(at.x - 1.2, center.y - StationInside.LUG_TOP, 2.4, StationInside.LUG_TOP - StationInside.POT_R + 3.0), BRASS, 0.3, BRASS_DARK, 0.15)
+		p.circle(at, 0.55, BRASS_DARK)
+		# The faston: its metal receptacle on the lug, the sleeve over it.
+		var top: float = center.y - StationInside.LUG_TOP - StationInside.FASTON
+		p.rect(Rect2(at.x - 1.5, top + StationInside.FASTON - 2.2, 3.0, 2.2), CabinetParts.METAL, 0.2, CabinetParts.METAL_DARK, 0.12)
+		p.rect(Rect2(at.x - 1.7, top, 3.4, StationInside.FASTON - 2.0), FASTON_SLEEVE, 0.7, FASTON_SLEEVE.darkened(0.4), 0.15)
+		p.line(Vector2(at.x - 0.9, top + 0.8), Vector2(at.x - 0.9, top + StationInside.FASTON - 2.8), FASTON_SLEEVE.lightened(0.35), 0.3)
+	p.circle(center, StationInside.POT_R, POT_BODY, POT_EDGE, 0.3)
+	p.ring(center, StationInside.POT_R * 0.78, POT_BODY.lightened(0.12), 0.25)
+	p.circle(center, 3.4, CabinetParts.METAL, CabinetParts.METAL_DARK, 0.2)
+	for t: Dictionary in block["terminals"]:
+		p.text_centered(Vector2(t["at"].x, center.y - StationInside.LUG_Y + 6.5), t["name"], 2.4, Color(1, 1, 1, 0.85))
 
 
 ## A block: its body with a coloured band (NO green, NC red, a lamp block's

@@ -3,14 +3,14 @@ extends RefCounted
 ## A ladder diagram (LAD): rows of [constant COLUMNS] cells along the left
 ## power rail, each with a coil at its end. A cell is empty, a wire or a
 ## contact (NO -| |-, NC -|/|-, rising edge -|P|-, falling edge -|N|- of an
-## operand I, Q, M, T or C); a vertical link at the right side of a cell joins
+## operand I, Q, M, T, C or a network input NI); a vertical link at the right side of a cell joins
 ## its row with the row below (parallel branches). Rows joined by links make
 ## one rung ([method rung_groups]). Coils as in Siemens ladder diagrams:
 ## -( )- assignment, -(/)- negated assignment, -(S)- set, -(R)- reset (also of
 ## a timer or counter), -(SD)- on-delay timer, -(SF)- off-delay timer,
 ## -(CU)- / -(CD)- counting up and down with the counter's preset. Analog:
 ## comparing contacts -[AI1 >= v]- and -[AI1 < v]- close while the analog
-## input is at or above / below the value, the coil -(AQ)- puts its value
+## input (or network analog input NAI) is at or above / below the value, the coil -(AQ)- puts its value
 ## on an analog output while it has power (0 without).
 ##
 ## Cells and coils are Dictionaries: {} for empty, {"kind": "wire"},
@@ -207,7 +207,7 @@ func _joined_right(row: int, column: int) -> bool:
 static func operand_areas(kind: String) -> String:
 	match kind:
 		"no", "nc", "pos", "neg":
-			return "IQMTC"
+			return "IQMTCNI"
 		"coil", "coil_not", "set":
 			return "QM"
 		"reset":
@@ -217,7 +217,7 @@ static func operand_areas(kind: String) -> String:
 		"count_up", "count_down":
 			return "C"
 		"ge", "lt":
-			return "AI"
+			return "AINAI"
 		"analog":
 			return "AQ"
 	return ""

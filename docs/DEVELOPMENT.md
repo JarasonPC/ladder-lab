@@ -224,9 +224,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   _edit_workspace / _edit_cabinet).
   WorkspaceCanvas draws on schematic paper (SchematicTheme, follows White schematic paper)
   solid tiles (WorkspaceTile: switchboard teal, station blue, field grey, white signs; also the
-  tree's icons): the place's tile with "+RA1" under it (Workspace.place_tile: at the top in the middle of
-  Workspace.PLACE_SIZE; its title, what it holds and the keys bound to its buttons and switches
-  in the tooltip, WorkspaceCanvas.place_tooltip), a part's tile with
+  tree's icons; WorkspaceTile.of_part gives sensors a sign by what they sense: a threaded
+  barrel for inductive, capacitive and magnetic sensors, a light sensor, a gauge, a tank, a
+  pipe, a thermometer, named under the tile by WorkspaceCanvas.field_title): the place's tile
+  with "+RA1" under it (Workspace.place_tile: at the top in the middle of Workspace.PLACE_SIZE;
+  its title, what it holds and the keys bound to its buttons and switches in the tooltip,
+  WorkspaceCanvas.place_tooltip), a part's tile with
   "-M1"; a station can be shown as its face instead (place menu in Edit mode, ControlBox.face_scale,
   saved as "face", SchematicDocument.set_station_face, undoable): a ControlBoxView over the canvas at
   its place and scale (WorkspaceCanvas._place_faces; Workspace.place_size gives its size to cables,
@@ -333,7 +336,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   lists every key, what it operates and where, rolled in or out (user settings "keys_rolled")
 - Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
-  coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
+  coloured push buttons, 0/I selector switches, signal lamps, potentiometers, illuminated buttons and switches with a lamp inside, its designation on the plate too);
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
   renames; opened from the workspace (StationPanel: the box drawn large, ZoomBox, the editing
   tools beside it in Edit mode, undoable; the tools are ControlItemTools, shared with the
@@ -594,6 +597,40 @@ Architecture and conventions of the code base. Read this before changing the cod
   (CabinetParts.compact_plc): 90 mm CPU (110 mm the largest), 45 mm modules, 100 mm high, the
   same grey, open terminal blocks without covers, RUN/STOP ERROR MAINT, channel lights DI a /
   DQ a, network port X1 P1 with LINK Rx/Tx, memory card slot X50; a module's DIAG light
+- Ethernet (modelled on the small Siemens logic modules and controllers, never with maker
+  names on the drawing): every PLC has one Ethernet port P1 (Plc.Role.NET, Plc.port_terminal;
+  the last terminal, after the modules', so older files keep their terminal indices; older
+  custom terminal names get it added on load; drawn on the left of the box,
+  SymbolGeometry.PLC_PORT_CELL, an RJ45 socket lit while it has a link, Plc.port_link) and an
+  IP address (Plc.ip_address, saved "ip", mask Plc.SUBNET_MASK 255.255.255.0: same subnet when
+  the first three numbers match, Plc.same_subnet; a new or pasted PLC takes
+  SchematicDocument.next_ip, 192.168.0.n; set in the properties). A network switch
+  (NetworkSwitch, "KF1", a Load on L+ M 24 V DC with ports P1-P4, NetworkSwitchSymbol, palette
+  "network_switch") joins its ports while it has its supply. Ethernet cables are schematic
+  wires between ports (CabinetDevices.network_keys; SchematicDocument.network_wires, drawn
+  dashed in SchematicTheme.NETWORK; never numbered; the wiring helpers pair a port with a port
+  only); a net with exactly two ports is a cable, with more (no switch) or with any other
+  terminal it works not and the check says so (CircuitCheck._network_issues: also one IP
+  address twice on a network, network inputs reading from an address no PLC on the network
+  has, or one on another subnet). Program: network inputs NI1-NI64 and NAI1-NAI32
+  (PlcProgram areas, PlcProgram.LONG_AREAS read before single letters; FBD blocks
+  "network_input" / "network_analog_input", LAD contacts and comparing contacts), each read
+  from the PLC at an IP address (PlcProgram.network: "NI1" -> {"ip", "operand"}, I Q M of the
+  partner for an NI, AI AQ for an NAI, PlcProgram.REMOTE_AREAS; saved in the program and in
+  .plcprog version 2), set in the PLC window's side panel for the selected NI / NAI. The
+  simulator (Simulator._network_reads, _partner, _segments) gives each working PLC what its
+  network inputs read from the working partner on the same network (cables and working
+  switches), on its subnet, both addresses unique there, else 0; values pass at once (IDEAL:
+  in the settle loop like inputs; REALISTIC: up to NETWORK_ROUNDS rounds per event); logs
+  "A2: connection to A1 (192.168.0.1) established" / "lost"; lights the ports' links. The PLC
+  window's own simulation has a switch per NI with a partner. Switchboard: Conductor.NETWORK
+  for port nets, cables CabinetWiring.NETWORK_W thick in the ducts, green with an RJ45 plug
+  (CabinetParts.rj45_plug) in the socket at each end (CabinetParts.rj45_socket; the logic
+  module's between its outputs Q3 and Q4, the compact CPU's over the gap between 3L+ and 3M,
+  the switch's four in a row below, CabinetParts.network_switch, Kind.SWITCH), no marker
+  sleeves; WorkspaceCables makes a cable of its own of every Ethernet net between two places
+  (key "+RA1|+RA2|<port>", Use.ETHERNET, "Cat 6 S/FTP 4x2xAWG23", no voltage drop), drawn
+  green on the workspace, leaving the switchboard through a gland of its own
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
   clicking it while simulating; one per PLC; keys it does not use (releases too) go to main.gd,
   Space stays in the window for Space+drag. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
@@ -622,7 +659,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: A = PLC, BT = temperature sensor, BG = proximity sensor, BP / BL / BF =
+- Device designations: A = PLC, KF = network switch, BT = temperature sensor, BG = proximity sensor, RP = potentiometer, BP / BL / BF =
   pressure / level / flow transmitter, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch (also the rotary cam switch, CamSwitch: a knob turned by hand,
   snap action, starts at 0, its position simulation state; 0-I poles 1-2, 3-4 … closed in I,
@@ -730,6 +767,27 @@ Architecture and conventions of the code base. Read this before changing the cod
   arrows, magnet), "PNP" / "NPN" under it, an NO / NC contact per output under its lead on a
   dashed link (drawn at rest without supply), core colours beside the leads; outputs on top
   SymbolGeometry.SENSOR_OUTPUT_CELL apart; saved as "proximity": sensing, output, function
+- Potentiometer (Potentiometer, "RP1", a CircuitComponent, no load): 10 kΩ, terminals 1 (start
+  of the track), 2 (wiper), 3 (end); turns 1, 2, 5 or 10 (Potentiometer.TURNS; a single turn
+  sweeps SINGLE_TURN_DEGREES 270°, more turns 360° each); setting 0-1 (simulation state, saved
+  as "setting" in % with "turns"); a notch (wheel step, drag step, Potentiometer.turn) turns
+  NOTCH_DEGREES, so more turns set it finer (Potentiometer.step). The simulator puts
+  wiper_volts (its share of the volts between 1 and 3, Simulator._known_volts: an analog
+  signal, a DC + pole, 0 on a - pole) on the wiper's net after the sensors', AQs' and VFDs'
+  10V and before the analog inputs are read; Potentiometer.volts (-1 unknown). Symbol
+  (PotentiometerSymbol, IEC 60617 S00557): upright resistor from 1 down to 3
+  (SymbolGeometry.POT_SPAN), the wiper an arrow from 2 at POT_WIPER_CELL; resistance and
+  turns under the designation, setting and volts while simulating; a click while
+  simulating opens a slider (SchematicView.set_pot). A station or door item of kind POT
+  (ControlBoxItem.Kind.POT, "pot", always black, never lit): PotFace draws it with a
+  CabinetPainter (1 turn: a black knob over a 0-10 scale printed on the panel; 2-10 turns:
+  a turns-counting dial, the window counting turns over a ring of hundredths turning
+  with it under a fixed index, a lock lever); turned while simulating by the mouse wheel
+  or a drag up and down (ControlBoxView.DRAG_PX a notch, Shift COARSE notches) through
+  switch_toggled with the notches as steps (SchematicView.toggle_switch). Inside
+  (StationInside "POT" block, StationInsideView._pot): a round body with three brass
+  solder lugs on top, numbered on the body, a red insulated faston pushed on each, the
+  wire out of its top (no ferrule there: wire "pins" -1) with its marker sleeve
 - Temperature sensor (TemperatureSensor, "BT1", an AnalogSensor on L+-M rated 24 V DC, output U): puts
   0-10 V on U over its range (range_min..range_max °C, saved with the start temperature);
   drawn as a transmitter (box holding a resistor varying with θ, IEC 60617 S00561, as a Pt100,

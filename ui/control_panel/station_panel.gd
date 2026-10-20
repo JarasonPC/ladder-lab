@@ -20,7 +20,7 @@ signal edit_requested(change: Callable)
 signal key_bind_requested(designation: String)
 
 ## English names of [enum ControlBoxItem.Kind] (translated with tr()).
-const KIND_TITLES: PackedStringArray = ["Push button", "Switch", "Signal lamp"]
+const KIND_TITLES: PackedStringArray = ["Push button", "Switch", "Signal lamp", "Potentiometer"]
 ## English name of a switch item showing a rotary cam switch.
 const CAM_SWITCH_TITLE: String = "Rotary cam switch"
 ## English name of what [param item] shows (translated with tr()): its kind,

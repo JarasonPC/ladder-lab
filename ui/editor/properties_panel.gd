@@ -136,12 +136,22 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Value at the start (%s)") % unit, "value", Transmitter.LOWEST, Transmitter.HIGHEST, step)
 			_group = null
 			_note(tr("Three wires as on its M12 plug: 1 (BN) +24 V DC, 3 (BU) 0 V, 2 (WH) the output, 0-10 V against 3 over its range. While simulating, click it to set the value."), "MutedLabel")
+		"pot":
+			var titles: Array = []
+			for turns: int in Potentiometer.TURNS:
+				titles.append(tr("1 turn (knob, 0-10 scale)") if turns == 1 else tr("%d turns (counting dial)") % turns)
+			_choice(tr("Turns"), "turns", Array(Potentiometer.TURNS), titles)
+			_number(tr("Set at the start (%)"), "setting", 0.0, 100.0, 0.1)
+			_group = null
+			_note(tr("A setpoint for an analog input: 1 on 0 V, 3 on a 10 V reference (a frequency inverter's 10V, an analog output) and the wiper 2 on the input gives 0-10 V. Mounted on a control station or a switchboard's door; while simulating, turn it there with the mouse wheel or by dragging, or click it in the schematic."), "MutedLabel")
 		"proximity":
 			_choice(tr("Sensing"), "sensing", Array(ProximitySensor.SENSING_NAMES), [tr("Inductive (metal)"), tr("Capacitive (any material)"), tr("Optical (diffuse light)"), tr("Magnetic (cylinder sensor)")])
 			_choice(tr("Output"), "output", Array(ProximitySensor.OUTPUT_NAMES), [tr("PNP (switches +24 V to the output)"), tr("NPN (switches 0 V to the output)")])
 			_choice(tr("Function"), "function", Array(ProximitySensor.FUNCTION_NAMES), [tr("NO (on while it detects)"), tr("NC (on while it detects nothing)"), tr("NO + NC (4 wires, antivalent)")])
 			_group = null
 			_note(tr("Wires as ČSN EN 60947-5-2 colours them: 1 (BN) +24 V DC, 3 (BU) 0 V, 4 (BK) the output, 2 (WH) the second output of the 4-wire version. A PNP output goes to a PLC input whose common is on 0 V, an NPN output to one whose common is on +24 V. While simulating, click it to put something in front of it or take it away; in a group with a mechanical link the moving part works it."), "MutedLabel")
+		"network_switch":
+			_note(tr("Supply 24 V DC on L+ and M. While it has its supply it joins the Ethernet cables plugged into its ports P1-P4 into one network, so more than two PLCs can talk to one another; a port lights up while it has a link."), "MutedLabel")
 		"cam_switch":
 			_choice(tr("Poles"), "poles", [1, 2, 3, 4], ["1", "2", "3", "4"])
 			_choice(tr("Positions"), "positions", Array(CamSwitch.POSITION_NAMES), [tr("0-I (off / on)"), tr("I-0-II (forward / off / reverse)")])
@@ -474,6 +484,7 @@ func _plc_program(plc: Plc) -> void:
 	var id: String = plc.id
 	button.pressed.connect(func() -> void: plc_requested.emit(id))
 	_add(button)
+	_ip_address()
 	if plc is CompactPlc:
 		_choice(tr("CPU"), "cpu", Array(CompactPlc.CPU_NAMES), [tr("6 inputs, 4 outputs, 2 analog inputs (no signal modules)"), tr("8 inputs, 6 outputs, 2 analog inputs (2 signal modules)"), tr("14 inputs, 10 outputs, 2 analog inputs (8 signal modules)")])
 	_plc_modules(plc)
@@ -487,6 +498,26 @@ func _plc_program(plc: Plc) -> void:
 	if plc.analog_input_count() + plc.analog_output_count() > 0:
 		note += " " + tr("Analog inputs read 0-10 V as 0-1000 (the 12/24 V and 24 V versions: I7, I8, I1, I2 as AI1-AI4); analog outputs put 0-1000 out as 0-10 V. Analog modules need 24 V DC on L+ and M.")
 	_note(note, "MutedLabel")
+
+
+## IP address of a PLC's Ethernet port, set when Enter is pressed or the
+## field is left (an address that is not one stays as it was).
+func _ip_address() -> void:
+	_label(tr("IP address (Ethernet port P1)"))
+	var field: LineEdit = LineEdit.new()
+	field.text = str(_data.get("ip", Plc.DEFAULT_IP))
+	field.placeholder_text = Plc.DEFAULT_IP
+	field.tooltip_text = tr("Subnet mask %s: PLCs talk to one another when the first three numbers of their addresses are the same and no two have the same address.") % Plc.SUBNET_MASK
+	var apply: Callable = func() -> void:
+		var ip: String = field.text.strip_edges()
+		if not PlcProgram.valid_ip(ip):
+			field.text = str(_data.get("ip", Plc.DEFAULT_IP))
+		elif ip != str(_data.get("ip", "")):
+			_emit("ip", ip)
+	field.text_submitted.connect(func(_text: String) -> void: apply.call())
+	field.focus_exited.connect(apply)
+	_add(field)
+	_fields["ip"] = _group
 
 
 ## Expansion modules clipped on to the right of the PLC, as on the real one:

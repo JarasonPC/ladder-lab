@@ -580,7 +580,7 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 		CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE:
 			CabinetParts.device(q, desc, {}, _pole_reach(desc))
 		CabinetDevices.Kind.CONTACTOR, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.OVERLOAD, \
-				CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC, CabinetDevices.Kind.VFD:
+				CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC, CabinetDevices.Kind.VFD, CabinetDevices.Kind.SWITCH:
 			CabinetParts.device(q, desc, _named_reach(desc))
 			if place.has("under_origin"):
 				var under: Dictionary = place["under_desc"]

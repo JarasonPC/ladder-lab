@@ -14,6 +14,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   beside it along (Shift: that wire alone); "Wire parts placed in line (EPLAN style)" gives a
   part placed or dropped straight wires to the free terminals it faces. The wires to come
   are shown dashed first
+- PLCs talk to one another over Ethernet as real ones do: every PLC has an Ethernet port P1
+  and an IP address (properties; a new PLC takes the next free one, 192.168.0.n), Ethernet
+  cables are drawn port to port (dashed green) and a network switch with four ports (KF, in
+  the palette under PLC and sensors) joins more than two PLCs
+- The check finds Ethernet mistakes: a port wired to anything but one other port, more than
+  two ports on one cable, two PLCs with one IP address on one network, network inputs
+  reading from an address no PLC on the network has or one on another subnet
 - Selector switch blocks (I-0-II) and rotary cam switches show a small switching table under
   their designation: the positions I 0 II (or 0 I) with a dot under each position the
   contact is closed in, instead of a text such as "I-0-II: I"
@@ -23,6 +30,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   4 BK (output), 2 WH (second output); each with its datasheet
 - Pressure, level and flow transmitters with a 0-10 V output, wired 1 BN, 3 BU, 2 WH as on
   their M12 plug, with their measuring range set in the properties
+- A 10 kΩ potentiometer (-RP1, terminals 1-2-3) for analog inputs, with 1, 2, 5 or 10 turns
 
 ### Simulation
 - A proximity sensor switches its output while it has 10-30 V DC: click it to put something
@@ -32,8 +40,29 @@ What changed in each LadderLab version. Version numbers follow the rules in
   limit switch, e.g. as the end position sensors of a gate
 - Click a transmitter to set its pressure, level or flow; it puts 0-10 V on a PLC's analog
   input over its range
+- A potentiometer's wiper gives its share of the voltage between 1 and 3 (e.g. 0-10 V from a
+  frequency inverter's 10V) to an analog input; click it in the schematic to set it
+
+### Simulation
+- Network inputs NI1-NI64 and network analog inputs NAI1-NAI32 in both program languages
+  read an input, output or flag (or an analog input or output) of the PLC at the IP address
+  set for them in the PLC window, as the network inputs of real logic modules do; they read 0 while it cannot be
+  reached (switched off, no cable, the switch without its supply, another subnet, an address
+  taken twice). The event log says when a connection is established or lost, the ports and
+  switch ports light while they have a link, and the PLC window's own simulation has a
+  switch for each network input
 
 ### Panels
+- The switchboard draws the PLCs' Ethernet sockets and the network switch, and wires the
+  Ethernet cables as green Cat 6 cables with RJ45 plugs through the ducts; to a PLC in
+  another switchboard the cable leaves through a gland of its own. On the workspace that
+  cable is its own cable (Cat 6 S/FTP 4x2xAWG23), drawn green
+- Potentiometers on control stations and switchboard doors: a knob over a 0-10 scale for
+  one turn, a turns-counting dial for 2, 5 and 10 turns; turned with the mouse wheel or by
+  dragging up and down (Shift: ten notches at a time), finer the more turns it has. Inside,
+  its round body with solder lugs, the wires pushed on with insulated fastons and numbered
+- Sensors on the workspace show what they are: a sensor barrel, a light sensor, a gauge, a
+  tank, a pipe or a thermometer, named under the tile
 - On the workspace, switchboards and stations are a tile with their name under it; their
   title, what they hold and the keys bound to their buttons show when you point at them.
   Cable names are written beside the cable instead of in a box on it, so no text hides a
@@ -41,6 +70,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Two wires that have to go into one strip terminal share a twin ferrule (one pin, the
   collar round both wires) instead of a terminal twice as wide
 - Plug-in bridges on terminal strips are grey (blue on N) instead of red
+
+### Files and export
+- PLC program files (.plcprog) keep the partners of the network inputs; schematics keep the
+  PLCs' IP addresses and the network switches (older files open with 192.168.0.1)
 
 ### Application
 - Lessons ring the terminals each wire of a wiring step goes between, every palette entry a

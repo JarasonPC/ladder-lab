@@ -146,6 +146,14 @@ msgstr "%s vybavilo (přetížení)"
 msgid "%s is chattering"
 msgstr "%s kmitá"
 
+#, c-format
+msgid "%s: connection to %s (%s) established"
+msgstr "%s: spojení s %s (%s) navázáno"
+
+#, c-format
+msgid "%s: connection to %s lost"
+msgstr "%s: spojení s %s ztraceno"
+
 msgid "Check"
 msgstr "Kontrola"
 
@@ -1525,6 +1533,12 @@ msgstr "Teplota na začátku (°C)"
 msgid "Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."
 msgstr "Napájení 24 V DC na L+ a M; na U dává proti M 0-10 V v rozsahu měření. Při simulaci na něj klikněte a nastavte teplotu."
 
+msgid "Supply 24 V DC on L+ and M. While it has its supply it joins the Ethernet cables plugged into its ports P1-P4 into one network, so more than two PLCs can talk to one another; a port lights up while it has a link."
+msgstr "Napájení 24 V DC na L+ a M. Dokud má napájení, spojuje ethernetové kabely zapojené do portů P1-P4 do jedné sítě, takže spolu může komunikovat víc než dvě PLC; port svítí, dokud má spojení."
+
+msgid "A cable joins two ports only: more than two PLCs need a switch between them."
+msgstr "Kabel spojuje jen dva porty: víc než dvě PLC potřebují přepínač."
+
 msgid "2 analog inputs 0-10 V"
 msgstr "2 analogové vstupy 0-10 V"
 
@@ -1534,8 +1548,18 @@ msgstr "2 analogové výstupy 0-10 V"
 msgid "Analog inputs read 0-10 V as 0-1000 (the 12/24 V and 24 V versions: I7, I8, I1, I2 as AI1-AI4); analog outputs put 0-1000 out as 0-10 V. Analog modules need 24 V DC on L+ and M."
 msgstr "Analogové vstupy čtou 0-10 V jako 0-1000 (verze 12/24 V a 24 V: I7, I8, I1, I2 jako AI1-AI4); analogové výstupy dávají 0-1000 jako 0-10 V. Analogové moduly potřebují 24 V DC na L+ a M."
 
+msgid "IP address (Ethernet port P1)"
+msgstr "IP adresa (ethernetový port P1)"
+
+#, c-format
+msgid "Subnet mask %s: PLCs talk to one another when the first three numbers of their addresses are the same and no two have the same address."
+msgstr "Maska podsítě %s: PLC spolu komunikují, když mají v adrese stejná první tři čísla a žádná dvě nemají stejnou adresu."
+
 msgid "Temperature sensor (0-10 V)"
 msgstr "Teplotní snímač (0-10 V)"
+
+msgid "Network switch (Ethernet, 4 ports)"
+msgstr "Síťový přepínač (Ethernet, 4 porty)"
 
 msgid "PLC and sensors"
 msgstr "PLC a snímače"
@@ -1679,9 +1703,132 @@ msgstr "Průtok (m³/h)"
 msgid "Value at %s"
 msgstr "Hodnota u %s"
 
+msgid "Potentiometer"
+msgstr "Potenciometr"
+
+msgid "Add a potentiometer"
+msgstr "Přidat potenciometr"
+
+msgid "A setpoint for an analog input: 1 on 0 V, 3 on a 10 V reference (a frequency inverter's 10V, an analog output) and the wiper 2 on the input gives 0-10 V. Mounted on a control station or a switchboard's door; while simulating, turn it there with the mouse wheel or by dragging, or click it in the schematic."
+msgstr "Zadávání žádané hodnoty pro analogový vstup: 1 na 0 V, 3 na referenci 10 V (svorka 10V frekvenčního měniče, analogový výstup) a jezdec 2 na vstup dává 0-10 V. Montuje se do ovládací skříňky nebo do dveří rozvaděče; při simulaci se tam otáčí kolečkem myši nebo tažením, případně na něj klikněte ve schématu."
+
+msgid "Track, start"
+msgstr "Odporová dráha, začátek"
+
+msgid "The wiper is here turned fully anticlockwise."
+msgstr "Jezdec je zde při úplném vytočení doleva."
+
+msgid "Wiper"
+msgstr "Jezdec"
+
+#, c-format
+msgid "Its share of the voltage between %s and %s, as far as it is turned."
+msgstr "Díl napětí mezi %s a %s podle natočení."
+
+msgid "Track, end"
+msgstr "Odporová dráha, konec"
+
+msgid "The wiper is here turned fully clockwise."
+msgstr "Jezdec je zde při úplném vytočení doprava."
+
+msgid "Single-turn: a knob with a 0-10 scale over 270°."
+msgstr "Jednootáčkový: knoflík se stupnicí 0-10 na 270°."
+
+msgid "Multi-turn with a turns-counting dial: the window counts the turns, the ring reads hundredths of a turn."
+msgstr "Víceotáčkový s počítadlem otáček: okénko ukazuje otáčky, prstenec setiny otáčky."
+
+msgid "Wires pushed on its solder lugs with insulated fastons."
+msgstr "Vodiče nasunuté na pájecí očka izolovanými faston konektory."
+
+msgid "Resistance"
+msgstr "Odpor"
+
+msgid "linear"
+msgstr "lineární"
+
+msgid "Turns"
+msgstr "Otáčky"
+
+msgid "Travel"
+msgstr "Rozsah otáčení"
+
+msgid "Set per wheel notch"
+msgstr "Změna na jeden krok kolečka"
+
+msgid "Mounting"
+msgstr "Montáž"
+
+msgid "22 mm panel hole"
+msgstr "otvor 22 mm v panelu"
+
+msgid "Potentiometer 10 kΩ (1, 2, 5 or 10 turns)"
+msgstr "Potenciometr 10 kΩ (1, 2, 5 nebo 10 otáček)"
+
+msgid "1 turn (knob, 0-10 scale)"
+msgstr "1 otáčka (knoflík, stupnice 0-10)"
+
+#, c-format
+msgid "%d turns (counting dial)"
+msgstr "%d otáček (počítadlo otáček)"
+
+msgid "Set at the start (%)"
+msgstr "Nastavení na začátku (%)"
+
+#, c-format
+msgid "Setting of %s"
+msgstr "Nastavení %s"
+
+msgid "Inductive sensor"
+msgstr "Indukční snímač"
+
+msgid "Capacitive sensor"
+msgstr "Kapacitní snímač"
+
+msgid "Magnetic sensor"
+msgstr "Magnetický snímač"
+
+msgid "Light sensor"
+msgstr "Optický snímač"
+
+msgid "Pressure"
+msgstr "Tlak"
+
+msgid "Level"
+msgstr "Hladina"
+
+msgid "Flow"
+msgstr "Průtok"
+
+msgid "Temperature"
+msgstr "Teplota"
+
+#, c-format
+msgid "Potentiometer %s kΩ, %d turn"
+msgid_plural "Potentiometer %s kΩ, %d turns"
+msgstr[0] "Potenciometr %s kΩ, %d otáčka"
+msgstr[1] "Potenciometr %s kΩ, %d otáčky"
+msgstr[2] "Potenciometr %s kΩ, %d otáček"
+
+#, c-format
+msgid "%s kΩ, %d turn"
+msgid_plural "%s kΩ, %d turns"
+msgstr[0] "%s kΩ, %d otáčka"
+msgstr[1] "%s kΩ, %d otáčky"
+msgstr[2] "%s kΩ, %d otáček"
+
+#, c-format
+msgid "%d turn"
+msgid_plural "%d turns"
+msgstr[0] "%d otáčka"
+msgstr[1] "%d otáčky"
+msgstr[2] "%d otáček"
+
 #, c-format
 msgid "Volts on the analog input (0-10 V = 0-%d)"
 msgstr "Napětí na analogovém vstupu (0-10 V = 0-%d)"
+
+msgid "Stands for what the partner PLC sends (in the schematic it comes over Ethernet)"
+msgstr "Zastupuje, co posílá partnerské PLC (ve schématu to přichází po Ethernetu)"
 
 msgid "Gain"
 msgstr "Zesílení"
@@ -1708,6 +1855,9 @@ msgstr "Analogový vstup AI"
 msgid "Analog output AQ"
 msgstr "Analogový výstup AQ"
 
+msgid "Network analog input NAI"
+msgstr "Síťový analogový vstup NAI"
+
 msgid "Analog threshold trigger"
 msgstr "Analogový prahový spínač"
 
@@ -1716,6 +1866,12 @@ msgstr "Analogový komparátor"
 
 msgid "Analog amplifier"
 msgstr "Analogový zesilovač"
+
+msgid "Network input"
+msgstr "Síťový vstup"
+
+msgid "Network analog input"
+msgstr "Síťový analogový vstup"
 
 msgid "Analog input"
 msgstr "Analogový vstup"
@@ -1739,6 +1895,12 @@ msgstr "Rozdíl Ax - Ay: výstup sepne nad prahem zapnutí a rozepne na prahu vy
 
 msgid "Passes gain x Ax + offset on as an analog value."
 msgstr "Předává dál zesílení x Ax + posun jako analogovou hodnotu."
+
+msgid "Brings a signal of another PLC in over Ethernet: the input, output or flag chosen above, read from the PLC at the IP address above. 0 while that PLC cannot be reached."
+msgstr "Přivádí po Ethernetu signál jiného PLC: vstup, výstup nebo příznak zvolený výše, čtený z PLC na IP adrese výše. 0, dokud toto PLC není dosažitelné."
+
+msgid "Brings an analog value of another PLC in over Ethernet: the analog input or output chosen above, read from the PLC at the IP address above, in that PLC's scale. 0 while that PLC cannot be reached."
+msgstr "Přivádí po Ethernetu analogovou hodnotu jiného PLC: analogový vstup nebo výstup zvolený výše, čtený z PLC na IP adrese výše, v rozsahu toho PLC. 0, dokud toto PLC není dosažitelné."
 
 msgid "Compare: analog input at or above"
 msgstr "Porovnání: analogový vstup nejméně"
@@ -1856,6 +2018,9 @@ msgstr "V jeho vlastnostech nastavte, co ovládá klávesnice: chod a zastavení
 msgid "Frequency inverter"
 msgstr "Frekvenční měnič"
 
+msgid "Network switch"
+msgstr "Síťový přepínač"
+
 #, c-format
 msgid "%s: output off"
 msgstr "%s: výstup vypnut"
@@ -1945,6 +2110,9 @@ msgstr "Konstanta 1 (hi)"
 
 msgid "Constant 0 (lo)"
 msgstr "Konstanta 0 (lo)"
+
+msgid "Network input NI"
+msgstr "Síťový vstup NI"
 
 msgid "AND"
 msgstr "AND"
@@ -2122,6 +2290,19 @@ msgstr "Prázdný řádek nad tímto (Insert)"
 
 msgid "Delete row"
 msgstr "Odstranit řádek"
+
+msgid "Partner PLC (IP address)"
+msgstr "Partnerské PLC (IP adresa)"
+
+msgid "Operand read there"
+msgstr "Čtený operand"
+
+msgid "That is this PLC's own address."
+msgstr "To je vlastní adresa tohoto PLC."
+
+#, c-format
+msgid "Read over Ethernet from the PLC at this address (subnet mask %s; this PLC: %s); 0 while it cannot be reached. Wire the Ethernet ports P1 of the PLCs together, through a network switch for more than two."
+msgstr "Čte se po Ethernetu z PLC na této adrese (maska podsítě %s; toto PLC: %s); 0, dokud není dosažitelné. Propojte ethernetové porty P1 automatů, pro víc než dva přes síťový přepínač."
 
 msgid "Blocks selected"
 msgstr "Vybrané bloky"
@@ -2560,6 +2741,16 @@ msgstr "Ztráta napájení vynuluje každou funkci kromě zpoždění odpadu"
 msgid "Supply"
 msgstr "Napájení"
 
+msgid "Ports"
+msgstr "Porty"
+
+#, c-format
+msgid "%d × RJ45, 10/100 Mbit/s"
+msgstr "%d × RJ45, 10/100 Mbit/s"
+
+msgid "0 V of the supply."
+msgstr "0 V napájení."
+
 #, c-format
 msgid "Rated voltage against %s powers the relay and starts the function."
 msgstr "Jmenovité napětí proti %s napájí relé a spustí funkci."
@@ -2924,6 +3115,16 @@ msgstr "Logický modul s reléovými výstupy: napájení na L1 a N, vstupy I1-I
 msgid "It runs its program (function block or ladder diagram; double-click it) whenever an input changes or a timer of the program ends, until the program settles. Losing power resets the program."
 msgstr "Svůj program (funkční bloky nebo kontaktní schéma; otevřete ho dvojklikem) vykoná pokaždé, když se změní vstup nebo skončí časovač programu, dokud se program neustálí. Ztráta napájení program vynuluje."
 
+msgid "Its Ethernet port P1 takes a cable to another PLC, or to a network switch for more than two. Its network inputs NI1-NI64 and NAI1-NAI32 read an input, output, flag or analog value of the PLC at an IP address set in the program; they are 0 while it cannot be reached."
+msgstr "Do ethernetového portu P1 se zapojuje kabel k jinému PLC, pro víc než dva k síťovému přepínači. Síťové vstupy NI1-NI64 a NAI1-NAI32 čtou vstup, výstup, příznak nebo analogovou hodnotu PLC na IP adrese nastavené v programu; dokud není dosažitelné, jsou 0."
+
+msgid "Ethernet"
+msgstr "Ethernet"
+
+#, c-format
+msgid "1 × RJ45, 10/100 Mbit/s, IP address %s, mask %s"
+msgstr "1 × RJ45, 10/100 Mbit/s, IP adresa %s, maska %s"
+
 #, c-format
 msgid "Module %d: %s"
 msgstr "Modul %d: %s"
@@ -3011,6 +3212,16 @@ msgstr "Analogový výstup %s"
 msgid "0-10 V for 0-%s in the program; 0 V while it does not work."
 msgstr "0-10 V pro 0-%s v programu; 0 V, dokud nepracuje."
 
+msgid "Ethernet port"
+msgstr "Ethernetový port"
+
+msgid "RJ45 socket, 10/100 Mbit/s, crossed over by itself: a cable to a PLC or another switch."
+msgstr "Zásuvka RJ45, 10/100 Mbit/s, s automatickým křížením: kabel k PLC nebo jinému přepínači."
+
+#, c-format
+msgid "RJ45 socket: an Ethernet cable to another PLC or to a network switch; IP address %s."
+msgstr "Zásuvka RJ45: ethernetový kabel k jinému PLC nebo k síťovému přepínači; IP adresa %s."
+
 msgid "+24 V DC supply of the CPU."
 msgstr "Napájení CPU +24 V DC."
 
@@ -3049,6 +3260,9 @@ msgstr "Druhá napájecí svorka; vstupy PLC jsou zapnuté proti ní."
 #, c-format
 msgid "Other supply terminal of module %d; its inputs are on against it."
 msgstr "Druhá napájecí svorka modulu %d; jeho vstupy jsou zapnuté proti ní."
+
+msgid "Unmanaged Ethernet switch, 4 ports, 24 V DC"
+msgstr "Nespravovaný ethernetový přepínač, 4 porty, 24 V DC"
 
 msgid "Temperature transmitter, output 0-10 V"
 msgstr "Převodník teploty, výstup 0-10 V"
@@ -3443,6 +3657,26 @@ msgstr "Analogový modul %s PLC %s se napájí 24 V DC na %s a %s, ne ze stříd
 
 msgid "The circuit has no + supply."
 msgstr "Obvod nemá přívod +."
+
+#, c-format
+msgid "Ethernet port %s is wired to %s: an Ethernet cable joins two ports only."
+msgstr "Ethernetový port %s je propojen s %s: ethernetový kabel spojuje jen dva porty."
+
+#, c-format
+msgid "The Ethernet cable from %s joins %s ports: more than two are joined only through a network switch."
+msgstr "Ethernetový kabel z %s spojuje %s portů: víc než dva se spojují jen přes síťový přepínač."
+
+#, c-format
+msgid "PLCs %s and %s have the same IP address %s on one network."
+msgstr "PLC %s a %s mají v jedné síti stejnou IP adresu %s."
+
+#, c-format
+msgid "Network input %s of %s reads from %s, but no PLC on its network has that IP address."
+msgstr "Síťový vstup %s automatu %s čte z %s, ale žádné PLC v jeho síti tuto IP adresu nemá."
+
+#, c-format
+msgid "Network input %s of %s reads from %s (%s), which is not on its subnet (%s, mask %s)."
+msgstr "Síťový vstup %s automatu %s čte z %s (%s), který není v jeho podsíti (%s, maska %s)."
 
 msgid "The circuit has no - supply."
 msgstr "Obvod nemá přívod -."
