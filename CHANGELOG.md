@@ -7,8 +7,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Panels
-- The narrowest switchboard has room for three 3-pole circuit breakers side by side on a
-  DIN rail
+- The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
+  side by side
 
 ### Fixed
 - Inside a control station, terminals wired only to a supply point of their own (a
