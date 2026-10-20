@@ -136,14 +136,20 @@ Architecture and conventions of the code base. Read this before changing the cod
   LOCALE_NAMES, asked in both languages at once, set_language), then the tour or the first
   lesson in it (settings
   "tutorial"/"welcomed"; finished lessons "tutorial"/"finished")
-- Environments: a schematic is an industrial control circuit or a house installation
-  (SchematicDocument.residential, saved as "environment": "residential", missing = industrial),
-  chosen at File > New for good (NewSchematicDialog: two cards, a double click takes one;
-  main.gd _new_document(residential): L and N supply points, PE too for a house) and shown by
-  a muted label in the toolbar (main.gd _update_environment). The palette follows it
-  (Palette.residential: RESIDENTIAL_ENTRIES or ENTRIES; Palette.all_entries both, each title
-  once, for the datasheets and Change type). A house installation has no Workspace (the
-  Schematic | Workspace switch is hidden). Its parts: light switches (LightSwitch "SF1",
+- Environments: a schematic is an industrial control circuit, a prototype residential
+  (light switches, luminaires and sockets drawn and wired freely on the schematic, for
+  students to try circuits out) or a residential installation (the consumer unit as its
+  single-line diagram, see below) (SchematicDocument.environment, a SchematicDocument.Kind;
+  saved as "environment": "prototype" / "installation", missing = industrial, "residential"
+  before version 41 = prototype; SchematicDocument.residential is true for both house
+  kinds and set true makes a prototype), chosen at File > New for good (NewSchematicDialog:
+  three cards, a double click takes one; environment_name / environment_text; main.gd
+  _new_document(environment): L and N supply points, PE too for a prototype, a residential
+  installation its supply and main switch from update_single_line) and shown by a muted
+  label in the toolbar (main.gd _update_environment). The palette follows it
+  (Palette.environment: ENTRIES, RESIDENTIAL_ENTRIES or INSTALLATION_ENTRIES;
+  Palette.all_entries all, each title once, for the datasheets and Change type). A house
+  installation of either kind has its floor plan in place of the Workspace. Its parts: light switches (LightSwitch "SF1",
   numbered (řazení) and their terminals marked as ČSN EN 60669-1 does, the incoming
   terminals first: 1 one-way 1-2, 2 / 3 / 03 two / three / four poles 1-2 3-4 5-6 7-8, 4
   two-way with an off position 1 to 2, off, to 3 (LightSwitch.position; a click goes on 2,
@@ -236,6 +242,55 @@ Architecture and conventions of the code base. Read this before changing the cod
   ticked, a residential document gets a "floor_plan" sheet (SheetRenderer) in place of the
   workspace: a FloorPlanCanvas with legend set, sized to paper_area() (the plan with a
   margin and LEGEND_HEIGHT under it for the symbols and the standard heights)
+- Single-line diagram of a residential installation (SingleLine, SchematicDocument.single_line,
+  no nodes; saved as "single_line"): the consumer unit RD1 as Czech projects draw it. Its
+  columns left to right are circuits (SingleLine.Feeder: its protective device, a circuit
+  breaker, a three-pole one, an RCBO or an AFDD; its phase 1-3, three poles always L1 L2 L3;
+  the parts it feeds, sockets, luminaires, appliances; destination text, room on the floor
+  plan, cable, "" for one by the rating: 3 or 5 cores of 1.5 mm² to 10 A, 2.5 to 16 A, 4 to 25
+  A, 6 beyond; ripple control) and groups (SingleLine.Group: an RCD without overcurrent
+  release, 2 poles on its phase or 4 poles, and the circuits under it; a two-pole RCD takes
+  only single-pole circuits, on its phase). The parts are components of the circuit (placed on
+  the never shown page 0, hidden_cell); SingleLine.wire makes every wire of the document
+  from the diagram (none is drawn by hand): supply points L1 L2 L3 N PE through the main
+  switch QB1 (CamSwitch 0-I, 4 poles) onto the busbars, a group's RCD from them and its
+  circuits from its outputs and N', each circuit's device (an RCBO's or AFDD's own N pole) and,
+  switched by a contact of the ripple control contactor QA1 (LatchingSwitch blocks, one per
+  circuit of its own with hdo; switched_by_hdo), the parts it feeds: phase conductors on the
+  outputs in pole order, N, PE. It makes the supply points, QB1 and the QA1 contacts and
+  prunes what the circuit no longer has; SchematicDocument.update_single_line runs it after
+  every edit (SchematicEditor._changed, edit_workspace) and on load. add (a group at a column,
+  a circuit at a column or into a group, a part onto a circuit; new phases the least used),
+  move, set_phase, remove (from _forget_device: a group's circuits stay where it was),
+  rename (from replace_component), next_phase, phases_of, cable_number, cable_text.
+  SingleLineCanvas (ui/single_line/, _draw only, zoom and pan as the floor plan) draws it in
+  local coordinates u down a circuit, v across (at, local): busbars L1 L2 L3 N across with
+  their names, the supply with its cable, QB1 (a blade with a circle), the SPD to earth
+  (-FC1), the PE (green-yellow) and N bars over the busbars, the earth electrode; each
+  circuit from a dot on its busbar with its phases written beside it, the breaker as on the
+  schematic (BreakerSymbol's geometry: cross, thermal and magnetic releases turning with the
+  blade), an RCBO's IΔ box and ring or an AFDD's arc box and red "AFDD" caption, each with the
+  device's dashed outline and test button, designation and rating before it (B16, an RCD
+  "40/0,03 A typ A", an RCBO B16 over "0,03 A typ A"), the QA1 contact with "HDO", the cable
+  number -WDn on a ledger, the cable along the line, the symbol of its first part (socket arc,
+  crossed lamp, hatched water heater, hob, fridge, washer, microwave, oven, heater; "2×" for
+  more), the destination (or the part's kind, "Spare") and "→ room" (a link to the floor plan:
+  room_requested); a group: its RCD (both poles, the ring, the IΔ box, outline and test
+  button) from its busbar and N, its N bar Nn and its own busbar with its circuits. Colours:
+  designations green, data magenta, links blue, AFDD red; while simulating every line in the
+  colour of the voltage reaching it (StepResult.terminal_reach), lit luminaires and working
+  parts filled. Edit mode: a click selects (main.gd shows its properties through the editor's
+  selection), begin_place takes a palette template to drop_target (between the columns, into
+  a group under its busbar, a part onto the circuit under the mouse; marked dashed), a device
+  dragged moves its circuit or group, Delete takes a device with what it feeds away. Simulate
+  mode: QB1 and QA1 switch (switch_toggled -> SchematicView.toggle_switch), breakers and RCDs
+  switch (operate_requested), test buttons trip (SchematicView.press_test). SingleLineView: a
+  bar (Delete, Show all), the canvas and in Edit mode a panel for the selected circuit (phase,
+  destination, room from the floor plan's rooms, cable, ripple control), group (phase) or
+  supply (cable, SPD); main.gd shows it in place of the schematic (_single_line_shown: page
+  bar, rotate, mirror, flip, numbering and Check hidden) and sends it the palette's templates.
+  Export: the schematic pages of a residential installation are one "single_line" sheet
+  (SingleLineCanvas.extent, sheet set)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -956,7 +1011,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   Switchboard, WorkspaceGroup, ControlBox) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
-- `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd
+- `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd;
+  floor_plan/ (FloorPlanView, FloorPlanCanvas, PlanSymbols), single_line/ (SingleLineView,
+  SingleLineCanvas)
 - UI look: `ui/app_theme.gd` (AppTheme) builds the whole Godot theme in code from colour tokens
   (dark/light), system fonts (MSDF font for schematic text), line icons as inline SVG via
   DPITexture; use its type variations (ToolButton, PrimaryButton, MutedLabel, ...) instead of

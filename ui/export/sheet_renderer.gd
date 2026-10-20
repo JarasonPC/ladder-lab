@@ -101,15 +101,20 @@ static func _fitted(board: Switchboard) -> bool:
 
 
 ## What the sheets of an export of [param doc] show, in order: {"kind"
-## ("page", "stations", "switchboard", "workspace", "parts") and "page",
+## ("page", or "single_line" for a residential installation, "stations",
+## "switchboard", "workspace" or "floor_plan", "parts") and "page",
 ## "boxes" (see [method StationsSheet.arrange]), "board" or "rows"}. Only
 ## what [param doc] has: stations, switchboards with something in them, a
 ## workspace with places or parts.
 func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if schematic:
-		for page: int in pages:
-			result.append({"kind": "page", "page": page})
+		if doc.environment == SchematicDocument.Kind.RESIDENTIAL:
+			# A residential installation's single-line diagram in place of the pages.
+			result.append({"kind": "single_line"})
+		else:
+			for page: int in pages:
+				result.append({"kind": "page", "page": page})
 	if stations:
 		for boxes: Array in StationsSheet.arrange(doc):
 			result.append({"kind": "stations", "boxes": boxes})
@@ -265,6 +270,16 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			content.add_child(canvas)
 			frame.page_title = tr("Workspace")
 			extent = Rect2(Vector2.ZERO, bounds.size / G)
+		"single_line":
+			var diagram: SingleLineCanvas = SingleLineCanvas.new()
+			diagram.document = copy
+			diagram.sheet = true
+			var area: Rect2 = diagram.extent()
+			diagram.offset = -area.position
+			diagram.size = area.size
+			content.add_child(diagram)
+			frame.page_title = tr("Consumer unit %s") % FloorPlan.UNIT
+			extent = Rect2(Vector2.ZERO, diagram.size / G)
 		"floor_plan":
 			var plan: FloorPlanCanvas = FloorPlanCanvas.new()
 			plan.document = copy

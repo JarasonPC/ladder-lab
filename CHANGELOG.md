@@ -7,6 +7,22 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- Three kinds of schematic at File > New: industrial, prototype residential (light switches,
+  luminaires and sockets drawn and wired freely, as residential schematics were) and
+  residential, a house installation whose consumer unit is drawn as its single-line diagram
+- The single-line diagram of a residential installation, as Czech projects draw it: the supply
+  through the main switch onto busbars L1, L2, L3 and N, a surge protective device, PE and N
+  bars, and the circuits hanging from their busbar in columns, only the phases drawn. A breaker
+  from the palette clicked under the busbars makes a circuit, an RCD a group with its own
+  busbar and N bar for the breakers put under it; sockets, luminaires and appliances clicked
+  onto a circuit are what it feeds. Each circuit shows its breaker as on the schematic (an
+  RCBO or AFDD with its release and test button), designation and rating, cable number and
+  cable, the symbol of what it feeds, where it goes and a link to its room on the floor plan;
+  a circuit can be switched by the ripple control (HDO) contactor. Breakers and RCDs are
+  dragged to move their circuits; N and PE are wired by themselves. While simulating the
+  circuits show their voltage, and the main switch, breakers, RCDs, test buttons and the HDO
+  contact are clicked to operate them
+- Export to PDF puts a residential installation's single-line diagram on a sheet
 - The floor plan opens the consumer unit RD1 (a click on its symbol while simulating, a
   double click in Edit mode): its switchboard in place of the plan, made with the protection
   on its rails when there is none yet, its breakers switched there while simulating

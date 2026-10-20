@@ -483,6 +483,17 @@ func toggle_switch(designation: String, steps: int = 0) -> void:
 	_apply(simulator.step())
 
 
+## Presses the test button of RCD or AFDD [param designation], as on the
+## single-line diagram (while simulating): it trips while it is on.
+func press_test(designation: String) -> void:
+	var c: CircuitComponent = document.circuit.get_component(designation) if document != null else null
+	if not simulating or not (c is ResidualCurrentDevice or c is ArcFaultDevice):
+		return
+	if c.call("test"):
+		_log("%s: test button pressed", [c.designation])
+	_apply(simulator.step())
+
+
 ## Switches rocker [param rocker] of light switch [param designation] over,
 ## as from the floor plan (while simulating).
 func toggle_light_switch(designation: String, rocker: int) -> void:

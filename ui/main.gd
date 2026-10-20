@@ -152,6 +152,8 @@ var _datasheet_window: DatasheetWindow = null
 var _workspace: WorkspaceView
 ## The floor plan of a house installation, shown in place of the workspace.
 var _floor_plan: FloorPlanView
+## The single-line diagram of a residential installation, in place of the schematic.
+var _single_line: SingleLineView
 ## The next document shown fits the whole workspace into view (a new schematic).
 var _workspace_fit: bool = true
 ## Asks for the key of a push button or switch.
@@ -272,7 +274,11 @@ func _ready() -> void:
 	_properties.mirror_requested.connect(func() -> void: editor.mirror_selection())
 	_properties.flip_requested.connect(func() -> void: editor.flip_selection())
 	_properties.type_changed.connect(_on_type_changed)
-	_palette.template_chosen.connect(func(t: Dictionary) -> void: editor.begin_place(t))
+	_palette.template_chosen.connect(func(t: Dictionary) -> void:
+		if _single_line_shown():
+			_single_line.begin_place(t)
+		else:
+			editor.begin_place(t))
 	_check_panel.issue_selected.connect(_on_issue_selected)
 	view.loaded.connect(_on_view_loaded)
 	editor.edited.connect(_workspace.refresh)
@@ -292,6 +298,14 @@ func _ready() -> void:
 	_floor_plan.switch_toggled.connect(view.toggle_light_switch)
 	_floor_plan.cabinet_edit_requested.connect(_edit_cabinet)
 	_floor_plan.operate_requested.connect(view.operate_device)
+	editor.edited.connect(_single_line.refresh)
+	view.stepped.connect(_single_line.show_step)
+	_single_line.edit_requested.connect(_edit_workspace)
+	_single_line.operate_requested.connect(view.operate_device)
+	_single_line.switch_toggled.connect(view.toggle_switch)
+	_single_line.test_requested.connect(view.press_test)
+	_single_line.selection_changed.connect(_on_single_line_selected)
+	_single_line.room_requested.connect(_show_room)
 	editor.key_bind_requested.connect(_ask_key)
 	editor.edited.connect(func() -> void:
 		for window: PlaceWindow in _place_windows():
@@ -631,6 +645,10 @@ func _build_ui() -> void:
 	_floor_plan.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_floor_plan.visible = false
 	_canvas_area.add_child(_floor_plan)
+	_single_line = SingleLineView.new()
+	_single_line.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_single_line.visible = false
+	_canvas_area.add_child(_single_line)
 	_short_banner = Label.new()
 	_short_banner.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_short_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -963,6 +981,7 @@ func _retranslate() -> void:
 		bar.retranslate()
 	_workspace.retranslate()
 	_floor_plan.retranslate()
+	_single_line.retranslate()
 	for window: PlaceWindow in _place_windows():
 		window.retranslate()
 	for window: PlcWindow in _plc_windows():
@@ -1338,17 +1357,22 @@ func _update_mode_ui() -> void:
 	view.set_path_numbers_visible(_path_numbers)
 	view.set_current_view(_current_view)
 	_view_select.select(1 if _current_view else 0)
-	view.visible = schematic
-	editor.active = editing and schematic
-	_page_bar.visible = schematic
+	# A residential installation shows its single-line diagram in place of the schematic.
+	var single_line: bool = schematic and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
+	view.visible = schematic and not single_line
+	_single_line.visible = single_line
+	editor.active = editing and schematic and not single_line
+	_page_bar.visible = schematic and not single_line
 	var residential: bool = edit_doc != null and edit_doc.residential
 	_workspace.visible = not schematic and not residential
 	_floor_plan.visible = not schematic and residential
 	_tree_bar.visible = not schematic and not residential
 	_edit_tools.visible = editing and schematic
-	_numbers_toggle.visible = schematic
-	_layout_select.visible = schematic
-	_clamp_toggle.visible = schematic
+	for tool: Control in [_rotate_button, _mirror_button, _flip_button, _number_button, _check_button]:
+		tool.visible = not single_line
+	_numbers_toggle.visible = schematic and not single_line
+	_layout_select.visible = schematic and not single_line
+	_clamp_toggle.visible = schematic and not single_line
 	_palette_bar.visible = editing and schematic
 	_lesson_bar.visible = schematic and _lesson_run != null
 	_update_side_bar()
@@ -1369,9 +1393,10 @@ func _update_mode_ui() -> void:
 ## its floor plan where an industrial control circuit has its workspace.
 func _update_environment() -> void:
 	var residential: bool = edit_doc != null and edit_doc.residential
-	_palette.residential = residential
-	_environment_label.text = tr("Residential") if residential else tr("Industrial")
-	_environment_label.tooltip_text = tr("A house installation: light switches, luminaires, socket outlets") if residential else tr("An industrial control circuit: contactors, time relays, motors, PLCs")
+	var environment: SchematicDocument.Kind = edit_doc.environment if edit_doc != null else SchematicDocument.Kind.INDUSTRIAL
+	_palette.environment = environment
+	_environment_label.text = NewSchematicDialog.environment_name(environment)
+	_environment_label.tooltip_text = NewSchematicDialog.environment_text(environment)
 	# A house installation has its floor plan in place of the workspace.
 	_workspace_button.text = tr("Floor plan") if residential else tr("Workspace")
 	_workspace_button.icon = AppTheme.icon("house" if residential else "workspace")
@@ -1380,6 +1405,9 @@ func _update_environment() -> void:
 		_workspace.visible = not residential
 		_floor_plan.visible = residential
 		_tree_bar.visible = not residential
+	elif _single_line.visible != _single_line_shown():
+		# The schematic or the single-line diagram, by what the schematic is.
+		_update_mode_ui()
 
 
 func _update_run_button() -> void:
@@ -1469,6 +1497,7 @@ func _on_view_loaded() -> void:
 	_workspace.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
 	_workspace.show_travels(view.travel_positions())
 	_floor_plan.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
+	_single_line.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
 	_workspace_fit = false
 	for window: PlaceWindow in _place_windows():
 		window.set_document(view.document, mode == Mode.EDIT)
@@ -1549,14 +1578,20 @@ func _start_blank() -> void:
 	_replace_document(SchematicDocument.new(tr("New schematic")), "")
 
 
-## A new schematic with an L and an N supply point; a house installation
-## ([param residential]) also has its PE.
-func _new_document(residential: bool = false) -> void:
+## A new schematic of [param environment] (a [enum
+## SchematicDocument.Kind]): with an L and an N supply point (a
+## residential prototype also with its PE), a residential installation with
+## its supply and main switch (see [SingleLine]).
+func _new_document(environment: int = SchematicDocument.Kind.INDUSTRIAL) -> void:
 	var doc: SchematicDocument = SchematicDocument.new(tr("New schematic"))
-	doc.residential = residential
+	doc.environment = environment as SchematicDocument.Kind
+	if doc.environment == SchematicDocument.Kind.RESIDENTIAL:
+		doc.update_single_line()
+		_replace_document(doc, "")
+		return
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, 16))
-	if residential:
+	if doc.residential:
 		doc.add(PowerSupply.new("PE", PowerSupply.Conductor.PE), Vector2i(2, 19))
 	if _layout_select.selected == 1:
 		doc.transpose()
@@ -1633,6 +1668,30 @@ func _on_selection_changed(c: CircuitComponent) -> void:
 		_properties.show_wire()
 	else:
 		_properties.show_component(c)
+
+
+## Whether the single-line diagram of a residential installation shows.
+func _single_line_shown() -> bool:
+	return area == Area.SCHEMATIC and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
+
+
+## A part chosen on the single-line diagram shows its properties.
+func _on_single_line_selected(designation: String) -> void:
+	editor._clear_selection()
+	var c: CircuitComponent = edit_doc.circuit.get_component(designation) if not designation.is_empty() else null
+	if c != null:
+		editor.selected_components[c.id] = true
+	editor._selection_updated()
+	_update_side_bar()
+
+
+## Room [param room] shown on the floor plan (selected).
+func _show_room(room: String) -> void:
+	_set_area(Area.WORKSPACE)
+	for i: int in edit_doc.floor_plan.rooms.size():
+		if edit_doc.floor_plan.rooms[i].name == room:
+			_floor_plan.canvas.selected = {"kind": "room", "index": i}
+			_floor_plan.canvas.queue_redraw()
 
 
 func _single_selected() -> CircuitComponent:
@@ -2603,7 +2662,10 @@ func _on_stepped(result: StepResult) -> void:
 		# The workspace has its hints in its own bar.
 		_status_label.text = _editor_hint if area == Area.SCHEMATIC else ""
 		_status_label.remove_theme_color_override("font_color")
-		if area == Area.SCHEMATIC:
+		if _single_line_shown():
+			_status_label.text = ""
+			_hint_label.text = tr("Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms.")
+		elif area == Area.SCHEMATIC:
 			_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
 		elif edit_doc != null and edit_doc.residential:
 			_hint_label.text = tr("Double-click a room to rename it; Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms.")
@@ -2611,7 +2673,9 @@ func _on_stepped(result: StepResult) -> void:
 			_hint_label.text = ""
 		_fit_status_label()
 		return
-	if area == Area.SCHEMATIC:
+	if _single_line_shown():
+		_hint_label.text = tr("Click the main switch, a breaker, an RCD or its test button to operate it. Right or middle drag pans, wheel zooms.")
+	elif area == Area.SCHEMATIC:
 		_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.")
 	elif edit_doc != null and edit_doc.residential:
 		_hint_label.text = tr("Click a light switch on the plan to switch it (of two rockers, the side clicked). Right or middle drag pans, wheel zooms.")

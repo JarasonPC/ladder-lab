@@ -80,8 +80,31 @@ const RESIDENTIAL_ENTRIES: Array[Dictionary] = [
 	{"title": "Socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 1}},
 	{"title": "Double socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 2}},
 	{"title": "Circuit breaker", "template": {"type": "breaker"}},
-	{"title": "Residual current device (RCD / RCBO)", "template": {"type": "rcd", "poles": 2}},
+	{"title": "Residual current device (RCD)", "template": {"type": "rcd", "poles": 2}},
 	{"title": "Arc fault detection device with breaker (AFDD)", "template": {"type": "afdd"}},
+	{"title": "Water heater", "template": {"type": "appliance", "kind": "water_heater"}},
+	{"title": "Oven", "template": {"type": "appliance", "kind": "oven"}},
+	{"title": "Induction hob", "template": {"type": "appliance", "kind": "hob"}},
+	{"title": "Microwave", "template": {"type": "appliance", "kind": "microwave"}},
+	{"title": "Washing machine", "template": {"type": "appliance", "kind": "washing_machine"}},
+	{"title": "Dishwasher", "template": {"type": "appliance", "kind": "dishwasher"}},
+	{"title": "Heater", "template": {"type": "appliance", "kind": "heater"}},
+	{"title": "Fridge", "template": {"type": "appliance", "kind": "fridge"}},
+]
+
+## Entries of a residential installation (its single-line diagram, see
+## [SingleLine]): the protection that makes its circuits and groups, and
+## the parts a circuit feeds.
+const INSTALLATION_ENTRIES: Array[Dictionary] = [
+	{"title": "Circuit breaker", "template": {"type": "breaker", "characteristic": "B", "rated_current": 16.0}},
+	{"title": "Circuit breaker, three poles", "template": {"type": "breaker", "poles": 3, "characteristic": "B", "rated_current": 16.0}},
+	{"title": "Residual current device (RCD)", "template": {"type": "rcd", "poles": 2}},
+	{"title": "Residual current device, four poles", "template": {"type": "rcd", "poles": 4}},
+	{"title": "RCD with overcurrent release (RCBO)", "template": {"type": "rcd", "poles": 2, "overcurrent": true, "rated_current": 16.0, "characteristic": "B"}},
+	{"title": "Arc fault detection device with breaker (AFDD)", "template": {"type": "afdd"}},
+	{"title": "Luminaire", "template": {"type": "luminaire"}},
+	{"title": "Socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 1}},
+	{"title": "Double socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 2}},
 	{"title": "Water heater", "template": {"type": "appliance", "kind": "water_heater"}},
 	{"title": "Oven", "template": {"type": "appliance", "kind": "oven"}},
 	{"title": "Induction hob", "template": {"type": "appliance", "kind": "hob"}},
@@ -98,15 +121,22 @@ const ICON_PADDING: float = 3.0
 ## Paper tile behind each symbol, at the left of its row.
 const TILE := Rect2(6, 4, 54, 34)
 
-## Offers the parts of a house installation ([constant RESIDENTIAL_ENTRIES])
-## rather than those of an industrial control circuit.
-var residential: bool = false:
+## Offers the parts of [member SchematicDocument.environment]:
+## [constant ENTRIES], [constant RESIDENTIAL_ENTRIES] or
+## [constant INSTALLATION_ENTRIES].
+var environment: SchematicDocument.Kind = SchematicDocument.Kind.INDUSTRIAL:
 	set(value):
-		if value == residential:
+		if value == environment:
 			return
-		residential = value
+		environment = value
 		if _list != null:
 			_build()
+## Offers the parts of a house installation of either kind.
+var residential: bool:
+	get:
+		return environment != SchematicDocument.Kind.INDUSTRIAL
+	set(value):
+		environment = SchematicDocument.Kind.PROTOTYPE if value else SchematicDocument.Kind.INDUSTRIAL
 ## Symbols alone in a grid instead of the list with names.
 var grid: bool = false:
 	set(value):
@@ -126,9 +156,14 @@ var _headers: Array[Label] = []
 var _header_titles: PackedStringArray = []
 
 
-## Entries offered: [constant RESIDENTIAL_ENTRIES] or [constant ENTRIES].
+## Entries offered, by [member environment].
 func entries() -> Array[Dictionary]:
-	return RESIDENTIAL_ENTRIES if residential else ENTRIES
+	match environment:
+		SchematicDocument.Kind.PROTOTYPE:
+			return RESIDENTIAL_ENTRIES
+		SchematicDocument.Kind.RESIDENTIAL:
+			return INSTALLATION_ENTRIES
+	return ENTRIES
 
 
 ## Every entry of both palettes, each title once (industrial first): the
@@ -138,8 +173,9 @@ static func all_entries() -> Array[Dictionary]:
 	var titles: Dictionary[String, bool] = {}
 	for entry: Dictionary in ENTRIES:
 		titles[entry["title"]] = true
-	for entry: Dictionary in RESIDENTIAL_ENTRIES:
+	for entry: Dictionary in RESIDENTIAL_ENTRIES + INSTALLATION_ENTRIES:
 		if not titles.has(entry["title"]):
+			titles[entry["title"]] = true
 			result.append(entry)
 	return result
 

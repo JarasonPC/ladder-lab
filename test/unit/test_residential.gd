@@ -136,7 +136,7 @@ func test_saved_and_loaded() -> void:
 	doc.add(SocketOutlet.new("XD1", 2), Vector2i(10, 4))
 	(doc.circuit.get_component("XD1") as SocketOutlet).height = 1.15
 	var data: Dictionary = DocumentSerializer.to_dict(doc)
-	assert_eq(data["environment"], "residential")
+	assert_eq(data["environment"], "prototype")
 	var loaded: SchematicDocument = DocumentSerializer.from_dict(data)
 	assert_true(loaded.residential)
 	var sw: LightSwitch = loaded.circuit.get_component("SF2") as LightSwitch
@@ -282,7 +282,7 @@ func test_new_residential_schematic_in_the_main_window() -> void:
 	assert_true(main.edit_doc.residential)
 	assert_true(main._palette.residential, "the palette offers house parts")
 	assert_eq(main._workspace_button.text, "Floor plan", "a floor plan in place of the workspace")
-	assert_eq(main._environment_label.text, "Residential")
+	assert_eq(main._environment_label.text, "Prototype residential")
 	assert_true(main.edit_doc.circuit.get_component("PE") is PowerSupply, "starts with L, N and PE")
 	main._new_document(false)
 	assert_false(main._palette.residential)

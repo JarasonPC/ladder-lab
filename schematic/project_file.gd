@@ -91,7 +91,12 @@ const FORMAT: String = "ladder-lab"
 ## 40: the floor plan of a house installation ("floor_plan": rooms with
 ## name and rect, doors, where the parts and the consumer unit "+RD1" are
 ## with the way they face; missing: an empty plan).
-const VERSION: int = 40
+## 41: three environments: "prototype" (saved as "residential" before) and
+## "installation", a residential installation with its single-line diagram
+## ("single_line": columns of circuits and RCD groups, each circuit's
+## device, phase, the parts it feeds, destination, room, cable, ripple
+## control; the supply cable and the SPD).
+const VERSION: int = 41
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network
