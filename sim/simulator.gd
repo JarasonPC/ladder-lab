@@ -217,6 +217,12 @@ var _eval_masks: Dictionary[int, int] = {}
 var _flow: CurrentFlow = CurrentFlow.new()
 ## Current through each switching path (amperes), from the last evaluation.
 var _path_current: PackedFloat32Array = PackedFloat32Array()
+## The same as phasors, from each path's first terminal to its second: a
+## residual current device adds those of its poles up.
+var _path_phasor: PackedVector2Array = PackedVector2Array()
+## Switching paths the current of an arcing load flows through (see
+## [member Load.arcing]), from the last evaluation.
+var _arc_paths: Dictionary[int, bool] = {}
 ## Switching paths of each protective part, in pole order.
 var _device_paths: Dictionary[CircuitComponent, PackedInt32Array] = {}
 var _short: bool = false
@@ -438,7 +444,8 @@ func _build() -> void:
 			_load_terms.append(index[keys[0]])
 			_load_terms.append(index[keys[1]])
 			continue
-		if not paths.is_empty():
+		# An appliance's path is its insulation fault; it is a load as well.
+		if not paths.is_empty() and not (c is Load):
 			continue
 		if c is Potentiometer:
 			_pots.append(c as Potentiometer)
@@ -513,6 +520,9 @@ func _build() -> void:
 		_motor_supply.append(_unfed_motor(_motors[m]))
 	_path_current.resize(_switches.size())
 	_path_current.fill(0.0)
+	_path_phasor.resize(_switches.size())
+	_path_phasor.fill(Vector2.ZERO)
+	_arc_paths.clear()
 
 
 func _count_port(net: int) -> void:
@@ -1068,7 +1078,27 @@ func _instant_trips(result: StepResult) -> bool:
 		if device.trips_instantly(_device_currents(device)):
 			_log(result, "%s tripped (short-circuit release)", [device.designation])
 			any = true
+		elif device is ResidualCurrentDevice:
+			var residual: float = _residual_current(device)
+			if (device as ResidualCurrentDevice).residual_trips(residual):
+				_log(result, "%s tripped (residual current %d mA)", [device.designation, roundi(residual * 1000.0)])
+				any = true
+		elif device is ArcFaultDevice:
+			for i: int in _device_paths[device]:
+				if _arc_paths.has(i) and (device as ArcFaultDevice).arc_trips():
+					_log(result, "%s tripped (arc fault)", [device.designation])
+					any = true
+					break
 	return any
+
+
+## What does not come back through residual current device [param device]:
+## the phasor sum of the currents through its poles, amperes.
+func _residual_current(device: CircuitComponent) -> float:
+	var sum: Vector2 = Vector2.ZERO
+	for i: int in _device_paths[device]:
+		sum += _path_phasor[i]
+	return sum.length()
 
 
 ## Moves the shafts on by [param dt] seconds: motors fed with AC run up or
@@ -1124,11 +1154,20 @@ func _evaluate_protected(result: StepResult) -> PackedByteArray:
 		if not tripped:
 			var probe: StepResult = StepResult.new()
 			_find_current_paths(probe, false)
+			# A fault current through one pole of a residual current device
+			# alone does not come back through it.
+			var rcd_poles: Dictionary[CircuitComponent, int] = {}
 			for i: int in probe.current_switch_paths:
 				var c: CircuitComponent = _switches[i]
+				if c is ResidualCurrentDevice:
+					rcd_poles[c] = rcd_poles.get(c, 0) + 1
 				if c.trip_path(_switch_paths[i]):
 					tripped = true
 					_log(result, c.trip_message(), [c.designation])
+			for rcd: CircuitComponent in rcd_poles:
+				if (rcd as ResidualCurrentDevice).residual_short(rcd_poles[rcd]):
+					tripped = true
+					_log(result, "%s tripped (fault current to PE)", [rcd.designation])
 		if not tripped:
 			break
 		desired = _evaluate()
@@ -1510,6 +1549,7 @@ func _compute_currents() -> void:
 				if _drives[d].output:
 					for t: int in 3:
 						sources.append(_drive_term(d, Vfd.U + t))
+	_find_arc_paths(draws, paths, path_ids, sources, returns)
 	_flow.solve(draws, paths, sources, returns)
 	# A working rectifier draws on its input what its output delivers.
 	var feeding: bool = false
@@ -1525,13 +1565,39 @@ func _compute_currents() -> void:
 	if feeding:
 		_flow.solve(draws, paths, sources, returns)
 	_path_current.fill(0.0)
+	_path_phasor.fill(Vector2.ZERO)
 	for k: int in path_ids.size():
 		_path_current[path_ids[k]] = _flow.path_currents[k].length()
+		_path_phasor[path_ids[k]] = _flow.path_currents[k]
 	for relay: OverloadRelay in _overload_relays:
 		if _device_paths.has(relay):
 			relay.current = TripCurve.largest(_device_currents(relay))
 	for m: int in _motors.size():
 		_motors[m].line_currents = motor_line_currents(m)
+
+
+## Finds the switching paths the current of the arcing loads flows through
+## ([member _arc_paths]): the flow of their draws alone (see [method
+## _compute_currents] for the arguments).
+func _find_arc_paths(draws: PackedVector2Array, paths: PackedInt32Array, path_ids: PackedInt32Array, sources: PackedInt32Array, returns: PackedInt32Array) -> void:
+	_arc_paths.clear()
+	if _short or _eval_uf == null:
+		return
+	var arcs: PackedVector2Array = PackedVector2Array()
+	arcs.resize(draws.size())
+	var any: bool = false
+	for i: int in _loads.size():
+		if _loads[i].arcing and _loads[i].energized and _loads[i].rated_draw() > 0.0:
+			var v: Vector2 = _load_voltage(i)
+			arcs[_load_terms[2 * i]] += v * _loads[i].rated_draw()
+			arcs[_load_terms[2 * i + 1]] -= v * _loads[i].rated_draw()
+			any = true
+	if not any:
+		return
+	_flow.solve(arcs, paths, sources, returns)
+	for k: int in path_ids.size():
+		if _flow.path_currents[k].length() > 1e-6:
+			_arc_paths[path_ids[k]] = true
 
 
 ## Adds what drive [param d] draws from its supply to [param draws]: the

@@ -172,9 +172,48 @@ func show_component(component: CircuitComponent) -> void:
 			_note(tr("230 V between L and N; PE goes to its frame. It lights while it has its voltage."), "MutedLabel")
 		"socket":
 			_choice(tr("Outlets"), "gangs", [1, 2], [tr("Single"), tr("Double")])
+			_plugged()
+			if str(_data.get("plugged", "")) != "":
+				_number(tr("Power of the appliance (W)"), "plugged_power", Appliance.MIN_POWER, Appliance.MAX_POWER, 10.0)
 			_height(SocketOutlet.STANDARD_HEIGHT)
 			_group = null
-			_note(tr("Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage."), "MutedLabel")
+			_note(tr("Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage, and an appliance plugged in draws its power."), "MutedLabel")
+		"appliance":
+			_appliance_kind()
+			_number(tr("Rated power (W)"), "power", Appliance.MIN_POWER, Appliance.MAX_POWER, 10.0)
+			_choice(tr("Supply"), "two_phases", [false, true], [tr("230 V (L, N)"), tr("400 V between two phases (L1, L2)")])
+			_height(Appliance.STANDARD_HEIGHT)
+			_group = null
+			_note(tr("Wired for good to its own circuit, its metal frame on PE. Right click it while simulating for an insulation fault (its phase on the frame) or a loose connection that arcs."), "MutedLabel")
+		"rcd":
+			_choice(tr("Poles"), "poles", [2, 4], [tr("2 (L + N)"), tr("4 (3 phases + N)")])
+			var residuals: Array = []
+			var residual_titles: Array = []
+			for r: float in ResidualCurrentDevice.RESIDUAL_RATINGS:
+				residuals.append(r)
+				residual_titles.append("%d mA" % roundi(r * 1000.0))
+			_choice(tr("Rated residual current IΔn"), "residual", residuals, residual_titles)
+			_choice(tr("Type"), "rcd_type", Array(ResidualCurrentDevice.TYPES), [tr("AC (AC residual currents)"), tr("A (also pulsating DC)")])
+			_check(tr("With overcurrent release (RCBO)"), "overcurrent")
+			if bool(_data.get("overcurrent", false)):
+				_choice(tr("Characteristic"), "characteristic", ["B", "C", "D"], [tr("B (magnetic release 3-5x In)"), tr("C (magnetic release 5-10x In)"), tr("D (magnetic release 10-20x In)")])
+				_breaker_rating()
+				_trip_curve(CircuitBreaker.breaker_curve(TripCurve.LETTERS.find(_data["characteristic"]) as CircuitBreaker.Characteristic))
+			else:
+				var ratings: Array = []
+				var rating_titles: Array = []
+				for r: float in ResidualCurrentDevice.RCD_RATINGS:
+					ratings.append(r)
+					rating_titles.append(Fuse.amperes_text(r) + " A")
+				_choice(tr("Rated current In (A)"), "rated_current", ratings, rating_titles)
+			_group = null
+			_note(tr("Phases through 1-2 (3-4, 5-6) and the neutral through N-N'. It trips when what goes out on the phases does not all come back on N (a fault to PE, N taken past it) from 70 % of IΔn on. While simulating, click it to switch it on; right click it to press its test button T."), "MutedLabel")
+		"afdd":
+			_choice(tr("Characteristic"), "characteristic", ["B", "C"], [tr("B (magnetic release 3-5x In)"), tr("C (magnetic release 5-10x In)")])
+			_breaker_rating()
+			_trip_curve(CircuitBreaker.breaker_curve(TripCurve.LETTERS.find(_data["characteristic"]) as CircuitBreaker.Characteristic))
+			_group = null
+			_note(tr("A circuit breaker that also trips when an arc burns in a loose connection of what it feeds: phase 1-2, neutral N-N'. Right click a load while simulating to loosen its connection."), "MutedLabel")
 		"changeover":
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")
@@ -643,6 +682,42 @@ func _emit_modules(list: Array[Plc.Module]) -> void:
 	for module: Plc.Module in list:
 		names.append(Plc.MODULE_NAMES[module])
 	_emit("modules", names)
+
+
+## What is plugged into a socket; another appliance comes with its usual power.
+func _plugged() -> void:
+	var values: Array = [""]
+	var titles: Array = [tr("Nothing")]
+	for kind: Appliance.Kind in SocketOutlet.PLUGGABLE:
+		values.append(Appliance.KIND_NAMES[kind])
+		titles.append(ApplianceSymbol.kind_title(kind))
+	var option: OptionButton = _choice(tr("Plugged in"), "plugged", values, titles)
+	for connection: Dictionary in option.item_selected.get_connections():
+		option.item_selected.disconnect(connection["callable"])
+	option.item_selected.connect(func(i: int) -> void:
+		var data: Dictionary = _data.duplicate()
+		data.erase("plugged_power")
+		data["plugged"] = values[i]
+		if values[i] != "":
+			data["plugged_power"] = Appliance.DEFAULT_POWER[Appliance.KIND_NAMES.find(values[i])]
+		changed.emit(_component_id, data))
+
+
+## What an appliance is; another kind comes with its usual power and supply.
+func _appliance_kind() -> void:
+	var titles: Array = []
+	for k: int in Appliance.KIND_NAMES.size():
+		titles.append(ApplianceSymbol.kind_title(k))
+	var option: OptionButton = _choice(tr("Appliance"), "kind", Array(Appliance.KIND_NAMES), titles)
+	for connection: Dictionary in option.item_selected.get_connections():
+		option.item_selected.disconnect(connection["callable"])
+	option.item_selected.connect(func(i: int) -> void:
+		var data: Dictionary = _data.duplicate()
+		data["kind"] = Appliance.KIND_NAMES[i]
+		data["power"] = Appliance.DEFAULT_POWER[i]
+		data["two_phases"] = Appliance.DEFAULT_400.has(i)
+		data.erase("rating")
+		changed.emit(_component_id, data))
 
 
 ## Mounting height over the floor of a part of a house installation, with

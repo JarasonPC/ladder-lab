@@ -19,7 +19,7 @@ const LETTERS: Dictionary[String, String] = {
 	"fuse": "FU", "breaker": "FA", "overload_relay": "F", "overload_contact": "F",
 	"main_contacts": "KM", "terminal": "X", "rectifier": "TB", "connector": "PC", "plc": "A",
 	"temp_sensor": "BT", "vfd": "TA", "transmitter": "BP", "proximity": "BG", "network_switch": "KF", "pot": "RP",
-	"light_switch": "SF", "luminaire": "EA", "socket": "XD",
+	"light_switch": "SF", "luminaire": "EA", "socket": "XD", "rcd": "FB", "afdd": "FB", "appliance": "EB",
 }
 
 ## The part, as in the schematic (or made from a palette template).
@@ -70,6 +70,8 @@ static func of_template(template: Dictionary) -> Datasheet:
 	if type == "supply":
 		var conductor: String = str(d.get("conductor", "L"))
 		d["designation"] = "L1" if conductor == "L" else conductor
+	elif type == "appliance":
+		d["designation"] = Appliance.letters(maxi(Appliance.KIND_NAMES.find(str(d.get("kind", ""))), 0) as Appliance.Kind) + "1"
 	else:
 		d["designation"] = str(LETTERS.get(type, "X")) + "1"
 	if type == "terminal" or type == "connector":
@@ -107,6 +109,10 @@ func _build() -> void:
 		_rectifier()
 	elif component is OverloadContact:
 		_overload_contact(component as OverloadContact)
+	elif component is ResidualCurrentDevice:
+		_rcd(component as ResidualCurrentDevice)
+	elif component is ArcFaultDevice:
+		_afdd(component as ArcFaultDevice)
 	elif component is ProtectiveDevice or component is MotorBreaker or component is ThreePoleFuse:
 		_protective()
 	elif component is CamSwitch:
@@ -117,6 +123,8 @@ func _build() -> void:
 		_socket(component as SocketOutlet)
 	elif component is Luminaire:
 		_luminaire(component as Luminaire)
+	elif component is Appliance:
+		_appliance(component as Appliance)
 	elif component is SwitchingElement:
 		_switching(component as SwitchingElement)
 	elif component is ChangeoverContact:
@@ -191,6 +199,8 @@ func _group_title() -> String:
 			return tr("Light switches")
 		"outlets":
 			return tr("Lights and sockets")
+		"appliances":
+			return tr("Appliances")
 	return tr("Power circuit")
 
 
@@ -529,6 +539,62 @@ func _luminaire(luminaire: Luminaire) -> void:
 	_data(tr("Rated power"), "%s W" % _num(luminaire.power))
 	_data(tr("Current drawn"), "%s A" % _num(luminaire.rated_draw()))
 	_data(tr("Mounting height"), _height_text(luminaire.height, Luminaire.STANDARD_HEIGHT))
+
+
+func _rcd(rcd: ResidualCurrentDevice) -> void:
+	var names: PackedStringArray = _names()
+	var ma: int = roundi(rcd.residual_rating * 1000.0)
+	summary = (tr("Residual current device with overcurrent release (RCBO) %s") if rcd.overcurrent else tr("Residual current device (RCD) %s")) % RcdSymbol.rating_text(rcd)
+	description.append(tr("It compares the currents through its poles: what goes out on the phases and does not come back through its N leaves through the protective conductor or a person. From 70 % of its rated residual current on it trips. A fault current to PE through one of its poles trips it too; a short between L and N does not. It is switched on by a click while simulating; its test button T (right click) trips it."))
+	if rcd.overcurrent:
+		description.append(tr("It is a circuit breaker as well: it trips on an overcurrent after the time of its thermal release and at once above its magnetic release."))
+		diagram = Diagram.TRIP_CURVE
+		diagram_title = tr("Time-current characteristic")
+		trip_kind = CircuitBreaker.breaker_curve(rcd.characteristic)
+	features.append(tr("A 30 mA device gives additional protection against electric shock (ČSN 33 2000-4-41): Czech practice requires it for sockets up to 32 A and in bathrooms."))
+	for p: int in rcd.poles - 1:
+		_row(names[2 * p], tr("Phase, supply side"), tr("Joined to %s while it is on.") % names[2 * p + 1])
+		_row(names[2 * p + 1], tr("Phase, load side"), tr("Joined to %s while it is on.") % names[2 * p])
+	_row(names[names.size() - 2], tr("Neutral, supply side"), tr("Joined to %s while it is on.") % names[names.size() - 1])
+	_row(names[names.size() - 1], tr("Neutral, load side"), tr("Joined to %s while it is on.") % names[names.size() - 2])
+	_data(tr("Rated residual current IΔn"), "%d mA" % ma)
+	_data(tr("Trips from"), "%d mA" % roundi(rcd.residual_rating * ResidualCurrentDevice.TRIP_SHARE * 1000.0))
+	_data(tr("Type"), rcd.type)
+	_data(tr("Rated current In"), "%s A" % _num(rcd.rated_current))
+	if rcd.overcurrent:
+		_data(tr("Characteristic"), TripCurve.LETTERS[rcd.characteristic])
+	_data(tr("Poles"), str(rcd.poles))
+	_data(tr("Standard"), "ČSN EN 61009" if rcd.overcurrent else "ČSN EN 61008")
+
+
+func _afdd(afdd: ArcFaultDevice) -> void:
+	var names: PackedStringArray = _names()
+	summary = tr("Arc fault detection device with circuit breaker %s") % CircuitBreaker.rating_text(afdd.characteristic, afdd.rated_current)
+	description.append(tr("A circuit breaker that also watches the current for the signature of an arc: when a loose connection of a part it feeds arcs, it trips at once, before the connection sets fire to its surroundings. It is switched on by a click while simulating; its test button (right click) trips it."))
+	features.append(tr("Recommended for bedrooms, wooden houses and rooms with combustible materials (ČSN 33 2000-4-42)."))
+	diagram = Diagram.TRIP_CURVE
+	diagram_title = tr("Time-current characteristic")
+	trip_kind = CircuitBreaker.breaker_curve(afdd.characteristic)
+	_row(names[0], tr("Phase, supply side"), tr("Joined to %s while it is on.") % names[1])
+	_row(names[1], tr("Phase, load side"), tr("Joined to %s while it is on.") % names[0])
+	_row(names[2], tr("Neutral, supply side"), tr("Joined to %s while it is on.") % names[3])
+	_row(names[3], tr("Neutral, load side"), tr("Joined to %s while it is on.") % names[2])
+	_data(tr("Rated current In"), "%s A" % _num(afdd.rated_current))
+	_data(tr("Characteristic"), TripCurve.LETTERS[afdd.characteristic])
+	_data(tr("Standard"), "ČSN EN 62606")
+
+
+func _appliance(appliance: Appliance) -> void:
+	var names: PackedStringArray = _names()
+	summary = tr("%s, %s") % [ApplianceSymbol.kind_title(appliance.kind), ApplianceSymbol.power_text(appliance.power)]
+	description.append(tr("Appliance wired for good to its own circuit. It draws its rated power while it has its voltage; its metal frame is joined to PE. An insulation fault puts its phase on the frame: with the frame on PE that is a short to PE (the breaker and the RCD trip), without it the frame is live."))
+	_row(names[0], tr("Phase") if not appliance.two_phases else tr("Phase 1"), tr("Supply against %s.") % names[1])
+	_row(names[1], tr("Neutral") if not appliance.two_phases else tr("Phase 2"), tr("Other end of the supply."))
+	_row(names[2], tr("Frame"), tr("The protective conductor PE."))
+	_data(tr("Rated power"), ApplianceSymbol.power_text(appliance.power))
+	_data(tr("Rated voltage"), "400 V" if appliance.two_phases else "230 V")
+	_data(tr("Current drawn"), "%s A" % _num(appliance.power / (400.0 if appliance.two_phases else 230.0)))
+	_data(tr("Mounting height"), _height_text(appliance.height, Appliance.STANDARD_HEIGHT))
 
 
 ## A mounting height, "(standard)" after it when it is the standard one.

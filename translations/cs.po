@@ -4750,8 +4750,6 @@ msgstr "Jednoduchá"
 msgid "Double"
 msgstr "Dvojitá"
 
-msgid "Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage."
-msgstr "Česká zásuvka typu E 16 A / 250 V s ochranným kolíkem: L, N a PE. Při simulaci ukazuje 230 V, má-li napětí."
 
 msgid "Mounting height (m)"
 msgstr "Montážní výška (m)"
@@ -4822,3 +4820,188 @@ msgstr "Zásuvka 230 V (typ E)"
 
 msgid "Double socket outlet 230 V (type E)"
 msgstr "Dvojzásuvka 230 V (typ E)"
+
+msgid "Frame live!"
+msgstr "Kostra pod napětím!"
+
+msgid "Oven"
+msgstr "Trouba"
+
+msgid "Hob"
+msgstr "Varná deska"
+
+msgid "Microwave"
+msgstr "Mikrovlnná trouba"
+
+msgid "Washing machine"
+msgstr "Pračka"
+
+msgid "Dishwasher"
+msgstr "Myčka"
+
+msgid "Heater"
+msgstr "Přímotop"
+
+msgid "Fridge"
+msgstr "Chladnička"
+
+msgid "Kettle"
+msgstr "Rychlovarná konvice"
+
+msgid "Water heater"
+msgstr "Ohřívač vody"
+
+msgid "Appliances"
+msgstr "Spotřebiče"
+
+#, c-format
+msgid "Residual current device with overcurrent release (RCBO) %s"
+msgstr "Proudový chránič s nadproudovou ochranou (RCBO) %s"
+
+#, c-format
+msgid "Residual current device (RCD) %s"
+msgstr "Proudový chránič (RCD) %s"
+
+msgid "It compares the currents through its poles: what goes out on the phases and does not come back through its N leaves through the protective conductor or a person. From 70 % of its rated residual current on it trips. A fault current to PE through one of its poles trips it too; a short between L and N does not. It is switched on by a click while simulating; its test button T (right click) trips it."
+msgstr "Porovnává proudy svými póly: co odejde fázemi a nevrátí se jeho N, odtéká ochranným vodičem nebo člověkem. Od 70 % jmenovitého reziduálního proudu vypne. Vypne i poruchový proud do PE jedním z pólů; zkrat mezi L a N ne. Při simulaci se zapíná kliknutím; testovací tlačítko T (pravé tlačítko myši) jej vypne."
+
+msgid "It is a circuit breaker as well: it trips on an overcurrent after the time of its thermal release and at once above its magnetic release."
+msgstr "Je zároveň jističem: při nadproudu vypne po době tepelné spouště a nad proudem elektromagnetické spouště okamžitě."
+
+msgid "A 30 mA device gives additional protection against electric shock (ČSN 33 2000-4-41): Czech practice requires it for sockets up to 32 A and in bathrooms."
+msgstr "Chránič 30 mA je doplňkovou ochranou před úrazem elektrickým proudem (ČSN 33 2000-4-41): vyžaduje se pro zásuvky do 32 A a v koupelnách."
+
+msgid "Phase, supply side"
+msgstr "Fáze, přívod"
+
+#, c-format
+msgid "Joined to %s while it is on."
+msgstr "Spojeno s %s, je-li zapnut."
+
+msgid "Phase, load side"
+msgstr "Fáze, vývod"
+
+msgid "Neutral, supply side"
+msgstr "Nulový vodič, přívod"
+
+msgid "Neutral, load side"
+msgstr "Nulový vodič, vývod"
+
+msgid "Rated residual current IΔn"
+msgstr "Jmenovitý reziduální proud IΔn"
+
+msgid "Trips from"
+msgstr "Vypíná od"
+
+#, c-format
+msgid "Arc fault detection device with circuit breaker %s"
+msgstr "Detektor obloukových poruch s jističem %s"
+
+msgid "A circuit breaker that also watches the current for the signature of an arc: when a loose connection of a part it feeds arcs, it trips at once, before the connection sets fire to its surroundings. It is switched on by a click while simulating; its test button (right click) trips it."
+msgstr "Jistič, který v proudu hledá i stopu oblouku: když jiskří uvolněný spoj napájeného spotřebiče, vypne okamžitě, dřív než spoj zapálí okolí. Při simulaci se zapíná kliknutím; testovací tlačítko (pravé tlačítko myši) jej vypne."
+
+msgid "Recommended for bedrooms, wooden houses and rooms with combustible materials (ČSN 33 2000-4-42)."
+msgstr "Doporučen pro ložnice, dřevostavby a prostory s hořlavými materiály (ČSN 33 2000-4-42)."
+
+#, c-format
+msgid "%s, %s"
+msgstr "%s, %s"
+
+msgid "Appliance wired for good to its own circuit. It draws its rated power while it has its voltage; its metal frame is joined to PE. An insulation fault puts its phase on the frame: with the frame on PE that is a short to PE (the breaker and the RCD trip), without it the frame is live."
+msgstr "Spotřebič pevně připojený na vlastní obvod. Má-li napětí, odebírá jmenovitý příkon; jeho kovová kostra je připojena k PE. Porucha izolace dá fázi na kostru: s kostrou na PE je to zkrat do PE (vypne jistič a chránič), bez něj je kostra pod napětím."
+
+msgid "Phase 1"
+msgstr "Fáze 1"
+
+msgid "Phase 2"
+msgstr "Fáze 2"
+
+msgid "Other end of the supply."
+msgstr "Druhý konec napájení."
+
+msgid "Power of the appliance (W)"
+msgstr "Příkon spotřebiče (W)"
+
+msgid "Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage, and an appliance plugged in draws its power."
+msgstr "Česká zásuvka typu E 16 A / 250 V s ochranným kolíkem: L, N a PE. Při simulaci ukazuje 230 V, má-li napětí, a zapojený spotřebič odebírá svůj příkon."
+
+msgid "230 V (L, N)"
+msgstr "230 V (L, N)"
+
+msgid "400 V between two phases (L1, L2)"
+msgstr "400 V mezi dvěma fázemi (L1, L2)"
+
+msgid "Wired for good to its own circuit, its metal frame on PE. Right click it while simulating for an insulation fault (its phase on the frame) or a loose connection that arcs."
+msgstr "Pevně připojen na vlastní obvod, kovová kostra na PE. Při simulaci pravým tlačítkem myši přidáte poruchu izolace (fáze na kostře) nebo jiskřící uvolněný spoj."
+
+msgid "2 (L + N)"
+msgstr "2 (L + N)"
+
+msgid "4 (3 phases + N)"
+msgstr "4 (3 fáze + N)"
+
+msgid "AC (AC residual currents)"
+msgstr "AC (střídavé reziduální proudy)"
+
+msgid "A (also pulsating DC)"
+msgstr "A (i pulzující stejnosměrné)"
+
+msgid "With overcurrent release (RCBO)"
+msgstr "S nadproudovou ochranou (RCBO)"
+
+msgid "Phases through 1-2 (3-4, 5-6) and the neutral through N-N'. It trips when what goes out on the phases does not all come back on N (a fault to PE, N taken past it) from 70 % of IΔn on. While simulating, click it to switch it on; right click it to press its test button T."
+msgstr "Fáze přes 1-2 (3-4, 5-6) a nulový vodič přes N-N'. Vypne, když se vše, co odejde fázemi, nevrátí po N (porucha do PE, N vedený mimo něj), od 70 % IΔn. Při simulaci jej zapnete kliknutím; pravým tlačítkem stisknete testovací tlačítko T."
+
+msgid "A circuit breaker that also trips when an arc burns in a loose connection of what it feeds: phase 1-2, neutral N-N'. Right click a load while simulating to loosen its connection."
+msgstr "Jistič, který vypne i při oblouku v uvolněném spoji napájeného obvodu: fáze 1-2, nulový vodič N-N'. Při simulaci uvolníte spoj spotřebiče pravým tlačítkem myši."
+
+msgid "Nothing"
+msgstr "Nic"
+
+msgid "Plugged in"
+msgstr "Zapojeno"
+
+msgid "Appliance"
+msgstr "Spotřebič"
+
+msgid "Press the test button T"
+msgstr "Stisknout testovací tlačítko T"
+
+msgid "Insulation fault (phase on the frame)"
+msgstr "Porucha izolace (fáze na kostře)"
+
+msgid "Loose connection (arcing)"
+msgstr "Uvolněný spoj (jiskří)"
+
+msgid "Residual current device (RCD / RCBO)"
+msgstr "Proudový chránič (RCD / RCBO)"
+
+msgid "Arc fault detection device with breaker (AFDD)"
+msgstr "Detektor obloukových poruch s jističem (AFDD)"
+
+msgid "Induction hob"
+msgstr "Indukční varná deska"
+
+#, c-format
+msgid "%s tripped (residual current %d mA)"
+msgstr "%s vypnul (reziduální proud %d mA)"
+
+#, c-format
+msgid "%s tripped (fault current to PE)"
+msgstr "%s vypnul (poruchový proud do PE)"
+
+#, c-format
+msgid "%s tripped (arc fault)"
+msgstr "%s vypnul (oblouková porucha)"
+
+#, c-format
+msgid "Fault: insulation fault on %s, phase on the frame"
+msgstr "Porucha: porucha izolace %s, fáze na kostře"
+
+#, c-format
+msgid "Fault: loose connection arcing at %s"
+msgstr "Porucha: jiskřící uvolněný spoj u %s"
+
+#, c-format
+msgid "%s: test button pressed"
+msgstr "%s: stisknuto testovací tlačítko"

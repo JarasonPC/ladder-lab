@@ -25,6 +25,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   box with the common P on top, a blade from P to the contact it touches, live contacts
   filled while simulating), luminaires (-EA) and single or
   double type E socket outlets (-XD), with the supplies and the circuit breaker
+- Residential protection and appliances: residual current devices (-FB, 2 or 4 poles,
+  10-300 mA, type AC or A, or an RCBO with its breaker characteristic), arc fault detection
+  devices with breaker (AFDD), and appliances: water heater, oven, induction hob (400 V),
+  microwave, washing machine, dishwasher, heater and fridge; a socket can have an appliance
+  plugged in
 - Every light switch, luminaire and socket has a mounting height over the floor: the
   standard one of Czech practice (switches 1.20 m, sockets 0.30 m, luminaires on a 2.60 m
   ceiling) until it is set in the properties; a height other than the standard one is
@@ -55,6 +60,12 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A 10 kΩ potentiometer (-RP1, terminals 1-2-3) for analog inputs, with 1, 2, 5 or 10 turns
 
 ### Simulation
+- An RCD trips when what goes out on the phases does not come back on its N: an insulation
+  fault of an appliance (fault menu: phase on the frame), N taken past it, and its test button
+  T; a short between L and N leaves it on (an RCBO trips on it as a breaker). Without PE an
+  insulation fault leaves the appliance's frame live. A loose connection that arcs (fault
+  menu) trips the AFDD feeding it. Appliances draw their power, so too many on one circuit
+  trip its breaker
 - A click on a light switch's rocker switches it over (on a double switch, the rocker
   clicked): a staircase light with two-way switches and intermediate switches between them
   is switched from any place; luminaires light and show in the timing chart, a socket shows

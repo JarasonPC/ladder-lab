@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity", "network_switch", "pot", "light_switch", "luminaire", "socket"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity", "network_switch", "pot", "light_switch", "luminaire", "socket", "rcd", "afdd", "appliance"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -318,10 +318,34 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["type"] = "socket"
 		d["gangs"] = (c as SocketOutlet).gangs
 		d["height"] = (c as SocketOutlet).height
+		if (c as SocketOutlet).plugged >= 0:
+			d["plugged"] = Appliance.KIND_NAMES[(c as SocketOutlet).plugged]
+			d["plugged_power"] = (c as SocketOutlet).plugged_power
+	elif c is Appliance:
+		var appliance: Appliance = c as Appliance
+		d["type"] = "appliance"
+		d["kind"] = Appliance.KIND_NAMES[appliance.kind]
+		d["power"] = appliance.power
+		d["two_phases"] = appliance.two_phases
+		d["height"] = appliance.height
 	elif c is CamSwitch:
 		d["type"] = "cam_switch"
 		d["poles"] = (c as CamSwitch).poles
 		d["positions"] = CamSwitch.POSITION_NAMES[(c as CamSwitch).positions]
+	elif c is ResidualCurrentDevice:
+		var rcd: ResidualCurrentDevice = c as ResidualCurrentDevice
+		d["type"] = "rcd"
+		d["poles"] = rcd.poles
+		d["residual"] = rcd.residual_rating
+		d["rcd_type"] = rcd.type
+		d["rated_current"] = rcd.rated_current
+		if rcd.overcurrent:
+			d["overcurrent"] = true
+			d["characteristic"] = TripCurve.LETTERS[rcd.characteristic]
+	elif c is ArcFaultDevice:
+		d["type"] = "afdd"
+		d["rated_current"] = (c as ArcFaultDevice).rated_current
+		d["characteristic"] = TripCurve.LETTERS[(c as ArcFaultDevice).characteristic]
 	elif c is MotorBreaker:
 		d["type"] = "breaker"
 		d["poles"] = (c as MotorBreaker).poles
@@ -672,7 +696,31 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"socket":
 			var socket: SocketOutlet = SocketOutlet.new(designation, _int(d, "gangs", 1))
 			socket.height = _height(d, SocketOutlet.STANDARD_HEIGHT)
+			socket.plug(Appliance.KIND_NAMES.find(str(d.get("plugged", ""))))
+			if socket.plugged >= 0:
+				socket.plugged_power = clampf(_number_or(d, "plugged_power", socket.plugged_power), Appliance.MIN_POWER, Appliance.MAX_POWER)
 			return socket
+		"appliance":
+			var appliance_kind: int = maxi(Appliance.KIND_NAMES.find(str(d.get("kind", ""))), 0)
+			var appliance: Appliance = Appliance.new(designation, appliance_kind as Appliance.Kind)
+			appliance.power = clampf(_number_or(d, "power", appliance.power), Appliance.MIN_POWER, Appliance.MAX_POWER)
+			appliance.two_phases = _bool(d, "two_phases", appliance.two_phases)
+			appliance.height = _height(d, Appliance.STANDARD_HEIGHT)
+			return appliance
+		"rcd":
+			var rcd: ResidualCurrentDevice = ResidualCurrentDevice.new(designation, 4 if _int(d, "poles", 2) == 4 else 2)
+			var residual: float = _number_or(d, "residual", 0.03)
+			rcd.residual_rating = residual if ResidualCurrentDevice.RESIDUAL_RATINGS.has(residual) else 0.03
+			rcd.type = str(d.get("rcd_type", "A")) if ResidualCurrentDevice.TYPES.has(str(d.get("rcd_type", "A"))) else "A"
+			rcd.overcurrent = _bool(d, "overcurrent", false)
+			rcd.rated_current = _amperes(d, "rated_current", 16.0 if rcd.overcurrent else 40.0)
+			rcd.characteristic = maxi(TripCurve.LETTERS.find(str(d.get("characteristic", "B"))), 0) as CircuitBreaker.Characteristic
+			return rcd
+		"afdd":
+			var afdd: ArcFaultDevice = ArcFaultDevice.new(designation)
+			afdd.rated_current = _amperes(d, "rated_current", 16.0)
+			afdd.characteristic = maxi(TripCurve.LETTERS.find(str(d.get("characteristic", "B"))), 0) as CircuitBreaker.Characteristic
+			return afdd
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)
 			lamp.purpose = str(d.get("purpose", "")).strip_edges()

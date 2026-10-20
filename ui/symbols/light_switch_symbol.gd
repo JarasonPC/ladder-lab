@@ -19,8 +19,13 @@ const BOTTOM_Y: float = 44.0
 const CROSS_Y: float = 36.0
 const BRIDGE_Y: float = 51.0
 const RADIUS: float = 3.5
-## A one-way blade while off: its tip this far off the contact, outward and up.
-const OFF_TIP := Vector2(7, -10)
+## A one-way lever while off: turned a little (radians) outward off its
+## contact and lifted short of it, a clear gap before the contact.
+const OFF_TURN: float = 0.25
+const OFF_LENGTH: float = 0.7
+## The lever: a thick bar with a round knob at its free end.
+const LEVER_WIDTH: float = 2.6
+const KNOB: float = 2.4
 ## Height of the dashed link between the blades of a multi-pole switch.
 const LINK_Y: float = 30.0
 ## Intermediate switch: where the crossing contacts are, left of 3 and right
@@ -51,6 +56,14 @@ func _circle(index: int) -> Vector2:
 func _draw_shape(_color: Color, width: float) -> void:
 	var sw: LightSwitch = _switch()
 	aa_rect(SymbolGeometry.light_switch_box(sw), SchematicTheme.BACKGROUND)
+	if hovered and sw.rocker_count() > 1:
+		# The half of the rocker a click switches.
+		var box: Rect2 = SymbolGeometry.light_switch_box(sw)
+		var split: float = (SymbolGeometry.light_switch_pivots(sw, 0)[0] + SymbolGeometry.light_switch_pivots(sw, 1)[0]) * 0.5
+		var mouse: Vector2 = shape_transform().affine_inverse() * get_local_mouse_position()
+		var left: bool = SymbolGeometry.light_switch_rocker_at(sw, mouse.x) == 0
+		var half: Rect2 = Rect2(box.position, Vector2(split - box.position.x, box.size.y)) if left else Rect2(Vector2(split, box.position.y), Vector2(box.end.x - split, box.size.y))
+		aa_rect(half, SchematicTheme.HOVER)
 	aa_rect(SymbolGeometry.light_switch_box(sw), SchematicTheme.WARNING if warning else SchematicTheme.LINE, false, width)
 	# Leads from the terminals in to their circles.
 	for i: int in component.get_terminal_names().size():
@@ -94,15 +107,15 @@ func _draw_shape(_color: Color, width: float) -> void:
 func _one_way_tip(from: int, to: int, closed: bool, key: String) -> Vector2:
 	var start: Vector2 = _circle(from)
 	var contact: Vector2 = _circle(to)
-	var outward: float = -1.0 if contact.x <= start.x else 1.0
-	var off: Vector2 = contact + Vector2(OFF_TIP.x * outward, OFF_TIP.y)
-	return off.lerp(contact, shown(key, 1.0 if closed else 0.0))
+	var turn: float = OFF_TURN if contact.x <= start.x else -OFF_TURN
+	var off: Vector2 = start + (contact - start).rotated(turn) * OFF_LENGTH
+	return blade_tip(start, off, contact, shown(key, 1.0 if closed else 0.0))
 
 
 ## Tip of a two-way blade from [param pivot]: on [param rest] at rest, on
 ## [param over] switched over.
-func _two_way_tip(_pivot: Vector2, rest: Vector2, over: Vector2, switched: bool, key: String) -> Vector2:
-	return rest.lerp(over, shown(key, 1.0 if switched else 0.0))
+func _two_way_tip(pivot: Vector2, rest: Vector2, over: Vector2, switched: bool, key: String) -> Vector2:
+	return blade_tip(pivot, rest, over, shown(key, 1.0 if switched else 0.0))
 
 
 ## Draws a blade from the circle of terminal [param from] (or [param start])
@@ -110,7 +123,12 @@ func _two_way_tip(_pivot: Vector2, rest: Vector2, over: Vector2, switched: bool,
 func _blade(from: int, tip: Vector2, start: Vector2 = Vector2(INF, INF)) -> Vector2:
 	var origin: Vector2 = _circle(from) if start.x == INF else start
 	var along: Vector2 = (tip - origin).normalized()
-	aa_line(origin + along * RADIUS, tip - along * RADIUS, _live_color(reach(from)), SchematicTheme.LINE_WIDTH * 1.4)
+	var color: Color = _live_color(reach(from))
+	# A lever turning about its pivot: a thick bar to a round knob, which
+	# rests on the contact it touches.
+	var end: Vector2 = tip - along * RADIUS
+	aa_line(origin, end, color, LEVER_WIDTH)
+	aa_circle(end, KNOB, color)
 	return tip
 
 
@@ -134,8 +152,8 @@ func _intermediate() -> void:
 	var cross_right: Vector2 = Vector2(CROSS_RIGHT_X, CROSS_Y)
 	aa_line(three + Vector2(RADIUS, 0), cross_right - Vector2(RADIUS, 0), _live_color(reach(2)), SchematicTheme.LINE_WIDTH)
 	aa_polyline(PackedVector2Array([cross_left + Vector2(0, RADIUS), Vector2(CROSS_LEFT_X, BRIDGE_Y), Vector2(four.x, BRIDGE_Y), four + Vector2(0, RADIUS)]), _live_color(reach(3)), SchematicTheme.LINE_WIDTH)
-	_blade(0, three.lerp(cross_left, s))
-	_blade(1, four.lerp(cross_right, s))
+	_blade(0, blade_tip(_circle(0), three, cross_left, s))
+	_blade(1, blade_tip(_circle(1), four, cross_right, s))
 	_draw_circle(cross_left, reach(3))
 	_draw_circle(cross_right, reach(2))
 

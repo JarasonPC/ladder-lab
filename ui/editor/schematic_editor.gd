@@ -1425,6 +1425,10 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			return doc.next_designation("H")
 		"light_switch":
 			return doc.next_designation("SF")
+		"rcd", "afdd":
+			return doc.next_designation("FB")
+		"appliance":
+			return doc.next_designation(Appliance.letters(maxi(Appliance.KIND_NAMES.find(str(data.get("kind", ""))), 0) as Appliance.Kind))
 		"luminaire":
 			return doc.next_designation("EA")
 		"socket":

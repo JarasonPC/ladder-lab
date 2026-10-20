@@ -8,6 +8,9 @@ var energized: bool = false
 var rating: String = ""
 ## Burnt out by too high a voltage (simulation state): works no more.
 var burnt: bool = false
+## A loose connection arcs while it draws current (simulation state): an
+## arc fault detection device feeding it trips.
+var arcing: bool = false
 var _terminals: PackedStringArray
 
 ## Current drawn at the nominal voltage (230 V AC between a phase and N, or

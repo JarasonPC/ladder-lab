@@ -161,12 +161,39 @@ Architecture and conventions of the code base. Read this before changing the cod
   the outputs below (light_switch_cell; 5A / 5B a bar along the top to the second rocker's
   pivot), a blade from P to the contact it touches (a one-way blade off stands off its
   contact), the switch number under the designation; the intermediate switch has blades from
-  1 and 2, its crossing contacts bridged to 3 (straight) and to 4 (a U under the others). The
+  1 and 2, its crossing contacts bridged to 3 (straight) and to 4 (a U under the others). Each
+  blade is a lever (thick, a knob at its free end) turning about its pivot at one length
+  (blade_tip); off, a one-way lever stands short of its contact, turned OFF_TURN outward;
+  hovered, the half of a two-rocker switch a click works is lit (the view redraws it as the
+  mouse moves). The
   exception to "voltage colour on the wires only": while simulating its circles are filled
   and its blades drawn in the colour of what reaches them, hollow while nothing does. A click while simulating switches the rocker under
   the mouse (SymbolGeometry.untransform_point, light_switch_rocker_at). SocketSymbol: a plate
   with a female contact (IEC 60617 S00031) per terminal, a second plate behind for a double
   one; LuminaireSymbol: the lamp's circle, PE joined to its side
+- House protection and appliances (residential palette): residual current devices
+  (ResidualCurrentDevice "FB1", a MotorBreaker of 2 or 4 poles, phases 1-2 3-4 5-6 then N-N';
+  "residual" IΔn of RESIDUAL_RATINGS, "rcd_type" AC / A, "overcurrent" makes it an RCBO
+  tripping as a breaker of its characteristic, else it never heats nor trips on a short as
+  a breaker). The simulator keeps each closed path's current as a phasor
+  (Simulator._path_phasor, first terminal to second) and _instant_trips adds those of an
+  RCD's poles: from TRIP_SHARE of IΔn on it trips (N taken past it, a load to PE); during a
+  short _evaluate_protected counts its poles on the fault path: through one alone (a phase on
+  PE) it trips (residual_short), through two (L-N) not. Its test button T is in the fault
+  menu (ResidualCurrentDevice.test). Arc fault detection devices (ArcFaultDevice "FB1", a
+  2-pole MotorBreaker 1-2 N-N' with its breaker always on duty) trip at once when the current
+  of an arcing load (Load.arcing, simulation state, "Loose connection (arcing)" in the fault
+  menu of appliances, luminaires and sockets) flows through them: _find_arc_paths solves the
+  flow of the arcing loads' draws alone first. Appliances (Appliance "EB1", a fridge "EC1": a
+  Load of Kind water heater, oven, hob, microwave, washing machine, dishwasher, heater,
+  fridge, kettle with DEFAULT_POWER, on 230 V L-N or "two_phases" 400 V L1-L2 (the hob),
+  rated_draw P / 230 or P / (400 √3), PE the frame): its one switching path L-PE is its
+  insulation fault (frame_fault, simulation state; the simulator takes a Load with paths as
+  a load too): with PE wired a short to PE, without it the frame is live ("Frame live!"
+  under it). Sockets are Loads: an appliance of SocketOutlet.PLUGGABLE "plugged" in draws
+  "plugged_power". RcdSymbol (BreakerSymbol's poles, plain blades for an RCD, the summation
+  ring under them and an IΔ box, an AFDD's box with an arc); ApplianceSymbol (a box with a
+  heating zigzag, microwave waves, a drum or a snowflake, filled grey while it works)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -739,7 +766,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   draw the switching table I 0 II under the designation, a dot under the position that
   operates them), SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
   or operated by a mechanical link),
-  H = lamp, SF = light switch, EA = luminaire, XD = socket outlet, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
+  H = lamp, SF = light switch, EA = luminaire, XD = socket outlet, FB = RCD / RCBO / AFDD,
+  EB = heating appliance, EC = fridge, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
   wires reached by PE alone are drawn in the PE colour, StepResult.REACH_PE),
   DC supplies + and - (a separate source: loads work between two conductors of the same source;
