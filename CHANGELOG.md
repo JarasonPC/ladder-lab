@@ -71,6 +71,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Plug-in bridges on terminal strips are grey (blue on N) instead of red
 - View > Wire duct covers draws the switchboards' wire ducts with their covers on, for a
   tidier look with the wiring in the ducts out of sight; the export still shows them open
+- Switchboard wire ducts are at most four wires wide: busier ducts no longer grow wider,
+  their wires lie closer together in them, so the switchboards are more compact
 
 ### Files and export
 - "Export SCL…" in the PLC window saves a compact CPU's program as an SCL source for TIA Portal

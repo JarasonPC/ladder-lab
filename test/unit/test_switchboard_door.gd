@@ -184,7 +184,9 @@ func test_back_of_the_door_is_wired_from_the_harness() -> void:
 	var harness: Array[Dictionary] = CabinetWiring.door_harness(doc, 0)
 	assert_gt(harness.size(), 0, "the strip terminals to the door's devices send a core each to the door")
 	var enclosure: Vector2 = CabinetLayout.build(doc, 2.0).size
-	var back: StationInside = StationInside.build_door(doc, 0, enclosure, 560.0)
+	# The harness leaves the switchboard near its bottom.
+	var across: float = enclosure.y - 50.0
+	var back: StationInside = StationInside.build_door(doc, 0, enclosure, across)
 	assert_true(back.door)
 	assert_eq(back.size, DoorView.size_of(doc.switchboards[0].door, enclosure), "the door's own size")
 	# Seen from behind the items are mirrored: the first one of a row on the right.
@@ -204,7 +206,7 @@ func test_back_of_the_door_is_wired_from_the_harness() -> void:
 			assert_lt(points[0].x, StationInside.FRAME + 2.0, "harness cores come in through the hinge edge")
 			assert_true((back.glands[0]["rect"] as Rect2).grow(0.5).has_point(points[0]), "out of its fitting")
 	assert_eq(cores, harness.size(), "a core for each of the harness's nets")
-	assert_almost_eq((back.glands[0]["rect"] as Rect2).get_center().y, 560.0, 0.01, "at the height it leaves the switchboard")
+	assert_almost_eq((back.glands[0]["rect"] as Rect2).get_center().y, across, 0.01, "at the height it leaves the switchboard")
 
 
 func test_door_open_beside_the_switchboard() -> void:

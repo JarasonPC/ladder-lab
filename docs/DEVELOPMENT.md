@@ -452,7 +452,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   to follow (CabinetWiring._lanes): wires coming in over one edge of a duct lie nearest it, a
   run nested in another nearer the edge, those coming in over both edges between them, stepped
   by the way they head; each run past every earlier run it overlaps; each
-  duct just as wide as its wires need side by side at its busiest point, in whole millimetres
+  duct just as wide as its wires need side by side at its busiest point, in whole millimetres,
+  at most CabinetLayout.MAX_SIDE_BY_SIDE (4) wires wide: more lanes lie closer together
+  (CabinetWiring._lanes), as do the door harness's cores
   (CabinetWiring.lanes, CabinetLayout.duct_size; CabinetLayout.build lays out, wires and sizes
   again until every duct fits, never narrowing one, and keeps that wiring,
   CabinetLayout.wiring; the view lays out again only for edits and a new scale); a contactor with its overload relay under
