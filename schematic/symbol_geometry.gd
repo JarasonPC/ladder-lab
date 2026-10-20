@@ -46,6 +46,10 @@ const VFD_WIDTH: int = 28
 ## the terminal numbers between the poles).
 const CAM_CHANGEOVER_SPACING: int = 4
 
+## Intermediate light switch (no. 7): from 1 2 on top down to 3 4, a cell
+## more than other switches for the crossed wiring between them.
+const INTERMEDIATE_SPAN: int = 4
+
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
 const DIR_RIGHT: int = 2
@@ -60,6 +64,22 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 	if c is CamSwitch:
 		for i: int in names.size():
 			result[names[i]] = cam_terminal_cell(c as CamSwitch, i)
+		return result
+	if c is LightSwitch:
+		for i: int in names.size():
+			result[names[i]] = light_switch_cell(c as LightSwitch, i)
+		return result
+	if c is SocketOutlet:
+		# L, N and PE side by side on top, PE in the middle as its pin.
+		result[names[0]] = Vector2i.ZERO
+		result[names[1]] = Vector2i(2 * POLE_SPACING, 0)
+		result[names[2]] = Vector2i(POLE_SPACING, 0)
+		return result
+	if c is Luminaire:
+		# L on top, N below, PE (the frame) beside N.
+		result[names[0]] = Vector2i.ZERO
+		result[names[1]] = Vector2i(0, SPAN)
+		result[names[2]] = Vector2i(1, SPAN)
 		return result
 	if _is_three_pole(c):
 		# Poles side by side, POLE_SPACING apart: 1, 3, 5 on top, 2, 4, 6 below.
@@ -127,6 +147,9 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 	if c is CamSwitch:
 		var cam: CamSwitch = c as CamSwitch
 		return DIR_UP if names.find(terminal_name) % cam.pole_terminals() == cam.pole_terminals() - 1 else DIR_DOWN
+	if c is LightSwitch or c is SocketOutlet or c is Luminaire:
+		var at: int = names.find(terminal_name)
+		return 0 if at < 0 else (DIR_DOWN if local_terminals(c)[terminal_name].y == 0 else DIR_UP)
 	if _is_three_pole(c):
 		return DIR_DOWN if names.find(terminal_name) % 2 == 0 else DIR_UP
 	if c is ThreePhaseMotor:
@@ -174,6 +197,23 @@ static func local_body(c: CircuitComponent) -> Rect2:
 	if c is ChangeoverContact:
 		var changeover_left: float = -1.55 if (c as ChangeoverContact).delayed else -0.85
 		return Rect2(changeover_left, 0.75, 1.2 - changeover_left, 1.4)
+	if c is LightSwitch:
+		var light_switch: LightSwitch = c as LightSwitch
+		var right: float = 0.0
+		for i: int in c.get_terminal_names().size():
+			right = maxf(right, light_switch_cell(light_switch, i).x)
+		# Room for the rocker heads: on the left, and on the right for the
+		# second rocker.
+		var heads: Vector2 = light_switch_heads(light_switch)
+		var top: float = 0.5 if light_switch.circuit == "7" else 0.75
+		var bottom: float = INTERMEDIATE_SPAN - 0.85 if light_switch.circuit == "7" else 2.15
+		var left: float = minf(-0.75, heads.x / GRID - 0.4)
+		var end: float = maxf(right + 0.75, heads.y / GRID + 0.4) if light_switch.rocker_count() > 1 else right + 0.75
+		return Rect2(left, top, end - left, bottom - top)
+	if c is SocketOutlet:
+		return Rect2(-0.6, 0.6, 2 * POLE_SPACING + 1.2, 1.3)
+	if c is Luminaire:
+		return Rect2(-0.75, 0.75, 1.9, 1.5)
 	if c is CamSwitch:
 		var cam: CamSwitch = c as CamSwitch
 		var cam_span: float = cam_terminal_cell(cam, c.get_terminal_names().size() - 2).x
@@ -355,6 +395,86 @@ static func cam_terminal_cell(cam: CamSwitch, index: int) -> Vector2i:
 		var x: int = pole * CAM_CHANGEOVER_SPACING
 		return [Vector2i(x, 0), Vector2i(x + 2, 0), Vector2i(x + 1, SPAN)][k]
 	return Vector2i(pole * POLE_SPACING, 0 if k == 0 else SPAN)
+
+
+## Cell of terminal [param index] of a light switch: the common L below
+## (pivot of the blades), the outputs on top two cells apart; a two-pole or
+## three-pole switch as the other multi-pole devices; the intermediate
+## switch 1 2 on top, 3 4 below.
+static func light_switch_cell(light_switch: LightSwitch, index: int) -> Vector2i:
+	match light_switch.circuit:
+		"2", "3":
+			return Vector2i((index / 2) * POLE_SPACING, 0 if index % 2 == 0 else SPAN)
+		"5":
+			return [Vector2i(0, SPAN), Vector2i(0, 0), Vector2i(2, 0)][index]
+		"6":
+			return [Vector2i(1, SPAN), Vector2i(0, 0), Vector2i(2, 0)][index]
+		"5A":
+			return [Vector2i(0, SPAN), Vector2i(0, 0), Vector2i(2, 0), Vector2i(4, 0)][index]
+		"5B":
+			return [Vector2i(1, SPAN), Vector2i(0, 0), Vector2i(2, 0), Vector2i(4, 0), Vector2i(6, 0)][index]
+		"7":
+			return [Vector2i(0, 0), Vector2i(2, 0), Vector2i(0, INTERMEDIATE_SPAN), Vector2i(2, INTERMEDIATE_SPAN)][index]
+	return [Vector2i(0, SPAN), Vector2i(0, 0)][index]
+
+
+## Local x (pixels) of the pivots of the blades rocker [param rocker] of a
+## light switch moves.
+static func light_switch_pivots(light_switch: LightSwitch, rocker: int) -> PackedFloat32Array:
+	var g: float = float(GRID)
+	match light_switch.circuit:
+		"2", "3":
+			var xs: PackedFloat32Array = PackedFloat32Array()
+			for p: int in light_switch.poles():
+				xs.append(p * POLE_SPACING * g)
+			return xs
+		"5":
+			return PackedFloat32Array([0.0 if rocker == 0 else 2.0 * g])
+		"6":
+			return PackedFloat32Array([g])
+		"5A":
+			return PackedFloat32Array([0.0 if rocker == 0 else 3.0 * g])
+		"5B":
+			return PackedFloat32Array([g if rocker == 0 else 5.0 * g])
+		"7":
+			return PackedFloat32Array([0.0, 2.0 * g])
+	return PackedFloat32Array([0.0])
+
+
+## Local x (pixels) of the rocker heads of a light switch: the first on the
+## left, the second (if any) on the right.
+static func light_switch_heads(light_switch: LightSwitch) -> Vector2:
+	var g: float = float(GRID)
+	var first: float = light_switch_pivots(light_switch, 0)[0]
+	var left: float = first - (1.3 * g if not light_switch.is_two_way(0) else 1.7 * g)
+	if light_switch.rocker_count() == 1:
+		return Vector2(left, left)
+	var second: float = light_switch_pivots(light_switch, 1)[0]
+	return Vector2(left, second + (1.3 * g if not light_switch.is_two_way(1) else 1.7 * g))
+
+
+## The rocker of a light switch at local x [param x] (pixels): of two, the
+## one whose blades are nearer.
+static func light_switch_rocker_at(light_switch: LightSwitch, x: float) -> int:
+	if light_switch.rocker_count() == 1:
+		return 0
+	var split: float = (light_switch_pivots(light_switch, 0)[0] + light_switch_pivots(light_switch, 1)[0]) * 0.5
+	return 0 if x < split else 1
+
+
+## Inverse of [method transform_point]: an offset from the placement cell
+## back to the unturned symbol.
+static func untransform_point(v: Vector2, p: Placement) -> Vector2:
+	match p.rotation:
+		1:
+			v = Vector2(v.y, -v.x)
+		2:
+			v = Vector2(-v.x, -v.y)
+		3:
+			v = Vector2(-v.y, v.x)
+	if p.mirrored:
+		v.x = -v.x
+	return v
 
 
 static func _is_three_pole(c: CircuitComponent) -> bool:

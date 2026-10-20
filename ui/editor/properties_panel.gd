@@ -157,6 +157,24 @@ func show_component(component: CircuitComponent) -> void:
 			_choice(tr("Positions"), "positions", Array(CamSwitch.POSITION_NAMES), [tr("0-I (off / on)"), tr("I-0-II (forward / off / reverse)")])
 			_group = null
 			_note(tr("0-I: each pole closes 1-2, 3-4 ... in position I. I-0-II: each pole joins its common 2, 4 ... to 1, 3 ... in I and to 1', 3' ... in II. While simulating, a click turns it on to the next position (0, I, 0, II)."), "MutedLabel")
+		"light_switch":
+			var titles: Array = []
+			for circuit: String in LightSwitch.CIRCUITS:
+				titles.append(light_switch_title(circuit))
+			_choice(tr("Switch number (řazení)"), "circuit", Array(LightSwitch.CIRCUITS), titles)
+			_height(LightSwitch.STANDARD_HEIGHT)
+			_group = null
+			_note(tr("Wired as Czech installations number switches: 1 switches L to 1; 2 and 3 switch two or three poles; 5 has two rockers on one L, to 1 and to 2; 5A a one-way rocker to 1 and a two-way rocker to 2 or 3; 5B two two-way rockers, to 1 or 2 and to 3 or 4; 6 (staircase) switches L over from 1 to 2; 7 (intermediate) joins 3-1 and 4-2, switched over 3-2 and 4-1. While simulating, click the rocker to switch it over."), "MutedLabel")
+		"luminaire":
+			_number(tr("Rated power (W)"), "power", Luminaire.MIN_POWER, Luminaire.MAX_POWER, 1.0)
+			_height(Luminaire.STANDARD_HEIGHT)
+			_group = null
+			_note(tr("230 V between L and N; PE goes to its frame. It lights while it has its voltage."), "MutedLabel")
+		"socket":
+			_choice(tr("Outlets"), "gangs", [1, 2], [tr("Single"), tr("Double")])
+			_height(SocketOutlet.STANDARD_HEIGHT)
+			_group = null
+			_note(tr("Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage."), "MutedLabel")
 		"changeover":
 			_number(tr("Contact number"), "sequence", 1, 9, 1)
 			_check(tr("Delayed (timer contact)"), "delayed")
@@ -625,6 +643,34 @@ func _emit_modules(list: Array[Plc.Module]) -> void:
 	for module: Plc.Module in list:
 		names.append(Plc.MODULE_NAMES[module])
 	_emit("modules", names)
+
+
+## Mounting height over the floor of a part of a house installation, with
+## the standard height it starts with.
+func _height(standard: float) -> void:
+	_number(tr("Mounting height (m)"), "height", 0.0, DocumentSerializer.MAX_HEIGHT, 0.05)
+	_group = null
+	_note(tr("Standard: %s m. A height other than the standard one is written beside the part.") % String.num(standard, 2).pad_decimals(2), "MutedLabel")
+
+
+## Name of light switch number [param circuit] (řazení) as offered.
+static func light_switch_title(circuit: String) -> String:
+	match circuit:
+		"2":
+			return TranslationServer.translate("2 - two-pole")
+		"3":
+			return TranslationServer.translate("3 - three-pole")
+		"5":
+			return TranslationServer.translate("5 - series (two rockers)")
+		"5A":
+			return TranslationServer.translate("5A - one-way and two-way")
+		"5B":
+			return TranslationServer.translate("5B - double two-way")
+		"6":
+			return TranslationServer.translate("6 - two-way (staircase)")
+		"7":
+			return TranslationServer.translate("7 - intermediate")
+	return TranslationServer.translate("1 - one-way")
 
 
 ## Time-current characteristic of a protective device.

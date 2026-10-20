@@ -19,6 +19,7 @@ const LETTERS: Dictionary[String, String] = {
 	"fuse": "FU", "breaker": "FA", "overload_relay": "F", "overload_contact": "F",
 	"main_contacts": "KM", "terminal": "X", "rectifier": "TB", "connector": "PC", "plc": "A",
 	"temp_sensor": "BT", "vfd": "TA", "transmitter": "BP", "proximity": "BG", "network_switch": "KF", "pot": "RP",
+	"light_switch": "SF", "luminaire": "EA", "socket": "XD",
 }
 
 ## The part, as in the schematic (or made from a palette template).
@@ -62,7 +63,7 @@ static func of(c: CircuitComponent, doc: SchematicDocument) -> Datasheet:
 
 
 ## The datasheet of a part made from palette [param template] (see
-## [constant Palette.ENTRIES]), alone in a schematic of its own.
+## [method Palette.all_entries]), alone in a schematic of its own.
 static func of_template(template: Dictionary) -> Datasheet:
 	var d: Dictionary = template.duplicate()
 	var type: String = d["type"]
@@ -110,6 +111,12 @@ func _build() -> void:
 		_protective()
 	elif component is CamSwitch:
 		_cam_switch(component as CamSwitch)
+	elif component is LightSwitch:
+		_light_switch(component as LightSwitch)
+	elif component is SocketOutlet:
+		_socket(component as SocketOutlet)
+	elif component is Luminaire:
+		_luminaire(component as Luminaire)
 	elif component is SwitchingElement:
 		_switching(component as SwitchingElement)
 	elif component is ChangeoverContact:
@@ -153,7 +160,7 @@ func _palette_title() -> String:
 	# The entry that says the most about it (the compact PLC over the PLC).
 	var best: Dictionary = {}
 	var best_size: int = 0
-	for entry: Dictionary in Palette.ENTRIES:
+	for entry: Dictionary in Palette.all_entries():
 		var template: Dictionary = (entry["template"] as Dictionary).duplicate()
 		# The palette places one CPU size; the others are the same part.
 		template.erase("cpu")
@@ -180,6 +187,10 @@ func _group_title() -> String:
 			return tr("Protection")
 		"plc":
 			return tr("PLC and sensors")
+		"light_switches":
+			return tr("Light switches")
+		"outlets":
+			return tr("Lights and sockets")
 	return tr("Power circuit")
 
 
@@ -449,6 +460,81 @@ func _cam_switch(cam: CamSwitch) -> void:
 	features.append(tr("Snap action: it switches at once, every pole together."))
 	_data(tr("Poles"), str(cam.poles))
 	_data(tr("Actuator"), tr("knob, stays where it is turned"))
+
+
+func _light_switch(sw: LightSwitch) -> void:
+	var names: PackedStringArray = _names()
+	summary = tr("Light switch no. %s of a house installation") % sw.circuit
+	description.append(PropertiesPanel.light_switch_title(sw.circuit) + ". " + tr("Flush-mounted light switch with rockers, numbered (řazení) as Czech installations number them. While simulating, a click on a rocker switches it over; it stays where it is put."))
+	match sw.circuit:
+		"2", "3":
+			for p: int in sw.poles():
+				_row(names[2 * p], tr("Pole %d, supply") % (p + 1), tr("Closed to %s while on.") % names[2 * p + 1])
+				_row(names[2 * p + 1], tr("Pole %d, output") % (p + 1), tr("Closed to %s while on.") % names[2 * p])
+		"5":
+			_row(names[0], tr("Common (L)"), tr("The supply of both rockers."))
+			_row(names[1], tr("Output 1"), tr("Closed to %s by the first rocker.") % names[0])
+			_row(names[2], tr("Output 2"), tr("Closed to %s by the second rocker.") % names[0])
+		"6":
+			_row(names[0], tr("Common (L)"), tr("Switched between %s and %s.") % [names[1], names[2]])
+			_row(names[1], tr("Traveller 1"), tr("Closed to %s at rest.") % names[0])
+			_row(names[2], tr("Traveller 2"), tr("Closed to %s switched over.") % names[0])
+		"5A":
+			_row(names[0], tr("Common (L)"), tr("The supply of both rockers."))
+			_row(names[1], tr("Output 1"), tr("Closed to %s by the first rocker.") % names[0])
+			_row(names[2], tr("Traveller 2"), tr("Closed to %s while the second rocker is at rest.") % names[0])
+			_row(names[3], tr("Traveller 3"), tr("Closed to %s while the second rocker is switched over.") % names[0])
+		"5B":
+			_row(names[0], tr("Common (L)"), tr("The supply of both rockers."))
+			_row(names[1], tr("Traveller 1"), tr("Closed to %s while the first rocker is at rest.") % names[0])
+			_row(names[2], tr("Traveller 2"), tr("Closed to %s while the first rocker is switched over.") % names[0])
+			_row(names[3], tr("Traveller 3"), tr("Closed to %s while the second rocker is at rest.") % names[0])
+			_row(names[4], tr("Traveller 4"), tr("Closed to %s while the second rocker is switched over.") % names[0])
+		"7":
+			_row(names[0], tr("Traveller in"), tr("To %s at rest, to %s switched over.") % [names[2], names[3]])
+			_row(names[1], tr("Traveller in"), tr("To %s at rest, to %s switched over.") % [names[3], names[2]])
+			_row(names[2], tr("Traveller out"), tr("To %s at rest, to %s switched over.") % [names[0], names[1]])
+			_row(names[3], tr("Traveller out"), tr("To %s at rest, to %s switched over.") % [names[1], names[0]])
+		_:
+			_row(names[0], tr("Common (L)"), tr("Closed to %s while on.") % names[1])
+			_row(names[1], tr("Output 1"), tr("Closed to %s while on.") % names[0])
+	features.append(tr("Snap action: it switches at once."))
+	_data(tr("Switch number (řazení)"), sw.circuit)
+	_data(tr("Rockers"), str(sw.rocker_count()))
+	_data(tr("Rated current"), "10 A / 250 V AC")
+	_data(tr("Mounting height"), _height_text(sw.height, LightSwitch.STANDARD_HEIGHT))
+
+
+func _socket(socket: SocketOutlet) -> void:
+	var names: PackedStringArray = _names()
+	summary = tr("Socket outlet 230 V with the protective pin (type E)")
+	description.append(tr("Flush-mounted socket outlet of the Czech type E: two holes for L and N and the protective pin PE that touches a plug's earth contact first. A double socket has two outlets on one plate, joined inside. While simulating it shows 230 V while it has its voltage."))
+	_row(names[0], tr("Phase"), tr("The phase conductor L."))
+	_row(names[1], tr("Neutral"), tr("The neutral conductor N."))
+	_row(names[2], tr("Protective pin"), tr("The protective conductor PE."))
+	_data(tr("Outlets"), str(socket.gangs))
+	_data(tr("Rated current"), "16 A / 250 V AC")
+	_data(tr("Type"), tr("E (ČSN 35 4516), protective pin"))
+	_data(tr("Mounting height"), _height_text(socket.height, SocketOutlet.STANDARD_HEIGHT))
+
+
+func _luminaire(luminaire: Luminaire) -> void:
+	var names: PackedStringArray = _names()
+	summary = tr("Luminaire 230 V")
+	description.append(tr("Ceiling or wall luminaire of a house installation. It lights while it has 230 V between L and N, switched by the light switches before it; its metal frame is joined to PE."))
+	_row(names[0], tr("Phase"), tr("Lights with 230 V against %s.") % names[1])
+	_row(names[1], tr("Neutral"), tr("Other end of the lamp."))
+	_row(names[2], tr("Frame"), tr("The protective conductor PE."))
+	_rating_data(luminaire.rating, tr("Lights"))
+	_data(tr("Rated power"), "%s W" % _num(luminaire.power))
+	_data(tr("Current drawn"), "%s A" % _num(luminaire.rated_draw()))
+	_data(tr("Mounting height"), _height_text(luminaire.height, Luminaire.STANDARD_HEIGHT))
+
+
+## A mounting height, "(standard)" after it when it is the standard one.
+func _height_text(height: float, standard: float) -> String:
+	var text: String = "%s m" % String.num(height, 2).pad_decimals(2)
+	return text + " " + tr("(standard)") if is_equal_approx(height, standard) else text
 
 
 func _changeover(c: ChangeoverContact) -> void:

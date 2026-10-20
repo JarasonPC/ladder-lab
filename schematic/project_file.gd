@@ -79,7 +79,11 @@ const FORMAT: String = "ladder-lab"
 ## 36: potentiometers ("pot": turns, setting in %) and station or door
 ## items of kind "pot".
 ## 37: + supplies of 10 V ("voltage": 10, a reference for potentiometers).
-const VERSION: int = 37
+## 38: house installations ("environment": "residential"; missing: an
+## industrial control circuit) with light switches ("light_switch": circuit
+## 1-7, height), luminaires ("luminaire": power, height) and socket outlets
+## ("socket": gangs, height).
+const VERSION: int = 38
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

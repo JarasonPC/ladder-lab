@@ -60,7 +60,7 @@ func show_entry(index: int) -> void:
 	_fill_list()
 	_list.select(_index_of_entry(index))
 	_list.ensure_current_is_visible()
-	_show(Datasheet.of_template(Palette.ENTRIES[index]["template"]))
+	_show(Datasheet.of_template(Palette.all_entries()[index]["template"]))
 
 
 ## Builds the shown datasheet again (the language or the paper changed).
@@ -158,12 +158,12 @@ func _fill_list() -> void:
 		_header(tr("In the schematic"))
 		_entries[_list.add_item("-%s  %s" % [_part.component.designation, _part.title])] = -1
 	var group: String = ""
-	for i: int in Palette.ENTRIES.size():
-		var template: Dictionary = Palette.ENTRIES[i]["template"]
+	for i: int in Palette.all_entries().size():
+		var template: Dictionary = Palette.all_entries()[i]["template"]
 		if Palette.group_of(template) != group:
 			group = Palette.group_of(template)
 			_header(Datasheet.of_template(template).group)
-		_entries[_list.add_item(tr(Palette.ENTRIES[i]["title"]))] = i
+		_entries[_list.add_item(tr(Palette.all_entries()[i]["title"]))] = i
 
 
 func _header(text: String) -> void:
@@ -183,7 +183,7 @@ func _on_item_selected(index: int) -> void:
 	if not _entries.has(index):
 		return
 	var entry: int = _entries[index]
-	_show(_part if entry < 0 else Datasheet.of_template(Palette.ENTRIES[entry]["template"]))
+	_show(_part if entry < 0 else Datasheet.of_template(Palette.all_entries()[entry]["template"]))
 
 
 func _show(p_sheet: Datasheet) -> void:

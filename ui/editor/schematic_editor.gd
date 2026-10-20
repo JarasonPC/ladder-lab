@@ -208,7 +208,7 @@ static func type_options(c: CircuitComponent) -> Array[Dictionary]:
 	if family.is_empty():
 		return result
 	var terminals: int = c.get_terminal_names().size()
-	for entry: Dictionary in Palette.ENTRIES:
+	for entry: Dictionary in Palette.all_entries():
 		if _family(entry["template"]["type"]) != family:
 			continue
 		var data: Dictionary = entry["template"].duplicate()
@@ -531,7 +531,7 @@ func change_type(component_id: String, template: Dictionary) -> String:
 		# PLC, contact NC): what was set stays, except what tells the entries
 		# apart.
 		data = old_data.duplicate()
-		for entry: Dictionary in Palette.ENTRIES:
+		for entry: Dictionary in Palette.all_entries():
 			if entry["template"]["type"] == template["type"]:
 				for key: String in entry["template"]:
 					if not template.has(key):
@@ -1423,6 +1423,12 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			return doc.next_device_designation("KT")
 		"lamp":
 			return doc.next_designation("H")
+		"light_switch":
+			return doc.next_designation("SF")
+		"luminaire":
+			return doc.next_designation("EA")
+		"socket":
+			return doc.next_designation("XD")
 		"rectifier":
 			return doc.next_designation("TB")
 		"plc":
