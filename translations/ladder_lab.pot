@@ -4990,3 +4990,88 @@ msgstr ""
 #, c-format
 msgid "%s: test button pressed"
 msgstr ""
+
+#, c-format
+msgid "Room %d"
+msgstr ""
+
+#, c-format
+msgid "Consumer unit %s"
+msgstr ""
+
+msgid "Click to switch it"
+msgstr ""
+
+#, c-format
+msgid "Mounting height %s m"
+msgstr ""
+
+msgid "Draw a room: pick Room and drag, or add one of the ready rooms."
+msgstr ""
+
+msgid "Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling."
+msgstr ""
+
+msgid "Every part is on the plan."
+msgstr ""
+
+msgid "Select and move rooms, doors and parts; drag a room's edge to resize it"
+msgstr ""
+
+msgid "Draw a room by dragging; it snaps to the walls of the others"
+msgstr ""
+
+msgid "Put a door in a wall by clicking it"
+msgstr ""
+
+msgid "Add room"
+msgstr ""
+
+msgid "Take the selected room, door or part away"
+msgstr ""
+
+msgid "Not on the plan"
+msgstr ""
+
+msgid "Rename room"
+msgstr ""
+
+#, c-format
+msgid "Switch no. %s"
+msgstr ""
+
+msgid "Socket outlet"
+msgstr ""
+
+msgid "Floor plan"
+msgstr ""
+
+msgid "Rooms, and where the switches, sockets, luminaires and appliances are, with the cables between them"
+msgstr ""
+
+msgid "Double-click a room to rename it; Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
+msgstr ""
+
+msgid "Click a light switch on the plan to switch it (of two rockers, the side clicked). Right or middle drag pans, wheel zooms."
+msgstr ""
+
+msgid "Living room"
+msgstr ""
+
+msgid "Bedroom"
+msgstr ""
+
+msgid "Kitchen"
+msgstr ""
+
+msgid "Bathroom"
+msgstr ""
+
+msgid "WC"
+msgstr ""
+
+msgid "Hall"
+msgstr ""
+
+msgid "Room"
+msgstr ""

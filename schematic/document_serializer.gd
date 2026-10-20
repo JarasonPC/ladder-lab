@@ -61,6 +61,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 	var result: Dictionary = {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "pages": Array(doc.pages), "page": doc.page, "components": components, "wires": wires}
 	if doc.residential:
 		result["environment"] = "residential"
+	if not doc.floor_plan.is_empty():
+		result["floor_plan"] = doc.floor_plan.to_data()
 	if not doc.control_boxes.is_empty():
 		var boxes: Array[Dictionary] = []
 		for box: ControlBox in doc.control_boxes:
@@ -178,6 +180,8 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			if box != null:
 				doc.control_boxes.append(box)
 	doc.title_block = TitleBlock.from_data(d.get("title_block", {}))
+	doc.floor_plan = FloorPlan.from_data(d.get("floor_plan", {}))
+	doc.floor_plan.prune(doc.circuit)
 	# So are the switchboards: malformed ones, rails and items are left out.
 	var raw_boards: Variant = d.get("switchboards", [])
 	if raw_boards is Array:

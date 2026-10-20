@@ -150,6 +150,8 @@ var _properties: PropertiesPanel
 var _datasheet_window: DatasheetWindow = null
 ## Switchboards, control stations and parts in the field (both modes).
 var _workspace: WorkspaceView
+## The floor plan of a house installation, shown in place of the workspace.
+var _floor_plan: FloorPlanView
 ## The next document shown fits the whole workspace into view (a new schematic).
 var _workspace_fit: bool = true
 ## Asks for the key of a push button or switch.
@@ -284,6 +286,10 @@ func _ready() -> void:
 	_workspace.window_requested.connect(open_place_window)
 	_workspace.schematic_requested.connect(_show_in_schematic)
 	_workspace.key_bind_requested.connect(_ask_key)
+	editor.edited.connect(_floor_plan.refresh)
+	view.stepped.connect(_floor_plan.show_step)
+	_floor_plan.edit_requested.connect(_edit_workspace)
+	_floor_plan.switch_toggled.connect(view.toggle_light_switch)
 	editor.key_bind_requested.connect(_ask_key)
 	editor.edited.connect(func() -> void:
 		for window: PlaceWindow in _place_windows():
@@ -619,6 +625,10 @@ func _build_ui() -> void:
 	canvas_column.add_child(_canvas_area)
 	_workspace.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_canvas_area.add_child(_workspace)
+	_floor_plan = FloorPlanView.new()
+	_floor_plan.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_floor_plan.visible = false
+	_canvas_area.add_child(_floor_plan)
 	_short_banner = Label.new()
 	_short_banner.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_short_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -950,6 +960,7 @@ func _retranslate() -> void:
 	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar]:
 		bar.retranslate()
 	_workspace.retranslate()
+	_floor_plan.retranslate()
 	for window: PlaceWindow in _place_windows():
 		window.retranslate()
 	for window: PlcWindow in _plc_windows():
@@ -1328,8 +1339,10 @@ func _update_mode_ui() -> void:
 	view.visible = schematic
 	editor.active = editing and schematic
 	_page_bar.visible = schematic
-	_workspace.visible = not schematic
-	_tree_bar.visible = not schematic
+	var residential: bool = edit_doc != null and edit_doc.residential
+	_workspace.visible = not schematic and not residential
+	_floor_plan.visible = not schematic and residential
+	_tree_bar.visible = not schematic and not residential
 	_edit_tools.visible = editing and schematic
 	_numbers_toggle.visible = schematic
 	_layout_select.visible = schematic
@@ -1350,16 +1363,21 @@ func _update_mode_ui() -> void:
 	_refresh_lesson_marks()
 
 
-## Palette and toolbar for what the schematic is. A house installation has
-## no workspace (switchboards, stations) of an industrial control circuit.
+## Palette and toolbar for what the schematic is: a house installation has
+## its floor plan where an industrial control circuit has its workspace.
 func _update_environment() -> void:
 	var residential: bool = edit_doc != null and edit_doc.residential
 	_palette.residential = residential
 	_environment_label.text = tr("Residential") if residential else tr("Industrial")
 	_environment_label.tooltip_text = tr("A house installation: light switches, luminaires, socket outlets") if residential else tr("An industrial control circuit: contactors, time relays, motors, PLCs")
-	_area_switch.visible = not residential
-	if residential and area == Area.WORKSPACE:
-		_set_area(Area.SCHEMATIC)
+	# A house installation has its floor plan in place of the workspace.
+	_workspace_button.text = tr("Floor plan") if residential else tr("Workspace")
+	_workspace_button.icon = AppTheme.icon("house" if residential else "workspace")
+	_workspace_button.tooltip_text = tr("Rooms, and where the switches, sockets, luminaires and appliances are, with the cables between them") if residential else tr("Switchboards, control stations and the motors, limit switches and sensors in the field")
+	if area == Area.WORKSPACE:
+		_workspace.visible = not residential
+		_floor_plan.visible = residential
+		_tree_bar.visible = not residential
 
 
 func _update_run_button() -> void:
@@ -1448,6 +1466,7 @@ func _show_in_schematic(designation: String) -> void:
 func _on_view_loaded() -> void:
 	_workspace.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
 	_workspace.show_travels(view.travel_positions())
+	_floor_plan.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
 	_workspace_fit = false
 	for window: PlaceWindow in _place_windows():
 		window.set_document(view.document, mode == Mode.EDIT)
@@ -2582,10 +2601,20 @@ func _on_stepped(result: StepResult) -> void:
 		# The workspace has its hints in its own bar.
 		_status_label.text = _editor_hint if area == Area.SCHEMATIC else ""
 		_status_label.remove_theme_color_override("font_color")
-		_hint_label.text = tr("Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else ""
+		if area == Area.SCHEMATIC:
+			_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
+		elif edit_doc != null and edit_doc.residential:
+			_hint_label.text = tr("Double-click a room to rename it; Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms.")
+		else:
+			_hint_label.text = ""
 		_fit_status_label()
 		return
-	_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.") if area == Area.SCHEMATIC else tr("Open a control station to press its buttons, a switchboard to switch its breakers.")
+	if area == Area.SCHEMATIC:
+		_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.")
+	elif edit_doc != null and edit_doc.residential:
+		_hint_label.text = tr("Click a light switch on the plan to switch it (of two rockers, the side clicked). Right or middle drag pans, wheel zooms.")
+	else:
+		_hint_label.text = tr("Open a control station to press its buttons, a switchboard to switch its breakers.")
 	_time_label.text = "%.3f s" % view.sim_time
 	_timing_panel.chart.set_time(view.sim_time)
 	_show_status(result)

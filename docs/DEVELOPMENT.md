@@ -194,6 +194,33 @@ Architecture and conventions of the code base. Read this before changing the cod
   "plugged_power". RcdSymbol (BreakerSymbol's poles, plain blades for an RCD, the summation
   ring under them and an IΔ box, an AFDD's box with an arc); ApplianceSymbol (a box with a
   heating zigzag, microwave waves, a drum or a snowflake, filled grey while it works)
+- Floor plan of a house installation (FloorPlan in schematic/, no nodes; SchematicDocument.floor_plan,
+  saved as "floor_plan" when not empty; Schematic | Floor plan in place of Schematic |
+  Workspace, FloorPlanView in place of WorkspaceView, main.gd _update_environment):
+  metres, y down. Rooms (FloorPlan.Room: name, rect) are modules: drawn by dragging
+  (FloorPlanCanvas Tool.ROOM) or added from PRESETS at free_spot (Add room), every edge
+  snapping to SNAP 5 cm and onto the other rooms' walls within WALL_SNAP (snap_room, the
+  canvas's _snap_edge), resized by dragging an edge, moved with the parts in them and on
+  their walls and the doors in their walls (move_room), renamed by a double click. Doors
+  (FloorPlan.Door: middle on a wall, width, vertical) put in a wall by a click (Tool.DOOR),
+  drawn as an opening with the leaf and its swing. Parts (FloorPlan.placeable: light switches,
+  sockets, luminaires, appliances; the consumer unit "+RD1" holds the supplies and protective
+  devices, in_unit) are picked in the list of those not placed (FloorPlan.unplaced) and
+  placed by a click (Tool.PLACE): a luminaire where clicked (on the ceiling), the others onto
+  the nearest wall within ON_WALL, facing into the room (FloorPlan.place, wall_near,
+  "facing" index into FACING); dragged to move, Delete takes a room, door or part away
+  (the part back into the list); renamed or deleted parts follow (rename, _forget_device,
+  prune on load). Cables (FloorPlan.cables) are worked out from the wiring: per net the
+  shortest tree (Manhattan) over the places on it; nets between two places are the cores of
+  one cable, drawn dashed in an L with a tick per core (a number past five). PlanSymbols
+  draws the ČSN EN 60617-11 symbols: a switch's circle with lines and ticks per its number,
+  a socket's half circle on a stem with the diameter past it (two for a double), the
+  luminaire's crossed circle, an appliance's box with its sign, the consumer unit half
+  filled; a height other than the standard one is written under the designation ("h 1.10").
+  While simulating the plan shows the simulation copy: lit luminaires glow, live sockets and
+  working appliances are filled, and a click on a switch switches its rocker (of two, the
+  one on the side clicked as seen from the room; SchematicView.toggle_light_switch). Plan
+  edits are workspace edits (one undo step each, Edit mode only)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,

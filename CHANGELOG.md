@@ -30,6 +30,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   devices with breaker (AFDD), and appliances: water heater, oven, induction hob (400 V),
   microwave, washing machine, dishwasher, heater and fridge; a socket can have an appliance
   plugged in
+- Floor plan of a house installation (Schematic | Floor plan): rooms drawn by dragging or added
+  ready-made, snapping to each other's walls like modules, resized by their edges, moved with
+  everything in them, renamed by a double click; doors in their walls. Switches, sockets,
+  luminaires, appliances and the consumer unit are put on it from the list of parts not
+  placed yet (onto the nearest wall, luminaires on the ceiling), drawn with the symbols of
+  Czech installation drawings and their heights, and the cables between them are worked out
+  from the wiring with a tick per core
 - Every light switch, luminaire and socket has a mounting height over the floor: the
   standard one of Czech practice (switches 1.20 m, sockets 0.30 m, luminaires on a 2.60 m
   ceiling) until it is set in the properties; a height other than the standard one is
@@ -66,6 +73,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   insulation fault leaves the appliance's frame live. A loose connection that arcs (fault
   menu) trips the AFDD feeding it. Appliances draw their power, so too many on one circuit
   trip its breaker
+- The floor plan shows the simulation: lit luminaires glow, live sockets and working
+  appliances are filled, and a click on a switch on the plan switches it
 - A click on a light switch's rocker switches it over (on a double switch, the rocker
   clicked): a staircase light with two-way switches and intermediate switches between them
   is switched from any place; luminaires light and show in the timing chart, a socket shows

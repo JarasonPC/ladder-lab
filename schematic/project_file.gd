@@ -88,7 +88,10 @@ const FORMAT: String = "ladder-lab"
 ## detection devices ("afdd"), appliances ("appliance": kind, power,
 ## two_phases, height) and appliances plugged into sockets ("plugged",
 ## "plugged_power"; missing: nothing plugged in).
-const VERSION: int = 39
+## 40: the floor plan of a house installation ("floor_plan": rooms with
+## name and rect, doors, where the parts and the consumer unit "+RD1" are
+## with the way they face; missing: an empty plan).
+const VERSION: int = 40
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

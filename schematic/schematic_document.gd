@@ -22,6 +22,8 @@ var realistic_timing: bool = true
 ## industrial control circuit: chosen when the schematic is made, for good.
 ## It picks the parts the palette offers.
 var residential: bool = false
+## Floor plan of a house installation: rooms, doors and where its parts are.
+var floor_plan: FloorPlan = FloorPlan.new()
 ## Workspace: control stations with the buttons, switches and signal lamps
 ## of the circuit (see [ControlBox]).
 var control_boxes: Array[ControlBox] = []
@@ -959,6 +961,7 @@ func remove_component(component_id: String) -> void:
 func _forget_device(designation: String) -> void:
 	key_bindings.erase(designation)
 	field_positions.erase(designation)
+	floor_plan.remove(designation)
 	for group: WorkspaceGroup in groups:
 		_leave_group(group, designation)
 
@@ -1408,6 +1411,7 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 		rename_control_device(old.designation, new_component.designation)
 		rename_cabinet_device(old.designation, new_component.designation)
 		rename_field_device(old.designation, new_component.designation)
+		floor_plan.rename(old.designation, new_component.designation)
 		if key_bindings.has(old.designation):
 			var key: String = key_bindings[old.designation]
 			key_bindings.erase(old.designation)
