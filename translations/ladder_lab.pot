@@ -5292,3 +5292,37 @@ msgstr ""
 
 msgid "Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
 msgstr ""
+
+msgid "Put a door in a wall by clicking it; a double click on a door sets its width, double door and swing; a selected door: F swaps its hinge, Shift+F opens it to the other side"
+msgstr ""
+
+msgid "Join two rooms into one (an L-shaped room and the like): click one, then the other touching it"
+msgstr ""
+
+msgid "Double door"
+msgstr ""
+
+msgid "Hinges"
+msgstr ""
+
+msgid "Opens"
+msgstr ""
+
+msgid "Left or top"
+msgstr ""
+
+msgid "Right or bottom"
+msgstr ""
+
+msgid "Down or left"
+msgstr ""
+
+msgid "Up or right"
+msgstr ""
+
+msgid "L-shaped"
+msgstr ""
+
+#, c-format
+msgid "Wall of %s"
+msgstr ""

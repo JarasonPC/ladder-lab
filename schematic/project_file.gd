@@ -100,7 +100,9 @@ const FORMAT: String = "ladder-lab"
 ## ("links": [part, port, part, port]) and its rooms' "number",
 ## "environment" and "lux" (missing: the usual ones).
 ## 43: how a door of the floor plan swings ("hinge_end", "opens_back";
-## missing: hinge at the start, opening right or down).
+## missing: hinge at the start, opening down or left), double doors
+## ("double"), rooms of any outline with walls across or up and down
+## ("points", the corners, beside the "rect" round them).
 const VERSION: int = 43
 
 

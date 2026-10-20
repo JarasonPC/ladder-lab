@@ -9,8 +9,8 @@ extends Control
 var component: CircuitComponent
 
 ## Pixels a metre, by what is drawn: an appliance is taller.
-const SCALE: float = 95.0
-const APPLIANCE_SCALE: float = 62.0
+const SCALE: float = 68.0
+const APPLIANCE_SCALE: float = 55.0
 
 
 func _draw() -> void:
