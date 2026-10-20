@@ -6,6 +6,17 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- The floor plan opens the consumer unit RD1 (a click on its symbol while simulating, a
+  double click in Edit mode): its switchboard in place of the plan, made with the protection
+  on its rails when there is none yet, its breakers switched there while simulating
+- Export to PDF puts the floor plan of a house installation on a sheet in place of the
+  workspace, with a legend of the symbols and the standard installation heights
+- Light switch levers are all one length, as long as reaches a contact straight below;
+  contacts further off have a fixed arm up to the lever, and every lever rests off
+- Socket outlets on the floor plan are drawn as on Czech installation drawings: a stem from
+  the wall to the back of a half circle open to the room, a double socket two of them
+
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
   side by side

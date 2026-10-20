@@ -93,7 +93,7 @@ func _init() -> void:
 ## until [method show_sheets] fills it. A PDF holds what [param chosen] says
 ## (see [method contents]); what [param available] has false is greyed out
 ## (the schematic has nothing of it).
-func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, largest: String = SheetLayout.DEFAULT_LARGEST) -> void:
+func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, largest: String = SheetLayout.DEFAULT_LARGEST, residential: bool = false) -> void:
 	title = tr("Export PDF") if pdf else tr("Export PNG")
 	_paper_label.text = tr("Largest sheet")
 	_paper.tooltip_text = tr("Pages go on the smallest sheet they fit on, up to this one; larger pages are scaled down onto it")
@@ -104,7 +104,8 @@ func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, larges
 	_contents_row.visible = pdf
 	for i: int in CONTENTS.size():
 		var check: CheckBox = _contents[CONTENTS[i]]
-		check.text = tr(CONTENT_TITLES[i])
+		# A house installation has its floor plan where the workspace is.
+		check.text = tr("Floor plan") if residential and CONTENTS[i] == "workspace" else tr(CONTENT_TITLES[i])
 		check.set_pressed_no_signal(bool(chosen.get(CONTENTS[i], true)))
 		check.disabled = not bool(available.get(CONTENTS[i], true))
 	_update_numbers()

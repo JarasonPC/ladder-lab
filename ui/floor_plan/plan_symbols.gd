@@ -9,9 +9,9 @@ extends RefCounted
 ## its end (one a pole: 1, 2, 3, 4 ticks for switch 1, 2, 3, 03); a two-way
 ## rocker has a second line the other way (6; two ticks each for 6/2, a dot
 ## in the circle for 4 with its off position), two rockers two lines fanned
-## out (5); the intermediate switch's lines cross (7). Socket: a half circle open
-## to the room on a stem from the wall, its diameter drawn past it for the
-## protective pin; a double socket two of them. Luminaire: a circle with a
+## out (5); the intermediate switch's lines cross (7). Socket: a stem from the
+## wall to the back of a half circle open to the room; a double socket a
+## second half circle on the same stem, just inside the first. Luminaire: a circle with a
 ## cross. Appliance: a square with its sign on a stem from the wall.
 ## Consumer unit: an oblong on the wall, half filled.
 
@@ -20,6 +20,10 @@ const SWITCH_RADIUS: float = 0.06
 const SWITCH_LINE: float = 0.24
 const TICK: float = 0.07
 const SOCKET_RADIUS: float = 0.1
+## Socket: the stem from the wall, and the second half circle of a double
+## socket further in.
+const SOCKET_STEM: float = 0.1
+const SOCKET_GANG: float = 0.07
 const LAMP_RADIUS: float = 0.12
 const APPLIANCE: float = 0.34
 const UNIT := Vector2(0.6, 0.22)
@@ -84,21 +88,19 @@ static func _line(item: CanvasItem, c: Vector2, dir: Vector2, ticks: int, s: flo
 ## Socket outlet [param socket]; [param live]: it has its voltage.
 static func draw_socket(item: CanvasItem, socket: SocketOutlet, at: Vector2, facing: Vector2, s: float, color: Color, width: float, live: bool) -> void:
 	var into: Vector2 = facing if facing != Vector2.ZERO else Vector2.DOWN
-	var across: Vector2 = into.rotated(PI / 2.0)
 	var r: float = SOCKET_RADIUS * s
-	var offsets: PackedFloat32Array = PackedFloat32Array([0.0]) if socket.gangs == 1 else PackedFloat32Array([-r * 1.05, r * 1.05])
-	for o: float in offsets:
-		var base: Vector2 = at + across * o + into * 0.1 * s
-		item.draw_line(at + across * o, base, color, width, true)
-		# The diameter past the half circle: the protective pin.
-		item.draw_line(base - across * r * 1.25, base + across * r * 1.25, color, width, true)
-		var angle: float = into.angle()
-		if live:
-			var fill: PackedVector2Array = PackedVector2Array([base])
+	var back: Vector2 = at + into * SOCKET_STEM * s
+	item.draw_line(at, back, color, width, true)
+	var angle: float = into.angle()
+	for gang: int in socket.gangs:
+		# The half circle's back on the stem, open to the room.
+		var c: Vector2 = back + into * (r + gang * SOCKET_GANG * s)
+		if live and gang == 0:
+			var fill: PackedVector2Array = PackedVector2Array()
 			for k: int in 13:
-				fill.append(base + Vector2.from_angle(angle - PI / 2.0 + PI * k / 12.0) * r)
+				fill.append(c + Vector2.from_angle(angle + PI / 2.0 + PI * k / 12.0) * r)
 			item.draw_colored_polygon(fill, GLOW)
-		item.draw_arc(base, r, angle - PI / 2.0, angle + PI / 2.0, 16, color, width, true)
+		item.draw_arc(c, r, angle + PI / 2.0, angle + PI * 1.5, 16, color, width, true)
 
 
 ## Luminaire; [param lit]: it lights.

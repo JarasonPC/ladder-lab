@@ -75,7 +75,7 @@ static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 	return {
 		"stations": not doc.control_boxes.is_empty(),
 		"switchboards": fitted,
-		"workspace": not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()),
+		"workspace": not doc.floor_plan.is_empty() if doc.residential else not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()),
 		"plc_programs": not _programs(doc).is_empty(),
 	}
 
@@ -125,7 +125,8 @@ func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary
 			else:
 				result.append({"kind": "plc", "id": plc.id})
 	if workspace and available(doc)["workspace"]:
-		result.append({"kind": "workspace"})
+		# A house installation's floor plan in place of the workspace.
+		result.append({"kind": "floor_plan" if doc.residential else "workspace"})
 	if parts_list:
 		for rows: Array in PartsSheet.split(PartsList.new().rows(doc)):
 			result.append({"kind": "parts", "rows": rows})
@@ -264,6 +265,16 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			content.add_child(canvas)
 			frame.page_title = tr("Workspace")
 			extent = Rect2(Vector2.ZERO, bounds.size / G)
+		"floor_plan":
+			var plan: FloorPlanCanvas = FloorPlanCanvas.new()
+			plan.document = copy
+			plan.legend = true
+			var area: Rect2 = plan.paper_area()
+			plan.offset = -area.position * FloorPlanCanvas.PX
+			plan.size = area.size * FloorPlanCanvas.PX
+			content.add_child(plan)
+			frame.page_title = tr("Floor plan")
+			extent = Rect2(Vector2.ZERO, plan.size / G)
 		"parts":
 			var table: PartsSheet = PartsSheet.new()
 			table.rows = spec["rows"]

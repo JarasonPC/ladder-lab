@@ -162,3 +162,52 @@ func test_floor_plan_in_the_main_window() -> void:
 	assert_true((main.view.document.circuit.get_component("SF1") as LightSwitch).on[0], "switched on from the plan")
 	assert_true((main.view.document.circuit.get_component("EA1") as Luminaire).energized, "the light is on")
 	await wait_process_frames(2)
+
+
+func test_consumer_unit_made_once_with_the_devices() -> void:
+	var doc: SchematicDocument = _house()
+	var index: int = doc.ensure_consumer_unit()
+	assert_eq(doc.switchboards[index].name, FloorPlan.UNIT.trim_prefix("+"), "switchboard RD1")
+	var on_rails: PackedStringArray = PackedStringArray()
+	for rail: CabinetRail in doc.switchboards[index].rails:
+		for item: CabinetItem in rail.items:
+			on_rails.append(item.designation)
+	assert_has(on_rails, "FA1", "the breaker on its rail")
+	assert_eq(doc.ensure_consumer_unit(), index, "made only once")
+	assert_eq(doc.switchboards.size(), 1)
+
+
+func test_consumer_unit_opened_from_the_plan() -> void:
+	var main: Main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
+	add_child_autofree(main)
+	main._recovery_dialog.hide()
+	main._replace_document(_house(), "")
+	main._set_area(Main.Area.WORKSPACE)
+	var plan_view: FloorPlanView = main._floor_plan
+	plan_view.open_unit()
+	assert_eq(main.edit_doc.switchboards.size(), 1, "RD1 made in Edit mode, undoably")
+	assert_not_null(plan_view._unit, "the unit in place of the plan")
+	assert_false(plan_view._body.visible)
+	plan_view.close_unit()
+	assert_null(plan_view._unit)
+	assert_true(plan_view._body.visible, "back to the plan")
+	main.editor.undo()
+	assert_eq(main.edit_doc.switchboards.size(), 0, "undone")
+	await wait_process_frames(2)
+
+
+func test_floor_plan_sheet_in_the_export() -> void:
+	var renderer: SheetRenderer = autofree(SheetRenderer.new())
+	var doc: SchematicDocument = _house()
+	doc.floor_plan.place("SF1", Vector2(3.0, 1.0), false)
+	renderer.workspace = true
+	var kinds: PackedStringArray = PackedStringArray()
+	for spec: Dictionary in renderer.sheets(doc, PackedInt32Array([0])):
+		kinds.append(spec["kind"])
+	assert_eq(kinds, PackedStringArray(["page", "floor_plan"]), "the floor plan in place of the workspace")
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.legend = true
+	var area: Rect2 = canvas.paper_area()
+	assert_true(area.encloses(doc.floor_plan.bounds()), "the whole plan on the sheet")
+	assert_gte(area.size.y, doc.floor_plan.bounds().size.y + FloorPlanCanvas.LEGEND_HEIGHT, "room for the legend of heights")
