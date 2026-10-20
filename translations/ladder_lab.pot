@@ -5244,3 +5244,28 @@ msgstr ""
 
 msgid "RCD with overcurrent release (RCBO)"
 msgstr ""
+
+msgid "Number"
+msgstr ""
+
+msgid "Purpose of the room"
+msgstr ""
+
+msgid "Environment (ČSN 33 2000-5-51)"
+msgstr ""
+
+msgid "Illuminance (lx)"
+msgstr ""
+
+msgid "Draw the lighting: drag from a light switch (of two rockers, from the side of the one) to a luminaire it switches, or to the other switch of a staircase; it is wired by itself"
+msgstr ""
+
+#, c-format
+msgid "Circuit of -%s"
+msgstr ""
+
+msgid "Circuit for new parts"
+msgstr ""
+
+msgid "No circuit"
+msgstr ""

@@ -33,7 +33,8 @@ class Feeder extends RefCounted:
 	var device: String = ""
 	## Phase 1-3 its first pole is on (a three-pole device takes all three).
 	var phase: int = 1
-	## The parts it feeds: socket outlets, luminaires, appliances.
+	## The parts it feeds: socket outlets, luminaires, appliances, and the
+	## light switches it feeds the luminaires through.
 	var loads: PackedStringArray = PackedStringArray()
 	## Where it goes, as written under it ("" for the kind of its first part).
 	var destination: String = ""
@@ -131,9 +132,47 @@ static func protects_circuit(c: CircuitComponent) -> bool:
 	return c is CircuitBreaker or (c is MotorBreaker and not heads_group(c))
 
 
-## Whether [param c] is a part a circuit can feed.
+## Whether [param c] is a part a circuit can feed (a light switch: feed the
+## luminaires through).
 static func is_load(c: CircuitComponent) -> bool:
-	return c is SocketOutlet or c is Luminaire or c is Appliance
+	return c is SocketOutlet or c is Luminaire or c is Appliance or c is LightSwitch
+
+
+## The first part circuit [param f] feeds that is not a light switch (what
+## the diagram shows at its end), or null.
+static func end_part(f: Feeder, circuit: Circuit) -> CircuitComponent:
+	for designation: String in f.loads:
+		var c: CircuitComponent = circuit.get_component(designation)
+		if c != null and not (c is LightSwitch):
+			return c
+	return null
+
+
+## How many parts circuit [param f] feeds, its light switches left out.
+static func end_count(f: Feeder, circuit: Circuit) -> int:
+	var n: int = 0
+	for designation: String in f.loads:
+		if not (circuit.get_component(designation) is LightSwitch):
+			n += 1
+	return n
+
+
+## Tag of part [param designation] as the floor plan writes it at a socket
+## or appliance: "Z" and its circuit's cable number, a dot and its place
+## among the sockets and appliances of that circuit ("Z 6.1"); "" when no
+## circuit feeds it.
+func tag(designation: String, circuit: Circuit) -> String:
+	var f: Feeder = feeder_feeding(designation)
+	if f == null:
+		return ""
+	var n: int = 0
+	for load: String in f.loads:
+		var c: CircuitComponent = circuit.get_component(load)
+		if c is SocketOutlet or c is Appliance:
+			n += 1
+		if load == designation:
+			return "Z %d.%d" % [cable_number(f), n]
+	return ""
 
 
 ## Every circuit, left to right.
@@ -474,6 +513,9 @@ func wire(doc: SchematicDocument) -> void:
 		if c.designation == HDO and c is LatchingSwitch:
 			hdo_contacts.append(c)
 	var hdo_used: int = 0
+	_joined.clear()
+	_live.clear()
+	_switched = _switched_luminaires(doc)
 	for column: RefCounted in columns:
 		if column is Group:
 			var g: Group = column as Group
@@ -491,6 +533,7 @@ func wire(doc: SchematicDocument) -> void:
 				hdo_used = _wire_feeder(doc, f, sub, n_sub, hdo_contacts, hdo_used)
 		else:
 			hdo_used = _wire_feeder(doc, column as Feeder, bus, n_bus, hdo_contacts, hdo_used)
+	_wire_lighting(doc)
 
 
 ## Wires circuit [param f] from busbars [param bus] (phase -> terminal key)
@@ -514,8 +557,14 @@ func _wire_feeder(doc: SchematicDocument, f: Feeder, bus: Dictionary[int, String
 		doc.connect_terminals(outputs[0], contact[0])
 		outputs[0] = contact[1]
 		hdo_used += 1
+	if not outputs.is_empty():
+		_live[f.device] = outputs[0]
 	for load: String in f.loads:
 		var part: CircuitComponent = doc.circuit.get_component(load)
+		# Switches are wired with the lighting; a switched luminaire gets
+		# its phase through them.
+		if part is LightSwitch:
+			continue
 		var names: PackedStringArray = part.get_terminal_names()
 		var phase_index: int = 0
 		for i: int in names.size():
@@ -524,10 +573,253 @@ func _wire_feeder(doc: SchematicDocument, f: Feeder, bus: Dictionary[int, String
 				doc.connect_terminals("PE", key)
 			elif names[i] == "N":
 				doc.connect_terminals(n_out, key)
-			elif phase_index < outputs.size():
+			elif phase_index < outputs.size() and not _switched.has(load):
 				doc.connect_terminals(outputs[phase_index], key)
 				phase_index += 1
 	return hdo_used
+
+
+# --- Lighting ---------------------------------------------------------------------------
+
+## While wiring: pairs joined (no wire twice), each circuit's phase out of
+## its device (by device), the luminaires switched.
+var _joined: Dictionary[String, bool] = {}
+var _live: Dictionary[String, String] = {}
+var _switched: Dictionary[String, bool] = {}
+
+
+func _join(doc: SchematicDocument, a: String, b: String) -> void:
+	if a.is_empty() or b.is_empty() or a == b:
+		return
+	var key: String = a + "|" + b if a < b else b + "|" + a
+	if _joined.has(key):
+		return
+	_joined[key] = true
+	doc.connect_terminals(a, b)
+
+
+## The ways light switch [param sw] switches, by port: a one-way output
+## {"common", "a"}, a two-way {"common", "a", "b"} (at rest on a), an
+## intermediate {"through": [in 1, in 2, out 1, out 2]} (at rest in 1 to
+## out 1). Only a switch's first pole is used.
+static func switch_ports(sw: LightSwitch) -> Array[Dictionary]:
+	var t: PackedStringArray = sw.get_terminal_keys()
+	match sw.circuit:
+		"4", "5":
+			return [{"common": t[0], "a": t[1]}, {"common": t[0], "a": t[2]}]
+		"6":
+			return [{"common": t[0], "a": t[1], "b": t[2]}]
+		"6/2":
+			return [{"common": t[0], "a": t[2], "b": t[4]}]
+		"5B":
+			return [{"common": t[0], "a": t[1], "b": t[2]}, {"common": t[3], "a": t[4], "b": t[5]}]
+		"7":
+			return [{"through": [t[0], t[2], t[1], t[3]]}]
+	return [{"common": t[0], "a": t[1]}]
+
+
+## The lighting drawn on the plan as a graph: node "SF1#0" for port 0 of a
+## switch, "EA1" for a luminaire, each with its neighbours.
+static func lighting_graph(doc: SchematicDocument) -> Dictionary[String, PackedStringArray]:
+	var graph: Dictionary[String, PackedStringArray] = {}
+	for link: FloorPlan.Link in doc.floor_plan.links:
+		var ends: PackedStringArray = PackedStringArray()
+		for end: String in [link.a, link.b]:
+			var c: CircuitComponent = doc.circuit.get_component(end)
+			if c is LightSwitch:
+				var ports: int = switch_ports(c as LightSwitch).size()
+				ends.append("%s#%d" % [end, clampi(link.port(end), 0, ports - 1)])
+			elif c is Luminaire:
+				ends.append(end)
+		if ends.size() != 2 or ends[0] == ends[1]:
+			continue
+		for k: int in 2:
+			var list: PackedStringArray = graph.get(ends[k], PackedStringArray())
+			if not list.has(ends[1 - k]):
+				list.append(ends[1 - k])
+			graph[ends[k]] = list
+	return graph
+
+
+## Luminaires the lighting drawn on the plan switches (their phase comes
+## through a switch).
+func _switched_luminaires(doc: SchematicDocument) -> Dictionary[String, bool]:
+	var result: Dictionary[String, bool] = {}
+	var graph: Dictionary[String, PackedStringArray] = lighting_graph(doc)
+	for group: PackedStringArray in _groups_of(graph, graph.keys()):
+		var has_switch: bool = false
+		for node: String in group:
+			if node.contains("#"):
+				has_switch = true
+		if has_switch:
+			for node: String in group:
+				if not node.contains("#"):
+					result[node] = true
+	return result
+
+
+## [param nodes] of [param graph] in groups joined by its edges (only those
+## between nodes of [param nodes]).
+static func _groups_of(graph: Dictionary[String, PackedStringArray], nodes: Array) -> Array[PackedStringArray]:
+	var seen: Dictionary[String, bool] = {}
+	var groups: Array[PackedStringArray] = []
+	for start: String in nodes:
+		if seen.has(start):
+			continue
+		var group: PackedStringArray = PackedStringArray()
+		var queue: PackedStringArray = PackedStringArray([start])
+		seen[start] = true
+		while not queue.is_empty():
+			var node: String = queue[0]
+			queue.remove_at(0)
+			group.append(node)
+			for next: String in graph.get(node, PackedStringArray()):
+				if nodes.has(next) and not seen.has(next):
+					seen[next] = true
+					queue.append(next)
+		groups.append(group)
+	return groups
+
+
+## Luminaires reached from [param node] through luminaires alone.
+static func _lights_from(graph: Dictionary[String, PackedStringArray], node: String) -> PackedStringArray:
+	var found: PackedStringArray = PackedStringArray()
+	var queue: PackedStringArray = PackedStringArray()
+	for next: String in graph.get(node, PackedStringArray()):
+		if not next.contains("#"):
+			queue.append(next)
+	while not queue.is_empty():
+		var light: String = queue[0]
+		queue.remove_at(0)
+		if found.has(light):
+			continue
+		found.append(light)
+		for next: String in graph.get(light, PackedStringArray()):
+			if not next.contains("#") and not found.has(next):
+				queue.append(next)
+	return found
+
+
+## Wires the light switches and the luminaires they switch, as drawn on
+## the plan: a one-way output from the circuit's phase to its luminaires;
+## a staircase of two two-way switches (with intermediates between them)
+## from the phase on the first's common through the travellers, crossed so
+## that all at rest leave the light off, to the luminaires on the last's
+## common (the end the luminaires are drawn to); the phase from the
+## circuit of the first switch that has one.
+func _wire_lighting(doc: SchematicDocument) -> void:
+	var graph: Dictionary[String, PackedStringArray] = lighting_graph(doc)
+	for group: PackedStringArray in _groups_of(graph, graph.keys()):
+		var switch_nodes: PackedStringArray = PackedStringArray()
+		for node: String in group:
+			if node.contains("#"):
+				switch_nodes.append(node)
+		if switch_nodes.is_empty():
+			continue
+		var phase: String = ""
+		for node: String in switch_nodes:
+			var f: Feeder = feeder_feeding(node.get_slice("#", 0))
+			if f != null and _live.has(f.device):
+				phase = _live[f.device]
+				break
+		if phase.is_empty():
+			for node: String in group:
+				var f: Feeder = feeder_feeding(node.get_slice("#", 0))
+				if f != null and _live.has(f.device):
+					phase = _live[f.device]
+					break
+		var one_way: PackedStringArray = PackedStringArray()
+		var chained: PackedStringArray = PackedStringArray()
+		for node: String in switch_nodes:
+			var port: Dictionary = _port(doc, node)
+			if port.has("b") or port.has("through"):
+				chained.append(node)
+			else:
+				one_way.append(node)
+		for node: String in one_way:
+			var port: Dictionary = _port(doc, node)
+			_join(doc, phase, port["common"])
+			for light: String in _lights_from(graph, node):
+				_join(doc, port["a"], light + ":L")
+		for chain: PackedStringArray in _groups_of(graph, Array(chained)):
+			_wire_chain(doc, graph, chain, phase)
+
+
+func _port(doc: SchematicDocument, node: String) -> Dictionary:
+	var sw: LightSwitch = doc.circuit.get_component(node.get_slice("#", 0)) as LightSwitch
+	var ports: Array[Dictionary] = switch_ports(sw)
+	return ports[clampi(int(node.get_slice("#", 1)), 0, ports.size() - 1)]
+
+
+## Wires a staircase [param chain] of two-way switches and intermediates.
+func _wire_chain(doc: SchematicDocument, graph: Dictionary[String, PackedStringArray], chain: PackedStringArray, phase: String) -> void:
+	var ends: PackedStringArray = PackedStringArray()
+	var lights: PackedStringArray = PackedStringArray()
+	for node: String in chain:
+		var degree: int = 0
+		for next: String in graph.get(node, PackedStringArray()):
+			if chain.has(next):
+				degree += 1
+		if _port(doc, node).has("b") and degree <= 1:
+			ends.append(node)
+		for light: String in _lights_from(graph, node):
+			if not lights.has(light):
+				lights.append(light)
+	if ends.size() == 1 and chain.size() == 1:
+		# A two-way switch alone: as a one-way one.
+		var port: Dictionary = _port(doc, ends[0])
+		_join(doc, phase, port["common"])
+		for light: String in lights:
+			_join(doc, port["a"], light + ":L")
+		return
+	if ends.size() != 2:
+		return
+	# The last is the end the luminaires are drawn to.
+	var last: String = ends[0]
+	if _lights_from(graph, ends[0]).is_empty() and not _lights_from(graph, ends[1]).is_empty():
+		last = ends[1]
+	var first: String = ends[0] if last == ends[1] else ends[1]
+	var path: PackedStringArray = _path(graph, chain, first, last)
+	var first_port: Dictionary = _port(doc, first)
+	_join(doc, phase, first_port["common"])
+	var t1: String = first_port["a"]
+	var t2: String = first_port["b"]
+	for i: int in range(1, path.size() - 1):
+		var port: Dictionary = _port(doc, path[i])
+		if not port.has("through"):
+			continue
+		var through: Array = port["through"]
+		_join(doc, t1, through[0])
+		_join(doc, t2, through[1])
+		t1 = through[2]
+		t2 = through[3]
+	var last_port: Dictionary = _port(doc, last)
+	# Crossed: all at rest, the light is off.
+	_join(doc, t1, last_port["b"])
+	_join(doc, t2, last_port["a"])
+	for light: String in lights:
+		_join(doc, last_port["common"], light + ":L")
+
+
+## The nodes from [param from] to [param to] within [param chain].
+static func _path(graph: Dictionary[String, PackedStringArray], chain: PackedStringArray, from: String, to: String) -> PackedStringArray:
+	var back: Dictionary[String, String] = {from: ""}
+	var queue: PackedStringArray = PackedStringArray([from])
+	while not queue.is_empty():
+		var node: String = queue[0]
+		queue.remove_at(0)
+		if node == to:
+			break
+		for next: String in graph.get(node, PackedStringArray()):
+			if chain.has(next) and not back.has(next):
+				back[next] = node
+				queue.append(next)
+	var path: PackedStringArray = PackedStringArray()
+	var at: String = to
+	while not at.is_empty():
+		path.insert(0, at)
+		at = back.get(at, "")
+	return path
 
 
 ## The supply points, the main switch and one ripple control contact a

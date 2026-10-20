@@ -227,8 +227,9 @@ func thing_at(point: Vector2) -> Dictionary:
 			return {"kind": "device", "designation": f.device}
 		if line().switched_by_hdo(f) and absf(v - cv) < 14.0 and u > HDO_U - 4.0 and u < HDO_U + 44.0:
 			return {"kind": "hdo", "designation": SingleLine.HDO}
-		if not f.loads.is_empty() and absf(v - cv) < 18.0 and absf(u - LOAD_U) < 18.0:
-			return {"kind": "load", "designation": f.loads[0]}
+		var end: CircuitComponent = SingleLine.end_part(f, document.circuit)
+		if end != null and absf(v - cv) < 18.0 and absf(u - LOAD_U) < 18.0:
+			return {"kind": "load", "designation": end.designation}
 		if not f.room.is_empty() and v > cv + 6.0 and v < cv + 22.0 and u > LOAD_U + 18.0 and u < LOAD_U + 120.0:
 			return {"kind": "room", "designation": f.room}
 	return {}
@@ -477,6 +478,8 @@ static func new_designation(doc: SchematicDocument, template: Dictionary) -> Str
 			return doc.next_device_designation("FA")
 		"rcd", "afdd":
 			return doc.next_designation("FB")
+		"light_switch":
+			return doc.next_designation("SF")
 		"luminaire":
 			return doc.next_designation("EA")
 		"socket":
@@ -915,7 +918,7 @@ func _draw_circuit(entry: Dictionary) -> void:
 		_across(HDO_U + 20.0, v, [[_dash(SingleLine.HDO), DATA_SIZE, designation_color()], [tr("HDO"), SMALL_SIZE, SchematicTheme.TEXT]], true, 16.0)
 		out_color = _reach(contact_keys[1])
 		u = HDO_U + 50.0
-	var load: CircuitComponent = document.circuit.get_component(f.loads[0]) if not f.loads.is_empty() else null
+	var load: CircuitComponent = SingleLine.end_part(f, document.circuit)
 	var load_top: float = LOAD_U - (10.0 if load is SocketOutlet or load is Luminaire else LOAD_R) if load != null else LOAD_U - LOAD_R
 	_seg(u, v, load_top, v, out_color)
 	# The cable: its number on a ledger, its type along the line.
@@ -924,8 +927,9 @@ func _draw_circuit(entry: Dictionary) -> void:
 	_along(LEDGER_U + 6.0, v - 7.0, SingleLine.cable_text(f, document.circuit), DATA_SIZE, data_color())
 	if load != null:
 		_load(load, LOAD_U, v, load.designation == selected and not sheet)
-		if f.loads.size() > 1:
-			_across(LOAD_U, v, [["%d×" % f.loads.size(), DATA_SIZE, SchematicTheme.TEXT]], false, LOAD_R + 5.0)
+		var count: int = SingleLine.end_count(f, document.circuit)
+		if count > 1:
+			_across(LOAD_U, v, [["%d×" % count, DATA_SIZE, SchematicTheme.TEXT]], false, LOAD_R + 5.0)
 	var destination: String = f.destination
 	if destination.is_empty():
 		destination = _kind_name(load) if load != null else tr("Spare")

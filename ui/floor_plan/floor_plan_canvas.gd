@@ -15,6 +15,14 @@ extends Control
 ## takes the selection away, a double click renames a room. Simulate mode: a
 ## click on a switch switches its rocker (of two, the one on the side
 ## clicked); luminaires light up, working appliances and live sockets glow.
+##
+## A residential installation (its single-line diagram wires the plan, see
+## [SingleLine]): WIRE draws the lighting, dragged from a switch (the side of
+## a two-rocker one: which rocker) to a luminaire or another switch, drawn
+## along the walls with a tick per core; PLACE also puts a new part from
+## the palette ([member placing_template]) on [member circuit]; sockets and
+## appliances carry their tag ("Z 6.1"), rooms their number, and beside the
+## plan the legend of the rooms with their environment and illuminance.
 
 ## Changes the plan: [param change] is called with the document.
 signal edit_requested(change: Callable)
@@ -27,8 +35,10 @@ signal placed
 ## The consumer unit should open (a click on it while simulating, a double
 ## click while editing).
 signal unit_requested
+## [member selected] changed.
+signal selection_changed
 
-enum Tool { SELECT, ROOM, DOOR, PLACE }
+enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE }
 
 ## Pixels a metre at zoom 1.
 const PX: float = 60.0
@@ -46,6 +56,12 @@ const LEGEND_HEIGHT: float = 2.6
 const LEGEND_WIDTH: float = 16.0
 const NAME_SIZE: int = 14
 const TEXT_SIZE: int = 11
+## The room legend of a residential installation beside the plan: its
+## columns' widths and the height of a row (m).
+const ROOM_COLUMNS: PackedFloat32Array = [0.9, 2.6, 3.3, 1.8]
+const ROOM_ROW: float = 0.45
+## A link within this (pixels) of the mouse is under it.
+const LINK_GRAB: float = 6.0
 
 var document: SchematicDocument
 var editing: bool = false
@@ -55,14 +71,23 @@ var tool: Tool = Tool.SELECT:
 		mouse_default_cursor_shape = Control.CURSOR_CROSS if value != Tool.SELECT else Control.CURSOR_ARROW
 ## Designation (or [constant FloorPlan.UNIT]) put by a click with Tool.PLACE.
 var placing: String = ""
+## A palette template a click with Tool.PLACE makes a new part of ({} for none).
+var placing_template: Dictionary = {}
+## The circuit (its device) new parts go on in a residential installation.
+var circuit: String = ""
 var zoom: float = 1.0
 ## Screen position of the plan's origin.
 var offset: Vector2 = Vector2(60.0, 60.0)
 ## Drawn for a sheet: the legend of the symbols and the standard heights
 ## under the plan (see [method paper_area]).
 var legend: bool = false
-## What is selected: {"kind": "room" / "door" / "part", "index", "designation"}.
-var selected: Dictionary = {}
+## What is selected: {"kind": "room" / "door" / "part" / "link", "index", "designation"}.
+var selected: Dictionary = {}:
+	set(value):
+		var changed: bool = value != selected
+		selected = value
+		if changed:
+			selection_changed.emit()
 
 var _press: Dictionary = {}
 var _press_at: Vector2 = Vector2.ZERO
@@ -81,6 +106,11 @@ func plan() -> FloorPlan:
 	return document.floor_plan if document != null else null
 
 
+## A residential installation: its plan wired by the single-line diagram.
+func installation() -> bool:
+	return document != null and document.environment == SchematicDocument.Kind.RESIDENTIAL
+
+
 func to_plan(point: Vector2) -> Vector2:
 	return (point - offset) / (PX * zoom)
 
@@ -95,13 +125,27 @@ func paper_area() -> Rect2:
 	var area: Rect2 = plan().bounds().grow(0.8)
 	if not area.has_area():
 		area = Rect2(0, 0, 4, 3)
+	if installation() and not plan().rooms.is_empty():
+		# The room legend beside the plan.
+		area = area.merge(_room_legend_rect().grow(0.4))
 	# The legend's two columns need their width.
 	return Rect2(area.position, Vector2(maxf(area.size.x, LEGEND_WIDTH), area.size.y + LEGEND_HEIGHT))
+
+
+## Where the room legend of a residential installation is (m): right of the rooms.
+func _room_legend_rect() -> Rect2:
+	var rooms_area: Rect2 = plan().bounds()
+	var width: float = 0.0
+	for w: float in ROOM_COLUMNS:
+		width += w
+	return Rect2(Vector2(rooms_area.end.x + 1.2, rooms_area.position.y + 0.6), Vector2(width, ROOM_ROW * (plan().rooms.size() + 1)))
 
 
 ## Shows everything, as large as fits.
 func fit() -> void:
 	var area: Rect2 = plan().bounds() if plan() != null else Rect2()
+	if installation() and not plan().rooms.is_empty():
+		area = area.merge(_room_legend_rect())
 	if not area.has_area() or size.x < 10.0:
 		zoom = 1.0
 		offset = Vector2(60.0, 60.0)
@@ -135,6 +179,36 @@ func part_at(point: Vector2) -> String:
 			best = d
 			found = designation
 	return found
+
+
+## The link of the lighting under screen point [param point], -1 for none.
+func link_at(point: Vector2) -> int:
+	if not installation():
+		return -1
+	for i: int in plan().links.size():
+		var path: PackedVector2Array = _link_path(plan().links[i])
+		for k: int in path.size() - 1:
+			if Geometry2D.get_closest_point_to_segment(point, path[k], path[k + 1]).distance_to(point) < LINK_GRAB:
+				return i
+	return -1
+
+
+## The way link [param link] is drawn along the walls (screen points).
+func _link_path(link: FloorPlan.Link) -> PackedVector2Array:
+	var a: Vector2 = to_screen(_cable_end(link.a))
+	var b: Vector2 = to_screen(_cable_end(link.b))
+	return PackedVector2Array([a, Vector2(b.x, a.y), b])
+
+
+## The rocker or output of switch [param designation] a point on its
+## symbol is on: of two, the side as seen from the room.
+func _port_at(designation: String, point: Vector2) -> int:
+	var sw: LightSwitch = document.circuit.get_component(designation) as LightSwitch
+	if sw == null or SingleLine.switch_ports(sw).size() < 2:
+		return 0
+	var center: Vector2 = to_screen(symbol_center(designation))
+	var into: Vector2 = FloorPlan.FACING[plan().facing.get(designation, 1)]
+	return 0 if (point - center).dot(into.rotated(-PI / 2.0)) < 0.0 else 1
 
 
 ## The door under screen point [param point], -1 for none.
@@ -220,6 +294,8 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					# A right click ends drawing rooms, doors or placing.
 					tool = Tool.SELECT
 					placing = ""
+					placing_template = {}
+					placed.emit()
 					queue_redraw()
 		MOUSE_BUTTON_LEFT:
 			if not editing:
@@ -240,7 +316,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_press_at = mb.position
 				_dragging = false
 				_press = _pressed(mb.position)
-				if _press["kind"] in ["room", "door", "part", "edge"]:
+				if _press["kind"] in ["room", "door", "part", "edge", "link"]:
 					selected = _press
 				elif tool == Tool.SELECT:
 					selected = {}
@@ -262,9 +338,18 @@ func _pressed(point: Vector2) -> Dictionary:
 			return {"kind": "new_door"}
 		Tool.PLACE:
 			return {"kind": "new_part"}
+		Tool.WIRE:
+			var from: String = part_at(point)
+			var c: CircuitComponent = document.circuit.get_component(from) if not from.is_empty() else null
+			if c is LightSwitch or c is Luminaire:
+				return {"kind": "new_link", "designation": from, "port": _port_at(from, point)}
+			return {"kind": "empty"}
 	var part: String = part_at(point)
 	if not part.is_empty():
 		return {"kind": "part", "designation": part}
+	var link: int = link_at(point)
+	if link >= 0:
+		return {"kind": "link", "index": link}
 	var door: int = door_at(point)
 	if door >= 0:
 		return {"kind": "door", "index": door}
@@ -292,7 +377,31 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				var at: Vector2 = wall["at"]
 				var vertical: bool = int(wall["facing"]) % 2 == 0
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.append(FloorPlan.Door.new(at, vertical)))
+		"new_link":
+			var to: String = part_at(point)
+			var c: CircuitComponent = document.circuit.get_component(to) if not to.is_empty() else null
+			var from: String = press["designation"]
+			if (c is LightSwitch or c is Luminaire) and to != from and (c is LightSwitch or document.circuit.get_component(from) is LightSwitch or c is Luminaire):
+				var from_port: int = press["port"]
+				var to_port: int = _port_at(to, point)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.add_link(from, from_port, to, to_port))
 		"new_part":
+			if not placing_template.is_empty():
+				var template: Dictionary = placing_template.duplicate()
+				var feeder: String = circuit
+				var ceiling_part: bool = template.get("type", "") == "luminaire"
+				edit_requested.emit(func(doc: SchematicDocument) -> void:
+					var data: Dictionary = template.duplicate()
+					data["designation"] = SingleLineCanvas.new_designation(doc, template)
+					var part: CircuitComponent = DocumentSerializer.component_from_dict(data)
+					if part == null:
+						return
+					doc.add(part, SingleLine.hidden_cell(doc))
+					var f: SingleLine.Feeder = doc.single_line.feeder_of(feeder)
+					if f != null:
+						f.loads.append(part.designation)
+					doc.floor_plan.place(part.designation, m, ceiling_part))
+				return
 			var designation: String = placing
 			if not designation.is_empty():
 				var ceiling: bool = document.circuit.get_component(designation) is Luminaire
@@ -362,6 +471,11 @@ func delete_selected() -> void:
 		"part":
 			var designation: String = selected["designation"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.remove(designation))
+		"link":
+			var link: int = selected["index"]
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				if link < doc.floor_plan.links.size():
+					doc.floor_plan.links.remove_at(link))
 	selected = {}
 	queue_redraw()
 
@@ -463,13 +577,21 @@ func _draw() -> void:
 	for i: int in plan().doors.size():
 		_draw_door(plan().doors[i], s, wall, selected.get("kind", "") == "door" and selected.get("index", -1) == i)
 	for i: int in rooms.size():
-		# Name and area in the room's corner, clear of its ceiling light.
+		# Name and area in the room's corner, clear of its ceiling light;
+		# in a residential installation its number (the legend names it).
 		var room: FloorPlan.Room = plan().rooms[i]
 		var corner: Vector2 = to_screen(rooms[i].position) + Vector2(wall + 6.0, wall + 4.0 + font.get_ascent(NAME_SIZE))
-		draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, Color(SchematicTheme.LINE, 0.55))
+		if installation():
+			corner.y += 6.0
+			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE + 6, Color(SchematicTheme.LINE, 0.75))
+		else:
+			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, Color(SchematicTheme.LINE, 0.55))
 		var area: String = "%s m²" % String.num(rooms[i].size.x * rooms[i].size.y, 1)
 		draw_string(font, corner + Vector2(0, NAME_SIZE + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, Color(SchematicTheme.LINE, 0.45))
-	_draw_cables(s, font)
+	if installation():
+		_draw_links(font)
+	else:
+		_draw_cables(s, font)
 	for designation: String in plan().parts:
 		_draw_part(designation, s, font)
 	if editing and tool == Tool.ROOM and _press.get("kind", "") == "new_room":
@@ -483,6 +605,14 @@ func _draw() -> void:
 		var at: Vector2 = wall_point.get("at", FloorPlan.snap(m))
 		draw_circle(to_screen(at), 4.0, SchematicTheme.HOVER)
 		draw_string(font, to_screen(at) + Vector2(8, -6), ("-" if placing != FloorPlan.UNIT else "") + placing, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
+	if editing and tool == Tool.PLACE and not placing_template.is_empty():
+		var m: Vector2 = to_plan(_mouse)
+		var wall_point: Dictionary = {} if placing_template.get("type", "") == "luminaire" else plan().wall_near(m)
+		draw_circle(to_screen(wall_point.get("at", FloorPlan.snap(m))), 4.0, SchematicTheme.HOVER)
+	if editing and tool == Tool.WIRE and _press.get("kind", "") == "new_link":
+		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.HOVER, 1.6, 5.0)
+	if installation() and not plan().rooms.is_empty():
+		_draw_room_legend(s, font)
 	if legend:
 		_draw_legend(s, font)
 	if plan().rooms.is_empty() and editing:
@@ -588,6 +718,81 @@ func _draw_door(door: FloorPlan.Door, s: float, wall: float, chosen: bool) -> vo
 	draw_line(b - along * 2.0, b + along * 2.0, SchematicTheme.LINE, wall)
 
 
+## The lighting of a residential installation: each link along the walls,
+## a tick per core it carries (the nets its two ends share).
+func _draw_links(font: Font) -> void:
+	var nets: Dictionary[String, int] = _nets()
+	for i: int in plan().links.size():
+		var link: FloorPlan.Link = plan().links[i]
+		if not (plan().parts.has(link.a) and plan().parts.has(link.b)):
+			continue
+		var chosen: bool = selected.get("kind", "") == "link" and selected.get("index", -1) == i
+		var color: Color = SchematicTheme.HOVER if chosen else SchematicTheme.LINE
+		var path: PackedVector2Array = _link_path(link)
+		draw_polyline(path, color, clampf(1.3 * zoom, 1.0, 2.2), true)
+		var shared: Dictionary[int, bool] = {}
+		var a: CircuitComponent = document.circuit.get_component(link.a)
+		var b: CircuitComponent = document.circuit.get_component(link.b)
+		var b_nets: Dictionary[int, bool] = {}
+		for key: String in b.get_terminal_keys():
+			if nets.has(key):
+				b_nets[nets[key]] = true
+		for key: String in a.get_terminal_keys():
+			if nets.has(key) and b_nets.has(nets[key]):
+				shared[nets[key]] = true
+		var longer: PackedVector2Array = PackedVector2Array([path[0], path[1]]) if path[0].distance_to(path[1]) >= path[1].distance_to(path[2]) else PackedVector2Array([path[1], path[2]])
+		if longer[0].distance_to(longer[1]) < 1.0 or shared.is_empty():
+			continue
+		var mid: Vector2 = (longer[0] + longer[1]) * 0.5
+		var dir: Vector2 = (longer[1] - longer[0]).normalized()
+		var tick: Vector2 = dir.rotated(PI / 3.0) * 5.0
+		for k: int in shared.size():
+			var p: Vector2 = mid + dir * (k - (shared.size() - 1) * 0.5) * 4.0
+			draw_line(p - tick, p + tick, color, 1.1, true)
+
+
+## Net of each terminal key (wires joined), as roots of a union.
+func _nets() -> Dictionary[String, int]:
+	var index: Dictionary[String, int] = {}
+	for c: CircuitComponent in document.circuit.get_components():
+		for key: String in c.get_terminal_keys():
+			index[key] = index.size()
+	var uf: UnionFind = UnionFind.new(index.size())
+	for wire: PackedStringArray in document.circuit.get_wires():
+		if index.has(wire[0]) and index.has(wire[1]):
+			uf.union(index[wire[0]], index[wire[1]])
+	var result: Dictionary[String, int] = {}
+	for key: String in index:
+		result[key] = uf.find(index[key])
+	return result
+
+
+## The legend of the rooms of a residential installation beside the plan:
+## number, purpose, environment after ČSN 33 2000-5-51, illuminance.
+func _draw_room_legend(s: float, font: Font) -> void:
+	var rect: Rect2 = _room_legend_rect()
+	var top_left: Vector2 = to_screen(rect.position)
+	var color: Color = SchematicTheme.LINE
+	draw_string(font, top_left + Vector2(0, -0.2 * s), tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE + 2, color)
+	var heads: PackedStringArray = PackedStringArray([tr("Number"), tr("Purpose of the room"), tr("Environment (ČSN 33 2000-5-51)"), tr("Illuminance (lx)")])
+	var rows: int = plan().rooms.size() + 1
+	draw_rect(Rect2(top_left, rect.size * s), color, false, 1.0)
+	for row: int in range(1, rows):
+		var y: float = top_left.y + row * ROOM_ROW * s
+		draw_line(Vector2(top_left.x, y), Vector2(top_left.x + rect.size.x * s, y), color, 1.0)
+	var x: float = top_left.x
+	var text_size: int = maxi(roundi(TEXT_SIZE * zoom), 6)
+	for column: int in ROOM_COLUMNS.size():
+		if column > 0:
+			draw_line(Vector2(x, top_left.y), Vector2(x, top_left.y + rows * ROOM_ROW * s), color, 1.0)
+		var width: float = ROOM_COLUMNS[column] * s - 8.0
+		draw_string(font, Vector2(x + 4.0, top_left.y + ROOM_ROW * s * 0.7), heads[column], HORIZONTAL_ALIGNMENT_LEFT, width, text_size, color)
+		for i: int in plan().rooms.size():
+			var values: PackedStringArray = PackedStringArray([plan().room_number(i), tr(plan().rooms[i].name), plan().room_environment(i), plan().room_lux(i)])
+			draw_string(font, Vector2(x + 4.0, top_left.y + (i + 1.7) * ROOM_ROW * s), values[column], HORIZONTAL_ALIGNMENT_LEFT, width, text_size, SchematicTheme.TEXT)
+		x += ROOM_COLUMNS[column] * s
+
+
 func _draw_cables(s: float, font: Font) -> void:
 	var color: Color = SchematicTheme.DESIGNATION
 	for cable: Dictionary in plan().cables(document.circuit):
@@ -630,6 +835,11 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 	else:
 		var c: CircuitComponent = document.circuit.get_component(designation)
 		label = "-" + designation
+		if installation() and (c is SocketOutlet or c is Appliance):
+			# Its circuit and place on it, as Czech plans tag outlets.
+			var tag: String = document.single_line.tag(designation, document.circuit)
+			if not tag.is_empty():
+				label = tag
 		if c is LightSwitch:
 			PlanSymbols.draw_switch(self, c as LightSwitch, at, into, s, color, width)
 			if not is_equal_approx((c as LightSwitch).height, LightSwitch.STANDARD_HEIGHT):

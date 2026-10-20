@@ -23,6 +23,15 @@ What changed in each LadderLab version. Version numbers follow the rules in
   circuits show their voltage, and the main switch, breakers, RCDs, test buttons and the HDO
   contact are clicked to operate them
 - Export to PDF puts a residential installation's single-line diagram on a sheet
+- The floor plan of a residential installation takes its light switches, luminaires,
+  sockets and appliances from the palette onto the circuit chosen beside the plan (a part's
+  circuit is changed there too). Wire draws the lighting: from a switch to the luminaires it
+  switches, between the switches of a staircase (with intermediate switches between them),
+  from the side of a two-rocker switch for its rocker; it is wired by itself and simulates,
+  drawn along the walls with a tick per core
+- Sockets and appliances on the plan carry their circuit tag (Z 6.1); rooms their number,
+  and the plan a legend of the rooms with their environment (ČSN 33 2000-5-51) and
+  illuminance, set by a double click on a room
 - The floor plan opens the consumer unit RD1 (a click on its symbol while simulating, a
   double click in Edit mode): its switchboard in place of the plan, made with the protection
   on its rails when there is none yet, its breakers switched there while simulating

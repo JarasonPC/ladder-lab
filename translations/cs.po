@@ -5259,3 +5259,28 @@ msgstr "Proudový chránič, čtyřpólový"
 
 msgid "RCD with overcurrent release (RCBO)"
 msgstr "Chránič s nadproudovou ochranou (RCBO)"
+
+msgid "Number"
+msgstr "Číslo"
+
+msgid "Purpose of the room"
+msgstr "Účel místnosti"
+
+msgid "Environment (ČSN 33 2000-5-51)"
+msgstr "Prostředí dle ČSN 33 2000-5-51"
+
+msgid "Illuminance (lx)"
+msgstr "Osvětlení (lx)"
+
+msgid "Draw the lighting: drag from a light switch (of two rockers, from the side of the one) to a luminaire it switches, or to the other switch of a staircase; it is wired by itself"
+msgstr "Kreslení osvětlení: táhněte od vypínače (u dvou kolébek od strany té jedné) ke svítidlu, které spíná, nebo k druhému schodišťovému přepínači; zapojí se samo"
+
+#, c-format
+msgid "Circuit of -%s"
+msgstr "Obvod prvku -%s"
+
+msgid "Circuit for new parts"
+msgstr "Obvod pro nové prvky"
+
+msgid "No circuit"
+msgstr "Bez obvodu"

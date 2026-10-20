@@ -291,6 +291,34 @@ Architecture and conventions of the code base. Read this before changing the cod
   bar, rotate, mirror, flip, numbering and Check hidden) and sends it the palette's templates.
   Export: the schematic pages of a residential installation are one "single_line" sheet
   (SingleLineCanvas.extent, sheet set)
+- Floor plan of a residential installation (FloorPlanCanvas.installation): the parts its
+  circuits feed are put on the plan from the palette (Palette.plan: PLAN_ENTRIES, the light
+  switches and the parts; main.gd routes the template to FloorPlanView.begin_place_template;
+  placing_template made with SingleLineCanvas.new_designation on the hidden page and added
+  to circuit FloorPlanCanvas.circuit, again until a right click). Beside the plan a circuit
+  picker (FloorPlanView._fill_circuits): the circuit of the selected part, changed there, or
+  the one new parts go on (the first unless "No circuit" is picked). Light switches are parts
+  a circuit feeds too (SingleLine.is_load; end_part, end_count leave them out at the circuit's
+  end on the diagram). Tool.WIRE draws the lighting (FloorPlan.links, FloorPlan.Link: two parts
+  and the port at each, the rocker or output of a switch with two, 4 / 5 / 5B, by the side
+  dragged from as seen from the room, _port_at), drawn along the walls (an L) with a tick per
+  core, the nets its ends share (_draw_links; the cables of the prototype are not drawn);
+  selected and deleted like a part; taken away with a part off the plan, renamed with it.
+  SingleLine.wire wires the lighting from it (lighting_graph: nodes "SF1#0" for a switch's
+  port, "EA1" for a luminaire; switch_ports: one-way {common, a}, two-way {common, a, b}, an
+  intermediate {through}): luminaires a switch reaches (through luminaires drawn to each other)
+  get their phase only through it (_switched_luminaires; N and PE from their circuit); a
+  one-way port from its circuit's phase to its luminaires; a staircase (two two-way ends,
+  intermediates between) from the phase on the first's common through the travellers to the
+  last's (the end the luminaires are drawn to) crossed, so that all at rest the light is off,
+  the luminaires on the last's common (_wire_chain); the phase from the circuit of the first
+  switch that has one. Sockets and appliances carry their tag (SingleLine.tag: "Z" cable
+  number "." place among the circuit's sockets and appliances) in place of the designation.
+  Rooms: number (FloorPlan.room_number: set, else 101 on), environment after ČSN 33
+  2000-5-51 (room_environment: set, else N, a Bathroom ČSN 33 2000-7-701; ENVIRONMENTS
+  offered), illuminance (room_lux: set, else LUX by its name); the number in the room, and
+  beside the plan the legend of the rooms (_draw_room_legend, ROOM_COLUMNS; in paper_area and
+  fit); the room dialog (double click) asks them too
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
