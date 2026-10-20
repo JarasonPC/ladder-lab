@@ -11,8 +11,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   parts that face each other with straight wires in one go
 - Wiring helpers under Settings > Wiring: "Wire all poles at once" makes a wire drawn between
   breakers, contactors, overload relays, motors or supply points in a row take the poles
-  beside it along (Shift: that wire alone); "Wire parts placed in line" gives a part placed
-  or dropped straight wires to the free terminals it faces, EPLAN style. The wires to come
+  beside it along (Shift: that wire alone); "Wire parts placed in line (EPLAN style)" gives a
+  part placed or dropped straight wires to the free terminals it faces. The wires to come
   are shown dashed first
 
 ### Panels

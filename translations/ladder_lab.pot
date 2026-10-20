@@ -673,10 +673,10 @@ msgstr ""
 msgid "A wire drawn between multi-pole parts takes the poles beside it along (Shift: that wire alone)"
 msgstr ""
 
-msgid "Wire parts placed in line"
+msgid "Wire parts placed in line (EPLAN style)"
 msgstr ""
 
-msgid "A part placed or dropped gets straight wires to the free terminals it faces, EPLAN style (autoconnect)"
+msgid "A part placed or dropped gets straight wires to the free terminals it faces"
 msgstr ""
 
 msgid "Language"
