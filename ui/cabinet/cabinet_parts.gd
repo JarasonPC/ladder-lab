@@ -1874,12 +1874,14 @@ const SWITCH := Vector2(45.0, 100.0)
 ## Bottom of its sockets, the top face of its terminal block.
 const SWITCH_PORT_BOTTOM: float = SWITCH.y - 12.0
 const SWITCH_SCREW_TOP: float = 3.0
-## An RJ45 socket's opening and the plug in it (width across, length out of
-## the socket including its boot).
+## An RJ45 socket's opening and the plug in it: its width, how far it goes
+## under the socket's rim (the rest of it, contacts and all, is pushed home
+## out of sight), how far its body and then its boot stand out.
 const RJ45_SOCKET := Vector2(9.4, 9.0)
 const RJ45_PLUG_W: float = 8.2
-const RJ45_BODY: float = 6.0
-const RJ45_BOOT: float = 7.0
+const RJ45_IN: float = 0.8
+const RJ45_BODY: float = 2.2
+const RJ45_BOOT: float = 6.0
 const RJ45_CLEAR := Color(0.86, 0.9, 0.92, 0.9)
 
 
@@ -1924,18 +1926,15 @@ static func rj45_socket(p: CabinetPainter, bottom: Vector2) -> void:
 	p.rect(Rect2(bottom.x - 1.6, bottom.y - 2.2, 3.2, 2.2), Color("2a2e31"), 0.2)
 
 
-## An RJ45 plug in a socket whose opening ends at [param tip], its cable
-## leaving along [param along]: the clear body with its gold contacts, the
-## boot round the cable.
+## An RJ45 plug pushed home in a socket whose opening ends at [param tip],
+## its cable leaving along [param along]: the end of its clear body out of
+## the socket, the boot round the cable.
 static func rj45_plug(p: CabinetPainter, tip: Vector2, along: Vector2) -> void:
 	var across: Vector2 = along.orthogonal()
 	var half: float = RJ45_PLUG_W * 0.5
-	var a: Vector2 = tip - along * 1.5
+	var a: Vector2 = tip - along * RJ45_IN
 	var b: Vector2 = tip + along * RJ45_BODY
 	p.polygon(PackedVector2Array([a - across * half, a + across * half, b + across * half, b - across * half]), RJ45_CLEAR, METAL_DARK, 0.2)
-	for i: int in 4:
-		var x: float = (i - 1.5) * 1.6
-		p.line(a + across * x + along * 0.6, a + across * x + along * 2.4, Color("d4a94a"), 0.5)
 	var c: Vector2 = b + along * RJ45_BOOT
 	var boot: Color = WIRE_COLORS[CabinetDevices.Conductor.NETWORK].lightened(0.15)
 	p.polygon(PackedVector2Array([b - across * half * 0.9, b + across * half * 0.9, c + across * half * 0.45, c - across * half * 0.45]), boot, boot.darkened(0.45), 0.2)
