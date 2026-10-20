@@ -520,3 +520,49 @@ func test_notes_and_furniture() -> void:
 	canvas.document = doc
 	assert_eq(canvas.note_at(canvas.to_screen(plan.notes[0].at))["end"], "anchor")
 	assert_eq(canvas.fixture_at(canvas.to_screen(plan.fixtures[0].rect.get_center())), 0)
+
+
+func test_floors_and_underlay() -> void:
+	var doc: SchematicDocument = _house()
+	doc.floor_plan.place("SF1", Vector2(3.0, 1.0), false)
+	assert_eq(doc.floor_plan.floor_name(), "1.NP")
+	assert_eq(doc.floor_plan.room_number(0), "101")
+	var upper: int = doc.add_floor()
+	assert_eq(upper, 1)
+	assert_eq(doc.floors[1].floor_name(), "2.NP")
+	var basement: int = doc.add_floor(true)
+	assert_eq(basement, 0, "the basement first, lowest")
+	assert_eq(doc.floors[0].floor_name(), "1.PP")
+	assert_eq(doc.floor, 1, "the floor shown stays the ground floor")
+	doc.floors[0].rooms.append(FloorPlan.Room.new("Cellar", Rect2(0, 0, 4, 3)))
+	assert_eq(doc.floors[0].room_number(0), "001")
+	doc.floors[2].rooms.append(FloorPlan.Room.new("Bedroom", Rect2(0, 0, 4, 3)))
+	assert_eq(doc.floors[2].room_number(0), "201")
+	# A part placed upstairs is placed; one on no floor is listed.
+	doc.floors[2].place("EA1", Vector2(1.0, 1.0), true)
+	assert_eq(doc.floor_of("EA1"), 2)
+	assert_eq(doc.unplaced_parts(), PackedStringArray(["+RD1", "XD1"]), "the consumer unit and the socket")
+	# Taken away everywhere when its part goes.
+	doc.remove_component(doc.circuit.get_component("EA1").id)
+	assert_eq(doc.floor_of("EA1"), -1)
+	# Saved with all floors and the underlay.
+	doc.floors[2].underlay = "/tmp/plan.png"
+	doc.floors[2].underlay_at = Vector2(-1, -1)
+	FloorPlanView.scale_underlay(doc.floors[2], Vector2(1, 1), 2.0)
+	assert_almost_eq(doc.floors[2].underlay_scale, FloorPlan.UNDERLAY_SCALE * 2.0, 1e-9)
+	assert_eq(doc.floors[2].underlay_at, Vector2(-3, -3), "the point kept where it was")
+	var again: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(again.floors.size(), 3)
+	assert_eq(again.floors[0].level, -1)
+	assert_eq(again.floors[2].rooms[0].name, "Bedroom")
+	assert_eq(again.floors[2].underlay, "/tmp/plan.png")
+	assert_eq(again.floor, 1)
+	assert_eq(again.floor_of("SF1"), 1)
+	# A sheet a floor with something on it.
+	var renderer: SheetRenderer = autofree(SheetRenderer.new())
+	renderer.workspace = true
+	renderer.schematic = false
+	var floors: Array = []
+	for spec: Dictionary in renderer.sheets(again, PackedInt32Array([0])):
+		floors.append(spec.get("floor", -1))
+	assert_eq(floors, [0, 1, 2])

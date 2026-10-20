@@ -263,9 +263,12 @@ func _fill() -> void:
 		_rooms = PackedStringArray([""])
 		_room.clear()
 		_room.add_item(tr("No room"))
-		for room: FloorPlan.Room in _document.floor_plan.rooms:
-			_rooms.append(room.name)
-			_room.add_item(tr(room.name))
+		for plan: FloorPlan in _document.floors:
+			for room: FloorPlan.Room in plan.rooms:
+				if _rooms.has(room.name):
+					continue
+				_rooms.append(room.name)
+				_room.add_item(tr(room.name) if _document.floors.size() == 1 else "%s  %s" % [plan.floor_name(), tr(room.name)])
 		_room.select(maxi(_rooms.find(f.room), 0))
 		var holder: SingleLine.Group = line.group_holding(f)
 		_hdo.set_pressed_no_signal(f.hdo)

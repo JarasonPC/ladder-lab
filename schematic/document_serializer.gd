@@ -65,7 +65,13 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		SchematicDocument.Kind.RESIDENTIAL:
 			result["environment"] = "installation"
 			result["single_line"] = doc.single_line.to_data()
-	if not doc.floor_plan.is_empty():
+	if doc.floors.size() > 1:
+		var floor_list: Array = []
+		for plan: FloorPlan in doc.floors:
+			floor_list.append(plan.to_data())
+		result["floors"] = floor_list
+		result["floor"] = doc.floor
+	elif not doc.floor_plan.is_empty():
 		result["floor_plan"] = doc.floor_plan.to_data()
 	if not doc.control_boxes.is_empty():
 		var boxes: Array[Dictionary] = []
@@ -189,8 +195,19 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 			if box != null:
 				doc.control_boxes.append(box)
 	doc.title_block = TitleBlock.from_data(d.get("title_block", {}))
-	doc.floor_plan = FloorPlan.from_data(d.get("floor_plan", {}))
-	doc.floor_plan.prune(doc.circuit)
+	var floor_list: Variant = d.get("floors", null)
+	if floor_list is Array and not (floor_list as Array).is_empty():
+		var floors: Array[FloorPlan] = []
+		for fd: Variant in floor_list:
+			floors.append(FloorPlan.from_data(fd))
+		floors.sort_custom(func(a: FloorPlan, b: FloorPlan) -> bool: return a.level < b.level)
+		doc.floors = floors
+		var shown: Variant = d.get("floor", 0)
+		doc.floor = clampi(int(shown), 0, floors.size() - 1) if (shown is int or shown is float) else 0
+	else:
+		doc.floor_plan = FloorPlan.from_data(d.get("floor_plan", {}))
+	for plan: FloorPlan in doc.floors:
+		plan.prune(doc.circuit)
 	if doc.environment == SchematicDocument.Kind.RESIDENTIAL:
 		doc.single_line = SingleLine.from_data(d.get("single_line", {}))
 		doc.single_line.wire(doc)

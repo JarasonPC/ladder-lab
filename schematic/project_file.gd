@@ -111,7 +111,10 @@ const FORMAT: String = "ladder-lab"
 ## plan's windows ("windows": at, width, vertical, sill, height) and wall
 ## thickness ("walls": [outside, between rooms]; missing: 0.30 and 0.15)
 ## and dimensions ("dimensions": a room's wall or two points, offset), notes
-## ("notes": text, at, label) and furniture ("fixtures": kind, rect, facing).
+## ("notes": text, at, label) and furniture ("fixtures": kind, rect, facing);
+## several floors ("floors": plans with "level" and "name", "floor": the one
+## shown; missing: one, as "floor_plan") and an underlay per plan
+## ("underlay": path, at, scale, shown).
 const VERSION: int = 44
 
 

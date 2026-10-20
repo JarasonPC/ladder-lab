@@ -5472,3 +5472,53 @@ msgstr "Stůl"
 
 msgid "Sofa"
 msgstr "Pohovka"
+
+#, c-format
+msgid "Floor plan %s"
+msgstr "Půdorys %s"
+
+msgid "Underlay: the architect's drawing under the plan, to trace the walls over it (a PDF page saved as a PNG or JPG first); it does not print"
+msgstr "Podklad: výkres architekta pod plánem, podle kterého obkreslíte zdi (stránku PDF nejprve uložte jako PNG nebo JPG); netiskne se"
+
+msgid "Scale of the underlay"
+msgstr "Měřítko podkladu"
+
+msgid "The two points are this far apart"
+msgstr "Vzdálenost obou bodů"
+
+msgid "Floors: each its own plan and sheet"
+msgstr "Podlaží: každé má svůj plán a výkres"
+
+msgid "Name of the floor"
+msgstr "Název podlaží"
+
+msgid "Add a floor above"
+msgstr "Přidat podlaží nad"
+
+msgid "Add a basement below"
+msgstr "Přidat podzemní podlaží pod"
+
+msgid "Rename this floor"
+msgstr "Přejmenovat toto podlaží"
+
+msgid "Remove this floor"
+msgstr "Odstranit toto podlaží"
+
+msgid "Load the architect's drawing (PNG or JPG)…"
+msgstr "Načíst výkres architekta (PNG nebo JPG)…"
+
+msgid "Set its scale: click two points a known distance apart"
+msgstr "Nastavit měřítko: klikněte na dva body se známou vzdáleností"
+
+msgid "Move it: drag it under the plan"
+msgstr "Posunout: táhněte jím pod plánem"
+
+msgid "Show it"
+msgstr "Zobrazit"
+
+msgid "Remove it"
+msgstr "Odstranit"
+
+#, c-format
+msgid "%s cannot be read"
+msgstr "%s nelze načíst"

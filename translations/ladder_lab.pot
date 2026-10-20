@@ -5457,3 +5457,53 @@ msgstr ""
 
 msgid "Sofa"
 msgstr ""
+
+#, c-format
+msgid "Floor plan %s"
+msgstr ""
+
+msgid "Underlay: the architect's drawing under the plan, to trace the walls over it (a PDF page saved as a PNG or JPG first); it does not print"
+msgstr ""
+
+msgid "Scale of the underlay"
+msgstr ""
+
+msgid "The two points are this far apart"
+msgstr ""
+
+msgid "Floors: each its own plan and sheet"
+msgstr ""
+
+msgid "Name of the floor"
+msgstr ""
+
+msgid "Add a floor above"
+msgstr ""
+
+msgid "Add a basement below"
+msgstr ""
+
+msgid "Rename this floor"
+msgstr ""
+
+msgid "Remove this floor"
+msgstr ""
+
+msgid "Load the architect's drawing (PNG or JPG)…"
+msgstr ""
+
+msgid "Set its scale: click two points a known distance apart"
+msgstr ""
+
+msgid "Move it: drag it under the plan"
+msgstr ""
+
+msgid "Show it"
+msgstr ""
+
+msgid "Remove it"
+msgstr ""
+
+#, c-format
+msgid "%s cannot be read"
+msgstr ""

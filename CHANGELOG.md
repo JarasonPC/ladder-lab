@@ -84,6 +84,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   R turns one, a double click sets its size; a socket behind the worktop goes at 1.10 m
 - Floor plan: selected rooms, parts, doors and windows are drawn in the selection colour,
   which shows on white paper
+- Floor plan: several floors (1.PP, 1.NP, 2.NP ...) as tabs over the plan, each its own plan
+  and sheet, rooms numbered by floor (001, 101, 201); one consumer unit and one single-line
+  diagram for the whole house
+- Floor plan: the architect's drawing (PNG or JPG) as a faint underlay to trace over, scaled
+  by two points a known distance apart and dragged into place; it does not print
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 
