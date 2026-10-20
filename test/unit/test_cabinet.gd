@@ -188,6 +188,24 @@ func test_layout_places_and_clicks() -> void:
 	assert_true(layout.size.x >= rail.end.x + CabinetLayout.SIDE_DUCT, "the plate holds the rails and the side ducts")
 
 
+func test_narrowest_switchboard_holds_three_3_pole_breakers() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("cabinet")
+	doc.add_switchboard()
+	doc.add_cabinet_rail(0)
+	var empty: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	for b: int in 3:
+		doc.add(MotorBreaker.new("FA%d" % (b + 1)), Vector2i(4 * b, 0))
+		doc.add_cabinet_item(0, 0, CabinetItem.Kind.DEVICE, "FA%d" % (b + 1))
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	assert_eq(layout.places.size(), 3)
+	var rail: Rect2 = layout.rails[0]
+	for place: Dictionary in layout.places:
+		var rect: Rect2 = place["rect"]
+		assert_eq(place["desc"]["poles"], 3)
+		assert_true(rect.position.x >= rail.position.x and rect.end.x <= rail.end.x, "%s fits on the rail" % place["designation"])
+	assert_eq(rail.size.x, empty.rails[0].size.x, "an empty switchboard's rail is already long enough for them")
+
+
 func test_layout_marks_missing_devices() -> void:
 	var doc: SchematicDocument = _doc()
 	doc.add_cabinet_rail(0)
