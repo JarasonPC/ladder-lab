@@ -281,3 +281,22 @@ func test_plc_example_contact_clear_of_the_plc() -> void:
 	designation.position += symbol.position
 	var plc: Rect2 = doc.component_body(doc.circuit.get_component("A1"))
 	assert_false(_glyphs(designation).intersects(Rect2(plc.position * G, plc.size * G)), "-KM1 clear of the PLC's box")
+
+
+func test_switching_tables_clear_of_the_switch() -> void:
+	var parts: Array[Dictionary] = [
+		{"type": "latching_switch", "contact": "NO", "designation": "RB1", "positions": "I-0-II", "operated_in": "II"},
+		{"type": "cam_switch", "designation": "RB2", "poles": 3, "positions": "0-I"},
+		{"type": "cam_switch", "designation": "RB3", "poles": 3, "positions": "I-0-II"},
+	]
+	var symbols: Array[SchematicSymbol] = []
+	for data: Dictionary in parts:
+		for o: Array in _orientations():
+			symbols.append(_symbol(data, o[0], o[1]))
+	await wait_process_frames(2)
+	for symbol: SchematicSymbol in symbols:
+		var what: String = "%s turned %d (mirrored %s)" % [symbol.component.designation, symbol.placement.rotation, symbol.placement.mirrored]
+		var body: Rect2 = SymbolGeometry.transform_rect(SymbolGeometry.local_body(symbol.component), symbol.placement)
+		var table: Rect2 = symbol.text_rects[symbol.text_rects.size() - 1] if symbol.component is LatchingSwitch else symbol.text_rects[1]
+		assert_false(_glyphs(table).intersects(Rect2(body.position * G, body.size * G)), "%s: the table beside the switch" % what)
+		_assert_texts_apart(symbol, what)
