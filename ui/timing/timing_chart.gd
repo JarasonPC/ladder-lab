@@ -86,7 +86,7 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 		elif c is ThreePhaseMotor:
 			# Running as a step line, the shaft speed (run-down, braking) as a line.
 			_rows.append({"label": c.designation, "band": "", "line": c.designation + "/shaft", "step": c.designation})
-		elif c is Lamp or c is Motor:
+		elif c is Lamp or c is Motor or c is Luminaire:
 			_rows.append({"label": c.designation, "band": "", "line": "", "step": c.designation})
 		elif c is ProximitySensor:
 			# Each output on as a step line, named by its terminal when two.

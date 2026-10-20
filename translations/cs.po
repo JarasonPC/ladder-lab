@@ -4560,3 +4560,265 @@ msgstr "Síťový vstup %s v automatu zůstane 0: proměnnou %s funkčního blok
 #, c-format
 msgid "Timer %s is both an on-delay and an off-delay: it is exported as the first of them."
 msgstr "Časovač %s je zpožděný přítah i odpad zároveň: exportuje se jako ten první z nich."
+
+msgid "Create"
+msgstr "Vytvořit"
+
+msgid "What will you draw? It cannot be changed later."
+msgstr "Co budete kreslit? Později to nelze změnit."
+
+msgid "Industrial"
+msgstr "Průmyslové"
+
+msgid "Control circuits: contactors, time relays, motors, PLCs, switchboards"
+msgstr "Řídicí obvody: stykače, časová relé, motory, PLC, rozvaděče"
+
+msgid "Residential"
+msgstr "Domovní"
+
+msgid "House installation: light switches, luminaires, socket outlets"
+msgstr "Domovní elektroinstalace: vypínače, svítidla, zásuvky"
+
+#, c-format
+msgid "No. %s"
+msgstr "č. %s"
+
+msgid "Light switches"
+msgstr "Vypínače"
+
+msgid "Lights and sockets"
+msgstr "Svítidla a zásuvky"
+
+#, c-format
+msgid "Light switch no. %s of a house installation"
+msgstr "Vypínač řazení %s domovní elektroinstalace"
+
+msgid "Flush-mounted light switch with rockers, numbered (řazení) as Czech installations number them. While simulating, a click on a rocker switches it over; it stays where it is put."
+msgstr "Vypínač pod omítku s kolébkami, číslovaný (řazení) jako v české elektroinstalaci. Při simulaci jej kliknutí na kolébku přepne; zůstane, kam byl přepnut."
+
+#, c-format
+msgid "Pole %d, supply"
+msgstr "Pól %d, přívod"
+
+#, c-format
+msgid "Closed to %s while on."
+msgstr "Sepnuto s %s, je-li zapnut."
+
+#, c-format
+msgid "Pole %d, output"
+msgstr "Pól %d, vývod"
+
+msgid "Common (L)"
+msgstr "Společná svorka (L)"
+
+msgid "The supply of both rockers."
+msgstr "Přívod obou kolébek."
+
+msgid "Output 1"
+msgstr "Vývod 1"
+
+#, c-format
+msgid "Closed to %s by the first rocker."
+msgstr "Sepnut s %s první kolébkou."
+
+msgid "Output 2"
+msgstr "Vývod 2"
+
+#, c-format
+msgid "Closed to %s by the second rocker."
+msgstr "Sepnut s %s druhou kolébkou."
+
+msgid "Traveller 1"
+msgstr "Přepínací vodič 1"
+
+#, c-format
+msgid "Closed to %s at rest."
+msgstr "Sepnut s %s v klidu."
+
+msgid "Traveller 2"
+msgstr "Přepínací vodič 2"
+
+#, c-format
+msgid "Closed to %s switched over."
+msgstr "Sepnut s %s po přepnutí."
+
+#, c-format
+msgid "Closed to %s while the second rocker is at rest."
+msgstr "Sepnut s %s, je-li druhá kolébka v klidu."
+
+msgid "Traveller 3"
+msgstr "Přepínací vodič 3"
+
+#, c-format
+msgid "Closed to %s while the second rocker is switched over."
+msgstr "Sepnut s %s, je-li druhá kolébka přepnuta."
+
+#, c-format
+msgid "Closed to %s while the first rocker is at rest."
+msgstr "Sepnut s %s, je-li první kolébka v klidu."
+
+#, c-format
+msgid "Closed to %s while the first rocker is switched over."
+msgstr "Sepnut s %s, je-li první kolébka přepnuta."
+
+msgid "Traveller 4"
+msgstr "Přepínací vodič 4"
+
+msgid "Traveller in"
+msgstr "Přepínací vodič, vstup"
+
+#, c-format
+msgid "To %s at rest, to %s switched over."
+msgstr "V klidu k %s, po přepnutí k %s."
+
+msgid "Traveller out"
+msgstr "Přepínací vodič, výstup"
+
+msgid "Snap action: it switches at once."
+msgstr "Skokový spínač: přepne okamžitě."
+
+msgid "Switch number (řazení)"
+msgstr "Řazení"
+
+msgid "Rockers"
+msgstr "Kolébky"
+
+msgid "Rated current"
+msgstr "Jmenovitý proud"
+
+msgid "Mounting height"
+msgstr "Montážní výška"
+
+msgid "Socket outlet 230 V with the protective pin (type E)"
+msgstr "Zásuvka 230 V s ochranným kolíkem (typ E)"
+
+msgid "Flush-mounted socket outlet of the Czech type E: two holes for L and N and the protective pin PE that touches a plug's earth contact first. A double socket has two outlets on one plate, joined inside. While simulating it shows 230 V while it has its voltage."
+msgstr "Zásuvka pod omítku českého typu E: dvě dutinky pro L a N a ochranný kolík PE, kterého se ochranný kontakt vidlice dotkne jako prvního. Dvojzásuvka má dvě zásuvky na jednom rámečku, propojené uvnitř. Při simulaci ukazuje 230 V, má-li napětí."
+
+msgid "Phase"
+msgstr "Fáze"
+
+msgid "The phase conductor L."
+msgstr "Fázový vodič L."
+
+msgid "Neutral"
+msgstr "Nulový vodič"
+
+msgid "The neutral conductor N."
+msgstr "Nulový vodič N."
+
+msgid "Protective pin"
+msgstr "Ochranný kolík"
+
+msgid "The protective conductor PE."
+msgstr "Ochranný vodič PE."
+
+msgid "Outlets"
+msgstr "Zásuvky"
+
+msgid "E (ČSN 35 4516), protective pin"
+msgstr "E (ČSN 35 4516), ochranný kolík"
+
+msgid "Luminaire 230 V"
+msgstr "Svítidlo 230 V"
+
+msgid "Ceiling or wall luminaire of a house installation. It lights while it has 230 V between L and N, switched by the light switches before it; its metal frame is joined to PE."
+msgstr "Stropní nebo nástěnné svítidlo domovní elektroinstalace. Svítí, má-li 230 V mezi L a N, spínané vypínači před ním; jeho kovová kostra je připojena k PE."
+
+#, c-format
+msgid "Lights with 230 V against %s."
+msgstr "Svítí s 230 V proti %s."
+
+msgid "Frame"
+msgstr "Kostra"
+
+msgid "(standard)"
+msgstr "(standardní)"
+
+msgid "Wired as Czech installations number switches: 1 switches L to 1; 2 and 3 switch two or three poles; 5 has two rockers on one L, to 1 and to 2; 5A a one-way rocker to 1 and a two-way rocker to 2 or 3; 5B two two-way rockers, to 1 or 2 and to 3 or 4; 6 (staircase) switches L over from 1 to 2; 7 (intermediate) joins 3-1 and 4-2, switched over 3-2 and 4-1. While simulating, click the rocker to switch it over."
+msgstr "Zapojení podle řazení v české elektroinstalaci: 1 spíná L s 1; 2 a 3 spínají dva nebo tři póly; 5 má dvě kolébky na jednom L, k 1 a k 2; 5A jednopólovou kolébku k 1 a střídavou kolébku k 2 nebo 3; 5B dvě střídavé kolébky, k 1 nebo 2 a k 3 nebo 4; 6 (schodišťový) přepíná L z 1 na 2; 7 (křížový) spojuje 3-1 a 4-2, po přepnutí 3-2 a 4-1. Při simulaci kolébku přepnete kliknutím."
+
+msgid "Rated power (W)"
+msgstr "Jmenovitý příkon (W)"
+
+msgid "230 V between L and N; PE goes to its frame. It lights while it has its voltage."
+msgstr "230 V mezi L a N; PE na kostru. Svítí, má-li napětí."
+
+msgid "Single"
+msgstr "Jednoduchá"
+
+msgid "Double"
+msgstr "Dvojitá"
+
+msgid "Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage."
+msgstr "Česká zásuvka typu E 16 A / 250 V s ochranným kolíkem: L, N a PE. Při simulaci ukazuje 230 V, má-li napětí."
+
+msgid "Mounting height (m)"
+msgstr "Montážní výška (m)"
+
+#, c-format
+msgid "Standard: %s m. A height other than the standard one is written beside the part."
+msgstr "Standardně %s m. Jiná než standardní výška se píše vedle značky."
+
+msgid "2 - two-pole"
+msgstr "2 - dvoupólový"
+
+msgid "3 - three-pole"
+msgstr "3 - třípólový"
+
+msgid "5 - series (two rockers)"
+msgstr "5 - sériový (lustrový)"
+
+msgid "5A - one-way and two-way"
+msgstr "5A - jednopólový a střídavý"
+
+msgid "5B - double two-way"
+msgstr "5B - dvojitý střídavý"
+
+msgid "6 - two-way (staircase)"
+msgstr "6 - střídavý (schodišťový)"
+
+msgid "7 - intermediate"
+msgstr "7 - křížový"
+
+msgid "1 - one-way"
+msgstr "1 - jednopólový"
+
+msgid "A house installation: light switches, luminaires, socket outlets"
+msgstr "Domovní elektroinstalace: vypínače, svítidla, zásuvky"
+
+msgid "An industrial control circuit: contactors, time relays, motors, PLCs"
+msgstr "Průmyslový řídicí obvod: stykače, časová relé, motory, PLC"
+
+msgid "Switch no. 1 (one-way)"
+msgstr "Vypínač řazení 1 (jednopólový)"
+
+msgid "Switch no. 2 (two-pole)"
+msgstr "Vypínač řazení 2 (dvoupólový)"
+
+msgid "Switch no. 3 (three-pole)"
+msgstr "Vypínač řazení 3 (třípólový)"
+
+msgid "Switch no. 5 (series, two rockers)"
+msgstr "Přepínač řazení 5 (sériový)"
+
+msgid "Switch no. 5A (one-way and two-way)"
+msgstr "Přepínač řazení 5A (jednopólový a střídavý)"
+
+msgid "Switch no. 5B (double two-way)"
+msgstr "Přepínač řazení 5B (dvojitý střídavý)"
+
+msgid "Switch no. 6 (two-way, staircase)"
+msgstr "Přepínač řazení 6 (střídavý, schodišťový)"
+
+msgid "Switch no. 7 (intermediate)"
+msgstr "Přepínač řazení 7 (křížový)"
+
+msgid "Luminaire"
+msgstr "Svítidlo"
+
+msgid "Socket outlet 230 V (type E)"
+msgstr "Zásuvka 230 V (typ E)"
+
+msgid "Double socket outlet 230 V (type E)"
+msgstr "Dvojzásuvka 230 V (typ E)"

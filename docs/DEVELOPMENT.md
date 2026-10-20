@@ -136,6 +136,34 @@ Architecture and conventions of the code base. Read this before changing the cod
   LOCALE_NAMES, asked in both languages at once, set_language), then the tour or the first
   lesson in it (settings
   "tutorial"/"welcomed"; finished lessons "tutorial"/"finished")
+- Environments: a schematic is an industrial control circuit or a house installation
+  (SchematicDocument.residential, saved as "environment": "residential", missing = industrial),
+  chosen at File > New for good (NewSchematicDialog: two cards, a double click takes one;
+  main.gd _new_document(residential): L and N supply points, PE too for a house) and shown by
+  a muted label in the toolbar (main.gd _update_environment). The palette follows it
+  (Palette.residential: RESIDENTIAL_ENTRIES or ENTRIES; Palette.all_entries both, each title
+  once, for the datasheets and Change type). A house installation has no Workspace (the
+  Schematic | Workspace switch is hidden). Its parts: light switches (LightSwitch "SF1",
+  numbered (řazení) as Czech installations do: 1 one-way L-1, 2 / 3 two / three poles 1-2 3-4
+  5-6, 5 two rockers on one L to 1 and 2, 5A a one-way rocker to 1 and a two-way one to 2 / 3,
+  5B two two-way rockers to 1 / 2 and 3 / 4, 6 two-way L to 1 or 2, 7 intermediate 3-1 4-2 or
+  crosswise 3-2 4-1; "circuit" saved, changed in the properties; LightSwitch.on per rocker,
+  simulation state, all off at the start); luminaires (Luminaire "EA1", a Load on L-N rated
+  "230v" with the frame's PE, power in W, rated_draw P / 230 V); type E socket outlets
+  (SocketOutlet "XD1", L N PE with PE in the middle, single or double, "gangs"; no load,
+  it shows 230 V while L has a phase and N its return). Each has a mounting height in m
+  ("height", standard LightSwitch / SocketOutlet / Luminaire.STANDARD_HEIGHT 1.2 / 0.3 / 2.6
+  after Czech practice, ČSN 33 2130), written beside the part only when it is not the
+  standard one ("h = 1.10 m", LightSwitchSymbol.height_text), as Czech installation drawings
+  do. LightSwitchSymbol: the common below pivoting the blades (joined along to the second
+  rocker), outputs on top (SymbolGeometry.light_switch_cell), an NO blade for a one-way
+  rocker, a changeover blade for a two-way one, a turn head per rocker (the first on the
+  left, the second on the right, light_switch_heads), the switch number under the
+  designation; the intermediate switch has two blades worked against each other with the
+  outputs wired to their stops crosswise. A click while simulating switches the rocker under
+  the mouse (SymbolGeometry.untransform_point, light_switch_rocker_at). SocketSymbol: a plate
+  with a female contact (IEC 60617 S00031) per terminal, a second plate behind for a double
+  one; LuminaireSymbol: the lamp's circle, PE joined to its side
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -708,7 +736,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   draw the switching table I 0 II under the designation, a dot under the position that
   operates them), SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
   or operated by a mechanical link),
-  H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
+  H = lamp, SF = light switch, EA = luminaire, XD = socket outlet, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
   wires reached by PE alone are drawn in the PE colour, StepResult.REACH_PE),
   DC supplies + and - (a separate source: loads work between two conductors of the same source;

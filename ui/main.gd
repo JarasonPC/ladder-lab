@@ -192,6 +192,9 @@ var _recovery_discard_button: Button
 var _recovery_path: String = ""
 ## Schematic | Workspace and Edit | Simulate (the tour points at them).
 var _area_switch: Control
+## What the schematic is: an industrial control circuit or a house installation.
+var _environment_label: Label
+var _new_dialog: NewSchematicDialog
 var _mode_switch: Control
 ## The lesson being taken (see [LessonRun]), or null; its index in
 ## [method Lessons.all].
@@ -437,7 +440,7 @@ func _shortcut(event: InputEvent) -> bool:
 		KEY_O when ctrl:
 			_confirm_discard(_show_open_dialog)
 		KEY_N when ctrl:
-			_confirm_discard(_new_document)
+			_confirm_discard(_new_dialog.ask)
 		KEY_Q when ctrl:
 			_confirm_discard(_quit)
 		_:
@@ -493,6 +496,10 @@ func _build_ui() -> void:
 	_update_button.theme_type_variation = "PrimaryButton"
 	_update_button.visible = false
 	bar.add_child(VSeparator.new())
+	_environment_label = _label(bar)
+	_environment_label.theme_type_variation = "MutedLabel"
+	_environment_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.add_child(_spacer(4))
 
 	# Schematic | Workspace as one segmented switch.
 	var area_track: PanelContainer = PanelContainer.new()
@@ -827,6 +834,9 @@ func _build_dialogs() -> void:
 	add_child(_update_dialog)
 	_about_dialog = AboutDialog.new()
 	add_child(_about_dialog)
+	_new_dialog = NewSchematicDialog.new()
+	_new_dialog.chosen.connect(_new_document)
+	add_child(_new_dialog)
 	_key_prompt = KeyPrompt.new()
 	_key_prompt.chosen.connect(func(designation: String, key: String) -> void:
 		# The same key again (or none taken off none) changes nothing.
@@ -936,6 +946,7 @@ func _retranslate() -> void:
 	_page_tabs.tooltip_text = tr("Pages of the schematic: click to show one, drag to reorder, double-click to rename, right click for more (also: open a page in a new window)")
 	_refresh_pages()
 	_palette.retranslate()
+	_update_environment()
 	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar]:
 		bar.retranslate()
 	_workspace.retranslate()
@@ -1339,6 +1350,18 @@ func _update_mode_ui() -> void:
 	_refresh_lesson_marks()
 
 
+## Palette and toolbar for what the schematic is. A house installation has
+## no workspace (switchboards, stations) of an industrial control circuit.
+func _update_environment() -> void:
+	var residential: bool = edit_doc != null and edit_doc.residential
+	_palette.residential = residential
+	_environment_label.text = tr("Residential") if residential else tr("Industrial")
+	_environment_label.tooltip_text = tr("A house installation: light switches, luminaires, socket outlets") if residential else tr("An industrial control circuit: contactors, time relays, motors, PLCs")
+	_area_switch.visible = not residential
+	if residential and area == Area.WORKSPACE:
+		_set_area(Area.SCHEMATIC)
+
+
 func _update_run_button() -> void:
 	_run_button.text = tr("Pause") if view.running else tr("Run")
 	_run_button.icon = AppTheme.icon("pause" if view.running else "play")
@@ -1470,6 +1493,7 @@ func _on_switching_selected(index: int) -> void:
 
 func _show_document(doc: SchematicDocument, fit: bool) -> void:
 	edit_doc = doc
+	_update_environment()
 	if mode == Mode.SIMULATE:
 		_start_simulation()
 	else:
@@ -1504,10 +1528,15 @@ func _start_blank() -> void:
 	_replace_document(SchematicDocument.new(tr("New schematic")), "")
 
 
-func _new_document() -> void:
+## A new schematic with an L and an N supply point; a house installation
+## ([param residential]) also has its PE.
+func _new_document(residential: bool = false) -> void:
 	var doc: SchematicDocument = SchematicDocument.new(tr("New schematic"))
+	doc.residential = residential
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, 16))
+	if residential:
+		doc.add(PowerSupply.new("PE", PowerSupply.Conductor.PE), Vector2i(2, 19))
 	if _layout_select.selected == 1:
 		doc.transpose()
 	_replace_document(doc, "")
@@ -1822,7 +1851,7 @@ func _tour_step(title: String, text: String, target: Callable, prepare: Callable
 func _on_file_menu(id: int) -> void:
 	match id:
 		FileMenuId.NEW:
-			_confirm_discard(_new_document)
+			_confirm_discard(_new_dialog.ask)
 		FileMenuId.OPEN:
 			_confirm_discard(_show_open_dialog)
 		FileMenuId.SAVE:

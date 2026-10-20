@@ -55,12 +55,46 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Network switch (Ethernet, 4 ports)", "template": {"type": "network_switch"}},
 ]
 
+## Entries of a house installation ([member SchematicDocument.residential]):
+## the supplies, the light switches numbered as Czech installations number
+## them (řazení), luminaires, socket outlets and the circuit breaker.
+const RESIDENTIAL_ENTRIES: Array[Dictionary] = [
+	{"title": "L1 supply", "template": {"type": "supply", "conductor": "L"}},
+	{"title": "L2 supply", "template": {"type": "supply", "conductor": "L2"}},
+	{"title": "L3 supply", "template": {"type": "supply", "conductor": "L3"}},
+	{"title": "N supply", "template": {"type": "supply", "conductor": "N"}},
+	{"title": "PE supply", "template": {"type": "supply", "conductor": "PE"}},
+	{"title": "Terminal (strip terminal X)", "template": {"type": "terminal"}},
+	{"title": "Page connector", "template": {"type": "connector"}},
+	{"title": "Switch no. 1 (one-way)", "template": {"type": "light_switch", "circuit": "1"}},
+	{"title": "Switch no. 2 (two-pole)", "template": {"type": "light_switch", "circuit": "2"}},
+	{"title": "Switch no. 3 (three-pole)", "template": {"type": "light_switch", "circuit": "3"}},
+	{"title": "Switch no. 5 (series, two rockers)", "template": {"type": "light_switch", "circuit": "5"}},
+	{"title": "Switch no. 5A (one-way and two-way)", "template": {"type": "light_switch", "circuit": "5A"}},
+	{"title": "Switch no. 5B (double two-way)", "template": {"type": "light_switch", "circuit": "5B"}},
+	{"title": "Switch no. 6 (two-way, staircase)", "template": {"type": "light_switch", "circuit": "6"}},
+	{"title": "Switch no. 7 (intermediate)", "template": {"type": "light_switch", "circuit": "7"}},
+	{"title": "Luminaire", "template": {"type": "luminaire"}},
+	{"title": "Socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 1}},
+	{"title": "Double socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 2}},
+	{"title": "Circuit breaker", "template": {"type": "breaker"}},
+]
+
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
 const MAX_ICON_SCALE: float = 0.7
 const ICON_PADDING: float = 3.0
 ## Paper tile behind each symbol, at the left of its row.
 const TILE := Rect2(6, 4, 54, 34)
 
+## Offers the parts of a house installation ([constant RESIDENTIAL_ENTRIES])
+## rather than those of an industrial control circuit.
+var residential: bool = false:
+	set(value):
+		if value == residential:
+			return
+		residential = value
+		if _list != null:
+			_build()
 ## Symbols alone in a grid instead of the list with names.
 var grid: bool = false:
 	set(value):
@@ -80,9 +114,31 @@ var _headers: Array[Label] = []
 var _header_titles: PackedStringArray = []
 
 
+## Entries offered: [constant RESIDENTIAL_ENTRIES] or [constant ENTRIES].
+func entries() -> Array[Dictionary]:
+	return RESIDENTIAL_ENTRIES if residential else ENTRIES
+
+
+## Every entry of both palettes, each title once (industrial first): the
+## parts library of the datasheets, and the types a part can change to.
+static func all_entries() -> Array[Dictionary]:
+	var result: Array[Dictionary] = ENTRIES.duplicate()
+	var titles: Dictionary[String, bool] = {}
+	for entry: Dictionary in ENTRIES:
+		titles[entry["title"]] = true
+	for entry: Dictionary in RESIDENTIAL_ENTRIES:
+		if not titles.has(entry["title"]):
+			result.append(entry)
+	return result
+
+
 ## Palette section of a template.
 static func group_of(template: Dictionary) -> String:
 	match template["type"]:
+		"light_switch":
+			return "light_switches"
+		"luminaire", "socket":
+			return "outlets"
 		"supply", "terminal", "rectifier", "connector":
 			return "supplies"
 		"push_button", "latching_switch", "limit_switch", "cam_switch":
@@ -116,6 +172,10 @@ func _group_title(group: String) -> String:
 			return tr("Protection")
 		"plc":
 			return tr("PLC and sensors")
+		"light_switches":
+			return tr("Light switches")
+		"outlets":
+			return tr("Lights and sockets")
 	return tr("Power circuit")
 
 
@@ -171,7 +231,7 @@ func _build() -> void:
 		_list_button.set_pressed_no_signal(not grid)
 	var group: String = ""
 	var row: Container = _list
-	for entry: Dictionary in ENTRIES:
+	for entry: Dictionary in entries():
 		var template: Dictionary = entry["template"]
 		if group_of(template) != group:
 			group = group_of(template)
@@ -222,8 +282,8 @@ func _build() -> void:
 ## The button of the first entry whose template has every key of
 ## [param template] with the same value, or null.
 func entry_button(template: Dictionary) -> Button:
-	for i: int in mini(ENTRIES.size(), _buttons.size()):
-		var entry: Dictionary = ENTRIES[i]["template"]
+	for i: int in mini(entries().size(), _buttons.size()):
+		var entry: Dictionary = entries()[i]["template"]
 		var same: bool = true
 		for key: Variant in template:
 			if not entry.has(key) or entry[key] != template[key]:
@@ -270,8 +330,8 @@ func retranslate() -> void:
 		_list_button.tooltip_text = tr("Show the parts as a list with their names")
 		_grid_button.tooltip_text = tr("Show the parts as a grid of symbols")
 	for i: int in _buttons.size():
-		_buttons[i].text = "" if grid else tr(ENTRIES[i]["title"])
-		_buttons[i].tooltip_text = tr(ENTRIES[i]["title"]) if grid else ""
+		_buttons[i].text = "" if grid else tr(entries()[i]["title"])
+		_buttons[i].tooltip_text = tr(entries()[i]["title"]) if grid else ""
 	for i: int in _headers.size():
 		_headers[i].text = _group_title(_header_titles[i]).to_upper()
 
@@ -290,7 +350,7 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 		data["rating"] = ratings[0]
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	var supply: bool = component is PowerSupply
-	var upright: bool = component is ThreePhaseMotor or component is AnalogSensor or component is ProximitySensor or component is ProtectiveDevice or component.get_terminal_names().size() > 3
+	var upright: bool = component is ThreePhaseMotor or component is AnalogSensor or component is ProximitySensor or component is ProtectiveDevice or component is LightSwitch or component is SocketOutlet or component.get_terminal_names().size() > 3
 	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)
 	if component is ChangeoverContact:
 		# Its common terminal (the pivot) comes on the left only turned once.

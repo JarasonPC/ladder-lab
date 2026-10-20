@@ -95,6 +95,8 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"window": '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M6 6.5h.01"/><path d="M9 6.5h.01"/>',
 	"search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
 	"schematic": '<path d="M5 3v18"/><path d="M19 3v18"/><path d="M5 8h4"/><path d="M15 8h4"/><path d="M9 6v4"/><path d="M15 6v4"/><path d="M5 16h14"/>',
+	"house": '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v12h14V9"/><path d="M10 21v-6h4v6"/>',
+	"factory": '<path d="M2 21h20"/><path d="M3 21V11l5 3v-3l5 3V5h4l1 16"/><path d="M7 18h2"/><path d="M12 18h2"/>',
 	"workspace": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="8.5" y="14" width="7" height="7" rx="1.5"/><path d="M6.5 10v2h11v-2"/><path d="M12 12v2"/>',
 	"lesson": '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
 	"hint": '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>',

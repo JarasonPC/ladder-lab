@@ -191,7 +191,7 @@ func test_example_texts_in_czech() -> void:
 ## with many modules.
 func _all_sheets() -> Array[Datasheet]:
 	var sheets: Array[Datasheet] = []
-	for entry: Dictionary in Palette.ENTRIES:
+	for entry: Dictionary in Palette.all_entries():
 		sheets.append(Datasheet.of_template(entry["template"]))
 	var timer: Datasheet = Datasheet.of_template({"type": "timer"})
 	for mode: int in TimerRelay.Mode.values():

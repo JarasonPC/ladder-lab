@@ -375,6 +375,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				(c as CamSwitch).step_on()
 				_apply(simulator.step())
 				get_viewport().set_input_as_handled()
+			elif c is LightSwitch:
+				# The rocker clicked, of two the one whose blades are nearer.
+				var placed: Placement = document.get_placement(c.id)
+				var local: Vector2 = SymbolGeometry.untransform_point(get_local_mouse_position() - Vector2(placed.cell) * G, placed)
+				(c as LightSwitch).toggle(SymbolGeometry.light_switch_rocker_at(c as LightSwitch, local.x))
+				_apply(simulator.step())
+				get_viewport().set_input_as_handled()
 			elif c is Plc:
 				plc_requested.emit(c.id)
 				get_viewport().set_input_as_handled()

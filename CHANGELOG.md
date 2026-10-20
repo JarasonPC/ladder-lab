@@ -18,6 +18,15 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## 0.6.0 – 2026-10-20
 
 ### Schematic editor
+- House installations: File > New asks whether the new schematic is an industrial control
+  circuit or a residential installation (for good; the toolbar says which). A residential
+  schematic has a palette of its own: light switches numbered as Czech installations
+  number them (řazení 1, 2, 3, 5, 5A, 5B, 6 and 7, -SF), luminaires (-EA) and single or
+  double type E socket outlets (-XD), with the supplies and the circuit breaker
+- Every light switch, luminaire and socket has a mounting height over the floor: the
+  standard one of Czech practice (switches 1.20 m, sockets 0.30 m, luminaires on a 2.60 m
+  ceiling) until it is set in the properties; a height other than the standard one is
+  written beside the part, as on Czech installation drawings
 - "Wire facing terminals" in the right click menu wires the free terminals of the selected
   parts that face each other with straight wires in one go
 - Wiring helpers under Settings > Wiring: "Wire all poles at once" makes a wire drawn between
@@ -44,6 +53,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A 10 kΩ potentiometer (-RP1, terminals 1-2-3) for analog inputs, with 1, 2, 5 or 10 turns
 
 ### Simulation
+- A click on a light switch's rocker switches it over (on a double switch, the rocker
+  clicked): a staircase light with two-way switches and intermediate switches between them
+  is switched from any place; luminaires light and show in the timing chart, a socket shows
+  230 V while it has its voltage
 - A proximity sensor switches its output while it has 10-30 V DC: click it to put something
   in front of it or take it away. A PNP output works a PLC input whose common is on 0 V, an
   NPN output one whose common is on +24 V; the outputs show in the timing chart

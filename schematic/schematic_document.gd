@@ -18,6 +18,10 @@ var horizontal: bool = false
 ## Simulate relays with pick-up and drop-out times (see [Armature]) rather
 ## than instant switching.
 var realistic_timing: bool = true
+## A house installation (light switches, luminaires, sockets) rather than an
+## industrial control circuit: chosen when the schematic is made, for good.
+## It picks the parts the palette offers.
+var residential: bool = false
 ## Workspace: control stations with the buttons, switches and signal lamps
 ## of the circuit (see [ControlBox]).
 var control_boxes: Array[ControlBox] = []

@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity", "network_switch", "pot"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity", "network_switch", "pot", "light_switch", "luminaire", "socket"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -26,6 +26,8 @@ const LONGEST_DELAY: float = 3600.0
 const RANGE_STEP: float = 1.0
 ## Narrowest range of a transmitter.
 const TRANSMITTER_RANGE_STEP: float = 0.1
+## Highest mounting height of a part of a house installation (m).
+const MAX_HEIGHT: float = 6.0
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -57,6 +59,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 				wd["number_offsets"] = [[offsets[0].x, offsets[0].y], [offsets[1].x, offsets[1].y]]
 		wires.append(wd)
 	var result: Dictionary = {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "pages": Array(doc.pages), "page": doc.page, "components": components, "wires": wires}
+	if doc.residential:
+		result["environment"] = "residential"
 	if not doc.control_boxes.is_empty():
 		var boxes: Array[Dictionary] = []
 		for box: ControlBox in doc.control_boxes:
@@ -113,6 +117,7 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(str(d.get("title", "")))
 	doc.horizontal = _bool(d, "horizontal", false)
 	doc.realistic_timing = str(d.get("switching", "realistic")) != "ideal"
+	doc.residential = str(d.get("environment", "")) == "residential"
 	var components: Variant = d.get("components", [])
 	var wires: Variant = d.get("wires", [])
 	if not (components is Array and wires is Array):
@@ -295,6 +300,14 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		if (c as ThreePoleFuse).holder:
 			d["holder"] = true
 		d["rated_current"] = (c as ThreePoleFuse).rated_current
+	elif c is LightSwitch:
+		d["type"] = "light_switch"
+		d["circuit"] = (c as LightSwitch).circuit
+		d["height"] = (c as LightSwitch).height
+	elif c is SocketOutlet:
+		d["type"] = "socket"
+		d["gangs"] = (c as SocketOutlet).gangs
+		d["height"] = (c as SocketOutlet).height
 	elif c is CamSwitch:
 		d["type"] = "cam_switch"
 		d["poles"] = (c as CamSwitch).poles
@@ -404,6 +417,10 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 			d["modules"] = modules
 	elif c is NetworkSwitch:
 		d["type"] = "network_switch"
+	elif c is Luminaire:
+		d["type"] = "luminaire"
+		d["power"] = (c as Luminaire).power
+		d["height"] = (c as Luminaire).height
 	elif c is Lamp:
 		d["type"] = "lamp"
 		if not (c as Lamp).purpose.is_empty():
@@ -633,6 +650,19 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			proximity.sensing = maxi(ProximitySensor.SENSING_NAMES.find(str(d.get("sensing", ""))), 0) as ProximitySensor.Sensing
 			proximity.output = maxi(ProximitySensor.OUTPUT_NAMES.find(str(d.get("output", ""))), 0) as ProximitySensor.Output
 			return proximity
+		"light_switch":
+			var light_switch: LightSwitch = LightSwitch.new(designation, str(d.get("circuit", "1")))
+			light_switch.height = _height(d, LightSwitch.STANDARD_HEIGHT)
+			return light_switch
+		"luminaire":
+			var luminaire: Luminaire = Luminaire.new(designation)
+			luminaire.power = clampf(_number_or(d, "power", luminaire.power), Luminaire.MIN_POWER, Luminaire.MAX_POWER)
+			luminaire.height = _height(d, Luminaire.STANDARD_HEIGHT)
+			return luminaire
+		"socket":
+			var socket: SocketOutlet = SocketOutlet.new(designation, _int(d, "gangs", 1))
+			socket.height = _height(d, SocketOutlet.STANDARD_HEIGHT)
+			return socket
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)
 			lamp.purpose = str(d.get("purpose", "")).strip_edges()
@@ -640,6 +670,13 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"motor":
 			return Motor.new(designation)
 	return null
+
+
+## Mounting height "height" over the floor (m) of a part of a house
+## installation, [param fallback] when missing; within 0 and [constant
+## MAX_HEIGHT], to the centimetre.
+static func _height(d: Dictionary, fallback: float) -> float:
+	return snappedf(clampf(_number_or(d, "height", fallback), 0.0, MAX_HEIGHT), 0.01)
 
 
 ## A switching time in seconds, or -1 (use the default) if missing or invalid.

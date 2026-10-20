@@ -8,7 +8,7 @@ const NO := SwitchingElement.ContactType.NO
 
 
 func test_every_palette_part_has_a_datasheet() -> void:
-	for entry: Dictionary in Palette.ENTRIES:
+	for entry: Dictionary in Palette.all_entries():
 		var sheet: Datasheet = Datasheet.of_template(entry["template"])
 		var title: String = entry["title"]
 		assert_eq(sheet.title, title, title)
@@ -76,7 +76,7 @@ func test_front_only_for_switchboard_devices() -> void:
 
 
 func test_pages() -> void:
-	for entry: Dictionary in Palette.ENTRIES:
+	for entry: Dictionary in Palette.all_entries():
 		var sheet: Datasheet = Datasheet.of_template(entry["template"])
 		var pages: Array[DatasheetLayout] = DatasheetLayout.compose(sheet)
 		assert_gt(pages.size(), 0, entry["title"])
