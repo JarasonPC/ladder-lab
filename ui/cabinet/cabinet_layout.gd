@@ -33,8 +33,8 @@ const LABEL_OFF: float = 15.0
 ## its side (on the side with more of them).
 const WIRE_CHANNEL: float = 6.0
 const SIDE_BLOCK_CHANNEL: float = 3.0
-## Narrowest room for the rails.
-const MIN_CONTENT: float = 100.0
+## Narrowest room for the rails: three 3-pole breakers side by side.
+const MIN_CONTENT: float = 3.0 * 3.0 * CabinetParts.MODULE_W + 2.0 * GAP
 ## Size of an empty place (device not in the circuit).
 const MISSING := Vector2(18.0, 60.0)
 ## Height of an empty rail.

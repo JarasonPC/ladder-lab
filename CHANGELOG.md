@@ -6,6 +6,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Panels
+- The narrowest switchboard has room for three 3-pole circuit breakers side by side on a
+  DIN rail
+
 ## 0.6.0 – 2026-10-20
 
 ### Schematic editor
