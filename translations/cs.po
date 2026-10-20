@@ -471,6 +471,12 @@ msgstr "Seřadit vedle sebe…"
 msgid "Side by side, the same number of cells apart"
 msgstr "Vedle sebe, se stejným počtem polí mezi nimi"
 
+msgid "Wire facing terminals"
+msgstr "Propojit protilehlé svorky"
+
+msgid "Straight wires between the free terminals of the selected parts that face each other"
+msgstr "Rovné vodiče mezi volnými svorkami vybraných součástek, které stojí proti sobě"
+
 msgid "Line up vertically"
 msgstr "Seřadit pod sebe"
 
@@ -503,6 +509,9 @@ msgstr "Kliknutím umístíte. R otočí, F zrcadlí zleva doprava, Shift+F shor
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
 msgstr "Kliknutím do prázdných polí přidáte lomy, kreslení ukončíte na svorce nebo vodiči. Backspace odebere lom, Esc zruší."
+
+msgid "Click empty cells for corners, finish on a terminal or a wire; the poles beside go along (Shift: this wire alone). Backspace removes a corner, Esc cancels."
+msgstr "Kliknutím do prázdných polí přidáte lomy, kreslení ukončíte na svorce nebo vodiči; sousední póly se propojí také (Shift: jen tento vodič). Backspace odebere lom, Esc zruší."
 
 msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F / Shift+F mirror, Del deletes."
 msgstr "Kliknutím na svorku nakreslíte vodič. Přetažením posunete součástky, vodiče nebo čísla vodičů. Dvojklikem upravíte označení. Pravé tlačítko nabídne víc. R otočí, F / Shift+F zrcadlí, Del smaže."
@@ -654,6 +663,27 @@ msgstr "Čísla vodičů"
 
 msgid "Grid while editing"
 msgstr "Mřížka při úpravách"
+
+msgid "Wiring"
+msgstr "Zapojování"
+
+msgid "Wire facing terminals (right click)"
+msgstr "Propojit protilehlé svorky (pravé tlačítko)"
+
+msgid "The right click menu wires the free terminals of the selected parts that face each other"
+msgstr "Nabídka pravého tlačítka propojí volné svorky vybraných součástek, které stojí proti sobě"
+
+msgid "Wire all poles at once"
+msgstr "Propojovat všechny póly najednou"
+
+msgid "A wire drawn between multi-pole parts takes the poles beside it along (Shift: that wire alone)"
+msgstr "Vodič nakreslený mezi vícepólovými součástkami propojí i sousední póly (Shift: jen tento vodič)"
+
+msgid "Wire parts placed in line"
+msgstr "Propojovat součástky umístěné v řadě"
+
+msgid "A part placed or dropped gets straight wires to the free terminals it faces"
+msgstr "Umístěná nebo přetažená součástka dostane rovné vodiče k volným svorkám, které stojí proti ní"
 
 msgid "Language"
 msgstr "Jazyk"

@@ -94,6 +94,164 @@ func wire_between(key_a: String, key_b: String) -> int:
 	return -1
 
 
+## Wires the pairs of terminals [param pairs] (see [method facing_pairs] and
+## [method parallel_pairs]), each routed clear of those before it; pairs
+## already wired are left out. Returns how many wires were added.
+func connect_pairs(pairs: Array[PackedStringArray]) -> int:
+	var added: PackedInt32Array = PackedInt32Array()
+	for pair: PackedStringArray in pairs:
+		if pair[0] != pair[1] and wire_between(pair[0], pair[1]) < 0 and connect_terminals(pair[0], pair[1]):
+			added.append(get_wire_count() - 1)
+	_reroute(added)
+	return added.size()
+
+
+## Free terminals (without wires) that face each other straight along a
+## column or row with nothing between them, so that one straight wire would
+## join them: [key_a, key_b] pairs, each terminal in one pair at most. Pairs
+## of terminals of components [param ids], with each other or with those of
+## [param others]. A terminal without a lead (a supply point) is met from
+## any side. Only the page of the first of [param ids] counts.
+func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStringArray()) -> Array[PackedStringArray]:
+	var result: Array[PackedStringArray] = []
+	var own: Dictionary[String, bool] = {}
+	var allowed: Dictionary[String, bool] = {}
+	for given: String in ids:
+		var c: CircuitComponent = circuit.get_component(given)
+		if c != null and not (c is Junction):
+			own[c.id] = true
+			allowed[c.id] = true
+	for given: String in others:
+		var c: CircuitComponent = circuit.get_component(given)
+		if c != null and not (c is Junction):
+			allowed[c.id] = true
+	if own.is_empty():
+		return result
+	var cached: bool = _caching
+	_caching = true
+	var wired: Dictionary[String, bool] = {}
+	for wire: PackedStringArray in circuit.get_wires():
+		wired[wire[0]] = true
+		wired[wire[1]] = true
+	var on_page: int = _placements[own.keys()[0]].page
+	var cells: Dictionary[Vector2i, Array] = {}
+	var parts: Array[CircuitComponent] = components_on_page(on_page)
+	for c: CircuitComponent in parts:
+		for key: String in c.get_terminal_keys():
+			var at: Vector2i = terminal_cell(key)
+			if not cells.has(at):
+				cells[at] = []
+			cells[at].append(key)
+	var router: WireRouter = _router(on_page, _terminal_nets(), {})
+	# A net no terminal or wire has: anything of another net is in the way.
+	var lone: int = 1 << 30
+	var used: Dictionary[String, bool] = {}
+	for c: CircuitComponent in parts:
+		if not allowed.has(c.id):
+			continue
+		for key: String in c.get_terminal_keys():
+			var out: Vector2i = terminal_outward(key)
+			if out == Vector2i.ZERO or wired.has(key) or used.has(key):
+				continue
+			var start: Vector2i = terminal_cell(key)
+			var cell: Vector2i = start + out
+			while router.has_cell(cell) and not cells.has(cell):
+				cell += out
+			if not cells.has(cell):
+				continue
+			# The first terminal straight ahead must face back, unless it
+			# has no lead.
+			for other: String in cells[cell]:
+				var partner: CircuitComponent = circuit.get_terminal_owner(other)
+				var back: Vector2i = terminal_outward(other)
+				if partner == c or not allowed.has(partner.id) or not (own.has(c.id) or own.has(partner.id)):
+					continue
+				if wired.has(other) or used.has(other) or (back != -out and back != Vector2i.ZERO):
+					continue
+				if router.is_clear([start, cell] as Array[Vector2i], lone):
+					result.append(PackedStringArray([key, other]))
+					used[key] = true
+					used[other] = true
+				break
+	_caching = cached
+	if not cached:
+		_cell_cache.clear()
+	return result
+
+
+## The straight wires [method facing_pairs] would give [param component],
+## not in the drawing, placed at [param cell] on the current page, with every
+## part there: from terminal cell to terminal cell. Empty when its id or a
+## terminal is taken. The drawing is left as it was.
+func facing_wires_placed(component: CircuitComponent, cell: Vector2i, rotation: int = 0, mirrored: bool = false) -> Array[PackedVector2Array]:
+	var wires: Array[PackedVector2Array] = []
+	if circuit.has_component_id(component.id) or Array(component.get_terminal_keys()).any(func(key: String) -> bool: return circuit.has_terminal(key)):
+		return wires
+	add(component, cell, rotation, mirrored)
+	var ids: PackedStringArray = PackedStringArray()
+	for c: CircuitComponent in components_on_page():
+		ids.append(c.id)
+	for pair: PackedStringArray in facing_pairs(PackedStringArray([component.id]), ids):
+		wires.append(PackedVector2Array([Vector2(terminal_cell(pair[0])), Vector2(terminal_cell(pair[1]))]))
+	circuit.remove(component)
+	_placements.erase(component.id)
+	return wires
+
+
+## Wires that go along with one from terminal [param key_a] to
+## [param key_b] between multi-pole parts: the free terminals beside each
+## end in its row (its column, for terminals leaving sideways) that leave
+## the same way, paired off in order from the two ends (FA1:2 to KM1:1
+## brings FA1:4 to KM1:3 and FA1:6 to KM1:5). Beside a supply point stand
+## the free supply points in line with it across the way the wire leaves
+## the other end. Empty for two terminals of one part.
+func parallel_pairs(key_a: String, key_b: String) -> Array[PackedStringArray]:
+	var result: Array[PackedStringArray] = []
+	var owner_a: CircuitComponent = circuit.get_terminal_owner(key_a)
+	var owner_b: CircuitComponent = circuit.get_terminal_owner(key_b)
+	if owner_a == null or owner_b == null or owner_a == owner_b:
+		return result
+	var out_a: Vector2i = terminal_outward(key_a)
+	var out_b: Vector2i = terminal_outward(key_b)
+	if out_a == Vector2i.ZERO and out_b == Vector2i.ZERO:
+		return result
+	var wired: Dictionary[String, bool] = {}
+	for wire: PackedStringArray in circuit.get_wires():
+		wired[wire[0]] = true
+		wired[wire[1]] = true
+	var row_a: PackedStringArray = _pole_row(key_a, out_a if out_a != Vector2i.ZERO else out_b, wired)
+	var row_b: PackedStringArray = _pole_row(key_b, out_b if out_b != Vector2i.ZERO else out_a, wired)
+	var ia: int = row_a.find(key_a)
+	var ib: int = row_b.find(key_b)
+	for k: int in range(-mini(ia, ib), mini(row_a.size() - ia, row_b.size() - ib)):
+		var a: String = row_a[ia + k]
+		var b: String = row_b[ib + k]
+		if k != 0 and a != key_b and b != key_a and a != b:
+			result.append(PackedStringArray([a, b]))
+	return result
+
+
+## Terminal [param key] and the free terminals in line with it across
+## [param out] (the way a wire leaves there), in order along the line: those
+## of its part leaving the same way, or for a supply point the other supply
+## points of its page.
+func _pole_row(key: String, out: Vector2i, wired: Dictionary[String, bool]) -> PackedStringArray:
+	var owner: CircuitComponent = circuit.get_terminal_owner(key)
+	var along: int = 0 if out.x == 0 else 1
+	var line: int = terminal_cell(key)[1 - along]
+	var own_out: Vector2i = terminal_outward(key)
+	var parts: Array[CircuitComponent] = [owner]
+	if owner is PowerSupply:
+		parts = components_on_page(_placements[owner.id].page).filter(func(c: CircuitComponent) -> bool: return c is PowerSupply)
+	var row: Array[String] = []
+	for c: CircuitComponent in parts:
+		for other: String in c.get_terminal_keys():
+			if other == key or (not wired.has(other) and terminal_outward(other) == own_out and terminal_cell(other)[1 - along] == line):
+				row.append(other)
+	row.sort_custom(func(a: String, b: String) -> bool: return terminal_cell(a)[along] < terminal_cell(b)[along])
+	return PackedStringArray(row)
+
+
 ## Sets the schematic title and the title block texts (both stripped of
 ## surrounding spaces). Returns false when nothing changed.
 func set_title_block(new_title: String, block: TitleBlock) -> bool:

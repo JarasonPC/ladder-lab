@@ -787,6 +787,20 @@ Architecture and conventions of the code base. Read this before changing the cod
   markings, a tick and number at every cell, the cells each part will take marked) and keeps
   the dialog off it. Branch dots
   join wires of one net only
+- Wiring helpers (View > Wiring, user settings "editor": wire_facing on, wire_all_poles and
+  wire_on_drop off by default; SchematicEditor.wire_facing_menu / wire_all_poles /
+  wire_on_drop). SchematicDocument.facing_pairs: free terminals (no wire) facing each other
+  straight along a column or row, the first terminal straight ahead facing back (or without
+  a lead: supply points), nothing in the way (WireRouter.is_clear); each terminal in one
+  pair; connect_pairs wires pairs, routed. "Wire facing terminals (n)" in the right click
+  menu (two or more selected) wires those of the selection, one undo step. parallel_pairs:
+  a wire drawn from terminal to terminal brings along the free terminals beside each end in
+  its row leaving the same way (the other supply points in line for a supply point), paired
+  off in order from the two ends; Shift on the click that ends the wire draws it alone. A
+  part placed or dropped (in the place's or the drag's undo step) is wired to the free
+  terminals of the page it faces. The wires to come are drawn dashed: the poles while
+  hovering the end terminal, the part being placed (facing_wires_placed: added for the
+  query and taken out again) or dragged
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
   through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are
   simulation-only state (never saved). Overcurrent: every fuse, breaker and 3-pole overload

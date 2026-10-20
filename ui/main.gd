@@ -9,7 +9,7 @@ enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20, CABLES_CZECH = 40, CABLES_HARMONISED }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20, CABLES_CZECH = 40, CABLES_HARMONISED, WIRE_FACING = 50, WIRE_POLES, WIRE_ON_DROP }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS, TOUR }
@@ -1027,6 +1027,16 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_tooltip(popup.item_count - 1, tr("Number the current paths above the columns (left of the rows), also on export"))
 	popup.add_check_item(tr("Grid while editing"), ViewMenuId.GRID)
 	popup.set_item_checked(popup.item_count - 1, _edit_grid)
+	popup.add_separator(tr("Wiring"))
+	popup.add_check_item(tr("Wire facing terminals (right click)"), ViewMenuId.WIRE_FACING)
+	popup.set_item_checked(popup.item_count - 1, editor.wire_facing_menu)
+	popup.set_item_tooltip(popup.item_count - 1, tr("The right click menu wires the free terminals of the selected parts that face each other"))
+	popup.add_check_item(tr("Wire all poles at once"), ViewMenuId.WIRE_POLES)
+	popup.set_item_checked(popup.item_count - 1, editor.wire_all_poles)
+	popup.set_item_tooltip(popup.item_count - 1, tr("A wire drawn between multi-pole parts takes the poles beside it along (Shift: that wire alone)"))
+	popup.add_check_item(tr("Wire parts placed in line"), ViewMenuId.WIRE_ON_DROP)
+	popup.set_item_checked(popup.item_count - 1, editor.wire_on_drop)
+	popup.set_item_tooltip(popup.item_count - 1, tr("A part placed or dropped gets straight wires to the free terminals it faces"))
 	popup.add_separator(tr("Simulation"))
 	popup.add_radio_check_item(tr("Voltage view"), ViewMenuId.VOLTAGE_VIEW)
 	popup.set_item_checked(popup.item_count - 1, not _current_view)
@@ -1068,6 +1078,16 @@ func _on_view_menu(id: int) -> void:
 	elif id == ViewMenuId.WHITE_PAPER:
 		_white_paper = not _white_paper
 		_apply_theme()
+		_save_settings()
+	elif id == ViewMenuId.WIRE_FACING:
+		editor.wire_facing_menu = not editor.wire_facing_menu
+		_save_settings()
+	elif id == ViewMenuId.WIRE_POLES:
+		editor.wire_all_poles = not editor.wire_all_poles
+		editor._emit_hint()
+		_save_settings()
+	elif id == ViewMenuId.WIRE_ON_DROP:
+		editor.wire_on_drop = not editor.wire_on_drop
 		_save_settings()
 	elif id == ViewMenuId.CABLES_CZECH or id == ViewMenuId.CABLES_HARMONISED:
 		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if id == ViewMenuId.CABLES_HARMONISED else WorkspaceCables.Naming.CZECH
@@ -2377,6 +2397,9 @@ func _load_settings() -> void:
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
 		_current_view = bool(config.get_value("view", "current_view", false))
+		editor.wire_facing_menu = bool(config.get_value("editor", "wire_facing", true))
+		editor.wire_all_poles = bool(config.get_value("editor", "wire_all_poles", false))
+		editor.wire_on_drop = bool(config.get_value("editor", "wire_on_drop", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
 		var hidden_rows: Variant = config.get_value("view", "timing_hidden", PackedStringArray())
 		if hidden_rows is PackedStringArray or hidden_rows is Array:
@@ -2415,6 +2438,9 @@ func _save_settings() -> void:
 	config.set_value("view", "path_numbers", _path_numbers)
 	config.set_value("view", "palette_grid", _palette_grid)
 	config.set_value("view", "current_view", _current_view)
+	config.set_value("editor", "wire_facing", editor.wire_facing_menu)
+	config.set_value("editor", "wire_all_poles", editor.wire_all_poles)
+	config.set_value("editor", "wire_on_drop", editor.wire_on_drop)
 	if _timing_panel != null:
 		config.set_value("view", "timing_height", _timing_panel.panel_height)
 		config.set_value("view", "event_log_width", _timing_panel.log_width)

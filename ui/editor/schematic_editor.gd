@@ -11,7 +11,13 @@ extends Node2D
 ## Right click opens a menu with "Change to" (switch a contact, coil or load
 ## to another type, keeping its wires), rotate, mirror, line up (several
 ## parts in a column or a row, a set number of cells apart, with a ruler on
-## the drawing while the number is asked for), cut/copy/paste, delete.
+## the drawing while the number is asked for), wire facing terminals,
+## cut/copy/paste, delete.
+## Wiring helpers (each turned on or off in the View menu): "Wire facing
+## terminals" in the right click menu wires the free terminals of the selected
+## parts that face each other straight; a wire drawn between multi-pole parts
+## takes the poles beside it along (Shift: that wire alone); parts placed or
+## dropped get straight wires to the free terminals they face.
 ## Keys: R rotate, F mirror, Delete remove, Ctrl+Z undo, Ctrl+Y redo,
 ## Ctrl+X/C/V cut/copy/paste, Ctrl+A select all.
 
@@ -35,7 +41,7 @@ enum Tool { SELECT, PLACE, WIRE }
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, LINE_UP_VERTICAL, LINE_UP_HORIZONTAL, GO_TO = 100 }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, LINE_UP_VERTICAL, LINE_UP_HORIZONTAL, WIRE_FACING, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
 ## Phase conductors as the palette names them, in phase order.
@@ -57,6 +63,17 @@ var active: bool = false:
 		visible = value
 
 var tool: Tool = Tool.SELECT
+## Wiring helpers, set from the View menu: "Wire facing terminals" in the
+## right click menu; a wire drawn between multi-pole parts takes the poles
+## beside it along; parts placed or dropped are wired to the terminals they
+## face.
+var wire_facing_menu: bool = true
+var wire_all_poles: bool = false
+var wire_on_drop: bool = false:
+	set(value):
+		wire_on_drop = value
+		_drop_pairs.clear()
+		_update_ghost_wires()
 var selected_components: Dictionary[String, bool] = {}
 var selected_wires: Dictionary[int, bool] = {}
 
@@ -70,6 +87,10 @@ var _phase_step: int = 0
 var _ghost: SchematicSymbol = null
 var _ghost_rotation: int = 0
 var _ghost_mirrored: bool = false
+## Wires the part being placed would get where the ghost stands (see
+## [member wire_on_drop]), from cell to cell, and the cell they were found for.
+var _ghost_wires: Array[PackedVector2Array] = []
+var _ghost_wires_cell: Vector2i = Vector2i.ZERO
 # Wiring: start terminal and fixed points so far (start cell first).
 var _wire_start: String = ""
 var _wire_points: Array[Vector2i] = []
@@ -85,6 +106,9 @@ var _drag_recorded: bool = false
 var _drag_start: Dictionary = {}
 ## The document as the drag's undo step recorded it ({} after a turn).
 var _drag_snapshot: Dictionary = {}
+## Wires the dragged parts would get where they are now (see
+## [member wire_on_drop]), drawn dashed until they are let go.
+var _drop_pairs: Array[PackedStringArray] = []
 ## Dragging one segment of a wire sideways (tidying the route).
 var _wire_drag: int = -1
 var _wire_drag_segment: int = -1
@@ -328,6 +352,19 @@ func mirror_selection() -> void:
 	document().mirror_components(PackedStringArray(selected_components.keys()))
 	_turned_while_dragging()
 	_changed()
+
+
+## Wires the free terminals of the selected parts that face each other with
+## straight wires (see [method SchematicDocument.facing_pairs]), one undo
+## step. Returns how many wires were added.
+func wire_facing_terminals() -> int:
+	var pairs: Array[PackedStringArray] = document().facing_pairs(PackedStringArray(selected_components.keys()))
+	if pairs.is_empty():
+		return 0
+	_record()
+	var added: int = document().connect_pairs(pairs)
+	_changed()
+	return added
 
 
 ## Mirrors the selection (or the part being placed) top to bottom.
@@ -777,8 +814,12 @@ func _unhandled_input(event: InputEvent) -> void:
 					_cancel_tool()
 			elif tool == Tool.SELECT and mb.position.distance_to(_right_press) < CLICK_SLOP:
 				_open_context_menu()
-	elif event is InputEventKey and (event as InputEventKey).pressed:
-		_on_key(event as InputEventKey)
+	elif event is InputEventKey:
+		if (event as InputEventKey).keycode == KEY_SHIFT and tool == Tool.WIRE:
+			# Shift hides or shows the poles that would go along.
+			queue_redraw()
+		if (event as InputEventKey).pressed:
+			_on_key(event as InputEventKey)
 
 
 func _on_key(key: InputEventKey) -> void:
@@ -874,12 +915,20 @@ func _open_context_menu() -> void:
 		_menu.add_item(tr("Rotate"), MenuId.ROTATE, KEY_R)
 		_menu.add_item(tr("Mirror left-right"), MenuId.MIRROR, KEY_F)
 		_menu.add_item(tr("Mirror top-bottom"), MenuId.FLIP, KEY_MASK_SHIFT | KEY_F)
-		if _line_up_ids().size() >= 2:
+		var line_up: bool = _line_up_ids().size() >= 2
+		var facing: bool = wire_facing_menu and selected_components.size() >= 2
+		if line_up or facing:
 			_menu.add_separator()
+		if line_up:
 			_menu.add_item(tr("Line up vertically…"), MenuId.LINE_UP_VERTICAL)
 			_menu.set_item_tooltip(_menu.item_count - 1, tr("One under another, the same number of cells apart"))
 			_menu.add_item(tr("Line up horizontally…"), MenuId.LINE_UP_HORIZONTAL)
 			_menu.set_item_tooltip(_menu.item_count - 1, tr("Side by side, the same number of cells apart"))
+		if facing:
+			var count: int = doc.facing_pairs(PackedStringArray(selected_components.keys())).size()
+			_menu.add_item(tr("Wire facing terminals") + ("  (%d)" % count if count > 0 else ""), MenuId.WIRE_FACING)
+			_menu.set_item_tooltip(_menu.item_count - 1, tr("Straight wires between the free terminals of the selected parts that face each other"))
+			_menu.set_item_disabled(_menu.item_count - 1, count == 0)
 		_menu.add_separator()
 		_menu.add_item(tr("Cut"), MenuId.CUT, KEY_MASK_CTRL | KEY_X)
 		_menu.add_item(tr("Copy"), MenuId.COPY, KEY_MASK_CTRL | KEY_C)
@@ -917,6 +966,8 @@ func _on_menu_id(id: int) -> void:
 			select_all()
 		MenuId.LINE_UP_VERTICAL, MenuId.LINE_UP_HORIZONTAL:
 			ask_line_up(id == MenuId.LINE_UP_VERTICAL)
+		MenuId.WIRE_FACING:
+			wire_facing_terminals()
 		MenuId.DATASHEET:
 			if selected_components.size() == 1:
 				datasheet_requested.emit(selected_components.keys()[0])
@@ -957,6 +1008,8 @@ func _on_mouse_moved() -> void:
 		Tool.PLACE:
 			if _ghost != null:
 				_ghost.position = Vector2(_mouse_cell) * G
+				if _mouse_cell != _ghost_wires_cell:
+					_update_ghost_wires()
 		Tool.SELECT:
 			if _holding() and not _press_moved:
 				var on_screen: float = (_mouse_point - _press_point).length() * G * get_global_transform_with_canvas().get_scale().x
@@ -990,7 +1043,7 @@ func _on_left_pressed(shift: bool) -> void:
 		Tool.WIRE:
 			var key: String = doc.terminal_at(_mouse_point)
 			if not key.is_empty() and key != _wire_start:
-				_finish_wire(key, -1)
+				_finish_wire(key, -1, shift)
 				return
 			var w: int = _wire_to_join()
 			if w >= 0 and key.is_empty():
@@ -1085,11 +1138,15 @@ func _on_left_released(shift: bool) -> void:
 	if _dragging:
 		_dragging = false
 		_drag_start = {}
+		_drop_pairs.clear()
 		if _drag_recorded:
 			if DocumentSerializer.to_dict(document()) == _drag_snapshot:
 				# Dragged back to where they were: nothing changed, no undo step.
 				history.discard_last()
 			else:
+				if wire_on_drop:
+					# In the drag's undo step.
+					document().connect_pairs(document().facing_pairs(PackedStringArray(selected_components.keys()), _page_ids()))
 				_changed()
 	if _boxing:
 		_boxing = false
@@ -1141,6 +1198,8 @@ func _place_at(cell: Vector2i) -> void:
 		doc.split_wire(on_wire, cell, c)
 	else:
 		doc.add(c, cell, _ghost_rotation, _ghost_mirrored)
+		if wire_on_drop:
+			doc.connect_pairs(doc.facing_pairs(PackedStringArray([c.id]), _page_ids()))
 	_clear_selection()
 	selected_components[c.id] = true
 	if c is PowerSupply and PHASES.has(data["conductor"]):
@@ -1398,8 +1457,9 @@ func _start_wire(key: String) -> void:
 
 
 ## Finishes the wire on terminal [param key], or on wire [param wire_index]
-## (splitting it with a junction).
-func _finish_wire(key: String, wire_index: int) -> void:
+## (splitting it with a junction). Ending on a terminal, the poles beside it
+## go along (see [member wire_all_poles]) unless [param alone].
+func _finish_wire(key: String, wire_index: int, alone: bool = false) -> void:
 	var doc: SchematicDocument = document()
 	_record()
 	var end_key: String = key
@@ -1418,7 +1478,9 @@ func _finish_wire(key: String, wire_index: int) -> void:
 		points.append(preview[i])
 	points[points.size() - 1] = doc.terminal_cell(end_key)
 	var clean: Array[Vector2i] = SchematicDocument.orthogonalize(points, doc.terminal_axis(_wire_start), doc.terminal_axis(end_key))
+	var poles: Array[PackedStringArray] = doc.parallel_pairs(_wire_start, end_key) if wire_all_poles and not alone and wire_index < 0 else ([] as Array[PackedStringArray])
 	doc.connect_terminals(_wire_start, end_key, clean.slice(1, clean.size() - 1))
+	doc.connect_pairs(poles)
 	tool = Tool.SELECT
 	_wire_start = ""
 	_wire_points.clear()
@@ -1479,7 +1541,17 @@ func _drag_to(delta: Vector2i) -> void:
 		_drag_start = document().drag_start(PackedStringArray(selected_components.keys()))
 	document().drag_components(_drag_start, delta)
 	_drag_applied = delta
+	if wire_on_drop:
+		_drop_pairs = document().facing_pairs(PackedStringArray(selected_components.keys()), _page_ids())
 	view.rebuild()
+
+
+## Ids of the parts on the page shown.
+func _page_ids() -> PackedStringArray:
+	var ids: PackedStringArray = PackedStringArray()
+	for c: CircuitComponent in document().components_on_page():
+		ids.append(c.id)
+	return ids
 
 
 ## Numbers the net of wire [param index] (undoable).
@@ -1742,6 +1814,7 @@ func _end_drags() -> void:
 			applied = true
 	_dragging = false
 	_drag_start = {}
+	_drop_pairs.clear()
 	_boxing = false
 	_wire_drag = -1
 	_number_drag = Vector2i(-1, -1)
@@ -1760,6 +1833,14 @@ func _rebuild_ghost() -> void:
 	_ghost = SymbolFactory.create(DocumentSerializer.component_from_dict(data), placement)
 	_ghost.modulate = Color(1, 1, 1, 0.5)
 	add_child(_ghost)
+	_update_ghost_wires()
+
+
+func _update_ghost_wires() -> void:
+	_ghost_wires_cell = _mouse_cell
+	_ghost_wires.clear()
+	if wire_on_drop and _ghost != null:
+		_ghost_wires = document().facing_wires_placed(_ghost.component, _mouse_cell, _ghost_rotation, _ghost_mirrored)
 
 
 # --- State ----------------------------------------------------------------------
@@ -1841,7 +1922,10 @@ func _emit_hint() -> void:
 		Tool.PLACE:
 			hint_changed.emit(tr("Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."))
 		Tool.WIRE:
-			hint_changed.emit(tr("Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."))
+			if wire_all_poles:
+				hint_changed.emit(tr("Click empty cells for corners, finish on a terminal or a wire; the poles beside go along (Shift: this wire alone). Backspace removes a corner, Esc cancels."))
+			else:
+				hint_changed.emit(tr("Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."))
 		_:
 			hint_changed.emit(tr("Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F / Shift+F mirror, Del deletes."))
 
@@ -1879,6 +1963,7 @@ func _draw() -> void:
 	var doc: SchematicDocument = document()
 	if tool == Tool.PLACE and _ghost != null:
 		_draw_placement_guides()
+		_draw_wires(_ghost_wires)
 	elif _dragging and _drag_recorded:
 		# Guide lines through the terminals of the parts being moved.
 		var cells: Array[Vector2i] = []
@@ -1950,6 +2035,11 @@ func _draw() -> void:
 			points.append(preview[i])
 		if points.size() >= 2:
 			draw_polyline(_pixels(points), PREVIEW_COLOR, 2.5)
+		var end_key: String = doc.terminal_at(_mouse_point)
+		if wire_all_poles and not end_key.is_empty() and end_key != _wire_start and not Input.is_key_pressed(KEY_SHIFT):
+			_draw_pairs(doc.parallel_pairs(_wire_start, end_key))
+	if _dragging and _drag_recorded:
+		_draw_pairs(_drop_pairs)
 	if not _line_up.is_empty():
 		_draw_line_up_ruler()
 	# Selection box.
@@ -2016,6 +2106,27 @@ func _draw_line_up_ruler() -> void:
 		else:
 			pos = Vector2(at * G - text_size.x * 0.5, band_far * G - 3.0)
 		draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, SchematicTheme.TEXT)
+
+
+## Dashed wires the wiring helpers would add between the terminal pairs
+## [param pairs] (straight, or with one corner).
+func _draw_pairs(pairs: Array[PackedStringArray]) -> void:
+	var doc: SchematicDocument = document()
+	var wires: Array[PackedVector2Array] = []
+	for pair: PackedStringArray in pairs:
+		var points: Array[Vector2i] = SchematicDocument.orthogonalize([doc.terminal_cell(pair[0]), doc.terminal_cell(pair[1])] as Array[Vector2i], doc.terminal_axis(pair[0]), doc.terminal_axis(pair[1]))
+		var line: PackedVector2Array = PackedVector2Array()
+		for p: Vector2i in points:
+			line.append(Vector2(p))
+		wires.append(line)
+	_draw_wires(wires)
+
+
+## Dashed wires along the cells of each of [param wires].
+func _draw_wires(wires: Array[PackedVector2Array]) -> void:
+	for line: PackedVector2Array in wires:
+		for i: int in range(1, line.size()):
+			draw_dashed_line(line[i - 1] * G, line[i] * G, PREVIEW_COLOR, 2.0, 6.0)
 
 
 func _pixels(points: Array[Vector2i]) -> PackedVector2Array:
