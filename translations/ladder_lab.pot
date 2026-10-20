@@ -5507,3 +5507,25 @@ msgstr ""
 #, c-format
 msgid "%s cannot be read"
 msgstr ""
+
+msgid "Put the consumer unit and the circuit's parts on the floor plan to work out its cable's length and voltage drop."
+msgstr ""
+
+#, c-format
+msgid "Cable about %s m (from the plan, with 10 %% reserve)"
+msgstr ""
+
+#, c-format
+msgid "Voltage drop %s %% at In (at most %s %%)"
+msgstr ""
+
+#, c-format
+msgid "Loop impedance %s Ω: trips at once on a fault"
+msgstr ""
+
+#, c-format
+msgid "Loop impedance %s Ω: too high to trip at once on a fault"
+msgstr ""
+
+msgid "Loop impedance of the supply Ze"
+msgstr ""

@@ -42,6 +42,11 @@ var _spd: CheckBox
 var _hint: Label
 ## What a circuit without a 30 mA RCD lacks.
 var _warning: Label
+## A circuit's cable length from the plan, its voltage drop and loop impedance.
+var _checks: Label
+## The supply's loop impedance at the consumer unit.
+var _ze_label: Label
+var _ze: SpinBox
 ## Rooms offered, by item index of [member _room] (the first: none).
 var _rooms: PackedStringArray = PackedStringArray()
 ## Device of the circuit the panel shows ("" for the supply, a group's RCD
@@ -135,6 +140,19 @@ func _ready() -> void:
 	_spd.toggled.connect(func(on: bool) -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.spd = on))
 	fields.add_child(_spd)
+	_ze_label = _label(fields)
+	_ze = SpinBox.new()
+	_ze.min_value = 0.01
+	_ze.max_value = 10.0
+	_ze.step = 0.01
+	_ze.suffix = "Ω"
+	_ze.value_changed.connect(func(value: float) -> void:
+		if _document != null and not is_equal_approx(value, _document.single_line.supply_impedance):
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.supply_impedance = value))
+	fields.add_child(_ze)
+	_checks = _label(fields)
+	_checks.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_checks.custom_minimum_size.x = 200.0
 	_warning = _label(fields)
 	_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_warning.custom_minimum_size.x = 200.0
@@ -251,6 +269,14 @@ func _fill() -> void:
 	_cable_label.visible = feeder_shown or group == null
 	_cable.visible = _cable_label.visible
 	_spd.visible = not feeder_shown and group == null
+	_ze_label.visible = _spd.visible
+	_ze.visible = _spd.visible
+	_ze.set_value_no_signal(line.supply_impedance)
+	_checks.visible = feeder_shown
+	if feeder_shown:
+		var check: Dictionary = SingleLineView.checks(line, f, _document)
+		_checks.text = check["text"]
+		_checks.add_theme_color_override("font_color", SchematicTheme.WARNING if check["bad"] else SchematicTheme.TEXT)
 	_phase_label.visible = feeder_shown or group != null
 	_phase.visible = _phase_label.visible
 	_shown = f.device if feeder_shown else group.device if group != null else ""
@@ -294,6 +320,26 @@ func _fill() -> void:
 	_hint.text = tr("Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together.")
 
 
+## What the plan says of circuit [param f] of [param line]: {"text": its
+## cable length, voltage drop and loop impedance as lines, "bad": one of
+## them out of bounds, "length", "drop" (-1 when not known)}.
+static func checks(line: SingleLine, f: SingleLine.Feeder, doc: SchematicDocument) -> Dictionary:
+	var length: float = line.cable_length(f, doc)
+	if length < 0.0:
+		return {"text": TranslationServer.translate("Put the consumer unit and the circuit's parts on the floor plan to work out its cable's length and voltage drop."), "bad": false, "length": -1.0, "drop": -1.0}
+	var drop: float = line.voltage_drop(f, doc, length)
+	var limit: float = line.drop_limit(f, doc.circuit)
+	var z: float = line.loop_impedance(f, doc, length)
+	var trips: bool = line.disconnects_in_time(f, doc, length)
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append(TranslationServer.translate("Cable about %s m (from the plan, with 10 %% reserve)") % roundi(length))
+	if drop >= 0.0:
+		lines.append(TranslationServer.translate("Voltage drop %s %% at In (at most %s %%)") % [SingleLineCanvas._decimal(String.num(drop, 1)), SingleLineCanvas._decimal(String.num(limit, 0))])
+	if z >= 0.0:
+		lines.append((TranslationServer.translate("Loop impedance %s Ω: trips at once on a fault") if trips else TranslationServer.translate("Loop impedance %s Ω: too high to trip at once on a fault")) % SingleLineCanvas._decimal(String.num(z, 2)))
+	return {"text": "\n".join(lines), "bad": drop > limit or (z >= 0.0 and not trips), "length": length, "drop": drop}
+
+
 func retranslate() -> void:
 	_delete_button.tooltip_text = tr("Delete the selected breaker, RCD or part (Delete)")
 	_fit_button.text = tr("Show all")
@@ -303,4 +349,5 @@ func retranslate() -> void:
 	_cable_label.text = tr("Cable")
 	_hdo.text = tr("Switched by ripple control (HDO)")
 	_spd.text = tr("Surge protective device (SPD)")
+	_ze_label.text = tr("Loop impedance of the supply Ze")
 	_fill()

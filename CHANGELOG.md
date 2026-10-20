@@ -62,6 +62,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   room and shows a see-through ghost of what goes there
 - Single-line diagram: a circuit without an RCD of 30 mA or less over it is marked, as
   ČSN 33 2000-4-41 asks for one on everything an ordinary person can reach
+- Single-line diagram: each circuit's cable length worked out from the floor plan (the unit to
+  every part it feeds, along the walls, with the drops and a 10 % reserve), its voltage drop at
+  the breaker's rated current against 3 % (lighting) or 5 % (ČSN 33 2000-5-52) and its fault
+  loop impedance against what trips the breaker at once (the supply's Ze set at the incoming
+  supply); written along the cable, red when out of bounds
 - Residual current devices of types F, B and B+ beside AC and A, and selective ones (S): a
   selective RCD lets the one nearest the fault trip alone
 - The floor plan sheet of a PDF export draws the plan as large as its paper takes, and the

@@ -114,7 +114,8 @@ const FORMAT: String = "ladder-lab"
 ## ("notes": text, at, label) and furniture ("fixtures": kind, rect, facing);
 ## several floors ("floors": plans with "level" and "name", "floor": the one
 ## shown; missing: one, as "floor_plan") and an underlay per plan
-## ("underlay": path, at, scale, shown).
+## ("underlay": path, at, scale, shown); the supply's loop impedance in the
+## single-line diagram ("ze"; missing: 0.4 Ω).
 const VERSION: int = 44
 
 

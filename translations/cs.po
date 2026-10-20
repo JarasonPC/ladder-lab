@@ -5522,3 +5522,25 @@ msgstr "Odstranit"
 #, c-format
 msgid "%s cannot be read"
 msgstr "%s nelze načíst"
+
+msgid "Put the consumer unit and the circuit's parts on the floor plan to work out its cable's length and voltage drop."
+msgstr "Umístěte rozváděč a prvky obvodu na půdorys, aby šla spočítat délka kabelu a úbytek napětí."
+
+#, c-format
+msgid "Cable about %s m (from the plan, with 10 %% reserve)"
+msgstr "Kabel asi %s m (z půdorysu, s 10 %% rezervou)"
+
+#, c-format
+msgid "Voltage drop %s %% at In (at most %s %%)"
+msgstr "Úbytek napětí %s %% při In (nejvýše %s %%)"
+
+#, c-format
+msgid "Loop impedance %s Ω: trips at once on a fault"
+msgstr "Impedance smyčky %s Ω: při poruše vypne okamžitě"
+
+#, c-format
+msgid "Loop impedance %s Ω: too high to trip at once on a fault"
+msgstr "Impedance smyčky %s Ω: příliš vysoká, při poruše nevypne okamžitě"
+
+msgid "Loop impedance of the supply Ze"
+msgstr "Impedance smyčky přívodu Ze"

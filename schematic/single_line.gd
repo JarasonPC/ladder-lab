@@ -27,6 +27,21 @@ const SUPPLIES: PackedStringArray = ["L1", "L2", "L3", "N", "PE"]
 const MAIN_RATING: float = 63.0
 ## Supply cable when none is set.
 const SUPPLY_CABLE: String = "CYKY-J 5×10"
+## Cables are worked out as run this high in the wall (m: in the
+## installation zone under a 2.6 m ceiling, ČSN 33 2130), with a reserve.
+const ZONE_HEIGHT: float = 2.4
+const CABLE_RESERVE: float = 1.1
+## The consumer unit's middle is this high (m); a floor this much over the one under it.
+const UNIT_HEIGHT: float = 1.5
+const FLOOR_HEIGHT: float = 3.0
+## Resistivity of copper at 70 °C, the conductor's working temperature (Ω·mm²/m).
+const COPPER: float = 0.0225
+## Voltage drop allowed from the consumer unit (%): lighting, the rest
+## (ČSN 33 2000-5-52, an installation fed from the public LV network).
+const LIGHTING_DROP: float = 3.0
+const OTHER_DROP: float = 5.0
+## Loop impedance of the supply up to the consumer unit when none is set (Ω).
+const SUPPLY_IMPEDANCE: float = 0.4
 
 
 ## An outgoing circuit: its protective device and the parts it feeds.
@@ -110,10 +125,123 @@ var columns: Array[RefCounted] = []
 var supply_cable: String = ""
 ## A surge protective device (SPD) on the busbars to PE (drawn only).
 var spd: bool = true
+## The fault loop impedance of the supply at the consumer unit, Ze (Ω).
+var supply_impedance: float = SUPPLY_IMPEDANCE
 
 
 func is_empty() -> bool:
-	return columns.is_empty() and supply_cable.is_empty() and spd
+	return columns.is_empty() and supply_cable.is_empty() and spd and is_equal_approx(supply_impedance, SUPPLY_IMPEDANCE)
+
+
+# --- Design checks --------------------------------------------------------------------
+
+## Length of circuit [param f]'s cable (m), from the plan: from the consumer
+## unit along the walls to everything it feeds (the shortest tree over them,
+## across and up and down, run at [constant ZONE_HEIGHT], each part's drop
+## from there and a floor's height between floors), with
+## [constant CABLE_RESERVE]; -1 when the unit or none of its parts is on a plan.
+func cable_length(f: Feeder, doc: SchematicDocument) -> float:
+	var unit_floor: int = doc.floor_of(FloorPlan.UNIT)
+	if unit_floor < 0:
+		return -1.0
+	# Each point: where it is (m), its floor, its drop from the zone.
+	var points: Array[Vector3] = [Vector3(doc.floors[unit_floor].parts[FloorPlan.UNIT].x, doc.floors[unit_floor].parts[FloorPlan.UNIT].y, unit_floor)]
+	var drops: PackedFloat32Array = PackedFloat32Array([absf(ZONE_HEIGHT - UNIT_HEIGHT)])
+	for load: String in f.loads:
+		var on: int = doc.floor_of(load)
+		var c: CircuitComponent = doc.circuit.get_component(load)
+		if on < 0 or c == null:
+			continue
+		var at: Vector2 = doc.floors[on].parts[load]
+		points.append(Vector3(at.x, at.y, on))
+		var height: Variant = c.get("height")
+		drops.append(absf(ZONE_HEIGHT - float(height)) if height != null else 0.0)
+	if points.size() < 2:
+		return -1.0
+	# Prim's tree over them.
+	var length: float = 0.0
+	var joined: Array[bool] = [true]
+	var best: PackedFloat32Array = PackedFloat32Array()
+	for i: int in points.size():
+		if i > 0:
+			joined.append(false)
+		best.append(_run(points[0], points[i]))
+	for _step: int in points.size() - 1:
+		var next: int = -1
+		for i: int in points.size():
+			if not joined[i] and (next < 0 or best[i] < best[next]):
+				next = i
+		joined[next] = true
+		length += best[next]
+		for i: int in points.size():
+			if not joined[i]:
+				best[i] = minf(best[i], _run(points[next], points[i]))
+	for drop: float in drops:
+		length += drop
+	return length * CABLE_RESERVE
+
+
+## A cable's run between two points (x, y, floor): along the walls' directions, a floor's height a floor.
+static func _run(a: Vector3, b: Vector3) -> float:
+	return absf(a.x - b.x) + absf(a.y - b.y) + absf(a.z - b.z) * FLOOR_HEIGHT
+
+
+## Cross-section of a cable's conductors written as "CYKY-J 3×2,5" (mm²), 0 when it is not there.
+static func cable_section(text: String) -> float:
+	var found: RegExMatch = RegEx.create_from_string("[×x]\\s*([0-9]+(?:[.,][0-9]+)?)").search(text)
+	return found.get_string(1).replace(",", ".").to_float() if found != null else 0.0
+
+
+## The rated current and characteristic letter of circuit [param f]'s device.
+static func _rating(f: Feeder, circuit: Circuit) -> Dictionary:
+	var c: CircuitComponent = circuit.get_component(f.device)
+	if c is CircuitBreaker:
+		return {"current": (c as CircuitBreaker).rated_current, "magnetic": TripCurve.MAGNETIC[(TripCurve.Kind.BREAKER_B + (c as CircuitBreaker).characteristic) as TripCurve.Kind]}
+	if c is MotorBreaker:
+		return {"current": (c as MotorBreaker).rated_current, "magnetic": TripCurve.MAGNETIC[(TripCurve.Kind.BREAKER_B + (c as MotorBreaker).characteristic) as TripCurve.Kind]}
+	return {"current": 0.0, "magnetic": 5.0}
+
+
+## Voltage drop of circuit [param f] at its device's rated current over
+## [param length] m of its cable (%): two conductors of 230 V, or three
+## phases of 400 V; -1 when the length or the cable is not known.
+func voltage_drop(f: Feeder, doc: SchematicDocument, length: float) -> float:
+	var section: float = cable_section(cable_text(f, doc.circuit))
+	if length < 0.0 or section <= 0.0:
+		return -1.0
+	var current: float = _rating(f, doc.circuit)["current"]
+	if phases_of(f, doc.circuit).size() >= 3:
+		return sqrt(3.0) * length * current * COPPER / section / 400.0 * 100.0
+	return 2.0 * length * current * COPPER / section / 230.0 * 100.0
+
+
+## The voltage drop allowed circuit [param f] (%): [constant LIGHTING_DROP]
+## for one feeding lighting alone, else [constant OTHER_DROP].
+func drop_limit(f: Feeder, circuit: Circuit) -> float:
+	for load: String in f.loads:
+		var c: CircuitComponent = circuit.get_component(load)
+		if not (c is Luminaire or c is LightSwitch):
+			return OTHER_DROP
+	return LIGHTING_DROP if not f.loads.is_empty() else OTHER_DROP
+
+
+## The fault loop impedance at the far end of circuit [param f] over
+## [param length] m (Ω): the supply's and its phase and PE conductors'; -1
+## when not known.
+func loop_impedance(f: Feeder, doc: SchematicDocument, length: float) -> float:
+	var section: float = cable_section(cable_text(f, doc.circuit))
+	if length < 0.0 or section <= 0.0:
+		return -1.0
+	return supply_impedance + 2.0 * length * COPPER / section
+
+
+## Whether a fault at the far end of circuit [param f] trips its device's
+## magnetic release at once (within 0.4 s): 230 V over the loop impedance
+## at least its multiple of the rated current.
+func disconnects_in_time(f: Feeder, doc: SchematicDocument, length: float) -> bool:
+	var z: float = loop_impedance(f, doc, length)
+	var rating: Dictionary = _rating(f, doc.circuit)
+	return z > 0.0 and 230.0 / z >= float(rating["current"]) * float(rating["magnetic"])
 
 
 # --- Finding things -------------------------------------------------------------------
@@ -1027,6 +1155,8 @@ func to_data() -> Dictionary:
 		result["supply_cable"] = supply_cable
 	if not spd:
 		result["spd"] = false
+	if not is_equal_approx(supply_impedance, SUPPLY_IMPEDANCE):
+		result["ze"] = supply_impedance
 	return result
 
 
@@ -1039,4 +1169,6 @@ static func from_data(d: Variant) -> SingleLine:
 	var cable: Variant = (d as Dictionary).get("supply_cable", "")
 	line.supply_cable = cable if cable is String else ""
 	line.spd = (d as Dictionary).get("spd", true) != false
+	var ze: Variant = (d as Dictionary).get("ze", SUPPLY_IMPEDANCE)
+	line.supply_impedance = clampf(float(ze), 0.01, 10.0) if (ze is float or ze is int) else SUPPLY_IMPEDANCE
 	return line

@@ -282,6 +282,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   moved going along; never under itself), set_phase, remove (from _forget_device: what is
   under a group stays where it was),
   rename (from replace_component), next_phase, phases_of, cable_number, cable_text.
+  Design checks: cable_length (from the floor plans: Prim's tree over the consumer unit and
+  the parts a circuit feeds, across and up and down at ZONE_HEIGHT, each part's drop, a
+  FLOOR_HEIGHT between floors, CABLE_RESERVE; -1 when not on a plan), voltage_drop at the
+  device's rated current (COPPER at 70 °C, cable_section from the cable text; √3 and 400 V for
+  three phases), drop_limit (LIGHTING_DROP for lighting alone, else OTHER_DROP),
+  loop_impedance (supply_impedance Ze, saved "ze", plus phase and PE), disconnects_in_time
+  (230 V / Zs at least TripCurve.MAGNETIC × In); SingleLineView.checks words them for the
+  circuit's panel (red when out of bounds), the canvas writes the length and ΔU along the cable.
   SingleLineCanvas (ui/single_line/, _draw only, zoom and pan as the floor plan) draws it in
   local coordinates u down a circuit, v across (at, local): busbars L1 L2 L3 N across with
   their names, the supply with its cable, QB1 (a blade with a circle), the SPD to earth
