@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.5.0 – 2026-10-20
+
 ### Panels
 - Wires on from a contactor's outputs under its overload relay come out from behind the
   relay at its left side, all of them, near its top, and run down beside it, no longer out under the relay
@@ -27,7 +29,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   test that failed and the parts concerned ringed; finished lessons are ticked in the menu
 - Interface tour (Help > Interface tour): a short walk through the window, each stop
   highlighted with a card saying what it is for; Esc or Skip tour leaves it
-- On the first start a card offers the tour or the first lesson
+- A card over the drawing offers the tour or the first lesson, until it is answered
 
 ### Fixed
 - The terminal strip labels of a motor or of three poles side by side are all written alike,
