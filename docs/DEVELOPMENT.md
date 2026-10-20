@@ -105,8 +105,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   (Lesson.roles: e.g. "stop" the first NC push button, "hold" the coil's NO contact across the
   start button) with the solution's part for each role (Lesson.parts) and the role whose
   placement lines the solution up with the drawing (anchor); steps (title, text, hint, the
-  palette template, toolbar control and roles they point at, roles and wires
-  [role, terminal index, role, terminal index] Show me draws, done(edited, live)) and goals
+  parts they place [role, palette template] (each entry ringed while its role is missing),
+  the property [role, key] they set (its field ringed, PropertiesPanel.field_rect), the
+  toolbar control and roles they point at, wires [role, terminal index, role, terminal
+  index] whose terminals are ringed and which Show me draws, wires to delete (cut, crossed
+  out on the drawing), done(edited, live)) and goals
   (phases of a test run: actions press / release / on / off / trip, waits, expected states).
   LessonCheck: nets by wires and page connectors (UnionFind), series (parts one after the
   other, either way round, a part bridged by a wire breaks it), bridges, pole_chain, the
@@ -117,10 +120,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   the first not done, check results dropped by the next edit. main.gd starts a lesson on its
   own schematic (after the unsaved-changes prompt; another schematic ends it) with the
   LessonPanel in a SideBar on the right ("lesson"), updates it on edits and simulation
-  steps; LessonMarks (Node2D over the drawing) rings the step's parts and, with Show me in
-  Edit mode, draws the solution's missing parts faintly and its wires as marching dashes;
-  TutorialRings (CanvasLayer 2) rings the palette entry (Palette.entry_rect / reveal) and
-  Simulate or Edit; all in AppTheme.tutorial (purple: never the selection's accent nor a
+  steps; LessonMarks (Node2D over the drawing) rings the step's parts, in Edit mode the
+  terminals of its wires not drawn yet (while a wire is drawn from one of them,
+  SchematicEditor.wire_start, a guide to the terminal it should end on) and its wires to
+  delete, and with Show me draws (where no part stands already) the solution's missing parts faintly and its wires as marching dashes;
+  TutorialRings (CanvasLayer 2) rings the palette entries (Palette.entry_rect / reveal), the
+  property field and Simulate or Edit; all in AppTheme.tutorial (purple: never the selection's accent nor a
   wire colour). TourOverlay (CanvasLayer 3): the window dimmed but for the control of the
   step (clicks there go through, _has_point), a card beside it, steps that wait for the
   control to be used (Next does it), Esc; main.gd builds its stops and puts the mode and

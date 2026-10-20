@@ -137,10 +137,9 @@ func test_show_me_draws_the_missing_parts_and_wires() -> void:
 func test_every_palette_step_finds_its_entry() -> void:
 	for lesson: Lesson in Lessons.all():
 		for s: Lesson.Step in lesson.steps:
-			if s.palette.is_empty():
-				continue
-			var button: Button = main._palette.entry_button(s.palette)
-			assert_not_null(button, "%s: %s" % [lesson.id, s.title])
+			for place: Array in s.places:
+				assert_not_null(main._palette.entry_button(place[1]), "%s: %s" % [lesson.id, s.title])
+				assert_true(lesson.parts.has(place[0]), "%s: %s places a part of the solution" % [lesson.id, s.title])
 
 
 func test_another_schematic_ends_the_lesson() -> void:
@@ -426,3 +425,91 @@ func test_welcome_asks_the_language_first() -> void:
 	assert_eq(welcome._tour.text, "Projít prohlídku", "offered in the language chosen")
 	assert_false(main._welcomed, "answered only with the tour, the lesson or Not now")
 	TranslationServer.set_locale("en")
+
+
+func test_wiring_step_rings_the_terminals_still_to_wire() -> void:
+	main._begin_lesson(0)
+	_place(Lessons.SUPPLY_L, Vector2i(4, 1))
+	_place(Lessons.SUPPLY_N, Vector2i(4, 16))
+	_place(Lessons.SWITCH_NO, Vector2i(4, 4))
+	_place(Lessons.LAMP, Vector2i(4, 10))
+	var marks: LessonMarks = main._lesson_marks
+	var g: float = float(SymbolGeometry.GRID)
+	assert_eq(main._lesson_run.selected, 4, "Wire L1 to the switch")
+	assert_eq(marks._terminals, [Vector2(4, 1) * g, Vector2(4, 4) * g] as Array[Vector2], "L1 and 13 of the switch")
+	assert_eq(marks._rings.size(), 0, "the terminals, not the whole parts")
+	_wire("L1", "RB1:13")
+	assert_eq(marks._terminals, [Vector2(4, 7) * g, Vector2(4, 10) * g] as Array[Vector2], "14 of the switch and X1 of the lamp")
+	main._switch_mode(Main.Mode.SIMULATE)
+	assert_eq(marks._terminals.size(), 0, "never while simulating")
+
+
+func test_every_part_still_to_place_rings_its_palette_entry() -> void:
+	main._begin_lesson(1)
+	var run: LessonRun = main._lesson_run
+	run.selected = 7
+	main._refresh_lesson_marks()
+	assert_eq(main._lesson_rings.targets.size(), 2, "the contact and the lamp")
+	main.edit_doc.add(Lamp.new("H1"), Vector2i(12, 16))
+	editor._changed()
+	run.selected = 7
+	main._refresh_lesson_marks()
+	assert_eq(main._lesson_rings.targets.size(), 1, "the contact alone once the lamp is there")
+
+
+func test_property_step_rings_its_field() -> void:
+	main._begin_lesson(3)
+	_place(Lessons.BREAKER, Vector2i(5, 2))
+	assert_eq(main._lesson_run.selected, 0, "a breaker of one pole is not done")
+	_select("FA1")
+	await wait_process_frames(2)
+	var field: Callable = main._lesson_rings.targets[main._lesson_rings.targets.size() - 1]
+	assert_eq(field.call(), main._properties._fields["poles"].get_global_rect(), "the Poles field")
+	assert_has(main._lesson_marks._rings, "FA1", "and the breaker")
+
+
+func test_wire_to_delete_is_marked() -> void:
+	main._begin_lesson(3)
+	main._lesson_run.selected = 5
+	main._refresh_lesson_marks()
+	assert_eq(main._lesson_marks._cuts.size(), 1, "the wire from L1 to SB1")
+	var feed: int = main.edit_doc.wire_between("L1.2", "SB1:11")
+	editor._clear_selection()
+	editor.selected_wires[feed] = true
+	editor.delete_selection()
+	main._lesson_run.selected = 5
+	main._refresh_lesson_marks()
+	assert_eq(main._lesson_marks._cuts.size(), 0)
+
+
+func test_drawing_a_wire_shows_where_it_should_end() -> void:
+	main._begin_lesson(0)
+	_place(Lessons.SUPPLY_L, Vector2i(4, 1))
+	_place(Lessons.SUPPLY_N, Vector2i(4, 16))
+	_place(Lessons.SWITCH_NO, Vector2i(4, 4))
+	_place(Lessons.LAMP, Vector2i(4, 10))
+	var marks: LessonMarks = main._lesson_marks
+	assert_eq(marks.guide_target(), "", "no wire drawn")
+	editor._start_wire("L1")
+	assert_eq(marks.guide_target(), "RB1:13")
+	editor._cancel_tool()
+	editor._start_wire("RB1:13")
+	assert_eq(marks.guide_target(), "L1", "either way round")
+	editor._cancel_tool()
+	editor._start_wire("H1:X2")
+	assert_eq(marks.guide_target(), "", "not a wire of this step")
+	editor._cancel_tool()
+
+
+func test_a_part_in_its_place_hides_the_faint_one() -> void:
+	main._begin_lesson(1)
+	main._lesson_panel.show_me = true
+	main._refresh_lesson_marks()
+	assert_eq(main._lesson_marks.get_child_count(), 1, "the stop button drawn faintly")
+	# The wrong button where the stop button goes: its ghost gives way.
+	main.edit_doc.add(PushButton.new("SB1", SwitchingElement.ContactType.NO), Vector2i(4, 4))
+	editor._changed()
+	main._lesson_panel.show_me = true
+	main._refresh_lesson_marks()
+	assert_eq(main._lesson_run.selected, 0, "the stop button is still to place")
+	assert_eq(main._lesson_marks.get_child_count(), 0)

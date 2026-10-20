@@ -257,6 +257,11 @@ func begin_place(template: Dictionary) -> void:
 	_emit_hint()
 
 
+## Terminal the wire being drawn starts from, or "" when no wire is.
+func wire_start() -> String:
+	return _wire_start if tool == Tool.WIRE else ""
+
+
 func undo() -> void:
 	# A drag under way ends first (a part dragged back leaves no undo step).
 	_end_drags()

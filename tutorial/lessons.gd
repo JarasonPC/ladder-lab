@@ -129,39 +129,36 @@ static func lamp_and_switch() -> Lesson:
 		"Click L1 supply in the palette, then click near the top left of the page. L1 is the phase: it carries 230 V against N.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("L"))
 	s.hint = "Each click places another one. Right click or Esc stops placing."
-	s.palette = SUPPLY_L
+	s.places = [["L", SUPPLY_L]]
 	s.show = PackedStringArray(["L"])
 	s = lesson.step("Place the N supply",
 		"Put N supply some way below L1, with room for two parts in between. The current returns through N, the neutral conductor.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("N"))
-	s.palette = SUPPLY_N
+	s.places = [["N", SUPPLY_N]]
 	s.show = PackedStringArray(["N"])
 	s = lesson.step("Add the switch",
 		"Place Switch NO under L1. It is named -RB1; its contact 13-14 closes when the switch is turned on.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("switch"))
-	s.palette = SWITCH_NO
+	s.places = [["switch", SWITCH_NO]]
 	s.show = PackedStringArray(["switch"])
 	s = lesson.step("Add the lamp",
 		"Place Lamp under the switch. It is named -H1.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("lamp"))
-	s.palette = LAMP
+	s.places = [["lamp", LAMP]]
 	s.show = PackedStringArray(["lamp"])
 	s = lesson.step("Wire L1 to the switch",
 		"Click the terminal of L1 (the small square), then terminal 13 of -RB1. The wire finds its own way; click empty cells on the way to add corners.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool:
 			return e.has("switch") and (e.joined(e.key("L", 0), e.key("switch", 0)) or e.joined(e.key("L", 0), e.key("switch", 1))))
-	s.focus = PackedStringArray(["L", "switch"])
 	s.wires = [["L", 0, "switch", 0]]
 	s = lesson.step("Wire the switch to the lamp",
 		"Draw a wire from terminal 14 of -RB1 to terminal X1 of -H1.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool:
 			return e.has("lamp") and (e.bridges(e.part("switch"), e.key("L", 0), e.key("lamp", 0)) or e.bridges(e.part("switch"), e.key("L", 0), e.key("lamp", 1))))
-	s.focus = PackedStringArray(["switch", "lamp"])
 	s.wires = [["switch", 1, "lamp", 0]]
 	s = lesson.step("Wire the lamp to N",
 		"Draw a wire from X2 of -H1 to N. The circuit is closed now: L1, the switch, the lamp, N.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.series(["L", "switch", "lamp", "N"]))
-	s.focus = PackedStringArray(["lamp", "N"])
 	s.wires = [["lamp", 1, "N", 0]]
 	s = lesson.step("Switch to Simulate",
 		"Click Simulate at the top. The drawing cannot be changed now, and the wires are coloured by the voltage that reaches them.",
@@ -237,22 +234,21 @@ static func start_stop() -> Lesson:
 	var s: Lesson.Step = lesson.step("Add the stop button",
 		"Place Push button NC under L1. It is -SB1, the stop button: its contact 11-12 is closed and opens while you press it.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("stop"))
-	s.palette = BUTTON_NC
+	s.places = [["stop", BUTTON_NC]]
 	s.show = PackedStringArray(["stop"])
 	s = lesson.step("Add the start button",
 		"Place Push button NO under -SB1. It is -SB2, the start button: its contact 13-14 closes while you press it.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("start"))
-	s.palette = BUTTON_NO
+	s.places = [["start", BUTTON_NO]]
 	s.show = PackedStringArray(["start"])
 	s = lesson.step("Add the contactor's coil",
 		"Place Coil under -SB2. It is -KM1: when A1-A2 gets 230 V, the contactor pulls in and all its contacts switch.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("coil"))
-	s.palette = COIL
+	s.places = [["coil", COIL]]
 	s.show = PackedStringArray(["coil"])
 	s = lesson.step("Wire them in a row",
 		"Wire L1 to 11 of -SB1, 12 to 13 of -SB2, 14 to A1 of -KM1, and A2 to N.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.series(["L", "stop", "start", "coil", "N"]))
-	s.focus = PackedStringArray(["stop", "start", "coil"])
 	s.wires = [["L", 0, "stop", 0], ["stop", 1, "start", 0], ["start", 1, "coil", 0], ["coil", 1, "N", 0]]
 	s = lesson.step("Try it",
 		"Switch to Simulate and press -SB2 (hold the mouse button down). -KM1 pulls in, but as soon as you let go, it drops out again.",
@@ -263,24 +259,22 @@ static func start_stop() -> Lesson:
 	s = lesson.step("Hold it in with its own contact",
 		"Back in Edit, place Contact NO to the right of -SB2. It takes the name of the coil: it is contact 13-14 of -KM1, the self-holding contact.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("hold"))
-	s.palette = CONTACT_NO
+	s.places = [["hold", CONTACT_NO]]
 	s.control = "edit"
 	s.show = PackedStringArray(["hold"])
 	s = lesson.step("Wire it across -SB2",
 		"Wire 13 of -KM1 to 13 of -SB2 and 14 of -KM1 to 14 of -SB2. While -KM1 is on, its contact bridges -SB2, so the coil stays fed after you let go.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("start") and e.bridges(e.part("hold"), e.key("start", 0), e.key("start", 1)))
 	s.hint = "A wire can end on another wire: a branch dot is put there."
-	s.focus = PackedStringArray(["start", "hold"])
 	s.wires = [["start", 0, "hold", 0], ["start", 1, "hold", 1]]
 	s = lesson.step("Add a lamp that shows it runs",
 		"Place another Contact NO to the right (it becomes 23-24 of -KM1) and Lamp -H1 under it.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("lamp_contact") and e.has("lamp"))
-	s.palette = CONTACT_NO
+	s.places = [["lamp_contact", CONTACT_NO], ["lamp", LAMP]]
 	s.show = PackedStringArray(["lamp_contact", "lamp"])
 	s = lesson.step("Wire the lamp",
 		"Wire L1 to 23 of -KM1, 24 to X1 of -H1, and X2 to N.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.series(["L", "lamp_contact", "lamp", "N"]))
-	s.focus = PackedStringArray(["lamp_contact", "lamp"])
 	s.wires = [["L", 0, "lamp_contact", 0], ["lamp_contact", 1, "lamp", 0], ["lamp", 1, "N", 0]]
 	s = lesson.step("Test it",
 		"Simulate again. Press -SB2 and let go: -KM1 stays on and -H1 lights. Press -SB1 to stop it.",
@@ -360,29 +354,28 @@ static func time_relay() -> Lesson:
 	var s: Lesson.Step = lesson.step("Add the switch",
 		"Place Switch NO under L1. It is named -RB1.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("switch"))
-	s.palette = SWITCH_NO
+	s.places = [["switch", SWITCH_NO]]
 	s.show = PackedStringArray(["switch"])
 	s = lesson.step("Add the time relay",
 		"Place Time relay under the switch. It is -KT1, set to function F2, on-delay: its delayed contacts switch 3 s after A1-A2 gets voltage.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("timer"))
-	s.palette = TIMER
+	s.places = [["timer", TIMER]]
 	s.show = PackedStringArray(["timer"])
 	s = lesson.step("Wire the relay through the switch",
 		"Wire L1 to 13 of -RB1, 14 to A1 of -KT1, and A2 to N.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.series(["L", "switch", "timer", "N"]))
-	s.focus = PackedStringArray(["switch", "timer"])
 	s.wires = [["L", 0, "switch", 0], ["switch", 1, "timer", 0], ["timer", 1, "N", 0]]
 	s = lesson.step("Add its delayed contact",
 		"Click -KT1 to select it, then place Contact NO to the right of the switch. It becomes the relay's delayed contact 17-18, drawn with the delay mark.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("delayed"))
 	s.hint = "Named KM1, the contact does not belong to the relay: double-click its designation and type KT1."
-	s.palette = CONTACT_NO
+	s.places = [["delayed", CONTACT_NO]]
 	s.focus = PackedStringArray(["timer"])
 	s.show = PackedStringArray(["delayed"])
 	s = lesson.step("Add the lamp",
 		"Place Lamp -H1 under the contact. Wire L1 to 17 of -KT1, 18 to X1 of -H1, and X2 to N.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.series(["L", "delayed", "lamp", "N"]))
-	s.palette = LAMP
+	s.places = [["lamp", LAMP]]
 	s.show = PackedStringArray(["lamp"])
 	s.wires = [["L", 0, "delayed", 0], ["delayed", 1, "lamp", 0], ["lamp", 1, "N", 0]]
 	s = lesson.step("Watch the delay",
@@ -396,6 +389,7 @@ static func time_relay() -> Lesson:
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("timer") and not is_equal_approx((e.part("timer") as TimerRelay).delay, 3.0))
 	s.control = "edit"
 	s.focus = PackedStringArray(["timer"])
+	s.property = ["timer", "delay"]
 
 	var needs: Array = ["switch", "timer", "lamp"]
 	lesson.goal("%s stays dark right after %s is turned on", ["lamp", "switch"], _phases([
@@ -448,7 +442,7 @@ static func motor() -> Lesson:
 		doc.connect_terminals("L1.2", "F1:95")
 		doc.connect_terminals("F1:96", "SB1:11")
 		return doc
-	lesson.parts = {"L1": "L1", "L2": "L2", "L3": "L3", "L": "L1.2", "N": "N", "breaker": "FA1:1-2-3-4-5-6", "main": "KM1:1-2-3-4-5-6", "relay": "F1:1-2-3-4-5-6", "motor": "M1", "overload_contact": "F1:95-96", "stop": "SB1:11-12", "start": "SB2:13-14", "coil": "KM1"}
+	lesson.parts = {"L1": "L1", "L2": "L2", "L3": "L3", "L": "L1.2", "N": "N", "breaker": "FA1:1-2-3-4-5-6", "any_breaker": "FA1:1-2-3-4-5-6", "main": "KM1:1-2-3-4-5-6", "relay": "F1:1-2-3-4-5-6", "motor": "M1", "overload_contact": "F1:95-96", "stop": "SB1:11-12", "start": "SB2:13-14", "coil": "KM1"}
 	lesson.anchor = "L1"
 	lesson.roles = func(check: LessonCheck) -> Dictionary[String, CircuitComponent]:
 		var roles: Dictionary[String, CircuitComponent] = {}
@@ -461,6 +455,8 @@ static func motor() -> Lesson:
 		roles["N"] = check.supply(N)
 		_start_stop_roles(check, roles)
 		roles["breaker"] = check.first(func(c: CircuitComponent) -> bool: return c is MotorBreaker and (c as MotorBreaker).poles == 3)
+		# Placed with one pole, before its poles are set.
+		roles["any_breaker"] = roles["breaker"] if roles["breaker"] != null else check.first(func(c: CircuitComponent) -> bool: return c is CircuitBreaker or c is MotorBreaker)
 		var coil: CircuitComponent = roles["coil"]
 		roles["main"] = check.first(func(c: CircuitComponent) -> bool: return c is MainContacts and (coil == null or c.designation == coil.designation))
 		var relay: CircuitComponent = check.first(func(c: CircuitComponent) -> bool: return c is OverloadRelay and (c as OverloadRelay).poles == 3)
@@ -473,27 +469,28 @@ static func motor() -> Lesson:
 	var s: Lesson.Step = lesson.step("Add the circuit breaker",
 		"Place Circuit breaker under L1. In its properties on the right set Poles to 3: one pole for each phase.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("breaker"))
-	s.palette = BREAKER
-	s.show = PackedStringArray(["breaker"])
+	s.places = [["any_breaker", BREAKER]]
+	s.property = ["any_breaker", "poles"]
+	s.focus = PackedStringArray(["any_breaker"])
+	s.show = PackedStringArray(["any_breaker"])
 	s = lesson.step("Add the main contacts",
 		"Place Main contacts under the breaker. They take the name of the coil, -KM1: the contactor switches the motor with them.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("main"))
-	s.palette = MAIN_CONTACTS
+	s.places = [["main", MAIN_CONTACTS]]
 	s.show = PackedStringArray(["main"])
 	s = lesson.step("Add the overload relay",
 		"Place Overload relay under the main contacts. It is -F1: the motor current flows through its heaters, and it trips when the motor is overloaded.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("relay"))
-	s.palette = OVERLOAD_RELAY
+	s.places = [["relay", OVERLOAD_RELAY]]
 	s.show = PackedStringArray(["relay"])
 	s = lesson.step("Add the motor",
 		"Place Motor 3~ under the overload relay. It is named -M1.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("motor"))
-	s.palette = MOTOR3
+	s.places = [["motor", MOTOR3]]
 	s.show = PackedStringArray(["motor"])
 	s = lesson.step("Wire the three phases",
 		"Wire L1, L2 and L3 to 1, 3 and 5 of -FA1. Then wire 2, 4 and 6 of each device to 1, 3 and 5 of the next one, and 2, 4 and 6 of -F1 to U1, V1 and W1 of the motor.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return _phases_wired(e))
-	s.focus = PackedStringArray(["breaker", "main", "relay", "motor"])
 	s.wires = [["L1", 0, "breaker", 0], ["L2", 0, "breaker", 2], ["L3", 0, "breaker", 4]]
 	for pole: int in 3:
 		s.wires.append(["breaker", 2 * pole + 1, "main", 2 * pole])
@@ -503,8 +500,9 @@ static func motor() -> Lesson:
 		"In the control circuit on the right, delete the wire from L1 to -SB1. Click -F1, place Contact NC in the gap above -SB1 (it becomes 95-96 of -F1), then wire L1 to 95 and 96 to 11 of -SB1.",
 		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.series(["L", "overload_contact", "stop", "start", "coil", "N"]))
 	s.hint = "To delete a wire, click it and press Del."
-	s.palette = CONTACT_NC
-	s.focus = PackedStringArray(["relay", "stop"])
+	s.places = [["overload_contact", CONTACT_NC]]
+	s.focus = PackedStringArray(["relay"])
+	s.cut = [["L", 0, "stop", 0]]
 	s.show = PackedStringArray(["overload_contact"])
 	s.wires = [["L", 0, "overload_contact", 0], ["overload_contact", 1, "stop", 0]]
 	s = lesson.step("Switch on and start",

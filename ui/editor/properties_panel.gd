@@ -24,6 +24,8 @@ var _title: Label
 var _message: Label
 ## Caption and field of the property being added.
 var _group: VBoxContainer
+## Caption and field of each property shown, by its key (a lesson points at them).
+var _fields: Dictionary[String, Control] = {}
 
 
 func _ready() -> void:
@@ -40,6 +42,7 @@ func show_component(component: CircuitComponent) -> void:
 		_box.remove_child(child)
 		child.queue_free()
 	_group = null
+	_fields.clear()
 	_component = component
 	_title = _note(tr("Properties"), "TitleLabel")
 	if component == null:
@@ -197,6 +200,15 @@ func show_error(text: String) -> void:
 		_message.text = text
 
 
+## Global rectangle of the caption and field of property [param key] while
+## part [param component_id] is shown, else an empty one.
+func field_rect(component_id: String, key: String) -> Rect2:
+	var field: Control = _fields.get(key, null)
+	if component_id != _component_id or field == null or not is_instance_valid(field) or not field.is_visible_in_tree():
+		return Rect2()
+	return field.get_global_rect()
+
+
 ## Text on its own line (title, hint, error).
 func _note(text: String, variation: String) -> Label:
 	var label: Label = Label.new()
@@ -241,6 +253,7 @@ func _choice(caption: String, key: String, values: Array, titles: Array) -> Opti
 	option.select(values.find(_data.get(key, values[0])))
 	option.item_selected.connect(func(i: int) -> void: _emit(key, values[i]))
 	_add(option)
+	_fields[key] = _group
 	return option
 
 
@@ -253,6 +266,7 @@ func _number(caption: String, key: String, min_value: float, max_value: float, s
 	spin.value = _data[key]
 	spin.value_changed.connect(func(value: float) -> void: _emit(key, value))
 	_add(spin)
+	_fields[key] = _group
 
 
 ## Rated current of a breaker, one of the [constant CircuitBreaker.STANDARD_RATINGS]
