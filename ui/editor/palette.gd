@@ -51,6 +51,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Temperature sensor (0-10 V)", "template": {"type": "temp_sensor"}},
 	{"title": "Transmitter: pressure, level, flow (0-10 V)", "template": {"type": "transmitter", "quantity": "pressure"}},
 	{"title": "Proximity sensor (PNP / NPN)", "template": {"type": "proximity", "sensing": "inductive", "output": "pnp", "function": "no"}},
+	{"title": "Network switch (Ethernet, 4 ports)", "template": {"type": "network_switch"}},
 ]
 
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
@@ -93,7 +94,7 @@ static func group_of(template: Dictionary) -> String:
 			return "loads"
 		"fuse", "breaker", "overload_relay", "overload_contact":
 			return "protection"
-		"plc", "temp_sensor", "transmitter", "proximity":
+		"plc", "temp_sensor", "transmitter", "proximity", "network_switch":
 			return "plc"
 	return "power"
 

@@ -67,6 +67,7 @@ func tools() -> Array[Dictionary]:
 		{"id": "flag", "title": "Flag M", "symbol": "M", "group": connectors},
 		{"id": "hi", "title": "Constant 1 (hi)", "symbol": "hi", "group": connectors},
 		{"id": "lo", "title": "Constant 0 (lo)", "symbol": "lo", "group": connectors},
+		{"id": "network_input", "title": "Network input NI", "symbol": "NI", "group": connectors},
 		{"id": "and", "title": "AND", "symbol": "&", "group": basic},
 		{"id": "or", "title": "OR", "symbol": "≥1", "group": basic},
 		{"id": "not", "title": "NOT", "symbol": "1o", "group": basic},
@@ -80,6 +81,7 @@ func tools() -> Array[Dictionary]:
 		{"id": "counter", "title": "Up/down counter", "symbol": "CTUD", "group": special},
 		{"id": "analog_input", "title": "Analog input AI", "symbol": "AI", "group": analog},
 		{"id": "analog_output", "title": "Analog output AQ", "symbol": "AQ", "group": analog},
+		{"id": "network_analog_input", "title": "Network analog input NAI", "symbol": "NAI", "group": analog},
 		{"id": "analog_threshold", "title": "Analog threshold trigger", "symbol": "A→", "group": analog},
 		{"id": "analog_compare", "title": "Analog comparator", "symbol": "AΔ", "group": analog},
 		{"id": "analog_amplifier", "title": "Analog amplifier", "symbol": "A▷", "group": analog},
@@ -121,6 +123,10 @@ static func type_title(type: String) -> String:
 			return "Analog comparator"
 		"analog_amplifier":
 			return "Analog amplifier"
+		"network_input":
+			return "Network input"
+		"network_analog_input":
+			return "Network analog input"
 	return type
 
 
@@ -167,6 +173,10 @@ static func type_help(type: String) -> String:
 			return "The difference Ax - Ay: the output comes on above On and goes off at Off or below."
 		"analog_amplifier":
 			return "Passes gain x Ax + offset on as an analog value."
+		"network_input":
+			return "Brings a signal of another PLC in over Ethernet: the input, output or flag chosen above, read from the PLC at the IP address above. 0 while that PLC cannot be reached."
+		"network_analog_input":
+			return "Brings an analog value of another PLC in over Ethernet: the analog input or output chosen above, read from the PLC at the IP address above, in that PLC's scale. 0 while that PLC cannot be reached."
 	return ""
 
 

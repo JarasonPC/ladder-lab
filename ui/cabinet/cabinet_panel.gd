@@ -28,7 +28,7 @@ signal switch_toggled(designation: String, steps: int)
 signal key_bind_requested(designation: String)
 
 ## English names of [enum CabinetDevices.Kind] (translated with tr()).
-const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay", "Bridge rectifier", "PLC", "Frequency inverter"]
+const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "Contactor", "Auxiliary relay", "Time relay", "Overload relay", "Bridge rectifier", "PLC", "Frequency inverter", "Network switch"]
 
 ## Name of the switchboard shown ([member Switchboard.name]).
 var board_name: String = ""

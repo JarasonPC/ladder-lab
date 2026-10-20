@@ -1192,6 +1192,8 @@ func _place_at(cell: Vector2i) -> void:
 		data["label"] = doc.next_strip_label()
 	if data["type"] == "connector" and str(data.get("label", "")).is_empty():
 		data["label"] = doc.next_connector_label()
+	if data["type"] == "plc" and not data.has("ip"):
+		data["ip"] = doc.next_ip()
 	_follow_device(data)
 	var c: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	if not _can_add(c):
@@ -1434,6 +1436,8 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			return doc.next_designation("BG")
 		"vfd":
 			return doc.next_designation("TA")
+		"network_switch":
+			return doc.next_designation("KF")
 		"motor", "motor3":
 			return doc.next_designation("M")
 		"terminal":

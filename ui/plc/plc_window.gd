@@ -67,6 +67,10 @@ var _output_lamps: Array[Panel] = []
 ## each analog output.
 var _analog_inputs: Array[SpinBox] = []
 var _analog_outputs: Array[Label] = []
+## Test simulation: a switch for each network input NI the program reads
+## from a partner (no partner answers here), and their operands.
+var _network_switches: Array[Button] = []
+var _network_operands: PackedStringArray = PackedStringArray()
 var _sim_clock: Label
 
 
@@ -310,7 +314,8 @@ func _build_io() -> void:
 	var outputs: int = plc.output_count() if plc != null else Plc.BASE_OUTPUTS
 	var analog_in: int = plc.analog_input_count() if plc != null else 0
 	var analog_out: int = plc.analog_output_count() if plc != null else 0
-	if _input_switches.size() == inputs and _output_lamps.size() == outputs and _analog_inputs.size() == analog_in and _analog_outputs.size() == analog_out:
+	var network: PackedStringArray = _network_inputs()
+	if _input_switches.size() == inputs and _output_lamps.size() == outputs and _analog_inputs.size() == analog_in and _analog_outputs.size() == analog_out and network == _network_operands:
 		return
 	for child: Node in _io.get_children():
 		_io.remove_child(child)
@@ -319,6 +324,8 @@ func _build_io() -> void:
 	_output_lamps.clear()
 	_analog_inputs.clear()
 	_analog_outputs.clear()
+	_network_switches.clear()
+	_network_operands = network
 	for k: int in inputs:
 		var switch: Button = Button.new()
 		switch.toggle_mode = true
@@ -363,6 +370,18 @@ func _build_io() -> void:
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_io.add_child(label)
 		_analog_outputs.append(label)
+	if not network.is_empty():
+		_io.add_child(VSeparator.new())
+	for op: String in network:
+		var switch: Button = Button.new()
+		switch.toggle_mode = true
+		switch.focus_mode = Control.FOCUS_NONE
+		switch.text = op
+		switch.custom_minimum_size = Vector2(46, 34)
+		switch.tooltip_text = tr("Stands for what the partner PLC sends (in the schematic it comes over Ethernet)")
+		switch.toggled.connect(func(_on: bool) -> void: _feed_inputs())
+		_io.add_child(switch)
+		_network_switches.append(switch)
 
 
 func _canvas_scroll(canvas: PlcCanvas, parent: Control) -> ScrollContainer:
@@ -520,6 +539,8 @@ func _build_side() -> void:
 		option.disabled = monitoring or _sim_plc != null
 		option.item_selected.connect(func(i: int) -> void: canvas.set_property("operand", choices[i]))
 		_side.add_child(option)
+		if PlcProgram.REMOTE_AREAS.has(PlcProgram.area_of(info["operand"])):
+			_network_source(info["operand"])
 	if info.has("time"):
 		_caption(tr("Time (s)"))
 		_side.add_child(_spin(float(info["time"]), 0.0, PlcBlock.MAX_TIME, 0.01, func(v: float) -> void: canvas.set_property("time", v)))
@@ -567,6 +588,42 @@ func _build_side() -> void:
 			_side.add_child(rows)
 
 
+## Where network input [param operand] reads: the partner's IP address
+## (set when Enter is pressed or the field is left) and its operand.
+func _network_source(operand: String) -> void:
+	var source: Dictionary = _program.network_source(operand)
+	var editable: bool = not monitoring and _sim_plc == null
+	_caption(tr("Partner PLC (IP address)"))
+	var field: LineEdit = LineEdit.new()
+	field.text = str(source.get("ip", ""))
+	field.placeholder_text = "192.168.0.2"
+	field.editable = editable
+	_side.add_child(field)
+	_caption(tr("Operand read there"))
+	var option: OptionButton = OptionButton.new()
+	var choices: PackedStringArray = PlcProgram.operands(PlcProgram.REMOTE_AREAS[PlcProgram.area_of(operand)])
+	for op: String in choices:
+		option.add_item(op)
+	option.select(maxi(choices.find(str(source.get("operand", choices[0]))), 0))
+	option.disabled = not editable
+	_side.add_child(option)
+	var apply: Callable = func() -> void:
+		if not is_instance_valid(field):
+			return
+		var ip: String = field.text.strip_edges()
+		if not ip.is_empty() and not PlcProgram.valid_ip(ip):
+			field.text = str(_program.network_source(operand).get("ip", ""))
+			return
+		_program.set_network_source(operand, ip, choices[option.selected])
+		_on_canvas_changed()
+	field.text_submitted.connect(func(_text: String) -> void: apply.call())
+	field.focus_exited.connect(apply)
+	option.item_selected.connect(func(_i: int) -> void: apply.call())
+	if plc != null and str(source.get("ip", "")) == plc.ip_address:
+		_note(tr("That is this PLC's own address."))
+	_note(tr("Read over Ethernet from the PLC at this address (subnet mask %s; this PLC: %s); 0 while it cannot be reached. Wire the Ethernet ports P1 of the PLCs together, through a network switch for more than two.") % [Plc.SUBNET_MASK, plc.ip_address if plc != null else Plc.DEFAULT_IP])
+
+
 func _caption(value: String) -> void:
 	var label: Label = Label.new()
 	label.theme_type_variation = "CaptionLabel"
@@ -602,11 +659,11 @@ func _set_test_simulation(on: bool) -> void:
 		_sim_plc = plc.duplicate_plc(_program.duplicate_program()) if plc != null else Plc.new(component_id, _program.duplicate_program())
 		_sim_time = 0.0
 		_canvas().tool = ""
-		_sim_plc.update(true, _input_states(), _sim_plc.all_modules(), _analog_volts())
+		_sim_plc.update(true, _input_states(), _sim_plc.all_modules(), _analog_volts(), _network_states())
 		_sim_plc.snap()
 	else:
 		_sim_plc = null
-		for switch: Button in _input_switches:
+		for switch: Button in _input_switches + _network_switches:
 			switch.set_pressed_no_signal(false)
 		for spin: SpinBox in _analog_inputs:
 			spin.set_value_no_signal(0.0)
@@ -656,6 +713,29 @@ func _input_states() -> PackedByteArray:
 	return states
 
 
+## The network inputs NI the program reads from a partner, in order.
+func _network_inputs() -> PackedStringArray:
+	var list: PackedStringArray = PackedStringArray()
+	if _program == null:
+		return list
+	for op: String in PlcProgram.operands("NI"):
+		if _program.network.has(op):
+			list.append(op)
+	return list
+
+
+## NI values of the test simulation: 1 for each switched on.
+func _network_states() -> PackedByteArray:
+	var states: PackedByteArray = PackedByteArray()
+	if _network_switches.is_empty():
+		return states
+	states.resize(PlcProgram.AREA_SIZES["NI"])
+	for k: int in _network_switches.size():
+		if _network_switches[k].button_pressed:
+			states[PlcProgram.operand_index(_network_operands[k])] = 1
+	return states
+
+
 ## The program's value for 10 V on the PLC shown.
 func _full_scale() -> float:
 	return plc.full_scale() if plc != null else PlcBlock.ANALOG_MAX
@@ -671,7 +751,7 @@ func _analog_volts() -> PackedFloat32Array:
 
 func _feed_inputs() -> void:
 	if _sim_plc != null:
-		_sim_plc.update(true, _input_states(), _sim_plc.all_modules(), _analog_volts())
+		_sim_plc.update(true, _input_states(), _sim_plc.all_modules(), _analog_volts(), _network_states())
 		_sim_plc.snap()
 		show_step()
 

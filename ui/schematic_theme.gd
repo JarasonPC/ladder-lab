@@ -47,6 +47,9 @@ static var PE: Color
 static var WIRE_NUMBER: Color
 ## Currents written on the wires while simulating.
 static var CURRENT: Color
+## Ethernet cables between the ports of PLCs and network switches (drawn
+## dashed).
+static var NETWORK: Color
 ## Workspace tiles: switchboards, control stations, parts in the field,
 ## the frame of a group and the ring round what is selected.
 static var TILE_SWITCHBOARD: Color
@@ -96,6 +99,7 @@ static func use(dark_paper: bool) -> void:
 		PE = Color("3c9a3c")
 		WIRE_NUMBER = Color("d0342c")
 		CURRENT = Color("8a5a00")
+		NETWORK = Color("13865a")
 		TILE_SWITCHBOARD = Color("1f6f78")
 		TILE_STATION = Color("3a5fb0")
 		TILE_FIELD = Color("5b6472")
@@ -126,6 +130,7 @@ static func use(dark_paper: bool) -> void:
 		PE = Color("6cc56c")
 		WIRE_NUMBER = Color("ff7b72")
 		CURRENT = Color("ffc857")
+		NETWORK = Color("3fcf8e")
 		TILE_SWITCHBOARD = Color("2b7c86")
 		TILE_STATION = Color("4a6fc0")
 		TILE_FIELD = Color("646d7c")

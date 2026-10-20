@@ -57,6 +57,10 @@ var page: int = 0:
 
 var _placements: Dictionary[String, Placement] = {}
 var _routes: Array[WireRoute] = []
+## Wires of Ethernet cables and the circuit and topology they were found
+## for (see [method network_wires]).
+var _network_wires: Dictionary[int, bool] = {}
+var _network_version: Vector2i = Vector2i(-1, -1)
 ## Terminal cells remembered while wires are re-routed (nothing moves
 ## meanwhile), see [method _reroute].
 var _cell_cache: Dictionary[String, Vector2i] = {}
@@ -143,6 +147,8 @@ func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStri
 				cells[at] = []
 			cells[at].append(key)
 	var router: WireRouter = _router(on_page, _terminal_nets(), {})
+	# An Ethernet port pairs with another port only.
+	var ports: Dictionary[String, bool] = CabinetDevices.network_keys(circuit)
 	# A net no terminal or wire has: anything of another net is in the way.
 	var lone: int = 1 << 30
 	var used: Dictionary[String, bool] = {}
@@ -166,7 +172,7 @@ func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStri
 				var back: Vector2i = terminal_outward(other)
 				if partner == c or not allowed.has(partner.id) or not (own.has(c.id) or own.has(partner.id)):
 					continue
-				if wired.has(other) or used.has(other) or (back != -out and back != Vector2i.ZERO):
+				if wired.has(other) or used.has(other) or (back != -out and back != Vector2i.ZERO) or ports.has(key) != ports.has(other):
 					continue
 				if router.is_clear([start, cell] as Array[Vector2i], lone):
 					result.append(PackedStringArray([key, other]))
@@ -223,10 +229,11 @@ func parallel_pairs(key_a: String, key_b: String) -> Array[PackedStringArray]:
 	var row_b: PackedStringArray = _pole_row(key_b, out_b if out_b != Vector2i.ZERO else out_a, wired)
 	var ia: int = row_a.find(key_a)
 	var ib: int = row_b.find(key_b)
+	var ports: Dictionary[String, bool] = CabinetDevices.network_keys(circuit)
 	for k: int in range(-mini(ia, ib), mini(row_a.size() - ia, row_b.size() - ib)):
 		var a: String = row_a[ia + k]
 		var b: String = row_b[ib + k]
-		if k != 0 and a != key_b and b != key_a and a != b:
+		if k != 0 and a != key_b and b != key_a and a != b and ports.has(a) == ports.has(b):
 			result.append(PackedStringArray([a, b]))
 	return result
 
@@ -744,6 +751,28 @@ func wire_net(index: int) -> PackedInt32Array:
 	return result
 
 
+## Wires of Ethernet cables: those whose net reaches the port of a PLC or a
+## network switch (kept until the wiring changes).
+func network_wires() -> Dictionary[int, bool]:
+	var version: Vector2i = Vector2i(circuit.get_instance_id(), circuit.topology_version)
+	if _network_version == version:
+		return _network_wires
+	_network_version = version
+	_network_wires = {}
+	var ports: Dictionary[String, bool] = CabinetDevices.network_keys(circuit)
+	if ports.is_empty():
+		return _network_wires
+	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
+	var port_nets: Dictionary[int, bool] = {}
+	for key: String in ports:
+		port_nets[net[key]] = true
+	var wires: Array[PackedStringArray] = circuit.get_wires()
+	for w: int in wires.size():
+		if port_nets.has(net.get(wires[w][0], -1)):
+			_network_wires[w] = true
+	return _network_wires
+
+
 ## Gives the whole net of wire [param index] the number [param number]; its
 ## page connectors take the number as their label (an empty number leaves
 ## them as they are).
@@ -852,7 +881,8 @@ func _path_length(index: int) -> float:
 
 ## Numbers every net from [param first] on, in drawing order (page by page,
 ## current path by current path); nets fed straight from a supply (L, N, ...)
-## stay unnumbered. A net running over several pages (through page
+## and Ethernet cables (between the ports of PLCs and switches) stay
+## unnumbered. A net running over several pages (through page
 ## connectors) gets one number, which its connectors take as their label.
 func number_wires(first: int = 1) -> void:
 	var done: Dictionary[int, bool] = {}
@@ -876,11 +906,12 @@ func number_wires(first: int = 1) -> void:
 		return order.call(a) < order.call(b))
 	var supplied: Array[bool] = []
 	var numbered_keys: Dictionary[String, bool] = {}
+	var ports: Dictionary[String, bool] = CabinetDevices.network_keys(circuit)
 	for net: PackedInt32Array in nets:
 		var fed: bool = false
 		for w: int in net:
 			for key: String in circuit.get_wires()[w]:
-				if circuit.get_terminal_owner(key) is PowerSupply:
+				if circuit.get_terminal_owner(key) is PowerSupply or ports.has(key):
 					fed = true
 		supplied.append(fed)
 		if not fed:
@@ -1803,6 +1834,28 @@ func next_designation(prefix: String, reserved: Dictionary[String, bool] = {}) -
 	return prefix + str(n)
 
 
+## IP address for a new PLC: the first 192.168.0.n no PLC has (nor one of
+## [param reserved]).
+func next_ip(reserved: Dictionary[String, bool] = {}) -> String:
+	var used: Dictionary[String, bool] = reserved.duplicate()
+	for c: CircuitComponent in circuit.get_components():
+		if c is Plc:
+			used[(c as Plc).ip_address] = true
+	var prefix: String = Plc.DEFAULT_IP.get_slice(".", 0) + "." + Plc.DEFAULT_IP.get_slice(".", 1) + "." + Plc.DEFAULT_IP.get_slice(".", 2) + "."
+	for n: int in range(1, 255):
+		if not used.has(prefix + str(n)):
+			return prefix + str(n)
+	return Plc.DEFAULT_IP
+
+
+## True when a PLC answers at [param ip].
+func _ip_taken(ip: String) -> bool:
+	for c: CircuitComponent in circuit.get_components():
+		if c is Plc and (c as Plc).ip_address == ip:
+			return true
+	return false
+
+
 ## Designation for a new device "<prefix><n>" (coil, button, breaker,
 ## ...): the first one carried only by parts whose device is not drawn (e.g.
 ## main contacts KM1 placed before their coil), else the first free one.
@@ -2009,9 +2062,17 @@ func insert(data: Dictionary, offset: Vector2i) -> PackedStringArray:
 	var relabelled: Dictionary[String, String] = {}
 	var new_ids: PackedStringArray = PackedStringArray()
 	var key_map: Dictionary[String, String] = {}
+	var ips: Dictionary[String, bool] = {}
 	for cd: Dictionary in components:
 		var d: Dictionary = cd.duplicate()
 		match d["type"]:
+			"plc":
+				d["designation"] = renamed.get(d["designation"], d["designation"])
+				# A copied PLC answers at an address of its own.
+				var ip: String = str(d.get("ip", ""))
+				if ips.has(ip) or _ip_taken(ip):
+					d["ip"] = next_ip(ips)
+				ips[str(d.get("ip", ""))] = true
 			"supply":
 				var conductor: int = maxi(DocumentSerializer.CONDUCTORS.find(str(d.get("conductor", "L"))), 0)
 				d["designation"] = next_supply_designation(conductor as PowerSupply.Conductor)
@@ -2753,8 +2814,9 @@ func fill_cabinet(board: int) -> int:
 			continue
 		var kind: CabinetDevices.Kind = CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation))
 		groups_of[1 if kind == CabinetDevices.Kind.CONTACTOR or kind == CabinetDevices.Kind.OVERLOAD else 0].append(item)
-	# Protection first, then time relays, relays, rectifiers and PLCs; each keeps circuit order.
-	var order: Array[CabinetDevices.Kind] = [CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC, CabinetDevices.Kind.VFD]
+	# Protection first, then time relays, relays, rectifiers, PLCs and their
+	# network switches; each keeps circuit order.
+	var order: Array[CabinetDevices.Kind] = [CabinetDevices.Kind.BREAKER, CabinetDevices.Kind.FUSE, CabinetDevices.Kind.TIMER, CabinetDevices.Kind.RELAY, CabinetDevices.Kind.RECTIFIER, CabinetDevices.Kind.PLC, CabinetDevices.Kind.SWITCH, CabinetDevices.Kind.VFD]
 	var rank: Callable = func(item: CabinetItem) -> int:
 		return order.find(CabinetDevices.kind_of(CabinetDevices.device(circuit, item.designation)))
 	var first: Array = groups_of[0]

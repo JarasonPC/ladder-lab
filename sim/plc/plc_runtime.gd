@@ -22,6 +22,9 @@ extends RefCounted
 ## Analog values run 0-[member full_scale] for 0-10 V: [member analog_inputs] are read,
 ## [member analog_outputs] written by the AQ connectors and AQ coils; the
 ## comparing contacts read the analog inputs.
+##
+## Network inputs NI and NAI read [member network_inputs] and
+## [member network_analog], which the simulator fills from the partner PLCs.
 
 ## Scans [method scan_until_stable] makes at most.
 const MAX_SCANS: int = 32
@@ -34,6 +37,10 @@ var flags: PackedByteArray = PackedByteArray()
 ## Analog inputs AI1-AI8 (0-1000 for 0-10 V) and outputs AQ1-AQ8.
 var analog_inputs: PackedFloat32Array = PackedFloat32Array()
 var analog_outputs: PackedFloat32Array = PackedFloat32Array()
+## Network inputs NI1-NI64 and network analog inputs NAI1-NAI32, as read
+## from the partners (in their scale).
+var network_inputs: PackedByteArray = PackedByteArray()
+var network_analog: PackedFloat32Array = PackedFloat32Array()
 ## Value for 10 V (1000 for the logic modules, 27648 for the compact CPUs).
 var full_scale: float = PlcBlock.ANALOG_MAX
 ## Function block diagram: output of every block after the last scan, and
@@ -78,6 +85,10 @@ func reset() -> void:
 	analog_inputs.fill(0.0)
 	analog_outputs.resize(PlcProgram.AREA_SIZES["AQ"])
 	analog_outputs.fill(0.0)
+	network_inputs.resize(PlcProgram.AREA_SIZES["NI"])
+	network_inputs.fill(0)
+	network_analog.resize(PlcProgram.AREA_SIZES["NAI"])
+	network_analog.fill(0.0)
 	values.clear()
 	analog.clear()
 	timers.clear()
@@ -147,10 +158,10 @@ func snapshot() -> Array:
 	return [outputs.duplicate(), flags.duplicate(), block_values, timer_states, counts, edges, analog_outputs.duplicate(), analog_values]
 
 
-## Value of operand [param operand] ("I1", "Q2", "M3", "T4", "C5").
+## Value of operand [param operand] ("I1", "Q2", "M3", "T4", "C5", "NI6").
 func operand_value(operand: String) -> bool:
 	var i: int = PlcProgram.operand_index(operand)
-	match operand.left(1):
+	match PlcProgram.area_of(operand):
 		"I":
 			return i < inputs.size() and inputs[i] != 0
 		"Q":
@@ -161,10 +172,12 @@ func operand_value(operand: String) -> bool:
 			return timers.has(operand) and timers[operand].output
 		"C":
 			return counters.has(operand) and counters[operand].output()
+		"NI":
+			return i >= 0 and i < network_inputs.size() and network_inputs[i] != 0
 	return false
 
 
-## Value of analog operand [param operand] ("AI1", "AQ2").
+## Value of analog operand [param operand] ("AI1", "AQ2", "NAI3").
 func analog_value(operand: String) -> float:
 	var i: int = PlcProgram.operand_index(operand)
 	match PlcProgram.area_of(operand):
@@ -172,6 +185,8 @@ func analog_value(operand: String) -> float:
 			return analog_inputs[i] if i >= 0 and i < analog_inputs.size() else 0.0
 		"AQ":
 			return analog_outputs[i] if i >= 0 and i < analog_outputs.size() else 0.0
+		"NAI":
+			return network_analog[i] if i >= 0 and i < network_analog.size() else 0.0
 	return 0.0
 
 
@@ -247,9 +262,9 @@ func _evaluate_block(b: PlcBlock) -> bool:
 	for source: int in b.inputs:
 		connected = connected or source > 0
 	match b.type:
-		"input":
+		"input", "network_input":
 			return operand_value(b.operand)
-		"analog_input":
+		"analog_input", "network_analog_input":
 			analog[b.id] = analog_value(b.operand)
 			return analog[b.id] > 0.0
 		"analog_output":

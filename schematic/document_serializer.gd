@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity", "network_switch"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -391,11 +391,14 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 			d["family"] = "compact"
 			d["cpu"] = CompactPlc.CPU_NAMES[(c as CompactPlc).cpu]
 		d["program"] = (c as Plc).program.to_data()
+		d["ip"] = (c as Plc).ip_address
 		if not (c as Plc).modules.is_empty():
 			var modules: Array[String] = []
 			for module: Plc.Module in (c as Plc).modules:
 				modules.append(Plc.MODULE_NAMES[module])
 			d["modules"] = modules
+	elif c is NetworkSwitch:
+		d["type"] = "network_switch"
 	elif c is Lamp:
 		d["type"] = "lamp"
 		if not (c as Lamp).purpose.is_empty():
@@ -444,6 +447,12 @@ static func component_from_dict(d: Dictionary) -> CircuitComponent:
 	if c is ThreePhaseMotor and names.size() == c.default_terminal_names().size() - 1:
 		# Saved before motors had a PE terminal (file version 4).
 		names.append("PE")
+	if c is Plc and names.size() == c.default_terminal_names().size() - 1:
+		# Saved before PLCs had an Ethernet port (file version 33).
+		for port: String in [Plc.PORT_NAME, "X1P1", "ETH1"]:
+			if not names.has(port):
+				names.append(port)
+				break
 	if not c.supports_custom_terminals() or names.size() != c.default_terminal_names().size() or not CircuitComponent.valid_terminal_names(names):
 		return null
 	if names != c.default_terminal_names():
@@ -562,12 +571,19 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 		"rectifier":
 			return Rectifier.new(designation)
 		"plc":
+			var plc: Plc
 			if str(d.get("family", "")) == "compact":
 				var cpu: int = CompactPlc.CPU_NAMES.find(str(d.get("cpu", "")))
 				if cpu < 0:
 					cpu = CompactPlc.Cpu.DI8_DQ6
-				return CompactPlc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), cpu), cpu as CompactPlc.Cpu)
-			return Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), -1, str(d.get("rating", ""))))
+				plc = CompactPlc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), cpu), cpu as CompactPlc.Cpu)
+			else:
+				plc = Plc.new(designation, PlcProgram.from_data(d.get("program", {})), plc_modules(d.get("modules", []), -1, str(d.get("rating", ""))))
+			var ip: String = str(d.get("ip", Plc.DEFAULT_IP))
+			plc.ip_address = ip if PlcProgram.valid_ip(ip) else Plc.DEFAULT_IP
+			return plc
+		"network_switch":
+			return NetworkSwitch.new(designation)
 		"vfd":
 			var drive: Vfd = Vfd.new(designation)
 			drive.control = maxi(Vfd.CONTROL_NAMES.find(str(d.get("control", ""))), 0) as Vfd.Command

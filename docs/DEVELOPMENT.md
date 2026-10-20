@@ -591,6 +591,40 @@ Architecture and conventions of the code base. Read this before changing the cod
   (CabinetParts.compact_plc): 90 mm CPU (110 mm the largest), 45 mm modules, 100 mm high, the
   same grey, open terminal blocks without covers, RUN/STOP ERROR MAINT, channel lights DI a /
   DQ a, network port X1 P1 with LINK Rx/Tx, memory card slot X50; a module's DIAG light
+- Ethernet (modelled on the small Siemens logic modules and controllers, never with maker
+  names on the drawing): every PLC has one Ethernet port P1 (Plc.Role.NET, Plc.port_terminal;
+  the last terminal, after the modules', so older files keep their terminal indices; older
+  custom terminal names get it added on load; drawn on the left of the box,
+  SymbolGeometry.PLC_PORT_CELL, an RJ45 socket lit while it has a link, Plc.port_link) and an
+  IP address (Plc.ip_address, saved "ip", mask Plc.SUBNET_MASK 255.255.255.0: same subnet when
+  the first three numbers match, Plc.same_subnet; a new or pasted PLC takes
+  SchematicDocument.next_ip, 192.168.0.n; set in the properties). A network switch
+  (NetworkSwitch, "KF1", a Load on L+ M 24 V DC with ports P1-P4, NetworkSwitchSymbol, palette
+  "network_switch") joins its ports while it has its supply. Ethernet cables are schematic
+  wires between ports (CabinetDevices.network_keys; SchematicDocument.network_wires, drawn
+  dashed in SchematicTheme.NETWORK; never numbered; the wiring helpers pair a port with a port
+  only); a net with exactly two ports is a cable, with more (no switch) or with any other
+  terminal it works not and the check says so (CircuitCheck._network_issues: also one IP
+  address twice on a network, network inputs reading from an address no PLC on the network
+  has, or one on another subnet). Program: network inputs NI1-NI64 and NAI1-NAI32
+  (PlcProgram areas, PlcProgram.LONG_AREAS read before single letters; FBD blocks
+  "network_input" / "network_analog_input", LAD contacts and comparing contacts), each read
+  from the PLC at an IP address (PlcProgram.network: "NI1" -> {"ip", "operand"}, I Q M of the
+  partner for an NI, AI AQ for an NAI, PlcProgram.REMOTE_AREAS; saved in the program and in
+  .plcprog version 2), set in the PLC window's side panel for the selected NI / NAI. The
+  simulator (Simulator._network_reads, _partner, _segments) gives each working PLC what its
+  network inputs read from the working partner on the same network (cables and working
+  switches), on its subnet, both addresses unique there, else 0; values pass at once (IDEAL:
+  in the settle loop like inputs; REALISTIC: up to NETWORK_ROUNDS rounds per event); logs
+  "A2: connection to A1 (192.168.0.1) established" / "lost"; lights the ports' links. The PLC
+  window's own simulation has a switch per NI with a partner. Switchboard: Conductor.NETWORK
+  for port nets, cables CabinetWiring.NETWORK_W thick in the ducts, green with an RJ45 plug
+  (CabinetParts.rj45_plug) in the socket at each end (CabinetParts.rj45_socket; the logic
+  module's between its outputs Q3 and Q4, the compact CPU's over the gap between 3L+ and 3M,
+  the switch's four in a row below, CabinetParts.network_switch, Kind.SWITCH), no marker
+  sleeves; WorkspaceCables makes a cable of its own of every Ethernet net between two places
+  (key "+RA1|+RA2|<port>", Use.ETHERNET, "Cat 6 S/FTP 4x2xAWG23", no voltage drop), drawn
+  green on the workspace, leaving the switchboard through a gland of its own
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
   clicking it while simulating; one per PLC; keys it does not use (releases too) go to main.gd,
   Space stays in the window for Space+drag. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both
@@ -619,7 +653,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: A = PLC, BT = temperature sensor, BG = proximity sensor, BP / BL / BF =
+- Device designations: A = PLC, KF = network switch, BT = temperature sensor, BG = proximity sensor, BP / BL / BF =
   pressure / level / flow transmitter, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch (also the rotary cam switch, CamSwitch: a knob turned by hand,
   snap action, starts at 0, its position simulation state; 0-I poles 1-2, 3-4 … closed in I,
