@@ -1874,12 +1874,12 @@ const SWITCH := Vector2(45.0, 100.0)
 ## Bottom of its sockets, the top face of its terminal block.
 const SWITCH_PORT_BOTTOM: float = SWITCH.y - 12.0
 const SWITCH_SCREW_TOP: float = 3.0
-## An RJ45 socket's opening and the plug in it: its width, how far it goes
-## under the socket's rim (the rest of it, contacts and all, is pushed home
-## out of sight), how far its body and then its boot stand out.
+## An RJ45 socket's opening and the plug in it: its width, how far up into
+## the opening it reaches (its contacts out of sight at the far end), how
+## far its body and then its boot stand out.
 const RJ45_SOCKET := Vector2(9.4, 9.0)
 const RJ45_PLUG_W: float = 8.2
-const RJ45_IN: float = 0.8
+const RJ45_IN: float = RJ45_SOCKET.y - 0.8
 const RJ45_BODY: float = 2.2
 const RJ45_BOOT: float = 6.0
 const RJ45_CLEAR := Color(0.86, 0.9, 0.92, 0.9)
@@ -1927,8 +1927,8 @@ static func rj45_socket(p: CabinetPainter, bottom: Vector2) -> void:
 
 
 ## An RJ45 plug pushed home in a socket whose opening ends at [param tip],
-## its cable leaving along [param along]: the end of its clear body out of
-## the socket, the boot round the cable.
+## its cable leaving along [param along]: its clear body filling the
+## opening (no contacts showing), the boot round the cable.
 static func rj45_plug(p: CabinetPainter, tip: Vector2, along: Vector2) -> void:
 	var across: Vector2 = along.orthogonal()
 	var half: float = RJ45_PLUG_W * 0.5
