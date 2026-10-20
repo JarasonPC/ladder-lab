@@ -165,9 +165,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   one-way lever off stands off its contact; switch 4's points at a stop between its contacts
   while off), the levers of one rocker joined by a dashed link, the switch number under the
   designation; the intermediate switch has levers from 1 and 3, its crossing contacts
-  bridged to 2 (straight) and to 4 (a U under the others). Each
-  lever is thick, a knob at its free end, turning about its pivot at one length
-  (blade_tip); off, a one-way lever stands short of its contact, turned OFF_TURN outward;
+  bridged under the contact row to 2 (the inner bridge) and to 4 (the outer one). Every
+  lever is thick, a knob at its free end, turning about its pivot at one length, LEVER,
+  the reach of a contact straight below its pivot (blade_tip); a contact further off has a
+  fixed arm up to where the tip touches it. Off, a one-way lever is turned OFF_TURN outward
+  off its contact;
   hovered, the half of a two-rocker switch a click works is lit (the view redraws it as the
   mouse moves). The
   exception to "voltage colour on the wires only": while simulating its circles are filled

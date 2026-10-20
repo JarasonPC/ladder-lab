@@ -23,8 +23,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   schematic has a palette of its own: light switches numbered as Czech installations
   number them after ČSN EN 60669-1 (řazení 1, 2, 3, 03, 4, 5, 5B (6+6), 6, 6/2 and 7, -SF,
   terminals marked as on the switches; drawn as on Czech wiring diagrams: a box with the
-  incoming terminals on top, a lever to the contact it touches, live contacts filled while
-  simulating), luminaires (-EA) and single or
+  incoming terminals on top, a lever to the contact it touches, every lever the same
+  length, live contacts filled while simulating), luminaires (-EA) and single or
   double type E socket outlets (-XD), with the supplies and the circuit breaker
 - Residential protection and appliances: residual current devices (-FB, 2 or 4 poles,
   10-300 mA, type AC or A, or an RCBO with its breaker characteristic), arc fault detection

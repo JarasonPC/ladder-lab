@@ -8,21 +8,22 @@ extends SchematicSymbol
 ## the stop between its contacts while off). The levers of one rocker are
 ## joined by a dashed link. The intermediate switch (7) has a lever from each
 ## of 1 and 3; the contacts below are bridged so that at rest 1 reaches 2 and
-## 3 reaches 4, switched over 1 reaches 4 (by the U bridge) and 3 reaches 2
-## (by the straight one). A circle and the lever from it take the colour of
+## 3 reaches 4, switched over 1 reaches 4 (by the outer bridge) and 3 reaches
+## 2 (by the inner one). A circle and the lever from it take the colour of
 ## the voltage that reaches them while simulating (filled), hollow while
 ## nothing does. Click it while simulating to switch the rocker clicked over.
 
 ## Rows of the circles: the commons on top, the contacts below; the
-## intermediate switch's contacts a little higher, the U bridge under them.
-const TOP_Y: float = 16.0
-const BOTTOM_Y: float = 44.0
-const CROSS_Y: float = 38.0
-const BRIDGE_Y: float = 51.0
+## intermediate switch's bridges under its contacts, one inside the other.
+const TOP_Y: float = 13.0
+const BOTTOM_Y: float = 41.0
+const INNER_BRIDGE_Y: float = 46.5
+const OUTER_BRIDGE_Y: float = 50.5
 const RADIUS: float = 3.5
-## Every lever is this long; each contact has a fixed arm reaching up to
-## where the lever's tip touches it.
-const LEVER: float = 18.0
+## Every lever is this long, reaching a contact straight below its pivot;
+## a contact further off has a fixed arm up to where the lever's tip
+## touches it.
+const LEVER: float = BOTTOM_Y - TOP_Y - RADIUS - 0.5
 ## A one-way lever while off: turned this far (radians) outward off its
 ## contact's arm.
 const OFF_TURN: float = 0.5
@@ -52,8 +53,7 @@ func _designation_anchor() -> Vector2:
 ## Local point of the circle of terminal [param index] inside the box.
 func _circle(index: int) -> Vector2:
 	var cell: Vector2i = SymbolGeometry.light_switch_cell(_switch(), index)
-	var y: float = TOP_Y if cell.y == 0 else (CROSS_Y if _switch().circuit == "7" else BOTTOM_Y)
-	return Vector2(cell.x * G, y)
+	return Vector2(cell.x * G, TOP_Y if cell.y == 0 else BOTTOM_Y)
 
 
 func _draw_shape(_color: Color, width: float) -> void:
@@ -167,18 +167,18 @@ func _blade(from: int, tip: Vector2, start: Vector2 = Vector2(INF, INF)) -> Vect
 	return tip
 
 
-## The intermediate switch: blades from 1 and 2; the crossing contacts
-## bridged to 3 (straight) and to 4 (the U under the others).
+## The intermediate switch: blades from 1 and 3; the crossing contacts
+## bridged to 2 (the inner bridge) and to 4 (the outer one).
 func _intermediate() -> void:
 	var over: bool = _switch().on[0]
 	var s: float = shown("blades", 1.0 if over else 0.0)
 	# The outputs 2 (below 1) and 4 (below 3).
 	var two: Vector2 = _circle(1)
 	var four: Vector2 = _circle(3)
-	var cross_left: Vector2 = Vector2(CROSS_LEFT_X, CROSS_Y)
-	var cross_right: Vector2 = Vector2(CROSS_RIGHT_X, CROSS_Y)
-	aa_line(two + Vector2(RADIUS, 0), cross_right - Vector2(RADIUS, 0), _live_color(reach(1)), SchematicTheme.LINE_WIDTH)
-	aa_polyline(PackedVector2Array([cross_left + Vector2(0, RADIUS), Vector2(CROSS_LEFT_X, BRIDGE_Y), Vector2(four.x, BRIDGE_Y), four + Vector2(0, RADIUS)]), _live_color(reach(3)), SchematicTheme.LINE_WIDTH)
+	var cross_left: Vector2 = Vector2(CROSS_LEFT_X, BOTTOM_Y)
+	var cross_right: Vector2 = Vector2(CROSS_RIGHT_X, BOTTOM_Y)
+	_bridge(two, cross_right, INNER_BRIDGE_Y, reach(1))
+	_bridge(cross_left, four, OUTER_BRIDGE_Y, reach(3))
 	var one: Vector2 = _circle(0)
 	var three: Vector2 = _circle(2)
 	_arm(one, two, reach(1))
@@ -189,6 +189,12 @@ func _intermediate() -> void:
 	_blade(2, blade_tip(three, _touch(three, four), _touch(three, cross_right), s))
 	_draw_circle(cross_left, reach(3))
 	_draw_circle(cross_right, reach(1))
+
+
+## A bridge under the contacts at [param a] and [param b], at height
+## [param y], in the colour of [param code].
+func _bridge(a: Vector2, b: Vector2, y: float, code: int) -> void:
+	aa_polyline(PackedVector2Array([a + Vector2(0, RADIUS), Vector2(a.x, y), Vector2(b.x, y), b + Vector2(0, RADIUS)]), _live_color(code), SchematicTheme.LINE_WIDTH)
 
 
 ## A terminal circle: filled with the colour of what reaches it, hollow
@@ -221,13 +227,8 @@ func _draw_labels() -> void:
 		draw_label(height_text(sw.height), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 2)
 	var names: PackedStringArray = component.get_terminal_names()
 	for i: int in names.size():
-		var at: Vector2 = _circle(i)
-		# Beside its circle, clear of the blades and bars: the common on the
-		# left where a bar runs on to the right, the intermediate switch's
-		# outputs beside their leads between the bridges.
-		if sw.circuit == "7" and (i == 1 or i == 3):
-			at.y = (CROSS_Y + BRIDGE_Y) * 0.5
-		draw_label(names[i], at + Vector2(0.3 * G, 0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		# Beside its circle, clear of the blades.
+		draw_label(names[i], _circle(i) + Vector2(0.3 * G, 0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 
 
 ## Mounting height as written beside a part of a house installation whose
