@@ -59,8 +59,12 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 				wd["number_offsets"] = [[offsets[0].x, offsets[0].y], [offsets[1].x, offsets[1].y]]
 		wires.append(wd)
 	var result: Dictionary = {"title": doc.title, "horizontal": doc.horizontal, "switching": "realistic" if doc.realistic_timing else "ideal", "pages": Array(doc.pages), "page": doc.page, "components": components, "wires": wires}
-	if doc.residential:
-		result["environment"] = "residential"
+	match doc.environment:
+		SchematicDocument.Kind.PROTOTYPE:
+			result["environment"] = "prototype"
+		SchematicDocument.Kind.RESIDENTIAL:
+			result["environment"] = "installation"
+			result["single_line"] = doc.single_line.to_data()
 	if not doc.floor_plan.is_empty():
 		result["floor_plan"] = doc.floor_plan.to_data()
 	if not doc.control_boxes.is_empty():
@@ -119,7 +123,12 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new(str(d.get("title", "")))
 	doc.horizontal = _bool(d, "horizontal", false)
 	doc.realistic_timing = str(d.get("switching", "realistic")) != "ideal"
-	doc.residential = str(d.get("environment", "")) == "residential"
+	# Saved before version 41, a residential prototype was "residential".
+	match str(d.get("environment", "")):
+		"prototype", "residential":
+			doc.environment = SchematicDocument.Kind.PROTOTYPE
+		"installation":
+			doc.environment = SchematicDocument.Kind.RESIDENTIAL
 	var components: Variant = d.get("components", [])
 	var wires: Variant = d.get("wires", [])
 	if not (components is Array and wires is Array):
@@ -182,6 +191,9 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 	doc.title_block = TitleBlock.from_data(d.get("title_block", {}))
 	doc.floor_plan = FloorPlan.from_data(d.get("floor_plan", {}))
 	doc.floor_plan.prune(doc.circuit)
+	if doc.environment == SchematicDocument.Kind.RESIDENTIAL:
+		doc.single_line = SingleLine.from_data(d.get("single_line", {}))
+		doc.single_line.wire(doc)
 	# So are the switchboards: malformed ones, rails and items are left out.
 	var raw_boards: Variant = d.get("switchboards", [])
 	if raw_boards is Array:

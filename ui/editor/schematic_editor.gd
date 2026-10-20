@@ -608,6 +608,7 @@ func change_type(component_id: String, template: Dictionary) -> String:
 func edit_workspace(change: Callable) -> void:
 	_record()
 	change.call(document())
+	document().update_single_line()
 	document().name_cables()
 	# Keycaps on the symbols follow bound keys.
 	view.rebuild()
@@ -1887,6 +1888,8 @@ func _restore(snapshot: Dictionary) -> void:
 
 ## Call after every edit of the document.
 func _changed() -> void:
+	# A residential installation's wires follow its single-line diagram.
+	document().update_single_line()
 	# Next to L2 or L3 a plain L supply becomes L1 (and stays selected).
 	var renamed: Dictionary[String, String] = document().name_first_phase()
 	# Cables of the workspace keep their names, new ones get the next.

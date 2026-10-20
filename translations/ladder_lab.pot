@@ -5131,3 +5131,116 @@ msgstr ""
 
 msgid "Heights are to the middle of the box; a height other than these is written beside the part (h)."
 msgstr ""
+
+msgid "Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms."
+msgstr ""
+
+msgid "Click the main switch, a breaker, an RCD or its test button to operate it. Right or middle drag pans, wheel zooms."
+msgstr ""
+
+msgid "Prototype residential"
+msgstr ""
+
+msgid "Light switches, luminaires and sockets drawn and wired freely, to try circuits out"
+msgstr ""
+
+msgid "A house installation: the consumer unit as a single-line diagram, with its floor plan"
+msgstr ""
+
+msgid "Main switch: click to switch it while simulating"
+msgstr ""
+
+msgid "Main switch"
+msgstr ""
+
+msgid "Ripple control contactor (HDO, low tariff): click to switch it while simulating"
+msgstr ""
+
+msgid "Test button: click to press it while simulating"
+msgstr ""
+
+#, c-format
+msgid "Show room %s on the floor plan"
+msgstr ""
+
+msgid "Click to switch it while simulating"
+msgstr ""
+
+msgid "Drag to move its circuit; Delete takes it away"
+msgstr ""
+
+msgid "Pick a circuit breaker or an RCD in the palette and click under the busbars to add a circuit."
+msgstr ""
+
+msgid "Incoming supply"
+msgstr ""
+
+msgid "SPD T1+T2"
+msgstr ""
+
+msgid "Earth electrode"
+msgstr ""
+
+#, c-format
+msgid "%s/%s A type %s"
+msgstr ""
+
+#, c-format
+msgid "%s A type %s"
+msgstr ""
+
+msgid "HDO"
+msgstr ""
+
+msgid "Spare"
+msgstr ""
+
+msgid "Sockets"
+msgstr ""
+
+msgid "Lighting"
+msgstr ""
+
+#, c-format
+msgid "Circuit %s"
+msgstr ""
+
+msgid "Where it goes, e.g. Kitchen sockets"
+msgstr ""
+
+msgid "No room"
+msgstr ""
+
+#, c-format
+msgid "Group %s"
+msgstr ""
+
+msgid "Pick a breaker or an RCD in the palette and click between the circuits, under an RCD's busbar to put it in its group; a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it."
+msgstr ""
+
+msgid "Delete the selected breaker, RCD or part (Delete)"
+msgstr ""
+
+msgid "Destination"
+msgstr ""
+
+msgid "Room on the floor plan"
+msgstr ""
+
+msgid "Switched by ripple control (HDO)"
+msgstr ""
+
+msgid "Surge protective device (SPD)"
+msgstr ""
+
+msgid "Residual current device (RCD)"
+msgstr ""
+
+msgid "Circuit breaker, three poles"
+msgstr ""
+
+msgid "Residual current device, four poles"
+msgstr ""
+
+msgid "RCD with overcurrent release (RCBO)"
+msgstr ""

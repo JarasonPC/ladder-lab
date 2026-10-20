@@ -5146,3 +5146,116 @@ msgstr "Kabel, čárka za každou žílu"
 
 msgid "Heights are to the middle of the box; a height other than these is written beside the part (h)."
 msgstr "Výšky jsou ke středu krabice; jiná výška je napsána u prvku (h)."
+
+msgid "Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms."
+msgstr "Vyberte prvek v paletě a klikněte, kam patří; Delete odebere výběr. Tažení pravým nebo prostředním tlačítkem posouvá, kolečko přibližuje."
+
+msgid "Click the main switch, a breaker, an RCD or its test button to operate it. Right or middle drag pans, wheel zooms."
+msgstr "Kliknutím ovládáte hlavní vypínač, jistič, chránič nebo jeho testovací tlačítko. Tažení pravým nebo prostředním tlačítkem posouvá, kolečko přibližuje."
+
+msgid "Prototype residential"
+msgstr "Domovní – prototyp"
+
+msgid "Light switches, luminaires and sockets drawn and wired freely, to try circuits out"
+msgstr "Vypínače, svítidla a zásuvky volně kreslené a zapojené, k vyzkoušení zapojení"
+
+msgid "A house installation: the consumer unit as a single-line diagram, with its floor plan"
+msgstr "Domovní instalace: rozváděč jako jednopólové schéma, s půdorysem"
+
+msgid "Main switch: click to switch it while simulating"
+msgstr "Hlavní vypínač: při simulaci ho kliknutím přepnete"
+
+msgid "Main switch"
+msgstr "Hlavní vypínač"
+
+msgid "Ripple control contactor (HDO, low tariff): click to switch it while simulating"
+msgstr "Stykač HDO (nízký tarif): při simulaci ho kliknutím přepnete"
+
+msgid "Test button: click to press it while simulating"
+msgstr "Testovací tlačítko: při simulaci ho kliknutím stisknete"
+
+#, c-format
+msgid "Show room %s on the floor plan"
+msgstr "Ukázat místnost %s na půdorysu"
+
+msgid "Click to switch it while simulating"
+msgstr "Při simulaci ho kliknutím přepnete"
+
+msgid "Drag to move its circuit; Delete takes it away"
+msgstr "Tažením přesunete jeho obvod; Delete ho odebere"
+
+msgid "Pick a circuit breaker or an RCD in the palette and click under the busbars to add a circuit."
+msgstr "Vyberte jistič nebo chránič v paletě a kliknutím pod přípojnice přidáte obvod."
+
+msgid "Incoming supply"
+msgstr "Přívod"
+
+msgid "SPD T1+T2"
+msgstr "SPD T1+T2"
+
+msgid "Earth electrode"
+msgstr "Zemnič"
+
+#, c-format
+msgid "%s/%s A type %s"
+msgstr "%s/%s A typ %s"
+
+#, c-format
+msgid "%s A type %s"
+msgstr "%s A typ %s"
+
+msgid "HDO"
+msgstr "HDO"
+
+msgid "Spare"
+msgstr "Rezerva"
+
+msgid "Sockets"
+msgstr "Zásuvky"
+
+msgid "Lighting"
+msgstr "Osvětlení"
+
+#, c-format
+msgid "Circuit %s"
+msgstr "Obvod %s"
+
+msgid "Where it goes, e.g. Kitchen sockets"
+msgstr "Kam vede, např. Zásuvky kuchyň"
+
+msgid "No room"
+msgstr "Bez místnosti"
+
+#, c-format
+msgid "Group %s"
+msgstr "Skupina %s"
+
+msgid "Pick a breaker or an RCD in the palette and click between the circuits, under an RCD's busbar to put it in its group; a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it."
+msgstr "Vyberte jistič nebo chránič v paletě a klikněte mezi obvody, pod přípojnici chrániče, aby byl v jeho skupině; zásuvku, svítidlo nebo spotřebič na obvod. Jistič nebo chránič přesunete tažením."
+
+msgid "Delete the selected breaker, RCD or part (Delete)"
+msgstr "Odebrat vybraný jistič, chránič nebo prvek (Delete)"
+
+msgid "Destination"
+msgstr "Kam vede"
+
+msgid "Room on the floor plan"
+msgstr "Místnost na půdorysu"
+
+msgid "Switched by ripple control (HDO)"
+msgstr "Spínáno HDO"
+
+msgid "Surge protective device (SPD)"
+msgstr "Přepěťová ochrana (SPD)"
+
+msgid "Residual current device (RCD)"
+msgstr "Proudový chránič (RCD)"
+
+msgid "Circuit breaker, three poles"
+msgstr "Jistič, třípólový"
+
+msgid "Residual current device, four poles"
+msgstr "Proudový chránič, čtyřpólový"
+
+msgid "RCD with overcurrent release (RCBO)"
+msgstr "Chránič s nadproudovou ochranou (RCBO)"

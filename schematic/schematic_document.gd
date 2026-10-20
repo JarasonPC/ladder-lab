@@ -18,12 +18,28 @@ var horizontal: bool = false
 ## Simulate relays with pick-up and drop-out times (see [Armature]) rather
 ## than instant switching.
 var realistic_timing: bool = true
-## A house installation (light switches, luminaires, sockets) rather than an
-## industrial control circuit: chosen when the schematic is made, for good.
-## It picks the parts the palette offers.
-var residential: bool = false
+## What the schematic is, chosen when it is made, for good: an industrial
+## control circuit; a residential prototype (light switches, luminaires and
+## sockets drawn and wired freely, to try circuits out); or a residential
+## installation (the consumer unit as its single-line diagram, see
+## [member single_line]). It picks the parts the palette offers.
+enum Kind { INDUSTRIAL, PROTOTYPE, RESIDENTIAL }
+
+var environment: Kind = Kind.INDUSTRIAL
+## A house installation of either kind (with its floor plan) rather than an
+## industrial control circuit. Set true, an industrial schematic becomes a
+## residential prototype.
+var residential: bool:
+	get:
+		return environment != Kind.INDUSTRIAL
+	set(value):
+		if value != residential:
+			environment = Kind.PROTOTYPE if value else Kind.INDUSTRIAL
 ## Floor plan of a house installation: rooms, doors and where its parts are.
 var floor_plan: FloorPlan = FloorPlan.new()
+## The consumer unit of a residential installation as its single-line
+## diagram: the order, phases and groups of its circuits, which it wires.
+var single_line: SingleLine = SingleLine.new()
 ## Workspace: control stations with the buttons, switches and signal lamps
 ## of the circuit (see [ControlBox]).
 var control_boxes: Array[ControlBox] = []
@@ -75,6 +91,13 @@ var _caching: bool = false
 
 func _init(p_title: String = "") -> void:
 	title = p_title
+
+
+## A residential installation rewires its parts from its single-line
+## diagram (see [method SingleLine.wire]); call after every edit.
+func update_single_line() -> void:
+	if environment == Kind.RESIDENTIAL:
+		single_line.wire(self)
 
 
 ## Adds a component at a grid cell. Returns it, or null if the circuit refused it.
@@ -962,6 +985,7 @@ func _forget_device(designation: String) -> void:
 	key_bindings.erase(designation)
 	field_positions.erase(designation)
 	floor_plan.remove(designation)
+	single_line.remove(designation)
 	for group: WorkspaceGroup in groups:
 		_leave_group(group, designation)
 
@@ -1412,6 +1436,7 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 		rename_cabinet_device(old.designation, new_component.designation)
 		rename_field_device(old.designation, new_component.designation)
 		floor_plan.rename(old.designation, new_component.designation)
+		single_line.rename(old.designation, new_component.designation)
 		if key_bindings.has(old.designation):
 			var key: String = key_bindings[old.designation]
 			key_bindings.erase(old.designation)
