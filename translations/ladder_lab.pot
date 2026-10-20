@@ -468,6 +468,12 @@ msgstr ""
 msgid "Side by side, the same number of cells apart"
 msgstr ""
 
+msgid "Wire facing terminals"
+msgstr ""
+
+msgid "Straight wires between the free terminals of the selected parts that face each other"
+msgstr ""
+
 msgid "Line up vertically"
 msgstr ""
 
@@ -499,6 +505,9 @@ msgid "Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Righ
 msgstr ""
 
 msgid "Click empty cells for corners, finish on a terminal or a wire. Backspace removes a corner, Esc cancels."
+msgstr ""
+
+msgid "Click empty cells for corners, finish on a terminal or a wire; the poles beside go along (Shift: this wire alone). Backspace removes a corner, Esc cancels."
 msgstr ""
 
 msgid "Click a terminal to draw a wire. Drag parts, wires or wire numbers to move them. Double-click a marking to edit it. Right click for more. R rotates, F / Shift+F mirror, Del deletes."
@@ -650,6 +659,27 @@ msgid "Wire numbers"
 msgstr ""
 
 msgid "Grid while editing"
+msgstr ""
+
+msgid "Wiring"
+msgstr ""
+
+msgid "Wire facing terminals (right click)"
+msgstr ""
+
+msgid "The right click menu wires the free terminals of the selected parts that face each other"
+msgstr ""
+
+msgid "Wire all poles at once"
+msgstr ""
+
+msgid "A wire drawn between multi-pole parts takes the poles beside it along (Shift: that wire alone)"
+msgstr ""
+
+msgid "Wire parts placed in line"
+msgstr ""
+
+msgid "A part placed or dropped gets straight wires to the free terminals it faces"
 msgstr ""
 
 msgid "Language"
