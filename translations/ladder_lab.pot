@@ -676,7 +676,7 @@ msgstr ""
 msgid "Wire parts placed in line"
 msgstr ""
 
-msgid "A part placed or dropped gets straight wires to the free terminals it faces"
+msgid "A part placed or dropped gets straight wires to the free terminals it faces, EPLAN style (autoconnect)"
 msgstr ""
 
 msgid "Language"

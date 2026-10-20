@@ -65,7 +65,7 @@ var active: bool = false:
 var tool: Tool = Tool.SELECT
 ## Wiring helpers, set from the Settings menu: a wire drawn between
 ## multi-pole parts takes the poles beside it along; parts placed or dropped
-## are wired to the terminals they face.
+## are wired to the terminals they face (EPLAN-style autoconnect).
 var wire_all_poles: bool = false
 var wire_on_drop: bool = false:
 	set(value):
