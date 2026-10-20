@@ -5111,3 +5111,38 @@ msgstr "Přepínač řazení 5B (dvojitý střídavý, 6+6)"
 
 msgid "Switch no. 6/2 (two-pole two-way)"
 msgstr "Přepínač řazení 6/2 (dvoupólový střídavý)"
+
+msgid "Double-click to open it"
+msgstr "Otevřete dvojklikem"
+
+msgid "Click to open it and switch its breakers"
+msgstr "Kliknutím ho otevřete a ovládáte jističe"
+
+msgid "Legend"
+msgstr "Legenda"
+
+msgid "Switch (its number: lines and ticks)"
+msgstr "Vypínač (řazení: čáry a čárky)"
+
+#, c-format
+msgid "%s m over the floor"
+msgstr "%s m nad podlahou"
+
+msgid "Socket outlet 230 V with the protective pin"
+msgstr "Zásuvka 230 V s ochranným kolíkem"
+
+#, c-format
+msgid "on the ceiling, %s m"
+msgstr "na stropě, %s m"
+
+msgid "Appliance, its connection"
+msgstr "Spotřebič, jeho připojení"
+
+msgid "Consumer unit"
+msgstr "Rozváděč"
+
+msgid "Cable, a tick per core"
+msgstr "Kabel, čárka za každou žílu"
+
+msgid "Heights are to the middle of the box; a height other than these is written beside the part (h)."
+msgstr "Výšky jsou ke středu krabice; jiná výška je napsána u prvku (h)."

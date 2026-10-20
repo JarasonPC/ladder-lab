@@ -6,6 +6,17 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- The floor plan opens the consumer unit RD1 (a click on its symbol while simulating, a
+  double click in Edit mode): its switchboard in place of the plan, made with the protection
+  on its rails when there is none yet, its breakers switched there while simulating
+- Export to PDF puts the floor plan of a house installation on a sheet in place of the
+  workspace, with a legend of the symbols and the standard installation heights
+- Light switch levers are all one length, as long as reaches a contact straight below;
+  contacts further off have a fixed arm up to the lever, and every lever rests off
+- Socket outlets on the floor plan are drawn as on Czech installation drawings: a stem from
+  the wall to the back of a half circle open to the room, a double socket two of them
+
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
   side by side
@@ -23,8 +34,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   schematic has a palette of its own: light switches numbered as Czech installations
   number them after ČSN EN 60669-1 (řazení 1, 2, 3, 03, 4, 5, 5B (6+6), 6, 6/2 and 7, -SF,
   terminals marked as on the switches; drawn as on Czech wiring diagrams: a box with the
-  incoming terminals on top, a lever to the contact it touches, every lever the same
-  length, live contacts filled while simulating), luminaires (-EA) and single or
+  incoming terminals on top, a lever to the contact it touches, live contacts filled while
+  simulating), luminaires (-EA) and single or
   double type E socket outlets (-XD), with the supplies and the circuit breaker
 - Residential protection and appliances: residual current devices (-FB, 2 or 4 poles,
   10-300 mA, type AC or A, or an RCBO with its breaker characteristic), arc fault detection

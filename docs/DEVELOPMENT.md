@@ -220,13 +220,22 @@ Architecture and conventions of the code base. Read this before changing the cod
   shortest tree (Manhattan) over the places on it; nets between two places are the cores of
   one cable, drawn dashed in an L with a tick per core (a number past five). PlanSymbols
   draws the ČSN EN 60617-11 symbols: a switch's circle with lines and ticks per its number,
-  a socket's half circle on a stem with the diameter past it (two for a double), the
+  a socket's stem from the wall to the back of a half circle open to the room (a second
+  half circle on the same stem for a double), the
   luminaire's crossed circle, an appliance's box with its sign, the consumer unit half
   filled; a height other than the standard one is written under the designation ("h 1.10").
   While simulating the plan shows the simulation copy: lit luminaires glow, live sockets and
   working appliances are filled, and a click on a switch switches its rocker (of two, the
   one on the side clicked as seen from the room; SchematicView.toggle_light_switch). Plan
-  edits are workspace edits (one undo step each, Edit mode only)
+  edits are workspace edits (one undo step each, Edit mode only). The consumer unit is
+  switchboard RD1 (FloorPlan.UNIT without its "+"): FloorPlanCanvas.unit_requested (a
+  double click on its symbol in Edit mode, a click while simulating) makes FloorPlanView
+  open it in a CabinetPanel in place of the plan (open_unit, close_unit by the Floor plan
+  button), made first in Edit mode by SchematicDocument.ensure_consumer_unit (an undoable
+  edit: the switchboard with fill_cabinet's devices; only once). Export: with "workspace"
+  ticked, a residential document gets a "floor_plan" sheet (SheetRenderer) in place of the
+  workspace: a FloorPlanCanvas with legend set, sized to paper_area() (the plan with a
+  margin and LEGEND_HEIGHT under it for the symbols and the standard heights)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,

@@ -5096,3 +5096,38 @@ msgstr ""
 
 msgid "Switch no. 6/2 (two-pole two-way)"
 msgstr ""
+
+msgid "Double-click to open it"
+msgstr ""
+
+msgid "Click to open it and switch its breakers"
+msgstr ""
+
+msgid "Legend"
+msgstr ""
+
+msgid "Switch (its number: lines and ticks)"
+msgstr ""
+
+#, c-format
+msgid "%s m over the floor"
+msgstr ""
+
+msgid "Socket outlet 230 V with the protective pin"
+msgstr ""
+
+#, c-format
+msgid "on the ceiling, %s m"
+msgstr ""
+
+msgid "Appliance, its connection"
+msgstr ""
+
+msgid "Consumer unit"
+msgstr ""
+
+msgid "Cable, a tick per core"
+msgstr ""
+
+msgid "Heights are to the middle of the box; a height other than these is written beside the part (h)."
+msgstr ""
