@@ -622,7 +622,7 @@ func _draw_keycap() -> void:
 
 ## True when a fault is injected into this component (simulation only).
 func has_fault() -> bool:
-	if component is Load and (component as Load).burnt:
+	if component is Load and ((component as Load).burnt or (component as Load).arcing):
 		return true
 	if component is SwitchingElement:
 		return (component as SwitchingElement).fault != SwitchingElement.Fault.NONE

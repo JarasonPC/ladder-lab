@@ -17,6 +17,10 @@ static func create(component: CircuitComponent, placement: Placement) -> Schemat
 		symbol = SocketSymbol.new()
 	elif component is Luminaire:
 		symbol = LuminaireSymbol.new()
+	elif component is Appliance:
+		symbol = ApplianceSymbol.new()
+	elif component is ResidualCurrentDevice or component is ArcFaultDevice:
+		symbol = RcdSymbol.new()
 	elif component is MotorBreaker:
 		symbol = BreakerSymbol.new()
 	elif component is ThreePhaseMotor:

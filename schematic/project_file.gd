@@ -83,7 +83,12 @@ const FORMAT: String = "ladder-lab"
 ## industrial control circuit) with light switches ("light_switch": circuit
 ## 1-7, height), luminaires ("luminaire": power, height) and socket outlets
 ## ("socket": gangs, height).
-const VERSION: int = 38
+## 39: residual current devices ("rcd": poles, residual, rcd_type,
+## rated_current, overcurrent and characteristic of an RCBO), arc fault
+## detection devices ("afdd"), appliances ("appliance": kind, power,
+## two_phases, height) and appliances plugged into sockets ("plugged",
+## "plugged_power"; missing: nothing plugged in).
+const VERSION: int = 39
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

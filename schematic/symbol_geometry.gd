@@ -71,7 +71,7 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		result[names[1]] = Vector2i(2 * POLE_SPACING, 0)
 		result[names[2]] = Vector2i(POLE_SPACING, 0)
 		return result
-	if c is Luminaire:
+	if c is Luminaire or c is Appliance:
 		# L on top, N below, PE (the frame) beside N.
 		result[names[0]] = Vector2i.ZERO
 		result[names[1]] = Vector2i(0, SPAN)
@@ -143,7 +143,7 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 	if c is CamSwitch:
 		var cam: CamSwitch = c as CamSwitch
 		return DIR_UP if names.find(terminal_name) % cam.pole_terminals() == cam.pole_terminals() - 1 else DIR_DOWN
-	if c is LightSwitch or c is SocketOutlet or c is Luminaire:
+	if c is LightSwitch or c is SocketOutlet or c is Luminaire or c is Appliance:
 		var at: int = names.find(terminal_name)
 		return 0 if at < 0 else (DIR_DOWN if local_terminals(c)[terminal_name].y == 0 else DIR_UP)
 	if _is_three_pole(c):
@@ -199,7 +199,7 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(box.position / GRID, box.size / GRID).grow(0.1)
 	if c is SocketOutlet:
 		return Rect2(-0.6, 0.6, 2 * POLE_SPACING + 1.2, 1.3)
-	if c is Luminaire:
+	if c is Luminaire or c is Appliance:
 		return Rect2(-0.75, 0.75, 1.9, 1.5)
 	if c is CamSwitch:
 		var cam: CamSwitch = c as CamSwitch
@@ -209,6 +209,9 @@ static func local_body(c: CircuitComponent) -> Rect2:
 	if _is_three_pole(c):
 		var poles: int = c.get_terminal_names().size() / 2
 		var span: float = (poles - 1) * POLE_SPACING
+		if c is ResidualCurrentDevice or c is ArcFaultDevice:
+			# The release box on the right, the ring under the blades.
+			return Rect2(-1.15, 0.7, span + 3.15, 2.2)
 		if c is MotorBreaker:
 			return Rect2(-1.15, 0.7, span + 1.45, 1.6)
 		if c is MainContacts:

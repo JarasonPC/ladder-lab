@@ -41,6 +41,9 @@ func _draw_labels() -> void:
 	if not is_equal_approx(socket.height, SocketOutlet.STANDARD_HEIGHT):
 		draw_label(LightSwitchSymbol.height_text(socket.height), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, line)
 		line += 1
+	if socket.plugged >= 0:
+		draw_label("→ %s %s" % [ApplianceSymbol.kind_title(socket.plugged), ApplianceSymbol.power_text(socket.plugged_power)], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, line)
+		line += 1
 	if is_live():
 		draw_label("230 V", anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.reach_color(reach(0)), line)
 	var names: PackedStringArray = component.get_terminal_names()

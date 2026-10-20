@@ -4735,8 +4735,6 @@ msgstr ""
 msgid "Double"
 msgstr ""
 
-msgid "Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage."
-msgstr ""
 
 msgid "Mounting height (m)"
 msgstr ""
@@ -4806,4 +4804,189 @@ msgid "Socket outlet 230 V (type E)"
 msgstr ""
 
 msgid "Double socket outlet 230 V (type E)"
+msgstr ""
+
+msgid "Frame live!"
+msgstr ""
+
+msgid "Oven"
+msgstr ""
+
+msgid "Hob"
+msgstr ""
+
+msgid "Microwave"
+msgstr ""
+
+msgid "Washing machine"
+msgstr ""
+
+msgid "Dishwasher"
+msgstr ""
+
+msgid "Heater"
+msgstr ""
+
+msgid "Fridge"
+msgstr ""
+
+msgid "Kettle"
+msgstr ""
+
+msgid "Water heater"
+msgstr ""
+
+msgid "Appliances"
+msgstr ""
+
+#, c-format
+msgid "Residual current device with overcurrent release (RCBO) %s"
+msgstr ""
+
+#, c-format
+msgid "Residual current device (RCD) %s"
+msgstr ""
+
+msgid "It compares the currents through its poles: what goes out on the phases and does not come back through its N leaves through the protective conductor or a person. From 70 % of its rated residual current on it trips. A fault current to PE through one of its poles trips it too; a short between L and N does not. It is switched on by a click while simulating; its test button T (right click) trips it."
+msgstr ""
+
+msgid "It is a circuit breaker as well: it trips on an overcurrent after the time of its thermal release and at once above its magnetic release."
+msgstr ""
+
+msgid "A 30 mA device gives additional protection against electric shock (ČSN 33 2000-4-41): Czech practice requires it for sockets up to 32 A and in bathrooms."
+msgstr ""
+
+msgid "Phase, supply side"
+msgstr ""
+
+#, c-format
+msgid "Joined to %s while it is on."
+msgstr ""
+
+msgid "Phase, load side"
+msgstr ""
+
+msgid "Neutral, supply side"
+msgstr ""
+
+msgid "Neutral, load side"
+msgstr ""
+
+msgid "Rated residual current IΔn"
+msgstr ""
+
+msgid "Trips from"
+msgstr ""
+
+#, c-format
+msgid "Arc fault detection device with circuit breaker %s"
+msgstr ""
+
+msgid "A circuit breaker that also watches the current for the signature of an arc: when a loose connection of a part it feeds arcs, it trips at once, before the connection sets fire to its surroundings. It is switched on by a click while simulating; its test button (right click) trips it."
+msgstr ""
+
+msgid "Recommended for bedrooms, wooden houses and rooms with combustible materials (ČSN 33 2000-4-42)."
+msgstr ""
+
+#, c-format
+msgid "%s, %s"
+msgstr ""
+
+msgid "Appliance wired for good to its own circuit. It draws its rated power while it has its voltage; its metal frame is joined to PE. An insulation fault puts its phase on the frame: with the frame on PE that is a short to PE (the breaker and the RCD trip), without it the frame is live."
+msgstr ""
+
+msgid "Phase 1"
+msgstr ""
+
+msgid "Phase 2"
+msgstr ""
+
+msgid "Other end of the supply."
+msgstr ""
+
+msgid "Power of the appliance (W)"
+msgstr ""
+
+msgid "Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage, and an appliance plugged in draws its power."
+msgstr ""
+
+msgid "230 V (L, N)"
+msgstr ""
+
+msgid "400 V between two phases (L1, L2)"
+msgstr ""
+
+msgid "Wired for good to its own circuit, its metal frame on PE. Right click it while simulating for an insulation fault (its phase on the frame) or a loose connection that arcs."
+msgstr ""
+
+msgid "2 (L + N)"
+msgstr ""
+
+msgid "4 (3 phases + N)"
+msgstr ""
+
+msgid "AC (AC residual currents)"
+msgstr ""
+
+msgid "A (also pulsating DC)"
+msgstr ""
+
+msgid "With overcurrent release (RCBO)"
+msgstr ""
+
+msgid "Phases through 1-2 (3-4, 5-6) and the neutral through N-N'. It trips when what goes out on the phases does not all come back on N (a fault to PE, N taken past it) from 70 % of IΔn on. While simulating, click it to switch it on; right click it to press its test button T."
+msgstr ""
+
+msgid "A circuit breaker that also trips when an arc burns in a loose connection of what it feeds: phase 1-2, neutral N-N'. Right click a load while simulating to loosen its connection."
+msgstr ""
+
+msgid "Nothing"
+msgstr ""
+
+msgid "Plugged in"
+msgstr ""
+
+msgid "Appliance"
+msgstr ""
+
+msgid "Press the test button T"
+msgstr ""
+
+msgid "Insulation fault (phase on the frame)"
+msgstr ""
+
+msgid "Loose connection (arcing)"
+msgstr ""
+
+msgid "Residual current device (RCD / RCBO)"
+msgstr ""
+
+msgid "Arc fault detection device with breaker (AFDD)"
+msgstr ""
+
+msgid "Induction hob"
+msgstr ""
+
+#, c-format
+msgid "%s tripped (residual current %d mA)"
+msgstr ""
+
+#, c-format
+msgid "%s tripped (fault current to PE)"
+msgstr ""
+
+#, c-format
+msgid "%s tripped (arc fault)"
+msgstr ""
+
+#, c-format
+msgid "Fault: insulation fault on %s, phase on the frame"
+msgstr ""
+
+#, c-format
+msgid "Fault: loose connection arcing at %s"
+msgstr ""
+
+#, c-format
+msgid "%s: test button pressed"
 msgstr ""

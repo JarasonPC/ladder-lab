@@ -78,6 +78,16 @@ const RESIDENTIAL_ENTRIES: Array[Dictionary] = [
 	{"title": "Socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 1}},
 	{"title": "Double socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 2}},
 	{"title": "Circuit breaker", "template": {"type": "breaker"}},
+	{"title": "Residual current device (RCD / RCBO)", "template": {"type": "rcd", "poles": 2}},
+	{"title": "Arc fault detection device with breaker (AFDD)", "template": {"type": "afdd"}},
+	{"title": "Water heater", "template": {"type": "appliance", "kind": "water_heater"}},
+	{"title": "Oven", "template": {"type": "appliance", "kind": "oven"}},
+	{"title": "Induction hob", "template": {"type": "appliance", "kind": "hob"}},
+	{"title": "Microwave", "template": {"type": "appliance", "kind": "microwave"}},
+	{"title": "Washing machine", "template": {"type": "appliance", "kind": "washing_machine"}},
+	{"title": "Dishwasher", "template": {"type": "appliance", "kind": "dishwasher"}},
+	{"title": "Heater", "template": {"type": "appliance", "kind": "heater"}},
+	{"title": "Fridge", "template": {"type": "appliance", "kind": "fridge"}},
 ]
 
 ## Largest scale of a symbol on its tile; smaller when it would not fit.
@@ -139,6 +149,10 @@ static func group_of(template: Dictionary) -> String:
 			return "light_switches"
 		"luminaire", "socket":
 			return "outlets"
+		"appliance":
+			return "appliances"
+		"rcd", "afdd":
+			return "protection"
 		"supply", "terminal", "rectifier", "connector":
 			return "supplies"
 		"push_button", "latching_switch", "limit_switch", "cam_switch":
@@ -176,6 +190,8 @@ func _group_title(group: String) -> String:
 			return tr("Light switches")
 		"outlets":
 			return tr("Lights and sockets")
+		"appliances":
+			return tr("Appliances")
 	return tr("Power circuit")
 
 
@@ -350,7 +366,7 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 		data["rating"] = ratings[0]
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	var supply: bool = component is PowerSupply
-	var upright: bool = component is ThreePhaseMotor or component is AnalogSensor or component is ProximitySensor or component is ProtectiveDevice or component is LightSwitch or component is SocketOutlet or component.get_terminal_names().size() > 3
+	var upright: bool = component is ThreePhaseMotor or component is AnalogSensor or component is ProximitySensor or component is ProtectiveDevice or component is MotorBreaker or component is LightSwitch or component is SocketOutlet or component.get_terminal_names().size() > 3
 	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)
 	if component is ChangeoverContact:
 		# Its common terminal (the pivot) comes on the left only turned once.

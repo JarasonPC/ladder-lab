@@ -22,7 +22,7 @@ signal plc_requested(component_id: String)
 ## page was chosen) or moved.
 signal rebuilt
 
-enum FaultId { WELDED, CONTACT_OPEN, COIL_OPEN, COIL_STUCK, OVERLOAD, WIRE_BROKEN, CLEAR, CLEAR_ALL }
+enum FaultId { WELDED, CONTACT_OPEN, COIL_OPEN, COIL_STUCK, OVERLOAD, WIRE_BROKEN, CLEAR, CLEAR_ALL, FRAME, ARCING, TEST }
 
 const G: float = float(SymbolGeometry.GRID)
 const BLINK_PERIOD: float = 0.5
@@ -735,6 +735,12 @@ func _fill_fault_menu() -> void:
 		_fault_menu.add_item(tr("Overload"), FaultId.OVERLOAD)
 	elif _fault_target is ThreePhaseMotor:
 		_fault_menu.add_item(tr("Motor overloaded"), FaultId.OVERLOAD)
+	elif _fault_target is ResidualCurrentDevice or _fault_target is ArcFaultDevice:
+		_fault_menu.add_item(tr("Press the test button T"), FaultId.TEST)
+	elif _fault_target is Appliance or _fault_target is Luminaire or _fault_target is SocketOutlet:
+		if _fault_target is Appliance:
+			_fault_menu.add_item(tr("Insulation fault (phase on the frame)"), FaultId.FRAME)
+		_fault_menu.add_item(tr("Loose connection (arcing)"), FaultId.ARCING)
 	elif _fault_wire >= 0:
 		_fault_menu.add_item(tr("Broken wire"), FaultId.WIRE_BROKEN)
 	if _fault_menu.item_count > first:
@@ -765,6 +771,15 @@ func _on_fault_menu(id: int) -> void:
 			else:
 				(c as OverloadRelay).overloaded = true
 			_log("Fault: overload on %s", [c.designation])
+		FaultId.FRAME:
+			(c as Appliance).frame_fault = true
+			_log("Fault: insulation fault on %s, phase on the frame", [c.designation])
+		FaultId.ARCING:
+			(c as Load).arcing = true
+			_log("Fault: loose connection arcing at %s", [c.designation])
+		FaultId.TEST:
+			if c.call("test"):
+				_log("%s: test button pressed", [c.designation])
 		FaultId.WIRE_BROKEN:
 			document.circuit.set_wire_broken(_fault_wire, true)
 			_wire_layer.queue_redraw()
@@ -785,7 +800,9 @@ func _on_fault_menu(id: int) -> void:
 
 
 static func _has_fault(c: CircuitComponent) -> bool:
-	if c is Load and (c as Load).burnt:
+	if c is Load and ((c as Load).burnt or (c as Load).arcing):
+		return true
+	if c is Appliance and (c as Appliance).frame_fault:
 		return true
 	if c is SwitchingElement:
 		return (c as SwitchingElement).fault != SwitchingElement.Fault.NONE
@@ -805,6 +822,9 @@ static func _has_fault(c: CircuitComponent) -> bool:
 static func _clear_fault(c: CircuitComponent) -> void:
 	if c is Load:
 		(c as Load).burnt = false
+		(c as Load).arcing = false
+	if c is Appliance:
+		(c as Appliance).frame_fault = false
 	if c is SwitchingElement:
 		(c as SwitchingElement).fault = SwitchingElement.Fault.NONE
 	elif c is ChangeoverContact:
@@ -836,6 +856,9 @@ func _update_hover() -> void:
 	if symbol != null and not symbol.is_interactive():
 		symbol = null
 	_set_hovered(symbol)
+	if symbol is LightSwitchSymbol:
+		# Its rocker under the mouse is lit up.
+		symbol.queue_redraw()
 
 
 func _set_hovered(symbol: SchematicSymbol) -> void:
