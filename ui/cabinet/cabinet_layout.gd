@@ -79,10 +79,7 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 	# as wide as the wires running through it need, until they all fit (the
 	# wires take other ways as the ducts grow; a duct never gets narrower,
 	# so it settles).
-	# A strip terminal that has to take a second wire gets a block more
-	# beside it (see [member CabinetWiring.doubled]), laid out again too.
-	var doubled: Dictionary[String, int] = {}
-	var layout: CabinetLayout = _build(doc, k, board, [], doubled)
+	var layout: CabinetLayout = _build(doc, k, board, [])
 	var sizes: Array[float] = []
 	for attempt: int in SIZE_ROUNDS:
 		layout.wiring = CabinetWiring.build(doc, layout, k, board)
@@ -90,9 +87,6 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 		if lanes.size() != layout.ducts.size():
 			return layout
 		var grown: bool = false
-		for key: String in layout.wiring.doubled:
-			doubled[key] = doubled.get(key, 0) + layout.wiring.doubled[key]
-			grown = true
 		for d: int in lanes.size():
 			var width: float = maxf(duct_size(lanes[d]), sizes[d] if d < sizes.size() else 0.0)
 			if d >= sizes.size():
@@ -103,7 +97,7 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 				grown = true
 		if not grown:
 			return layout
-		layout = _build(doc, k, board, sizes, doubled)
+		layout = _build(doc, k, board, sizes)
 	return layout
 
 
@@ -196,13 +190,12 @@ static func duct_size(wires: int) -> float:
 
 ## The layout with ducts [param sizes] wide, in the order of [member ducts]
 ## (none given: DUCT and SIDE_DUCT).
-static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[float], doubled: Dictionary[String, int]) -> CabinetLayout:
+static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[float]) -> CabinetLayout:
 	var layout: CabinetLayout = CabinetLayout.new()
 	var strips: Dictionary = CabinetDevices.strips(doc)
 	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
 	var buses: Array[Dictionary] = bus_blocks(doc, board, strips, net)
 	var apart: Dictionary[int, bool] = bus_nets(buses)
-	strips = _with_blocks(strips, doubled)
 	var board_rails: Array[CabinetRail] = doc.switchboards[board].rails if board >= 0 and board < doc.switchboards.size() else ([] as Array[CabinetRail])
 	# Each rail: its places relative to the rail's centre line and its extent.
 	var rows: Array[Dictionary] = []
@@ -311,29 +304,6 @@ static func describe_again(doc: SchematicDocument, place: Dictionary) -> void:
 	place["desc"] = desc
 	if place.has("under_designation"):
 		place["under_desc"] = CabinetDevices.describe(doc, place["under_designation"])
-
-
-## [param strips] (as [method CabinetDevices.strips]) with each terminal
-## [param doubled] names ("X2:5", strip and label) as many blocks more,
-## right after it: the same terminal again with "span" 0, the first with
-## "span" its number of blocks (see [method CabinetParts.terminal_strip]).
-static func _with_blocks(strips: Dictionary, doubled: Dictionary[String, int]) -> Dictionary:
-	if doubled.is_empty():
-		return strips
-	var result: Dictionary = {}
-	for strip: String in strips:
-		var terminals: Array = []
-		for t: Dictionary in strips[strip]:
-			var more: int = doubled.get("%s:%s" % [strip, t["label"]], 0)
-			var first: Dictionary = t.duplicate()
-			first["span"] = 1 + more
-			terminals.append(first)
-			for b: int in more:
-				var block: Dictionary = t.duplicate()
-				block["span"] = 0
-				terminals.append(block)
-		result[strip] = terminals
-	return result
 
 
 ## Place of [param item], relative to the rail's centre line at x = 0.

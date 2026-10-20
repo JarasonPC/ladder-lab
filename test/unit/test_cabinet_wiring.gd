@@ -486,11 +486,10 @@ func test_wires_from_a_contactors_outputs_come_out_beside_its_overload_relay() -
 
 
 func test_one_wire_in_each_strip_terminal_entry() -> void:
-	# A strip terminal that has to join two wires is twice as wide, with two
-	# entries at each end (joined like bridged blocks for the wiring), where
-	# no plug-in bridge to a neighbour of its net does.
+	# A strip terminal that has to join two wires (nothing else can) takes
+	# them in one twin ferrule.
 	var k: float = 2.0
-	var doubled: int = 0
+	var twins: int = 0
 	for example: int in ExampleCircuits.count() + 1:
 		var doc: SchematicDocument = ExampleCircuits.build(mini(example, 4))
 		if example == ExampleCircuits.count():
@@ -515,18 +514,19 @@ func test_one_wire_in_each_strip_terminal_entry() -> void:
 					wires[entry] = wires.get(entry, 0) + 1
 		for entry: Vector3i in wires:
 			assert_eq(wires[entry], 1, "example %d: one wire into terminal %d of place %d (%s)" % [example, entry.y, entry.x, "bottom" if entry.z == 1 else "top"])
-		for place: Dictionary in layout.places:
-			if place["kind"] != CabinetLayout.STRIP:
-				continue
-			var terminals: Array = place["desc"]["terminals"]
-			for i: int in terminals.size():
-				var span: int = terminals[i].get("span", 1)
-				if span > 1:
-					doubled += 1
-					for b: int in range(i, i + span - 1):
-						assert_true(place["desc"]["bridges"][b], "example %d: the entries of %s joined" % [example, terminals[i]["label"]])
-						assert_eq(terminals[b + 1]["span"], 0, "the second pitch is the same terminal")
-	assert_eq(doubled, 1, "a terminal for two wires only where the order set by hand leaves no other way")
+		for twin: Dictionary in layout.wiring.twins:
+			twins += 1
+			# Its two wires come out of its collar side by side.
+			var away: Vector2 = Vector2(0.0, -CabinetParts.TWIN_IN if twin["up"] else CabinetParts.TWIN_IN)
+			var found: int = 0
+			for wire: Dictionary in layout.wiring.wires:
+				var path: PackedVector2Array = wire["points"]
+				for end: Vector2 in [path[0], path[path.size() - 1]]:
+					for side: float in [-0.5, 0.5]:
+						if end.distance_to(twin["at"] + away + Vector2(side * twin["width"], 0.0)) < 0.01:
+							found += 1
+			assert_eq(found, 2, "example %d: two wires in the twin ferrule" % example)
+	assert_eq(twins, 1, "a twin ferrule only where the order set by hand leaves no other way")
 
 
 func test_wires_cross_only_in_the_ducts() -> void:

@@ -1582,11 +1582,8 @@ static func vfd(p: CabinetPainter, desc: Dictionary, reach: Dictionary = {}) -> 
 
 ## A strip of push-in terminal blocks (svorkovnice) between two end stops
 ## with the strip's name on the first one. [param items]: {"label", "kind":
-## "L" | "N" | "PE", "reach": Color, "span"}; "reach" rings the wire entries
-## (voltage reach); "span": pitches one terminal takes, one wire entry at
-## each end in each (a terminal for two wires is twice as wide, see [method
-## _terminal]), 0 on the pitches after its first. Terminals sit on whole
-## pixels so every one looks the same.
+## "L" | "N" | "PE", "reach": Color}; "reach" rings the wire entries (voltage
+## reach). Terminals sit on whole pixels so every one looks the same.
 ## Returns the width in mm.
 static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> float:
 	var q: CabinetPainter = p.snapped()
@@ -1596,22 +1593,12 @@ static func terminal_strip(p: CabinetPainter, group: String, items: Array) -> fl
 	x += q.snap(END_STOP_W)
 	var first: float = x
 	for item: Dictionary in items:
-		var span: int = item.get("span", 1)
-		if span > 0:
-			_terminal(q, x, pitch * span, item, span)
+		_terminal(q, x, pitch, item)
 		x += pitch
-	# Marker tags with the terminal names, across the whole of a terminal.
-	for i: int in items.size():
-		var span: int = items[i].get("span", 1)
-		if span > 0:
-			var tag: Rect2 = Rect2(first + pitch * i + q.snap(0.5), TERMINAL.y * 0.5 - 4.5, pitch * span - q.snap(1.0), 9.0)
-			q.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
-			q.text_centered(tag.get_center(), str(items[i].get("label", "")), 2.4, Color("111111"), true, tag.size.x - 0.3)
-	# Plug-in bridges over the terminals they join (not inside a terminal
-	# for more wires: one piece).
+	# Plug-in bridges over the terminals they join.
 	var run: int = -1
 	for i: int in items.size():
-		var joined: bool = items[i].get("bridge", false) and i + 1 < items.size() and items[i + 1].get("span", 1) != 0
+		var joined: bool = items[i].get("bridge", false)
 		if joined and run < 0:
 			run = i
 		if not joined and run >= 0:
@@ -1649,11 +1636,10 @@ static func _terminal_color(kind: String) -> Color:
 	return TERMINAL_GREY
 
 
-## One push-in terminal [param w] mm wide: at both ends [param entries]
-## wire entries side by side, each with the clamp's spring inside and the
-## orange push button that opens it, and a test socket (the marker tag in
-## the middle: see [method terminal_strip]).
-static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary, entries: int = 1) -> void:
+## One push-in terminal [param w] mm wide: at both ends a wire entry with
+## the clamp's spring inside, the orange push button that opens it and a
+## test socket; the marker tag in the middle.
+static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary) -> void:
 	var kind: String = item.get("kind", "L")
 	var body: Color = _terminal_color(kind)
 	var h: float = TERMINAL.y
@@ -1665,31 +1651,33 @@ static func _terminal(p: CabinetPainter, x: float, w: float, item: Dictionary, e
 	p.line(Vector2(x + 0.5 / p.k, 0), Vector2(x + 0.5 / p.k, h), body.lightened(0.35), 0.0)
 	var reach: Color = item.get("reach", Color.TRANSPARENT)
 	var cx: float = x + w * 0.5
-	var bw: float = p.snap(w / entries - 1.8)
+	var bw: float = p.snap(w - 1.8)
 	for end: int in 2:
 		# Distances from the end of the terminal, mirrored for the bottom.
 		var at: Callable = func(d: float) -> float: return d if end == 0 else h - d
-		for k: int in entries:
-			var ex: float = x + w * (k + 0.5) / entries
-			# Wire entry: a rounded square opening, the spring's edge inside it.
-			var entry: Vector2 = Vector2(ex, at.call(TERMINAL_ENTRY))
-			if reach.a > 0.0:
-				# Voltage reach: a coloured frame with a light edge, seen on any body colour.
-				p.rect(Rect2(entry - Vector2(2.45, 2.45), Vector2(4.9, 4.9)), Color(1, 1, 1, 0.85), 1.3)
-				p.rect(Rect2(entry - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), reach, 1.1)
-			p.rect(Rect2(entry - Vector2(1.5, 1.5), Vector2(3.0, 3.0)), HOLE, 0.8)
-			p.rect(Rect2(entry + Vector2(-1.0, 0.3 if end == 0 else -0.8), Vector2(2.0, 0.5)), METAL_DARK, 0.2)
-			# Push button: the same on every terminal, lighter towards the wire entry.
-			var top: float = at.call(6.6) if end == 0 else at.call(11.4)
-			var button: Rect2 = Rect2(ex - bw * 0.5, top, bw, 4.8)
-			p.rect(button.grow(0.25), body.darkened(0.4), 0.9)
-			if end == 0:
-				p.gradient(button, PUSH_ORANGE.lightened(0.18), PUSH_ORANGE.darkened(0.08), 0.7)
-			else:
-				p.gradient(button, PUSH_ORANGE.darkened(0.08), PUSH_ORANGE.lightened(0.18), 0.7)
-			p.line(Vector2(ex - bw * 0.3, button.get_center().y), Vector2(ex + bw * 0.3, button.get_center().y), PUSH_ORANGE.darkened(0.35), 0.35)
+		# Wire entry: a rounded square opening, the spring's edge inside it.
+		var entry: Vector2 = Vector2(cx, at.call(TERMINAL_ENTRY))
+		if reach.a > 0.0:
+			# Voltage reach: a coloured frame with a light edge, seen on any body colour.
+			p.rect(Rect2(entry - Vector2(2.45, 2.45), Vector2(4.9, 4.9)), Color(1, 1, 1, 0.85), 1.3)
+			p.rect(Rect2(entry - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), reach, 1.1)
+		p.rect(Rect2(entry - Vector2(1.5, 1.5), Vector2(3.0, 3.0)), HOLE, 0.8)
+		p.rect(Rect2(entry + Vector2(-1.0, 0.3 if end == 0 else -0.8), Vector2(2.0, 0.5)), METAL_DARK, 0.2)
+		# Push button: the same on every terminal, lighter towards the wire entry.
+		var top: float = at.call(6.6) if end == 0 else at.call(11.4)
+		var button: Rect2 = Rect2(cx - bw * 0.5, top, bw, 4.8)
+		p.rect(button.grow(0.25), body.darkened(0.4), 0.9)
+		if end == 0:
+			p.gradient(button, PUSH_ORANGE.lightened(0.18), PUSH_ORANGE.darkened(0.08), 0.7)
+		else:
+			p.gradient(button, PUSH_ORANGE.darkened(0.08), PUSH_ORANGE.lightened(0.18), 0.7)
+		p.line(Vector2(cx - bw * 0.3, button.get_center().y), Vector2(cx + bw * 0.3, button.get_center().y), PUSH_ORANGE.darkened(0.35), 0.35)
 		# Test socket.
 		p.circle(Vector2(cx, at.call(14.2)), 0.7, HOLE)
+	# Marker tag with the terminal name.
+	var tag: Rect2 = Rect2(x + p.snap(0.5), h * 0.5 - 4.5, w - p.snap(1.0), 9.0)
+	p.rect(tag, Color("fbfbf8"), 0.3, Color(0, 0, 0, 0.25), 0.0)
+	p.text_centered(tag.get_center(), str(item.get("label", "")), 2.4, Color("111111"), true, w - 0.8)
 
 
 ## Distribution block (N or PE, see [method bus_block]): the pitch of its
@@ -1765,14 +1753,14 @@ static func bus_block(p: CabinetPainter, connections: int, neutral: bool = false
 ## Height of a plug-in bridge's bar on a terminal strip, between the test
 ## sockets and the marker tags.
 const BRIDGE_Y: float = 15.6
-const BRIDGE_RED := Color("d8312b")
+const BRIDGE_GREY := Color("8d9399")
 
 
 ## A plug-in bridge joining the terminals from centre [param a] to centre
 ## [param b] (mm along the strip): a bar with a pin into each terminal, red
 ## (blue on N terminals).
 static func _bridge(p: CabinetPainter, a: float, b: float, kind: String) -> void:
-	var color: Color = Color("2f6fd4") if kind == "N" else BRIDGE_RED
+	var color: Color = Color("2f6fd4") if kind == "N" else BRIDGE_GREY
 	var bar: Rect2 = Rect2(a - 1.3, BRIDGE_Y, b - a + 2.6, 2.6)
 	p.rect(bar.grow(0.15), color.darkened(0.5), 0.6)
 	p.gradient(bar, color.lightened(0.25), color.darkened(0.12), 0.5)
@@ -2063,6 +2051,33 @@ static func wire(p: CabinetPainter, points: PackedVector2Array, conductor: int, 
 		var far: float = (width + 1.2) * 0.5
 		p.polygon(PackedVector2Array([a - across * near, a + across * near, b + across * far, b - across * far]), collar, collar.darkened(0.5), 0.15)
 		p.line(a.lerp(b, 0.35) - across * near * 0.6, b - across * far * 0.6, collar.lightened(0.4), 0.25)
+
+
+## A twin ferrule's collar (see [method twin_ferrule]) and where its two
+## wires start, from the end of its pin.
+const TWIN_COLLAR: float = 3.6
+const TWIN_IN: float = FERRULE + TWIN_COLLAR - 0.6
+
+
+## A twin ferrule: two wires [param width] mm thick side by side in one
+## ferrule going into the terminal entry at [param at] (mm), the wires coming
+## from above when [param up]: one pin into the entry, the collar wide
+## round both wires, coloured as a single ferrule's.
+static func twin_ferrule(p: CabinetPainter, at: Vector2, up: bool, width: float) -> void:
+	var along: Vector2 = Vector2.UP if up else Vector2.DOWN
+	var across: Vector2 = Vector2.RIGHT
+	var pin: float = width * 1.2
+	p.line(at, at + along * FERRULE, METAL_DARK, pin + 0.2)
+	p.line(at, at + along * FERRULE, METAL, maxf(pin - 0.5, 0.3))
+	var a: Vector2 = at + along * FERRULE
+	var b: Vector2 = a + along * TWIN_COLLAR
+	var near: float = (pin + 0.6) * 0.5
+	var far: float = width + 0.45
+	var collar: Color = COLLAR_THICK if width >= 2.0 else COLLAR_THIN
+	# Narrow at the pin, widening round the two wires.
+	var shoulder: Vector2 = a + along * TWIN_COLLAR * 0.4
+	p.polygon(PackedVector2Array([a - across * near, a + across * near, shoulder + across * far, b + across * far, b - across * far, shoulder - across * far]), collar, collar.darkened(0.5), 0.15)
+	p.line(shoulder - across * far * 0.6, b - across * far * 0.6, collar.lightened(0.4), 0.25)
 
 
 ## Yellow of the wire marker sleeves.

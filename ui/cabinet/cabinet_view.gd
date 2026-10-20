@@ -481,6 +481,8 @@ func _paint_top(canvas: CanvasItem) -> void:
 	var p: CabinetPainter = _painter(canvas)
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"], wire["pins"])
+	for twin: Dictionary in _wiring.twins:
+		CabinetParts.twin_ferrule(p, twin["at"], twin["up"], twin["width"])
 	# The marker sleeves over every wire, so a wire running past never hides one.
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], wire["width"])
@@ -590,7 +592,7 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 			var bridges: Array = desc.get("bridges", [])
 			for i: int in desc["terminals"].size():
 				var t: Dictionary = desc["terminals"][i]
-				items.append({"label": t["label"], "kind": t["kind"], "reach": _first_reach(t["keys"]), "bridge": i < bridges.size() and bridges[i], "span": t.get("span", 1)})
+				items.append({"label": t["label"], "kind": t["kind"], "reach": _first_reach(t["keys"]), "bridge": i < bridges.size() and bridges[i]})
 			CabinetParts.terminal_strip(q, place["designation"], items)
 		_:
 			CabinetParts.missing(q, place["size"], "-" + str(place["designation"]))

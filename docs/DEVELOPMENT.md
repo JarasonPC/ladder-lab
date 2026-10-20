@@ -394,15 +394,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   from where the first of them is (CabinetDevices._grouped; supply points of one conductor are
   one net in the switchboard, CabinetDevices.supply_nets, for the bridges too); neighbouring
   terminals of one net are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
-  desc "bridges"; red, blue on N; one point for the wiring tree; in the parts list). A strip
+  desc "bridges"; grey, blue on N; one point for the wiring tree; in the parts list). A strip
   terminal takes one wire in each entry; one that still has to join a second wire (where the
   wiring, the grouping and the distribution blocks leave no other way, e.g. an order set by
-  hand) is a terminal for two wires, twice as wide: two entries side
-  by side at each end, a push button each, one marker tag (CabinetWiring.doubled, asked for
-  while wiring; CabinetLayout.build lays out again with them, CabinetLayout._with_blocks: the
-  same terminal again, "span" 0, the first "span" its number of pitches, joined as by a
-  bridge for the wiring but drawn as one piece, CabinetParts._terminal "entries"; the field
-  side in its first entry only; one terminal in the parts list). Where
+  hand) takes both in one twin ferrule (CabinetWiring._tree marks the point "twin"; its two
+  wires side by side, starting CabinetParts.TWIN_IN out from the entry with no ferrules of
+  their own, wire "pins" -1; CabinetWiring.twins, drawn over them by
+  CabinetParts.twin_ferrule: one pin, the collar round both, coloured as a single one). Where
   more than CabinetLayout.BUS_LOADS (1) load takes N or PE in a switchboard (strip terminals on
   the net but the incoming one, devices' terminals on it; not N wired to the supply point of
   another conductor), it gets an N or PE distribution block
