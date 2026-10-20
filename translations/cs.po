@@ -676,11 +676,11 @@ msgstr "Propojovat všechny póly najednou"
 msgid "A wire drawn between multi-pole parts takes the poles beside it along (Shift: that wire alone)"
 msgstr "Vodič nakreslený mezi vícepólovými součástkami propojí i sousední póly (Shift: jen tento vodič)"
 
-msgid "Wire parts placed in line"
-msgstr "Propojovat součástky umístěné v řadě"
+msgid "Wire parts placed in line (EPLAN style)"
+msgstr "Propojovat součástky umístěné v řadě (styl EPLAN)"
 
-msgid "A part placed or dropped gets straight wires to the free terminals it faces, EPLAN style (autoconnect)"
-msgstr "Umístěná nebo přetažená součástka dostane rovné vodiče k volným svorkám, které stojí proti ní, jako v EPLANu (autoconnect)"
+msgid "A part placed or dropped gets straight wires to the free terminals it faces"
+msgstr "Umístěná nebo přetažená součástka dostane rovné vodiče k volným svorkám, které stojí proti ní"
 
 msgid "Language"
 msgstr "Jazyk"
