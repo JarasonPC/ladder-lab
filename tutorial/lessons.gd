@@ -1,7 +1,7 @@
 class_name Lessons
 extends RefCounted
 ## The built-in lessons, from the first circuit to a motor with overload
-## protection (see [Lesson]). Texts are English source text, translated where
+## protection and a PLC reading a potentiometer (see [Lesson]). Texts are English source text, translated where
 ## shown; designations in them are the ones the editor gives the parts when
 ## they are placed in the order the steps ask. No nodes.
 
@@ -25,11 +25,17 @@ const BREAKER: Dictionary = {"type": "breaker"}
 const MAIN_CONTACTS: Dictionary = {"type": "main_contacts"}
 const OVERLOAD_RELAY: Dictionary = {"type": "overload_relay"}
 const MOTOR3: Dictionary = {"type": "motor3"}
+const SUPPLY_PLUS: Dictionary = {"type": "supply", "conductor": "+"}
+const POT: Dictionary = {"type": "pot", "turns": 1}
+## The program of the PLC lesson: AI1 through an analog threshold trigger
+## to Q1, on from half the range, off again under 40 % (of 0-27648).
+const POT_ON: float = 13824.0
+const POT_OFF: float = 11059.0
 
 
 ## Every lesson, in order.
 static func all() -> Array[Lesson]:
-	return [lamp_and_switch(), start_stop(), time_relay(), motor()]
+	return [lamp_and_switch(), start_stop(), time_relay(), motor(), plc_pot()]
 
 
 ## The lesson saved as [param id], or null.
@@ -555,3 +561,139 @@ static func _phases_wired(e: LessonCheck) -> bool:
 		phases_used[e.joined_index(ends[0], supplies)] = true
 		windings_used[e.joined_index(ends[1], windings)] = true
 	return not phases_used.has(-1) and phases_used.size() == 3 and not windings_used.has(-1) and windings_used.size() == 3
+
+
+# --- 5. A PLC reads a potentiometer ----------------------------------------------------------
+
+## AI1 (the CPU's AI0) through an analog threshold trigger to Q1 (Q0.0).
+static func _threshold_program() -> PlcProgram:
+	var program: PlcProgram = PlcProgram.new()
+	var ai: PlcBlock = program.add_block("analog_input", Vector2i(0, 0))
+	var trigger: PlcBlock = program.add_block("analog_threshold", Vector2i(4, 0))
+	trigger.on = POT_ON
+	trigger.off = POT_OFF
+	var q1: PlcBlock = program.add_block("output", Vector2i(10, 0))
+	trigger.inputs[0] = ai.id
+	q1.inputs[0] = trigger.id
+	return program
+
+
+static func plc_pot() -> Lesson:
+	var lesson: Lesson = Lesson.new("plc_pot", "A PLC reads a potentiometer", "Wire a potentiometer to the analog input of a compact PLC; its program lights a lamp once you turn it past half.")
+	var title: String = lesson.title
+	var start: Callable = func() -> SchematicDocument:
+		var doc: SchematicDocument = _document(title)
+		# The CPU on 24 V DC: L+ and 3L+ (its outputs) from +, M, 2M (the
+		# analog inputs) and 3M to -; H1 (24 V) on Q0.0.
+		doc.add(PowerSupply.new("+", PowerSupply.Conductor.DC_PLUS), Vector2i(4, 2))
+		doc.add(PowerSupply.new("-", PowerSupply.Conductor.DC_MINUS), Vector2i(10, 4))
+		doc.add(PowerSupply.new("-.2", PowerSupply.Conductor.DC_MINUS), Vector2i(30, 4))
+		doc.add(PowerSupply.new("-.3", PowerSupply.Conductor.DC_MINUS), Vector2i(16, 21))
+		doc.add(PowerSupply.new("-.4", PowerSupply.Conductor.DC_MINUS), Vector2i(42, 5))
+		doc.add(CompactPlc.new("A1", _threshold_program(), [], CompactPlc.Cpu.DI8_DQ6), Vector2i(8, 6))
+		var lamp: Lamp = Lamp.new("H1")
+		lamp.rating = "24v"
+		lamp.purpose = TranslationServer.translate("Above half")
+		doc.add(lamp, Vector2i(16, 15))
+		doc.connect_terminals("+", "A1:L+", _c([Vector2i(8, 2)]))
+		doc.connect_terminals("+", "A1:3L+", _c([Vector2i(4, 14), Vector2i(8, 14)]))
+		doc.connect_terminals("-", "A1:M")
+		doc.connect_terminals("-.2", "A1:2M")
+		doc.connect_terminals("A1:Q0.0", "H1:X1", _c([Vector2i(12, 13), Vector2i(16, 13)]))
+		doc.connect_terminals("H1:X2", "-.3")
+		doc.connect_terminals("A1:3M", "-.3", _c([Vector2i(10, 21)]))
+		return doc
+	lesson.start = start
+	lesson.solution = func() -> SchematicDocument:
+		var doc: SchematicDocument = start.call()
+		var pot: Potentiometer = Potentiometer.new("RP1", 10)
+		doc.add(pot, Vector2i(42, 8))
+		var ref: PowerSupply = PowerSupply.new("+.2", PowerSupply.Conductor.DC_PLUS)
+		ref.voltage = 10.0
+		doc.add(ref, Vector2i(42, 15))
+		doc.connect_terminals("-.4", "RP1:1")
+		doc.connect_terminals("RP1:3", "+.2")
+		doc.connect_terminals("A1:AI0", "RP1:2", _c([Vector2i(32, 3), Vector2i(46, 3), Vector2i(46, 10)]))
+		return doc
+	lesson.parts = {"plus": "+", "minus": "-.4", "plc": "A1", "lamp": "H1", "ref": "+.2", "any_ref": "+.2", "pot": "RP1"}
+	lesson.anchor = "plus"
+	lesson.roles = func(check: LessonCheck) -> Dictionary[String, CircuitComponent]:
+		var roles: Dictionary[String, CircuitComponent] = {}
+		var pluses: Array[CircuitComponent] = check.find(func(c: CircuitComponent) -> bool: return c is PowerSupply and (c as PowerSupply).conductor == PowerSupply.Conductor.DC_PLUS)
+		roles["plus"] = pluses[0] if not pluses.is_empty() else null
+		var ref: CircuitComponent = check.first(func(c: CircuitComponent) -> bool:
+			return c is PowerSupply and (c as PowerSupply).conductor == PowerSupply.Conductor.DC_PLUS and is_equal_approx((c as PowerSupply).voltage, 10.0))
+		roles["ref"] = ref
+		# Placed at 24 V, before its voltage is set.
+		roles["any_ref"] = ref if ref != null else (pluses[pluses.size() - 1] if pluses.size() > 1 else null)
+		# The - point the potentiometer is drawn under: the last one.
+		var minuses: Array[CircuitComponent] = check.find(func(c: CircuitComponent) -> bool: return c is PowerSupply and (c as PowerSupply).conductor == PowerSupply.Conductor.DC_MINUS)
+		roles["minus"] = minuses[minuses.size() - 1] if not minuses.is_empty() else null
+		roles["plc"] = check.first(func(c: CircuitComponent) -> bool: return c is CompactPlc)
+		roles["pot"] = check.first(func(c: CircuitComponent) -> bool: return c is Potentiometer)
+		roles["lamp"] = _lamp(check)
+		return roles
+	var ai0: int = CompactPlc.new("A1", null, [], CompactPlc.Cpu.DI8_DQ6).analog_input_terminal(0)
+
+	var s: Lesson.Step = lesson.step("Place a 10 V supply point",
+		"Place + supply (DC) under the - point on the right, a little way down. In its properties set Voltage against - to 10 V (reference): the analog input reads 0-10 V, so the potentiometer is fed from 10 V, not from the 24 V of the PLC.",
+		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("ref"))
+	s.hint = "All - points are one pole: the 10 V and the 24 V share it."
+	s.places = [["any_ref", SUPPLY_PLUS]]
+	s.property = ["any_ref", "voltage"]
+	s.focus = PackedStringArray(["any_ref"])
+	s.show = PackedStringArray(["any_ref"])
+	s = lesson.step("Add the potentiometer",
+		"Place Potentiometer between the - point and the 10 V point. It is -RP1: 1 and 3 are the ends of its track, 2 the wiper that runs from 1 to 3 as it is turned clockwise.",
+		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("pot"))
+	s.places = [["pot", POT]]
+	s.show = PackedStringArray(["pot"])
+	s = lesson.step("Wire its track",
+		"Wire 1 of -RP1 to - and 3 to the 10 V point. Turned fully anticlockwise the wiper gives 0 V, fully clockwise 10 V.",
+		func(e: LessonCheck, _live: LessonCheck) -> bool:
+			return e.has("pot") and e.has("ref") and e.has("minus") and e.joined(e.key("pot", 0), e.key("minus", 0)) and e.joined(e.key("pot", 2), e.key("ref", 0)))
+	s.wires = [["minus", 0, "pot", 0], ["pot", 2, "ref", 0]]
+	s = lesson.step("Wire the wiper to the analog input",
+		"Wire 2 of -RP1 to AI0 of -A1. The PLC reads 0-10 V there as 0-27648 (%IW64); its analog inputs take their 0 V from 2M, wired to - already.",
+		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("pot") and e.has("plc") and e.joined(e.key("pot", 1), e.key("plc", ai0)))
+	s.wires = [["pot", 1, "plc", ai0]]
+	s = lesson.step("Switch to Simulate",
+		"Click Simulate at the top. -A1 starts running its program: an analog threshold trigger between AI0 and the output Q0.0.",
+		func(_e: LessonCheck, live: LessonCheck) -> bool: return live != null)
+	s.control = "simulate"
+	s.simulating = true
+	s = lesson.step("Turn it past half",
+		"Click -RP1 and drag the slider past 50 %. At half the range (5 V, 13824) the trigger switches Q0.0 on and -H1 lights.",
+		func(_e: LessonCheck, live: LessonCheck) -> bool: return live != null and live.is_on("lamp"))
+	s.hint = "Put -RP1 on a control station from the workspace to turn it with the mouse wheel like a real knob."
+	s.focus = PackedStringArray(["pot"])
+	s.simulating = true
+	s = lesson.step("Turn it back a little",
+		"Turn -RP1 back to 45 %: -H1 stays lit. The trigger switches off only under 40 % (4 V), so it does not flicker while the value wavers round the threshold. Turn it under 40 % to see it go dark.",
+		func(_e: LessonCheck, live: LessonCheck) -> bool:
+			return live != null and live.has("pot") and live.is_on("lamp") and (live.part("pot") as Potentiometer).setting < 0.5)
+	s.focus = PackedStringArray(["pot"])
+	s.simulating = true
+	s = lesson.step("Set it finer",
+		"Back in Edit, click -RP1 and set Turns to 10 in its properties: the whole track then takes ten turns of the knob, and each notch moves the value ten times less.",
+		func(e: LessonCheck, _live: LessonCheck) -> bool: return e.has("pot") and (e.part("pot") as Potentiometer).turns > 1)
+	s.control = "edit"
+	s.focus = PackedStringArray(["pot"])
+	s.property = ["pot", "turns"]
+
+	var needs: Array = ["plc", "pot", "lamp"]
+	lesson.goal("%s lights when %s is turned past half", ["lamp", "pot"], _phases([
+		{"do": [["pot", "set 70"]], "expect": {"lamp": true}},
+	]), needs)
+	lesson.goal("%s stays dark while %s is under half", ["lamp", "pot"], _phases([
+		{"do": [["pot", "set 30"]], "expect": {"lamp": false}},
+	]), needs)
+	lesson.goal("%s stays lit with %s turned back to 45 %%", ["lamp", "pot"], _phases([
+		{"do": [["pot", "set 70"]], "expect": {"lamp": true}},
+		{"do": [["pot", "set 45"]], "expect": {"lamp": true}},
+	]), needs)
+	lesson.goal("%s goes dark with %s under 40 %%", ["lamp", "pot"], _phases([
+		{"do": [["pot", "set 70"]]},
+		{"do": [["pot", "set 30"]], "expect": {"lamp": false}},
+	]), needs)
+	return lesson

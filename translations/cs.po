@@ -4436,3 +4436,82 @@ msgstr "Stisk %s zastaví %s"
 #, c-format
 msgid "A tripped %s stops %s"
 msgstr "Vybavené relé %s zastaví %s"
+
+msgid "A PLC reads a potentiometer"
+msgstr "PLC čte potenciometr"
+
+msgid "Wire a potentiometer to the analog input of a compact PLC; its program lights a lamp once you turn it past half."
+msgstr "Zapojte potenciometr na analogový vstup kompaktního PLC; jeho program rozsvítí žárovku, jakmile ho otočíte přes polovinu."
+
+msgid "Above half"
+msgstr "Nad polovinou"
+
+msgid "Place a 10 V supply point"
+msgstr "Umístěte napájecí bod 10 V"
+
+msgid "Place + supply (DC) under the - point on the right, a little way down. In its properties set Voltage against - to 10 V (reference): the analog input reads 0-10 V, so the potentiometer is fed from 10 V, not from the 24 V of the PLC."
+msgstr "Umístěte + napájení (DC) pod bod - vpravo, kousek níž. V jeho vlastnostech nastavte Napětí proti - na 10 V (reference): analogový vstup čte 0-10 V, proto se potenciometr napájí z 10 V, ne z 24 V pro PLC."
+
+msgid "All - points are one pole: the 10 V and the 24 V share it."
+msgstr "Všechny body - jsou jeden pól: 10 V i 24 V ho sdílejí."
+
+msgid "Add the potentiometer"
+msgstr "Přidejte potenciometr"
+
+msgid "Place Potentiometer between the - point and the 10 V point. It is -RP1: 1 and 3 are the ends of its track, 2 the wiper that runs from 1 to 3 as it is turned clockwise."
+msgstr "Umístěte Potenciometr mezi bod - a bod 10 V. Je to -RP1: 1 a 3 jsou konce jeho odporové dráhy, 2 je jezdec, který při otáčení doprava běží od 1 ke 3."
+
+msgid "Wire its track"
+msgstr "Zapojte jeho dráhu"
+
+msgid "Wire 1 of -RP1 to - and 3 to the 10 V point. Turned fully anticlockwise the wiper gives 0 V, fully clockwise 10 V."
+msgstr "Spojte 1 potenciometru -RP1 s - a 3 s bodem 10 V. Při úplném vytočení doleva dává jezdec 0 V, doprava 10 V."
+
+msgid "Wire the wiper to the analog input"
+msgstr "Zapojte jezdec na analogový vstup"
+
+msgid "Wire 2 of -RP1 to AI0 of -A1. The PLC reads 0-10 V there as 0-27648 (%IW64); its analog inputs take their 0 V from 2M, wired to - already."
+msgstr "Spojte 2 potenciometru -RP1 se vstupem AI0 PLC -A1. PLC tam čte 0-10 V jako 0-27648 (%IW64); 0 V berou jeho analogové vstupy ze svorky 2M, která už je na -."
+
+msgid "Click Simulate at the top. -A1 starts running its program: an analog threshold trigger between AI0 and the output Q0.0."
+msgstr "Klikněte nahoře na Simulace. -A1 začne vykonávat svůj program: analogový prahový spínač mezi AI0 a výstupem Q0.0."
+
+msgid "Turn it past half"
+msgstr "Otočte ho přes polovinu"
+
+msgid "Click -RP1 and drag the slider past 50 %. At half the range (5 V, 13824) the trigger switches Q0.0 on and -H1 lights."
+msgstr "Klikněte na -RP1 a posuňte jezdec přes 50 %. V polovině rozsahu (5 V, 13824) prahový spínač zapne Q0.0 a -H1 se rozsvítí."
+
+msgid "Put -RP1 on a control station from the workspace to turn it with the mouse wheel like a real knob."
+msgstr "Umístěte -RP1 na pracovní ploše do ovládací skříňky a otáčejte jím kolečkem myši jako skutečným knoflíkem."
+
+msgid "Turn it back a little"
+msgstr "Otočte ho trochu zpět"
+
+msgid "Turn -RP1 back to 45 %: -H1 stays lit. The trigger switches off only under 40 % (4 V), so it does not flicker while the value wavers round the threshold. Turn it under 40 % to see it go dark."
+msgstr "Otočte -RP1 zpět na 45 %: -H1 dál svítí. Prahový spínač vypne až pod 40 % (4 V), takže -H1 nebliká, když hodnota kolísá kolem prahu. Otočte ho pod 40 % a uvidíte, jak zhasne."
+
+msgid "Set it finer"
+msgstr "Nastavte ho jemněji"
+
+msgid "Back in Edit, click -RP1 and set Turns to 10 in its properties: the whole track then takes ten turns of the knob, and each notch moves the value ten times less."
+msgstr "Zpět v Úpravách klikněte na -RP1 a ve vlastnostech nastavte Otáčky na 10: celá dráha pak zabere deset otáček knoflíku a každý krok posune hodnotu desetkrát méně."
+
+#, c-format
+msgid "%s lights when %s is turned past half"
+msgstr "%s svítí, když je %s otočený přes polovinu"
+
+#, c-format
+msgid "%s stays dark while %s is under half"
+msgstr "%s nesvítí, dokud je %s pod polovinou"
+
+#, c-format
+msgid "%s stays lit with %s turned back to 45 %%"
+msgstr "%s svítí dál i s %s otočeným zpět na 45 %%"
+
+#, c-format
+msgid "%s goes dark with %s under 40 %%"
+msgstr "%s zhasne s %s pod 40 %%"
+
+msgid "10 V (reference)"
+msgstr "10 V (reference)"

@@ -70,7 +70,7 @@ func show_component(component: CircuitComponent) -> void:
 			if (component as PowerSupply).conductor == PowerSupply.Conductor.DC_PLUS:
 				var titles: Array = []
 				for v: float in PowerSupply.DC_VOLTAGES:
-					titles.append("%d V" % roundi(v))
+					titles.append(tr("10 V (reference)") if is_equal_approx(v, 10.0) else "%d V" % roundi(v))
 				_choice(tr("Voltage against -"), "voltage", Array(PowerSupply.DC_VOLTAGES), titles)
 			elif (component as PowerSupply).conductor != PowerSupply.Conductor.DC_MINUS:
 				_note(tr("230 V between a phase and N, 400 V between two phases."), "MutedLabel")
