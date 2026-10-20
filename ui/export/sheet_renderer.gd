@@ -217,6 +217,7 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			var cabinet: CabinetView = CabinetView.new()
 			cabinet.document = copy
 			cabinet.board = spec["board"]
+			cabinet.open_ducts = true
 			cabinet.size = Vector2(SWITCHBOARD_WIDTH, G)
 			content.add_child(cabinet)
 			# Laid out again at the scale the width gives.

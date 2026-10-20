@@ -672,6 +672,12 @@ msgstr ""
 msgid "Grid while editing"
 msgstr ""
 
+msgid "Wire duct covers"
+msgstr ""
+
+msgid "Draw the wire ducts in the switchboards with their covers on, hiding the wires in them (the export shows them open)"
+msgstr ""
+
 msgid "Wiring"
 msgstr ""
 

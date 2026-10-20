@@ -57,6 +57,14 @@ var door_open: bool = false:
 		update_minimum_size()
 		queue_redraw()
 
+## The wire ducts are drawn with their covers on, hiding the wires in them
+## (View > Wire duct covers, saved in the settings); never on export (see
+## [member open_ducts]).
+static var duct_covers: bool = false
+## Draws the ducts open whatever [member duct_covers] says (the export,
+## which shows the wiring).
+var open_ducts: bool = false
+
 ## Height the plate fits into at zoom 1 too (0: the width alone); the
 ## drawing is then centred across.
 var fit_height: float = 0.0:
@@ -403,7 +411,7 @@ func _draw() -> void:
 	for i: int in _places.size():
 		var place: Dictionary = _layout.places[i]
 		_repaint(_places[i], [at, place, _place_reach(place)])
-	_repaint(_top, [at, _wiring.get_instance_id()])
+	_repaint(_top, [at, _wiring.get_instance_id(), _covered()])
 	if door_open and _door == null:
 		# The harness comes into the door at the height it leaves the switchboard.
 		var across: float = -1.0
@@ -476,13 +484,23 @@ func _paint_place(canvas: CanvasItem, index: int) -> void:
 		CabinetParts.label(p, place["under_label_at"], "-" + str(place["under_designation"]), 12.0)
 
 
-## The wires with their marker sleeves and the cable glands.
+## The ducts' covers are drawn (see [member duct_covers]).
+func _covered() -> bool:
+	return duct_covers and not open_ducts
+
+
+## The wires with their marker sleeves and the cable glands; the ducts'
+## covers over the wires in them.
 func _paint_top(canvas: CanvasItem) -> void:
 	var p: CabinetPainter = _painter(canvas)
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire(p, wire["points"], wire["conductor"], wire["width"], wire["external"], wire["pins"])
 	for twin: Dictionary in _wiring.twins:
 		CabinetParts.twin_ferrule(p, twin["at"], twin["up"], twin["width"])
+	if _covered():
+		for duct: Dictionary in _layout.ducts:
+			var r: Rect2 = duct["rect"]
+			CabinetParts.duct_cover(p.shifted(r.position), r.size.y if duct["vertical"] else r.size.x, r.size.x if duct["vertical"] else r.size.y, duct["vertical"])
 	# The marker sleeves over every wire, so a wire running past never hides one.
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], wire["width"])

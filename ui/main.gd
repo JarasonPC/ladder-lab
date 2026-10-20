@@ -9,7 +9,7 @@ enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, DUCT_COVERS, SCALE = 20 }
 enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, LANGUAGE = 10 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
@@ -1034,6 +1034,9 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_tooltip(popup.item_count - 1, tr("Number the current paths above the columns (left of the rows), also on export"))
 	popup.add_check_item(tr("Grid while editing"), ViewMenuId.GRID)
 	popup.set_item_checked(popup.item_count - 1, _edit_grid)
+	popup.add_check_item(tr("Wire duct covers"), ViewMenuId.DUCT_COVERS)
+	popup.set_item_checked(popup.item_count - 1, CabinetView.duct_covers)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Draw the wire ducts in the switchboards with their covers on, hiding the wires in them (the export shows them open)"))
 	popup.add_separator(tr("Simulation"))
 	popup.add_radio_check_item(tr("Voltage view"), ViewMenuId.VOLTAGE_VIEW)
 	popup.set_item_checked(popup.item_count - 1, not _current_view)
@@ -1062,6 +1065,13 @@ func _on_view_menu(id: int) -> void:
 	elif id == ViewMenuId.GRID:
 		_edit_grid = not _edit_grid
 		_update_mode_ui()
+		_save_settings()
+	elif id == ViewMenuId.DUCT_COVERS:
+		CabinetView.duct_covers = not CabinetView.duct_covers
+		# The layout stays: the switchboards (in place windows too) are only painted again.
+		for node: Node in find_children("*", "Control", true, false):
+			if node is CabinetView:
+				node.queue_redraw()
 		_save_settings()
 	elif id == ViewMenuId.WHITE_PAPER:
 		_white_paper = not _white_paper
@@ -2415,6 +2425,7 @@ func _load_settings() -> void:
 		_theme_variant = AppTheme.Variant.LIGHT if config.get_value("view", "theme", "dark") == "light" else AppTheme.Variant.DARK
 		_white_paper = bool(config.get_value("view", "white_paper", false))
 		_edit_grid = bool(config.get_value("view", "grid", false))
+		CabinetView.duct_covers = bool(config.get_value("view", "duct_covers", false))
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
@@ -2455,6 +2466,7 @@ func _save_settings() -> void:
 	config.set_value("view", "ui_scale", _ui_scale)
 	config.set_value("view", "white_paper", _white_paper)
 	config.set_value("view", "grid", _edit_grid)
+	config.set_value("view", "duct_covers", CabinetView.duct_covers)
 	config.set_value("view", "wire_numbers", _wire_numbers)
 	config.set_value("view", "path_numbers", _path_numbers)
 	config.set_value("view", "palette_grid", _palette_grid)

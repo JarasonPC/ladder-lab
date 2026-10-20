@@ -328,3 +328,23 @@ func test_duct_sizes_follow_their_wires() -> void:
 			widths.append(width)
 			assert_true(width >= CabinetLayout.duct_size(wiring.lanes[d]), "%d: duct %d holds its %d wires side by side" % [example, d, wiring.lanes[d]])
 		assert_true(widths.max() > widths.min(), "%d: busier ducts are wider" % example)
+
+
+func test_duct_covers_paint_the_wires_again_but_never_on_export() -> void:
+	var view: CabinetView = CabinetView.new()
+	view.document = ExampleCircuits.build(9)
+	view.size = Vector2(900.0, 600.0)
+	add_child_autofree(view)
+	await wait_process_frames(3)
+	var top: Node2D = view.get("_top")
+	var painted: Dictionary = view.get("_painted")
+	var open: Variant = painted[top]
+	CabinetView.duct_covers = true
+	view.queue_redraw()
+	await wait_process_frames(3)
+	var covered: Variant = painted[top]
+	assert_ne(covered, open, "the wires and covers are painted again")
+	assert_true(view.call("_covered"))
+	view.open_ducts = true
+	assert_false(view.call("_covered"), "the export draws the ducts open")
+	CabinetView.duct_covers = false
