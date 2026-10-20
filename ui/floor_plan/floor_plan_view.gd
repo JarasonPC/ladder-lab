@@ -3,8 +3,8 @@ extends VBoxContainer
 ## The floor plan of a house installation (Schematic | Floor plan in the
 ## toolbar of a residential schematic): a bar with the tools above the list
 ## of parts not placed yet and the [FloorPlanCanvas]. In Edit mode rooms are
-## drawn (Room, by dragging) or added ready-made (Add room), doors put in
-## walls (Door), and a part chosen in the list is put where the plan is
+## drawn (Room, by dragging) or added ready-made (Add room), doors and
+## windows put in walls (Door, Window), the walls' thickness set (Walls), and a part chosen in the list is put where the plan is
 ## clicked next. A residential installation also draws its lighting (Wire),
 ## takes new parts from the palette ([method begin_place_template]) onto
 ## the circuit chosen beside the plan (where a selected part's circuit is
@@ -32,6 +32,17 @@ var _room_button: Button
 var _door_button: Button
 var _wire_button: Button
 var _join_button: Button
+var _window_button: Button
+var _walls_button: Button
+var _window_dialog: ConfirmationDialog
+var _window_width: SpinBox
+var _window_sill: SpinBox
+var _window_height: SpinBox
+## The window the dialog edits.
+var _window: int = -1
+var _walls_dialog: ConfirmationDialog
+var _outer_wall: SpinBox
+var _inner_wall: SpinBox
 var _door_dialog: ConfirmationDialog
 var _door_width: SpinBox
 var _door_double: CheckBox
@@ -97,6 +108,7 @@ func _ready() -> void:
 	_select_button = _tool_button("select", FloorPlanCanvas.Tool.SELECT, group)
 	_room_button = _tool_button("room", FloorPlanCanvas.Tool.ROOM, group)
 	_door_button = _tool_button("door", FloorPlanCanvas.Tool.DOOR, group)
+	_window_button = _tool_button("plan_window", FloorPlanCanvas.Tool.WINDOW, group)
 	_wire_button = _tool_button("wire", FloorPlanCanvas.Tool.WIRE, group)
 	_join_button = _tool_button("join", FloorPlanCanvas.Tool.JOIN, group)
 	_select_button.set_pressed_no_signal(true)
@@ -106,6 +118,12 @@ func _ready() -> void:
 	_presets.theme_type_variation = "ToolButton"
 	_presets.get_popup().id_pressed.connect(_add_preset)
 	_bar.add_child(_presets)
+	_walls_button = Button.new()
+	_walls_button.theme_type_variation = "ToolButton"
+	_walls_button.focus_mode = Control.FOCUS_NONE
+	_walls_button.icon = AppTheme.icon("walls")
+	_walls_button.pressed.connect(_ask_walls)
+	_bar.add_child(_walls_button)
 	_delete_button = Button.new()
 	_delete_button.theme_type_variation = "ToolButton"
 	_delete_button.focus_mode = Control.FOCUS_NONE
@@ -170,6 +188,7 @@ func _ready() -> void:
 	canvas.selection_changed.connect(_fill_circuits)
 	canvas.length_requested.connect(_ask_length)
 	canvas.door_requested.connect(_ask_door)
+	canvas.window_requested.connect(_ask_window)
 	canvas.resized.connect(func() -> void:
 		if _fit_pending and canvas.size.x > 10.0 and _document != null:
 			_fit_pending = false
@@ -251,6 +270,43 @@ func _ready() -> void:
 		door_grid.add_child(field)
 	_door_dialog.confirmed.connect(_apply_door)
 	add_child(_door_dialog)
+	_window_dialog = ConfirmationDialog.new()
+	var window_grid: GridContainer = GridContainer.new()
+	window_grid.columns = 2
+	_window_dialog.add_child(window_grid)
+	_window_width = _metres()
+	_window_width.min_value = 0.3
+	_window_width.max_value = 6.0
+	_window_sill = _metres()
+	_window_sill.min_value = 0.0
+	_window_sill.max_value = 3.0
+	_window_height = _metres()
+	_window_height.min_value = 0.2
+	_window_height.max_value = 3.0
+	for field: Control in [_window_width, _window_sill, _window_height]:
+		var label: Label = Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		window_grid.add_child(label)
+		window_grid.add_child(field)
+		_window_dialog.register_text_enter((field as SpinBox).get_line_edit())
+	_window_dialog.confirmed.connect(_apply_window)
+	add_child(_window_dialog)
+	_walls_dialog = ConfirmationDialog.new()
+	var walls_grid: GridContainer = GridContainer.new()
+	walls_grid.columns = 2
+	_walls_dialog.add_child(walls_grid)
+	_outer_wall = _metres()
+	_inner_wall = _metres()
+	for field: SpinBox in [_outer_wall, _inner_wall]:
+		field.min_value = FloorPlan.MIN_WALL_THICKNESS
+		field.max_value = FloorPlan.MAX_WALL_THICKNESS
+		var label: Label = Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		walls_grid.add_child(label)
+		walls_grid.add_child(field)
+		_walls_dialog.register_text_enter(field.get_line_edit())
+	_walls_dialog.confirmed.connect(_apply_walls)
+	add_child(_walls_dialog)
 	retranslate()
 
 
@@ -348,7 +404,7 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _door_button, _presets, _delete_button]:
+	for button: Control in [_select_button, _room_button, _door_button, _window_button, _presets, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
@@ -375,6 +431,22 @@ func retranslate() -> void:
 	_room_button.tooltip_text = tr("Draw a room by dragging; it snaps to the walls of the others")
 	_door_button.tooltip_text = tr("Put a door in a wall by clicking it; a double click on a door sets its width, double door and swing; a selected door: F swaps its hinge, Shift+F opens it to the other side")
 	_join_button.tooltip_text = tr("Join two rooms into one (an L-shaped room and the like): click one, then the other touching it")
+	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
+	_walls_button.tooltip_text = tr("Thickness of the walls: the outside ones (drawn outside the rooms) and those between rooms")
+	_window_dialog.title = tr("Window")
+	_window_dialog.ok_button_text = tr("OK")
+	_window_dialog.cancel_button_text = tr("Cancel")
+	var window_labels: Array[String] = [tr("Width"), tr("Sill height"), tr("Height")]
+	var window_grid: GridContainer = _window_width.get_parent() as GridContainer
+	for k: int in window_labels.size():
+		(window_grid.get_child(2 * k) as Label).text = window_labels[k]
+	_walls_dialog.title = tr("Walls")
+	_walls_dialog.ok_button_text = tr("OK")
+	_walls_dialog.cancel_button_text = tr("Cancel")
+	var wall_labels: Array[String] = [tr("Outside walls"), tr("Walls between rooms")]
+	var walls_grid: GridContainer = _outer_wall.get_parent() as GridContainer
+	for k: int in wall_labels.size():
+		(walls_grid.get_child(2 * k) as Label).text = wall_labels[k]
 	_door_dialog.title = tr("Door")
 	_door_dialog.ok_button_text = tr("OK")
 	_door_dialog.cancel_button_text = tr("Cancel")
@@ -423,7 +495,7 @@ func begin_place_template(template: Dictionary) -> void:
 	canvas.placing = ""
 	canvas.placing_template = template
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
-	for button: Button in [_select_button, _room_button, _door_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _door_button, _window_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.grab_focus()
@@ -586,6 +658,50 @@ func _apply_door() -> void:
 		door.double = double
 		door.hinge_end = hinge_end
 		door.opens_back = opens_back)
+
+
+func _ask_window(index: int) -> void:
+	if not _editing or index < 0 or index >= _document.floor_plan.windows.size():
+		return
+	_window = index
+	var window: FloorPlan.WindowOpening = _document.floor_plan.windows[index]
+	_window_width.value = window.width
+	_window_sill.value = window.sill
+	_window_height.value = window.height
+	_window_dialog.reset_size()
+	_window_dialog.popup_centered()
+
+
+func _apply_window() -> void:
+	var index: int = _window
+	if index < 0 or index >= _document.floor_plan.windows.size():
+		return
+	var width: float = _window_width.value
+	var sill: float = _window_sill.value
+	var height: float = _window_height.value
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		var window: FloorPlan.WindowOpening = doc.floor_plan.windows[index]
+		window.width = width
+		window.sill = sill
+		window.height = height)
+
+
+## Asks the thickness of the outside walls and of those between rooms.
+func _ask_walls() -> void:
+	if not _editing:
+		return
+	_outer_wall.value = _document.floor_plan.outer_wall
+	_inner_wall.value = _document.floor_plan.inner_wall
+	_walls_dialog.reset_size()
+	_walls_dialog.popup_centered()
+
+
+func _apply_walls() -> void:
+	var outer: float = _outer_wall.value
+	var inner: float = _inner_wall.value
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		doc.floor_plan.outer_wall = outer
+		doc.floor_plan.inner_wall = inner)
 
 
 func _ask_rename(index: int) -> void:

@@ -5359,3 +5359,24 @@ msgstr ""
 
 msgid "Wall luminaire"
 msgstr ""
+
+msgid "Put a window in a wall by clicking it; a double click on a window sets its width, sill and height"
+msgstr ""
+
+msgid "Thickness of the walls: the outside ones (drawn outside the rooms) and those between rooms"
+msgstr ""
+
+msgid "Window"
+msgstr ""
+
+msgid "Sill height"
+msgstr ""
+
+msgid "Walls"
+msgstr ""
+
+msgid "Outside walls"
+msgstr ""
+
+msgid "Walls between rooms"
+msgstr ""

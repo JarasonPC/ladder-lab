@@ -368,6 +368,16 @@ Architecture and conventions of the code base. Read this before changing the cod
   dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.
   Doors: hinge_end, opens_back, double (two leaves of half the width from both ends); a
   double click: door_requested -> FloorPlanView's door dialog; F / Shift+F on a selected door.
+  Windows (FloorPlan.WindowOpening: width, sill, height; saved "windows"), doors and windows
+  both FloorPlan.Opening (at, width, vertical, ends; openings() moves them with rooms and
+  walls), Tool.WINDOW, a double click: window_requested -> the window dialog. Walls have a
+  thickness (FloorPlan.outer_wall, inner_wall; saved "walls" when not OUTER_WALL / INNER_WALL;
+  the Walls dialog): FloorPlanCanvas._draw_building fills each room grown by outer_wall
+  (Geometry2D.offset_polygon, mitred) in wall_color, the floors over it, then the walls between
+  rooms (FloorPlan.inner_pieces_of: the pieces of the outlines with another room behind them)
+  on their line; an opening cuts its band (_band, _cut: outside the room in an outside wall,
+  centred in one between rooms); a part on a wall between rooms is drawn at its face
+  (_face, inner_wall_at); bounds and the dimensions (_dimension_gap) are past the outside walls.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

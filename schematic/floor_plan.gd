@@ -22,6 +22,17 @@ const ON_WALL: float = 0.5
 const MIN_ROOM: float = 0.8
 ## Width of a door (m) when none is set.
 const DOOR_WIDTH: float = 0.8
+## Width, sill height and height of a window (m) when none is set.
+const WINDOW_WIDTH: float = 1.2
+const WINDOW_SILL: float = 0.9
+const WINDOW_HEIGHT: float = 1.25
+## Thickness of the outside walls (drawn outside the rooms) and of the
+## walls between rooms (on their line) when none is set (m).
+const OUTER_WALL: float = 0.3
+const INNER_WALL: float = 0.15
+## Thinnest and thickest wall offered (m).
+const MIN_WALL_THICKNESS: float = 0.05
+const MAX_WALL_THICKNESS: float = 0.8
 ## Room sizes offered to start from (m), by English source name; an "l"
 ## cut (m) out of the lower right corner makes an L-shaped room.
 const PRESETS: Array[Dictionary] = [
@@ -158,15 +169,24 @@ class Link:
 		return a_port if designation == a else b_port
 
 
-## A door in a wall: its middle on the wall, its width, whether the wall
-## runs up and down, and how it swings: its hinge at the start of its
-## opening (left or top) or at the end ([member hinge_end]), its leaf opening
-## down from a wall running across or left of one running up and down, or
-## to the other side ([member opens_back]).
-class Door:
+## An opening in a wall: its middle on the wall, its width, whether the
+## wall runs up and down.
+class Opening:
 	var at: Vector2 = Vector2.ZERO
 	var width: float = DOOR_WIDTH
 	var vertical: bool = false
+
+	## Its two ends on the wall.
+	func ends() -> PackedVector2Array:
+		var along: Vector2 = Vector2.DOWN if vertical else Vector2.RIGHT
+		return PackedVector2Array([at - along * width * 0.5, at + along * width * 0.5])
+
+
+## A door in a wall and how it swings: its hinge at the start of its
+## opening (left or top) or at the end ([member hinge_end]), its leaf opening
+## down from a wall running across or left of one running up and down, or
+## to the other side ([member opens_back]).
+class Door extends Opening:
 	var hinge_end: bool = false
 	var opens_back: bool = false
 	## Two leaves, hinged at both ends, meeting in the middle.
@@ -184,8 +204,23 @@ class Door:
 		width = p_width
 
 
+## A window in a wall: its sill and its height over the floor (m).
+class WindowOpening extends Opening:
+	var sill: float = WINDOW_SILL
+	var height: float = WINDOW_HEIGHT
+
+	func _init(p_at: Vector2 = Vector2.ZERO, p_vertical: bool = false, p_width: float = WINDOW_WIDTH) -> void:
+		at = p_at
+		vertical = p_vertical
+		width = p_width
+
+
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
+var windows: Array[WindowOpening] = []
+## Thickness of the outside walls and of those between rooms (m).
+var outer_wall: float = OUTER_WALL
+var inner_wall: float = INNER_WALL
 ## Where each part (by designation) and the consumer unit ([constant UNIT])
 ## are (m).
 var parts: Dictionary[String, Vector2] = {}
@@ -197,7 +232,71 @@ var links: Array[Link] = []
 
 
 func is_empty() -> bool:
-	return rooms.is_empty() and doors.is_empty() and parts.is_empty() and links.is_empty()
+	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty()
+
+
+## The doors and the windows.
+func openings() -> Array[Opening]:
+	var list: Array[Opening] = []
+	list.append_array(doors)
+	list.append_array(windows)
+	return list
+
+
+## Whether the wall at [param point], seen from the room on the side of
+## [param into], is between two rooms (another room behind it).
+func inner_wall_at(point: Vector2, into: Vector2) -> bool:
+	return room_at(point - into * 0.05) >= 0 and room_at(point + into * 0.05) >= 0
+
+
+## The walls between rooms, each piece once: [from, to] on their line (m).
+func inner_pieces() -> Array[PackedVector2Array]:
+	var shapes: Array[PackedVector2Array] = []
+	for room: Room in rooms:
+		shapes.append(room.points)
+	return inner_pieces_of(shapes)
+
+
+## The walls between the rooms of outlines [param shapes] (see [method inner_pieces]).
+static func inner_pieces_of(shapes: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
+	var pieces: Array[PackedVector2Array] = []
+	var seen: Dictionary[String, bool] = {}
+	for index: int in shapes.size():
+		var points: PackedVector2Array = shapes[index]
+		for k: int in points.size():
+			var w0: Vector2 = points[k]
+			var w1: Vector2 = points[(k + 1) % points.size()]
+			var vertical: bool = is_equal_approx(w0.x, w1.x)
+			var line: float = w0.x if vertical else w0.y
+			var a: float = minf(w0.y, w1.y) if vertical else minf(w0.x, w1.x)
+			var b: float = maxf(w0.y, w1.y) if vertical else maxf(w0.x, w1.x)
+			# Cut where the other rooms' corners on this line are.
+			var cuts: PackedFloat32Array = PackedFloat32Array([a, b])
+			for other: PackedVector2Array in shapes:
+				for p: Vector2 in other:
+					var on: float = p.x if vertical else p.y
+					var along: float = p.y if vertical else p.x
+					if absf(on - line) < 0.001 and along > a + 0.001 and along < b - 0.001:
+						cuts.append(along)
+			cuts.sort()
+			var out: Vector2 = -(w1 - w0).normalized().rotated(PI / 2.0).round()
+			for i: int in cuts.size() - 1:
+				if cuts[i + 1] - cuts[i] < 0.001:
+					continue
+				var mid: float = (cuts[i] + cuts[i + 1]) * 0.5
+				var m: Vector2 = Vector2(line, mid) if vertical else Vector2(mid, line)
+				var behind: bool = false
+				for j: int in shapes.size():
+					if j != index and Geometry2D.is_point_in_polygon(m + out * 0.05, shapes[j]):
+						behind = true
+				if not behind:
+					continue
+				var key: String = "%s|%.3f|%.3f|%.3f" % [vertical, line, cuts[i], cuts[i + 1]]
+				if seen.has(key):
+					continue
+				seen[key] = true
+				pieces.append(PackedVector2Array([Vector2(line, cuts[i]), Vector2(line, cuts[i + 1])] if vertical else [Vector2(cuts[i], line), Vector2(cuts[i + 1], line)]))
+	return pieces
 
 
 ## Number of room [param index]: the one set, else counted from [constant FIRST_NUMBER].
@@ -329,16 +428,16 @@ func free_spot(size: Vector2) -> Rect2:
 
 ## Moves room [param index] (the corner of the rectangle round it) to
 ## [param to], taking along the parts in it and on its walls and the doors
-## in its walls.
+## and windows in its walls.
 func move_room(index: int, to: Vector2) -> void:
 	var room: Room = rooms[index]
 	var by: Vector2 = to - room.rect.position
 	for designation: String in parts.keys():
 		if room.contains(parts[designation], 0.01):
 			parts[designation] += by
-	for door: Door in doors:
-		if room.contains(door.at, 0.01):
-			door.at += by
+	for opening: Opening in openings():
+		if room.contains(opening.at, 0.01):
+			opening.at += by
 	for i: int in room.points.size():
 		room.points[i] += by
 
@@ -378,8 +477,8 @@ static func with_edge(points: PackedVector2Array, k: int, at: float) -> PackedVe
 ## runs up and down, else its y, snapped), never making the walls beside it
 ## shorter than [constant MIN_WALL] (a rectangle no smaller than
 ## [constant MIN_ROOM]) nor turning them round: a wall of another room on
-## the same line along it moves along (they keep sharing it), and the parts
-## and doors on it move with it.
+## the same line along it moves along (they keep sharing it), and the parts,
+## doors and windows on it move with it.
 func set_edge(index: int, k: int, at: float) -> void:
 	var room: Room = rooms[index]
 	var w: PackedVector2Array = room.wall(k)
@@ -409,10 +508,10 @@ func set_edge(index: int, k: int, at: float) -> void:
 		var along: float = p.y if vertical else p.x
 		if absf((p.x if vertical else p.y) - old) < 0.01 and along >= span.x - 0.01 and along <= span.y + 0.01:
 			parts[designation] = p + (Vector2(by, 0) if vertical else Vector2(0, by))
-	for door: Door in doors:
-		var along_door: float = door.at.y if vertical else door.at.x
-		if absf((door.at.x if vertical else door.at.y) - old) < 0.01 and along_door >= span.x and along_door <= span.y:
-			door.at += Vector2(by, 0) if vertical else Vector2(0, by)
+	for opening: Opening in openings():
+		var along_door: float = opening.at.y if vertical else opening.at.x
+		if absf((opening.at.x if vertical else opening.at.y) - old) < 0.01 and along_door >= span.x and along_door <= span.y:
+			opening.at += Vector2(by, 0) if vertical else Vector2(0, by)
 	for m: Vector2i in moving:
 		rooms[m.x].points = with_edge(rooms[m.x].points, m.y, at)
 
@@ -683,7 +782,9 @@ func bounds() -> Rect2:
 	var result: Rect2 = Rect2()
 	var first: bool = true
 	for room: Room in rooms:
-		result = room.rect if first else result.merge(room.rect)
+		# With the outside walls round it.
+		var walled: Rect2 = room.rect.grow(outer_wall)
+		result = walled if first else result.merge(walled)
 		first = false
 	for designation: String in parts:
 		result = Rect2(parts[designation], Vector2.ZERO) if first else result.expand(parts[designation])
@@ -723,6 +824,18 @@ func to_data() -> Dictionary:
 			entry.append(facing[designation])
 		placed[designation] = entry
 	var result: Dictionary = {"rooms": room_list, "doors": door_list, "parts": placed}
+	if not windows.is_empty():
+		var window_list: Array = []
+		for window: WindowOpening in windows:
+			var wd: Dictionary = {"at": [window.at.x, window.at.y], "width": window.width, "vertical": window.vertical}
+			if not is_equal_approx(window.sill, WINDOW_SILL):
+				wd["sill"] = window.sill
+			if not is_equal_approx(window.height, WINDOW_HEIGHT):
+				wd["height"] = window.height
+			window_list.append(wd)
+		result["windows"] = window_list
+	if not is_equal_approx(outer_wall, OUTER_WALL) or not is_equal_approx(inner_wall, INNER_WALL):
+		result["walls"] = [outer_wall, inner_wall]
 	if not links.is_empty():
 		var link_list: Array = []
 		for link: Link in links:
@@ -770,6 +883,17 @@ static func from_data(raw: Variant) -> FloorPlan:
 				door.opens_back = dd.get("opens_back", false) == true
 				door.double = dd.get("double", false) == true
 				plan.doors.append(door)
+	var window_list: Variant = d.get("windows", [])
+	if window_list is Array:
+		for wd: Variant in window_list:
+			if wd is Dictionary and _numbers(wd.get("at", []), 2):
+				var window: WindowOpening = WindowOpening.new(Vector2(float(wd["at"][0]), float(wd["at"][1])), wd.get("vertical", false) == true, _length(wd.get("width", WINDOW_WIDTH), WINDOW_WIDTH, 0.3, 6.0))
+				window.sill = _length(wd.get("sill", WINDOW_SILL), WINDOW_SILL, 0.0, 3.0)
+				window.height = _length(wd.get("height", WINDOW_HEIGHT), WINDOW_HEIGHT, 0.2, 3.0)
+				plan.windows.append(window)
+	if _numbers(d.get("walls", []), 2):
+		plan.outer_wall = clampf(float(d["walls"][0]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
+		plan.inner_wall = clampf(float(d["walls"][1]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
 	var placed: Variant = d.get("parts", {})
 	if placed is Dictionary:
 		for designation: Variant in placed:
@@ -784,6 +908,11 @@ static func from_data(raw: Variant) -> FloorPlan:
 			if ld is Array and (ld as Array).size() == 4 and ld[0] is String and ld[2] is String and (ld[1] is int or ld[1] is float) and (ld[3] is int or ld[3] is float):
 				plan.add_link(ld[0], clampi(int(ld[1]), 0, 1), ld[2], clampi(int(ld[3]), 0, 1))
 	return plan
+
+
+## [param value] as a length from [param low] to [param high], else [param fallback].
+static func _length(value: Variant, fallback: float, low: float, high: float) -> float:
+	return clampf(float(value), low, high) if (value is float or value is int) and is_finite(float(value)) else fallback
 
 
 static func _numbers(value: Variant, count: int) -> bool:

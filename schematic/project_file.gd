@@ -107,7 +107,9 @@ const FORMAT: String = "ladder-lab"
 ## ones ("selective"; missing: not selective); the single-line diagram's
 ## groups nested, under any protective device ("feeders" of a group hold
 ## circuits and groups, each with its "kind"; missing: a circuit); wall
-## luminaires ("luminaire": "wall"; missing: on the ceiling).
+## luminaires ("luminaire": "wall"; missing: on the ceiling); the floor
+## plan's windows ("windows": at, width, vertical, sill, height) and wall
+## thickness ("walls": [outside, between rooms]; missing: 0.30 and 0.15).
 const VERSION: int = 44
 
 

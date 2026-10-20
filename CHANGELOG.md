@@ -67,6 +67,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The floor plan sheet of a PDF export draws the plan as large as its paper takes, and the
   designations of parts close together (switches back to back on a wall) no longer print over
   each other: each goes where it is clear, into its room first
+- Floor plan: windows (Window tool; a double click sets width, sill and height) and walls
+  drawn with their thickness, outside walls outside the rooms and walls between rooms on their
+  line (Walls sets both); doors and windows cut through the whole wall
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 

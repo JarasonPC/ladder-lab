@@ -235,7 +235,7 @@ func test_wall_lengths_set_like_in_cad() -> void:
 	canvas.selected = {"kind": "room", "index": 1}
 	var asked: Array[Vector2i] = []
 	canvas.length_requested.connect(func(index: int, side: int) -> void: asked.append(Vector2i(index, side)))
-	var top: Vector2 = canvas.to_screen(Vector2(plan.rooms[1].rect.get_center().x, plan.rooms[1].rect.position.y - FloorPlanCanvas.DIMENSION_GAP))
+	var top: Vector2 = canvas.to_screen(Vector2(plan.rooms[1].rect.get_center().x, plan.rooms[1].rect.position.y - canvas._dimension_gap()))
 	assert_eq(canvas.dimension_at(top), Vector2i(1, 0), "its width over its top wall")
 
 
@@ -355,3 +355,35 @@ func test_wall_luminaire_goes_onto_a_wall() -> void:
 	for entry: Dictionary in Palette.PLAN_ENTRIES:
 		titles.append(entry["title"])
 	assert_true(titles.has("Wall luminaire"))
+
+
+func test_windows_and_wall_thickness() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	var window: FloorPlan.WindowOpening = FloorPlan.WindowOpening.new(Vector2(5.0, 0.0), false)
+	window.sill = 1.1
+	plan.windows.append(window)
+	plan.outer_wall = 0.45
+	# The hall and the room share x = 3 from y 0 to 1.5: the wall between them.
+	var pieces: Array[PackedVector2Array] = plan.inner_pieces()
+	assert_eq(pieces.size(), 1, "one wall between rooms")
+	assert_eq(pieces[0], PackedVector2Array([Vector2(3, 0), Vector2(3, 1.5)]))
+	assert_true(plan.inner_wall_at(Vector2(3.0, 1.0), Vector2.RIGHT), "between the hall and the room")
+	assert_false(plan.inner_wall_at(Vector2(3.0, 3.0), Vector2.RIGHT), "below the hall: an outside wall")
+	assert_true(plan.bounds().grow(0.001).encloses(Rect2(-0.45, -0.45, 7.9, 4.9)), "the outside walls are in the bounds")
+	# A window moves with its room, and is saved.
+	plan.move_room(1, Vector2(3.0, 1.0))
+	assert_eq(plan.windows[0].at, Vector2(5.0, 1.0))
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.windows.size(), 1)
+	assert_almost_eq(again.windows[0].sill, 1.1, 1e-6)
+	assert_almost_eq(again.windows[0].width, FloorPlan.WINDOW_WIDTH, 1e-6)
+	assert_almost_eq(again.outer_wall, 0.45, 1e-6)
+	assert_almost_eq(again.inner_wall, FloorPlan.INNER_WALL, 1e-6)
+	assert_false(FloorPlan.from_data({"rooms": []}).to_data().has("walls"), "the usual walls are not written")
+	# A socket on the wall between rooms is drawn at the wall's face.
+	plan.move_room(1, Vector2(3.0, 0.0))
+	plan.place("XD1", Vector2(3.0, 1.0), false)
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	assert_almost_eq(canvas._face("XD1").length(), FloorPlan.INNER_WALL * 0.5, 1e-6)
