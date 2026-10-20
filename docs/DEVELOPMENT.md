@@ -806,7 +806,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   a wire drawn from terminal to terminal brings along the free terminals beside each end in
   its row leaving the same way (the other supply points in line for a supply point), paired
   off in order from the two ends; Shift on the click that ends the wire draws it alone. A
-  part placed or dropped (in the place's or the drag's undo step) is wired to the free
+  part placed or dropped (in the place's or the drag's undo step; EPLAN-style autoconnect) is wired to the free
   terminals of the page it faces. The wires to come are drawn dashed: the poles while
   hovering the end terminal, the part being placed (facing_wires_placed: added for the
   query and taken out again) or dragged

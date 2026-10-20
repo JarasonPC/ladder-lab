@@ -679,8 +679,8 @@ msgstr "Vodič nakreslený mezi vícepólovými součástkami propojí i sousedn
 msgid "Wire parts placed in line"
 msgstr "Propojovat součástky umístěné v řadě"
 
-msgid "A part placed or dropped gets straight wires to the free terminals it faces"
-msgstr "Umístěná nebo přetažená součástka dostane rovné vodiče k volným svorkám, které stojí proti ní"
+msgid "A part placed or dropped gets straight wires to the free terminals it faces, EPLAN style (autoconnect)"
+msgstr "Umístěná nebo přetažená součástka dostane rovné vodiče k volným svorkám, které stojí proti ní, jako v EPLANu (autoconnect)"
 
 msgid "Language"
 msgstr "Jazyk"
