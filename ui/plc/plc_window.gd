@@ -40,6 +40,10 @@ var _bound_data: Dictionary = {}
 ## Saving the program to a file of its own and reading one back.
 var _export_button: Button
 var _import_button: Button
+## Saves the program as SCL for the controllers the compact CPU is modelled
+## on; the file dialog is choosing that file.
+var _scl_button: Button
+var _scl_saving: bool = false
 var _file_dialog: FileDialog
 var _error: AcceptDialog
 var _fbd: PlcFbdCanvas
@@ -232,6 +236,12 @@ func _build() -> void:
 	_import_button.focus_mode = Control.FOCUS_NONE
 	_import_button.pressed.connect(_ask_file.bind(FileDialog.FILE_MODE_OPEN_FILE))
 	tools.add_child(_import_button)
+	_scl_button = Button.new()
+	_scl_button.theme_type_variation = "ToolButton"
+	_scl_button.focus_mode = Control.FOCUS_NONE
+	_scl_button.icon = AppTheme.icon("download")
+	_scl_button.pressed.connect(_ask_scl_file)
+	tools.add_child(_scl_button)
 	_file_dialog = FileDialog.new()
 	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_file_dialog.use_native_dialog = true
@@ -424,6 +434,9 @@ func _show() -> void:
 	_import_button.text = tr("Import…")
 	_import_button.tooltip_text = tr("Replaces the program with one saved to a file (Ctrl+Z brings it back)")
 	_import_button.disabled = monitoring or testing
+	_scl_button.text = tr("Export SCL…")
+	_scl_button.disabled = not (plc is CompactPlc)
+	_scl_button.tooltip_text = tr("Saves the program as an SCL source for TIA Portal (S7-1200): add it under External source files and generate the blocks from it, then download them to the CPU") if plc is CompactPlc else tr("SCL export is for the compact CPU (S7-1200)")
 	if plc != null:
 		_fbd.address = plc.address
 		_lad.address = plc.address
@@ -774,6 +787,7 @@ func _light(lamp: Panel, on: bool) -> void:
 ## Asks where to save the program ([param mode] save) or which program file
 ## to read (open).
 func _ask_file(mode: FileDialog.FileMode) -> void:
+	_scl_saving = false
 	_file_dialog.file_mode = mode
 	_file_dialog.title = tr("Export PLC program") if mode == FileDialog.FILE_MODE_SAVE_FILE else tr("Import PLC program")
 	_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [ProjectFile.PLC_EXTENSION, tr("PLC program")]])
@@ -782,7 +796,42 @@ func _ask_file(mode: FileDialog.FileMode) -> void:
 	_file_dialog.popup_centered_ratio(0.6)
 
 
+func _ask_scl_file() -> void:
+	_scl_saving = true
+	_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_file_dialog.title = tr("Export SCL for TIA Portal")
+	_file_dialog.filters = PackedStringArray(["*.scl ; %s" % tr("SCL source")])
+	_file_dialog.current_file = "%s.scl" % SclExport.block_name(component_id.get_slice(":", 0))
+	_file_dialog.popup_centered_ratio(0.6)
+
+
+## Saves the program shown as SCL to [param path]; says what kept it from
+## being saved or what works differently on the controller.
+func export_scl(path: String) -> Dictionary:
+	if path.get_extension().to_lower() != "scl":
+		path += ".scl"
+	var result: Dictionary = SclExport.save(plc.duplicate_plc(_program) as CompactPlc, path)
+	var notes: PackedStringArray = PackedStringArray()
+	for e: Array in result["errors"]:
+		notes.append(tr(e[0]) % e[1])
+	if not notes.is_empty():
+		_show_error(tr("The program cannot be exported:") + "\n" + "\n".join(notes))
+		return result
+	if result["saved"] != OK:
+		_show_error(tr("Could not save %s.") % path.get_file())
+		return result
+	for w: Array in result["warnings"]:
+		notes.append(tr(w[0]) % w[1])
+	if not notes.is_empty():
+		_show_error(tr("Saved %s. Note:") % path.get_file() + "\n" + "\n".join(notes))
+	return result
+
+
 func _on_file_chosen(path: String) -> void:
+	if _scl_saving:
+		_scl_saving = false
+		export_scl(path)
+		return
 	if _file_dialog.file_mode == FileDialog.FILE_MODE_SAVE_FILE:
 		if path.get_extension().to_lower() != ProjectFile.PLC_EXTENSION:
 			path += "." + ProjectFile.PLC_EXTENSION

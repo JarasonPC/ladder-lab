@@ -42,7 +42,8 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   up/down counter, analog trigger, comparator and amplifier) or a ladder diagram (LAD: one
   endless power rail, NO/NC, edge and comparing contacts, coils, negated coils, set/reset,
   timer, counter and analog output coils), in the style of Siemens programming software; the
-  compact CPU's addresses as on the real one (%I0.0, %Q0.0, %IW64); network inputs NI and
+  compact CPU's addresses as on the real one (%I0.0, %Q0.0, %IW64), and its program exported
+  as an SCL source for TIA Portal to run on a real S7-1200; network inputs NI and
   NAI read an input, output, flag or analog value of another PLC over Ethernet, as on the
   real logic modules; a built-in simulation
   with input switches and output lamps tests the program on its own, and while the schematic

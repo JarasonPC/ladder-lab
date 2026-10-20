@@ -735,6 +735,10 @@ msgid "Could not save %s."
 msgstr "Soubor %s nelze uložit."
 
 #, c-format
+msgid "Saved %s. Note:"
+msgstr "Uloženo do %s. Pozor:"
+
+#, c-format
 msgid "%s blown – click it to replace the fuse"
 msgstr "%s přepálena – kliknutím pojistku vyměníte"
 
@@ -3808,6 +3812,15 @@ msgstr "Uloží program do samostatného souboru, k použití v jiném PLC"
 msgid "Replaces the program with one saved to a file (Ctrl+Z brings it back)"
 msgstr "Nahradí program programem uloženým v souboru (Ctrl+Z ho vrátí)"
 
+msgid "Export SCL…"
+msgstr "Export SCL…"
+
+msgid "Saves the program as an SCL source for TIA Portal (S7-1200): add it under External source files and generate the blocks from it, then download them to the CPU"
+msgstr "Uloží program jako zdroj SCL pro TIA Portal (S7-1200): přidejte jej do External source files, vygenerujte z něj bloky a nahrajte je do CPU"
+
+msgid "SCL export is for the compact CPU (S7-1200)"
+msgstr "Export SCL je pro kompaktní CPU (S7-1200)"
+
 msgid "Export PLC program"
 msgstr "Export programu PLC"
 
@@ -3816,6 +3829,15 @@ msgstr "Import programu PLC"
 
 msgid "PLC program"
 msgstr "Program PLC"
+
+msgid "Export SCL for TIA Portal"
+msgstr "Export SCL pro TIA Portal"
+
+msgid "SCL source"
+msgstr "Zdroj SCL"
+
+msgid "The program cannot be exported:"
+msgstr "Program nelze exportovat:"
 
 msgid "%s is not a PLC program of LadderLab."
 msgstr "%s není program PLC z LadderLabu."
@@ -4515,3 +4537,20 @@ msgstr "%s zhasne s %s pod 40 %%"
 
 msgid "10 V (reference)"
 msgstr "10 V (reference)"
+
+
+#, c-format
+msgid "%s is not on this CPU or its modules."
+msgstr "%s na tomto CPU ani jeho modulech není."
+
+#, c-format
+msgid "Network input %s has no partner and stays 0 on the controller."
+msgstr "Síťový vstup %s nemá partnera a v automatu zůstane 0."
+
+#, c-format
+msgid "Network input %s stays 0 on the controller: fill the variable %s of the function block yourself, e.g. with a GET of %s from %s."
+msgstr "Síťový vstup %s v automatu zůstane 0: proměnnou %s funkčního bloku naplňte sami, např. instrukcí GET pro %s z %s."
+
+#, c-format
+msgid "Timer %s is both an on-delay and an off-delay: it is exported as the first of them."
+msgstr "Časovač %s je zpožděný přítah i odpad zároveň: exportuje se jako ten první z nich."

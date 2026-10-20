@@ -120,6 +120,14 @@ func scan_until_stable(limit: int = MAX_SCANS) -> bool:
 	return false
 
 
+## Block numbers of the function block diagram in the order a scan works
+## through them (see the class description).
+func block_order() -> PackedInt32Array:
+	if _order.size() != program.blocks.size():
+		_order = _signal_order()
+	return _order.duplicate()
+
+
 ## Moves the running timers on by [param delta] seconds.
 func advance(delta: float) -> void:
 	for timer: PlcTimer in timers.values():
