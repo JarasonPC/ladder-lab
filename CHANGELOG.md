@@ -12,6 +12,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Plug-in bridges on terminal strips are grey (blue on N) instead of red
 
 ### Application
+- Lessons ring the terminals each wire of a wiring step goes between, every palette entry a
+  step still needs (a contact and a lamp, not only the contact), the property field a step
+  asks to set (the breaker's Poles, the time relay's Time t) and cross out the wire a step
+  asks to delete
+- While a wire is drawn from a terminal a lesson step asks to wire, a dashed guide runs to
+  the terminal it should end on; a part drawn faintly by Show me gives way to any part placed
+  where it was drawn
 - The welcome card on the first start asks for the language first (English or Čeština) and
   offers the tour and the first lesson in it
 

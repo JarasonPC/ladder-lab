@@ -227,6 +227,7 @@ func _ready() -> void:
 	add_child(editor)
 	_lesson_marks = LessonMarks.new()
 	_lesson_marks.view = view
+	_lesson_marks.editor = editor
 	add_child(_lesson_marks)
 	camera = SchematicCamera.new()
 	add_child(camera)
@@ -1671,14 +1672,25 @@ func _refresh_lesson_marks() -> void:
 		roles.append_array(step.focus)
 	if _lesson_panel.show_where:
 		roles.append_array(_lesson_panel.failed_roles())
-	_lesson_marks.show_marks(run.lesson, step, run.edited, roles, open and _lesson_panel.show_me and mode == Mode.EDIT)
+	var editing: bool = open and mode == Mode.EDIT
+	_lesson_marks.show_marks(run.lesson, step, run.edited, roles, editing, _lesson_panel.show_me)
 	var targets: Array[Callable] = []
-	if open and mode == Mode.EDIT and not step.palette.is_empty():
-		var template: Dictionary = step.palette
+	# The palette entry of each part still to place (the first scrolled into view).
+	var revealed: bool = _revealed_step == run.selected
+	for place: Array in step.places:
+		if not editing or run.edited.has(place[0]):
+			continue
+		var template: Dictionary = place[1]
 		targets.append(func() -> Rect2: return _palette.entry_rect(template))
-		if _revealed_step != run.selected:
+		if not revealed:
+			revealed = true
 			_revealed_step = run.selected
 			_palette.reveal(template)
+	# The field of the property to set, while its part is selected.
+	if editing and not step.property.is_empty() and run.edited.has(step.property[0]):
+		var id: String = run.edited.part(step.property[0]).id
+		var key: String = step.property[1]
+		targets.append(func() -> Rect2: return _properties.field_rect(id, key))
 	if open and mode == Mode.EDIT and (step.control == "simulate" or step.simulating):
 		targets.append(func() -> Rect2: return _visible_rect(_simulate_button))
 	elif open and mode == Mode.SIMULATE and step.control == "edit":

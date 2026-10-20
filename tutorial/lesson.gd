@@ -33,11 +33,19 @@ class Step:
 	var text: String = ""
 	## A tip shown under the text ("" for none).
 	var hint: String = ""
-	## Template of the palette entry the step uses ({} for none).
-	var palette: Dictionary = {}
+	## Parts the step places: [role, template of its palette entry], the
+	## entry pointed at while the schematic has no part in that role.
+	var places: Array[Array] = []
+	## Property to set: [role, key] (the field in the properties of the
+	## part in that role is pointed at while it is selected), or [].
+	var property: Array = []
+	## Wires to delete: [role, terminal index, role, terminal index], marked
+	## on the drawing while there is a wire right between the two.
+	var cut: Array[Array] = []
 	## Toolbar control to point at: "simulate", "edit" or "".
 	var control: String = ""
-	## Roles whose parts are ringed on the drawing.
+	## Roles whose parts are ringed on the drawing (wiring steps ring the
+	## terminals of their [member wires] instead).
 	var focus: PackedStringArray = PackedStringArray()
 	## Roles drawn by Show me where the schematic does not have them yet.
 	var show: PackedStringArray = PackedStringArray()
