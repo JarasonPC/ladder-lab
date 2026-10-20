@@ -636,6 +636,22 @@ Architecture and conventions of the code base. Read this before changing the cod
   sleeves; WorkspaceCables makes a cable of its own of every Ethernet net between two places
   (key "+RA1|+RA2|<port>", Use.ETHERNET, "Cat 6 S/FTP 4x2xAWG23", no voltage drop), drawn
   green on the workspace, leaving the switchboard through a gland of its own
+- SCL export (SclExport in sim/plc/, no nodes): the compact CPU's program in the language it
+  runs, as an SCL source for TIA Portal (S7-1200; "Export SCL…" in the PLC window, disabled for
+  the logic module; UTF-8 with a byte order mark, CRLF): FUNCTION_BLOCK "LadderLab_<A1>"
+  (optimized; static variables for block outputs B001 / B001_A, IEC timers TON_TIME / TOF_TIME,
+  counters as DInt with their edge memory, edge contacts' memory and #Started, network inputs),
+  its instance DATA_BLOCK "..._DB" (NON_RETAIN) and ORGANIZATION_BLOCK "Main" calling it. The
+  CPU's addresses (Plc.address: %I0.0, %Q0.0, %M0.0, analog %IW64 / %QW96 as words through
+  WORD_TO_INT / INT_TO_WORD). FBD in PlcRuntime.block_order, every block's output a static
+  (loops read the cycle before), a pulse relay's Trg taken first (#trg); LAD rung by rung,
+  #p[i] the power of each row column by column, links ORing it, rows known on or off left out
+  of the code; reset of a timer RESET_TIMER. Errors (operands the CPU lacks) stop it, warnings
+  (network inputs: variables the user fills, e.g. with GET; a timer both on- and off-delay)
+  are shown. test/unit/scl_runner.gd parses the subset the export writes and runs it on a
+  process image with IEC timers; test_scl_export runs hand-made and random programs cycle by
+  cycle in it and in PlcRuntime (one scan a cycle) and wants the same outputs, flags and
+  analog words every cycle
 - PLC window (ui/plc/, PlcWindow): opened by double-clicking a PLC, from its properties or by
   clicking it while simulating; one per PLC; keys it does not use (releases too) go to main.gd,
   Space stays in the window for Space+drag. FBD (PlcFbdCanvas) or LAD (PlcLadCanvas, both

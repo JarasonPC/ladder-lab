@@ -71,6 +71,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Plug-in bridges on terminal strips are grey (blue on N) instead of red
 
 ### Files and export
+- "Export SCL…" in the PLC window saves a compact CPU's program as an SCL source for TIA Portal
+  (S7-1200): a function block with the program, its instance data block and Main [OB1]
+  calling it, with the CPU's addresses (%I0.0, %Q0.0, %M0.0, %IW64) and IEC timers. Add it
+  under External source files, generate the blocks and download them to the CPU; it switches
+  the outputs as the program does in LadderLab
 - PLC program files (.plcprog) keep the partners of the network inputs; schematics keep the
   PLCs' IP addresses and the network switches (older files open with 192.168.0.1)
 

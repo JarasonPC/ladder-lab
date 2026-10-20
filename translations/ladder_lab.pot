@@ -732,6 +732,10 @@ msgid "Could not save %s."
 msgstr ""
 
 #, c-format
+msgid "Saved %s. Note:"
+msgstr ""
+
+#, c-format
 msgid "%s blown – click it to replace the fuse"
 msgstr ""
 
@@ -3793,6 +3797,15 @@ msgstr ""
 msgid "Replaces the program with one saved to a file (Ctrl+Z brings it back)"
 msgstr ""
 
+msgid "Export SCL…"
+msgstr ""
+
+msgid "Saves the program as an SCL source for TIA Portal (S7-1200): add it under External source files and generate the blocks from it, then download them to the CPU"
+msgstr ""
+
+msgid "SCL export is for the compact CPU (S7-1200)"
+msgstr ""
+
 msgid "Export PLC program"
 msgstr ""
 
@@ -3800,6 +3813,15 @@ msgid "Import PLC program"
 msgstr ""
 
 msgid "PLC program"
+msgstr ""
+
+msgid "Export SCL for TIA Portal"
+msgstr ""
+
+msgid "SCL source"
+msgstr ""
+
+msgid "The program cannot be exported:"
 msgstr ""
 
 msgid "%s is not a PLC program of LadderLab."
@@ -4499,4 +4521,21 @@ msgid "%s goes dark with %s under 40 %%"
 msgstr ""
 
 msgid "10 V (reference)"
+msgstr ""
+
+
+#, c-format
+msgid "%s is not on this CPU or its modules."
+msgstr ""
+
+#, c-format
+msgid "Network input %s has no partner and stays 0 on the controller."
+msgstr ""
+
+#, c-format
+msgid "Network input %s stays 0 on the controller: fill the variable %s of the function block yourself, e.g. with a GET of %s from %s."
+msgstr ""
+
+#, c-format
+msgid "Timer %s is both an on-delay and an off-delay: it is exported as the first of them."
 msgstr ""
