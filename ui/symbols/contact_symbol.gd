@@ -62,8 +62,9 @@ func _draw_labels() -> void:
 	super._draw_labels()
 	var switch: LatchingSwitch = component as LatchingSwitch
 	if switch != null and switch.three_positions:
-		# A block of an I-0-II selector switch: the position that operates it.
-		draw_label("I-0-II: " + ("II" if switch.side == 2 else "I"), _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+		# A block of an I-0-II selector switch: a dot under the position that
+		# operates it.
+		draw_position_table(PackedStringArray(["I", "0", "II"]), [["", [switch.side != 2, false, switch.side == 2]]], _designation_anchor(), 1)
 
 
 func _draw_shape(color: Color, _width: float) -> void:

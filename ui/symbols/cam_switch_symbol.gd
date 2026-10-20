@@ -6,7 +6,8 @@ extends SchematicSymbol
 ## contact (1-2, 3-4 ...) that makes in position I. Positions I-0-II: each
 ## pole a changeover with the off position in the middle: the common below,
 ## the I side up to the left and the II side up to the right, each with its
-## stop; in 0 the blade stands straight up between them. The positions are written under the
+## stop; in 0 the blade stands straight up between them. Its switching table
+## (positions, a dot where a contact is closed) is written under the
 ## designation. Click it while simulating to turn it on to the next
 ## position (0 → I → 0 → II).
 
@@ -88,13 +89,15 @@ func _draw_shape(_color: Color, _width: float) -> void:
 func _draw_labels() -> void:
 	var cam: CamSwitch = component as CamSwitch
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
-	# Its positions as marked on the front, the one it is in (while
-	# simulating) shown by the blades.
-	draw_label(CamSwitch.POSITION_NAMES[cam.positions], _designation_anchor(), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+	# Its positions as marked on the front, a dot under those its contacts
+	# are closed in (the first pole's for the others); the one it is in
+	# (while simulating) shown by the blades.
+	var names: PackedStringArray = component.get_terminal_names()
 	if cam.positions == CamSwitch.Positions.OFF_ON:
+		draw_position_table(PackedStringArray(["0", "I"]), [["", [false, true]]], _designation_anchor(), 1)
 		_draw_pole_labels()
 		return
-	var names: PackedStringArray = component.get_terminal_names()
+	draw_position_table(PackedStringArray(["I", "0", "II"]), [[names[0] + "-" + names[2], [true, false, false]], [names[1] + "-" + names[2], [false, false, true]]], _designation_anchor(), 1)
 	for pole: int in cam.poles:
 		var x: float = SymbolGeometry.cam_terminal_cell(cam, pole * 3).x * G
 		draw_label(names[pole * 3], Vector2(x - 0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)

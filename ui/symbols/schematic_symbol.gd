@@ -6,6 +6,13 @@ extends Node2D
 ## mirror and rotation are applied here. Labels are always drawn upright.
 
 const G: float = float(SymbolGeometry.GRID)
+## Switching table of a multi-position switch (see [method
+## draw_position_table]): room beside each position and contact name, height
+## of a row (share of a line of text) and the dots, closed and open.
+const TABLE_GAP: float = 5.0
+const TABLE_ROW: float = 0.85
+const TABLE_DOT: float = 2.2
+const TABLE_OPEN_DOT: float = 0.8
 
 var component: CircuitComponent
 var placement: Placement
@@ -728,6 +735,57 @@ func draw_label(text: String, local_anchor: Vector2, font_size: int, color: Colo
 	if not marking.is_empty() and marking[0] == "terminal" and placement.strips.has(marking[1]):
 		pos += _clear_of_strip_mark(marking[1], Rect2(Vector2(pos.x, pos.y - ascent), size), ascent)
 	_write(text, pos, font_size, color, marking)
+
+
+## Writes the switching table of a multi-position switch on [param line]
+## beside [param local_anchor], placed as [method draw_label] places text:
+## its [param positions] in a row and under them a row for each of [param
+## rows] ([name, closed]: the contact's name, "" for none, and a bool a
+## position), a dot under each position the contact is closed in.
+func draw_position_table(positions: PackedStringArray, rows: Array, local_anchor: Vector2, line: int) -> void:
+	var font: Font = AppTheme.schematic_font()
+	var font_size: int = SchematicTheme.TERMINAL_SIZE
+	var ascent: float = font.get_ascent(font_size)
+	var head: float = font.get_height(font_size)
+	var row_height: float = head * TABLE_ROW
+	var column: float = 0.0
+	for p: String in positions:
+		column = maxf(column, font.get_string_size(p, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
+	column += TABLE_GAP
+	var names: float = 0.0
+	for row: Array in rows:
+		if not (row[0] as String).is_empty():
+			names = maxf(names, font.get_string_size(row[0], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + TABLE_GAP)
+	var size: Vector2 = Vector2(names + column * positions.size(), head + rows.size() * row_height)
+	var transform: Transform2D = SymbolGeometry.draw_transform(placement)
+	var anchor: Vector2 = transform * local_anchor
+	var away: Vector2 = anchor - transform * Vector2(0.0, local_anchor.y)
+	var line_height: float = font.get_height(SchematicTheme.LABEL_SIZE)
+	var top_left: Vector2
+	if absf(away.x) >= absf(away.y):
+		top_left = Vector2(anchor.x - size.x if away.x < 0.0 else anchor.x, anchor.y - ascent * 0.5 - 1.0 + line * line_height)
+	elif away.y < 0.0:
+		top_left = Vector2(anchor.x - size.x * 0.5, anchor.y - size.y - line * line_height)
+	else:
+		top_left = Vector2(anchor.x - size.x * 0.5, anchor.y + line * line_height)
+	# It moves with the designation.
+	if local_anchor == _designation_anchor_drawn:
+		top_left += placement.labels.get("designation", Vector2.ZERO) * G
+	var left: float = top_left.x + names
+	for i: int in positions.size():
+		var width: float = font.get_string_size(positions[i], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		draw_string(font, Vector2(left + column * (i + 0.5) - width * 0.5, top_left.y + ascent), positions[i], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, SchematicTheme.TEXT)
+	for r: int in rows.size():
+		var y: float = top_left.y + head + (r + 0.5) * row_height
+		var contact: String = rows[r][0]
+		if not contact.is_empty():
+			draw_string(font, Vector2(top_left.x, y + ascent * 0.5 - 1.0), contact, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, SchematicTheme.TERMINAL_TEXT)
+		var closed: Array = rows[r][1]
+		draw_set_transform_matrix(Transform2D().scaled(Vector2.ONE / _k))
+		for i: int in positions.size():
+			aa_circle(Vector2(left + column * (i + 0.5), y), TABLE_DOT if closed[i] else TABLE_OPEN_DOT, SchematicTheme.TEXT)
+		draw_set_transform_matrix(Transform2D.IDENTITY)
+	text_rects.append(Rect2(top_left, size))
 
 
 ## Upright text in the middle of the local [param box] (a display, a

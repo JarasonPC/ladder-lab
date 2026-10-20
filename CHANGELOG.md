@@ -14,6 +14,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   beside it along (Shift: that wire alone); "Wire parts placed in line (EPLAN style)" gives a
   part placed or dropped straight wires to the free terminals it faces. The wires to come
   are shown dashed first
+- Selector switch blocks (I-0-II) and rotary cam switches show a small switching table under
+  their designation: the positions I 0 II (or 0 I) with a dot under each position the
+  contact is closed in, instead of a text such as "I-0-II: I"
 
 ### Panels
 - Two wires that have to go into one strip terminal share a twin ferrule (one pin, the

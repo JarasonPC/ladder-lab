@@ -623,7 +623,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   snap action, starts at 0, its position simulation state; 0-I poles 1-2, 3-4 … closed in I,
   drawn as NO contacts; I-0-II poles I side 1, 3 … / II side 1', 3' … / common 2, 4 … below
   between them, SymbolGeometry.CAM_CHANGEOVER_SPACING apart, the blade straight up in 0; one
-  turn actuator on the left on a dashed link, the positions written under the designation; a
+  turn actuator on the left on a dashed link, its switching table under the designation
+  (SchematicSymbol.draw_position_table: the positions in a row, a dot under each one a contact
+  is closed in; I-0-II a row for the first pole's I and II contacts, "1-2" / "1'-2"); a
   click turns it on 0 → I → 0 → II (CamSwitch.step_on), a station turns it left or right
   (CamSwitch.turn, switch_toggled's steps); a station shows it as a square black front with
   the positions round a handle, bigger than a selector switch (ControlBoxView.CAM_HALF);
@@ -631,7 +633,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   is 0-I or I-0-II (three_positions; its blocks share a second actuator actuator_two for
   position II, each block operated in I or II, side; "positions", "operated_in" saved; a
   station draws I 0 II round it and turns it left or right like the cam switch; its blocks
-  write "I-0-II: II" under the designation), SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
+  draw the switching table I 0 II under the designation, a dot under the position that
+  operates them), SQ = limit switch (LimitSwitch, a LatchingSwitch clicked on/off,
   or operated by a mechanical link),
   H = lamp, M = motor, FU = fuse, FA = circuit breaker, F = overload relay, X = terminal, supplies L (= L1), L2, L3, N
   and PE (bonded to N at the source: N potential in the solver, so a phase on PE is a short;
