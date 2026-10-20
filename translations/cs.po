@@ -675,6 +675,12 @@ msgstr "Čísla vodičů"
 msgid "Grid while editing"
 msgstr "Mřížka při úpravách"
 
+msgid "Wire duct covers"
+msgstr "Kryty vkládacích kanálů"
+
+msgid "Draw the wire ducts in the switchboards with their covers on, hiding the wires in them (the export shows them open)"
+msgstr "Kreslit vkládací kanály v rozvaděčích s nasazenými kryty, které zakrývají vodiče v nich (export je ukazuje otevřené)"
+
 msgid "Wiring"
 msgstr "Zapojování"
 

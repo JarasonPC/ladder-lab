@@ -395,7 +395,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   drawn by CabinetView / CabinetLayout / CabinetParts in millimetres (CabinetPainter), real sizes, after
   photos of real devices but never with maker names or type designations; approved look: white plate,
   slotted TS35 rails, open slotted ducts, white labels, push-in terminals, orange glow on energized
-  coils, voltage colours on terminals while simulating. The look follows the circuit (CabinetDevices):
+  coils, voltage colours on terminals while simulating. View > Wire duct covers
+  (CabinetView.duct_covers, saved "duct_covers") draws a cover over every duct, over the
+  wires in it (CabinetParts.duct_cover, painted with the wires); the export always draws them
+  open (CabinetView.open_ducts). The look follows the circuit (CabinetDevices):
   breakers and fuse holders 1-4 poles, contactors 3 (also for 1-2) or 4 main poles plus a front
   auxiliary block (four contacts) beyond two auxiliary contacts and 9 mm auxiliary blocks of two
   contacts mounted on their sides beyond six (CabinetParts.side_blocks: the first on the right,

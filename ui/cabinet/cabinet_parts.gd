@@ -87,6 +87,9 @@ const DUCT_FINGER: float = 6.0
 const DUCT_SLOT: float = 4.0
 const DUCT_DEPTH: float = 8.0
 const DUCT_END: float = 1.5
+## How far a duct's cover reaches past its sides; its lips in from its edges.
+const DUCT_COVER_OVER: float = 0.6
+const DUCT_COVER_LIP: float = 1.6
 
 
 ## Number of slots between the fingers of a duct [param length] mm long.
@@ -121,6 +124,26 @@ static func duct(p: CabinetPainter, length: float, thickness: float, vertical: b
 	# Floor of the duct between the fingers.
 	var floor_r: Rect2 = Rect2(depth, 0, thickness - 2 * depth, length) if vertical else Rect2(0, depth, length, thickness - 2 * depth)
 	p.rect(floor_r.grow(-0.5), base.darkened(0.2))
+
+
+## Cover of a slotted wire duct (see [method duct]), snapped on over its
+## fingers: a little wider than the duct, with a lip along both edges.
+static func duct_cover(p: CabinetPainter, length: float, thickness: float, vertical: bool) -> void:
+	var base: Color = Color("9ea4a9")
+	var across: float = thickness + 2.0 * DUCT_COVER_OVER
+	var r: Rect2 = Rect2(-DUCT_COVER_OVER, 0, across, length) if vertical else Rect2(0, -DUCT_COVER_OVER, length, across)
+	p.rect(r.grow(0.5), Color(0, 0, 0, 0.18), 0.6)
+	if vertical:
+		p.hgradient(r, base.lightened(0.18), base.lightened(0.02), 0.5)
+	else:
+		p.gradient(r, base.lightened(0.18), base.lightened(0.02), 0.5)
+	p.rect(r, Color.TRANSPARENT, 0.5, base.darkened(0.35), 0.25)
+	for side: int in 2:
+		var at: float = DUCT_COVER_LIP if side == 0 else across - DUCT_COVER_LIP
+		if vertical:
+			p.line(Vector2(r.position.x + at, 0.8), Vector2(r.position.x + at, length - 0.8), base.darkened(0.15), 0.25)
+		else:
+			p.line(Vector2(0.8, r.position.y + at), Vector2(length - 0.8, r.position.y + at), base.darkened(0.15), 0.25)
 
 
 ## The enclosure's frame with the white mounting plate inside it.

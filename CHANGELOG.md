@@ -69,6 +69,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Two wires that have to go into one strip terminal share a twin ferrule (one pin, the
   collar round both wires) instead of a terminal twice as wide
 - Plug-in bridges on terminal strips are grey (blue on N) instead of red
+- View > Wire duct covers draws the switchboards' wire ducts with their covers on, for a
+  tidier look with the wiring in the ducts out of sight; the export still shows them open
 
 ### Files and export
 - PLC program files (.plcprog) keep the partners of the network inputs; schematics keep the
