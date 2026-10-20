@@ -1679,6 +1679,126 @@ msgstr "Průtok (m³/h)"
 msgid "Value at %s"
 msgstr "Hodnota u %s"
 
+msgid "Potentiometer"
+msgstr "Potenciometr"
+
+msgid "Add a potentiometer"
+msgstr "Přidat potenciometr"
+
+msgid "A setpoint for an analog input: 1 on 0 V, 3 on a 10 V reference (a frequency inverter's 10V, an analog output) and the wiper 2 on the input gives 0-10 V. Mounted on a control station or a switchboard's door; while simulating, turn it there with the mouse wheel or by dragging, or click it in the schematic."
+msgstr "Zadávání žádané hodnoty pro analogový vstup: 1 na 0 V, 3 na referenci 10 V (svorka 10V frekvenčního měniče, analogový výstup) a jezdec 2 na vstup dává 0-10 V. Montuje se do ovládací skříňky nebo do dveří rozvaděče; při simulaci se tam otáčí kolečkem myši nebo tažením, případně na něj klikněte ve schématu."
+
+msgid "Track, start"
+msgstr "Odporová dráha, začátek"
+
+msgid "The wiper is here turned fully anticlockwise."
+msgstr "Jezdec je zde při úplném vytočení doleva."
+
+msgid "Wiper"
+msgstr "Jezdec"
+
+#, c-format
+msgid "Its share of the voltage between %s and %s, as far as it is turned."
+msgstr "Díl napětí mezi %s a %s podle natočení."
+
+msgid "Track, end"
+msgstr "Odporová dráha, konec"
+
+msgid "The wiper is here turned fully clockwise."
+msgstr "Jezdec je zde při úplném vytočení doprava."
+
+msgid "Single-turn: a knob with a 0-10 scale over 270°."
+msgstr "Jednootáčkový: knoflík se stupnicí 0-10 na 270°."
+
+msgid "Multi-turn with a turns-counting dial: the window counts the turns, the ring reads hundredths of a turn."
+msgstr "Víceotáčkový s počítadlem otáček: okénko ukazuje otáčky, prstenec setiny otáčky."
+
+msgid "Wires pushed on its solder lugs with insulated fastons."
+msgstr "Vodiče nasunuté na pájecí očka izolovanými faston konektory."
+
+msgid "Resistance"
+msgstr "Odpor"
+
+msgid "linear"
+msgstr "lineární"
+
+msgid "Turns"
+msgstr "Otáčky"
+
+msgid "Travel"
+msgstr "Rozsah otáčení"
+
+msgid "Set per wheel notch"
+msgstr "Změna na jeden krok kolečka"
+
+msgid "Mounting"
+msgstr "Montáž"
+
+msgid "22 mm panel hole"
+msgstr "otvor 22 mm v panelu"
+
+msgid "Potentiometer 10 kΩ (1, 2, 5 or 10 turns)"
+msgstr "Potenciometr 10 kΩ (1, 2, 5 nebo 10 otáček)"
+
+msgid "1 turn (knob, 0-10 scale)"
+msgstr "1 otáčka (knoflík, stupnice 0-10)"
+
+#, c-format
+msgid "%d turns (counting dial)"
+msgstr "%d otáček (počítadlo otáček)"
+
+msgid "Set at the start (%)"
+msgstr "Nastavení na začátku (%)"
+
+#, c-format
+msgid "Setting of %s"
+msgstr "Nastavení %s"
+
+msgid "Inductive sensor"
+msgstr "Indukční snímač"
+
+msgid "Capacitive sensor"
+msgstr "Kapacitní snímač"
+
+msgid "Magnetic sensor"
+msgstr "Magnetický snímač"
+
+msgid "Light sensor"
+msgstr "Optický snímač"
+
+msgid "Pressure"
+msgstr "Tlak"
+
+msgid "Level"
+msgstr "Hladina"
+
+msgid "Flow"
+msgstr "Průtok"
+
+msgid "Temperature"
+msgstr "Teplota"
+
+#, c-format
+msgid "Potentiometer %s kΩ, %d turn"
+msgid_plural "Potentiometer %s kΩ, %d turns"
+msgstr[0] "Potenciometr %s kΩ, %d otáčka"
+msgstr[1] "Potenciometr %s kΩ, %d otáčky"
+msgstr[2] "Potenciometr %s kΩ, %d otáček"
+
+#, c-format
+msgid "%s kΩ, %d turn"
+msgid_plural "%s kΩ, %d turns"
+msgstr[0] "%s kΩ, %d otáčka"
+msgstr[1] "%s kΩ, %d otáčky"
+msgstr[2] "%s kΩ, %d otáček"
+
+#, c-format
+msgid "%d turn"
+msgid_plural "%d turns"
+msgstr[0] "%d otáčka"
+msgstr[1] "%d otáčky"
+msgstr[2] "%d otáček"
+
 #, c-format
 msgid "Volts on the analog input (0-10 V = 0-%d)"
 msgstr "Napětí na analogovém vstupu (0-10 V = 0-%d)"

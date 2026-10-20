@@ -2545,7 +2545,7 @@ func _unlisted_control_items() -> Array[ControlBoxItem]:
 		if c is PushButton:
 			var nc: bool = (c as PushButton).contact_type == SwitchingElement.ContactType.NC
 			breaks_only[c.designation] = breaks_only.get(c.designation, true) and nc
-	for kind: int in [ControlBoxItem.Kind.BUTTON, ControlBoxItem.Kind.SWITCH, ControlBoxItem.Kind.LAMP]:
+	for kind: int in [ControlBoxItem.Kind.BUTTON, ControlBoxItem.Kind.SWITCH, ControlBoxItem.Kind.LAMP, ControlBoxItem.Kind.POT]:
 		for designation: String in control_devices(kind):
 			if listed.has(designation):
 				continue

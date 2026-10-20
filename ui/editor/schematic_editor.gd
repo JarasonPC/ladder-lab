@@ -229,7 +229,7 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 	if template["type"] == "timer":
 		# One multifunction time relay, whatever its function and inputs.
 		return c is TimerRelay
-	if template["type"] == "proximity" or template["type"] == "transmitter":
+	if template["type"] == "proximity" or template["type"] == "transmitter" or template["type"] == "pot":
 		# One part, whatever it senses or measures.
 		return d["type"] == template["type"]
 	for key: String in template:
@@ -1432,6 +1432,8 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			return doc.next_designation(Transmitter.LETTERS[quantity])
 		"proximity":
 			return doc.next_designation("BG")
+		"pot":
+			return doc.next_designation("RP")
 		"vfd":
 			return doc.next_designation("TA")
 		"motor", "motor3":

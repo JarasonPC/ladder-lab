@@ -193,6 +193,9 @@ func _door_item(p: CabinetPainter, item: ControlBoxItem, cell: Rect2) -> void:
 				_door_switch(p, center, color, _turn(item.designation), light, _three_positions(item.designation))
 		ControlBoxItem.Kind.LAMP:
 			_door_lamp(p, center, color, _lit(item.designation))
+		ControlBoxItem.Kind.POT:
+			var pot: Potentiometer = _pot(item.designation)
+			PotFace.paint(p, center, RING, pot.turns if pot != null else 1, pot.setting if pot != null else 0.0, PRINT)
 	_holder(p, cell.position + Vector2(cell.size.x * 0.5, HOLDER_Y), item)
 	if not _assigned(item):
 		# Not connected to the schematic: faded.

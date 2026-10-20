@@ -381,6 +381,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif c is AnalogSensor:
 				_open_measured(c as AnalogSensor)
 				get_viewport().set_input_as_handled()
+			elif c is Potentiometer:
+				_open_pot(c as Potentiometer)
+				get_viewport().set_input_as_handled()
 			elif c is ProximitySensor:
 				var sensor: ProximitySensor = c as ProximitySensor
 				sensor.detecting = not sensor.detecting
@@ -448,12 +451,17 @@ func travel_positions() -> Dictionary[String, float]:
 ## Turns switch [param designation] over, as from a control box; a rotary
 ## cam switch or an I-0-II selector switch [param steps] positions to the
 ## right (negative: to the left), or on to its next position for 0 (see
-## [method CamSwitch.step_on]).
+## [method CamSwitch.step_on]); a potentiometer [param steps] notches
+## clockwise (negative: anticlockwise).
 func toggle_switch(designation: String, steps: int = 0) -> void:
 	var c: CircuitComponent = document.circuit.get_operator(designation) if document != null else null
 	if not simulating:
 		return
-	if c is LatchingSwitch:
+	if c == null and document.circuit.get_component(designation) is Potentiometer:
+		if steps == 0:
+			return
+		(document.circuit.get_component(designation) as Potentiometer).turn(steps)
+	elif c is LatchingSwitch:
 		if steps != 0 and (c as LatchingSwitch).three_positions:
 			(c as LatchingSwitch).turn(steps)
 		else:
@@ -476,6 +484,52 @@ func set_measured(designation: String, value: float) -> void:
 		return
 	sensor.set_measured(value)
 	_apply(simulator.step())
+
+
+## Sets potentiometer [param designation] to [param share] of its track
+## (while simulating).
+func set_pot(designation: String, share: float) -> void:
+	var pot: Potentiometer = document.circuit.get_component(designation) as Potentiometer if document != null else null
+	if not simulating or pot == null:
+		return
+	pot.setting = share
+	_apply(simulator.step())
+
+
+## A slider under the mouse setting potentiometer [param pot], in steps of
+## a wheel notch (finer the more turns it has).
+func _open_pot(pot: Potentiometer) -> void:
+	var popup: PopupPanel = PopupPanel.new()
+	popup.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	var box: VBoxContainer = VBoxContainer.new()
+	box.custom_minimum_size = Vector2(260, 0)
+	popup.add_child(box)
+	var caption: Label = Label.new()
+	caption.text = tr("Setting of %s") % pot.designation
+	box.add_child(caption)
+	var slider: HSlider = HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 100.0
+	slider.step = pot.step() * 100.0
+	slider.value = pot.setting * 100.0
+	box.add_child(slider)
+	var spin: SpinBox = SpinBox.new()
+	spin.min_value = 0.0
+	spin.max_value = 100.0
+	spin.step = pot.step() * 100.0
+	spin.suffix = "%"
+	spin.value = pot.setting * 100.0
+	box.add_child(spin)
+	var designation: String = pot.designation
+	slider.value_changed.connect(func(v: float) -> void:
+		spin.set_value_no_signal(v)
+		set_pot(designation, v / 100.0))
+	spin.value_changed.connect(func(v: float) -> void:
+		slider.set_value_no_signal(v)
+		set_pot(designation, v / 100.0))
+	popup.popup_hide.connect(popup.queue_free)
+	add_child(popup)
+	AppTheme.popup_at_mouse(popup, Vector2(12, 12))
 
 
 ## Puts something in front of proximity sensor [param designation] or takes

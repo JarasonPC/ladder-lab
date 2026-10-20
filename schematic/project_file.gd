@@ -71,7 +71,9 @@ const FORMAT: String = "ladder-lab"
 ## station's; missing before: an empty door).
 ## 34: proximity sensors ("proximity": sensing, output, function) and
 ## transmitters ("transmitter": quantity, range, value).
-const VERSION: int = 34
+## 35: potentiometers ("pot": turns, setting in %) and station or door
+## items of kind "pot".
+const VERSION: int = 35
 
 
 ## PLC program files (see [method save_plc_program]).

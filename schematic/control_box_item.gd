@@ -1,14 +1,14 @@
 class_name ControlBoxItem
 extends RefCounted
-## One place of a [ControlBox]: a push button, a switch or a signal lamp with
-## a label plate beside it. A button or switch can be illuminated: a signal
+## One place of a [ControlBox]: a push button, a switch, a signal lamp or a
+## potentiometer with a label plate beside it. A button or switch can be illuminated: a signal
 ## lamp of the circuit inside it lights its cap or grip. The item names a device of the circuit by its designation ("SB1",
 ## "H1"); "" or a designation the circuit no longer has leaves it unassigned.
 
-enum Kind { BUTTON, SWITCH, LAMP }
+enum Kind { BUTTON, SWITCH, LAMP, POT }
 
 ## Kind names as saved, in [enum Kind] order.
-const KINDS: PackedStringArray = ["button", "switch", "lamp"]
+const KINDS: PackedStringArray = ["button", "switch", "lamp", "pot"]
 ## Colours of button caps and lamp lenses (IEC 60073), as saved.
 const COLORS: PackedStringArray = ["green", "red", "black", "white", "yellow", "blue"]
 ## Colours a lamp lens can have (no black).
@@ -36,7 +36,7 @@ func _init(p_kind: Kind = Kind.BUTTON, p_designation: String = "", p_color: Stri
 
 ## Colour a new item of [param p_kind] gets.
 static func default_color(p_kind: Kind) -> String:
-	return "black" if p_kind == Kind.SWITCH else "green"
+	return "black" if p_kind == Kind.SWITCH or p_kind == Kind.POT else "green"
 
 
 ## Kind of item that shows component [param c] on a control box, or -1 when it
@@ -48,6 +48,8 @@ static func kind_of(c: CircuitComponent) -> int:
 		return Kind.SWITCH
 	if c is Lamp:
 		return Kind.LAMP
+	if c is Potentiometer:
+		return Kind.POT
 	return -1
 
 
@@ -55,7 +57,7 @@ func to_data() -> Dictionary:
 	var d: Dictionary = {"kind": KINDS[kind], "designation": designation, "color": color}
 	if not label.is_empty():
 		d["label"] = label
-	if kind != Kind.LAMP and not lamp.is_empty():
+	if (kind == Kind.BUTTON or kind == Kind.SWITCH) and not lamp.is_empty():
 		d["lamp"] = lamp
 	return d
 
@@ -72,7 +74,10 @@ static func from_data(data: Variant) -> ControlBoxItem:
 	if item.kind == Kind.LAMP and not LAMP_COLORS.has(item.color):
 		item.color = default_color(Kind.LAMP)
 	item.label = str(d.get("label", "")).strip_edges()
-	if item.kind != Kind.LAMP:
+	if item.kind == Kind.POT:
+		# A black knob or dial, never lit.
+		item.color = default_color(Kind.POT)
+	elif item.kind != Kind.LAMP:
 		item.lamp = _designation(d.get("lamp", ""))
 		if not item.lamp.is_empty() and not LAMP_COLORS.has(item.color):
 			# A lit cap is translucent: a black one becomes white.

@@ -18,7 +18,7 @@ const LETTERS: Dictionary[String, String] = {
 	"changeover": "KA", "coil": "KM", "timer": "KT", "lamp": "H", "motor": "M", "motor3": "M",
 	"fuse": "FU", "breaker": "FA", "overload_relay": "F", "overload_contact": "F",
 	"main_contacts": "KM", "terminal": "X", "rectifier": "TB", "connector": "PC", "plc": "A",
-	"temp_sensor": "BT", "vfd": "TA", "transmitter": "BP", "proximity": "BG",
+	"temp_sensor": "BT", "vfd": "TA", "transmitter": "BP", "proximity": "BG", "pot": "RP",
 }
 
 ## The part, as in the schematic (or made from a palette template).
@@ -130,6 +130,8 @@ func _build() -> void:
 		_transmitter(component as Transmitter)
 	elif component is ProximitySensor:
 		_proximity(component as ProximitySensor)
+	elif component is Potentiometer:
+		_potentiometer(component as Potentiometer)
 	elif component is Lamp:
 		_lamp(component as Lamp)
 	elif component is Motor:
@@ -867,6 +869,25 @@ func _transmitter(transmitter: Transmitter) -> void:
 	_data(tr("Measuring range"), range_text)
 	_data(tr("Output"), tr("0-10 V, held within it"))
 	_data(tr("Current drawn"), "%s mA" % _num(AnalogSensor.DRAW * 1000.0))
+
+
+func _potentiometer(pot: Potentiometer) -> void:
+	var names: PackedStringArray = _names()
+	summary = tr_n("Potentiometer %s kΩ, %d turn", "Potentiometer %s kΩ, %d turns", pot.turns) % [_num(Potentiometer.RESISTANCE / 1000.0), pot.turns]
+	description.append(tr("A setpoint for an analog input: 1 on 0 V, 3 on a 10 V reference (a frequency inverter's 10V, an analog output) and the wiper 2 on the input gives 0-10 V. Mounted on a control station or a switchboard's door; while simulating, turn it there with the mouse wheel or by dragging, or click it in the schematic."))
+	_row(names[0], tr("Track, start"), tr("The wiper is here turned fully anticlockwise."))
+	_row(names[1], tr("Wiper"), tr("Its share of the voltage between %s and %s, as far as it is turned.") % [names[0], names[2]])
+	_row(names[2], tr("Track, end"), tr("The wiper is here turned fully clockwise."))
+	if pot.turns == 1:
+		features.append(tr("Single-turn: a knob with a 0-10 scale over 270°."))
+	else:
+		features.append(tr("Multi-turn with a turns-counting dial: the window counts the turns, the ring reads hundredths of a turn."))
+	features.append(tr("Wires pushed on its solder lugs with insulated fastons."))
+	_data(tr("Resistance"), "%s kΩ, %s" % [_num(Potentiometer.RESISTANCE / 1000.0), tr("linear")])
+	_data(tr("Turns"), str(pot.turns))
+	_data(tr("Travel"), "%s°" % _num(pot.travel_degrees()))
+	_data(tr("Set per wheel notch"), "%s %%" % _num(snappedf(pot.step() * 100.0, 0.001)))
+	_data(tr("Mounting"), tr("22 mm panel hole"))
 
 
 func _proximity(sensor: ProximitySensor) -> void:

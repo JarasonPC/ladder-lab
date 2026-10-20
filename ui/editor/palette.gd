@@ -50,6 +50,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "Compact PLC (CPU 24 V DC, transistor outputs)", "template": {"type": "plc", "family": "compact", "cpu": "8di6dq"}},
 	{"title": "Temperature sensor (0-10 V)", "template": {"type": "temp_sensor"}},
 	{"title": "Transmitter: pressure, level, flow (0-10 V)", "template": {"type": "transmitter", "quantity": "pressure"}},
+	{"title": "Potentiometer 10 kΩ (1, 2, 5 or 10 turns)", "template": {"type": "pot", "turns": 1}},
 	{"title": "Proximity sensor (PNP / NPN)", "template": {"type": "proximity", "sensing": "inductive", "output": "pnp", "function": "no"}},
 ]
 
@@ -93,7 +94,7 @@ static func group_of(template: Dictionary) -> String:
 			return "loads"
 		"fuse", "breaker", "overload_relay", "overload_contact":
 			return "protection"
-		"plc", "temp_sensor", "transmitter", "proximity":
+		"plc", "temp_sensor", "transmitter", "proximity", "pot":
 			return "plc"
 	return "power"
 

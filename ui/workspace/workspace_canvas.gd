@@ -442,7 +442,7 @@ func items() -> Array[Dictionary]:
 		result.append({"key": "+" + box.name, "kind": "station", "index": s, "name": box.name, "rect": Rect2(_moved("+" + box.name, box.position), box_size), "tile": WorkspaceTile.Kind.STATION})
 	for designation: String in positions:
 		var c: CircuitComponent = Workspace.field_component(document.circuit, designation)
-		result.append({"key": "-" + designation, "kind": "field", "index": -1, "name": designation, "rect": Rect2(positions[designation], Workspace.FIELD_SIZE), "tile": WorkspaceTile.of_field(Workspace.field_kind(c))})
+		result.append({"key": "-" + designation, "kind": "field", "index": -1, "name": designation, "rect": Rect2(positions[designation], Workspace.FIELD_SIZE), "tile": WorkspaceTile.of_part(c)})
 	return result
 
 
@@ -976,4 +976,20 @@ static func field_title(tile: WorkspaceTile.Kind) -> String:
 			return "Limit switch"
 		WorkspaceTile.Kind.SENSOR:
 			return "Sensor"
+		WorkspaceTile.Kind.INDUCTIVE:
+			return "Inductive sensor"
+		WorkspaceTile.Kind.CAPACITIVE:
+			return "Capacitive sensor"
+		WorkspaceTile.Kind.MAGNETIC:
+			return "Magnetic sensor"
+		WorkspaceTile.Kind.LIGHT:
+			return "Light sensor"
+		WorkspaceTile.Kind.PRESSURE:
+			return "Pressure"
+		WorkspaceTile.Kind.LEVEL:
+			return "Level"
+		WorkspaceTile.Kind.FLOW:
+			return "Flow"
+		WorkspaceTile.Kind.TEMPERATURE:
+			return "Temperature"
 	return "Motor"

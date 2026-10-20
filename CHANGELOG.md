@@ -23,6 +23,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   4 BK (output), 2 WH (second output); each with its datasheet
 - Pressure, level and flow transmitters with a 0-10 V output, wired 1 BN, 3 BU, 2 WH as on
   their M12 plug, with their measuring range set in the properties
+- A 10 kΩ potentiometer (-RP1, terminals 1-2-3) for analog inputs, with 1, 2, 5 or 10 turns
 
 ### Simulation
 - A proximity sensor switches its output while it has 10-30 V DC: click it to put something
@@ -32,8 +33,16 @@ What changed in each LadderLab version. Version numbers follow the rules in
   limit switch, e.g. as the end position sensors of a gate
 - Click a transmitter to set its pressure, level or flow; it puts 0-10 V on a PLC's analog
   input over its range
+- A potentiometer's wiper gives its share of the voltage between 1 and 3 (e.g. 0-10 V from a
+  frequency inverter's 10V) to an analog input; click it in the schematic to set it
 
 ### Panels
+- Potentiometers on control stations and switchboard doors: a knob over a 0-10 scale for
+  one turn, a turns-counting dial for 2, 5 and 10 turns; turned with the mouse wheel or by
+  dragging up and down (Shift: ten notches at a time), finer the more turns it has. Inside,
+  its round body with solder lugs, the wires pushed on with insulated fastons and numbered
+- Sensors on the workspace show what they are: a sensor barrel, a light sensor, a gauge, a
+  tank, a pipe or a thermometer, named under the tile
 - Two wires that have to go into one strip terminal share a twin ferrule (one pin, the
   collar round both wires) instead of a terminal twice as wide
 - Plug-in bridges on terminal strips are grey (blue on N) instead of red

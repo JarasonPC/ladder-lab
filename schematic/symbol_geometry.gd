@@ -28,6 +28,9 @@ const PLC_ANALOG_OUTPUT_PITCH: int = 4
 ## Analog sensors: the output beside the supply's + (U, 2); a proximity
 ## sensor's output 4 there too, its second output 2 a step further.
 const SENSOR_OUTPUT_CELL := Vector2i(2, 0)
+## Potentiometer: from 1 down to 3, the wiper 2 to the right of the middle.
+const POT_SPAN: int = 4
+const POT_WIPER_CELL := Vector2i(2, 2)
 ## Frequency inverter: height (as a PLC's), where its control terminals
 ## start, its width from the left edge of its box.
 const VFD_HEIGHT: int = 6
@@ -67,6 +70,11 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		var cells: Array[Vector2i] = plc_terminal_cells(c as Plc)
 		for i: int in names.size():
 			result[names[i]] = cells[i]
+		return result
+	if c is Potentiometer:
+		result[names[0]] = Vector2i.ZERO
+		result[names[1]] = POT_WIPER_CELL
+		result[names[2]] = Vector2i(0, POT_SPAN)
 		return result
 	if c is AnalogSensor or c is ProximitySensor:
 		result[names[0]] = Vector2i.ZERO
@@ -126,6 +134,9 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if c is AnalogSensor or c is ProximitySensor:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
+	if c is Potentiometer:
+		var at: int = names.find(terminal_name)
+		return DIR_DOWN if at == 0 else (DIR_LEFT if at == 1 else DIR_UP)
 	if c is Vfd:
 		return DIR_UP if names.find(terminal_name) >= Vfd.FIRST_BOTTOM else DIR_DOWN
 	if names.size() == 3:
@@ -197,6 +208,8 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-1.1, 0.9, plc_width(c as Plc) + 0.2, PLC_HEIGHT - 1.8)
 	if c is AnalogSensor:
 		return Rect2(-0.95, 0.75, 3.9, 1.5)
+	if c is Potentiometer:
+		return Rect2(-0.55, 1.0, 2.0, 2.0)
 	if c is ProximitySensor:
 		return Rect2(-0.95, 0.75, 1.9 + SENSOR_OUTPUT_CELL.x * (c.get_terminal_names().size() - 2), 1.5)
 	if c is Vfd:
