@@ -5284,3 +5284,26 @@ msgstr "Obvod pro nové prvky"
 
 msgid "No circuit"
 msgstr "Bez obvodu"
+
+msgid "Put a door in a wall by clicking it; a selected door: F swaps its hinge, Shift+F opens it to the other side, a double click turns it round"
+msgstr "Kliknutím na zeď vložíte dveře; vybrané dveře: F přehodí závěsy, Shift+F je otevře na druhou stranu, dvojklik je otočí"
+
+msgid "Width"
+msgstr "Šířka"
+
+msgid "Height"
+msgstr "Výška"
+
+msgid "Wall length"
+msgstr "Délka zdi"
+
+#, c-format
+msgid "Width of %s"
+msgstr "Šířka – %s"
+
+#, c-format
+msgid "Height of %s"
+msgstr "Výška – %s"
+
+msgid "Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
+msgstr "Dvojklikem místnost upravíte, dvojklikem na kótu vybrané místnosti zadáte délku (nebo vyberte zeď a stiskněte Enter); Delete odebere výběr; pravé tlačítko ukončí kreslení. Tažením pravým nebo prostředním tlačítkem posunete, kolečkem zvětšíte."

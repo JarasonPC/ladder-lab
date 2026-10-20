@@ -37,6 +37,9 @@ signal placed
 signal unit_requested
 ## [member selected] changed.
 signal selection_changed
+## The length of wall [param side] of room [param index] should be typed
+## (its other end, the right or bottom wall, moves).
+signal length_requested(index: int, side: int)
 
 enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE }
 
@@ -62,6 +65,8 @@ const ROOM_COLUMNS: PackedFloat32Array = [0.9, 2.6, 3.3, 1.8]
 const ROOM_ROW: float = 0.45
 ## A link within this (pixels) of the mouse is under it.
 const LINK_GRAB: float = 6.0
+## Dimension lines of the selected room: this far outside its walls (m).
+const DIMENSION_GAP: float = 0.35
 
 var document: SchematicDocument
 var editing: bool = false
@@ -181,6 +186,31 @@ func part_at(point: Vector2) -> String:
 	return found
 
 
+## The dimension of the selected room under screen point [param point]:
+## Vector2i(room, 1 for its width along the top, 0 for its height along the
+## left), (-1, -1) for none.
+func dimension_at(point: Vector2) -> Vector2i:
+	var index: int = _dimensioned_room()
+	if index < 0:
+		return Vector2i(-1, -1)
+	var rect: Rect2 = _shown_room(index)
+	var m: Vector2 = to_plan(point)
+	var grab: float = 0.18
+	if absf(m.y - (rect.position.y - DIMENSION_GAP)) < grab and m.x > rect.position.x and m.x < rect.end.x:
+		return Vector2i(index, 1)
+	if absf(m.x - (rect.position.x - DIMENSION_GAP)) < grab and m.y > rect.position.y and m.y < rect.end.y:
+		return Vector2i(index, 0)
+	return Vector2i(-1, -1)
+
+
+## The room whose dimensions are shown: the one selected or whose wall is, -1.
+func _dimensioned_room() -> int:
+	if not editing or not (selected.get("kind", "") in ["room", "edge"]):
+		return -1
+	var index: int = selected.get("index", -1)
+	return index if index >= 0 and index < plan().rooms.size() else -1
+
+
 ## The link of the lighting under screen point [param point], -1 for none.
 func link_at(point: Vector2) -> int:
 	if not installation():
@@ -255,6 +285,24 @@ func _gui_input(event: InputEvent) -> void:
 		delete_selected()
 		accept_event()
 		return
+	if key != null and key.pressed and editing and key.keycode == KEY_F and selected.get("kind", "") == "door" and not key.ctrl_pressed:
+		# F swaps the hinge, Shift+F opens the door to the other side.
+		var index: int = selected["index"]
+		var other_side: bool = key.shift_pressed
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			var door: FloorPlan.Door = doc.floor_plan.doors[index]
+			if other_side:
+				door.opens_back = not door.opens_back
+			else:
+				door.hinge_end = not door.hinge_end)
+		accept_event()
+		return
+	if key != null and key.pressed and editing and (key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER) and _dimensioned_room() >= 0:
+		# Enter types the length of the wall selected (of the room: its width).
+		var side: int = selected.get("side", 1) if selected.get("kind", "") == "edge" else 1
+		length_requested.emit(_dimensioned_room(), side)
+		accept_event()
+		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
 	if mb != null:
 		_on_button(mb)
@@ -303,13 +351,28 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					_operate(mb.position)
 				return
 			if mb.pressed and mb.double_click and tool == Tool.SELECT:
+				var dimension: Vector2i = dimension_at(mb.position)
+				if dimension.x >= 0:
+					length_requested.emit(dimension.x, dimension.y)
+					_press = {}
+					return
 				if part_at(mb.position) == FloorPlan.UNIT:
 					unit_requested.emit()
+					_press = {}
+					return
+				var door: int = door_at(mb.position)
+				if door >= 0:
+					# A double click turns the door's swing round its four ways.
+					edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors[door].turn())
 					_press = {}
 					return
 				var room: int = plan().room_at(to_plan(mb.position))
 				if room >= 0 and part_at(mb.position).is_empty():
 					rename_requested.emit(room)
+				_press = {}
+				return
+			if mb.pressed and tool == Tool.SELECT and dimension_at(mb.position).x >= 0:
+				# A click on a dimension keeps the room selected (a double click types it).
 				_press = {}
 				return
 			if mb.pressed:
@@ -436,8 +499,10 @@ func _release(press: Dictionary, point: Vector2) -> void:
 		"edge":
 			if _dragging:
 				var index: int = press["index"]
-				var rect: Rect2 = _resized(index, press["side"])
-				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.rooms[index].rect = rect)
+				var side: int = press["side"]
+				var at: float = FloorPlan.edge(_resized(index, side), side)
+				# The rooms sharing the wall keep sharing it.
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_wall(index, side, at))
 
 
 ## A click while simulating: a switch's rocker is switched.
@@ -613,6 +678,8 @@ func _draw() -> void:
 		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.HOVER, 1.6, 5.0)
 	if installation() and not plan().rooms.is_empty():
 		_draw_room_legend(s, font)
+	if _dimensioned_room() >= 0:
+		_draw_dimensions(_dimensioned_room(), s, font)
 	if legend:
 		_draw_legend(s, font)
 	if plan().rooms.is_empty() and editing:
@@ -706,16 +773,52 @@ func _draw_door(door: FloorPlan.Door, s: float, wall: float, chosen: bool) -> vo
 	var along: Vector2 = Vector2.DOWN if door.vertical else Vector2.RIGHT
 	var a: Vector2 = to_screen(door.at - along * door.width * 0.5)
 	var b: Vector2 = to_screen(door.at + along * door.width * 0.5)
-	# The opening in the wall, the leaf and its swing.
+	# The opening in the wall, the leaf from its hinge and its swing.
 	draw_line(a, b, SchematicTheme.BACKGROUND, wall + 2.0)
 	var color: Color = SchematicTheme.HOVER if chosen else Color(SchematicTheme.LINE, 0.7)
-	var across: Vector2 = along.rotated(PI / 2.0)
-	var leaf: Vector2 = a + across * door.width * s
-	draw_line(a, leaf, color, 1.5, true)
-	var start: float = (b - a).angle()
-	draw_arc(a, door.width * s, start, start + PI / 2.0, 16, color, 1.0, true)
+	var hinge: Vector2 = b if door.hinge_end else a
+	var latch: Vector2 = a if door.hinge_end else b
+	var across: Vector2 = Vector2.LEFT if door.vertical else Vector2.DOWN
+	if door.opens_back:
+		across = -across
+	var leaf: Vector2 = hinge + across * door.width * s
+	draw_line(hinge, leaf, color, 1.5, true)
+	var start: float = (latch - hinge).angle()
+	draw_arc(hinge, door.width * s, start, start + angle_difference(start, across.angle()), 16, color, 1.0, true)
 	draw_line(a - along * 2.0, a + along * 2.0, SchematicTheme.LINE, wall)
 	draw_line(b - along * 2.0, b + along * 2.0, SchematicTheme.LINE, wall)
+
+
+## Dimension lines of room [param index] as a CAD program draws them: its
+## width over its top wall, its height left of its left wall, ticks at the
+## ends, the length in metres (the selected wall's in the hover colour).
+func _draw_dimensions(index: int, s: float, font: Font) -> void:
+	var rect: Rect2 = _shown_room(index)
+	var wall: int = selected.get("side", -1) if selected.get("kind", "") == "edge" else -1
+	for which: int in 2:
+		# 1: the width (top and bottom walls), 0: the height (left and right).
+		var a: Vector2 = Vector2(rect.position.x, rect.position.y - DIMENSION_GAP) if which == 1 else Vector2(rect.position.x - DIMENSION_GAP, rect.position.y)
+		var b: Vector2 = Vector2(rect.end.x, a.y) if which == 1 else Vector2(a.x, rect.end.y)
+		var color: Color = SchematicTheme.HOVER if wall >= 0 and wall % 2 == which else SchematicTheme.TEXT
+		var sa: Vector2 = to_screen(a)
+		var sb: Vector2 = to_screen(b)
+		draw_line(sa, sb, color, 1.0, true)
+		var across: Vector2 = (sb - sa).normalized().rotated(PI / 2.0)
+		for end: Vector2 in [sa, sb]:
+			# Extension lines to the wall and a slanted tick.
+			draw_line(end - across * 4.0, end + across * DIMENSION_GAP * s, color, 1.0, true)
+			var tick: Vector2 = (sb - sa).normalized().rotated(PI / 4.0) * 5.0
+			draw_line(end - tick, end + tick, color, 1.6, true)
+		var length: float = rect.size.x if which == 1 else rect.size.y
+		var text: String = SingleLineCanvas._decimal(String.num(length, 2).pad_decimals(2)) + " m"
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+		var mid: Vector2 = (sa + sb) * 0.5
+		if which == 1:
+			draw_string(font, mid + Vector2(-width * 0.5, -4.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+		else:
+			draw_set_transform(mid + Vector2(-4.0, width * 0.5), -PI / 2.0)
+			draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+			draw_set_transform(Vector2.ZERO)
 
 
 ## The lighting of a residential installation: each link along the walls,

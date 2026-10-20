@@ -5269,3 +5269,26 @@ msgstr ""
 
 msgid "No circuit"
 msgstr ""
+
+msgid "Put a door in a wall by clicking it; a selected door: F swaps its hinge, Shift+F opens it to the other side, a double click turns it round"
+msgstr ""
+
+msgid "Width"
+msgstr ""
+
+msgid "Height"
+msgstr ""
+
+msgid "Wall length"
+msgstr ""
+
+#, c-format
+msgid "Width of %s"
+msgstr ""
+
+#, c-format
+msgid "Height of %s"
+msgstr ""
+
+msgid "Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
+msgstr ""

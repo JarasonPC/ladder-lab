@@ -99,7 +99,9 @@ const FORMAT: String = "ladder-lab"
 ## 42: the lighting drawn on the floor plan of a residential installation
 ## ("links": [part, port, part, port]) and its rooms' "number",
 ## "environment" and "lux" (missing: the usual ones).
-const VERSION: int = 42
+## 43: how a door of the floor plan swings ("hinge_end", "opens_back";
+## missing: hinge at the start, opening right or down).
+const VERSION: int = 43
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

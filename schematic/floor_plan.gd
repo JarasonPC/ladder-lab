@@ -87,12 +87,23 @@ class Link:
 		return a_port if designation == a else b_port
 
 
-## A door in a wall: its middle on the wall, its width, and whether the wall
-## runs up and down.
+## A door in a wall: its middle on the wall, its width, whether the wall
+## runs up and down, and how it swings: its hinge at the start of its
+## opening (left or top) or at the end ([member hinge_end]), its leaf opening
+## down from a wall running across or left of one running up and down, or
+## to the other side ([member opens_back]).
 class Door:
 	var at: Vector2 = Vector2.ZERO
 	var width: float = DOOR_WIDTH
 	var vertical: bool = false
+	var hinge_end: bool = false
+	var opens_back: bool = false
+
+	## The next way it can swing: the four, a double click going round them.
+	func turn() -> void:
+		if hinge_end:
+			opens_back = not opens_back
+		hinge_end = not hinge_end
 
 	func _init(p_at: Vector2 = Vector2.ZERO, p_vertical: bool = false, p_width: float = DOOR_WIDTH) -> void:
 		at = p_at
@@ -244,6 +255,62 @@ func move_room(index: int, to: Vector2) -> void:
 		if area.has_point(door.at):
 			door.at += by
 	rooms[index].rect = Rect2(to, rect.size)
+
+
+## Coordinate of side [param side] (0 left, 1 top, 2 right, 3 bottom) of [param r].
+static func edge(r: Rect2, side: int) -> float:
+	return [r.position.x, r.position.y, r.end.x, r.end.y][side]
+
+
+## Moves wall [param side] (0 left, 1 top, 2 right, 3 bottom) of room
+## [param index] to [param at] (its x or y, m, snapped), never leaving a room
+## smaller than [constant MIN_ROOM]: a room on the other side of the same
+## wall moves its wall along (they keep sharing it), and the parts and doors
+## on the wall move with it.
+func set_wall(index: int, side: int, at: float) -> void:
+	var r: Rect2 = rooms[index].rect
+	var vertical: bool = side % 2 == 0
+	var old: float = edge(r, side)
+	var opposite: int = (side + 2) % 4
+	var span: Vector2 = Vector2(r.position.y, r.end.y) if vertical else Vector2(r.position.x, r.end.x)
+	var moving: Array[Vector2i] = [Vector2i(index, side)]
+	for i: int in rooms.size():
+		if i == index:
+			continue
+		var o: Rect2 = rooms[i].rect
+		var o_span: Vector2 = Vector2(o.position.y, o.end.y) if vertical else Vector2(o.position.x, o.end.x)
+		if absf(edge(o, opposite) - old) < 0.001 and minf(span.y, o_span.y) - maxf(span.x, o_span.x) > 0.001:
+			moving.append(Vector2i(i, opposite))
+	at = snappedf(at, SNAP)
+	for m: Vector2i in moving:
+		var o: Rect2 = rooms[m.x].rect
+		# The wall stays at least MIN_ROOM from the room's other wall across.
+		var far: float = edge(o, (m.y + 2) % 4)
+		at = minf(at, far - MIN_ROOM) if m.y < 2 else maxf(at, far + MIN_ROOM)
+	var by: float = at - old
+	if is_zero_approx(by):
+		return
+	for designation: String in parts.keys():
+		var p: Vector2 = parts[designation]
+		var along: float = p.y if vertical else p.x
+		if absf((p.x if vertical else p.y) - old) < 0.01 and along >= span.x - 0.01 and along <= span.y + 0.01:
+			parts[designation] = p + (Vector2(by, 0) if vertical else Vector2(0, by))
+	for door: Door in doors:
+		var along_door: float = door.at.y if vertical else door.at.x
+		if absf((door.at.x if vertical else door.at.y) - old) < 0.01 and along_door >= span.x and along_door <= span.y:
+			door.at += Vector2(by, 0) if vertical else Vector2(0, by)
+	for m: Vector2i in moving:
+		var o: Rect2 = rooms[m.x].rect
+		var edges: Array[float] = [o.position.x, o.position.y, o.end.x, o.end.y]
+		edges[m.y] = at
+		rooms[m.x].rect = Rect2(Vector2(edges[0], edges[1]), Vector2(edges[2] - edges[0], edges[3] - edges[1]))
+
+
+## Gives room [param index] the inside [param size] (m): its right and
+## bottom walls move (see [method set_wall]).
+func resize_room(index: int, size: Vector2) -> void:
+	set_wall(index, 2, rooms[index].rect.position.x + maxf(size.x, MIN_ROOM))
+	set_wall(index, 3, rooms[index].rect.position.y + maxf(size.y, MIN_ROOM))
 
 
 ## Index of the room holding [param point], the last one drawn first; -1.
@@ -418,7 +485,12 @@ func to_data() -> Dictionary:
 		room_list.append(rd)
 	var door_list: Array = []
 	for door: Door in doors:
-		door_list.append({"at": [door.at.x, door.at.y], "width": door.width, "vertical": door.vertical})
+		var dd: Dictionary = {"at": [door.at.x, door.at.y], "width": door.width, "vertical": door.vertical}
+		if door.hinge_end:
+			dd["hinge_end"] = true
+		if door.opens_back:
+			dd["opens_back"] = true
+		door_list.append(dd)
 	var placed: Dictionary = {}
 	for designation: String in parts:
 		var entry: Array = [parts[designation].x, parts[designation].y]
@@ -456,7 +528,10 @@ static func from_data(raw: Variant) -> FloorPlan:
 		for dd: Variant in door_list:
 			if dd is Dictionary and _numbers(dd.get("at", []), 2):
 				var width: Variant = dd.get("width", DOOR_WIDTH)
-				plan.doors.append(Door.new(Vector2(float(dd["at"][0]), float(dd["at"][1])), dd.get("vertical", false) == true, clampf(float(width), 0.5, 3.0) if (width is float or width is int) else DOOR_WIDTH))
+				var door: Door = Door.new(Vector2(float(dd["at"][0]), float(dd["at"][1])), dd.get("vertical", false) == true, clampf(float(width), 0.5, 3.0) if (width is float or width is int) else DOOR_WIDTH)
+				door.hinge_end = dd.get("hinge_end", false) == true
+				door.opens_back = dd.get("opens_back", false) == true
+				plan.doors.append(door)
 	var placed: Variant = d.get("parts", {})
 	if placed is Dictionary:
 		for designation: Variant in placed:
