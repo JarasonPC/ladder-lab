@@ -224,7 +224,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   _edit_workspace / _edit_cabinet).
   WorkspaceCanvas draws on schematic paper (SchematicTheme, follows White schematic paper)
   solid tiles (WorkspaceTile: switchboard teal, station blue, field grey, white signs; also the
-  tree's icons): the place's tile with "+RA1", its title and what it holds, a part's tile with
+  tree's icons): the place's tile with "+RA1" under it (Workspace.place_tile: at the top in the middle of
+  Workspace.PLACE_SIZE; its title, what it holds and the keys bound to its buttons and switches
+  in the tooltip, WorkspaceCanvas.place_tooltip), a part's tile with
   "-M1"; a station can be shown as its face instead (place menu in Edit mode, ControlBox.face_scale,
   saved as "face", SchematicDocument.set_station_face, undoable): a ControlBoxView over the canvas at
   its place and scale (WorkspaceCanvas._place_faces; Workspace.place_size gives its size to cables,
@@ -286,17 +288,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   cables the first free number and drops the names of cables that are gone; renaming a place
   or a part keeps its cables' names; rename_cable). WorkspaceCanvas draws them under the tiles
   as tracks: the sides of both ends are chosen by trying every pair from the sides' middles
-  (fewest places in the way, then shortest, then fewest bends; a right side starts past the
-  place's texts, a bottom side under a part's name), each cable leaves from a point of its own
+  (fewest places in the way, then shortest, then fewest bends; a bottom side starts under the
+  name of the place or part), each cable leaves from a point of its own
   in line with its other end's port (two rounds), a lane apart from the others on that side
   (closer on a short side),
   runs out STUB, then at right angles (Z or L) with CORNER-rounded bends, the middle run moved
   by its lane as far as the route allows; a dot at both ports; power cables (with a power core)
   thicker and darker; the
-  name and type on a tag on the longest straight run, moved along it or onto another run to keep
-  clear of other tags (two lines, or the name alone, when it
-  does not fit; the tooltip has it all) (place texts sit on paper over
-  lines passing behind); a click on a cable (tag or line) or on it in the tree ("Cables")
+  name and type written beside the wire, never on it and without a box (above a level run, else
+  below; along the right of an upright run reading upwards, else the left; TAG_GAP from the
+  wire), on the longest straight run, the name alone when both do not fit (the tooltip has it
+  all), moved along it or onto another run to keep clear of places, parts, other names and,
+  where it can, the cables; a click on a cable (name or line) or on it in the tree ("Cables")
   opens CablePanel in place of the canvas: a row per core, wire number, both ends
 - Mechanical links (Travel in sim/, no nodes): a group's member motor (WorkspaceGroup.drive)
   moves its part, e.g. a gate, from 0 to 1 in travel_time at full speed (the rated speed of its
@@ -326,7 +329,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   on a press; also from PlaceWindows. Keycap draws a key; SchematicSymbol.key (SchematicView
   sets it when show_keys, off for exports; drawn beside the designation on the side away from
   the symbol, after it when the designation is above or below), ControlBoxView (under the
-  label plate) and the station's tile draw them, lit while a button is held. KeyStrip above the timing panel (Simulate, when there are keys)
+  label plate) draw them, lit while a button is held (a station's tile lists them in its tooltip). KeyStrip above the timing panel (Simulate, when there are keys)
   lists every key, what it operates and where, rolled in or out (user settings "keys_rolled")
 - Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,

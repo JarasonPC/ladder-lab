@@ -1,10 +1,11 @@
 class_name WorkspaceCanvas
 extends Control
 ## The workspace on schematic paper: switchboards and control stations as
-## solid tiles with their names, parts in the field (motors, limit switches,
+## solid tiles with their names under them (title and contents in the
+## tooltip), parts in the field (motors, limit switches,
 ## temperature sensors) as smaller tiles, groups as frames round their
 ## members, the cables between them (see [WorkspaceCables]) as tracks with
-## their name, power cables thicker. A click on a switchboard or
+## their name beside them, power cables thicker. A click on a switchboard or
 ## station opens it, a click on a cable lists its cores; in Edit mode
 ## everything is dragged around (a part dropped into a group's frame joins
 ## the group, dropped outside leaves it). The wheel zooms at the mouse, a
@@ -44,6 +45,8 @@ const CABLE_CLEARANCE: float = 8.0
 const STUB: float = 14.0
 const LANE: float = 8.0
 const CORNER: float = 10.0
+## Room between a cable and its name.
+const TAG_GAP: float = 4.0
 ## Turns a second of the marks on a motor's tile at the motor's rated speed
 ## (the real speed would only flicker).
 const SPIN_RATE: float = 1.5
@@ -114,11 +117,12 @@ func cables() -> Array[Dictionary]:
 
 
 ## Where each cable is drawn: {"cable" (see [method WorkspaceCables.cables]),
-## "points" (polyline, workspace units), "tag" (Rect2 of its name tag),
-## "text", "power" (it carries power cores), "ports" (where it leaves its two
-## ends)}. Cables run as tracks: out of the side of each end facing the
-## other, each from a point of its own along that side, at right angles with
-## rounded corners, round the places in their way where they can.
+## "points" (polyline, workspace units), "tag" (Rect2 its name takes),
+## "text", "upright" (the name reads upwards beside an upright run), "power"
+## (it carries power cores), "ports" (where it leaves its two ends)}. Cables
+## run as tracks: out of the side of each end facing the other, each from a
+## point of its own along that side, at right angles with rounded corners,
+## round the places in their way where they can.
 func cable_paths() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if document == null:
@@ -192,7 +196,8 @@ func cable_paths() -> Array[Dictionary]:
 				var t: float = (at[i] - (tile.position.y if across else tile.position.x)) / (tile.size.y if across else tile.size.x)
 				port_at[list[i]] = _port(tile, areas[owner], side, t)
 				lane[list[i]] = (i - (list.size() - 1) * 0.5) * LANE
-	var taken: Array[Rect2] = []
+	var tracks: Array[PackedVector2Array] = []
+	var ends: Array[PackedVector2Array] = []
 	for c: int in shown.size():
 		var cable: Dictionary = shown[c]
 		var pa: Vector2 = port_at[Vector2i(c, 0)]
@@ -206,58 +211,83 @@ func cable_paths() -> Array[Dictionary]:
 			best = _route(pa, sides[c].x, pb, sides[c].y, 0.0, _obstacles(areas, cable))
 		if best.is_empty():
 			best = PackedVector2Array([pa, pb])
-		var corners: PackedVector2Array = _straightened(best)
-		var tag: Dictionary = _tag(corners, cable, taken)
+		tracks.append(_straightened(best))
+		ends.append(PackedVector2Array([pa, pb]))
+	# Names keep clear of the places, the parts, each other and, where they
+	# can, the cables.
+	var taken: Array[Rect2] = []
+	for key: String in areas:
+		taken.append(areas[key])
+	var wires: Array[Rect2] = []
+	for corners: PackedVector2Array in tracks:
+		for k: int in corners.size() - 1:
+			wires.append(Rect2(corners[k], Vector2.ZERO).expand(corners[k + 1]))
+	for c: int in shown.size():
+		var cable: Dictionary = shown[c]
+		var tag: Dictionary = _tag(tracks[c], cable, taken, wires)
 		taken.append(tag["tag"])
 		var power: bool = false
 		for core: Dictionary in cable["cores"]:
 			power = power or core["conductor"] == CabinetDevices.Conductor.POWER
-		result.append({"cable": cable, "points": _rounded(corners, CORNER), "tag": tag["tag"], "text": tag["text"], "power": power, "ports": PackedVector2Array([pa, pb])})
+		result.append({"cable": cable, "points": _rounded(tracks[c], CORNER), "tag": tag["tag"], "text": tag["text"], "upright": tag["upright"], "power": power, "ports": ends[c]})
 	return result
 
 
-## Where the name tag of [param cable] goes on its track [param corners]:
-## {"tag" (Rect2), "text"}. On the longest straight run, with the name and
-## the type on one line, on two on a short run, only the name on a shorter
-## one; moved along its run, or onto another run, to keep clear of the tags
-## in [param taken]; where none is clear, in the middle of the longest run.
-static func _tag(corners: PackedVector2Array, cable: Dictionary, taken: Array[Rect2]) -> Dictionary:
+## Where the name of [param cable] goes along its track [param corners]:
+## {"tag" (Rect2 the text takes), "text", "upright"}. Beside the wire, never
+## on it: above a level run (else below), along the right of an upright one
+## (else the left; reading upwards). On the longest straight run, with the name and the type, only
+## the name where they do not fit; moved along its run, or onto another run,
+## to keep clear of [param taken] and, where it can, of the cables' runs
+## [param wires]; where none is clear, in the middle of the longest run.
+static func _tag(corners: PackedVector2Array, cable: Dictionary, taken: Array[Rect2], wires: Array[Rect2]) -> Dictionary:
+	var texts: PackedStringArray = ["%s · %s" % [cable["name"], WorkspaceCables.type_and_length(cable)], cable["name"]]
+	var fallback: Dictionary = {}
+	for keep_off: Array in [taken + wires, taken]:
+		var found: Dictionary = _tag_on(corners, texts, keep_off, fallback)
+		if not found.is_empty():
+			return found
+	return fallback
+
+
+## The first spot clear of [param keep_off] for one of [param texts] beside
+## the runs of [param corners], longest run first ({} for none, see
+## [method _tag]); [param fallback] gets the first spot tried.
+static func _tag_on(corners: PackedVector2Array, texts: PackedStringArray, keep_off: Array, fallback: Dictionary) -> Dictionary:
 	var font: Font = AppTheme.schematic_font()
-	var type: String = WorkspaceCables.type_and_length(cable)
-	var texts: PackedStringArray = ["%s · %s" % [cable["name"], type], "%s\n%s" % [cable["name"], type], cable["name"]]
-	var sizes: Array[Vector2] = []
-	for i: int in texts.size():
-		var w: float = (font.get_multiline_string_size(texts[i], HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE) if i == 1 else font.get_string_size(texts[i], HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE)).x + 10.0
-		sizes.append(Vector2(w, 30.0 if i == 1 else 16.0))
+	var height: float = font.get_height(SMALL_SIZE)
 	var runs: Array = range(corners.size() - 1)
 	runs.sort_custom(func(i: int, j: int) -> bool: return corners[i].distance_to(corners[i + 1]) > corners[j].distance_to(corners[j + 1]))
-	var fallback: Dictionary = {}
 	for i: int in runs:
 		var a: Vector2 = corners[i]
 		var b: Vector2 = corners[i + 1]
 		var middle: Vector2 = (a + b) * 0.5
-		var room: float = a.distance_to(b) - 8.0
-		# Along a vertical run the tag's height counts.
+		# Clear of the rounded corners at both ends.
+		var room: float = a.distance_to(b) - 2.0 * CORNER
 		var upright: bool = absf(a.x - b.x) < 1.0
+		# From the wire's middle to the middle of the text beside it.
+		var beside: Vector2 = Vector2(TAG_GAP + height * 0.5, 0.0) if upright else Vector2(0.0, -TAG_GAP - height * 0.5)
 		for t: int in texts.size():
-			var along: float = sizes[t].y if upright else sizes[t].x
-			if along > room and t < texts.size() - 1:
+			var width: float = font.get_string_size(texts[t], HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE).x
+			if width > room and t < texts.size() - 1:
 				continue
-			if fallback.is_empty():
-				fallback = {"tag": Rect2(middle - sizes[t] * 0.5, sizes[t]), "text": texts[t]}
-			# From the middle outwards, as far as the run takes it.
-			var slack: float = maxf(room - along, 0.0) * 0.5
-			var step: float = 0.0
-			while step <= slack:
-				for sign: float in [1.0, -1.0]:
-					var rect: Rect2 = Rect2(middle + (b - a).normalized() * step * sign - sizes[t] * 0.5, sizes[t])
-					var clear: bool = true
-					for other: Rect2 in taken:
-						clear = clear and not other.grow(2.0).intersects(rect)
-					if clear:
-						return {"tag": rect, "text": texts[t]}
-				step += LANE
-	return fallback
+			var size: Vector2 = Vector2(height, width) if upright else Vector2(width, height)
+			for side: Vector2 in [beside, -beside]:
+				if fallback.is_empty():
+					fallback.merge({"tag": Rect2(middle + side - size * 0.5, size), "text": texts[t], "upright": upright})
+				# From the middle outwards, as far as the run takes it.
+				var slack: float = maxf(room - width, 0.0) * 0.5
+				var step: float = 0.0
+				while step <= slack:
+					for sign: float in [1.0, -1.0]:
+						var rect: Rect2 = Rect2(middle + (b - a).normalized() * step * sign + side - size * 0.5, size)
+						var clear: bool = true
+						for other: Rect2 in keep_off:
+							clear = clear and not other.grow(2.0).intersects(rect)
+						if clear:
+							return {"tag": rect, "text": texts[t], "upright": upright}
+					step += LANE
+	return {}
 
 
 ## The places a cable keeps clear of: all but its own ends.
@@ -333,13 +363,13 @@ static func _length(points: PackedVector2Array) -> float:
 
 
 ## Where a cable leaves a tile on [param side] at [param t] (0-1) along it:
-## on the right past the place's texts, at the bottom under a part's name.
+## at the bottom under the name of a place or part ([param area]).
 static func _port(tile: Rect2, area: Rect2, side: int, t: float) -> Vector2:
 	match side:
 		SIDE_LEFT:
 			return Vector2(tile.position.x, tile.position.y + tile.size.y * t)
 		SIDE_RIGHT:
-			return Vector2(area.end.x, tile.position.y + tile.size.y * t)
+			return Vector2(tile.end.x, tile.position.y + tile.size.y * t)
 		SIDE_TOP:
 			return Vector2(tile.position.x + tile.size.x * t, tile.position.y)
 	return Vector2(tile.position.x + tile.size.x * t, area.end.y)
@@ -397,12 +427,15 @@ static func _blocked(points: PackedVector2Array, rects: Array[Rect2]) -> int:
 	return hits
 
 
-## The tile of a place or part (not its texts).
-static func _tile_rect(item: Dictionary) -> Rect2:
+## The tile of a place or part (not its texts); for a station shown as its
+## face, a tile's room at its top left corner.
+func _tile_rect(item: Dictionary) -> Rect2:
 	var rect: Rect2 = item["rect"]
 	if item["kind"] == "field":
 		return Rect2(rect.position + Vector2((rect.size.x - Workspace.FIELD_TILE) * 0.5, 0.0), Vector2(Workspace.FIELD_TILE, Workspace.FIELD_TILE))
-	return Rect2(rect.position, Vector2(Workspace.TILE, Workspace.TILE))
+	if item["kind"] == "station" and document.control_boxes[item["index"]].face_scale > 0.0:
+		return Rect2(rect.position, Vector2(Workspace.TILE, Workspace.TILE))
+	return Workspace.place_tile(rect.position)
 
 
 func _ready() -> void:
@@ -467,15 +500,57 @@ func item_at(point: Vector2) -> Dictionary:
 	return {}
 
 
-## A cable under the mouse tells its name, type and ends.
+## A cable under the mouse tells its name, type and ends; a switchboard or
+## station its title, what it holds and the keys bound to its buttons.
 func _get_tooltip(at_position: Vector2) -> String:
 	var found: Dictionary = item_at(at_position)
-	if found.get("kind", "") != "cable":
-		return ""
-	for cable: Dictionary in cables():
-		if cable["key"] == found["name"]:
-			return "%s  %s\n%s – %s" % [cable["name"], WorkspaceCables.type_and_length(cable), cable["a"], cable["b"]]
+	match found.get("kind", ""):
+		"switchboard", "station":
+			return place_tooltip(found)
+		"cable":
+			for cable: Dictionary in cables():
+				if cable["key"] == found["name"]:
+					return "%s  %s\n%s – %s" % [cable["name"], WorkspaceCables.type_and_length(cable), cable["a"], cable["b"]]
 	return ""
+
+
+## Tooltip of switchboard or station [param item] (see [method items]): its
+## name and title, what it holds (on a switchboard's door too) and the keys
+## bound to the buttons and switches on it.
+func place_tooltip(item: Dictionary) -> String:
+	var title: String
+	var summary: String
+	var on_it: Array[ControlBoxItem]
+	if item["kind"] == "switchboard":
+		var board: Switchboard = document.switchboards[item["index"]]
+		title = board.title if not board.title.is_empty() else tr("Switchboard")
+		var devices: int = 0
+		var strips: int = 0
+		for rail: CabinetRail in board.rails:
+			for place: CabinetItem in rail.items:
+				if place.kind == CabinetItem.Kind.STRIP:
+					strips += 1
+				else:
+					devices += 1
+		summary = tr_n("%d device", "%d devices", devices) % devices + ", " + tr_n("%d terminal strip", "%d terminal strips", strips) % strips
+		if not board.door.items.is_empty():
+			# And what is on its door.
+			summary += ", " + tr_n("%d item", "%d items", board.door.items.size()) % board.door.items.size()
+		on_it = board.door.items
+	else:
+		var box: ControlBox = document.control_boxes[item["index"]]
+		title = box.title if not box.title.is_empty() else tr("Control station")
+		summary = tr_n("%d item", "%d items", box.items.size()) % box.items.size()
+		on_it = box.items
+	var lines: PackedStringArray = ["+%s  %s" % [item["name"], title], summary]
+	var keys: PackedStringArray = PackedStringArray()
+	for station_item: ControlBoxItem in on_it:
+		var key: String = document.key_bindings.get(station_item.designation, "") if station_item.kind != ControlBoxItem.Kind.LAMP else ""
+		if not key.is_empty():
+			keys.append(key)
+	if not keys.is_empty():
+		lines.append("%s: %s" % [tr("Keys"), ", ".join(keys)])
+	return "\n".join(lines)
 
 
 func _cable_item(path: Dictionary) -> Dictionary:
@@ -776,18 +851,19 @@ func _draw() -> void:
 				_draw_field(item)
 			_:
 				_draw_place(item)
+	# The cables' names beside them, over nothing.
 	var font: Font = AppTheme.schematic_font()
+	var ascent: float = font.get_ascent(SMALL_SIZE)
 	for path: Dictionary in paths:
-		var on: bool = selected == "=" + str(path["cable"]["key"])
+		var color: Color = SchematicTheme.SELECTED if selected == "=" + str(path["cable"]["key"]) else SchematicTheme.TEXT
 		var tag: Rect2 = path["tag"]
-		var box: StyleBoxFlat = StyleBoxFlat.new()
-		box.bg_color = SchematicTheme.BACKGROUND
-		box.border_color = SchematicTheme.SELECTED if on else SchematicTheme.LINE
-		box.set_border_width_all(2 if on else 1)
-		box.set_corner_radius_all(4)
-		box.anti_aliasing = true
-		box.draw(get_canvas_item(), tag)
-		draw_multiline_string(font, Vector2(tag.position.x, tag.position.y + 12.0), path["text"], HORIZONTAL_ALIGNMENT_CENTER, tag.size.x, SMALL_SIZE, -1, SchematicTheme.TEXT)
+		if path["upright"]:
+			# Turned to read upwards from the bottom of its room.
+			draw_set_transform(offset + Vector2(tag.position.x + ascent, tag.end.y) * zoom, -PI * 0.5, Vector2(zoom, zoom))
+			draw_string(font, Vector2.ZERO, path["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE, color)
+			draw_set_transform(offset, 0.0, Vector2(zoom, zoom))
+		else:
+			draw_string(font, Vector2(tag.position.x, tag.position.y + ascent), path["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, SMALL_SIZE, color)
 	draw_set_transform(Vector2.ZERO)
 	_place_faces(list)
 
@@ -898,54 +974,12 @@ func _draw_place(item: Dictionary) -> void:
 	if item["kind"] == "station" and document.control_boxes[item["index"]].face_scale > 0.0:
 		_draw_face_frame(item)
 		return
-	var tile: Rect2 = Rect2(rect.position, Vector2(Workspace.TILE, Workspace.TILE))
+	var tile: Rect2 = Workspace.place_tile(rect.position)
 	if selected == item["key"]:
 		draw_rect(tile.grow(4.0), SchematicTheme.SELECTED, false, 2.0, true)
 	WorkspaceTile.draw(self, item["tile"], tile)
-	var font: Font = AppTheme.schematic_font()
-	var x: float = tile.end.x + 12.0
-	var w: float = rect.end.x - x
-	var title: String
-	var summary: String
-	if item["kind"] == "switchboard":
-		var board: Switchboard = document.switchboards[item["index"]]
-		title = board.title if not board.title.is_empty() else tr("Switchboard")
-		var devices: int = 0
-		var strips: int = 0
-		for rail: CabinetRail in board.rails:
-			for place: CabinetItem in rail.items:
-				if place.kind == CabinetItem.Kind.STRIP:
-					strips += 1
-				else:
-					devices += 1
-		summary = tr_n("%d device", "%d devices", devices) % devices + ", " + tr_n("%d terminal strip", "%d terminal strips", strips) % strips
-		if not board.door.items.is_empty():
-			# And what is on its door.
-			summary += ", " + tr_n("%d item", "%d items", board.door.items.size()) % board.door.items.size()
-	else:
-		var box: ControlBox = document.control_boxes[item["index"]]
-		title = box.title if not box.title.is_empty() else tr("Control station")
-		summary = tr_n("%d item", "%d items", box.items.size()) % box.items.size()
-	# The texts on paper, over any cable passing behind them.
-	draw_rect(Rect2(tile.end.x + 4.0, rect.position.y, rect.end.x - tile.end.x - 4.0, rect.size.y), SchematicTheme.BACKGROUND)
-	draw_string(font, Vector2(x, rect.position.y + 17.0), "+" + str(item["name"]), HORIZONTAL_ALIGNMENT_LEFT, w, NAME_SIZE, SchematicTheme.DESIGNATION)
-	draw_string(font, Vector2(x, rect.position.y + 34.0), title, HORIZONTAL_ALIGNMENT_LEFT, w, TEXT_SIZE, SchematicTheme.TEXT)
-	var keys: PackedStringArray = PackedStringArray()
-	if show_keys:
-		var items: Array[ControlBoxItem] = document.control_boxes[item["index"]].items if item["kind"] == "station" else document.switchboards[item["index"]].door.items
-		for station_item: ControlBoxItem in items:
-			var key: String = document.key_bindings.get(station_item.designation, "") if station_item.kind != ControlBoxItem.Kind.LAMP else ""
-			if not key.is_empty():
-				keys.append(key)
-	if keys.is_empty():
-		draw_string(font, Vector2(x, rect.position.y + 50.0), summary, HORIZONTAL_ALIGNMENT_LEFT, w, SMALL_SIZE, SchematicTheme.PATH_TEXT)
-	else:
-		# The keys that operate its buttons and switches, in place of the summary.
-		var at: Vector2 = Vector2(x, rect.position.y + 40.0)
-		for key: String in keys:
-			if at.x + Keycap.size_of(key, 10).x > rect.end.x:
-				break
-			at.x = Keycap.draw(self, at, key, 10).end.x + 3.0
+	# Its name under it, like a part's; the rest is in the tooltip.
+	draw_string(AppTheme.schematic_font(), Vector2(rect.position.x, tile.end.y + 18.0), "+" + str(item["name"]), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, NAME_SIZE, SchematicTheme.DESIGNATION)
 
 
 func _draw_field(item: Dictionary) -> void:

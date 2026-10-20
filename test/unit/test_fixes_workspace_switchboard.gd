@@ -176,6 +176,43 @@ func test_many_cables_on_one_side_run_at_right_angles_with_their_tags_apart() ->
 			assert_false((paths[i]["tag"] as Rect2).intersects(paths[j]["tag"]), "tags of %s and %s apart" % [paths[i]["cable"]["name"], paths[j]["cable"]["name"]])
 
 
+func test_cable_names_are_beside_the_wire_clear_of_places() -> void:
+	var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
+	add_child_autofree(canvas)
+	canvas.document = _many_field_parts(8)
+	var areas: Array[Rect2] = []
+	for item: Dictionary in canvas.items():
+		if item["kind"] != "group":
+			areas.append(item["rect"])
+	for path: Dictionary in canvas.cable_paths():
+		var tag: Rect2 = path["tag"]
+		for area: Rect2 in areas:
+			assert_false(tag.intersects(area), "the name of %s is clear of the places and parts" % path["cable"]["name"])
+		# Not over its own wire anywhere.
+		var points: PackedVector2Array = path["points"]
+		for k: int in points.size() - 1:
+			for step: int in 21:
+				assert_false(tag.grow(-0.5).has_point(points[k].lerp(points[k + 1], step / 20.0)), "the name of %s is beside its wire" % path["cable"]["name"])
+
+
+func test_place_shows_its_name_under_its_tile_and_the_rest_in_its_tooltip() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("compact")
+	doc.add(PushButton.new("SB1", NO), Vector2i(5, 5))
+	var box: ControlBox = doc.add_control_box("Operator desk at the loading bay", 1, Vector2(100.0, 50.0))
+	box.items.append(ControlBoxItem.new(ControlBoxItem.Kind.BUTTON, "SB1"))
+	assert_true(doc.set_key("SB1", "Q"))
+	var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
+	canvas.document = doc
+	canvas.size = Vector2(800.0, 600.0)
+	add_child_autofree(canvas)
+	var item: Dictionary = canvas.items()[0]
+	assert_eq(item["rect"], Rect2(Vector2(100.0, 50.0), Workspace.PLACE_SIZE), "a tile with its name under it, however long the title")
+	var tile: Rect2 = Workspace.place_tile(box.position)
+	assert_eq(tile.size, Vector2(Workspace.TILE, Workspace.TILE))
+	assert_almost_eq(tile.get_center().x, (item["rect"] as Rect2).get_center().x, 0.01, "in the middle")
+	assert_eq(canvas.place_tooltip(item), "+ST1  Operator desk at the loading bay\n1 item\nKeys: Q")
+
+
 func test_an_empty_group_moves_while_dragged() -> void:
 	var doc: SchematicDocument = ExampleCircuits.build(0)
 	doc.add_group(Vector2(0.0, 400.0))

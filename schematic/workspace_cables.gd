@@ -465,11 +465,10 @@ static func _locations(doc: SchematicDocument) -> Dictionary[String, String]:
 ## first, then stations, then parts (their order ranks the ends of a cable).
 static func _centres(doc: SchematicDocument) -> Dictionary[String, Vector2]:
 	var result: Dictionary[String, Vector2] = {}
-	var tile: Vector2 = Vector2(Workspace.TILE, Workspace.TILE) * 0.5
 	for board: Switchboard in doc.switchboards:
-		result["+" + board.name] = board.position + tile
+		result["+" + board.name] = Workspace.place_tile(board.position).get_center()
 	for box: ControlBox in doc.control_boxes:
-		result["+" + box.name] = box.position + tile
+		result["+" + box.name] = Workspace.place_tile(box.position).get_center()
 	# Parts in circuit order, wherever they were put: moving one keeps the
 	# ends of its cables in the same order, so the cables keep their names.
 	var positions: Dictionary[String, Vector2] = Workspace.field_positions(doc)
