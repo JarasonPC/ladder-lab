@@ -167,7 +167,8 @@ func show_component(component: CircuitComponent) -> void:
 			_note(tr("Numbered as switches for fixed installations (ČSN EN 60669-1): 1 joins 1-2; 2, 3 and 03 switch two, three or four poles 1-2, 3-4 ...; 4 switches 1 to 2, off, to 3; 5 has two rockers on one 1, to 2 and to 3; 5B (6+6) two two-way rockers, 1 to 2 or 3 and 4 to 5 or 6; 6 (staircase) switches 1 over from 2 to 3; 6/2 switches 1 from 3 to 5 and 2 from 4 to 6 together; 7 (intermediate) joins 1-2 and 3-4, switched over 1-4 and 3-2. While simulating, click the rocker to switch it over."), "MutedLabel")
 		"luminaire":
 			_number(tr("Rated power (W)"), "power", Luminaire.MIN_POWER, Luminaire.MAX_POWER, 1.0)
-			_height(Luminaire.STANDARD_HEIGHT)
+			_check(tr("On the wall (wall luminaire)"), "wall")
+			_height(Luminaire.WALL_HEIGHT if bool(_data.get("wall", false)) else Luminaire.STANDARD_HEIGHT)
 			_group = null
 			_note(tr("230 V between L and N; PE goes to its frame. It lights while it has its voltage."), "MutedLabel")
 		"socket":

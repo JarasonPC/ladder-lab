@@ -231,7 +231,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   draws the ČSN EN 60617-11 symbols: a switch's circle with lines and ticks per its number,
   a socket's stem from the wall to the back of a half circle open to the room (a second
   half circle on the same stem for a double), the
-  luminaire's crossed circle, an appliance's box with its sign, the consumer unit half
+  luminaire's cross (a wall luminaire, Luminaire.wall, saved "wall", WALL_HEIGHT 2.0 m, put
+  onto a wall as FloorPlanCanvas.on_ceiling says: its cross WALL_LAMP_OFFSET into the room
+  with a line on the wall's side), an appliance's box with its sign, the consumer unit half
   filled; a height other than the standard one is written under the designation ("h 1.10").
   While simulating the plan shows the simulation copy: lit luminaires glow, live sockets and
   working appliances are filled, and a click on a switch switches its rocker (of two, the

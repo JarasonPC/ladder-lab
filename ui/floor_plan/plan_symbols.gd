@@ -25,6 +25,8 @@ const SOCKET_RADIUS: float = 0.1
 const SOCKET_STEM: float = 0.1
 const SOCKET_GANG: float = 0.07
 const LAMP_RADIUS: float = 0.12
+## A wall luminaire's cross this far into the room from its wall (m).
+const WALL_LAMP_OFFSET: float = 0.15
 const APPLIANCE: float = 0.34
 const UNIT := Vector2(0.6, 0.22)
 ## The inner box of the consumer unit, this far inside the outer one (m).
@@ -106,16 +108,25 @@ static func draw_socket(item: CanvasItem, socket: SocketOutlet, at: Vector2, fac
 
 
 ## Luminaire; [param lit]: it lights.
-static func draw_luminaire(item: CanvasItem, at: Vector2, s: float, color: Color, width: float, lit: bool) -> void:
+## A luminaire, as Czech installation plans draw it: a cross, on the ceiling
+## at [param at]; a wall luminaire ([param facing] into the room from its
+## wall at [param at]) with a line on its wall's side. [param lit]: it glows.
+static func draw_luminaire(item: CanvasItem, at: Vector2, s: float, color: Color, width: float, lit: bool, facing: Vector2 = Vector2.ZERO) -> void:
 	var r: float = LAMP_RADIUS * s
+	var c: Vector2 = at + facing * WALL_LAMP_OFFSET * s
 	if lit:
 		for k: int in 4:
-			item.draw_circle(at, r * (4.5 - k), Color(GLOW, 0.12 + 0.08 * k))
-		item.draw_circle(at, r, Color(1.0, 0.95, 0.7))
-	item.draw_arc(at, r, 0.0, TAU, 24, color, width, true)
+			item.draw_circle(c, r * (4.5 - k), Color(GLOW, 0.12 + 0.08 * k))
+		item.draw_circle(c, r * 0.8, Color(1.0, 0.95, 0.7))
 	var d: float = r * 0.7071
-	item.draw_line(at + Vector2(-d, -d), at + Vector2(d, d), color, width, true)
-	item.draw_line(at + Vector2(-d, d), at + Vector2(d, -d), color, width, true)
+	item.draw_line(c + Vector2(-d, -d), c + Vector2(d, d), color, width, true)
+	item.draw_line(c + Vector2(-d, d), c + Vector2(d, -d), color, width, true)
+	if facing != Vector2.ZERO:
+		# The line on the wall's side, across the cross's width.
+		var side: Vector2 = facing.orthogonal() * d
+		var back: Vector2 = c - facing * d
+		item.draw_line(back - side, back + side, color, width, true)
+		item.draw_line(at, back, color, width, true)
 
 
 ## Appliance [param appliance] on a stem from its wall; [param working]: it

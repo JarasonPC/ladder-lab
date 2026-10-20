@@ -3,7 +3,7 @@ extends Control
 ## A part of a residential floor plan drawn as the plan draws it (see
 ## [PlanSymbols]), for the palette's tile: a switch, socket or appliance
 ## on a piece of wall at the top facing down into the room, a luminaire on
-## the ceiling in the middle.
+## the ceiling in the middle (a wall luminaire on the wall).
 
 ## The part drawn.
 var component: CircuitComponent
@@ -18,7 +18,7 @@ func _draw() -> void:
 		return
 	var color: Color = SchematicTheme.LINE
 	var width: float = 1.4
-	if component is Luminaire:
+	if component is Luminaire and not (component as Luminaire).wall:
 		PlanSymbols.draw_luminaire(self, size * 0.5, SCALE, color, width, false)
 		return
 	var s: float = APPLIANCE_SCALE if component is Appliance else SCALE
@@ -29,5 +29,7 @@ func _draw() -> void:
 		PlanSymbols.draw_switch(self, component as LightSwitch, wall, Vector2.DOWN, s, color, width)
 	elif component is SocketOutlet:
 		PlanSymbols.draw_socket(self, component as SocketOutlet, wall, Vector2.DOWN, s, color, width, false)
+	elif component is Luminaire:
+		PlanSymbols.draw_luminaire(self, wall, SCALE, color, width, false, Vector2.DOWN)
 	elif component is Appliance:
 		PlanSymbols.draw_appliance(self, component as Appliance, wall, Vector2.DOWN, s, color, width, false)

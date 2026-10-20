@@ -7,6 +7,8 @@ extends Load
 ## Mounting height over the floor (m) when none is set: on the ceiling of a
 ## room 2.6 m high (the least clear height of living rooms, ČSN 73 4301).
 const STANDARD_HEIGHT: float = 2.6
+## The same of a wall luminaire (its box over the floor).
+const WALL_HEIGHT: float = 2.0
 ## Least and most rated power (W).
 const MIN_POWER: float = 1.0
 const MAX_POWER: float = 2000.0
@@ -15,6 +17,13 @@ const MAX_POWER: float = 2000.0
 var power: float = 60.0
 ## Mounting height over the floor in metres (design data).
 var height: float = STANDARD_HEIGHT
+## On a wall rather than the ceiling (design data): a wall luminaire.
+var wall: bool = false
+
+
+## Its height when none is set.
+func standard_height() -> float:
+	return WALL_HEIGHT if wall else STANDARD_HEIGHT
 
 
 func _init(p_designation: String) -> void:
