@@ -282,6 +282,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   moved going along; never under itself), set_phase, remove (from _forget_device: what is
   under a group stays where it was),
   rename (from replace_component), next_phase, phases_of, cable_number, cable_text.
+  Design checks: cable_length (from the floor plans: Prim's tree over the consumer unit and
+  the parts a circuit feeds, across and up and down at ZONE_HEIGHT, each part's drop, a
+  FLOOR_HEIGHT between floors, CABLE_RESERVE; -1 when not on a plan), voltage_drop at the
+  device's rated current (COPPER at 70 °C, cable_section from the cable text; √3 and 400 V for
+  three phases), drop_limit (LIGHTING_DROP for lighting alone, else OTHER_DROP),
+  loop_impedance (supply_impedance Ze, saved "ze", plus phase and PE), disconnects_in_time
+  (230 V / Zs at least TripCurve.MAGNETIC × In); SingleLineView.checks words them for the
+  circuit's panel (red when out of bounds), the canvas writes the length and ΔU along the cable.
   SingleLineCanvas (ui/single_line/, _draw only, zoom and pan as the floor plan) draws it in
   local coordinates u down a circuit, v across (at, local): busbars L1 L2 L3 N across with
   their names, the supply with its cable, QB1 (a blade with a circle), the SPD to earth
@@ -420,6 +428,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   never on a sheet (FloorPlanCanvas._draw_underlay, underlay_texture caches the image);
   Tool.SCALE takes two points, scale_requested -> the scale dialog (FloorPlanView.scale_underlay
   keeps the first point), Tool.UNDERLAY drags it; the Underlay menu loads, shows, removes.
+  Sheets: FloorPlanCanvas.layer ("" all, "lighting", "power": layer_shows; the building, the
+  unit and the notes always) for SheetRenderer.split_plan (ExportPreview "split_plan", off at
+  first: OFF_AT_FIRST), two sheets a floor; the legend lists what is on the sheet with its
+  count (legend_rows: switches by number, sockets single and double, ceiling and wall
+  luminaires, appliances by kind, the unit, the cable), in the columns its width takes
+  (_legend_grid, _legend_height); a floor plan sheet is at the largest of PLAN_SCALES its
+  paper takes (SheetLayout.at_scale, SheetFrame.scale_text, print_scale), with a scale bar
+  of SCALE_BAR metres and a north arrow (FloorPlan.north, saved "north"; the Walls and north
+  dialog) right of the legend (_draw_scale_and_north). The title block has the stage
+  (TitleBlock.stage) and the scale and format. PartsList for a residential installation: the
+  consumer unit, each floor's parts, those on no floor, wall boxes (a gang each), luminaire
+  boxes and the metres of each cable (cable_totals from SingleLine.cable_length); File >
+  Export parts list as CSV (PartsList.to_csv, UTF-8 with a byte order mark).
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

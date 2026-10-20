@@ -62,6 +62,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   room and shows a see-through ghost of what goes there
 - Single-line diagram: a circuit without an RCD of 30 mA or less over it is marked, as
   ČSN 33 2000-4-41 asks for one on everything an ordinary person can reach
+- Single-line diagram: each circuit's cable length worked out from the floor plan (the unit to
+  every part it feeds, along the walls, with the drops and a 10 % reserve), its voltage drop at
+  the breaker's rated current against 3 % (lighting) or 5 % (ČSN 33 2000-5-52) and its fault
+  loop impedance against what trips the breaker at once (the supply's Ze set at the incoming
+  supply); written along the cable, red when out of bounds
 - Residual current devices of types F, B and B+ beside AC and A, and selective ones (S): a
   selective RCD lets the one nearest the fault trip alone
 - The floor plan sheet of a PDF export draws the plan as large as its paper takes, and the
@@ -89,6 +94,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   diagram for the whole house
 - Floor plan: the architect's drawing (PNG or JPG) as a faint underlay to trace over, scaled
   by two points a known distance apart and dragged into place; it does not print
+- Export: a house's floor plans can go on two sheets a floor, the lighting plan and the
+  socket plan; each sheet's legend lists only the symbols on it, with how many there are
+- Export: floor plans print at a true scale (1:50, 1:100, 1:200 or 1:500, the largest the
+  paper takes) with a scale bar and a north arrow (set with the walls); the title block has
+  the stage of the documentation and the scale and format
+- Export: a house's parts list has each floor's parts, the wall and luminaire boxes and the
+  metres of each cable type; File > Export parts list as CSV writes it for a spreadsheet
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 

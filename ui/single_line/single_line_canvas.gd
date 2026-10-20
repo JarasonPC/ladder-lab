@@ -1296,6 +1296,14 @@ func _draw_circuit(entry: Dictionary) -> void:
 	_seg(ledger_u, v, ledger_u, v + 30.0, SchematicTheme.LINE, 1.0)
 	_across(ledger_u - 7.0, v + 8.0, [["-WD%d" % _shown().cable_number(f), DATA_SIZE, designation_color()]], false, 2.0)
 	_along(ledger_u + 6.0, v - 7.0, SingleLine.cable_text(f, document.circuit), DATA_SIZE, data_color())
+	# Its length from the plan and its voltage drop, red over the limit (not
+	# for a part being placed, not in the document yet).
+	var length: float = _shown().cable_length(f, document) if document.circuit.get_component(f.device) != null else -1.0
+	if length >= 0.0:
+		var drop: float = _shown().voltage_drop(f, document, length)
+		var over: bool = drop > _shown().drop_limit(f, document.circuit)
+		var text: String = "%d m" % roundi(length) + (("  ΔU %s %%" % _decimal(String.num(drop, 1))) if drop >= 0.0 else "")
+		_along(ledger_u + 6.0, v + 7.0, text, SMALL_SIZE, SchematicTheme.WARNING if over else SchematicTheme.TEXT)
 	if not sheet and ghost_of.is_empty() and _shown().lacks_rcd(f, document.circuit):
 		_rcd_warning(ledger_u - MARK_U, v)
 	if load != null:

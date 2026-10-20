@@ -8,10 +8,10 @@ extends Node
 enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
-enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE }
+enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE, EXPORT_CSV }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, DUCT_COVERS, SCALE = 20 }
 enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, LANGUAGE = 10 }
-enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
+enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF, EXPORT_CSV }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS, TOUR }
 ## Titles offered for a new page (English source text: saved like that and
@@ -136,7 +136,7 @@ var _sheet_renderer: SheetRenderer
 ## Shows the sheets before they are exported; what it shows is saved.
 var _export_preview: ExportPreview
 ## What a PDF export holds (see [method ExportPreview.contents]), remembered.
-var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "plc_programs": true, "workspace": true, "parts_list": true}
+var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "plc_programs": true, "workspace": true, "split_plan": false, "parts_list": true}
 var _export_pdf: bool = false
 ## Largest paper of the exported sheets (user settings, "export"/"largest_paper").
 var _export_paper: String = SheetLayout.DEFAULT_LARGEST
@@ -1057,6 +1057,8 @@ func _rebuild_file_menu() -> void:
 	popup.add_item(tr("Save as…"), FileMenuId.SAVE_AS, KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_S)
 	popup.add_item(tr("Export page as PNG…"), FileMenuId.EXPORT_PNG)
 	popup.add_item(tr("Export as PDF…"), FileMenuId.EXPORT_PDF)
+	popup.add_item(tr("Export parts list as CSV…"), FileMenuId.EXPORT_CSV)
+	popup.set_item_tooltip(popup.item_count - 1, tr("The parts list (and a house's boxes and cable metres) for a spreadsheet"))
 	popup.add_item(tr("Title block…"), FileMenuId.TITLE_BLOCK)
 	popup.set_item_tooltip(popup.item_count - 1, tr("Texts of the title block on exported sheets: drawn by, checked by, company, ..."))
 	if FileAssociation.available():
@@ -1965,6 +1967,8 @@ func _on_file_menu(id: int) -> void:
 			_open_export_preview(false)
 		FileMenuId.EXPORT_PDF:
 			_open_export_preview(true)
+		FileMenuId.EXPORT_CSV:
+			_show_file_dialog(DialogPurpose.EXPORT_CSV)
 		FileMenuId.TITLE_BLOCK:
 			_show_title_block_dialog()
 		FileMenuId.QUIT:
@@ -2063,6 +2067,11 @@ func _show_file_dialog(purpose: DialogPurpose) -> void:
 			if not pdf and edit_doc.pages.size() > 1:
 				base += "-%d" % (edit_doc.page + 1)
 			_file_dialog.current_file = base + (".pdf" if pdf else ".png")
+		DialogPurpose.EXPORT_CSV:
+			_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+			_file_dialog.title = tr("Export parts list as CSV")
+			_file_dialog.filters = PackedStringArray(["*.csv ; CSV"])
+			_file_dialog.current_file = (_file_path.get_file().get_basename() if not _file_path.is_empty() else tr("schematic")) + ".csv"
 	_file_dialog.popup_centered_ratio(0.6)
 
 
@@ -2085,6 +2094,10 @@ func _on_file_selected(path: String) -> void:
 			if path.get_extension().to_lower() != "pdf":
 				path += ".pdf"
 			_save_pdf(path, _export_images, _export_layouts)
+		DialogPurpose.EXPORT_CSV:
+			if path.get_extension().to_lower() != "csv":
+				path += ".csv"
+			_save_csv(path)
 
 
 ## Saves to the current file, or asks for one. [param then] runs after a
@@ -2143,6 +2156,20 @@ func export_pdf(path: String) -> void:
 	_prepare_export(_export_contents)
 	var images: Array[Image] = await _sheet_renderer.render(edit_doc, _all_pages())
 	_save_pdf(path, images, _sheet_renderer.layouts.duplicate())
+
+
+## Writes the parts list to [param path] as CSV.
+func _save_csv(path: String) -> void:
+	var headings: PackedStringArray = PackedStringArray([tr("Place"), tr("Designation"), tr("Quantity"), tr("Name"), tr("Data")])
+	var text: String = PartsList.to_csv(PartsList.new().rows(edit_doc), headings)
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		_show_error(tr("Could not save %s.") % path.get_file())
+		return
+	# A byte order mark: spreadsheets then read the UTF-8 (č, ř) right.
+	file.store_buffer(PackedByteArray([0xEF, 0xBB, 0xBF]))
+	file.store_string(text)
+	file.close()
 
 
 func _save_png(path: String, images: Array[Image]) -> void:
@@ -2208,6 +2235,7 @@ func _prepare_export(contents: Dictionary) -> void:
 	_sheet_renderer.switchboards = contents.get("switchboards", false)
 	_sheet_renderer.plc_programs = contents.get("plc_programs", false)
 	_sheet_renderer.workspace = contents.get("workspace", false)
+	_sheet_renderer.split_plan = contents.get("split_plan", false)
 	_sheet_renderer.parts_list = contents.get("parts_list", false)
 	_sheet_renderer.wire_numbers = _wire_numbers
 	_sheet_renderer.path_numbers = _path_numbers
@@ -2224,6 +2252,8 @@ func _title_block_caption(field: String) -> String:
 			return tr("Company")
 		"project":
 			return tr("Project")
+		"stage":
+			return tr("Stage (DUR, DSP, DPS …)")
 		"drawing_number":
 			return tr("Drawing no.")
 		"revision":
@@ -2550,7 +2580,7 @@ func _load_settings() -> void:
 		_show_log = config.get_value("view", "event_log", false)
 		_keys_rolled = bool(config.get_value("view", "keys_rolled", false))
 		for key: String in ExportPreview.CONTENTS:
-			_export_contents[key] = bool(config.get_value("export", key, true))
+			_export_contents[key] = bool(config.get_value("export", key, not ExportPreview.OFF_AT_FIRST.has(key)))
 		var paper: String = str(config.get_value("export", "largest_paper", SheetLayout.DEFAULT_LARGEST))
 		_export_paper = paper if SheetLayout.paper_index(paper) >= 0 else SheetLayout.DEFAULT_LARGEST
 		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if config.get_value("view", "cable_types", "czech") == "harmonised" else WorkspaceCables.Naming.CZECH

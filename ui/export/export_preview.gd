@@ -14,8 +14,10 @@ signal contents_changed
 signal paper_changed
 
 ## What a PDF can hold, in order (keys of [method contents]).
-const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "plc_programs", "workspace", "parts_list"]
-const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "PLC programs", "Workspace", "Parts list"]
+const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "plc_programs", "workspace", "split_plan", "parts_list"]
+const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "PLC programs", "Workspace", "Lighting and sockets apart", "Parts list"]
+## Contents ticked when nothing was chosen: all but these.
+const OFF_AT_FIRST: PackedStringArray = ["split_plan"]
 
 var _picture: TextureRect
 var _status: Label
@@ -106,8 +108,11 @@ func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, larges
 		var check: CheckBox = _contents[CONTENTS[i]]
 		# A house installation has its floor plan where the workspace is.
 		check.text = tr("Floor plan") if residential and CONTENTS[i] == "workspace" else tr(CONTENT_TITLES[i])
-		check.set_pressed_no_signal(bool(chosen.get(CONTENTS[i], true)))
+		check.set_pressed_no_signal(bool(chosen.get(CONTENTS[i], not OFF_AT_FIRST.has(CONTENTS[i]))))
 		check.disabled = not bool(available.get(CONTENTS[i], true))
+		# The plan's lighting and sockets on sheets of their own: a house installation's.
+		check.visible = residential or CONTENTS[i] != "split_plan"
+	_contents["split_plan"].tooltip_text = tr("Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)")
 	_update_numbers()
 	rendering()
 	popup_centered_ratio(0.75)

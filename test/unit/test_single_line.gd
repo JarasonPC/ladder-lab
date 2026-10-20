@@ -412,3 +412,30 @@ func test_anything_nests_under_a_breaker() -> void:
 	var target: Dictionary = canvas.drop_target(canvas.at(SingleLineCanvas.BREAKER_U + 90.0, fa5), {"type": "breaker"})
 	assert_eq(target["into"], "FA5")
 	assert_eq(target["index"], 0)
+
+
+func test_cable_length_voltage_drop_and_loop_impedance() -> void:
+	var doc: SchematicDocument = _house()
+	var line: SingleLine = doc.single_line
+	var f: SingleLine.Feeder = line.feeder_of("FA2")
+	assert_eq(line.cable_length(f, doc), -1.0, "nothing on the plan yet")
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Room", Rect2(0, 0, 20, 10)))
+	doc.floor_plan.place(FloorPlan.UNIT, Vector2(0.0, 5.0), false)
+	doc.floor_plan.place("XD1", Vector2(10.0, 0.0), false)
+	# 10 across, 5 up, the unit's drop 0.9 and the socket's 2.1, a tenth more.
+	var length: float = line.cable_length(f, doc)
+	assert_almost_eq(length, (10.0 + 5.0 + 0.9 + 2.1) * SingleLine.CABLE_RESERVE, 0.01)
+	assert_almost_eq(SingleLine.cable_section("CYKY-J 3×2,5"), 2.5, 1e-6)
+	assert_almost_eq(SingleLine.cable_section("CYKY-J 5x1,5"), 1.5, 1e-6)
+	# B16 over 2.5 mm²: 2 · L · 16 A · 0.0225 / 2.5 / 230 V.
+	var drop: float = line.voltage_drop(f, doc, length)
+	assert_almost_eq(drop, 2.0 * length * 16.0 * SingleLine.COPPER / 2.5 / 230.0 * 100.0, 1e-4)
+	assert_eq(line.drop_limit(f, doc.circuit), SingleLine.OTHER_DROP)
+	assert_eq(line.drop_limit(line.feeder_of("FA1"), doc.circuit), SingleLine.LIGHTING_DROP, "lighting alone")
+	assert_true(line.disconnects_in_time(f, doc, length), "B16: 80 A needs at most 2.9 Ω")
+	line.supply_impedance = 2.8
+	assert_false(line.disconnects_in_time(f, doc, length), "a weak supply")
+	var again: SingleLine = SingleLine.from_data(line.to_data())
+	assert_almost_eq(again.supply_impedance, 2.8, 1e-6)
+	var check: Dictionary = SingleLineView.checks(line, f, doc)
+	assert_true(check["bad"])

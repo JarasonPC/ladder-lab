@@ -285,6 +285,8 @@ var underlay: String = ""
 var underlay_at: Vector2 = Vector2.ZERO
 var underlay_scale: float = UNDERLAY_SCALE
 var underlay_shown: bool = true
+## Where north is: degrees clockwise from up on the plan.
+var north: float = 0.0
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
 var windows: Array[WindowOpening] = []
@@ -1125,6 +1127,8 @@ func to_data() -> Dictionary:
 	var result: Dictionary = {"rooms": room_list, "doors": door_list, "parts": placed}
 	if level != 0:
 		result["level"] = level
+	if not is_zero_approx(north):
+		result["north"] = north
 	if not name.is_empty():
 		result["name"] = name
 	if not underlay.is_empty():
@@ -1209,6 +1213,7 @@ static func from_data(raw: Variant) -> FloorPlan:
 	var raw_level: Variant = d.get("level", 0)
 	plan.level = clampi(int(raw_level), -5, 50) if (raw_level is int or raw_level is float) else 0
 	plan.name = (d["name"] as String).strip_edges().left(40) if d.get("name", null) is String else ""
+	plan.north = fposmod(_length(d.get("north", 0.0), 0.0, -3600.0, 3600.0), 360.0)
 	var under: Variant = d.get("underlay", null)
 	if under is Dictionary and (under as Dictionary).get("path", null) is String:
 		plan.underlay = under["path"]

@@ -72,6 +72,11 @@ static func fit(drawing: Rect2, largest: String = DEFAULT_LARGEST, grow: bool = 
 	return best
 
 
+## [param layout]'s paper with [param drawing] at [param cell_mm] millimetres a grid cell.
+static func at_scale(layout: SheetLayout, drawing: Rect2, cell_mm: float) -> SheetLayout:
+	return _make(drawing, layout.paper_name, layout.portrait, layout.paper_mm, cell_mm)
+
+
 ## Index of paper [param name] in [constant PAPERS], -1 for none.
 static func paper_index(name: String) -> int:
 	for i: int in PAPERS.size():
