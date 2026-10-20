@@ -13,6 +13,8 @@ const FRAME: float = 6.0
 ## they are sized to their wires (see [method duct_size]).
 const SIDE_DUCT: float = 25.0
 const DUCT: float = 28.0
+## Most wires a duct is wide enough to hold side by side (see [method duct_size]).
+const MAX_SIDE_BY_SIDE: int = 4
 ## Most times the ducts are sized again for the wires' new ways.
 const SIZE_ROUNDS: int = 4
 ## Room between the side ducts and the rails, between places on a rail, and
@@ -183,9 +185,10 @@ static func bus_nets(blocks: Array[Dictionary]) -> Dictionary[int, bool]:
 
 ## Width of a duct just holding [param wires] side by side between its
 ## fingers (see [CabinetWiring]), in whole millimetres (one wire's room for
-## none).
+## none), at most [constant MAX_SIDE_BY_SIDE] wires' room: more lie closer
+## together, over one another.
 static func duct_size(wires: int) -> float:
-	return ceilf(maxi(wires - 1, 0) * CabinetWiring.LANE + CabinetWiring.WIRE_W + 2.0 * CabinetParts.DUCT_DEPTH - 0.001)
+	return ceilf(clampi(wires - 1, 0, MAX_SIDE_BY_SIDE - 1) * CabinetWiring.LANE + CabinetWiring.WIRE_W + 2.0 * CabinetParts.DUCT_DEPTH - 0.001)
 
 
 ## The layout with ducts [param sizes] wide, in the order of [member ducts]

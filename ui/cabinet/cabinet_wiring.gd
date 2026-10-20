@@ -901,12 +901,18 @@ func _route(edges: Array[Dictionary]) -> void:
 		for i: int in down.size():
 			down[i]["route"]["lane_side"] = positions[i]
 	# The cores of the door harness in lanes of their own along the bottom of
-	# the bottom duct, from the fitting in the right wall.
+	# the bottom duct, from the fitting in the right wall (closer together
+	# where the duct is too narrow for them side by side).
 	var door_lane: Dictionary[int, float] = {}
 	var bottom_duct: Rect2 = _across[_across.size() - 1]
+	var cores: int = 0
 	for e: int in edges.size():
 		if edges[e]["a"].get("cable", "") == DOOR:
-			door_lane[e] = bottom_duct.end.y - CabinetParts.DUCT_DEPTH - 1.0 - door_lane.size() * LANE
+			cores += 1
+	var core_pitch: float = minf(LANE, (bottom_duct.size.y - 2.0 * CabinetParts.DUCT_DEPTH - 1.0 - WIRE_W) / maxf(cores - 1, 1))
+	for e: int in edges.size():
+		if edges[e]["a"].get("cable", "") == DOOR:
+			door_lane[e] = bottom_duct.end.y - CabinetParts.DUCT_DEPTH - 1.0 - door_lane.size() * core_pitch
 	for e: int in edges.size():
 		var route: Dictionary = routes[e]
 		var points: PackedVector2Array = _drop(route["a"], route["lane_a"])
