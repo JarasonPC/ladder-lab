@@ -91,7 +91,7 @@ static var naming: Naming = Naming.CZECH
 ## [member SchematicDocument.cable_settings])}.
 static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 	var circuit: Circuit = doc.circuit
-	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
+	var net: Dictionary[String, int] = nets(circuit)
 	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(circuit, net)
 	var where: Dictionary[String, String] = _locations(doc)
 	# Net -> place -> what the net lands on there.
@@ -137,6 +137,17 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 				if strip_labels.has(label):
 					on_strip.append(label)
 			ends[n][place] = on_strip
+	# A net on a supply point comes from a switchboard, where the supply
+	# comes in: from the first one when no switchboard has a terminal on it
+	# (e.g. a potentiometer's 10 V reference).
+	if not doc.switchboards.is_empty():
+		var board: String = "+" + doc.switchboards[0].name
+		for c: CircuitComponent in circuit.get_components():
+			if not (c is PowerSupply):
+				continue
+			var n: int = net[c.get_terminal_keys()[0]]
+			if ends.has(n) and not ends[n].keys().any(func(place: String) -> bool: return _is_board(doc, place)):
+				_land(ends, n, board, c.designation)
 	var numbers: Dictionary[int, String] = wire_numbers(doc, net)
 	var centres: Dictionary[String, Vector2] = _centres(doc)
 	var rank: Dictionary[String, int] = {}
@@ -195,6 +206,12 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 		return rank.get(p["b"], 1 << 20) < rank.get(q["b"], 1 << 20))
 	_name(doc, result)
 	return result
+
+
+## The nets as the cables run them ([method CabinetDevices.nets]): the supply
+## points of one conductor are one net (of one voltage for +), fed by one core.
+static func nets(circuit: Circuit) -> Dictionary[String, int]:
+	return CabinetDevices.supply_nets(circuit, CabinetDevices.nets(circuit), true)
 
 
 ## Type of a cable as written on it, by its use ([constant TYPES]) as
@@ -291,7 +308,7 @@ static func voltage_drop(doc: SchematicDocument, cable: Dictionary) -> Dictionar
 			return {}
 		var volts: float = sqrt(3.0) * length * RESISTIVITY * active / mm2
 		return {"amps": amps, "volts": volts, "percent": 100.0 * volts / 400.0, "of": 400.0}
-	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var net: Dictionary[String, int] = nets(doc.circuit)
 	var worst: Dictionary = {}
 	for core: Dictionary in cable["cores"]:
 		if core["conductor"] == CabinetDevices.Conductor.PE or core["conductor"] == CabinetDevices.Conductor.NEUTRAL:

@@ -260,7 +260,11 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Cables of the workspace (WorkspaceCables, no nodes): worked out from the wiring, never drawn
   by hand. Every part has a place by designation ("+RA1" a device on a rail, an overload relay
   under its contactor where the contactor is; "+ST1" a button, switch or lamp on a station, also
-  a lamp inside a button; "-M1" a part in the field; contacts go with their device); a net
+  a lamp inside a button; "-M1" a part in the field; contacts go with their device); the nets
+  are those of WorkspaceCables.nets (supply points of one conductor are one net, + points only
+  of one voltage, CabinetDevices.supply_nets by_voltage; StationInside.build wires by them too),
+  a net on a supply point with no switchboard among its places lands on that supply point in
+  the first switchboard (the supply comes in there: a potentiometer's 10 V reference); a net
   reaching two or more places gets a core between them: from the switchboard with a strip
   terminal on it to each other place (a star from the strip), else from the first switchboard,
   else along the shortest tree between the places' centres (stop buttons looped through from

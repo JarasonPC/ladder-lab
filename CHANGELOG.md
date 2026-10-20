@@ -10,6 +10,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The narrowest switchboard has room for three 3-pole circuit breakers side by side on a
   DIN rail
 
+### Fixed
+- Inside a control station, terminals wired only to a supply point of their own (a
+  potentiometer's - point or 10 V reference) get their wires: supply points of one conductor
+  are one core, and a supply only wired to the station comes from the switchboard
+
 ## 0.6.0 – 2026-10-20
 
 ### Schematic editor
