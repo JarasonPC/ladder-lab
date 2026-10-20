@@ -41,6 +41,9 @@ const TABLE: Dictionary[String, Array] = {
 	"1224rc": [24.0, Kind.DC, 10.8, 8.0],
 	# Compact CPUs (DC/DC/DC): 24 V DC, inputs on from 15 V.
 	"cpu24dc": [24.0, Kind.DC, 20.4, 15.0],
+	# Sensors: proximity sensors 10-30 V DC, 0-10 V transmitters 15-30 V DC.
+	"1030dc": [24.0, Kind.DC, 10.0, 0.0],
+	"1530dc": [24.0, Kind.DC, 15.0, 0.0],
 }
 ## The ratings offered for coils (and time relays), lamps and PLCs; new
 ## parts from the palette get the first.
@@ -120,6 +123,10 @@ static func text(name: String) -> String:
 			return "12/24 V DC"
 		"cpu24dc":
 			return "24 V DC"
+		"1030dc":
+			return "10-30 V DC"
+		"1530dc":
+			return "15-30 V DC"
 	if not TABLE.has(name):
 		return ""
 	var volts: String = "%d V" % roundi(nominal(name))

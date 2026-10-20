@@ -2275,8 +2275,8 @@ func place_field_device(designation: String, at: Vector2, group: int = -1) -> vo
 
 ## Sets the mechanical link of group [param index]: member motor
 ## [param drive] ("" for none) moves its part, [param seconds] end to end,
-## from [param start_at] (0-1) at the start; member limit switches
-## [param at_stops] (designation -> 0-1) are operated where they are. Returns
+## from [param start_at] (0-1) at the start; member limit switches and
+## proximity sensors [param at_stops] (designation -> 0-1) are operated where they are. Returns
 ## false when the drive is not a motor of the group.
 func set_group_link(index: int, drive: String, seconds: float, start_at: float, at_stops: Dictionary) -> bool:
 	if index < 0 or index >= groups.size():
@@ -2289,7 +2289,7 @@ func set_group_link(index: int, drive: String, seconds: float, start_at: float, 
 	group.start = clampf(start_at, 0.0, 1.0)
 	group.stops.clear()
 	for designation: Variant in at_stops:
-		if designation is String and group.members.has(designation) and Workspace.field_kind(Workspace.field_component(circuit, designation)) == Workspace.Field.LIMIT_SWITCH:
+		if designation is String and group.members.has(designation) and Workspace.is_stop(Workspace.field_component(circuit, designation)):
 			group.stops[designation] = clampf(float(at_stops[designation]), 0.0, 1.0)
 	return true
 

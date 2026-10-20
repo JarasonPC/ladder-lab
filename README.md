@@ -17,8 +17,10 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   switches (0-I or I-0-II), rotary cam switches (1-4 poles, 0-I or I-0-II), limit switches, NO / NC / changeover contacts, contactors and relays,
   multifunction time relays (F1-F12), lamps, fuses and fuse holders, circuit breakers,
   overload relays, three-phase motors (star/delta, Dahlander, separate windings, drawn as
-  their terminal box if you like), bridge rectifiers, a temperature sensor (0-10 V), a
-  frequency inverter, terminal strips and two PLCs: a logic module (8 inputs, 4 relay
+  their terminal box if you like), bridge rectifiers, sensors for the PLC inputs (proximity
+  sensors: inductive, capacitive, optical, magnetic, PNP / NPN, NO / NC / antivalent, wired
+  1 BN / 3 BU / 4 BK / 2 WH as on the real ones; pressure, level, flow and temperature
+  transmitters 0-10 V), a frequency inverter, terminal strips and two PLCs: a logic module (8 inputs, 4 relay
   outputs, expansion and analog modules) and a compact 24 V DC CPU in three sizes with
   signal modules. Coils, lamps and PLCs carry a rated voltage. Undo / redo, rotating and
   mirroring (several parts together), wires that find their way around the symbols, wire

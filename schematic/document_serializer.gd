@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -24,6 +24,8 @@ const SHORTEST_DELAY: float = 0.1
 const LONGEST_DELAY: float = 3600.0
 ## Least span of a temperature sensor's range (°C).
 const RANGE_STEP: float = 1.0
+## Narrowest range of a transmitter.
+const TRANSMITTER_RANGE_STEP: float = 0.1
 
 
 static func to_dict(doc: SchematicDocument) -> Dictionary:
@@ -370,6 +372,19 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["range_min"] = sensor.range_min
 		d["range_max"] = sensor.range_max
 		d["temperature"] = sensor.temperature
+	elif c is Transmitter:
+		var transmitter: Transmitter = c as Transmitter
+		d["type"] = "transmitter"
+		d["quantity"] = Transmitter.QUANTITY_NAMES[transmitter.quantity]
+		d["range_min"] = transmitter.range_min
+		d["range_max"] = transmitter.range_max
+		d["value"] = transmitter.value
+	elif c is ProximitySensor:
+		var proximity: ProximitySensor = c as ProximitySensor
+		d["type"] = "proximity"
+		d["sensing"] = ProximitySensor.SENSING_NAMES[proximity.sensing]
+		d["output"] = ProximitySensor.OUTPUT_NAMES[proximity.output]
+		d["function"] = ProximitySensor.FUNCTION_NAMES[proximity.function]
 	elif c is Plc:
 		d["type"] = "plc"
 		if c is CompactPlc:
@@ -576,6 +591,23 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 				sensor.range_min = minf(sensor.range_min, sensor.range_max - RANGE_STEP)
 			sensor.temperature = clampf(_number_or(d, "temperature", TemperatureSensor.DEFAULT_TEMPERATURE), TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST)
 			return sensor
+		"transmitter":
+			var quantity: int = maxi(Transmitter.QUANTITY_NAMES.find(str(d.get("quantity", ""))), 0)
+			var transmitter: Transmitter = Transmitter.new(designation, quantity as Transmitter.Quantity)
+			transmitter.range_min = clampf(_number_or(d, "range_min", Transmitter.DEFAULT_MIN[quantity]), Transmitter.LOWEST, Transmitter.HIGHEST)
+			transmitter.range_max = clampf(_number_or(d, "range_max", Transmitter.DEFAULT_MAX[quantity]), Transmitter.LOWEST, Transmitter.HIGHEST)
+			if transmitter.range_max - transmitter.range_min < TRANSMITTER_RANGE_STEP:
+				# As for the temperature sensor: the lower bound stays.
+				transmitter.range_max = minf(transmitter.range_min + TRANSMITTER_RANGE_STEP, Transmitter.HIGHEST)
+				transmitter.range_min = minf(transmitter.range_min, transmitter.range_max - TRANSMITTER_RANGE_STEP)
+			transmitter.value = clampf(_number_or(d, "value", Transmitter.DEFAULT_VALUE[quantity]), Transmitter.LOWEST, Transmitter.HIGHEST)
+			return transmitter
+		"proximity":
+			var function: int = maxi(ProximitySensor.FUNCTION_NAMES.find(str(d.get("function", ""))), 0)
+			var proximity: ProximitySensor = ProximitySensor.new(designation, function as ProximitySensor.Function)
+			proximity.sensing = maxi(ProximitySensor.SENSING_NAMES.find(str(d.get("sensing", ""))), 0) as ProximitySensor.Sensing
+			proximity.output = maxi(ProximitySensor.OUTPUT_NAMES.find(str(d.get("output", ""))), 0) as ProximitySensor.Output
+			return proximity
 		"lamp":
 			var lamp: Lamp = Lamp.new(designation)
 			lamp.purpose = str(d.get("purpose", "")).strip_edges()

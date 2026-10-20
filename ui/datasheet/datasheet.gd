@@ -18,7 +18,7 @@ const LETTERS: Dictionary[String, String] = {
 	"changeover": "KA", "coil": "KM", "timer": "KT", "lamp": "H", "motor": "M", "motor3": "M",
 	"fuse": "FU", "breaker": "FA", "overload_relay": "F", "overload_contact": "F",
 	"main_contacts": "KM", "terminal": "X", "rectifier": "TB", "connector": "PC", "plc": "A",
-	"temp_sensor": "BT", "vfd": "TA",
+	"temp_sensor": "BT", "vfd": "TA", "transmitter": "BP", "proximity": "BG",
 }
 
 ## The part, as in the schematic (or made from a palette template).
@@ -126,6 +126,10 @@ func _build() -> void:
 		_plc(component as Plc)
 	elif component is TemperatureSensor:
 		_sensor(component as TemperatureSensor)
+	elif component is Transmitter:
+		_transmitter(component as Transmitter)
+	elif component is ProximitySensor:
+		_proximity(component as ProximitySensor)
 	elif component is Lamp:
 		_lamp(component as Lamp)
 	elif component is Motor:
@@ -840,4 +844,59 @@ func _sensor(sensor: TemperatureSensor) -> void:
 	_data(tr("Supply"), "24 V DC")
 	_data(tr("Measuring range"), "%s … %s °C" % [_num(sensor.range_min), _num(sensor.range_max)])
 	_data(tr("Output"), tr("0-10 V, held within it"))
-	_data(tr("Current drawn"), "%s mA" % _num(TemperatureSensor.DRAW * 1000.0))
+	_data(tr("Current drawn"), "%s mA" % _num(AnalogSensor.DRAW * 1000.0))
+
+
+func _transmitter(transmitter: Transmitter) -> void:
+	var names: PackedStringArray = _names()
+	var unit: String = transmitter.unit()
+	var range_text: String = "%s … %s %s" % [_num(transmitter.range_min), _num(transmitter.range_max), unit]
+	match transmitter.quantity:
+		Transmitter.Quantity.LEVEL:
+			summary = tr("Level transmitter (hydrostatic), output 0-10 V")
+		Transmitter.Quantity.FLOW:
+			summary = tr("Flow transmitter, output 0-10 V")
+		_:
+			summary = tr("Pressure transmitter, output 0-10 V")
+	description.append(tr("Three wires as on its M12 plug: 1 (BN) +24 V DC, 3 (BU) 0 V, 2 (WH) the output, 0-10 V against 3 over its range. While simulating, click it to set the value."))
+	_row(names[0], "%s (BN)" % tr("Supply"), tr("+24 V DC against %s.") % names[1])
+	_row(names[1], "%s (BU)" % tr("Supply, reference"), tr("0 V of the supply and the reference of the output."))
+	_row(names[2], "%s (WH)" % tr("Output"), tr("0 V at %s up to 10 V at %s, against %s.") % ["%s %s" % [_num(transmitter.range_min), unit], "%s %s" % [_num(transmitter.range_max), unit], names[1]])
+	features.append(tr("Terminals numbered as the pins of its M12 plug, cores coloured as in its cable."))
+	_data(tr("Supply"), VoltageRating.text(transmitter.rating))
+	_data(tr("Measuring range"), range_text)
+	_data(tr("Output"), tr("0-10 V, held within it"))
+	_data(tr("Current drawn"), "%s mA" % _num(AnalogSensor.DRAW * 1000.0))
+
+
+func _proximity(sensor: ProximitySensor) -> void:
+	var names: PackedStringArray = _names()
+	var pnp: bool = sensor.output == ProximitySensor.Output.PNP
+	match sensor.sensing:
+		ProximitySensor.Sensing.CAPACITIVE:
+			summary = tr("Capacitive proximity sensor, senses any material")
+		ProximitySensor.Sensing.OPTICAL:
+			summary = tr("Diffuse light sensor, senses what reflects its light")
+		ProximitySensor.Sensing.MAGNETIC:
+			summary = tr("Magnetic sensor, senses the magnet of a cylinder's piston")
+		_:
+			summary = tr("Inductive proximity sensor, senses metal")
+	description.append(tr("Wires as ČSN EN 60947-5-2 colours them: 1 (BN) +24 V DC, 3 (BU) 0 V, 4 (BK) the output, 2 (WH) the second output of the 4-wire version. A PNP output goes to a PLC input whose common is on 0 V, an NPN output to one whose common is on +24 V. While simulating, click it to put something in front of it or take it away; in a group with a mechanical link the moving part works it."))
+	_row(names[0], "%s (BN)" % tr("Supply"), tr("+24 V DC against %s.") % names[1])
+	_row(names[1], "%s (BU)" % tr("Supply"), tr("0 V."))
+	for k: int in sensor.output_count():
+		var opener: bool = sensor.function == ProximitySensor.Function.NC or k == 1
+		var function: String
+		if pnp:
+			function = tr("Switches +24 V (%s) to it while nothing is in front of it.") if opener else tr("Switches +24 V (%s) to it while something is in front of it.")
+		else:
+			function = tr("Switches 0 V (%s) to it while nothing is in front of it.") if opener else tr("Switches 0 V (%s) to it while something is in front of it.")
+		_row(names[2 + k], "%s (%s)" % [tr("Output, NC") if opener else tr("Output, NO"), sensor.core_colour(2 + k)], function % names[0 if pnp else 1])
+	features.append(tr("Terminals numbered as the pins of its M12 plug, cores coloured as in its cable."))
+	features.append(tr("Solid-state output: no contact bounce, switches in under a millisecond."))
+	_data(tr("Supply"), VoltageRating.text(sensor.rating))
+	_data(tr("Output"), ProximitySensor.OUTPUT_TEXTS[sensor.output] + ", " + ProximitySensor.FUNCTION_TEXTS[sensor.function])
+	_data(tr("Output current"), tr("up to 200 mA"))
+	var reach: float = ProximitySensor.DISTANCES[sensor.sensing]
+	_data(tr("Switching distance"), "%s mm" % _num(reach))
+	_data(tr("Current drawn"), "%s mA" % _num(ProximitySensor.DRAW * 1000.0))
