@@ -115,7 +115,8 @@ const FORMAT: String = "ladder-lab"
 ## several floors ("floors": plans with "level" and "name", "floor": the one
 ## shown; missing: one, as "floor_plan") and an underlay per plan
 ## ("underlay": path, at, scale, shown); the supply's loop impedance in the
-## single-line diagram ("ze"; missing: 0.4 Ω).
+## single-line diagram ("ze"; missing: 0.4 Ω); where north is on a plan
+## ("north", degrees; missing: up) and the title block's "stage".
 const VERSION: int = 44
 
 

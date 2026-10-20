@@ -90,6 +90,8 @@ var _array_target: Dictionary = {}
 var _walls_dialog: ConfirmationDialog
 var _outer_wall: SpinBox
 var _inner_wall: SpinBox
+## Where north is on the plan (degrees clockwise from up), for the sheet's arrow.
+var _north: SpinBox
 var _door_dialog: ConfirmationDialog
 var _door_width: SpinBox
 var _door_double: CheckBox
@@ -471,6 +473,16 @@ func _ready() -> void:
 		walls_grid.add_child(label)
 		walls_grid.add_child(field)
 		_walls_dialog.register_text_enter(field.get_line_edit())
+	_north = SpinBox.new()
+	_north.min_value = 0.0
+	_north.max_value = 359.0
+	_north.step = 1.0
+	_north.suffix = "°"
+	var north_label: Label = Label.new()
+	north_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	walls_grid.add_child(north_label)
+	walls_grid.add_child(_north)
+	_walls_dialog.register_text_enter(_north.get_line_edit())
 	_walls_dialog.confirmed.connect(_apply_walls)
 	add_child(_walls_dialog)
 	retranslate()
@@ -636,10 +648,10 @@ func retranslate() -> void:
 	var window_grid: GridContainer = _window_width.get_parent() as GridContainer
 	for k: int in window_labels.size():
 		(window_grid.get_child(2 * k) as Label).text = window_labels[k]
-	_walls_dialog.title = tr("Walls")
+	_walls_dialog.title = tr("Walls and north")
 	_walls_dialog.ok_button_text = tr("OK")
 	_walls_dialog.cancel_button_text = tr("Cancel")
-	var wall_labels: Array[String] = [tr("Outside walls"), tr("Walls between rooms")]
+	var wall_labels: Array[String] = [tr("Outside walls"), tr("Walls between rooms"), tr("North (clockwise from up)")]
 	var walls_grid: GridContainer = _outer_wall.get_parent() as GridContainer
 	for k: int in wall_labels.size():
 		(walls_grid.get_child(2 * k) as Label).text = wall_labels[k]
@@ -1173,6 +1185,7 @@ func _ask_walls() -> void:
 		return
 	_outer_wall.value = _document.floor_plan.outer_wall
 	_inner_wall.value = _document.floor_plan.inner_wall
+	_north.value = _document.floor_plan.north
 	_walls_dialog.reset_size()
 	_walls_dialog.popup_centered()
 
@@ -1180,9 +1193,11 @@ func _ask_walls() -> void:
 func _apply_walls() -> void:
 	var outer: float = _outer_wall.value
 	var inner: float = _inner_wall.value
+	var north: float = _north.value
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
 		doc.floor_plan.outer_wall = outer
-		doc.floor_plan.inner_wall = inner)
+		doc.floor_plan.inner_wall = inner
+		doc.floor_plan.north = north)
 
 
 func _ask_rename(index: int) -> void:

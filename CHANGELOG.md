@@ -94,6 +94,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   diagram for the whole house
 - Floor plan: the architect's drawing (PNG or JPG) as a faint underlay to trace over, scaled
   by two points a known distance apart and dragged into place; it does not print
+- Export: a house's floor plans can go on two sheets a floor, the lighting plan and the
+  socket plan; each sheet's legend lists only the symbols on it, with how many there are
+- Export: floor plans print at a true scale (1:50, 1:100, 1:200 or 1:500, the largest the
+  paper takes) with a scale bar and a north arrow (set with the walls); the title block has
+  the stage of the documentation and the scale and format
+- Export: a house's parts list has each floor's parts, the wall and luminaire boxes and the
+  metres of each cable type; File > Export parts list as CSV writes it for a spreadsheet
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 

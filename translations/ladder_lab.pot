@@ -5529,3 +5529,88 @@ msgstr ""
 
 msgid "Loop impedance of the supply Ze"
 msgstr ""
+
+msgid "Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)"
+msgstr ""
+
+msgid "On the floor plan"
+msgstr ""
+
+#, c-format
+msgid "Floor %s"
+msgstr ""
+
+msgid "Not on a floor plan"
+msgstr ""
+
+msgid "Wall box KU 68"
+msgstr ""
+
+msgid "for switches, sockets (one a gang) and appliance outlets"
+msgstr ""
+
+msgid "Luminaire box"
+msgstr ""
+
+msgid "on the ceiling or the wall, one a luminaire"
+msgstr ""
+
+msgid "Installation material"
+msgstr ""
+
+msgid "Stage"
+msgstr ""
+
+msgid "Scale · Format"
+msgstr ""
+
+msgid "lighting"
+msgstr ""
+
+msgid "sockets and appliances"
+msgstr ""
+
+#, c-format
+msgid "Switch %s"
+msgstr ""
+
+msgid "Double socket outlet 230 V with the protective pin"
+msgstr ""
+
+#, c-format
+msgid "its connection %s m over the floor"
+msgstr ""
+
+msgid "N (north)"
+msgstr ""
+
+#, c-format
+msgid "Scale 1:%d"
+msgstr ""
+
+msgid "Walls and north"
+msgstr ""
+
+msgid "North (clockwise from up)"
+msgstr ""
+
+msgid "Export parts list as CSV…"
+msgstr ""
+
+msgid "The parts list (and a house's boxes and cable metres) for a spreadsheet"
+msgstr ""
+
+msgid "Export parts list as CSV"
+msgstr ""
+
+msgid "Place"
+msgstr ""
+
+msgid "Quantity"
+msgstr ""
+
+msgid "Stage (DUR, DSP, DPS …)"
+msgstr ""
+
+msgid "Lighting and sockets apart"
+msgstr ""

@@ -5,7 +5,10 @@ extends RefCounted
 ## each group, the other parts in the field, what has no place yet), then the
 ## cables of the workspace. Within a place, identical parts (same name and
 ## data) are one row with their count; each switchboard and station lists
-## the cable glands of the cables coming in. Made with new() (its texts are
+## the cable glands of the cables coming in. A residential installation's:
+## the consumer unit, each floor's parts, what is on no floor, the boxes in
+## the walls and ceilings and the metres of each cable (see
+## [method SingleLine.cable_length]). Made with new() (its texts are
 ## translated). No nodes.
 
 ## Rows of the list: {"heading": true, "text"} starts a place, the others are
@@ -39,6 +42,9 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 		part.append_array(_controls(doc, board.door))
 		part.append_array(_glands(doc, "+" + board.name))
 		_add(result, "+%s  %s" % [board.name, board.title if not board.title.is_empty() else tr("Switchboard")], part)
+	if doc.environment == SchematicDocument.Kind.RESIDENTIAL:
+		_installation(doc, result)
+		return result
 	for box: ControlBox in doc.control_boxes:
 		var part: Array[Dictionary] = _controls(doc, box)
 		part.append_array(_glands(doc, "+" + box.name))
@@ -63,6 +69,86 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 		cables.append({"designation": cable["name"], "quantity": 1, "name": tr("Cable"), "data": "%s   %s – %s" % [WorkspaceCables.type_and_length(cable), cable["a"], cable["b"]]})
 	_add(result, tr("Cables"), cables)
 	return result
+
+
+## The rest of a residential installation's list: each floor's parts, those
+## on no floor, the boxes and the cables.
+func _installation(doc: SchematicDocument, result: Array[Dictionary]) -> void:
+	var wall_boxes: int = 0
+	var ceiling_boxes: int = 0
+	for f: int in doc.floors.size():
+		var part: Array[Dictionary] = []
+		var designations: Array = doc.floors[f].parts.keys()
+		designations.sort_custom(func(a: String, b: String) -> bool: return a.naturalnocasecmp_to(b) < 0)
+		for designation: String in designations:
+			var c: CircuitComponent = doc.circuit.get_component(designation)
+			if c == null:
+				continue
+			part.append(_device(doc, designation))
+			if c is SocketOutlet:
+				wall_boxes += (c as SocketOutlet).gangs
+			elif c is LightSwitch or c is Appliance:
+				wall_boxes += 1
+			elif c is Luminaire:
+				ceiling_boxes += 1
+		_add(result, tr("On the floor plan") if doc.floors.size() == 1 else tr("Floor %s") % doc.floors[f].floor_name(), part)
+	var missing: Array[Dictionary] = []
+	for designation: String in doc.unplaced_parts():
+		if designation != FloorPlan.UNIT:
+			missing.append(_device(doc, designation))
+	_add(result, tr("Not on a floor plan"), missing)
+	var material: Array[Dictionary] = []
+	if wall_boxes > 0:
+		material.append({"designation": "", "quantity": wall_boxes, "name": tr("Wall box KU 68"), "data": tr("for switches, sockets (one a gang) and appliance outlets")})
+	if ceiling_boxes > 0:
+		material.append({"designation": "", "quantity": ceiling_boxes, "name": tr("Luminaire box"), "data": tr("on the ceiling or the wall, one a luminaire")})
+	for cable: Dictionary in cable_totals(doc):
+		material.append({"designation": cable["designations"], "quantity": 1, "name": tr("Cable"), "data": "%s   %d m" % [cable["type"], cable["metres"]]})
+	_add(result, tr("Installation material"), material)
+
+
+## The cables of a residential installation's circuits by type: {"type",
+## "metres" (whole, rounded up, from the floor plan), "designations" of the
+## circuits' cables ("-WD1…-WD3")}; circuits not on a plan are left out.
+static func cable_totals(doc: SchematicDocument) -> Array[Dictionary]:
+	var line: SingleLine = doc.single_line
+	var by_type: Dictionary[String, float] = {}
+	var names: Dictionary[String, PackedStringArray] = {}
+	for f: SingleLine.Feeder in line.feeders():
+		var length: float = line.cable_length(f, doc)
+		if length < 0.0:
+			continue
+		var type: String = SingleLine.cable_text(f, doc.circuit)
+		by_type[type] = by_type.get(type, 0.0) + length
+		if not names.has(type):
+			names[type] = PackedStringArray()
+		names[type].append("-WD%d" % line.cable_number(f))
+	var result: Array[Dictionary] = []
+	var types: Array = by_type.keys()
+	types.sort()
+	for type: String in types:
+		result.append({"type": type, "metres": ceili(by_type[type]), "designations": designations(names[type])})
+	return result
+
+
+## [param rows] as CSV (comma separated, quoted where needed): a heading row
+## then the place, designation, quantity, name and data of each part.
+static func to_csv(rows: Array[Dictionary], headings: PackedStringArray) -> String:
+	var lines: PackedStringArray = PackedStringArray([_csv_row(headings)])
+	var place: String = ""
+	for row: Dictionary in rows:
+		if row.get("heading", false):
+			place = str(row["text"])
+			continue
+		lines.append(_csv_row(PackedStringArray([place, str(row["designation"]), str(row.get("quantity", 1)), str(row["name"]), str(row["data"])])))
+	return "\n".join(lines) + "\n"
+
+
+static func _csv_row(cells: PackedStringArray) -> String:
+	var out: PackedStringArray = PackedStringArray()
+	for cell: String in cells:
+		out.append("\"%s\"" % cell.replace("\"", "\"\"") if cell.contains(",") or cell.contains("\"") or cell.contains("\n") else cell)
+	return ",".join(out)
 
 
 ## Rows of the push buttons, switches and lamps on [param box] (a station or

@@ -75,11 +75,15 @@ const FEATURE_GRAB: float = 12.0
 const EDGE_GRAB: float = 6.0
 ## A part within this (m) of the mouse is under it.
 const PART_GRAB: float = 0.25
-## Height of the legend under the plan on a sheet (m).
+## Least height of the legend under the plan on a sheet (m): room for the
+## scale and the north arrow.
 const LEGEND_HEIGHT: float = 3.1
-## Symbols in a column of that legend.
-const LEGEND_ROWS: int = 4
-const LEGEND_WIDTH: float = 16.0
+## Width of a column of that legend (m).
+const LEGEND_COLUMN: float = 9.0
+## Room for the scale bar and the north arrow right of the legend, and the
+## bar's length (m).
+const SCALE_ROOM: float = 7.5
+const SCALE_BAR: int = 5
 const NAME_SIZE: int = 14
 const TEXT_SIZE: int = 11
 ## The room legend of a residential installation beside the plan: its
@@ -111,6 +115,13 @@ var offset: Vector2 = Vector2(60.0, 60.0)
 ## Drawn for a sheet: the legend of the symbols and the standard heights
 ## under the plan (see [method paper_area]).
 var legend: bool = false
+## What of the installation is drawn: "" all of it, "lighting" the switches,
+## luminaires and their lines, "power" the sockets and appliances (the
+## building, the consumer unit and the notes always).
+var layer: String = ""
+## On a sheet: the scale it is printed at (50 for 1:50), 0 for none; its
+## scale bar and the north arrow are drawn by the legend.
+var print_scale: int = 0
 ## What is selected: {"kind": "room" / "edge" / "door" / "window" / "part" /
 ## "link" / "label" / "dimension" / "note" / "fixture", "index",
 ## "designation"}.
@@ -178,8 +189,25 @@ func paper_area() -> Rect2:
 		area = area.expand(line[0]).expand(line[1])
 	for note: FloorPlan.Note in plan().notes:
 		area = area.expand(note.at).expand(note.label + Vector2(note.text.length() * 0.12, 0.3))
-	# The legend's two columns need their width.
-	return Rect2(area.position, Vector2(maxf(area.size.x, LEGEND_WIDTH), area.size.y + LEGEND_HEIGHT))
+	# Under it the legend in as many columns as its width takes, the scale
+	# and the north arrow right of them.
+	var width: float = maxf(area.size.x, LEGEND_COLUMN + SCALE_ROOM + 0.8)
+	return Rect2(area.position, Vector2(width, area.size.y + _legend_height(width)))
+
+
+## Columns of the legend of symbols on a sheet [param width] wide (m), and
+## the rows in each.
+func _legend_grid(width: float) -> Vector2i:
+	var count: int = maxi(legend_rows().size(), 1)
+	var columns: int = clampi(floori((width - SCALE_ROOM - 0.8) / LEGEND_COLUMN), 1, count)
+	return Vector2i(columns, ceili(count / float(columns)))
+
+
+## Height of the legend under the plan on a sheet [param width] wide (m):
+## its title, its rows, the note on the heights; at least the scale's and
+## the north arrow's.
+func _legend_height(width: float) -> float:
+	return maxf(0.5 + _legend_grid(width).y * 0.55 + 0.8, LEGEND_HEIGHT)
 
 
 ## Where the room legend of a residential installation is (m): right of the rooms.
@@ -1148,16 +1176,19 @@ func _draw() -> void:
 		var ghost: FloorPlan.Fixture = plan().fixture_at_point(str(placing_template.get("kind", "table")), to_plan(_mouse))
 		_draw_fixture(ghost, ghost.rect, SchematicTheme.SELECTED)
 	if installation():
-		_draw_links(font)
+		if layer != "power":
+			_draw_links(font)
 	else:
 		_draw_cables(s, font)
 	# Each part's designation where it is clear of the other symbols and
 	# designations.
 	_taken = []
 	for designation: String in plan().parts:
-		_taken.append(_symbol_box(designation, s))
+		if layer_shows(designation):
+			_taken.append(_symbol_box(designation, s))
 	for designation: String in plan().parts:
-		_draw_part(designation, s, font)
+		if layer_shows(designation):
+			_draw_part(designation, s, font)
 	if editing and tool == Tool.ROOM and _press.get("kind", "") == "new_room":
 		var drawn: Rect2 = _drawn_room()
 		draw_rect(Rect2(to_screen(drawn.position), drawn.size * s), SchematicTheme.SELECTED, false, wall)
@@ -1191,49 +1222,151 @@ func _draw() -> void:
 		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, Color(SchematicTheme.LINE, 0.6))
 
 
-## The legend under the plan: the symbols used and the heights parts are
-## mounted at unless another one is written beside them.
+## Whether part [param designation] is drawn on the layer shown
+## ([member layer]).
+func layer_shows(designation: String) -> bool:
+	if layer.is_empty() or designation == FloorPlan.UNIT:
+		return true
+	var c: CircuitComponent = document.circuit.get_component(designation)
+	if layer == "lighting":
+		return c is LightSwitch or c is Luminaire
+	return c is SocketOutlet or c is Appliance
+
+
+## The rows of the legend: a symbol used on the plan shown (on its layer),
+## each {"key", "sample" (a part drawn so; null for the unit and the cable),
+## "title", "height" (its standard height as written, "" for none), "count"},
+## switches by their number, sockets single and double, ceiling and wall
+## luminaires, appliances by kind, then the consumer unit and the cable.
+func legend_rows() -> Array[Dictionary]:
+	var rows: Dictionary[String, Dictionary] = {}
+	for designation: String in plan().parts:
+		if not layer_shows(designation):
+			continue
+		var key: String = ""
+		var row: Dictionary = {}
+		var c: CircuitComponent = document.circuit.get_component(designation)
+		if designation == FloorPlan.UNIT:
+			key = "6"
+			row = {"title": tr("Consumer unit"), "height": ""}
+		elif c is LightSwitch:
+			var circuit_number: String = (c as LightSwitch).circuit
+			key = "0" + circuit_number
+			row = {"title": tr("Switch %s") % PropertiesPanel.light_switch_title(circuit_number), "height": tr("%s m over the floor") % _num(LightSwitch.STANDARD_HEIGHT)}
+		elif c is SocketOutlet:
+			var gangs: int = (c as SocketOutlet).gangs
+			key = "1%d" % gangs
+			row = {"title": tr("Double socket outlet 230 V with the protective pin") if gangs > 1 else tr("Socket outlet 230 V with the protective pin"), "height": tr("%s m over the floor") % _num(SocketOutlet.STANDARD_HEIGHT)}
+		elif c is Luminaire:
+			var wall: bool = (c as Luminaire).wall
+			key = "3" if wall else "2"
+			row = {"title": tr("Wall luminaire") if wall else tr("Luminaire"), "height": tr("%s m over the floor") % _num(Luminaire.WALL_HEIGHT) if wall else tr("on the ceiling, %s m") % _num(Luminaire.STANDARD_HEIGHT)}
+		elif c is Appliance:
+			var kind: int = (c as Appliance).kind
+			key = "4%02d" % kind
+			row = {"title": ApplianceSymbol.kind_title(kind), "height": tr("its connection %s m over the floor") % _num(Appliance.STANDARD_HEIGHT)}
+		else:
+			continue
+		if rows.has(key):
+			rows[key]["count"] += 1
+		else:
+			row["key"] = key
+			row["sample"] = c
+			row["count"] = 1
+			rows[key] = row
+	var cabled: bool = not plan().links.is_empty() if installation() else not plan().cables(document.circuit).is_empty()
+	if layer != "power" and cabled:
+		rows["7"] = {"key": "7", "sample": null, "title": tr("Cable, a tick per core"), "height": "", "count": 0}
+	var keys: Array = rows.keys()
+	keys.sort()
+	var result: Array[Dictionary] = []
+	for key: String in keys:
+		result.append(rows[key])
+	return result
+
+
+## The legend under the plan: the symbols on it with how many there are,
+## and the heights they are mounted at unless another one is written beside them.
 func _draw_legend(s: float, font: Font) -> void:
+	var rows: Array[Dictionary] = legend_rows()
+	if rows.is_empty():
+		return
 	var area: Rect2 = paper_area()
-	var top: Vector2 = to_screen(Vector2(area.position.x + 0.4, area.end.y - LEGEND_HEIGHT + 0.5))
+	var band: float = _legend_height(area.size.x)
+	var rows_in_column: int = _legend_grid(area.size.x).y
+	var top: Vector2 = to_screen(Vector2(area.position.x + 0.4, area.end.y - band + 0.5))
 	var color: Color = SchematicTheme.LINE
 	draw_string(font, top, tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, color)
-	var rows: Array = [
-		["switch", tr("Switch (its number: lines and ticks)"), tr("%s m over the floor") % _num(LightSwitch.STANDARD_HEIGHT)],
-		["socket", tr("Socket outlet 230 V with the protective pin"), tr("%s m over the floor") % _num(SocketOutlet.STANDARD_HEIGHT)],
-		["luminaire", tr("Luminaire"), tr("on the ceiling, %s m") % _num(Luminaire.STANDARD_HEIGHT)],
-		["wall_luminaire", tr("Wall luminaire"), tr("%s m over the floor") % _num(Luminaire.WALL_HEIGHT)],
-		["appliance", tr("Appliance, its connection"), tr("%s m over the floor") % _num(Appliance.STANDARD_HEIGHT)],
-		["unit", tr("Consumer unit"), ""],
-		["cable", tr("Cable, a tick per core"), ""],
-	]
 	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
 	for i: int in rows.size():
-		var column: int = i / LEGEND_ROWS
-		var at: Vector2 = top + Vector2(column * 8.0 * s, (0.45 + (i % LEGEND_ROWS) * 0.55) * s)
+		var column: int = i / rows_in_column
+		var at: Vector2 = top + Vector2(column * LEGEND_COLUMN * s, (0.45 + (i % rows_in_column) * 0.55) * s)
 		var symbol: Vector2 = at + Vector2(0.3 * s, -0.08 * s)
-		match rows[i][0]:
-			"switch":
-				PlanSymbols.draw_switch(self, LightSwitch.new("SF0"), symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width)
-			"socket":
-				PlanSymbols.draw_socket(self, SocketOutlet.new("XD0"), symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width, false)
-			"luminaire":
+		var sample: CircuitComponent = rows[i]["sample"]
+		match str(rows[i]["key"]).left(1):
+			"0":
+				PlanSymbols.draw_switch(self, sample as LightSwitch, symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width)
+			"1":
+				PlanSymbols.draw_socket(self, sample as SocketOutlet, symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width, false)
+			"2":
 				PlanSymbols.draw_luminaire(self, symbol, s, color, width, false)
-			"wall_luminaire":
+			"3":
 				PlanSymbols.draw_luminaire(self, symbol + Vector2(0, -0.15 * s), s, color, width, false, Vector2.DOWN)
-			"appliance":
-				PlanSymbols.draw_appliance(self, Appliance.new("EB0"), symbol + Vector2(0, -0.25 * s), Vector2.DOWN, s * 0.7, color, width, false)
-			"unit":
+			"4":
+				PlanSymbols.draw_appliance(self, sample as Appliance, symbol + Vector2(0, -0.25 * s), Vector2.DOWN, s * 0.7, color, width, false)
+			"6":
 				PlanSymbols.draw_unit(self, symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s * 0.8, color, width)
-			"cable":
+			"7":
 				draw_dashed_line(symbol - Vector2(0.25 * s, 0), symbol + Vector2(0.25 * s, 0), SchematicTheme.DESIGNATION, 1.4, 6.0)
 				for k: int in 3:
 					var p: Vector2 = symbol + Vector2((k - 1) * 4.0, 0)
 					draw_line(p + Vector2(-3, 5), p + Vector2(3, -5), SchematicTheme.DESIGNATION, 1.2, true)
-		var text: String = rows[i][1] + ("  –  " + rows[i][2] if not str(rows[i][2]).is_empty() else "")
+		var text: String = str(rows[i]["title"]) + ("  –  " + str(rows[i]["height"]) if not str(rows[i]["height"]).is_empty() else "")
 		draw_string(font, at + Vector2(0.75 * s, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+		if int(rows[i]["count"]) > 0:
+			var count: String = "%d×" % int(rows[i]["count"])
+			var count_width: float = font.get_string_size(count, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+			draw_string(font, at + Vector2((LEGEND_COLUMN - 0.6) * s - count_width, 0), count, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+	_draw_scale_and_north(s, font, area)
 	var note: String = tr("Heights are to the middle of the box; a height other than these is written beside the part (h).")
-	draw_string(font, top + Vector2(0, (0.45 + LEGEND_ROWS * 0.55) * s), note, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+	draw_string(font, top + Vector2(0, (0.45 + rows_in_column * 0.55) * s), note, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+
+
+## At the right of the legend band of the sheet [param area]: the north
+## arrow, the scale and its bar of metres.
+func _draw_scale_and_north(s: float, font: Font, area: Rect2) -> void:
+	var color: Color = SchematicTheme.LINE
+	var top: float = area.end.y - _legend_height(area.size.x) + 0.5
+	var left: float = area.end.x - SCALE_ROOM + 0.4
+	# North: an arrow half filled, "N" at its tip.
+	var c: Vector2 = to_screen(Vector2(area.end.x - 0.8, top + 1.0))
+	var up: Vector2 = Vector2.UP.rotated(deg_to_rad(plan().north))
+	var r: float = 0.45 * s
+	var tip: Vector2 = c + up * r
+	var back: Vector2 = c - up * r
+	var side: Vector2 = up.orthogonal() * r * 0.45
+	draw_colored_polygon(PackedVector2Array([tip, back - side * 0.0 + up * r * 0.25, back + side]), color)
+	draw_polyline(PackedVector2Array([tip, back + side, c - up * r * 0.6, back - side, tip]), color, 1.2, true)
+	# The first letter of north in the language (N, S for sever).
+	var north_text: String = tr("N (north)").left(1)
+	var nw: float = font.get_string_size(north_text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
+	draw_string(font, tip + up * 12.0 + Vector2(-nw * 0.5, NAME_SIZE * 0.4), north_text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, color)
+	if print_scale <= 0:
+		return
+	# The scale and a bar of [constant SCALE_BAR] metres, true to the plan,
+	# every other one filled.
+	var bar_top: Vector2 = to_screen(Vector2(left, top + 1.3))
+	draw_string(font, to_screen(Vector2(left, top + 0.6)), tr("Scale 1:%d") % print_scale, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, color)
+	for k: int in SCALE_BAR:
+		var cell: Rect2 = Rect2(bar_top + Vector2(k * s, 0), Vector2(s, 0.12 * s))
+		if k % 2 == 0:
+			draw_rect(cell, color)
+		draw_rect(cell, color, false, 1.0)
+	for k: int in SCALE_BAR + 1:
+		var label: String = str(k)
+		var lw: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+		draw_string(font, bar_top + Vector2(k * s - lw * 0.5, 0.12 * s + TEXT_SIZE + 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+	draw_string(font, bar_top + Vector2(SCALE_BAR * s + 8.0, 0.12 * s), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 
 
 static func _num(metres: float) -> String:

@@ -5544,3 +5544,88 @@ msgstr "Impedance smyčky %s Ω: příliš vysoká, při poruše nevypne okamži
 
 msgid "Loop impedance of the supply Ze"
 msgstr "Impedance smyčky přívodu Ze"
+
+msgid "Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)"
+msgstr "Každé podlaží na dvou výkresech: osvětlení (spínače, svítidla a jejich vedení) a zásuvky (zásuvky a spotřebiče)"
+
+msgid "On the floor plan"
+msgstr "Na půdorysu"
+
+#, c-format
+msgid "Floor %s"
+msgstr "Podlaží %s"
+
+msgid "Not on a floor plan"
+msgstr "Mimo půdorys"
+
+msgid "Wall box KU 68"
+msgstr "Krabice KU 68"
+
+msgid "for switches, sockets (one a gang) and appliance outlets"
+msgstr "pro spínače, zásuvky (jedna na pozici) a vývody spotřebičů"
+
+msgid "Luminaire box"
+msgstr "Svítidlová krabice"
+
+msgid "on the ceiling or the wall, one a luminaire"
+msgstr "na stropě nebo na stěně, jedna na svítidlo"
+
+msgid "Installation material"
+msgstr "Instalační materiál"
+
+msgid "Stage"
+msgstr "Stupeň"
+
+msgid "Scale · Format"
+msgstr "Měřítko · Formát"
+
+msgid "lighting"
+msgstr "osvětlení"
+
+msgid "sockets and appliances"
+msgstr "zásuvky a spotřebiče"
+
+#, c-format
+msgid "Switch %s"
+msgstr "Spínač %s"
+
+msgid "Double socket outlet 230 V with the protective pin"
+msgstr "Dvojzásuvka 230 V s ochranným kolíkem"
+
+#, c-format
+msgid "its connection %s m over the floor"
+msgstr "jeho připojení %s m nad podlahou"
+
+msgid "N (north)"
+msgstr "S (sever)"
+
+#, c-format
+msgid "Scale 1:%d"
+msgstr "Měřítko 1:%d"
+
+msgid "Walls and north"
+msgstr "Zdi a sever"
+
+msgid "North (clockwise from up)"
+msgstr "Sever (po směru hodin od svislé)"
+
+msgid "Export parts list as CSV…"
+msgstr "Exportovat seznam dílů do CSV…"
+
+msgid "The parts list (and a house's boxes and cable metres) for a spreadsheet"
+msgstr "Seznam dílů (u domu i krabice a metry kabelů) pro tabulkový procesor"
+
+msgid "Export parts list as CSV"
+msgstr "Export seznamu dílů do CSV"
+
+msgid "Place"
+msgstr "Umístění"
+
+msgid "Quantity"
+msgstr "Množství"
+
+msgid "Stage (DUR, DSP, DPS …)"
+msgstr "Stupeň (DUR, DSP, DPS …)"
+
+msgid "Lighting and sockets apart"
+msgstr "Osvětlení a zásuvky zvlášť"

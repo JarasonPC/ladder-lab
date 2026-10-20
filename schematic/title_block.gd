@@ -1,15 +1,17 @@
 class_name TitleBlock
 extends RefCounted
 ## Texts of the title block on exported sheets (popisové pole): who drew and
-## checked the schematic, the company, project, drawing number, revision and
+## checked the schematic, the company, project, the stage of the
+## documentation (stupeň: DUR, DSP, DPS ...), drawing number, revision and
 ## date. Free text, all may be empty; the schematic title is
 ## [member SchematicDocument.title]. Design data only, saved with the document.
 
 ## Fields in the order they are edited, keyed as saved.
-const FIELDS: PackedStringArray = ["company", "project", "drawing_number", "revision", "drawn_by", "checked_by", "date"]
+const FIELDS: PackedStringArray = ["company", "project", "stage", "drawing_number", "revision", "drawn_by", "checked_by", "date"]
 
 var company: String = ""
 var project: String = ""
+var stage: String = ""
 var drawing_number: String = ""
 var revision: String = ""
 var drawn_by: String = ""

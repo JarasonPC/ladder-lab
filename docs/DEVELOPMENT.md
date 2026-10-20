@@ -428,6 +428,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   never on a sheet (FloorPlanCanvas._draw_underlay, underlay_texture caches the image);
   Tool.SCALE takes two points, scale_requested -> the scale dialog (FloorPlanView.scale_underlay
   keeps the first point), Tool.UNDERLAY drags it; the Underlay menu loads, shows, removes.
+  Sheets: FloorPlanCanvas.layer ("" all, "lighting", "power": layer_shows; the building, the
+  unit and the notes always) for SheetRenderer.split_plan (ExportPreview "split_plan", off at
+  first: OFF_AT_FIRST), two sheets a floor; the legend lists what is on the sheet with its
+  count (legend_rows: switches by number, sockets single and double, ceiling and wall
+  luminaires, appliances by kind, the unit, the cable), in the columns its width takes
+  (_legend_grid, _legend_height); a floor plan sheet is at the largest of PLAN_SCALES its
+  paper takes (SheetLayout.at_scale, SheetFrame.scale_text, print_scale), with a scale bar
+  of SCALE_BAR metres and a north arrow (FloorPlan.north, saved "north"; the Walls and north
+  dialog) right of the legend (_draw_scale_and_north). The title block has the stage
+  (TitleBlock.stage) and the scale and format. PartsList for a residential installation: the
+  consumer unit, each floor's parts, those on no floor, wall boxes (a gang each), luminaire
+  boxes and the metres of each cable (cable_totals from SingleLine.cable_length); File >
+  Export parts list as CSV (PartsList.to_csv, UTF-8 with a byte order mark).
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)
