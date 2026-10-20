@@ -12,9 +12,10 @@ enum Field { NONE = -1, MOTOR, LIMIT_SWITCH, SENSOR }
 
 ## Name prefix of each kind of place, in [enum Place] order ("+RA1", "+ST1", "+G1").
 const PREFIXES: PackedStringArray = ["RA", "ST", "G"]
-## Side of the tile of a switchboard or station, and the room its texts take.
+## Side of the tile of a switchboard or station, and the room it takes with
+## its name under it (its title and contents show in the tooltip).
 const TILE: float = 56.0
-const PLACE_SIZE := Vector2(220.0, 56.0)
+const PLACE_SIZE := Vector2(88.0, 80.0)
 ## Side of the tile of a part in the field, and the room it takes with its
 ## designation under it.
 const FIELD_TILE: float = 44.0
@@ -47,6 +48,12 @@ static func place_size(place: RefCounted) -> Vector2:
 	if place is ControlBox and (place as ControlBox).face_scale > 0.0:
 		return (place as ControlBox).face_size() * (place as ControlBox).face_scale
 	return PLACE_SIZE
+
+
+## Tile of a switchboard or station at [param position] (not shown as its
+## face): at the top in the middle of its room, its name under it.
+static func place_tile(position: Vector2) -> Rect2:
+	return Rect2(position + Vector2((PLACE_SIZE.x - TILE) * 0.5, 0.0), Vector2(TILE, TILE))
 
 
 ## How [param c] stands in the field, [constant Field.NONE] when it is not a

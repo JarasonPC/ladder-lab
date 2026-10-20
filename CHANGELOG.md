@@ -63,6 +63,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   its round body with solder lugs, the wires pushed on with insulated fastons and numbered
 - Sensors on the workspace show what they are: a sensor barrel, a light sensor, a gauge, a
   tank, a pipe or a thermometer, named under the tile
+- On the workspace, switchboards and stations are a tile with their name under it; their
+  title, what they hold and the keys bound to their buttons show when you point at them.
+  Cable names are written beside the cable instead of in a box on it, so no text hides a
+  cable any more
 - Two wires that have to go into one strip terminal share a twin ferrule (one pin, the
   collar round both wires) instead of a terminal twice as wide
 - Plug-in bridges on terminal strips are grey (blue on N) instead of red
