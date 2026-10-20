@@ -5401,3 +5401,38 @@ msgstr "Kóty tištěné s plánem: kliknutím na zeď přidáte řetězovou kó
 
 msgid "Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn"
 msgstr "Měření: tažením mezi dvěma body (přichytí se k rohům, prvkům a okrajům dveří a oken) uvidíte vzdálenost; nic se nekreslí"
+
+msgid "Array: luminaires spread over the selected room in rows and columns, or sockets and wall luminaires in a row along the selected wall, on the circuit chosen"
+msgstr "Pole: svítidla rozložená po vybrané místnosti v řadách a sloupcích, nebo zásuvky a nástěnná svítidla v řadě podél vybrané zdi, na zvoleném obvodu"
+
+msgid "Array"
+msgstr "Pole"
+
+msgid "Put them in"
+msgstr "Vložit"
+
+msgid "Part"
+msgstr "Prvek"
+
+msgid "Rows"
+msgstr "Řady"
+
+msgid "Columns"
+msgstr "Sloupce"
+
+msgid "Count"
+msgstr "Počet"
+
+msgid "Spacing (0: evenly)"
+msgstr "Rozteč (0: rovnoměrně)"
+
+msgid "From the left or top end"
+msgstr "Od levého nebo horního konce"
+
+#, c-format
+msgid "Luminaires spread over room %s"
+msgstr "Svítidla rozložená po místnosti %s"
+
+#, c-format
+msgid "Parts in a row along a wall of room %s"
+msgstr "Prvky v řadě podél zdi místnosti %s"

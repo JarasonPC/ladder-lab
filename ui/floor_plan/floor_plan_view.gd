@@ -4,7 +4,9 @@ extends VBoxContainer
 ## toolbar of a residential schematic): a bar with the tools above the list
 ## of parts not placed yet and the [FloorPlanCanvas]. In Edit mode rooms are
 ## drawn (Room, by dragging) or added ready-made (Add room), doors and
-## windows put in walls (Door, Window), the walls' thickness set (Walls), and a part chosen in the list is put where the plan is
+## windows put in walls (Door, Window), the walls' thickness set (Walls),
+## luminaires spread over a selected room or parts in a row along a
+## selected wall (Array), and a part chosen in the list is put where the plan is
 ## clicked next. A residential installation also draws its lighting (Wire),
 ## takes new parts from the palette ([method begin_place_template]) onto
 ## the circuit chosen beside the plan (where a selected part's circuit is
@@ -42,6 +44,20 @@ var _window_sill: SpinBox
 var _window_height: SpinBox
 ## The window the dialog edits.
 var _window: int = -1
+var _array_button: Button
+var _array_dialog: ConfirmationDialog
+var _array_title: Label
+var _array_part: OptionButton
+var _array_grid: GridContainer
+var _array_rows: SpinBox
+var _array_columns: SpinBox
+var _array_count: SpinBox
+var _array_spacing: SpinBox
+var _array_start: SpinBox
+## Templates offered, by item of [member _array_part].
+var _array_templates: Array[Dictionary] = []
+## What the array goes into: {"kind": "room" or "edge", "index", "side"}.
+var _array_target: Dictionary = {}
 var _walls_dialog: ConfirmationDialog
 var _outer_wall: SpinBox
 var _inner_wall: SpinBox
@@ -122,6 +138,12 @@ func _ready() -> void:
 	_presets.theme_type_variation = "ToolButton"
 	_presets.get_popup().id_pressed.connect(_add_preset)
 	_bar.add_child(_presets)
+	_array_button = Button.new()
+	_array_button.theme_type_variation = "ToolButton"
+	_array_button.focus_mode = Control.FOCUS_NONE
+	_array_button.icon = AppTheme.icon("plan_array")
+	_array_button.pressed.connect(_ask_array)
+	_bar.add_child(_array_button)
 	_walls_button = Button.new()
 	_walls_button.theme_type_variation = "ToolButton"
 	_walls_button.focus_mode = Control.FOCUS_NONE
@@ -190,6 +212,7 @@ func _ready() -> void:
 		_select_button.button_pressed = true
 		_list.deselect_all())
 	canvas.selection_changed.connect(_fill_circuits)
+	canvas.selection_changed.connect(_update_array_button)
 	canvas.length_requested.connect(_ask_length)
 	canvas.door_requested.connect(_ask_door)
 	canvas.window_requested.connect(_ask_window)
@@ -295,6 +318,34 @@ func _ready() -> void:
 		_window_dialog.register_text_enter((field as SpinBox).get_line_edit())
 	_window_dialog.confirmed.connect(_apply_window)
 	add_child(_window_dialog)
+	_array_dialog = ConfirmationDialog.new()
+	var array_column: VBoxContainer = VBoxContainer.new()
+	_array_dialog.add_child(array_column)
+	_array_title = Label.new()
+	_array_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	array_column.add_child(_array_title)
+	_array_grid = GridContainer.new()
+	_array_grid.columns = 2
+	array_column.add_child(_array_grid)
+	_array_part = OptionButton.new()
+	_array_part.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_array_rows = _count_field(1, 20)
+	_array_columns = _count_field(1, 20)
+	_array_count = _count_field(1, 30)
+	_array_spacing = _count_field(0, 20000)
+	_array_spacing.suffix = "mm"
+	_array_spacing.step = 50
+	_array_start = _count_field(0, 20000)
+	_array_start.suffix = "mm"
+	_array_start.step = 50
+	for field: Control in [_array_part, _array_rows, _array_columns, _array_count, _array_spacing, _array_start]:
+		var label: Label = Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		_array_grid.add_child(label)
+		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_array_grid.add_child(field)
+	_array_dialog.confirmed.connect(_apply_array)
+	add_child(_array_dialog)
 	_walls_dialog = ConfirmationDialog.new()
 	var walls_grid: GridContainer = GridContainer.new()
 	walls_grid.columns = 2
@@ -408,8 +459,9 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _presets, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _presets, _array_button, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
+	_update_array_button()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
 	_fill_circuits()
@@ -438,6 +490,13 @@ func retranslate() -> void:
 	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
 	_dimension_button.tooltip_text = tr("Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away")
 	_measure_button.tooltip_text = tr("Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn")
+	_array_button.tooltip_text = tr("Array: luminaires spread over the selected room in rows and columns, or sockets and wall luminaires in a row along the selected wall, on the circuit chosen")
+	_array_dialog.title = tr("Array")
+	_array_dialog.ok_button_text = tr("Put them in")
+	_array_dialog.cancel_button_text = tr("Cancel")
+	var array_labels: Array[String] = [tr("Part"), tr("Rows"), tr("Columns"), tr("Count"), tr("Spacing (0: evenly)"), tr("From the left or top end")]
+	for k: int in array_labels.size():
+		(_array_grid.get_child(2 * k) as Label).text = array_labels[k]
 	_walls_button.tooltip_text = tr("Thickness of the walls: the outside ones (drawn outside the rooms) and those between rooms")
 	_window_dialog.title = tr("Window")
 	_window_dialog.ok_button_text = tr("OK")
@@ -690,6 +749,78 @@ func _apply_window() -> void:
 		window.width = width
 		window.sill = sill
 		window.height = height)
+
+
+## A count field from [param low] to [param high].
+func _count_field(low: int, high: int) -> SpinBox:
+	var field: SpinBox = SpinBox.new()
+	field.min_value = low
+	field.max_value = high
+	field.step = 1
+	field.custom_minimum_size.x = 120.0
+	return field
+
+
+## Array works on a selected room or wall.
+func _update_array_button() -> void:
+	if _array_button != null:
+		_array_button.disabled = not (canvas.selected.get("kind", "") in ["room", "edge"])
+
+
+## Asks how to spread parts: luminaires over the selected room in rows and
+## columns, or parts along the selected wall (evenly, or from its start
+## every so far).
+func _ask_array() -> void:
+	var kind: String = canvas.selected.get("kind", "")
+	if not _editing or not (kind in ["room", "edge"]):
+		return
+	_array_target = canvas.selected.duplicate()
+	var plan: FloorPlan = _document.floor_plan
+	var index: int = _array_target["index"]
+	var room_text: String = plan.room_number(index) if canvas.installation() else tr(plan.rooms[index].name)
+	_array_templates.clear()
+	_array_part.clear()
+	var offered: Array = [["Luminaire", {"type": "luminaire"}]] if kind == "room" else [["Socket outlet 230 V (type E)", {"type": "socket", "gangs": 1}], ["Double socket outlet 230 V (type E)", {"type": "socket", "gangs": 2}], ["Wall luminaire", {"type": "luminaire", "wall": true}]]
+	for entry: Array in offered:
+		_array_part.add_item(tr(entry[0]))
+		_array_templates.append(entry[1])
+	_array_title.text = (tr("Luminaires spread over room %s") if kind == "room" else tr("Parts in a row along a wall of room %s")) % room_text
+	for k: int in 6:
+		var shown: bool = k == 0 or (kind == "room" and k in [1, 2]) or (kind == "edge" and k in [3, 4, 5])
+		_array_grid.get_child(2 * k).visible = shown
+		_array_grid.get_child(2 * k + 1).visible = shown
+	if kind == "room":
+		_array_rows.value = 2
+		_array_columns.value = 2
+	else:
+		_array_count.value = 3
+		_array_spacing.value = 0
+		_array_start.value = 300
+	_array_dialog.reset_size()
+	_array_dialog.popup_centered()
+
+
+func _apply_array() -> void:
+	if _array_target.is_empty() or _array_part.selected < 0:
+		return
+	var plan: FloorPlan = _document.floor_plan
+	var index: int = _array_target["index"]
+	if index >= plan.rooms.size():
+		return
+	var template: Dictionary = _array_templates[_array_part.selected]
+	var feeder: String = canvas.circuit
+	var points: PackedVector2Array
+	var face: int = -1
+	if _array_target["kind"] == "room":
+		points = plan.grid_points(index, int(_array_rows.value), int(_array_columns.value))
+	else:
+		var k: int = _array_target["side"]
+		var spacing: float = _array_spacing.value / 1000.0
+		points = plan.row_points(index, k, int(_array_count.value), _array_start.value / 1000.0 if spacing > 0.0 else 0.0, spacing)
+		face = maxi(FloorPlan.FACING.find(plan.rooms[index].inward(k)), 0)
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		for p: Vector2 in points:
+			FloorPlanCanvas.add_part(doc, template, feeder, p, face >= 0, face))
 
 
 ## Asks the thickness of the outside walls and of those between rooms.

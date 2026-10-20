@@ -428,3 +428,55 @@ func test_dimension_chains_and_free_dimensions() -> void:
 	assert_eq(plan.dimensions[0].room, 0, "the room after it is now first")
 	plan.remove_room(0)
 	assert_eq(plan.dimensions.size(), 1, "its chain gone, the free one kept")
+
+
+func test_typed_distance_and_arrays() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	# The room's top wall from (3,0) to (7,0), a door at 4.5 (ends 4.1 and 4.9).
+	plan.doors.append(FloorPlan.Door.new(Vector2(4.5, 0.0), false))
+	var ref: Dictionary = plan.wall_reference(Vector2(5.3, 0.0))
+	assert_eq(ref["from"], Vector2(4.9, 0.0), "the door's end is nearer than a corner")
+	assert_almost_eq(float(ref["distance"]), 0.4, 1e-4)
+	assert_eq(plan.at_distance(Vector2(5.3, 0.0), 0.15), Vector2(5.05, 0.0), "150 mm from the door frame")
+	assert_eq(plan.at_distance(Vector2(6.8, 0.0), 0.3), Vector2(6.7, 0.0), "300 mm from the corner")
+	plan.place_on_wall("XD1", Vector2(5.05, 0.0))
+	assert_eq(plan.parts["XD1"], Vector2(5.05, 0.0), "exactly there, not on the grid")
+	# Arrays.
+	assert_eq(plan.grid_points(1, 2, 2), PackedVector2Array([Vector2(4, 1), Vector2(6, 1), Vector2(4, 3), Vector2(6, 3)]))
+	assert_eq(plan.row_points(1, 2, 2), PackedVector2Array([Vector2(4, 4), Vector2(6, 4)]), "the bottom wall, from its left end, evenly")
+	assert_eq(plan.row_points(1, 0, 5, 0.5, 1.5), PackedVector2Array([Vector2(3.5, 0), Vector2(5, 0), Vector2(6.5, 0)]), "every 1.5 m from 0.5 m, as far as it goes")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	doc.single_line.add(doc, _component_of({"type": "breaker"}, "FA9"), 0)
+	var made: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, "FA9", Vector2(4, 4), true, 3)
+	assert_false(made.is_empty())
+	assert_eq(plan.facing[made], 3, "facing up into the room")
+	assert_true(doc.single_line.feeder_of("FA9").loads.has(made), "on the circuit")
+	# Typed while placing on the canvas.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas.selected = {"kind": "part", "designation": "XD1"}
+	assert_true(canvas._takes_distance())
+	var edits: Array[Callable] = []
+	canvas.edit_requested.connect(func(change: Callable) -> void: edits.append(change))
+	for code: int in [KEY_2, KEY_0, KEY_0]:
+		var key: InputEventKey = InputEventKey.new()
+		key.pressed = true
+		key.keycode = code
+		key.unicode = OS.get_keycode_string(code).unicode_at(0)
+		canvas._type_distance(key)
+	assert_eq(canvas._typed, "200")
+	var enter: InputEventKey = InputEventKey.new()
+	enter.pressed = true
+	enter.keycode = KEY_ENTER
+	canvas._type_distance(enter)
+	assert_eq(edits.size(), 1)
+	edits[0].call(doc)
+	assert_eq(plan.parts["XD1"], Vector2(5.1, 0.0), "200 mm from the door frame")
+
+
+func _component_of(template: Dictionary, designation: String) -> CircuitComponent:
+	var data: Dictionary = template.duplicate()
+	data["designation"] = designation
+	return DocumentSerializer.component_from_dict(data)

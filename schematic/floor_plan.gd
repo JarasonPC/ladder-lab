@@ -733,6 +733,49 @@ func wall_near(point: Vector2, reach: float = ON_WALL) -> Dictionary:
 	return result
 
 
+## Where a distance along the wall at [param point] is measured from: the
+## nearest of the wall's corners and the ends of the doors and windows in
+## it, {"from", "dir" (from there towards the point), "distance", "wall"
+## ([from, to] of the wall)}; {} when no wall is there.
+func wall_reference(point: Vector2) -> Dictionary:
+	var best: float = 0.02
+	var wall: PackedVector2Array = PackedVector2Array()
+	for room: Room in rooms:
+		for k: int in room.points.size():
+			var w: PackedVector2Array = room.wall(k)
+			var d: float = Geometry2D.get_closest_point_to_segment(point, w[0], w[1]).distance_to(point)
+			if d < best:
+				best = d
+				wall = w
+	if wall.is_empty():
+		return {}
+	var along: Vector2 = (wall[1] - wall[0]).normalized()
+	var stops: Array[Vector2] = [wall[0], wall[1]]
+	for opening: Opening in openings():
+		for end: Vector2 in opening.ends():
+			if Geometry2D.get_closest_point_to_segment(end, wall[0], wall[1]).distance_to(end) < 0.02:
+				stops.append(end)
+	var from: Vector2 = wall[0]
+	for stop: Vector2 in stops:
+		if stop.distance_to(point) < from.distance_to(point):
+			from = stop
+	var dir: Vector2 = (point - from).normalized() if point.distance_to(from) > 0.001 else along
+	# Along the wall either way.
+	dir = along if dir.dot(along) >= 0.0 else -along
+	return {"from": from, "dir": dir, "distance": (point - from).dot(dir), "wall": wall}
+
+
+## The point [param distance] (m) along the wall at [param point] from its
+## reference (see [method wall_reference]), kept on the wall; [param point] when no wall is there.
+func at_distance(point: Vector2, distance: float) -> Vector2:
+	var ref: Dictionary = wall_reference(point)
+	if ref.is_empty():
+		return point
+	var wall: PackedVector2Array = ref["wall"]
+	var target: Vector2 = Vector2(ref["from"]) + Vector2(ref["dir"]) * maxf(distance, 0.0)
+	return Geometry2D.get_closest_point_to_segment(target, wall[0], wall[1])
+
+
 ## Puts part [param designation] at [param point]: a switch, socket,
 ## appliance or the consumer unit near a wall onto it facing into the room,
 ## a luminaire where it is (on the ceiling).
@@ -744,6 +787,52 @@ func place(designation: String, point: Vector2, on_ceiling: bool) -> void:
 	else:
 		parts[designation] = wall["at"]
 		facing[designation] = wall["facing"]
+
+
+## Puts part [param designation] exactly at [param point] on a wall (not
+## snapped to the grid), facing into the room there (or [param face], an
+## index into [constant FACING]).
+func place_on_wall(designation: String, point: Vector2, face: int = -1) -> void:
+	var wall: Dictionary = wall_near(point, 0.05)
+	if wall.is_empty() and face < 0:
+		place(designation, point, false)
+		return
+	parts[designation] = point
+	facing[designation] = face if face >= 0 else int(wall["facing"])
+
+
+## Points spread over room [param index] in [param rows] × [param columns]
+## (each in the middle of its cell of the rectangle round it, those in the
+## room kept), for luminaires on its ceiling.
+func grid_points(index: int, rows: int, columns: int) -> PackedVector2Array:
+	var room: Room = rooms[index]
+	var r: Rect2 = room.rect
+	var result: PackedVector2Array = PackedVector2Array()
+	for j: int in maxi(rows, 1):
+		for i: int in maxi(columns, 1):
+			var p: Vector2 = r.position + Vector2(r.size.x * (i + 0.5) / maxi(columns, 1), r.size.y * (j + 0.5) / maxi(rows, 1))
+			if room.contains(p):
+				result.append(snap(p))
+	return result
+
+
+## [param count] points along wall [param k] of room [param index]: spread
+## evenly (each in the middle of its share) when [param spacing] is 0, else
+## from [param start] (m from the wall's left or top end) every
+## [param spacing], as far as the wall goes.
+func row_points(index: int, k: int, count: int, start: float = 0.0, spacing: float = 0.0) -> PackedVector2Array:
+	var w: PackedVector2Array = rooms[index].wall(k)
+	if w[1].x < w[0].x or w[1].y < w[0].y:
+		w = PackedVector2Array([w[1], w[0]])
+	var length: float = w[0].distance_to(w[1])
+	var dir: Vector2 = (w[1] - w[0]) / length if length > 0.0 else Vector2.RIGHT
+	var result: PackedVector2Array = PackedVector2Array()
+	for i: int in maxi(count, 1):
+		var t: float = length * (i + 0.5) / maxi(count, 1) if spacing <= 0.0 else start + i * spacing
+		if t < 0.0 or t > length + 0.001:
+			break
+		result.append(w[0] + dir * t)
+	return result
 
 
 ## Takes part [param designation] off the plan, with its links.

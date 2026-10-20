@@ -5386,3 +5386,38 @@ msgstr ""
 
 msgid "Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn"
 msgstr ""
+
+msgid "Array: luminaires spread over the selected room in rows and columns, or sockets and wall luminaires in a row along the selected wall, on the circuit chosen"
+msgstr ""
+
+msgid "Array"
+msgstr ""
+
+msgid "Put them in"
+msgstr ""
+
+msgid "Part"
+msgstr ""
+
+msgid "Rows"
+msgstr ""
+
+msgid "Columns"
+msgstr ""
+
+msgid "Count"
+msgstr ""
+
+msgid "Spacing (0: evenly)"
+msgstr ""
+
+msgid "From the left or top end"
+msgstr ""
+
+#, c-format
+msgid "Luminaires spread over room %s"
+msgstr ""
+
+#, c-format
+msgid "Parts in a row along a wall of room %s"
+msgstr ""

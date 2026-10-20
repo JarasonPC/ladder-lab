@@ -386,6 +386,16 @@ Architecture and conventions of the code base. Read this before changing the cod
   _feature_point: corners, parts, opening ends); a dimension dragged sets its offset
   (_dimension_geometry, saved_dimension_at); Tool.MEASURE shows the distance dragged
   (_draw_measure), nothing saved. paper_area takes the dimensions in.
+  A distance typed (digits, in mm) while a part goes on a wall, or with one on a wall selected,
+  puts it that far from the nearest corner or end of a door or window on its wall
+  (FloorPlanCanvas._takes_distance, _type_distance, Enter; FloorPlan.wall_reference,
+  at_distance, place_on_wall: exactly there, not on the grid); the distance shows as a
+  dimension while placing or selected (_draw_wall_distance). Array (FloorPlanView): over a
+  selected room luminaires in rows × columns (FloorPlan.grid_points: the middles of the cells
+  of the rectangle round it, those inside), along a selected wall sockets or wall luminaires
+  evenly or from its left or top end every so far (row_points), each made by
+  FloorPlanCanvas.add_part (the palette's way: a component on the circuit chosen, on the plan
+  facing into the room). Selections on the plan are drawn in SchematicTheme.SELECTED.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

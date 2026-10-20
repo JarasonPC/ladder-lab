@@ -85,6 +85,7 @@ var editing: bool = false
 var tool: Tool = Tool.SELECT:
 	set(value):
 		tool = value
+		_typed = ""
 		mouse_default_cursor_shape = Control.CURSOR_CROSS if value != Tool.SELECT else Control.CURSOR_ARROW
 ## Designation (or [constant FloorPlan.UNIT]) put by a click with Tool.PLACE.
 var placing: String = ""
@@ -105,6 +106,7 @@ var selected: Dictionary = {}:
 		var changed: bool = value != selected
 		selected = value
 		if changed:
+			_typed = ""
 			selection_changed.emit()
 
 var _press: Dictionary = {}
@@ -115,6 +117,10 @@ var _pan_button: MouseButton = MOUSE_BUTTON_NONE
 var _pan_from: Vector2 = Vector2.ZERO
 ## With Tool.JOIN: the room clicked first, -1 for none yet.
 var _join_first: int = -1
+## Digits typed while a part is put on a wall, or with one on a wall
+## selected: its distance (mm) from the nearest corner or end of a door or
+## window; Enter puts it there.
+var _typed: String = ""
 
 
 func _ready() -> void:
@@ -416,6 +422,9 @@ func _gui_input(event: InputEvent) -> void:
 	if document == null:
 		return
 	var key: InputEventKey = event as InputEventKey
+	if key != null and key.pressed and editing and _takes_distance() and _type_distance(key):
+		accept_event()
+		return
 	if key != null and key.pressed and editing and (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE):
 		delete_selected()
 		accept_event()
@@ -640,32 +649,7 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				var to_port: int = _port_at(to, point)
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.add_link(from, from_port, to, to_port))
 		"new_part":
-			if not placing_template.is_empty():
-				var template: Dictionary = placing_template.duplicate()
-				var feeder: String = circuit
-				var ceiling_part: bool = template.get("type", "") == "luminaire" and not template.get("wall", false)
-				edit_requested.emit(func(doc: SchematicDocument) -> void:
-					var data: Dictionary = template.duplicate()
-					data["designation"] = SingleLineCanvas.new_designation(doc, template)
-					var part: CircuitComponent = DocumentSerializer.component_from_dict(data)
-					if part == null:
-						return
-					doc.add(part, SingleLine.hidden_cell(doc))
-					var f: SingleLine.Feeder = doc.single_line.feeder_of(feeder)
-					if f != null:
-						f.loads.append(part.designation)
-					doc.floor_plan.place(part.designation, m, ceiling_part))
-				return
-			var designation: String = placing
-			if not designation.is_empty():
-				var ceiling: bool = on_ceiling(document.circuit.get_component(designation))
-				placing = ""
-				tool = Tool.SELECT
-				edit_requested.emit(func(doc: SchematicDocument) -> void:
-					doc.floor_plan.place(designation, m, ceiling)
-					if designation == FloorPlan.UNIT:
-						doc.ensure_consumer_unit())
-				placed.emit()
+			_put_part(m, false)
 		"part":
 			if _dragging:
 				var designation: String = press["designation"]
@@ -721,6 +705,154 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				_join_first = -1
 				selected = {}
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.join_rooms(mini(first, index), maxi(first, index)))
+
+
+## Puts the part being placed at plan point [param m]: a new one from the
+## palette on [member circuit], or [member placing]; with [param exact] at
+## that very point on its wall.
+func _put_part(m: Vector2, exact: bool) -> void:
+	if not placing_template.is_empty():
+		var template: Dictionary = placing_template.duplicate()
+		var feeder: String = circuit
+		edit_requested.emit(func(doc: SchematicDocument) -> void: add_part(doc, template, feeder, m, exact))
+		return
+	var designation: String = placing
+	if designation.is_empty():
+		return
+	var ceiling: bool = on_ceiling(document.circuit.get_component(designation))
+	placing = ""
+	tool = Tool.SELECT
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		if exact and not ceiling:
+			doc.floor_plan.place_on_wall(designation, m)
+		else:
+			doc.floor_plan.place(designation, m, ceiling)
+		if designation == FloorPlan.UNIT:
+			doc.ensure_consumer_unit())
+	placed.emit()
+
+
+## Makes a part of [param template] in [param doc], fed by circuit
+## [param feeder] (a device; none for ""), and puts it at [param at] on the
+## plan (onto the nearest wall unless it goes on the ceiling; with
+## [param exact] at that very point, facing [param face] when given).
+## Returns its designation ("" if none was made).
+static func add_part(doc: SchematicDocument, template: Dictionary, feeder: String, at: Vector2, exact: bool = false, face: int = -1) -> String:
+	var data: Dictionary = template.duplicate()
+	data["designation"] = SingleLineCanvas.new_designation(doc, template)
+	var part: CircuitComponent = DocumentSerializer.component_from_dict(data)
+	if part == null:
+		return ""
+	doc.add(part, SingleLine.hidden_cell(doc))
+	var f: SingleLine.Feeder = doc.single_line.feeder_of(feeder)
+	if f != null:
+		f.loads.append(part.designation)
+	if exact and not on_ceiling(part):
+		doc.floor_plan.place_on_wall(part.designation, at, face)
+	else:
+		doc.floor_plan.place(part.designation, at, on_ceiling(part))
+	return part.designation
+
+
+## Whether a distance can be typed: a part on a wall being placed, or one
+## selected.
+func _takes_distance() -> bool:
+	if tool == Tool.PLACE:
+		if not placing_template.is_empty():
+			return not (placing_template.get("type", "") == "luminaire" and not placing_template.get("wall", false))
+		return not placing.is_empty() and not on_ceiling(document.circuit.get_component(placing))
+	return tool == Tool.SELECT and selected.get("kind", "") == "part" and plan().facing.has(str(selected.get("designation", "")))
+
+
+## A key while a distance can be typed: digits make it, Backspace takes the
+## last one back, Enter puts the part there, Escape forgets it. Returns
+## whether the key was taken.
+func _type_distance(key: InputEventKey) -> bool:
+	var ch: String = String.chr(key.unicode) if key.unicode > 0 else ""
+	if ch.length() == 1 and ch >= "0" and ch <= "9" and _typed.length() < 6:
+		_typed += ch
+		queue_redraw()
+		return true
+	if _typed.is_empty():
+		return false
+	match key.keycode:
+		KEY_BACKSPACE:
+			_typed = _typed.left(-1)
+		KEY_ESCAPE:
+			_typed = ""
+		KEY_ENTER, KEY_KP_ENTER:
+			var distance: float = float(_typed) / 1000.0
+			_typed = ""
+			var target: Vector2 = _distance_target(distance)
+			if is_nan(target.x):
+				return true
+			if tool == Tool.PLACE:
+				_put_part(target, true)
+			else:
+				var designation: String = selected["designation"]
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.place_on_wall(designation, target))
+		_:
+			return false
+	queue_redraw()
+	return true
+
+
+## Where the part goes [param distance] (m) from the reference on its wall:
+## the wall under the mouse while placing, the selected part's wall; NAN
+## when there is no wall.
+func _distance_target(distance: float) -> Vector2:
+	var from: Vector2 = _distance_point()
+	if is_nan(from.x):
+		return from
+	return plan().at_distance(from, distance)
+
+
+## The point on a wall a distance is measured to: where the part being
+## placed would go, or the selected part; NAN for none.
+func _distance_point() -> Vector2:
+	if tool == Tool.PLACE:
+		var wall: Dictionary = plan().wall_near(to_plan(_mouse))
+		return wall["at"] if not wall.is_empty() else Vector2(NAN, NAN)
+	if selected.get("kind", "") == "part" and plan().parts.has(str(selected.get("designation", ""))):
+		return plan().parts[selected["designation"]]
+	return Vector2(NAN, NAN)
+
+
+## While a part goes on a wall or one there is selected: its distance from
+## the nearest corner or end of a door or window as a dimension in the
+## room, and the distance typed.
+func _draw_wall_distance(font: Font) -> void:
+	if not editing or not _takes_distance():
+		return
+	var point: Vector2 = _distance_point()
+	if is_nan(point.x):
+		return
+	if not _typed.is_empty():
+		point = plan().at_distance(point, float(_typed) / 1000.0)
+	var ref: Dictionary = plan().wall_reference(point)
+	if ref.is_empty():
+		return
+	var wall: Dictionary = plan().wall_near(point, 0.05)
+	var into: Vector2 = FloorPlan.FACING[int(wall.get("facing", 1))]
+	var from: Vector2 = ref["from"]
+	var color: Color = SchematicTheme.SELECTED
+	var a: Vector2 = to_screen(from + into * 0.35)
+	var b: Vector2 = to_screen(point + into * 0.35)
+	draw_line(a, b, color, 1.0, true)
+	for end: Array in [[from, a], [point, b]]:
+		draw_line(to_screen(end[0]), end[1] + (end[1] - to_screen(end[0])).normalized() * 4.0, color, 1.0, true)
+		var tick: Vector2 = (b - a).normalized().rotated(PI / 4.0) * 5.0 if a.distance_to(b) > 0.5 else Vector2(4, -4)
+		draw_line(end[1] - tick, end[1] + tick, color, 1.6, true)
+	if a.distance_to(b) > 1.0:
+		_draw_length(font, a, b, (to_screen(into) - to_screen(Vector2.ZERO)).normalized(), from.distance_to(point), color)
+	if not _typed.is_empty():
+		draw_circle(to_screen(point), 4.0, color)
+		var text: String = _typed + " mm  ↵"
+		var at: Vector2 = to_screen(point) + Vector2(12, -14)
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+		draw_rect(Rect2(at + Vector2(-4, -TEXT_SIZE - 2), Vector2(width + 8, TEXT_SIZE + 8)), SchematicTheme.BACKGROUND)
+		draw_rect(Rect2(at + Vector2(-4, -TEXT_SIZE - 2), Vector2(width + 8, TEXT_SIZE + 8)), color, false, 1.0)
+		draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 
 
 ## A click while simulating: a switch's rocker is switched.
@@ -862,7 +994,7 @@ func _draw() -> void:
 	for i: int in rooms.size():
 		var chosen: bool = selected.get("kind", "") in ["room", "edge"] and selected.get("index", -1) == i
 		if chosen or i == _join_first:
-			_draw_walls(rooms[i], SchematicTheme.HOVER, 2.0)
+			_draw_walls(rooms[i], SchematicTheme.SELECTED, 2.0)
 	for i: int in plan().doors.size():
 		_draw_door(plan().doors[i], s, wall, selected.get("kind", "") == "door" and selected.get("index", -1) == i)
 	for i: int in plan().windows.size():
@@ -875,9 +1007,9 @@ func _draw() -> void:
 		var corner: Vector2 = _label_at(i)
 		var chosen_label: bool = selected.get("kind", "") == "label" and selected.get("index", -1) == i
 		if installation():
-			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE + 6, SchematicTheme.HOVER if chosen_label else Color(SchematicTheme.LINE, 0.75))
+			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE + 6, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.75))
 		else:
-			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, SchematicTheme.HOVER if chosen_label else Color(SchematicTheme.LINE, 0.55))
+			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.55))
 		var area: String = "%s m²" % String.num(room.area(), 1)
 		draw_string(font, corner + Vector2(0, NAME_SIZE + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, Color(SchematicTheme.LINE, 0.45))
 	if installation():
@@ -893,22 +1025,23 @@ func _draw() -> void:
 		_draw_part(designation, s, font)
 	if editing and tool == Tool.ROOM and _press.get("kind", "") == "new_room":
 		var drawn: Rect2 = _drawn_room()
-		draw_rect(Rect2(to_screen(drawn.position), drawn.size * s), SchematicTheme.HOVER, false, wall)
+		draw_rect(Rect2(to_screen(drawn.position), drawn.size * s), SchematicTheme.SELECTED, false, wall)
 		var dims: String = "%s × %s m" % [String.num(drawn.size.x, 2), String.num(drawn.size.y, 2)]
 		draw_string(font, to_screen(drawn.end) + Vector2(6, 0), dims, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
 	if editing and tool == Tool.PLACE and not placing.is_empty():
 		var m: Vector2 = to_plan(_mouse)
 		var wall_point: Dictionary = {} if on_ceiling(document.circuit.get_component(placing)) else plan().wall_near(m)
 		var at: Vector2 = wall_point.get("at", FloorPlan.snap(m))
-		draw_circle(to_screen(at), 4.0, SchematicTheme.HOVER)
+		draw_circle(to_screen(at), 4.0, SchematicTheme.SELECTED)
 		draw_string(font, to_screen(at) + Vector2(8, -6), ("-" if placing != FloorPlan.UNIT else "") + placing, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
 	if editing and tool == Tool.PLACE and not placing_template.is_empty():
 		var m: Vector2 = to_plan(_mouse)
 		var wall_point: Dictionary = {} if placing_template.get("type", "") == "luminaire" and not placing_template.get("wall", false) else plan().wall_near(m)
-		draw_circle(to_screen(wall_point.get("at", FloorPlan.snap(m))), 4.0, SchematicTheme.HOVER)
+		draw_circle(to_screen(wall_point.get("at", FloorPlan.snap(m))), 4.0, SchematicTheme.SELECTED)
 	if editing and tool == Tool.WIRE and _press.get("kind", "") == "new_link":
-		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.HOVER, 1.6, 5.0)
+		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.SELECTED, 1.6, 5.0)
 	_draw_saved_dimensions(font)
+	_draw_wall_distance(font)
 	if editing and tool in [Tool.MEASURE, Tool.DIMENSION] and _press.get("kind", "") in ["measure", "new_dimension"] and _dragging:
 		_draw_measure(font)
 	if installation() and not plan().rooms.is_empty():
@@ -1069,7 +1202,7 @@ func _cut(opening: FloorPlan.Opening) -> PackedVector2Array:
 ## A window: its opening with the glazing, two lines along it.
 func _draw_window(window: FloorPlan.WindowOpening, s: float, chosen: bool) -> void:
 	var c: PackedVector2Array = _cut(window)
-	var color: Color = SchematicTheme.HOVER if chosen else Color(SchematicTheme.LINE, 0.7)
+	var color: Color = SchematicTheme.SELECTED if chosen else Color(SchematicTheme.LINE, 0.7)
 	for t: float in [0.35, 0.65]:
 		draw_line(c[0].lerp(c[1], t), c[3].lerp(c[2], t), color, 1.2, true)
 	draw_line(c[0], c[3], color, 1.0, true)
@@ -1082,7 +1215,7 @@ func _draw_door(door: FloorPlan.Door, s: float, wall: float, chosen: bool) -> vo
 	var b: Vector2 = to_screen(door.at + along * door.width * 0.5)
 	# The opening in the wall, the leaf from its hinge and its swing.
 	_cut(door)
-	var color: Color = SchematicTheme.HOVER if chosen else Color(SchematicTheme.LINE, 0.7)
+	var color: Color = SchematicTheme.SELECTED if chosen else Color(SchematicTheme.LINE, 0.7)
 	var across: Vector2 = Vector2.LEFT if door.vertical else Vector2.DOWN
 	if door.opens_back:
 		across = -across
@@ -1120,7 +1253,7 @@ func _draw_dimensions(index: int, s: float, font: Font) -> void:
 	var points: PackedVector2Array = _shown_points(index)
 	var wall: int = selected.get("side", -1) if selected.get("kind", "") == "edge" else -1
 	for k: int in _dimension_walls(index):
-		var color: Color = SchematicTheme.HOVER if k == wall else SchematicTheme.TEXT
+		var color: Color = SchematicTheme.SELECTED if k == wall else SchematicTheme.TEXT
 		var line: PackedVector2Array = _dimension_line(points, k, _dimension_gap())
 		var sa: Vector2 = to_screen(line[0])
 		var sb: Vector2 = to_screen(line[1])
@@ -1151,7 +1284,7 @@ func _draw_dimensions(index: int, s: float, font: Font) -> void:
 func _draw_saved_dimensions(font: Font) -> void:
 	for i: int in plan().dimensions.size():
 		var g: Dictionary = _dimension_geometry(i)
-		var color: Color = SchematicTheme.HOVER if selected.get("kind", "") == "dimension" and selected.get("index", -1) == i else SchematicTheme.TEXT
+		var color: Color = SchematicTheme.SELECTED if selected.get("kind", "") == "dimension" and selected.get("index", -1) == i else SchematicTheme.TEXT
 		var line: PackedVector2Array = g["line"]
 		var ends: PackedVector2Array = g["ends"]
 		var dir: Vector2 = g["dir"]
@@ -1190,15 +1323,15 @@ func _draw_measure(font: Font) -> void:
 	var b: Vector2 = _feature_point(to_plan(_mouse))
 	var sa: Vector2 = to_screen(a)
 	var sb: Vector2 = to_screen(b)
-	draw_dashed_line(sa, sb, SchematicTheme.HOVER, 1.5, 5.0)
+	draw_dashed_line(sa, sb, SchematicTheme.SELECTED, 1.5, 5.0)
 	for p: Vector2 in [sa, sb]:
-		draw_circle(p, 3.0, SchematicTheme.HOVER)
+		draw_circle(p, 3.0, SchematicTheme.SELECTED)
 	var d: Vector2 = (b - a).abs()
 	var text: String = "%s m   (↔ %s  ↕ %s)" % [_metres_text(a.distance_to(b)), _metres_text(d.x), _metres_text(d.y)]
 	var at: Vector2 = (sa + sb) * 0.5 + Vector2(10, -10)
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
 	draw_rect(Rect2(at + Vector2(-4, -TEXT_SIZE - 2), Vector2(width + 8, TEXT_SIZE + 8)), SchematicTheme.BACKGROUND)
-	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.HOVER)
+	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.SELECTED)
 
 
 static func _metres_text(metres: float) -> String:
@@ -1214,7 +1347,7 @@ func _draw_links(font: Font) -> void:
 		if not (plan().parts.has(link.a) and plan().parts.has(link.b)):
 			continue
 		var chosen: bool = selected.get("kind", "") == "link" and selected.get("index", -1) == i
-		var color: Color = SchematicTheme.HOVER if chosen else SchematicTheme.LINE
+		var color: Color = SchematicTheme.SELECTED if chosen else SchematicTheme.LINE
 		var path: PackedVector2Array = _link_path(link)
 		draw_polyline(path, color, clampf(1.3 * zoom, 1.0, 2.2), true)
 		var shared: Dictionary[int, bool] = {}
@@ -1327,7 +1460,7 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 	var at: Vector2 = to_screen(_shown_at(designation) + _face(designation))
 	var into: Vector2 = FloorPlan.FACING[plan().facing[designation]] if plan().facing.has(designation) else Vector2.ZERO
 	var chosen: bool = selected.get("kind", "") == "part" and selected.get("designation", "") == designation
-	var color: Color = SchematicTheme.HOVER if chosen else SchematicTheme.LINE
+	var color: Color = SchematicTheme.SELECTED if chosen else SchematicTheme.LINE
 	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
 	var label: String = designation
 	var height_text: String = ""

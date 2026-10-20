@@ -101,6 +101,7 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"plan_window": '<rect x="3" y="6" width="18" height="12"/><path d="M3 10h18M3 14h18"/>',
 	"plan_dimension": '<path d="M3 15h18"/><path d="M3 11v8M21 11v8M12 11v8"/><path d="M5 5h4M15 5h4"/>',
 	"plan_measure": '<path d="M3 16 16 3l5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/>',
+	"plan_array": '<rect x="3" y="3" width="18" height="18"/><path d="M7 7l2 2M9 7l-2 2M15 7l2 2M17 7l-2 2M7 15l2 2M9 15l-2 2M15 15l2 2M17 15l-2 2"/>',
 	"walls": '<rect x="3" y="3" width="18" height="18"/><rect x="7" y="7" width="10" height="10"/><path d="M3 12h4"/>',
 	"house": '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v12h14V9"/><path d="M10 21v-6h4v6"/>',
 	"join": '<path d="M3 3h8v8H3z"/><path d="M11 7h10v14H7v-10"/>',
