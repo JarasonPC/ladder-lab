@@ -46,10 +46,6 @@ const VFD_WIDTH: int = 28
 ## the terminal numbers between the poles).
 const CAM_CHANGEOVER_SPACING: int = 4
 
-## Intermediate light switch (no. 7): from 1 2 on top down to 3 4, a cell
-## more than other switches for the crossed wiring between them.
-const INTERMEDIATE_SPAN: int = 4
-
 ## Wire directions, used for junction detection.
 const DIR_UP: int = 1
 const DIR_RIGHT: int = 2
@@ -198,18 +194,9 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		var changeover_left: float = -1.55 if (c as ChangeoverContact).delayed else -0.85
 		return Rect2(changeover_left, 0.75, 1.2 - changeover_left, 1.4)
 	if c is LightSwitch:
-		var light_switch: LightSwitch = c as LightSwitch
-		var right: float = 0.0
-		for i: int in c.get_terminal_names().size():
-			right = maxf(right, light_switch_cell(light_switch, i).x)
-		# Room for the rocker heads: on the left, and on the right for the
-		# second rocker.
-		var heads: Vector2 = light_switch_heads(light_switch)
-		var top: float = 0.5 if light_switch.circuit == "7" else 0.75
-		var bottom: float = INTERMEDIATE_SPAN - 0.85 if light_switch.circuit == "7" else 2.15
-		var left: float = minf(-0.75, heads.x / GRID - 0.4)
-		var end: float = maxf(right + 0.75, heads.y / GRID + 0.4) if light_switch.rocker_count() > 1 else right + 0.75
-		return Rect2(left, top, end - left, bottom - top)
+		# Its box, as drawn.
+		var box: Rect2 = light_switch_box(c as LightSwitch)
+		return Rect2(box.position / GRID, box.size / GRID).grow(0.1)
 	if c is SocketOutlet:
 		return Rect2(-0.6, 0.6, 2 * POLE_SPACING + 1.2, 1.3)
 	if c is Luminaire:
@@ -397,29 +384,27 @@ static func cam_terminal_cell(cam: CamSwitch, index: int) -> Vector2i:
 	return Vector2i(pole * POLE_SPACING, 0 if k == 0 else SPAN)
 
 
-## Cell of terminal [param index] of a light switch: the common L below
-## (pivot of the blades), the outputs on top two cells apart; a two-pole or
-## three-pole switch as the other multi-pole devices; the intermediate
-## switch 1 2 on top, 3 4 below.
+## Cell of terminal [param index] of a light switch, drawn as on Czech
+## wiring diagrams: a box with the common P on top and the outputs below; a
+## two-pole or three-pole switch as the other multi-pole devices (1, 3, 5 on
+## top, 2, 4, 6 below); the intermediate switch with 1 2 on top, 3 4 below.
 static func light_switch_cell(light_switch: LightSwitch, index: int) -> Vector2i:
 	match light_switch.circuit:
 		"2", "3":
 			return Vector2i((index / 2) * POLE_SPACING, 0 if index % 2 == 0 else SPAN)
-		"5":
-			return [Vector2i(0, SPAN), Vector2i(0, 0), Vector2i(2, 0)][index]
-		"6":
-			return [Vector2i(1, SPAN), Vector2i(0, 0), Vector2i(2, 0)][index]
+		"5", "6":
+			return [Vector2i(1, 0), Vector2i(0, SPAN), Vector2i(2, SPAN)][index]
 		"5A":
-			return [Vector2i(0, SPAN), Vector2i(0, 0), Vector2i(2, 0), Vector2i(4, 0)][index]
+			return [Vector2i(1, 0), Vector2i(0, SPAN), Vector2i(2, SPAN), Vector2i(4, SPAN)][index]
 		"5B":
-			return [Vector2i(1, SPAN), Vector2i(0, 0), Vector2i(2, 0), Vector2i(4, 0), Vector2i(6, 0)][index]
+			return [Vector2i(1, 0), Vector2i(0, SPAN), Vector2i(2, SPAN), Vector2i(4, SPAN), Vector2i(6, SPAN)][index]
 		"7":
-			return [Vector2i(0, 0), Vector2i(2, 0), Vector2i(0, INTERMEDIATE_SPAN), Vector2i(2, INTERMEDIATE_SPAN)][index]
-	return [Vector2i(0, SPAN), Vector2i(0, 0)][index]
+			return [Vector2i(0, 0), Vector2i(2, 0), Vector2i(0, SPAN), Vector2i(2, SPAN)][index]
+	return [Vector2i(0, 0), Vector2i(0, SPAN)][index]
 
 
-## Local x (pixels) of the pivots of the blades rocker [param rocker] of a
-## light switch moves.
+## Local x (pixels) of the blades rocker [param rocker] of a light switch
+## moves: where a click switches that rocker over.
 static func light_switch_pivots(light_switch: LightSwitch, rocker: int) -> PackedFloat32Array:
 	var g: float = float(GRID)
 	match light_switch.circuit:
@@ -429,11 +414,12 @@ static func light_switch_pivots(light_switch: LightSwitch, rocker: int) -> Packe
 				xs.append(p * POLE_SPACING * g)
 			return xs
 		"5":
-			return PackedFloat32Array([0.0 if rocker == 0 else 2.0 * g])
+			# Both blades from P, the first to 1 on the left, the second to 2.
+			return PackedFloat32Array([0.5 * g if rocker == 0 else 1.5 * g])
 		"6":
 			return PackedFloat32Array([g])
 		"5A":
-			return PackedFloat32Array([0.0 if rocker == 0 else 3.0 * g])
+			return PackedFloat32Array([0.5 * g if rocker == 0 else 3.0 * g])
 		"5B":
 			return PackedFloat32Array([g if rocker == 0 else 5.0 * g])
 		"7":
@@ -441,16 +427,15 @@ static func light_switch_pivots(light_switch: LightSwitch, rocker: int) -> Packe
 	return PackedFloat32Array([0.0])
 
 
-## Local x (pixels) of the rocker heads of a light switch: the first on the
-## left, the second (if any) on the right.
-static func light_switch_heads(light_switch: LightSwitch) -> Vector2:
+## The box of a light switch (local pixels): round its terminals, the
+## intermediate switch's crossing contact on the left inside it too.
+static func light_switch_box(light_switch: LightSwitch) -> Rect2:
 	var g: float = float(GRID)
-	var first: float = light_switch_pivots(light_switch, 0)[0]
-	var left: float = first - (1.3 * g if not light_switch.is_two_way(0) else 1.7 * g)
-	if light_switch.rocker_count() == 1:
-		return Vector2(left, left)
-	var second: float = light_switch_pivots(light_switch, 1)[0]
-	return Vector2(left, second + (1.3 * g if not light_switch.is_two_way(1) else 1.7 * g))
+	var right: float = 0.0
+	for i: int in light_switch.get_terminal_names().size():
+		right = maxf(right, light_switch_cell(light_switch, i).x * g)
+	var left: float = -1.15 * g if light_switch.circuit == "7" else -0.65 * g
+	return Rect2(left, 0.3 * g, right + 0.9 * g - left, (SPAN - 0.6) * g)
 
 
 ## The rocker of a light switch at local x [param x] (pixels): of two, the

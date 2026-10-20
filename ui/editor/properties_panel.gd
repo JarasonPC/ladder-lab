@@ -164,7 +164,7 @@ func show_component(component: CircuitComponent) -> void:
 			_choice(tr("Switch number (řazení)"), "circuit", Array(LightSwitch.CIRCUITS), titles)
 			_height(LightSwitch.STANDARD_HEIGHT)
 			_group = null
-			_note(tr("Wired as Czech installations number switches: 1 switches L to 1; 2 and 3 switch two or three poles; 5 has two rockers on one L, to 1 and to 2; 5A a one-way rocker to 1 and a two-way rocker to 2 or 3; 5B two two-way rockers, to 1 or 2 and to 3 or 4; 6 (staircase) switches L over from 1 to 2; 7 (intermediate) joins 3-1 and 4-2, switched over 3-2 and 4-1. While simulating, click the rocker to switch it over."), "MutedLabel")
+			_note(tr("Wired as Czech installations number switches, the common marked P: 1 switches P to 1; 2 and 3 switch two or three poles; 5 has two rockers on one P, to 1 and to 2; 5A a one-way rocker to 1 and a two-way rocker to 2 or 3; 5B two two-way rockers, to 1 or 2 and to 3 or 4; 6 (staircase) switches P over from 1 to 2; 7 (intermediate) joins 1-3 and 2-4, switched over 1-4 and 2-3. While simulating, click the rocker to switch it over."), "MutedLabel")
 		"luminaire":
 			_number(tr("Rated power (W)"), "power", Luminaire.MIN_POWER, Luminaire.MAX_POWER, 1.0)
 			_height(Luminaire.STANDARD_HEIGHT)

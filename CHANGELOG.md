@@ -21,7 +21,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - House installations: File > New asks whether the new schematic is an industrial control
   circuit or a residential installation (for good; the toolbar says which). A residential
   schematic has a palette of its own: light switches numbered as Czech installations
-  number them (řazení 1, 2, 3, 5, 5A, 5B, 6 and 7, -SF), luminaires (-EA) and single or
+  number them (řazení 1, 2, 3, 5, 5A, 5B, 6 and 7, -SF; drawn as on Czech wiring diagrams: a
+  box with the common P on top, a blade from P to the contact it touches, live contacts
+  filled while simulating), luminaires (-EA) and single or
   double type E socket outlets (-XD), with the supplies and the circuit breaker
 - Every light switch, luminaire and socket has a mounting height over the floor: the
   standard one of Czech practice (switches 1.20 m, sockets 0.30 m, luminaires on a 2.60 m
