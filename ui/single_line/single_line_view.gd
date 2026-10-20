@@ -40,6 +40,8 @@ var _cable: LineEdit
 var _hdo: CheckBox
 var _spd: CheckBox
 var _hint: Label
+## What a circuit without a 30 mA RCD lacks.
+var _warning: Label
 ## Rooms offered, by item index of [member _room] (the first: none).
 var _rooms: PackedStringArray = PackedStringArray()
 ## Device of the circuit the panel shows ("" for the supply, a group's RCD
@@ -133,6 +135,10 @@ func _ready() -> void:
 	_spd.toggled.connect(func(on: bool) -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.spd = on))
 	fields.add_child(_spd)
+	_warning = _label(fields)
+	_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_warning.custom_minimum_size.x = 200.0
+	_warning.add_theme_color_override("font_color", SchematicTheme.WARNING)
 	_hint = _label(fields, "MutedLabel")
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.custom_minimum_size.x = 200.0
@@ -271,14 +277,18 @@ func _fill() -> void:
 	elif group != null:
 		_title.text = tr("Group %s") % ("-" + group.device)
 		var rcd: ResidualCurrentDevice = _document.circuit.get_component(group.device) as ResidualCurrentDevice
+		var holder: SingleLine.Group = line.group_holding(group)
+		var holder_rcd: ResidualCurrentDevice = _document.circuit.get_component(holder.device) as ResidualCurrentDevice if holder != null else null
 		_phase.select(group.phase - 1)
-		_phase.disabled = rcd == null or rcd.poles != 2
+		_phase.disabled = rcd == null or rcd.poles != 2 or (holder_rcd != null and holder_rcd.poles == 2)
 	else:
 		_title.text = tr("Incoming supply")
 		_cable.text = line.supply_cable
 		_cable.placeholder_text = SingleLine.SUPPLY_CABLE
 		_spd.set_pressed_no_signal(line.spd)
-	_hint.text = tr("Pick a breaker or an RCD in the palette and click between the circuits, under an RCD's busbar to put it in its group; a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it.")
+	_warning.visible = feeder_shown and line.lacks_rcd(f, _document.circuit)
+	_warning.text = tr(SingleLineCanvas.NO_RCD_TEXT)
+	_hint.text = tr("Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together.")
 
 
 func retranslate() -> void:

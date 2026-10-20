@@ -5181,9 +5181,6 @@ msgstr "Ukázat místnost %s na půdorysu"
 msgid "Click to switch it while simulating"
 msgstr "Při simulaci ho kliknutím přepnete"
 
-msgid "Drag to move its circuit; Delete takes it away"
-msgstr "Tažením přesunete jeho obvod; Delete ho odebere"
-
 msgid "Pick a circuit breaker or an RCD in the palette and click under the busbars to add a circuit."
 msgstr "Vyberte jistič nebo chránič v paletě a kliknutím pod přípojnice přidáte obvod."
 
@@ -5229,9 +5226,6 @@ msgstr "Bez místnosti"
 #, c-format
 msgid "Group %s"
 msgstr "Skupina %s"
-
-msgid "Pick a breaker or an RCD in the palette and click between the circuits, under an RCD's busbar to put it in its group; a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it."
-msgstr "Vyberte jistič nebo chránič v paletě a klikněte mezi obvody, pod přípojnici chrániče, aby byl v jeho skupině; zásuvku, svítidlo nebo spotřebič na obvod. Jistič nebo chránič přesunete tažením."
 
 msgid "Delete the selected breaker, RCD or part (Delete)"
 msgstr "Odebrat vybraný jistič, chránič nebo prvek (Delete)"
@@ -5284,3 +5278,93 @@ msgstr "Obvod pro nové prvky"
 
 msgid "No circuit"
 msgstr "Bez obvodu"
+
+msgid "Put a door in a wall by clicking it; a selected door: F swaps its hinge, Shift+F opens it to the other side, a double click turns it round"
+msgstr "Kliknutím na zeď vložíte dveře; vybrané dveře: F přehodí závěsy, Shift+F je otevře na druhou stranu, dvojklik je otočí"
+
+msgid "Width"
+msgstr "Šířka"
+
+msgid "Height"
+msgstr "Výška"
+
+msgid "Wall length"
+msgstr "Délka zdi"
+
+#, c-format
+msgid "Width of %s"
+msgstr "Šířka – %s"
+
+#, c-format
+msgid "Height of %s"
+msgstr "Výška – %s"
+
+msgid "Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
+msgstr "Dvojklikem místnost upravíte, dvojklikem na kótu vybrané místnosti zadáte délku (nebo vyberte zeď a stiskněte Enter); Delete odebere výběr; pravé tlačítko ukončí kreslení. Tažením pravým nebo prostředním tlačítkem posunete, kolečkem zvětšíte."
+
+msgid "Put a door in a wall by clicking it; a double click on a door sets its width, double door and swing; a selected door: F swaps its hinge, Shift+F opens it to the other side"
+msgstr "Kliknutím na zeď vložíte dveře; dvojklikem na dveře nastavíte šířku, dvoukřídlé dveře a otevírání; vybrané dveře: F přehodí závěsy, Shift+F je otevře na druhou stranu"
+
+msgid "Join two rooms into one (an L-shaped room and the like): click one, then the other touching it"
+msgstr "Spojit dvě místnosti v jednu (místnost tvaru L apod.): klikněte na jednu, pak na druhou, která s ní sousedí"
+
+msgid "Double door"
+msgstr "Dvoukřídlé dveře"
+
+msgid "Hinges"
+msgstr "Závěsy"
+
+msgid "Opens"
+msgstr "Otevírá se"
+
+msgid "Left or top"
+msgstr "Vlevo nebo nahoře"
+
+msgid "Right or bottom"
+msgstr "Vpravo nebo dole"
+
+msgid "Down or left"
+msgstr "Dolů nebo doleva"
+
+msgid "Up or right"
+msgstr "Nahoru nebo doprava"
+
+msgid "L-shaped"
+msgstr "Ve tvaru L:"
+
+#, c-format
+msgid "Wall of %s"
+msgstr "Zeď – %s"
+
+msgid "Normal: a dry room heated as usual, no water, dust or other influence beyond the normal range"
+msgstr "Normální: suchá, běžně vytápěná místnost bez vody, prachu a jiných vlivů mimo normální rozsah"
+
+msgid "A room with a bath or shower: zones 0, 1 and 2 around it, parts in them IPX4 and more, every circuit behind a 30 mA RCD"
+msgstr "Místnost s vanou nebo sprchou: zóny 0, 1 a 2 kolem ní, prvky v nich IPX4 a vyšší, každý obvod za chráničem 30 mA"
+
+msgid "Outdoors: open air from -50 to +40 °C (AB8), water splashing from any direction (AD4), parts IP44 and more"
+msgstr "Venkovní prostory: volné ovzduší od -50 do +40 °C (AB8), stříkající voda ze všech směrů (AD4), prvky IP44 a vyšší"
+
+msgid "Sheltered but not heated, such as an attic or a garage: from -25 to +55 °C (AB7)"
+msgstr "Krytá, ale nevytápěná, např. půda nebo garáž: od -25 do +55 °C (AB7)"
+
+msgid "F (also mixed frequencies: a single-phase inverter)"
+msgstr "F (i směs frekvencí: jednofázový měnič)"
+
+msgid "B (also smooth DC: three-phase inverters, chargers)"
+msgstr "B (i hladký DC: třífázové měniče, nabíječky)"
+
+msgid "B+ (B up to 20 kHz)"
+msgstr "B+ (B až do 20 kHz)"
+
+msgid "Selective, time-delayed (S)"
+msgstr "Selektivní, se zpožděním (S)"
+
+msgid "Drag to move its circuit (the ones selected along); Shift+click selects more; Delete takes them away"
+msgstr "Tažením přesunete jeho obvod (i s ostatními vybranými); Shift+klik vybere další; Delete je odstraní"
+
+msgid "Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together."
+msgstr "Vyberte v paletě jistič nebo chránič a klikněte mezi obvody; pod přípojnicí skupiny nebo pod jistič obvodu, který nic nenapájí, jej vložíte pod tento přístroj (chránič 30 mA pod selektivní 300 mA, jističe pod jistič); zásuvku, svítidlo nebo spotřebič na obvod. Jistič nebo chránič přesunete tažením. Shift+klik nebo rámeček tažený z prázdného místa vybere více prvků, které pak přetáhnete nebo smažete najednou."
+
+msgid "No RCD of 30 mA or less protects this circuit. ČSN 33 2000-4-41 asks for one on every circuit an ordinary person (laik) can reach: sockets, lighting and what is fed in a home."
+msgstr "Obvod nechrání proudový chránič 30 mA nebo citlivější. ČSN 33 2000-4-41 jej požaduje u každého obvodu přístupného laikům: zásuvky, osvětlení a vše napájené v bytě."

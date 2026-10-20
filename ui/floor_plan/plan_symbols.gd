@@ -13,7 +13,7 @@ extends RefCounted
 ## wall to the back of a half circle open to the room; a double socket a
 ## second half circle on the same stem, just inside the first. Luminaire: a circle with a
 ## cross. Appliance: a square with its sign on a stem from the wall.
-## Consumer unit: an oblong on the wall, half filled.
+## Consumer unit: a box on the wall with a second one inside it.
 
 ## Sizes in metres.
 const SWITCH_RADIUS: float = 0.06
@@ -27,6 +27,8 @@ const SOCKET_GANG: float = 0.07
 const LAMP_RADIUS: float = 0.12
 const APPLIANCE: float = 0.34
 const UNIT := Vector2(0.6, 0.22)
+## The inner box of the consumer unit, this far inside the outer one (m).
+const UNIT_INSET: float = 0.05
 ## Colour of a lit luminaire's glow and of a working appliance.
 const GLOW := Color(1.0, 0.86, 0.35, 0.55)
 
@@ -152,13 +154,12 @@ static func _sign(item: CanvasItem, kind: Appliance.Kind, c: Vector2, r: float, 
 			item.draw_polyline(zig, color, width, true)
 
 
-## The consumer unit on its wall.
+## The consumer unit on its wall: a box with a second one inside it.
 static func draw_unit(item: CanvasItem, at: Vector2, facing: Vector2, s: float, color: Color, width: float) -> void:
 	var into: Vector2 = facing if facing != Vector2.ZERO else Vector2.DOWN
 	var along: Vector2 = into.rotated(PI / 2.0)
-	var a: Vector2 = at - along * UNIT.x * 0.5 * s
-	var b: Vector2 = at + along * UNIT.x * 0.5 * s
-	var depth: Vector2 = into * UNIT.y * s
-	var outline: PackedVector2Array = PackedVector2Array([a, b, b + depth, a + depth, a])
-	item.draw_colored_polygon(PackedVector2Array([a, b, a + depth]), color)
-	item.draw_polyline(outline, color, width, true)
+	for inset: float in [0.0, UNIT_INSET]:
+		var a: Vector2 = at + along * (UNIT.x * 0.5 - inset) * s + into * inset * s
+		var b: Vector2 = at - along * (UNIT.x * 0.5 - inset) * s + into * inset * s
+		var depth: Vector2 = into * (UNIT.y - 2.0 * inset) * s
+		item.draw_polyline(PackedVector2Array([a, b, b + depth, a + depth, a]), color, width, true)

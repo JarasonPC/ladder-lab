@@ -82,6 +82,6 @@ static func rating_text(c: CircuitComponent) -> String:
 	if c is ResidualCurrentDevice:
 		var rcd: ResidualCurrentDevice = c as ResidualCurrentDevice
 		var current: String = CircuitBreaker.rating_text(rcd.characteristic, rcd.rated_current) if rcd.overcurrent else Fuse.amperes_text(rcd.rated_current) + " A"
-		return "%s %d mA %s" % [current, roundi(rcd.residual_rating * 1000.0), rcd.type]
+		return "%s %d mA %s" % [current, roundi(rcd.residual_rating * 1000.0), rcd.type_text()]
 	var afdd: MotorBreaker = c as MotorBreaker
 	return "AFDD " + CircuitBreaker.rating_text(afdd.characteristic, afdd.rated_current)

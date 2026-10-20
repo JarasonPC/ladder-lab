@@ -99,7 +99,15 @@ const FORMAT: String = "ladder-lab"
 ## 42: the lighting drawn on the floor plan of a residential installation
 ## ("links": [part, port, part, port]) and its rooms' "number",
 ## "environment" and "lux" (missing: the usual ones).
-const VERSION: int = 42
+## 43: how a door of the floor plan swings ("hinge_end", "opens_back";
+## missing: hinge at the start, opening down or left), double doors
+## ("double"), rooms of any outline with walls across or up and down
+## ("points", the corners, beside the "rect" round them).
+## 44: residual current devices of types "F", "B" and "B+" and selective
+## ones ("selective"; missing: not selective); the single-line diagram's
+## groups nested, under any protective device ("feeders" of a group hold
+## circuits and groups, each with its "kind"; missing: a circuit).
+const VERSION: int = 44
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

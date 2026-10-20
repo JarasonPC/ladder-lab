@@ -402,8 +402,25 @@ func reveal(template: Dictionary) -> void:
 func refresh_paper() -> void:
 	for tile: Panel in _tiles:
 		_style_tile(tile)
-	for symbol: SchematicSymbol in _symbols:
-		symbol.queue_redraw()
+		for child: Node in tile.get_children():
+			(child as CanvasItem).queue_redraw()
+
+
+## [param component] on a paper tile of [param button] as the floor plan draws it.
+func _add_plan_icon(button: Button, component: CircuitComponent) -> void:
+	var paper: Panel = Panel.new()
+	_tiles.append(paper)
+	_style_tile(paper)
+	paper.position = TILE.position
+	paper.size = TILE.size
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	paper.clip_contents = true
+	button.add_child(paper)
+	var glyph: PlanGlyph = PlanGlyph.new()
+	glyph.component = component
+	glyph.size = TILE.size
+	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	paper.add_child(glyph)
 
 
 func _style_tile(tile: Panel) -> void:
@@ -435,6 +452,10 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	if not ratings.is_empty() and not data.has("rating"):
 		data["rating"] = ratings[0]
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
+	if plan:
+		# The floor plan's parts as the plan draws them.
+		_add_plan_icon(button, component)
+		return
 	var supply: bool = component is PowerSupply
 	var upright: bool = component is ThreePhaseMotor or component is AnalogSensor or component is ProximitySensor or component is ProtectiveDevice or component is MotorBreaker or component is LightSwitch or component is SocketOutlet or component.get_terminal_names().size() > 3
 	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)

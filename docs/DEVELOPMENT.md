@@ -185,7 +185,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   one; LuminaireSymbol: the lamp's circle, PE joined to its side
 - House protection and appliances (residential palette): residual current devices
   (ResidualCurrentDevice "FB1", a MotorBreaker of 2 or 4 poles, phases 1-2 3-4 5-6 then N-N';
-  "residual" IΔn of RESIDUAL_RATINGS, "rcd_type" AC / A, "overcurrent" makes it an RCBO
+  "residual" IΔn of RESIDUAL_RATINGS, "rcd_type" one of TYPES (AC, A, F, B, B+; design data,
+  type_text adds " S"), "selective" (S: _instant_trips and _evaluate_protected let the
+  others trip first and try a selective one only when none did, so the one nearest the
+  fault trips alone where it clears it), "overcurrent" makes it an RCBO
   tripping as a breaker of its characteristic, else it never heats nor trips on a short as
   a breaker). The simulator keeps each closed path's current as a phasor
   (Simulator._path_phasor, first terminal to second) and _instant_trips adds those of an
@@ -248,20 +251,30 @@ Architecture and conventions of the code base. Read this before changing the cod
   breaker, a three-pole one, an RCBO or an AFDD; its phase 1-3, three poles always L1 L2 L3;
   the parts it feeds, sockets, luminaires, appliances; destination text, room on the floor
   plan, cable, "" for one by the rating: 3 or 5 cores of 1.5 mm² to 10 A, 2.5 to 16 A, 4 to 25
-  A, 6 beyond; ripple control) and groups (SingleLine.Group: an RCD without overcurrent
-  release, 2 poles on its phase or 4 poles, and the circuits under it; a two-pole RCD takes
-  only single-pole circuits, on its phase). The parts are components of the circuit (placed on
+  A, 6 beyond; ripple control) and groups (SingleLine.Group: a device and its items, the
+  circuits and groups under it, nested to any depth: an RCD without overcurrent release
+  heads one even empty (heads_group), any other protective device once something is put
+  under it (open_group turns a circuit feeding nothing into one, can_hold; prune turns an
+  emptied one back); under a device of one phase only one-phase devices, on its phase
+  (fits_poles, _single_phase); saved in "feeders" with each entry's "kind"). items() walks
+  them all, a group before what is under it; item_of, group_holding, list_holding,
+  depth_of, is_under, column_of (the top column); residual_protection and lacks_rcd: a
+  circuit feeding something without an RCD of 30 mA or less over it (its RCBO or a group's
+  RCD), which ČSN 33 2000-4-41 asks for wherever an ordinary person can reach. The parts are components of the circuit (placed on
   the never shown page 0, hidden_cell); SingleLine.wire makes every wire of the document
   from the diagram (none is drawn by hand): supply points L1 L2 L3 N PE through the main
   switch QB1 (CamSwitch 0-I, 4 poles) onto the busbars, a group's RCD from them and its
-  circuits from its outputs and N', each circuit's device (an RCBO's or AFDD's own N pole) and,
+  circuits from its outputs and N' (_wire_list, a head without N pole passing the N on), each
+  circuit's device (an RCBO's or AFDD's own N pole) and,
   switched by a contact of the ripple control contactor QA1 (LatchingSwitch blocks, one per
   circuit of its own with hdo; switched_by_hdo), the parts it feeds: phase conductors on the
   outputs in pole order, N, PE. It makes the supply points, QB1 and the QA1 contacts and
   prunes what the circuit no longer has; SchematicDocument.update_single_line runs it after
-  every edit (SchematicEditor._changed, edit_workspace) and on load. add (a group at a column,
-  a circuit at a column or into a group, a part onto a circuit; new phases the least used),
-  move, set_phase, remove (from _forget_device: a group's circuits stay where it was),
+  every edit (SchematicEditor._changed, edit_workspace) and on load. add (a device at an
+  index of the columns or, with into, of a device's group; a part onto a circuit; new phases
+  the least used), move and move_many (several together in their order, what is under one
+  moved going along; never under itself), set_phase, remove (from _forget_device: what is
+  under a group stays where it was),
   rename (from replace_component), next_phase, phases_of, cable_number, cable_text.
   SingleLineCanvas (ui/single_line/, _draw only, zoom and pan as the floor plan) draws it in
   local coordinates u down a circuit, v across (at, local): busbars L1 L2 L3 N across with
@@ -275,14 +288,26 @@ Architecture and conventions of the code base. Read this before changing the cod
   number -WDn on a ledger, the cable along the line, the symbol of its first part (socket arc,
   crossed lamp, hatched water heater, hob, fridge, washer, microwave, oven, heater; "2×" for
   more), the destination (or the part's kind, "Spare") and "→ room" (a link to the floor plan:
-  room_requested); a group: its RCD (both poles, the ring, the IΔ box, outline and test
-  button) from its busbar and N, its N bar Nn and its own busbar with its circuits. Colours:
+  room_requested); a group: its head from its busbar (an RCD: both poles, the ring, the IΔ
+  box, outline and test button; a breaker, RCBO or AFDD as on a circuit, with its N pole if
+  it has one), with an N pole its N bar Nn, and its own busbar with what is under it; a
+  group under a group LEVEL lower (_rcd_u, _n_bar_u, _sub_bus_u, _breaker_u by depth; the
+  ledger and loads lower by the deepest group, _ledger_u, _load_u; _lay keeps each group's
+  "n_u", where the N of what is under it comes from). A circuit lacking a 30 mA RCD has a
+  warning triangle over its ledger (NO_RCD_TEXT as its tooltip and in the panel). Colours:
   designations green, data magenta, links blue, AFDD red; while simulating every line in the
   colour of the voltage reaching it (StepResult.terminal_reach), lit luminaires and working
-  parts filled. Edit mode: a click selects (main.gd shows its properties through the editor's
-  selection), begin_place takes a palette template to drop_target (between the columns, into
-  a group under its busbar, a part onto the circuit under the mouse; marked dashed), a device
-  dragged moves its circuit or group, Delete takes a device with what it feeds away. Simulate
+  parts filled. Edit mode: a click selects (selected, whose properties main.gd shows through
+  the editor's selection; selection holds all selected: Shift or Ctrl+click toggles,
+  _select_box from a drag on an empty place), begin_place takes a palette template to
+  drop_target ({"index", "into", "feeder"}: between the columns, into the deepest group
+  under whose busbar the mouse is or below the breaker of a circuit that can hold, a part
+  onto the circuit under the mouse; {} where it does not fit), the devices selected dragged
+  move together (_moving_with, move_many), Delete takes all selected away in one edit.
+  While placing or dragging _preview lays out a copy of the diagram as it would be: the
+  canvas draws that, the parts put or moved left out and drawn on the ghost layer (a child
+  SingleLineCanvas at 45 % opacity: ghost_of, _draw_ghost; the part placed is _ghost, made
+  with its designation at begin_place, _part finds it). Simulate
   mode: QB1 and QA1 switch (switch_toggled -> SchematicView.toggle_switch), breakers and RCDs
   switch (operate_requested), test buttons trip (SchematicView.press_test). SingleLineView: a
   bar (Delete, Show all), the canvas and in Edit mode a panel for the selected circuit (phase,
@@ -318,7 +343,28 @@ Architecture and conventions of the code base. Read this before changing the cod
   2000-5-51 (room_environment: set, else N, a Bathroom ČSN 33 2000-7-701; ENVIRONMENTS
   offered), illuminance (room_lux: set, else LUX by its name); the number in the room, and
   beside the plan the legend of the rooms (_draw_room_legend, ROOM_COLUMNS; in paper_area and
-  fit); the room dialog (double click) asks them too
+  fit); the room dialog (double click) asks them too, each environment offered with what
+  it means (FloorPlan.ENVIRONMENT_NOTES), the ones used explained under the legend
+- Floor plan rooms are outlines (FloorPlan.Room.points, clockwise as drawn, every wall across
+  or up and down; rect is the rectangle round it, set makes a rectangle; contains, area,
+  wall(k), inward(k), corner; saved as "points" beside "rect" when not a rectangle): wall_near,
+  room_at and move_room work on them; set_edge(index, k, at) moves wall k (snapped, kept by
+  _clamp_edge: the walls beside it MIN_WALL long, a rectangle no smaller than MIN_ROOM), a
+  wall of another room on the same line along it moves along and the parts and doors on it
+  with it (set_wall: a rectangle's side 0 left .. 3 bottom, side_wall); set_wall_length (its
+  start stays, the next wall moves); resize_room; join_rooms (union_outline: the cells of
+  the corners' grid inside either, their border traced into one loop; refused for pieces
+  apart, touching at a corner or with a hole); preset_room ("l": an L cut out of a preset).
+  FloorPlanCanvas: walls in wall_color (grey), corners filled (_draw_walls); edge_at gives
+  (room, wall); Tool.JOIN clicks two rooms; the selected room's dimensions (_dimension_walls:
+  a rectangle's top and left, every wall of another outline; _dimension_line outside it),
+  double-clicked or Enter on a selected wall: length_requested -> FloorPlanView's length
+  dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.
+  Doors: hinge_end, opens_back, double (two leaves of half the width from both ends); a
+  double click: door_requested -> FloorPlanView's door dialog; F / Shift+F on a selected door.
+  The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
+  two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
+  undo and redo where the editor is not active (floor plan, workspace, single-line diagram)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,

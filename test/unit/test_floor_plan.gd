@@ -211,3 +211,112 @@ func test_floor_plan_sheet_in_the_export() -> void:
 	var area: Rect2 = canvas.paper_area()
 	assert_true(area.encloses(doc.floor_plan.bounds()), "the whole plan on the sheet")
 	assert_gte(area.size.y, doc.floor_plan.bounds().size.y + FloorPlanCanvas.LEGEND_HEIGHT, "room for the legend of heights")
+
+
+func test_wall_lengths_set_like_in_cad() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	plan.place("SF1", Vector2(3.0, 1.0), false)
+	plan.doors.append(FloorPlan.Door.new(Vector2(3.0, 0.75), true))
+	# The hall's right wall is the room's left wall: both move, and what is on it.
+	plan.set_wall(0, 2, 3.5)
+	assert_eq(plan.rooms[0].rect, Rect2(0, 0, 3.5, 1.5))
+	assert_eq(plan.rooms[1].rect, Rect2(3.5, 0, 3.5, 4), "the room sharing the wall keeps sharing it")
+	assert_eq(plan.parts["SF1"], Vector2(3.5, 1.0), "the switch on the wall moves with it")
+	assert_eq(plan.doors[0].at, Vector2(3.5, 0.75), "the door too")
+	plan.set_wall(0, 2, 0.1)
+	assert_almost_eq(plan.rooms[0].rect.size.x, FloorPlan.MIN_ROOM, 0.001, "never smaller than a room can be")
+	plan.resize_room(1, Vector2(5.0, 2.5))
+	assert_eq(plan.rooms[1].rect.size, Vector2(5.0, 2.5), "typed as its width and height")
+	# The canvas shows the selected room's dimensions and asks for a length.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas.selected = {"kind": "room", "index": 1}
+	var asked: Array[Vector2i] = []
+	canvas.length_requested.connect(func(index: int, side: int) -> void: asked.append(Vector2i(index, side)))
+	var top: Vector2 = canvas.to_screen(Vector2(plan.rooms[1].rect.get_center().x, plan.rooms[1].rect.position.y - FloorPlanCanvas.DIMENSION_GAP))
+	assert_eq(canvas.dimension_at(top), Vector2i(1, 0), "its width over its top wall")
+
+
+func test_plan_palette_draws_the_plan_symbols() -> void:
+	var palette: Palette = autofree(Palette.new())
+	add_child(palette)
+	palette.environment = SchematicDocument.Kind.RESIDENTIAL
+	palette.plan = true
+	assert_eq(palette.entries(), Palette.PLAN_ENTRIES)
+	var glyphs: int = 0
+	for button: Button in palette._buttons:
+		for tile: Node in button.get_children():
+			for child: Node in tile.get_children():
+				if child is PlanGlyph:
+					glyphs += 1
+	assert_eq(glyphs, Palette.PLAN_ENTRIES.size(), "every part as the plan draws it")
+
+
+func test_door_swing_and_undo_on_the_plan() -> void:
+	var door: FloorPlan.Door = FloorPlan.Door.new(Vector2(3, 1), true)
+	var seen: Dictionary[String, bool] = {}
+	for k: int in 4:
+		seen["%s %s" % [door.hinge_end, door.opens_back]] = true
+		door.turn()
+	assert_eq(seen.size(), 4, "a double click goes round the four ways")
+	assert_false(door.hinge_end or door.opens_back, "and back")
+	var plan: FloorPlan = FloorPlan.new()
+	door.hinge_end = true
+	door.opens_back = true
+	plan.doors.append(door)
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_true(again.doors[0].hinge_end and again.doors[0].opens_back, "saved")
+	# Ctrl+Z on the floor plan undoes its last edit.
+	var main: Main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
+	add_child_autofree(main)
+	main._recovery_dialog.hide()
+	main._replace_document(_house(), "")
+	main._set_area(Main.Area.WORKSPACE)
+	main._floor_plan._add_preset(0)
+	assert_eq(main.edit_doc.floor_plan.rooms.size(), 3)
+	var key: InputEventKey = InputEventKey.new()
+	key.keycode = KEY_Z
+	key.ctrl_pressed = true
+	key.pressed = true
+	assert_true(main._shortcut(key))
+	assert_eq(main.edit_doc.floor_plan.rooms.size(), 2, "undone by Ctrl+Z")
+	key.keycode = KEY_Y
+	main._shortcut(key)
+	assert_eq(main.edit_doc.floor_plan.rooms.size(), 3, "redone by Ctrl+Y")
+	await wait_process_frames(2)
+
+
+func test_l_shaped_rooms_double_doors_and_labels() -> void:
+	var plan: FloorPlan = FloorPlan.new()
+	plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 4, 3)))
+	plan.rooms.append(FloorPlan.Room.new("Room", Rect2(0, 3, 2, 2)))
+	plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(10, 0, 2, 2)))
+	assert_false(plan.join_rooms(0, 2), "rooms apart do not join")
+	assert_true(plan.join_rooms(0, 1), "touching along a wall: one room")
+	assert_eq(plan.rooms.size(), 2)
+	var room: FloorPlan.Room = plan.rooms[0]
+	assert_eq(room.points.size(), 6, "an L")
+	assert_almost_eq(room.area(), 16.0, 0.001)
+	assert_eq(room.name, "Living room", "the first keeps its name")
+	assert_true(room.contains(Vector2(1, 4)))
+	assert_false(room.contains(Vector2(3, 4)), "the corner cut out is not in it")
+	var wall: Dictionary = plan.wall_near(Vector2(3, 3.2))
+	assert_eq(wall["at"], Vector2(3, 3), "onto the inner wall of the L")
+	assert_eq(FloorPlan.FACING[wall["facing"]], Vector2.UP)
+	# Each wall's length is typed: the wall after it moves.
+	for k: int in room.points.size():
+		var w: PackedVector2Array = room.wall(k)
+		if w[0] == Vector2(2, 5) and w[1] == Vector2(0, 5):
+			plan.set_wall_length(0, (k + 5) % 6, 2.5)
+	assert_almost_eq(room.area(), 4 * 3 + 2 * 2.5, 0.001, "the leg made longer")
+	var preset: FloorPlan.Room = FloorPlan.preset_room(FloorPlan.PRESETS.size() - 1, Vector2.ZERO, "Living room")
+	assert_eq(preset.points.size(), 6, "an L-shaped room to start from")
+	plan.doors.append(FloorPlan.Door.new(Vector2(4, 1.5), true, 1.6))
+	plan.doors[0].double = true
+	room.label_offset = Vector2(0.5, 1.0)
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.rooms[0].points, room.points, "saved as its outline")
+	assert_true(again.doors[0].double, "a double door")
+	assert_eq(again.rooms[0].label_offset, Vector2(0.5, 1.0), "the label where it was moved")

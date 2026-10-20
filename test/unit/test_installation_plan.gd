@@ -29,7 +29,7 @@ func _house() -> SchematicDocument:
 
 ## Adds [param template] as [param designation] on circuit [param feeder], placed at [param at].
 func _put(doc: SchematicDocument, template: Dictionary, designation: String, feeder: String, at: Vector2) -> void:
-	assert_true(doc.single_line.add(doc, _component(template, designation), 0, -1, feeder))
+	assert_true(doc.single_line.add(doc, _component(template, designation), 0, "", feeder))
 	doc.floor_plan.place(designation, at, template["type"] == "luminaire")
 
 

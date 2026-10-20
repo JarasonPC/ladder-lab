@@ -467,6 +467,15 @@ func _shortcut(event: InputEvent) -> bool:
 			_confirm_discard(_new_dialog.ask)
 		KEY_Q when ctrl:
 			_confirm_discard(_quit)
+		# Undo and redo where the editor does not take the keys itself: the
+		# floor plan, the workspace, the single-line diagram.
+		KEY_Z when ctrl and mode == Mode.EDIT and not editor.active:
+			if key.shift_pressed:
+				editor.redo()
+			else:
+				editor.undo()
+		KEY_Y when ctrl and mode == Mode.EDIT and not editor.active:
+			editor.redo()
 		_:
 			handled = false
 	return handled
@@ -2673,7 +2682,7 @@ func _on_stepped(result: StepResult) -> void:
 		elif area == Area.SCHEMATIC:
 			_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
 		elif edit_doc != null and edit_doc.residential:
-			_hint_label.text = tr("Double-click a room to rename it; Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms.")
+			_hint_label.text = tr("Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms.")
 		else:
 			_hint_label.text = ""
 		_fit_status_label()

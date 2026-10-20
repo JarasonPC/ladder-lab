@@ -10,7 +10,8 @@ extends MotorBreaker
 ## between its poles (L-N) does not. With [member overcurrent] it is an RCBO
 ## (proudový chránič s jističem, ČSN EN 61009): it also trips as a circuit
 ## breaker of its characteristic. Its test button T trips it while it is on.
-## It starts switched off.
+## A [member selective] one (S) waits: where another one trips on the same
+## fault it stays on (see [Simulator]). It starts switched off.
 
 ## Rated residual currents sold, amperes (offered in the properties).
 const RESIDUAL_RATINGS: Array[float] = [0.01, 0.03, 0.1, 0.3]
@@ -19,21 +20,31 @@ const RCD_RATINGS: Array[float] = [16.0, 25.0, 40.0, 63.0]
 ## Share of the rated residual current from which it trips (it must trip
 ## between half of it and all of it).
 const TRIP_SHARE: float = 0.7
-## Types: AC trips on AC residual currents only, A also on pulsating DC.
-const TYPES: PackedStringArray = ["AC", "A"]
+## Types: AC trips on AC residual currents only, A also on pulsating DC,
+## F also on currents of mixed frequencies (a single-phase inverter), B also
+## on smooth DC (three-phase inverters, chargers), B+ as B up to 20 kHz.
+const TYPES: PackedStringArray = ["AC", "A", "F", "B", "B+"]
 
 ## Rated residual current IΔn, amperes (design data).
 var residual_rating: float = 0.03
-## Type "AC" or "A" (design data).
+## Type, one of [constant TYPES] (design data).
 var type: String = "A"
 ## Has an overcurrent release too: an RCBO (design data).
 var overcurrent: bool = false
+## Selective, time-delayed (S): ahead of other ones, it lets the one
+## nearest the fault trip alone (design data).
+var selective: bool = false
 
 
 func _init(p_designation: String, p_poles: int = 2) -> void:
 	super(p_designation)
 	poles = p_poles
 	rated_current = 40.0
+
+
+## Its type as printed: "A", or "A S" for a selective one.
+func type_text() -> String:
+	return type + " S" if selective else type
 
 
 func _poles_changed() -> void:

@@ -344,6 +344,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["poles"] = rcd.poles
 		d["residual"] = rcd.residual_rating
 		d["rcd_type"] = rcd.type
+		if rcd.selective:
+			d["selective"] = true
 		d["rated_current"] = rcd.rated_current
 		if rcd.overcurrent:
 			d["overcurrent"] = true
@@ -718,6 +720,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			var residual: float = _number_or(d, "residual", 0.03)
 			rcd.residual_rating = residual if ResidualCurrentDevice.RESIDUAL_RATINGS.has(residual) else 0.03
 			rcd.type = str(d.get("rcd_type", "A")) if ResidualCurrentDevice.TYPES.has(str(d.get("rcd_type", "A"))) else "A"
+			rcd.selective = _bool(d, "selective", false)
 			rcd.overcurrent = _bool(d, "overcurrent", false)
 			rcd.rated_current = _amperes(d, "rated_current", 16.0 if rcd.overcurrent else 40.0)
 			rcd.characteristic = maxi(TripCurve.LETTERS.find(str(d.get("characteristic", "B"))), 0) as CircuitBreaker.Characteristic

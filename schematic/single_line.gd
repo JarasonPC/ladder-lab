@@ -5,8 +5,10 @@ extends RefCounted
 ## supply through the main switch onto busbars L1, L2, L3 and N, and the
 ## outgoing circuits hanging from the busbars in columns, left to right. A
 ## column is a circuit (its breaker, RCBO or AFDD and what it feeds) or a
-## group: an RCD with the circuits under it. Only the phases are drawn; N
-## and PE are wired all the same. No nodes.
+## group: a device with circuits and other groups under it (an RCD with
+## its circuits, a 30 mA RCD under a selective 300 mA one, breakers under a
+## breaker): any protective device heads one once something is put under it. Only the phases are drawn; N and PE are
+## wired all the same. No nodes.
 ##
 ## The parts are components of the document's circuit; the diagram keeps
 ## their order, phases and groups and what each circuit feeds, and wires
@@ -78,32 +80,27 @@ class Feeder extends RefCounted:
 		return f
 
 
-## A residual current device with the circuits under it.
+## A device with what is under it.
 class Group extends RefCounted:
-	## The RCD.
+	## The RCD, or the breaker, RCBO or AFDD, at its head.
 	var device: String = ""
-	## Phase of a two-pole RCD (a four-pole one takes all three).
+	## Phase of a device of one phase (one of three takes all three).
 	var phase: int = 1
-	var feeders: Array[Feeder] = []
+	## Its circuits and the groups under it, left to right: [SingleLine.Feeder]
+	## or [SingleLine.Group].
+	var items: Array[RefCounted] = []
 
 	func _init(p_device: String = "", p_phase: int = 1) -> void:
 		device = p_device
 		phase = p_phase
 
 	func to_data() -> Dictionary:
-		var list: Array[Dictionary] = []
-		for f: Feeder in feeders:
-			list.append(f.to_data())
-		return {"device": device, "phase": phase, "feeders": list}
+		return {"device": device, "phase": phase, "feeders": SingleLine.list_data(items)}
 
 	static func from_data(d: Dictionary) -> Group:
 		var raw_phase: Variant = d.get("phase", 1)
 		var g: Group = Group.new(str(d.get("device", "")), clampi(int(raw_phase) if raw_phase is float or raw_phase is int else 1, 1, 3))
-		var raw: Variant = d.get("feeders", [])
-		if raw is Array:
-			for item: Variant in raw:
-				if item is Dictionary:
-					g.feeders.append(Feeder.from_data(item))
+		g.items = SingleLine.list_from_data(d.get("feeders", []))
 		return g
 
 
@@ -121,7 +118,9 @@ func is_empty() -> bool:
 
 # --- Finding things -------------------------------------------------------------------
 
-## Whether [param c] heads a group: an RCD without overcurrent release.
+## Whether [param c] heads a group even with nothing under it: an RCD
+## without overcurrent release (any protective device heads one with
+## something under it).
 static func heads_group(c: CircuitComponent) -> bool:
 	return c is ResidualCurrentDevice and not (c as ResidualCurrentDevice).overcurrent
 
@@ -175,15 +174,49 @@ func tag(designation: String, circuit: Circuit) -> String:
 	return ""
 
 
+## Every circuit and group, left to right, a group before what is under it.
+func items() -> Array[RefCounted]:
+	var list: Array[RefCounted] = []
+	_collect(columns, list)
+	return list
+
+
+static func _collect(from: Array[RefCounted], list: Array[RefCounted]) -> void:
+	for item: RefCounted in from:
+		list.append(item)
+		if item is Group:
+			_collect((item as Group).items, list)
+
+
 ## Every circuit, left to right.
 func feeders() -> Array[Feeder]:
 	var list: Array[Feeder] = []
-	for column: RefCounted in columns:
-		if column is Group:
-			list.append_array((column as Group).feeders)
-		else:
-			list.append(column as Feeder)
+	for item: RefCounted in items():
+		if item is Feeder:
+			list.append(item as Feeder)
 	return list
+
+
+## Every group, left to right, a group before the ones under it.
+func groups() -> Array[Group]:
+	var list: Array[Group] = []
+	for item: RefCounted in items():
+		if item is Group:
+			list.append(item as Group)
+	return list
+
+
+## Device of circuit or group [param item].
+static func device_of(item: RefCounted) -> String:
+	return (item as Group).device if item is Group else (item as Feeder).device
+
+
+## The circuit or group of device [param designation], or null.
+func item_of(designation: String) -> RefCounted:
+	for item: RefCounted in items():
+		if device_of(item) == designation:
+			return item
+	return null
 
 
 ## The circuit of protective device [param designation], or null.
@@ -204,33 +237,80 @@ func feeder_feeding(designation: String) -> Feeder:
 
 ## The group of RCD [param designation], or null.
 func group_of(designation: String) -> Group:
-	for column: RefCounted in columns:
-		if column is Group and (column as Group).device == designation:
-			return column as Group
+	for g: Group in groups():
+		if g.device == designation:
+			return g
 	return null
 
 
-## The group circuit [param f] is in, or null.
-func group_holding(f: Feeder) -> Group:
-	for column: RefCounted in columns:
-		if column is Group and (column as Group).feeders.has(f):
-			return column as Group
+## The group circuit or group [param item] is directly under, or null.
+func group_holding(item: RefCounted) -> Group:
+	for g: Group in groups():
+		if g.items.has(item):
+			return g
 	return null
 
 
-## Column of device [param designation] (a circuit's or a group's), -1 for none.
+## The list [param item] is in: its group's items or the columns.
+func list_holding(item: RefCounted) -> Array[RefCounted]:
+	var g: Group = group_holding(item)
+	return g.items if g != null else columns
+
+
+## How many groups [param item] is under.
+func depth_of(item: RefCounted) -> int:
+	var depth: int = 0
+	var g: Group = group_holding(item)
+	while g != null:
+		depth += 1
+		g = group_holding(g)
+	return depth
+
+
+## Whether [param item] is [param group] or under it.
+func is_under(item: RefCounted, group: Group) -> bool:
+	var at: RefCounted = item
+	while at != null:
+		if at == group:
+			return true
+		at = group_holding(at)
+	return false
+
+
+## Column of device [param designation] (a circuit's or a group's, or the
+## group's it is under), -1 for none.
 func column_of(designation: String) -> int:
-	for i: int in columns.size():
-		var column: RefCounted = columns[i]
-		if column is Group:
-			if (column as Group).device == designation:
-				return i
-			for f: Feeder in (column as Group).feeders:
-				if f.device == designation:
-					return i
-		elif (column as Feeder).device == designation:
-			return i
-	return -1
+	var item: RefCounted = item_of(designation)
+	if item == null:
+		return -1
+	var g: Group = group_holding(item)
+	while g != null:
+		item = g
+		g = group_holding(g)
+	return columns.find(item)
+
+
+## The smallest rated residual current protecting circuit [param f] (its
+## RCBO's or of a group it is under), amperes; INF for none.
+func residual_protection(f: Feeder, circuit: Circuit) -> float:
+	var best: float = INF
+	var rcbo: ResidualCurrentDevice = circuit.get_component(f.device) as ResidualCurrentDevice
+	if rcbo != null:
+		best = rcbo.residual_rating
+	var g: Group = group_holding(f)
+	while g != null:
+		var rcd: ResidualCurrentDevice = circuit.get_component(g.device) as ResidualCurrentDevice
+		if rcd != null:
+			best = minf(best, rcd.residual_rating)
+		g = group_holding(g)
+	return best
+
+
+## Whether circuit [param f] lacks the additional protection of an RCD of
+## 30 mA or less that ČSN 33 2000-4-41 asks for every circuit an ordinary
+## person (laik) can reach: it feeds something and none protects it.
+func lacks_rcd(f: Feeder, circuit: Circuit) -> bool:
+	return not f.loads.is_empty() and residual_protection(f, circuit) > 0.03 + 1e-6
 
 
 ## Whether [param designation] is in the diagram (a device or a part fed).
@@ -268,9 +348,10 @@ static func cable_text(f: Feeder, circuit: Circuit) -> String:
 	return "CYKY-J %d×%s" % [cores, section]
 
 
-## The phases circuit [param f] takes, in pole order, as fed by [param circuit].
-func phases_of(f: Feeder, circuit: Circuit) -> PackedInt32Array:
-	var c: CircuitComponent = circuit.get_component(f.device)
+## The phases circuit [param f] takes, in pole order, as fed by [param circuit]
+## (its device [param device] when not in it yet).
+func phases_of(f: Feeder, circuit: Circuit, device: CircuitComponent = null) -> PackedInt32Array:
+	var c: CircuitComponent = device if device != null else circuit.get_component(f.device)
 	var poles: int = 1
 	if c is MotorBreaker and not (c is ResidualCurrentDevice or c is ArcFaultDevice):
 		poles = (c as MotorBreaker).poles
@@ -300,33 +381,23 @@ func next_phase(circuit: Circuit) -> int:
 # --- Edits ----------------------------------------------------------------------------
 
 ## Adds [param c] to [param doc] (if it is not there yet) and to the diagram:
-## an RCD as a new group at column [param column], a protective device as a
-## new circuit there or, with [param group] (the column of a group), the
-## [param column]-th circuit of that group, a part fed into circuit
-## [param feeder] (a device's designation). Rewires. Returns false when it
-## does not fit there (nothing changed then).
-func add(doc: SchematicDocument, c: CircuitComponent, column: int, group: int = -1, feeder: String = "") -> bool:
+## an RCD as a new group, a protective device as a new circuit, at
+## [param index] of the columns or, with [param into] (an RCD's
+## designation), of that group; a part fed into circuit [param feeder] (a
+## device's designation). Rewires. Returns false when it does not fit
+## there (nothing changed then).
+func add(doc: SchematicDocument, c: CircuitComponent, index: int, into: String = "", feeder: String = "") -> bool:
 	var placed: bool = false
-	if heads_group(c):
-		if group >= 0:
-			return false
-		var poles: int = (c as ResidualCurrentDevice).poles
-		var g: Group = Group.new(c.designation, next_phase(doc.circuit) if poles == 2 else 1)
-		columns.insert(clampi(column, 0, columns.size()), g)
-		placed = true
-	elif protects_circuit(c):
-		var f: Feeder = Feeder.new(c.designation, 1)
-		if group >= 0 and group < columns.size() and columns[group] is Group:
-			var g: Group = columns[group] as Group
-			var rcd: ResidualCurrentDevice = doc.circuit.get_component(g.device) as ResidualCurrentDevice
-			# Under a two-pole RCD only single-pole circuits, on its phase.
-			if rcd != null and rcd.poles == 2 and _poles(c) > 1:
+	if heads_group(c) or protects_circuit(c):
+		var parent: Group = null
+		if not into.is_empty():
+			if not can_hold(into) or not fits_poles(doc, _poles(c), into):
 				return false
-			f.phase = g.phase if rcd == null or rcd.poles == 2 else next_phase(doc.circuit)
-			g.feeders.insert(clampi(column, 0, g.feeders.size()), f)
-		else:
-			f.phase = next_phase(doc.circuit)
-			columns.insert(clampi(column, 0, columns.size()), f)
+			parent = open_group(into)
+		var item: RefCounted = Group.new(c.designation) if heads_group(c) else Feeder.new(c.designation)
+		var list: Array[RefCounted] = parent.items if parent != null else columns
+		list.insert(clampi(index, 0, list.size()), item)
+		_set_phase_of(item, _phase_under(doc, parent, c))
 		placed = true
 	elif is_load(c):
 		var f: Feeder = feeder_of(feeder)
@@ -342,95 +413,151 @@ func add(doc: SchematicDocument, c: CircuitComponent, column: int, group: int = 
 	return true
 
 
-## Moves the circuit or group of device [param designation] to column
-## [param column] (counted without it), or with [param group] (the column of
-## a group, counted without it) into that group as its [param column]-th
-## circuit. A group never goes into another. Rewires. Returns false when it
-## does not fit there.
-func move(doc: SchematicDocument, designation: String, column: int, group: int = -1) -> bool:
-	var head: Group = group_of(designation)
-	var f: Feeder = feeder_of(designation)
-	if head == null and f == null:
+## Whether something can be put under device [param designation]: a
+## group's head, or a circuit that feeds nothing.
+func can_hold(designation: String) -> bool:
+	var item: RefCounted = item_of(designation)
+	return item is Group or (item is Feeder and (item as Feeder).loads.is_empty())
+
+
+## The group of device [param designation], a circuit feeding nothing made
+## one (its head); null when it cannot hold anything.
+func open_group(designation: String) -> Group:
+	var item: RefCounted = item_of(designation)
+	if item is Group:
+		return item as Group
+	if not can_hold(designation):
+		return null
+	var f: Feeder = item as Feeder
+	var g: Group = Group.new(f.device, f.phase)
+	var list: Array[RefCounted] = list_holding(f)
+	list[list.find(f)] = g
+	return g
+
+
+## Whether a device taking [param phases] phases can go under device
+## [param head]: under one of one phase only what takes one phase.
+func fits_poles(doc: SchematicDocument, phases: int, head: String) -> bool:
+	return not _single_phase(doc.circuit, head) or phases <= 1
+
+
+## Whether device [param head] takes one phase (what is under it on its phase).
+static func _single_phase(circuit: Circuit, head: String) -> bool:
+	var c: CircuitComponent = circuit.get_component(head)
+	return c == null or _poles(c) <= 1
+
+
+## How many phases device [param c] takes.
+static func phase_count(c: CircuitComponent) -> int:
+	return _poles(c)
+
+
+## The phase device [param c] takes under [param parent] (null: the busbars):
+## the phase of a device of one phase, L1 for three poles, else the least loaded.
+func _phase_under(doc: SchematicDocument, parent: Group, c: CircuitComponent) -> int:
+	if parent != null and _single_phase(doc.circuit, parent.device):
+		return parent.phase
+	return 1 if _poles(c) >= 3 else next_phase(doc.circuit)
+
+
+## Puts [param item] on [param phase], with what is under it.
+func _set_phase_of(item: RefCounted, phase: int) -> void:
+	if item is Feeder:
+		(item as Feeder).phase = phase
+		return
+	(item as Group).phase = phase
+	for sub: RefCounted in (item as Group).items:
+		_set_phase_of(sub, phase)
+
+
+## Moves the circuit or group of device [param designation] to [param index]
+## of the columns or, with [param into] (an RCD's designation), of that
+## group's items, counted without it. Rewires. Returns false when it does
+## not fit there.
+func move(doc: SchematicDocument, designation: String, index: int, into: String = "") -> bool:
+	return move_many(doc, PackedStringArray([designation]), index, into)
+
+
+## Moves the circuits and groups of devices [param designations] together,
+## in their order, to [param index] of the columns or of group [param into]'s
+## items, counted without them (one under another moved goes along with
+## it). A group never goes under itself. Rewires. Returns false when one
+## does not fit there (nothing changed then).
+func move_many(doc: SchematicDocument, designations: PackedStringArray, index: int, into: String = "") -> bool:
+	var chosen: Array[RefCounted] = []
+	for designation: String in designations:
+		var item: RefCounted = item_of(designation)
+		if item != null and not chosen.has(item):
+			chosen.append(item)
+	var moving: Array[RefCounted] = []
+	for item: RefCounted in items():
+		if not chosen.has(item):
+			continue
+		var g: Group = group_holding(item)
+		var along: bool = false
+		while g != null:
+			along = along or chosen.has(g)
+			g = group_holding(g)
+		if not along:
+			moving.append(item)
+	if moving.is_empty():
 		return false
-	var target: Group = null
-	var from: int = column_of(designation)
-	if group >= 0:
-		if head != null:
+	var parent: Group = null
+	if not into.is_empty():
+		var target: RefCounted = item_of(into)
+		if not can_hold(into):
 			return false
-		# The group's column once the circuit is out (a circuit of its own
-		# left of it frees a column).
-		var index: int = group + (1 if group_holding(f) == null and from <= group else 0)
-		if index < 0 or index >= columns.size() or not (columns[index] is Group):
-			return false
-		target = columns[index] as Group
-		var rcd: ResidualCurrentDevice = doc.circuit.get_component(target.device) as ResidualCurrentDevice
-		if rcd != null and rcd.poles == 2 and _poles(doc.circuit.get_component(f.device)) > 1:
-			return false
-	if head != null:
-		columns.erase(head)
-		columns.insert(clampi(column, 0, columns.size()), head)
-	else:
-		var holder: Group = group_holding(f)
-		if holder != null:
-			holder.feeders.erase(f)
-		else:
-			columns.erase(f)
-		if target != null:
-			var rcd: ResidualCurrentDevice = doc.circuit.get_component(target.device) as ResidualCurrentDevice
-			if rcd == null or rcd.poles == 2:
-				f.phase = target.phase
-			target.feeders.insert(clampi(column, 0, target.feeders.size()), f)
-		else:
-			columns.insert(clampi(column, 0, columns.size()), f)
+		for item: RefCounted in moving:
+			if item == target or (item is Group and is_under(target, item as Group)) or not fits_poles(doc, _poles(doc.circuit.get_component(device_of(item))), into):
+				return false
+		parent = open_group(into)
+	for item: RefCounted in moving:
+		list_holding(item).erase(item)
+	var list: Array[RefCounted] = parent.items if parent != null else columns
+	var at: int = clampi(index, 0, list.size())
+	for k: int in moving.size():
+		list.insert(at + k, moving[k])
+		if parent != null and _single_phase(doc.circuit, parent.device):
+			_set_phase_of(moving[k], parent.phase)
 	wire(doc)
 	return true
 
 
-## Puts circuit or group [param designation] on phase [param phase] (a
-## group's circuits along with it; a circuit under a two-pole RCD stays on
-## the RCD's phase). Rewires.
+## Puts circuit or group [param designation] on phase [param phase] (what is
+## under a device of one phase along with it; under one it stays on its
+## phase). Rewires.
 func set_phase(doc: SchematicDocument, designation: String, phase: int) -> void:
 	phase = clampi(phase, 1, 3)
-	var head: Group = group_of(designation)
-	if head != null:
-		head.phase = phase
-		var rcd: ResidualCurrentDevice = doc.circuit.get_component(head.device) as ResidualCurrentDevice
-		if rcd == null or rcd.poles == 2:
-			for f: Feeder in head.feeders:
-				f.phase = phase
+	var item: RefCounted = item_of(designation)
+	if item == null:
+		return
+	var holder: Group = group_holding(item)
+	if holder != null and _single_phase(doc.circuit, holder.device):
+		return
+	if item is Group:
+		if _single_phase(doc.circuit, (item as Group).device):
+			_set_phase_of(item, phase)
+		else:
+			(item as Group).phase = phase
 	else:
-		var f: Feeder = feeder_of(designation)
-		if f == null:
-			return
-		var holder: Group = group_holding(f)
-		if holder != null:
-			var rcd: ResidualCurrentDevice = doc.circuit.get_component(holder.device) as ResidualCurrentDevice
-			if rcd == null or rcd.poles == 2:
-				return
-		f.phase = phase
+		(item as Feeder).phase = phase
 	wire(doc)
 
 
 ## Leaves [param designation] out of the diagram (its component is gone): a
-## group's circuits stay where it was, a circuit goes with what it fed
-## unfed, a part fed is no longer fed.
+## group's circuits and groups stay where it was, a circuit goes with what
+## it fed unfed, a part fed is no longer fed.
 func remove(designation: String) -> void:
-	for i: int in columns.size():
-		var column: RefCounted = columns[i]
-		if column is Group:
-			var g: Group = column as Group
-			if g.device == designation:
-				columns.remove_at(i)
-				for k: int in g.feeders.size():
-					columns.insert(i + k, g.feeders[k])
-				return
-			for f: Feeder in g.feeders:
-				if f.device == designation:
-					g.feeders.erase(f)
-					return
-		elif (column as Feeder).device == designation:
-			columns.remove_at(i)
-			return
+	var item: RefCounted = item_of(designation)
+	if item != null:
+		var list: Array[RefCounted] = list_holding(item)
+		var at: int = list.find(item)
+		list.remove_at(at)
+		if item is Group:
+			var sub: Array[RefCounted] = (item as Group).items
+			for k: int in sub.size():
+				list.insert(at + k, sub[k])
+		return
 	var fed: Feeder = feeder_feeding(designation)
 	if fed != null:
 		var at: int = fed.loads.find(designation)
@@ -439,9 +566,9 @@ func remove(designation: String) -> void:
 
 ## Device or part [param old_designation] is now [param new_designation].
 func rename(old_designation: String, new_designation: String) -> void:
-	for column: RefCounted in columns:
-		if column is Group and (column as Group).device == old_designation:
-			(column as Group).device = new_designation
+	for g: Group in groups():
+		if g.device == old_designation:
+			g.device = new_designation
 	for f: Feeder in feeders():
 		if f.device == old_designation:
 			f.device = new_designation
@@ -459,22 +586,27 @@ func prune(circuit: Circuit) -> void:
 			if load == null or not is_load(load):
 				f.loads.remove_at(i)
 	var stale: PackedStringArray = PackedStringArray()
-	for column: RefCounted in columns:
-		if column is Group:
-			if not heads_group(circuit.get_component((column as Group).device)):
-				stale.append((column as Group).device)
-			for f: Feeder in (column as Group).feeders:
-				if not protects_circuit(circuit.get_component(f.device)):
-					stale.append(f.device)
-		elif not protects_circuit(circuit.get_component((column as Feeder).device)):
-			stale.append((column as Feeder).device)
+	for item: RefCounted in items():
+		var c: CircuitComponent = circuit.get_component(device_of(item))
+		if not (heads_group(c) or protects_circuit(c) if item is Group else protects_circuit(c)):
+			stale.append(device_of(item))
 	for designation: String in stale:
 		remove(designation)
+	# A breaker with nothing left under it is a circuit again.
+	for g: Group in groups():
+		if g.items.is_empty() and not heads_group(circuit.get_component(g.device)):
+			var list: Array[RefCounted] = list_holding(g)
+			list[list.find(g)] = Feeder.new(g.device, g.phase)
 
 
 ## A cell of the (never shown) schematic page for a new part, clear of the others.
 static func hidden_cell(doc: SchematicDocument) -> Vector2i:
 	return Vector2i(6 * doc.circuit.get_components().size(), 0)
+
+
+## Whether [param c] switches N too: an RCD, RCBO or AFDD.
+static func has_n_pole(c: CircuitComponent) -> bool:
+	return c is ResidualCurrentDevice or c is ArcFaultDevice
 
 
 static func _poles(c: CircuitComponent) -> int:
@@ -516,24 +648,35 @@ func wire(doc: SchematicDocument) -> void:
 	_joined.clear()
 	_live.clear()
 	_switched = _switched_luminaires(doc)
-	for column: RefCounted in columns:
-		if column is Group:
-			var g: Group = column as Group
-			var rcd: ResidualCurrentDevice = doc.circuit.get_component(g.device) as ResidualCurrentDevice
-			var keys: PackedStringArray = rcd.get_terminal_keys()
-			var sub: Dictionary[int, String] = {}
-			var phases: int = rcd.poles - 1
-			for k: int in phases:
-				var ph: int = g.phase if phases == 1 else k + 1
-				doc.connect_terminals(bus[ph], keys[2 * k])
-				sub[ph] = keys[2 * k + 1]
-			doc.connect_terminals(n_bus, keys[2 * phases])
-			var n_sub: String = keys[2 * phases + 1]
-			for f: Feeder in g.feeders:
-				hdo_used = _wire_feeder(doc, f, sub, n_sub, hdo_contacts, hdo_used)
-		else:
-			hdo_used = _wire_feeder(doc, column as Feeder, bus, n_bus, hdo_contacts, hdo_used)
+	_wire_list(doc, columns, bus, n_bus, hdo_contacts, 0)
 	_wire_lighting(doc)
+
+
+## Wires circuits and groups [param list] from busbars [param bus] (phase ->
+## terminal key) and N [param n_bus]: a group's RCD from them and what is
+## under it from its outputs. Returns how many ripple control contacts are used.
+func _wire_list(doc: SchematicDocument, list: Array[RefCounted], bus: Dictionary[int, String], n_bus: String, hdo_contacts: Array[CircuitComponent], hdo_used: int) -> int:
+	for item: RefCounted in list:
+		if item is Feeder:
+			hdo_used = _wire_feeder(doc, item as Feeder, bus, n_bus, hdo_contacts, hdo_used)
+			continue
+		var g: Group = item as Group
+		var head: CircuitComponent = doc.circuit.get_component(g.device)
+		var keys: PackedStringArray = head.get_terminal_keys()
+		var sub: Dictionary[int, String] = {}
+		var phases: int = _poles(head)
+		for k: int in phases:
+			var ph: int = g.phase if phases == 1 else k + 1
+			if bus.has(ph):
+				doc.connect_terminals(bus[ph], keys[2 * k])
+			sub[ph] = keys[2 * k + 1]
+		# Through its own N pole (an RCD's, an AFDD's), else straight on.
+		var n_sub: String = n_bus
+		if has_n_pole(head):
+			doc.connect_terminals(n_bus, keys[2 * phases])
+			n_sub = keys[2 * phases + 1]
+		hdo_used = _wire_list(doc, g.items, sub, n_sub, hdo_contacts, hdo_used)
+	return hdo_used
 
 
 ## Wires circuit [param f] from busbars [param bus] (phase -> terminal key)
@@ -548,7 +691,7 @@ func _wire_feeder(doc: SchematicDocument, f: Feeder, bus: Dictionary[int, String
 			doc.connect_terminals(bus[phases[k]], keys[2 * k])
 		outputs.append(keys[2 * k + 1])
 	var n_out: String = n_bus
-	if device is ResidualCurrentDevice or device is ArcFaultDevice:
+	if has_n_pole(device):
 		# Its own N pole.
 		doc.connect_terminals(n_bus, keys[2 * phases.size()])
 		n_out = keys[2 * phases.size() + 1]
@@ -850,13 +993,33 @@ func _make_fixed_parts(doc: SchematicDocument) -> void:
 
 # --- Saving ---------------------------------------------------------------------------
 
+## Circuits and groups [param list] saved, each with its "kind".
+static func list_data(list: Array[RefCounted]) -> Array[Dictionary]:
+	var data: Array[Dictionary] = []
+	for item: RefCounted in list:
+		var d: Dictionary = (item as Group).to_data() if item is Group else (item as Feeder).to_data()
+		d["kind"] = "group" if item is Group else "circuit"
+		data.append(d)
+	return data
+
+
+## Circuits and groups saved as [param raw]; damaged entries are left out.
+static func list_from_data(raw: Variant) -> Array[RefCounted]:
+	var list: Array[RefCounted] = []
+	if not (raw is Array):
+		return list
+	for item: Variant in raw:
+		if not (item is Dictionary):
+			continue
+		if (item as Dictionary).get("kind", "") == "group":
+			list.append(Group.from_data(item))
+		else:
+			list.append(Feeder.from_data(item))
+	return list
+
+
 func to_data() -> Dictionary:
-	var list: Array[Dictionary] = []
-	for column: RefCounted in columns:
-		var d: Dictionary = (column as Group).to_data() if column is Group else (column as Feeder).to_data()
-		d["kind"] = "group" if column is Group else "circuit"
-		list.append(d)
-	var result: Dictionary = {"columns": list}
+	var result: Dictionary = {"columns": list_data(columns)}
 	if not supply_cable.is_empty():
 		result["supply_cable"] = supply_cable
 	if not spd:
@@ -869,15 +1032,7 @@ static func from_data(d: Variant) -> SingleLine:
 	var line: SingleLine = SingleLine.new()
 	if not (d is Dictionary):
 		return line
-	var raw: Variant = (d as Dictionary).get("columns", [])
-	if raw is Array:
-		for item: Variant in raw:
-			if not (item is Dictionary):
-				continue
-			if (item as Dictionary).get("kind", "") == "group":
-				line.columns.append(Group.from_data(item))
-			else:
-				line.columns.append(Feeder.from_data(item))
+	line.columns = list_from_data((d as Dictionary).get("columns", []))
 	var cable: Variant = (d as Dictionary).get("supply_cable", "")
 	line.supply_cable = cable if cable is String else ""
 	line.spd = (d as Dictionary).get("spd", true) != false
