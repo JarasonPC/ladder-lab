@@ -43,7 +43,7 @@ func _house() -> SchematicDocument:
 	doc.add(LightSwitch.new("SF1"), Vector2i(0, 10))
 	doc.add(Luminaire.new("EA1"), Vector2i(0, 16))
 	doc.add(SocketOutlet.new("XD1"), Vector2i(10, 10))
-	for pair: Array in [["L1", "FA1:1"], ["FA1:2", "SF1:P"], ["SF1:1", "EA1:L"], ["EA1:N", "N"], ["EA1:PE", "PE"], ["FA1:2", "XD1:L"], ["XD1:N", "N"], ["XD1:PE", "PE"]]:
+	for pair: Array in [["L1", "FA1:1"], ["FA1:2", "SF1:1"], ["SF1:2", "EA1:L"], ["EA1:N", "N"], ["EA1:PE", "PE"], ["FA1:2", "XD1:L"], ["XD1:N", "N"], ["XD1:PE", "PE"]]:
 		assert_true(doc.connect_terminals(pair[0], pair[1]), "%s - %s" % pair)
 	doc.floor_plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(0, 0, 3, 1.5)))
 	doc.floor_plan.rooms.append(FloorPlan.Room.new("Room", Rect2(3, 0, 4, 4)))

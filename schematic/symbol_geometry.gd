@@ -388,43 +388,43 @@ static func cam_terminal_cell(cam: CamSwitch, index: int) -> Vector2i:
 
 
 ## Cell of terminal [param index] of a light switch, drawn as on Czech
-## wiring diagrams: a box with the common P on top and the outputs below; a
-## two-pole or three-pole switch as the other multi-pole devices (1, 3, 5 on
-## top, 2, 4, 6 below); the intermediate switch with 1 2 on top, 3 4 below.
+## wiring diagrams: a box with the incoming terminals on top and the
+## outgoing ones below; the multi-pole switches as the other multi-pole
+## devices (1, 3, 5, 7 on top, 2, 4, 6, 8 below).
 static func light_switch_cell(light_switch: LightSwitch, index: int) -> Vector2i:
 	match light_switch.circuit:
-		"2", "3":
+		"2", "3", "03":
 			return Vector2i((index / 2) * POLE_SPACING, 0 if index % 2 == 0 else SPAN)
-		"5", "6":
+		"4", "5", "6":
 			return [Vector2i(1, 0), Vector2i(0, SPAN), Vector2i(2, SPAN)][index]
-		"5A":
-			return [Vector2i(1, 0), Vector2i(0, SPAN), Vector2i(2, SPAN), Vector2i(4, SPAN)][index]
 		"5B":
-			return [Vector2i(1, 0), Vector2i(0, SPAN), Vector2i(2, SPAN), Vector2i(4, SPAN), Vector2i(6, SPAN)][index]
+			return [Vector2i(1, 0), Vector2i(0, SPAN), Vector2i(2, SPAN), Vector2i(5, 0), Vector2i(4, SPAN), Vector2i(6, SPAN)][index]
+		"6/2":
+			return [Vector2i(1, 0), Vector2i(5, 0), Vector2i(0, SPAN), Vector2i(4, SPAN), Vector2i(2, SPAN), Vector2i(6, SPAN)][index]
 		"7":
-			return [Vector2i(0, 0), Vector2i(2, 0), Vector2i(0, SPAN), Vector2i(2, SPAN)][index]
+			return [Vector2i(0, 0), Vector2i(0, SPAN), Vector2i(2, 0), Vector2i(2, SPAN)][index]
 	return [Vector2i(0, 0), Vector2i(0, SPAN)][index]
 
 
-## Local x (pixels) of the blades rocker [param rocker] of a light switch
+## Local x (pixels) of the levers rocker [param rocker] of a light switch
 ## moves: where a click switches that rocker over.
 static func light_switch_pivots(light_switch: LightSwitch, rocker: int) -> PackedFloat32Array:
 	var g: float = float(GRID)
 	match light_switch.circuit:
-		"2", "3":
+		"2", "3", "03":
 			var xs: PackedFloat32Array = PackedFloat32Array()
 			for p: int in light_switch.poles():
 				xs.append(p * POLE_SPACING * g)
 			return xs
 		"5":
-			# Both blades from P, the first to 1 on the left, the second to 2.
+			# Both levers from 1, the first to 2 on the left, the second to 3.
 			return PackedFloat32Array([0.5 * g if rocker == 0 else 1.5 * g])
-		"6":
+		"4", "6":
 			return PackedFloat32Array([g])
-		"5A":
-			return PackedFloat32Array([0.5 * g if rocker == 0 else 3.0 * g])
 		"5B":
 			return PackedFloat32Array([g if rocker == 0 else 5.0 * g])
+		"6/2":
+			return PackedFloat32Array([g, 5.0 * g])
 		"7":
 			return PackedFloat32Array([0.0, 2.0 * g])
 	return PackedFloat32Array([0.0])

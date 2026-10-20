@@ -164,7 +164,7 @@ func show_component(component: CircuitComponent) -> void:
 			_choice(tr("Switch number (řazení)"), "circuit", Array(LightSwitch.CIRCUITS), titles)
 			_height(LightSwitch.STANDARD_HEIGHT)
 			_group = null
-			_note(tr("Wired as Czech installations number switches, the common marked P: 1 switches P to 1; 2 and 3 switch two or three poles; 5 has two rockers on one P, to 1 and to 2; 5A a one-way rocker to 1 and a two-way rocker to 2 or 3; 5B two two-way rockers, to 1 or 2 and to 3 or 4; 6 (staircase) switches P over from 1 to 2; 7 (intermediate) joins 1-3 and 2-4, switched over 1-4 and 2-3. While simulating, click the rocker to switch it over."), "MutedLabel")
+			_note(tr("Numbered as switches for fixed installations (ČSN EN 60669-1): 1 joins 1-2; 2, 3 and 03 switch two, three or four poles 1-2, 3-4 ...; 4 switches 1 to 2, off, to 3; 5 has two rockers on one 1, to 2 and to 3; 5B (6+6) two two-way rockers, 1 to 2 or 3 and 4 to 5 or 6; 6 (staircase) switches 1 over from 2 to 3; 6/2 switches 1 from 3 to 5 and 2 from 4 to 6 together; 7 (intermediate) joins 1-2 and 3-4, switched over 1-4 and 3-2. While simulating, click the rocker to switch it over."), "MutedLabel")
 		"luminaire":
 			_number(tr("Rated power (W)"), "power", Luminaire.MIN_POWER, Luminaire.MAX_POWER, 1.0)
 			_height(Luminaire.STANDARD_HEIGHT)
@@ -735,14 +735,18 @@ static func light_switch_title(circuit: String) -> String:
 			return TranslationServer.translate("2 - two-pole")
 		"3":
 			return TranslationServer.translate("3 - three-pole")
+		"03":
+			return TranslationServer.translate("03 - four-pole")
+		"4":
+			return TranslationServer.translate("4 - two-way with an off position")
 		"5":
 			return TranslationServer.translate("5 - series (two rockers)")
-		"5A":
-			return TranslationServer.translate("5A - one-way and two-way")
 		"5B":
-			return TranslationServer.translate("5B - double two-way")
+			return TranslationServer.translate("5B - double two-way (6+6)")
 		"6":
 			return TranslationServer.translate("6 - two-way (staircase)")
+		"6/2":
+			return TranslationServer.translate("6/2 - two-pole two-way")
 		"7":
 			return TranslationServer.translate("7 - intermediate")
 	return TranslationServer.translate("1 - one-way")

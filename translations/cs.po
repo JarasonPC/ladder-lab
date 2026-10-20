@@ -4593,8 +4593,6 @@ msgstr "Svítidla a zásuvky"
 msgid "Light switch no. %s of a house installation"
 msgstr "Vypínač řazení %s domovní elektroinstalace"
 
-msgid "Flush-mounted light switch with rockers, numbered (řazení) as Czech installations number them. While simulating, a click on a rocker switches it over; it stays where it is put."
-msgstr "Vypínač pod omítku s kolébkami, číslovaný (řazení) jako v české elektroinstalaci. Při simulaci jej kliknutí na kolébku přepne; zůstane, kam byl přepnut."
 
 #, c-format
 msgid "Pole %d, supply"
@@ -4608,61 +4606,35 @@ msgstr "Sepnuto s %s, je-li zapnut."
 msgid "Pole %d, output"
 msgstr "Pól %d, vývod"
 
-msgid "Common (P)"
-msgstr "Přívod (P)"
 
 msgid "The supply of both rockers."
 msgstr "Přívod obou kolébek."
 
-msgid "Output 1"
-msgstr "Vývod 1"
 
 #, c-format
 msgid "Closed to %s by the first rocker."
 msgstr "Sepnut s %s první kolébkou."
 
-msgid "Output 2"
-msgstr "Vývod 2"
 
 #, c-format
 msgid "Closed to %s by the second rocker."
 msgstr "Sepnut s %s druhou kolébkou."
 
-msgid "Traveller 1"
-msgstr "Přepínací vodič 1"
 
 #, c-format
 msgid "Closed to %s at rest."
 msgstr "Sepnut s %s v klidu."
 
-msgid "Traveller 2"
-msgstr "Přepínací vodič 2"
 
 #, c-format
 msgid "Closed to %s switched over."
 msgstr "Sepnut s %s po přepnutí."
 
-#, c-format
-msgid "Closed to %s while the second rocker is at rest."
-msgstr "Sepnut s %s, je-li druhá kolébka v klidu."
 
-msgid "Traveller 3"
-msgstr "Přepínací vodič 3"
 
-#, c-format
-msgid "Closed to %s while the second rocker is switched over."
-msgstr "Sepnut s %s, je-li druhá kolébka přepnuta."
 
-#, c-format
-msgid "Closed to %s while the first rocker is at rest."
-msgstr "Sepnut s %s, je-li první kolébka v klidu."
 
-#, c-format
-msgid "Closed to %s while the first rocker is switched over."
-msgstr "Sepnut s %s, je-li první kolébka přepnuta."
 
-msgid "Traveller 4"
-msgstr "Přepínací vodič 4"
 
 msgid "Traveller in"
 msgstr "Přepínací vodič, vstup"
@@ -4735,8 +4707,6 @@ msgstr "Kostra"
 msgid "(standard)"
 msgstr "(standardní)"
 
-msgid "Wired as Czech installations number switches, the common marked P: 1 switches P to 1; 2 and 3 switch two or three poles; 5 has two rockers on one P, to 1 and to 2; 5A a one-way rocker to 1 and a two-way rocker to 2 or 3; 5B two two-way rockers, to 1 or 2 and to 3 or 4; 6 (staircase) switches P over from 1 to 2; 7 (intermediate) joins 1-3 and 2-4, switched over 1-4 and 2-3. While simulating, click the rocker to switch it over."
-msgstr "Zapojení podle řazení v české elektroinstalaci, přívod označen P: 1 spíná P s 1; 2 a 3 spínají dva nebo tři póly; 5 má dvě kolébky na jednom P, k 1 a k 2; 5A jednopólovou kolébku k 1 a střídavou kolébku k 2 nebo 3; 5B dvě střídavé kolébky, k 1 nebo 2 a k 3 nebo 4; 6 (schodišťový) přepíná P z 1 na 2; 7 (křížový) spojuje 1-3 a 2-4, po přepnutí 1-4 a 2-3. Při simulaci kolébku přepnete kliknutím."
 
 msgid "Rated power (W)"
 msgstr "Jmenovitý příkon (W)"
@@ -4767,11 +4737,7 @@ msgstr "3 - třípólový"
 msgid "5 - series (two rockers)"
 msgstr "5 - sériový (lustrový)"
 
-msgid "5A - one-way and two-way"
-msgstr "5A - jednopólový a střídavý"
 
-msgid "5B - double two-way"
-msgstr "5B - dvojitý střídavý"
 
 msgid "6 - two-way (staircase)"
 msgstr "6 - střídavý (schodišťový)"
@@ -4800,11 +4766,7 @@ msgstr "Vypínač řazení 3 (třípólový)"
 msgid "Switch no. 5 (series, two rockers)"
 msgstr "Přepínač řazení 5 (sériový)"
 
-msgid "Switch no. 5A (one-way and two-way)"
-msgstr "Přepínač řazení 5A (jednopólový a střídavý)"
 
-msgid "Switch no. 5B (double two-way)"
-msgstr "Přepínač řazení 5B (dvojitý střídavý)"
 
 msgid "Switch no. 6 (two-way, staircase)"
 msgstr "Přepínač řazení 6 (střídavý, schodišťový)"
@@ -5090,3 +5052,62 @@ msgstr "Chodba"
 
 msgid "Room"
 msgstr "Pokoj"
+
+msgid "Flush-mounted switch for fixed installations with rockers, numbered (řazení) and its terminals marked after ČSN EN 60669-1. While simulating, a click on a rocker switches it over; it stays where it is put."
+msgstr "Spínač pro pevné instalace pod omítku s kolébkami, řazení a značení svorek podle ČSN EN 60669-1. Při simulaci jej kliknutí na kolébku přepne; zůstane, kam byl přepnut."
+
+msgid "Incoming"
+msgstr "Přívod"
+
+#, c-format
+msgid "To %s, off, or to %s."
+msgstr "K %s, vypnuto, nebo k %s."
+
+msgid "Outgoing"
+msgstr "Vývod"
+
+#, c-format
+msgid "Closed to %s in the first position."
+msgstr "Spojen s %s v první poloze."
+
+#, c-format
+msgid "Closed to %s in the second position."
+msgstr "Spojen s %s ve druhé poloze."
+
+msgid "Traveller"
+msgstr "Přepínací vodič"
+
+#, c-format
+msgid "Incoming, rocker %d"
+msgstr "Přívod, kolébka %d"
+
+#, c-format
+msgid "Pole %d, incoming"
+msgstr "Pól %d, přívod"
+
+msgid "Numbered as switches for fixed installations (ČSN EN 60669-1): 1 joins 1-2; 2, 3 and 03 switch two, three or four poles 1-2, 3-4 ...; 4 switches 1 to 2, off, to 3; 5 has two rockers on one 1, to 2 and to 3; 5B (6+6) two two-way rockers, 1 to 2 or 3 and 4 to 5 or 6; 6 (staircase) switches 1 over from 2 to 3; 6/2 switches 1 from 3 to 5 and 2 from 4 to 6 together; 7 (intermediate) joins 1-2 and 3-4, switched over 1-4 and 3-2. While simulating, click the rocker to switch it over."
+msgstr "Řazení spínačů pro pevné instalace (ČSN EN 60669-1): 1 spojuje 1-2; 2, 3 a 03 spínají dva, tři nebo čtyři póly 1-2, 3-4 ...; 4 přepíná 1 na 2, vypnuto, na 3; 5 má dvě kolébky na jednom přívodu 1, k 2 a k 3; 5B (6+6) dvě střídavé kolébky, 1 k 2 nebo 3 a 4 k 5 nebo 6; 6 (schodišťový) přepíná 1 z 2 na 3; 6/2 přepíná současně 1 z 3 na 5 a 2 ze 4 na 6; 7 (křížový) spojuje 1-2 a 3-4, po přepnutí 1-4 a 3-2. Při simulaci kolébku přepnete kliknutím."
+
+msgid "03 - four-pole"
+msgstr "03 - čtyřpólový"
+
+msgid "4 - two-way with an off position"
+msgstr "4 - přepínač s polohou vypnuto"
+
+msgid "5B - double two-way (6+6)"
+msgstr "5B - dvojitý střídavý (6+6)"
+
+msgid "6/2 - two-pole two-way"
+msgstr "6/2 - dvoupólový střídavý"
+
+msgid "Switch no. 03 (four-pole)"
+msgstr "Spínač řazení 03 (čtyřpólový)"
+
+msgid "Switch no. 4 (two-way with an off position)"
+msgstr "Přepínač řazení 4 (s polohou vypnuto)"
+
+msgid "Switch no. 5B (double two-way, 6+6)"
+msgstr "Přepínač řazení 5B (dvojitý střídavý, 6+6)"
+
+msgid "Switch no. 6/2 (two-pole two-way)"
+msgstr "Přepínač řazení 6/2 (dvoupólový střídavý)"

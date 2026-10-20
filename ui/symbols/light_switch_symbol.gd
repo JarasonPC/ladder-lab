@@ -1,16 +1,17 @@
 class_name LightSwitchSymbol
 extends SchematicSymbol
 ## Light switch of a house installation (see [LightSwitch]), drawn as on
-## Czech wiring diagrams: a box with its terminals as small circles inside,
-## the common P on top and the outputs below, and a blade from P to the
-## contact it touches (a one-way blade stands off its contact while off).
-## Rockers switching two ways move their blade from one contact to the other.
-## The intermediate switch (7) has a blade from each of 1 and 2 on top; the
-## contacts below are bridged so that at rest 1 reaches 3 and 2 reaches 4,
-## switched over 1 reaches 4 (by the U bridge) and 2 reaches 3 (by the
-## straight one). A circle and the blade from it take the colour of the
-## voltage that reaches them while simulating (filled), hollow while nothing
-## does. Click it while simulating to switch the rocker clicked over.
+## Czech wiring diagrams after ČSN EN 60669-1: a box with its terminals as
+## small circles inside, the incoming ones on top and the outgoing ones
+## below, and a lever from each incoming terminal to the contact it touches
+## (a one-way lever stands off its contact while off; switch 4's points at
+## the stop between its contacts while off). The levers of one rocker are
+## joined by a dashed link. The intermediate switch (7) has a lever from each
+## of 1 and 3; the contacts below are bridged so that at rest 1 reaches 2 and
+## 3 reaches 4, switched over 1 reaches 4 (by the U bridge) and 3 reaches 2
+## (by the straight one). A circle and the lever from it take the colour of
+## the voltage that reaches them while simulating (filled), hollow while
+## nothing does. Click it while simulating to switch the rocker clicked over.
 
 ## Rows of the circles: the commons on top, the contacts below; the
 ## intermediate switch's contacts a little higher, the U bridge under them.
@@ -72,34 +73,44 @@ func _draw_shape(_color: Color, width: float) -> void:
 		var edge: float = at.y - RADIUS if cell.y == 0 else at.y + RADIUS
 		aa_line(Vector2(cell.x * G, cell.y * G), Vector2(at.x, edge), lead_color(i), lead_width(i))
 	match sw.circuit:
-		"2", "3":
+		"2", "3", "03":
 			var tips: PackedVector2Array = PackedVector2Array()
 			for p: int in sw.poles():
 				tips.append(_blade(2 * p, _one_way_tip(2 * p, 2 * p + 1, sw.on[0], "pole%d" % p)))
-			if tips.size() > 1:
-				var mark: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
-				var a: Vector2 = _on_blade(_circle(0), tips[0], LINK_Y)
-				var b: Vector2 = _on_blade(_circle(2 * tips.size() - 2), tips[tips.size() - 1], LINK_Y)
-				aa_dashed_line(a, b, mark, 1.4, 2.5)
+			_link(_circle(0), tips[0], _circle(2 * tips.size() - 2), tips[tips.size() - 1])
+		"4":
+			# Off, the lever points at the stop between its contacts.
+			var stop: Vector2 = Vector2(G, BOTTOM_Y)
+			var target: float = 0.5 if sw.position == LightSwitch.OFF else (0.0 if sw.position == 1 else 1.0)
+			_draw_circle(stop, REACH_NONE)
+			_blade(0, blade_tip(_circle(0), _circle(1), _circle(2), shown("a", target)))
 		"5":
 			_blade(0, _one_way_tip(0, 1, sw.on[0], "a"))
 			_blade(0, _one_way_tip(0, 2, sw.on[1], "b"))
 		"6":
 			_blade(0, _two_way_tip(_circle(0), _circle(1), _circle(2), sw.on[0], "a"))
-		"5A":
-			var second: Vector2 = _common_bar(3.0 * G)
-			_blade(0, _one_way_tip(0, 1, sw.on[0], "a"))
-			_blade(0, _two_way_tip(second, _circle(2), _circle(3), sw.on[1], "b"), second)
 		"5B":
-			var second: Vector2 = _common_bar(5.0 * G)
 			_blade(0, _two_way_tip(_circle(0), _circle(1), _circle(2), sw.on[0], "a"))
-			_blade(0, _two_way_tip(second, _circle(3), _circle(4), sw.on[1], "b"), second)
+			_blade(3, _two_way_tip(_circle(3), _circle(4), _circle(5), sw.on[1], "b"))
+		"6/2":
+			var first: Vector2 = _blade(0, _two_way_tip(_circle(0), _circle(2), _circle(4), sw.on[0], "a"))
+			var second: Vector2 = _blade(1, _two_way_tip(_circle(1), _circle(3), _circle(5), sw.on[0], "b"))
+			_link(_circle(0), first, _circle(1), second)
 		"7":
 			_intermediate()
 		_:
 			_blade(0, _one_way_tip(0, 1, sw.on[0], "a"))
 	for i: int in component.get_terminal_names().size():
 		_draw_circle(_circle(i), reach(i))
+
+
+## The dashed link between the first lever (from [param a] to [param a_tip])
+## and the last (from [param b] to [param b_tip]), at the link's height.
+func _link(a: Vector2, a_tip: Vector2, b: Vector2, b_tip: Vector2) -> void:
+	if a.is_equal_approx(b):
+		return
+	var mark: Color = SchematicTheme.WARNING if warning else SchematicTheme.LINE
+	aa_dashed_line(_on_blade(a, a_tip, LINK_Y), _on_blade(b, b_tip, LINK_Y), mark, 1.4, 2.5)
 
 
 ## Tip of a one-way blade from terminal [param from] to [param to]: on it
@@ -132,30 +143,22 @@ func _blade(from: int, tip: Vector2, start: Vector2 = Vector2(INF, INF)) -> Vect
 	return tip
 
 
-## The common P joined along the top to a second pivot at [param x] (5A,
-## 5B), with its circle. Returns the second pivot.
-func _common_bar(x: float) -> Vector2:
-	var pivot: Vector2 = Vector2(x, TOP_Y)
-	aa_line(_circle(0) + Vector2(RADIUS, 0), pivot - Vector2(RADIUS, 0), _live_color(reach(0)), SchematicTheme.LINE_WIDTH)
-	_draw_circle(pivot, reach(0))
-	return pivot
-
-
 ## The intermediate switch: blades from 1 and 2; the crossing contacts
 ## bridged to 3 (straight) and to 4 (the U under the others).
 func _intermediate() -> void:
 	var over: bool = _switch().on[0]
 	var s: float = shown("blades", 1.0 if over else 0.0)
-	var three: Vector2 = _circle(2)
+	# The outputs 2 (below 1) and 4 (below 3).
+	var two: Vector2 = _circle(1)
 	var four: Vector2 = _circle(3)
 	var cross_left: Vector2 = Vector2(CROSS_LEFT_X, CROSS_Y)
 	var cross_right: Vector2 = Vector2(CROSS_RIGHT_X, CROSS_Y)
-	aa_line(three + Vector2(RADIUS, 0), cross_right - Vector2(RADIUS, 0), _live_color(reach(2)), SchematicTheme.LINE_WIDTH)
+	aa_line(two + Vector2(RADIUS, 0), cross_right - Vector2(RADIUS, 0), _live_color(reach(1)), SchematicTheme.LINE_WIDTH)
 	aa_polyline(PackedVector2Array([cross_left + Vector2(0, RADIUS), Vector2(CROSS_LEFT_X, BRIDGE_Y), Vector2(four.x, BRIDGE_Y), four + Vector2(0, RADIUS)]), _live_color(reach(3)), SchematicTheme.LINE_WIDTH)
-	_blade(0, blade_tip(_circle(0), three, cross_left, s))
-	_blade(1, blade_tip(_circle(1), four, cross_right, s))
+	_blade(0, blade_tip(_circle(0), two, cross_left, s))
+	_blade(2, blade_tip(_circle(2), four, cross_right, s))
 	_draw_circle(cross_left, reach(3))
-	_draw_circle(cross_right, reach(2))
+	_draw_circle(cross_right, reach(1))
 
 
 ## A terminal circle: filled with the colour of what reaches it, hollow
@@ -192,10 +195,9 @@ func _draw_labels() -> void:
 		# Beside its circle, clear of the blades and bars: the common on the
 		# left where a bar runs on to the right, the intermediate switch's
 		# outputs beside their leads between the bridges.
-		var left: bool = sw.circuit in ["5A", "5B"] and i == 0
-		if sw.circuit == "7" and i >= 2:
+		if sw.circuit == "7" and (i == 1 or i == 3):
 			at.y = (CROSS_Y + BRIDGE_Y) * 0.5
-		draw_label(names[i], at + Vector2(-0.3 * G if left else 0.3 * G, 0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+		draw_label(names[i], at + Vector2(0.3 * G, 0), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 
 
 ## Mounting height as written beside a part of a house installation whose

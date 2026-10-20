@@ -46,42 +46,46 @@ func _closed(sw: LightSwitch) -> Array[String]:
 
 func test_switch_numbers() -> void:
 	var one: LightSwitch = LightSwitch.new("SF1")
-	assert_eq(one.get_terminal_names(), PackedStringArray(["P", "1"]))
+	assert_eq(one.get_terminal_names(), PackedStringArray(["1", "2"]), "marked as ČSN EN 60669-1 marks them")
 	assert_eq(_closed(one), [] as Array[String], "starts off")
 	one.toggle()
-	assert_eq(_closed(one), ["P-1"] as Array[String])
+	assert_eq(_closed(one), ["1-2"] as Array[String])
 	var two_pole: LightSwitch = LightSwitch.new("SF2", "2")
 	two_pole.toggle()
 	assert_eq(_closed(two_pole), ["1-2", "3-4"] as Array[String])
-	var three_pole: LightSwitch = LightSwitch.new("SF3", "3")
-	three_pole.toggle()
-	assert_eq(_closed(three_pole), ["1-2", "3-4", "5-6"] as Array[String])
-	var series: LightSwitch = LightSwitch.new("SF4", "5")
+	var four_pole: LightSwitch = LightSwitch.new("SF3", "03")
+	four_pole.toggle()
+	assert_eq(_closed(four_pole), ["1-2", "3-4", "5-6", "7-8"] as Array[String])
+	var with_off: LightSwitch = LightSwitch.new("SF4", "4")
+	var seen: Array = []
+	for i: int in 4:
+		with_off.toggle()
+		seen.append(_closed(with_off))
+	assert_eq(seen, [["1-2"], [], ["1-3"], []], "to 2, off, to 3, off")
+	var series: LightSwitch = LightSwitch.new("SF5", "5")
 	assert_eq(series.rocker_count(), 2)
 	series.toggle(1)
-	assert_eq(_closed(series), ["P-2"] as Array[String], "each rocker its own output")
+	assert_eq(_closed(series), ["1-3"] as Array[String], "each rocker its own output")
 	series.toggle(0)
-	assert_eq(_closed(series), ["P-1", "P-2"] as Array[String])
-	var staircase: LightSwitch = LightSwitch.new("SF5", "6")
-	assert_eq(_closed(staircase), ["P-1"] as Array[String], "at rest on 1")
-	staircase.toggle()
-	assert_eq(_closed(staircase), ["P-2"] as Array[String], "switched over to 2, never both")
-	var one_and_two_way: LightSwitch = LightSwitch.new("SF6", "5A")
-	assert_eq(one_and_two_way.get_terminal_names(), PackedStringArray(["P", "1", "2", "3"]))
-	assert_eq(_closed(one_and_two_way), ["P-2"] as Array[String])
-	one_and_two_way.toggle(0)
-	one_and_two_way.toggle(1)
-	assert_eq(_closed(one_and_two_way), ["P-1", "P-3"] as Array[String])
-	var double_two_way: LightSwitch = LightSwitch.new("SF7", "5B")
-	assert_eq(_closed(double_two_way), ["P-1", "P-3"] as Array[String])
+	assert_eq(_closed(series), ["1-2", "1-3"] as Array[String])
+	var double_two_way: LightSwitch = LightSwitch.new("SF6", "5B")
+	assert_eq(_closed(double_two_way), ["1-2", "4-5"] as Array[String], "6+6 at rest")
 	double_two_way.toggle(1)
-	assert_eq(_closed(double_two_way), ["P-1", "P-4"] as Array[String])
-	var intermediate: LightSwitch = LightSwitch.new("SF8", "7")
-	assert_eq(_closed(intermediate), ["3-1", "4-2"] as Array[String], "straight at rest")
+	assert_eq(_closed(double_two_way), ["1-2", "4-6"] as Array[String])
+	var staircase: LightSwitch = LightSwitch.new("SF7", "6")
+	assert_eq(_closed(staircase), ["1-2"] as Array[String], "at rest on 2")
+	staircase.toggle()
+	assert_eq(_closed(staircase), ["1-3"] as Array[String], "switched over to 3, never both")
+	var two_pole_two_way: LightSwitch = LightSwitch.new("SF8", "6/2")
+	assert_eq(_closed(two_pole_two_way), ["1-3", "2-4"] as Array[String])
+	two_pole_two_way.toggle()
+	assert_eq(_closed(two_pole_two_way), ["1-5", "2-6"] as Array[String])
+	var intermediate: LightSwitch = LightSwitch.new("SF9", "7")
+	assert_eq(_closed(intermediate), ["1-2", "3-4"] as Array[String], "straight at rest")
 	intermediate.toggle()
-	assert_eq(_closed(intermediate), ["3-2", "4-1"] as Array[String], "crosswise switched over")
-	intermediate.circuit = "?"
-	assert_eq(intermediate.circuit, "1", "an unknown number is a one-way switch")
+	assert_eq(_closed(intermediate), ["1-4", "3-2"] as Array[String], "crosswise switched over")
+	intermediate.circuit = "5A"
+	assert_eq(intermediate.circuit, "1", "5A (6+1) is not made any more: a one-way switch")
 	assert_eq(intermediate.on.size(), 1)
 
 
@@ -97,8 +101,8 @@ func _corridor() -> SchematicDocument:
 	doc.add(LightSwitch.new("SF2", "7"), Vector2i(0, 10))
 	doc.add(LightSwitch.new("SF3", "6"), Vector2i(0, 16))
 	doc.add(Luminaire.new("EA1"), Vector2i(1, 22))
-	for pair: Array in [["L1", "SF1:P"], ["SF1:1", "SF2:1"], ["SF1:2", "SF2:2"],
-			["SF2:3", "SF3:1"], ["SF2:4", "SF3:2"], ["SF3:P", "EA1:L"], ["EA1:N", "N"], ["EA1:PE", "PE"]]:
+	for pair: Array in [["L1", "SF1:1"], ["SF1:2", "SF2:1"], ["SF1:3", "SF2:3"],
+			["SF2:2", "SF3:2"], ["SF2:4", "SF3:3"], ["SF3:1", "EA1:L"], ["EA1:N", "N"], ["EA1:PE", "PE"]]:
 		assert_true(doc.connect_terminals(pair[0], pair[1]), "%s - %s" % pair)
 	return doc
 
@@ -108,7 +112,7 @@ func test_corridor_switched_from_any_place() -> void:
 	var lamp: Luminaire = doc.circuit.get_component("EA1") as Luminaire
 	var sim: Simulator = Simulator.new(doc.circuit)
 	sim.step()
-	assert_true(lamp.energized, "all at rest: 1-1 straight through to 1, lit")
+	assert_true(lamp.energized, "all at rest: 2 to 2 straight through, lit")
 	for designation: String in ["SF1", "SF2", "SF3", "SF2", "SF1", "SF3"]:
 		var was: bool = lamp.energized
 		(doc.circuit.get_component(designation) as LightSwitch).toggle()
@@ -289,15 +293,3 @@ func test_new_residential_schematic_in_the_main_window() -> void:
 	main._new_dialog._cards[1].button_pressed = true
 	main._new_dialog.get_ok_button().pressed.emit()
 	assert_true(main.edit_doc.residential, "Create makes the card chosen")
-
-
-func test_common_once_marked_l_loads_as_p() -> void:
-	var data: Dictionary = DocumentSerializer.to_dict(_corridor())
-	for wire: Dictionary in data["wires"]:
-		for end: String in ["a", "b"]:
-			if wire[end] == "SF1:P":
-				wire[end] = "SF1:L"
-	var loaded: SchematicDocument = DocumentSerializer.from_dict(data)
-	assert_not_null(loaded, "a file saved while the common was L still opens")
-	assert_true(loaded.circuit.has_terminal("SF1:P"))
-	assert_eq(loaded.circuit.get_wires().size(), _corridor().circuit.get_wires().size())
