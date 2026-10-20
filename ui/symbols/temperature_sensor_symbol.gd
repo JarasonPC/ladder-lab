@@ -6,7 +6,7 @@ extends SchematicSymbol
 ## beside L+. Its range and its temperature are written beside it, while it
 ## has its supply also the volts on U; the box is filled then. While
 ## simulating a click sets the temperature. The palette shows a thermometer
-## with an arrow to U.
+## with an arrow to U. [TransmitterSymbol] draws other transmitters alike.
 
 const BOX := Rect2(-0.8 * G, 0.8 * G, 3.6 * G, 1.4 * G)
 ## The measuring element and the slanted line across it, its foot to the left.
@@ -22,7 +22,7 @@ func _draw_shape(color: Color, width: float) -> void:
 	if preview:
 		_draw_preview(color, width)
 		return
-	var sensor: TemperatureSensor = component as TemperatureSensor
+	var sensor: AnalogSensor = component as AnalogSensor
 	var out_x: float = SymbolGeometry.SENSOR_OUTPUT_CELL.x * G
 	aa_line(Vector2.ZERO, Vector2(0, BOX.position.y), lead_color(0), lead_width(0))
 	aa_line(Vector2(0, BOX.end.y), Vector2(0, SymbolGeometry.SPAN * G), lead_color(1), lead_width(1))
@@ -30,6 +30,11 @@ func _draw_shape(color: Color, width: float) -> void:
 	if sensor.energized:
 		aa_rect(BOX, SchematicTheme.COIL_ON)
 	aa_rect(BOX, color, false, width)
+	_draw_element(color, width)
+
+
+## What it measures with, in the left of the box.
+func _draw_element(color: Color, width: float) -> void:
 	aa_rect(ELEMENT, color, false, width)
 	aa_polyline(PackedVector2Array([SLANT_FROM - Vector2(4.0, 0.0), SLANT_FROM, SLANT_TO]), color, 1.2)
 
@@ -55,20 +60,25 @@ func _draw_preview(color: Color, width: float) -> void:
 
 
 func _draw_labels() -> void:
-	var sensor: TemperatureSensor = component as TemperatureSensor
+	var sensor: AnalogSensor = component as AnalogSensor
 	var names: PackedStringArray = component.get_terminal_names()
 	draw_label(designation_text(), _designation_anchor(), SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	draw_label(names[0], name_anchor(0, Vector2(0.35 * G, 0.4 * G)), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[1], name_anchor(1, Vector2(0.35 * G, 2.6 * G)), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[2], name_anchor(2, Vector2(SymbolGeometry.SENSOR_OUTPUT_CELL.x * G + 0.35 * G, 0.4 * G)), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
-	_centered("θ", THETA_AT, 10)
+	_draw_element_labels()
 	_centered("U", Vector2(BOX.end.x - 0.6 * G, BOX.get_center().y), 12)
 	var anchor: Vector2 = _designation_anchor()
-	draw_label("%s…%s °C" % [_number(sensor.range_min), _number(sensor.range_max)], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
-	var state: String = "%.1f °C" % sensor.temperature
+	draw_label("%s…%s %s" % [_number(sensor.range_min), _number(sensor.range_max), sensor.unit()], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+	var state: String = "%.1f %s" % [sensor.measured(), sensor.unit()]
 	if sensor.energized:
 		state += "  %.2f V" % sensor.output_volts()
 	draw_label(state, anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.DESIGNATION, 2)
+
+
+## Texts of the measuring element.
+func _draw_element_labels() -> void:
+	_centered("θ", THETA_AT, 10)
 
 
 func _designation_anchor() -> Vector2:

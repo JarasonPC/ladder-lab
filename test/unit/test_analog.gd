@@ -235,6 +235,6 @@ func test_temperature_set_while_simulating() -> void:
 	view.load_document(doc, true)
 	var sensor: TemperatureSensor = view.document.circuit.get_component("BT1") as TemperatureSensor
 	assert_true(sensor.energized)
-	view.set_temperature("BT1", 75.0)
+	view.set_measured("BT1", 75.0)
 	assert_eq(sensor.temperature, 75.0)
 	assert_almost_eq(sensor.output_volts(), 7.5, 0.001)

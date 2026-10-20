@@ -30,7 +30,8 @@ const PLC_MODULE_GAP: int = 1
 ## Narrowest expansion module, and the distance between analog outputs.
 const PLC_MODULE_MIN_WIDTH: int = 10
 const PLC_ANALOG_OUTPUT_PITCH: int = 4
-## Temperature sensor: its output U beside L+.
+## Analog sensors: the output beside the supply's + (U, 2); a proximity
+## sensor's output 4 there too, its second output 2 a step further.
 const SENSOR_OUTPUT_CELL := Vector2i(2, 0)
 ## Frequency inverter: height (as a PLC's), where its control terminals
 ## start, its width from the left edge of its box.
@@ -72,10 +73,11 @@ static func local_terminals(c: CircuitComponent) -> Dictionary[String, Vector2i]
 		for i: int in names.size():
 			result[names[i]] = cells[i]
 		return result
-	if c is TemperatureSensor:
+	if c is AnalogSensor or c is ProximitySensor:
 		result[names[0]] = Vector2i.ZERO
 		result[names[1]] = Vector2i(0, SPAN)
-		result[names[2]] = SENSOR_OUTPUT_CELL
+		for i: int in range(2, names.size()):
+			result[names[i]] = SENSOR_OUTPUT_CELL * (i - 1)
 		return result
 	if c is NetworkSwitch:
 		for i: int in names.size():
@@ -135,7 +137,7 @@ static func local_lead_direction(c: CircuitComponent, terminal_name: String) -> 
 		return DIR_DOWN if names.find(terminal_name) < NetworkSwitch.FIRST_PORT else DIR_UP
 	if c is TimerRelay and names.size() == 3:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
-	if c is TemperatureSensor:
+	if c is AnalogSensor or c is ProximitySensor:
 		return DIR_UP if terminal_name == names[1] else DIR_DOWN
 	if c is Vfd:
 		return DIR_UP if names.find(terminal_name) >= Vfd.FIRST_BOTTOM else DIR_DOWN
@@ -208,8 +210,10 @@ static func local_body(c: CircuitComponent) -> Rect2:
 		return Rect2(-1.1, 0.9, plc_width(c as Plc) + 0.2, PLC_HEIGHT - 1.8)
 	if c is NetworkSwitch:
 		return Rect2(-1.1, 0.9, SWITCH_WIDTH + 0.2, SWITCH_HEIGHT - 1.8)
-	if c is TemperatureSensor:
+	if c is AnalogSensor:
 		return Rect2(-0.95, 0.75, 3.9, 1.5)
+	if c is ProximitySensor:
+		return Rect2(-0.95, 0.75, 1.9 + SENSOR_OUTPUT_CELL.x * (c.get_terminal_names().size() - 2), 1.5)
 	if c is Vfd:
 		return Rect2(-1.1, 0.9, VFD_WIDTH + 0.2, VFD_HEIGHT - 1.8)
 	return Rect2(-1.0, 0.5, 2.0, 2.0)

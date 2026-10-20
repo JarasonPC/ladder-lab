@@ -3,9 +3,9 @@ extends RefCounted
 ## A machine part moved by a motor between two end stops, e.g. a gate: its
 ## position runs from 0 to 1 with the motor's speed and direction (turning
 ## forward towards 1) and takes [member time] seconds end to end at full
-## speed. Limit switches along its way are operated where it is: one at an
-## end while the part is at that end, one between the ends while the part is
-## within [constant BAND] of it. No nodes.
+## speed. Limit switches and proximity sensors along its way are operated
+## where it is: one at an end while the part is at that end, one between the
+## ends while the part is within [constant BAND] of it. No nodes.
 
 ## Part of the way (each side) a limit switch between the ends is operated over.
 const BAND: float = 0.02
@@ -16,8 +16,9 @@ var name: String = ""
 var motor: CircuitComponent
 ## Seconds from one end to the other at full speed.
 var time: float = 10.0
-## The limit switches and where they are (0-1), in the same order.
-var switches: Array[LatchingSwitch] = []
+## The limit switches ([LatchingSwitch]) and proximity sensors
+## ([ProximitySensor]) and where they are (0-1), in the same order.
+var switches: Array[CircuitComponent] = []
 var at: PackedFloat64Array = PackedFloat64Array()
 ## Where the part is, 0-1 (simulation state).
 var position: float = 0.0
@@ -30,7 +31,7 @@ func _init(p_name: String = "", p_motor: CircuitComponent = null, p_time: float 
 	position = clampf(p_position, 0.0, 1.0)
 
 
-func add_switch(switch: LatchingSwitch, where: float) -> void:
+func add_switch(switch: CircuitComponent, where: float) -> void:
 	switches.append(switch)
 	at.append(clampf(where, 0.0, 1.0))
 
@@ -64,14 +65,24 @@ func advance(dt: float) -> void:
 
 
 ## Sets the switches to where the part is. Returns the switches that changed.
-func apply() -> Array[LatchingSwitch]:
-	var changed: Array[LatchingSwitch] = []
+func apply() -> Array[CircuitComponent]:
+	var changed: Array[CircuitComponent] = []
 	for i: int in switches.size():
 		var want: bool = operated(i)
-		if switches[i].switched_on != want:
-			switches[i].set_switched_on(want)
+		if is_on(switches[i]) != want:
+			if switches[i] is ProximitySensor:
+				(switches[i] as ProximitySensor).detecting = want
+			else:
+				(switches[i] as LatchingSwitch).set_switched_on(want)
 			changed.append(switches[i])
 	return changed
+
+
+## Whether limit switch or proximity sensor [param switch] is operated.
+static func is_on(switch: CircuitComponent) -> bool:
+	if switch is ProximitySensor:
+		return (switch as ProximitySensor).detecting
+	return (switch as LatchingSwitch).switched_on
 
 
 ## Seconds until the part reaches an end or a switch is operated or let go,

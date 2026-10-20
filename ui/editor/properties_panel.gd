@@ -125,6 +125,23 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Temperature at the start (°C)"), "temperature", TemperatureSensor.LOWEST, TemperatureSensor.HIGHEST, 0.5)
 			_group = null
 			_note(tr("Supply 24 V DC on L+ and M; puts 0-10 V on U against M over its range. While simulating, click it to set the temperature."), "MutedLabel")
+		"transmitter":
+			var quantity: int = maxi(Transmitter.QUANTITY_NAMES.find(str(_data.get("quantity", ""))), 0)
+			var unit: String = Transmitter.UNITS[quantity]
+			_transmitter_quantity()
+			# Each bound stays a step off the other one.
+			var step: float = DocumentSerializer.TRANSMITTER_RANGE_STEP
+			_number(tr("Range from (%s)") % unit, "range_min", Transmitter.LOWEST, float(_data["range_max"]) - step, step)
+			_number(tr("Range to (%s)") % unit, "range_max", float(_data["range_min"]) + step, Transmitter.HIGHEST, step)
+			_number(tr("Value at the start (%s)") % unit, "value", Transmitter.LOWEST, Transmitter.HIGHEST, step)
+			_group = null
+			_note(tr("Three wires as on its M12 plug: 1 (BN) +24 V DC, 3 (BU) 0 V, 2 (WH) the output, 0-10 V against 3 over its range. While simulating, click it to set the value."), "MutedLabel")
+		"proximity":
+			_choice(tr("Sensing"), "sensing", Array(ProximitySensor.SENSING_NAMES), [tr("Inductive (metal)"), tr("Capacitive (any material)"), tr("Optical (diffuse light)"), tr("Magnetic (cylinder sensor)")])
+			_choice(tr("Output"), "output", Array(ProximitySensor.OUTPUT_NAMES), [tr("PNP (switches +24 V to the output)"), tr("NPN (switches 0 V to the output)")])
+			_choice(tr("Function"), "function", Array(ProximitySensor.FUNCTION_NAMES), [tr("NO (on while it detects)"), tr("NC (on while it detects nothing)"), tr("NO + NC (4 wires, antivalent)")])
+			_group = null
+			_note(tr("Wires as ČSN EN 60947-5-2 colours them: 1 (BN) +24 V DC, 3 (BU) 0 V, 4 (BK) the output, 2 (WH) the second output of the 4-wire version. A PNP output goes to a PLC input whose common is on 0 V, an NPN output to one whose common is on +24 V. While simulating, click it to put something in front of it or take it away; in a group with a mechanical link the moving part works it."), "MutedLabel")
 		"network_switch":
 			_note(tr("Supply 24 V DC on L+ and M. While it has its supply it joins the Ethernet cables plugged into its ports P1-P4 into one network, so more than two PLCs can talk to one another; a port lights up while it has a link."), "MutedLabel")
 		"cam_switch":
@@ -269,6 +286,21 @@ func _number(caption: String, key: String, min_value: float, max_value: float, s
 	spin.value_changed.connect(func(value: float) -> void: _emit(key, value))
 	_add(spin)
 	_fields[key] = _group
+
+
+## What a transmitter measures; another quantity starts with its own range
+## and value.
+func _transmitter_quantity() -> void:
+	var option: OptionButton = _choice(tr("Measures"), "quantity", Array(Transmitter.QUANTITY_NAMES), [tr("Pressure (bar)"), tr("Level (m)"), tr("Flow (m³/h)")])
+	for connection: Dictionary in option.item_selected.get_connections():
+		option.item_selected.disconnect(connection["callable"])
+	option.item_selected.connect(func(i: int) -> void:
+		var data: Dictionary = _data.duplicate()
+		data["quantity"] = Transmitter.QUANTITY_NAMES[i]
+		data["range_min"] = Transmitter.DEFAULT_MIN[i]
+		data["range_max"] = Transmitter.DEFAULT_MAX[i]
+		data["value"] = Transmitter.DEFAULT_VALUE[i]
+		changed.emit(_component_id, data))
 
 
 ## Rated current of a breaker, one of the [constant CircuitBreaker.STANDARD_RATINGS]

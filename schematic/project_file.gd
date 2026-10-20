@@ -69,12 +69,14 @@ const FORMAT: String = "ladder-lab"
 ## "positions": "I-0-II" and "operated_in" I or II; missing: 0-I).
 ## 33: the door of a switchboard ("door": columns and items like a control
 ## station's; missing before: an empty door).
-## 34: Ethernet: the IP address of PLCs ("ip"; missing before: 192.168.0.1),
+## 34: proximity sensors ("proximity": sensing, output, function) and
+## transmitters ("transmitter": quantity, range, value).
+## 35: Ethernet: the IP address of PLCs ("ip"; missing before: 192.168.0.1),
 ## the port P1 added after their other terminals (custom terminal names of
 ## older PLCs get it added), network switches ("network_switch"), the
 ## network inputs of PLC programs ("network" in the program; missing
 ## before: none).
-const VERSION: int = 34
+const VERSION: int = 35
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

@@ -229,6 +229,9 @@ static func matches_template(c: CircuitComponent, template: Dictionary) -> bool:
 	if template["type"] == "timer":
 		# One multifunction time relay, whatever its function and inputs.
 		return c is TimerRelay
+	if template["type"] == "proximity" or template["type"] == "transmitter":
+		# One part, whatever it senses or measures.
+		return d["type"] == template["type"]
 	for key: String in template:
 		# Set in the properties, not by the palette entry.
 		if key == "delay" or key == "cpu":
@@ -1426,6 +1429,11 @@ func _new_designation(data: Dictionary, changing: String = "") -> String:
 			return doc.next_designation("A")
 		"temp_sensor":
 			return doc.next_designation("BT")
+		"transmitter":
+			var quantity: int = maxi(Transmitter.QUANTITY_NAMES.find(str(data.get("quantity", ""))), 0)
+			return doc.next_designation(Transmitter.LETTERS[quantity])
+		"proximity":
+			return doc.next_designation("BG")
 		"vfd":
 			return doc.next_designation("TA")
 		"network_switch":

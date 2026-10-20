@@ -24,6 +24,21 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Selector switch blocks (I-0-II) and rotary cam switches show a small switching table under
   their designation: the positions I 0 II (or 0 I) with a dot under each position the
   contact is closed in, instead of a text such as "I-0-II: I"
+- Proximity sensors for PLC inputs (palette, PLC and sensors): inductive, capacitive, optical
+  (diffuse light) or magnetic (cylinder sensor), PNP or NPN, NO, NC or antivalent NO + NC
+  (4 wires), with the terminals and core colours of the real ones: 1 BN (+24 V), 3 BU (0 V),
+  4 BK (output), 2 WH (second output); each with its datasheet
+- Pressure, level and flow transmitters with a 0-10 V output, wired 1 BN, 3 BU, 2 WH as on
+  their M12 plug, with their measuring range set in the properties
+
+### Simulation
+- A proximity sensor switches its output while it has 10-30 V DC: click it to put something
+  in front of it or take it away. A PNP output works a PLC input whose common is on 0 V, an
+  NPN output one whose common is on +24 V; the outputs show in the timing chart
+- A proximity sensor in a group with a mechanical link is worked by the moving part, like a
+  limit switch, e.g. as the end position sensors of a gate
+- Click a transmitter to set its pressure, level or flow; it puts 0-10 V on a PLC's analog
+  input over its range
 
 ### Simulation
 - Network inputs NI1-NI64 and network analog inputs NAI1-NAI32 in both program languages

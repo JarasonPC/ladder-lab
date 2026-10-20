@@ -49,6 +49,8 @@ const ENTRIES: Array[Dictionary] = [
 	{"title": "PLC (logic module, 8 inputs, 4 relay outputs)", "template": {"type": "plc"}},
 	{"title": "Compact PLC (CPU 24 V DC, transistor outputs)", "template": {"type": "plc", "family": "compact", "cpu": "8di6dq"}},
 	{"title": "Temperature sensor (0-10 V)", "template": {"type": "temp_sensor"}},
+	{"title": "Transmitter: pressure, level, flow (0-10 V)", "template": {"type": "transmitter", "quantity": "pressure"}},
+	{"title": "Proximity sensor (PNP / NPN)", "template": {"type": "proximity", "sensing": "inductive", "output": "pnp", "function": "no"}},
 	{"title": "Network switch (Ethernet, 4 ports)", "template": {"type": "network_switch"}},
 ]
 
@@ -92,7 +94,7 @@ static func group_of(template: Dictionary) -> String:
 			return "loads"
 		"fuse", "breaker", "overload_relay", "overload_contact":
 			return "protection"
-		"plc", "temp_sensor", "network_switch":
+		"plc", "temp_sensor", "transmitter", "proximity", "network_switch":
 			return "plc"
 	return "power"
 
@@ -287,7 +289,7 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 		data["rating"] = ratings[0]
 	var component: CircuitComponent = DocumentSerializer.component_from_dict(data)
 	var supply: bool = component is PowerSupply
-	var upright: bool = component is ThreePhaseMotor or component is TemperatureSensor or component is ProtectiveDevice or component.get_terminal_names().size() > 3
+	var upright: bool = component is ThreePhaseMotor or component is AnalogSensor or component is ProximitySensor or component is ProtectiveDevice or component.get_terminal_names().size() > 3
 	var placement: Placement = Placement.new(Vector2i.ZERO, 0, false) if upright else Placement.new(Vector2i.ZERO, 3, true)
 	if component is ChangeoverContact:
 		# Its common terminal (the pivot) comes on the left only turned once.

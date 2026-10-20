@@ -731,14 +731,14 @@ func _open_link(group_name: String) -> void:
 	_link_dialog.title = tr("Mechanical link") + " +" + group_name
 	_link_dialog.ok_button_text = tr("OK")
 	_link_dialog.cancel_button_text = tr("Cancel")
-	_link_note.text = tr("The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch at an end is operated while the part is there, one in between while the part passes it.")
+	_link_note.text = tr("The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch or proximity sensor at an end is operated while the part is there, one in between while the part passes it.")
 	var motors: PackedStringArray = PackedStringArray([""])
 	var switches: PackedStringArray = PackedStringArray()
 	for member: String in group.members:
 		var kind: Workspace.Field = Workspace.field_kind(Workspace.field_component(_document.circuit, member))
 		if kind == Workspace.Field.MOTOR:
 			motors.append(member)
-		elif kind == Workspace.Field.LIMIT_SWITCH:
+		elif Workspace.is_stop(Workspace.field_component(_document.circuit, member)):
 			switches.append(member)
 	var drive: OptionButton = OptionButton.new()
 	drive.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED

@@ -234,9 +234,12 @@ func data_of(doc: SchematicDocument, designation: String) -> String:
 		elif c is ThreePhaseMotor:
 			var motor: ThreePhaseMotor = c as ThreePhaseMotor
 			fact = "%s kW, %s A" % [_num(motor.rated_power), _num(motor.rated_current)]
-		elif c is TemperatureSensor:
-			var sensor: TemperatureSensor = c as TemperatureSensor
-			fact = "%s…%s °C, 0-10 V" % [_num(sensor.range_min), _num(sensor.range_max)]
+		elif c is AnalogSensor:
+			var sensor: AnalogSensor = c as AnalogSensor
+			fact = "%s…%s %s, 0-10 V" % [_num(sensor.range_min), _num(sensor.range_max), sensor.unit()]
+		elif c is ProximitySensor:
+			var proximity: ProximitySensor = c as ProximitySensor
+			fact = "%s, %s %s" % [Datasheet.of(c, doc).summary, ProximitySensor.OUTPUT_TEXTS[proximity.output], ProximitySensor.FUNCTION_TEXTS[proximity.function]]
 		elif c.get("rating") is String:
 			fact = VoltageRating.text(c.get("rating"))
 		if not fact.is_empty() and not facts.has(fact):

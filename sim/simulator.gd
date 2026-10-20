@@ -152,8 +152,10 @@ var _ports_on_net: Dictionary[int, int] = {}
 ## Connections of a PLC to a partner that work ("A2>192.168.0.1"), as
 ## last logged.
 var _connections: Dictionary[String, bool] = {}
-## Temperature sensors (load index) and the net of their output U.
+## Analog sensors (load index) and the net of their output.
 var _sensor_outputs: Dictionary[int, int] = {}
+## Proximity sensors (load indices): loads with switching outputs.
+var _proximity_indices: PackedInt32Array = PackedInt32Array()
 ## Frequency inverters, the net and terminal index of each of their
 ## terminals ([constant Vfd.TERMINALS] per drive) and, from the last
 ## evaluation, whether their supply has the three phases, their inputs
@@ -248,6 +250,8 @@ func step(delta: float = 0.0) -> StepResult:
 			if delta > 0.0:
 				plc.advance(delta)
 			plc.snap()
+		for i: int in _proximity_indices:
+			(_loads[i] as ProximitySensor).snap()
 		if delta > 0.0:
 			_advance_protection(delta, result)
 			_advance_motors(delta, result)
@@ -344,6 +348,7 @@ func _build() -> void:
 	_switch_port_nets.clear()
 	_ports_on_net.clear()
 	_sensor_outputs.clear()
+	_proximity_indices.clear()
 	_drives.clear()
 	_drive_nets.clear()
 	_drive_terms.clear()
@@ -409,6 +414,15 @@ func _build() -> void:
 			_plc_port_nets.append(_net_of_key[keys[plc.port_terminal()]])
 			_count_port(_plc_port_nets[_plc_port_nets.size() - 1])
 			continue
+		if c is ProximitySensor:
+			# A load on 1-3 switching its outputs.
+			_proximity_indices.append(_loads.size())
+			_loads.append(c as ProximitySensor)
+			_load_nets.append(_net_of_key[keys[0]])
+			_load_nets.append(_net_of_key[keys[1]])
+			_load_terms.append(index[keys[0]])
+			_load_terms.append(index[keys[1]])
+			continue
 		if not paths.is_empty():
 			continue
 		if c is ThreePhaseMotor:
@@ -432,8 +446,8 @@ func _build() -> void:
 				for k: int in NetworkSwitch.PORTS:
 					_switch_port_nets.append(_net_of_key[keys[NetworkSwitch.port_terminal(k)]])
 					_count_port(_switch_port_nets[_switch_port_nets.size() - 1])
-			if c is TemperatureSensor:
-				_sensor_outputs[_loads.size() - 1] = _net_of_key[keys[2]]
+			if c is AnalogSensor:
+				_sensor_outputs[_loads.size() - 1] = _net_of_key[keys[(c as AnalogSensor).output_terminal()]]
 			if c is TimerRelay and (c as TimerRelay).control_input and keys.size() > 2:
 				_control_nets[_loads.size() - 1] = _net_of_key[keys[2]]
 				if (c as TimerRelay).a2_index() == 0:
@@ -753,6 +767,18 @@ func _settle_coils(result: StepResult) -> void:
 				switched = true
 				break
 		if not switched and not faulty:
+			for i: int in _proximity_indices:
+				var sensor: ProximitySensor = _loads[i] as ProximitySensor
+				if frozen.has(sensor.designation):
+					continue
+				var on: bool = (desired[i] & 1) == 1
+				var powered_changes: bool = sensor.energized != on
+				sensor.energized = on
+				if sensor.aim_outputs() or powered_changes:
+					sensor.snap()
+					switched = true
+					break
+		if not switched and not faulty:
 			var reads: Array[Array] = _network_reads(desired)
 			for p: int in _plc_indices.size():
 				var plc: Plc = _loads[_plc_indices[p]] as Plc
@@ -839,6 +865,8 @@ func _step_realistic(delta: float) -> StepResult:
 			dt = minf(dt, (_loads[i] as Coil).time_to_next_event())
 		for i: int in _plc_indices:
 			dt = minf(dt, (_loads[i] as Plc).time_to_next_event())
+		for i: int in _proximity_indices:
+			dt = minf(dt, (_loads[i] as ProximitySensor).time_to_next_event())
 		for actuator: Armature in _actuators:
 			dt = minf(dt, actuator.time_to_next_event())
 		for relay: OverloadRelay in _overload_relays:
@@ -915,6 +943,10 @@ func _apply_power(result: StepResult) -> void:
 				plc.update(powered, _plc_inputs[p], _plc_modules[p], _plc_analog[p], reads[p][0], reads[p][1])
 			if turn > 0 and not changed:
 				break
+		for i: int in _proximity_indices:
+			var sensor: ProximitySensor = _loads[i] as ProximitySensor
+			sensor.energized = (desired[i] & 1) == 1
+			sensor.aim_outputs()
 		for d: int in _drives.size():
 			var drive: Vfd = _drives[d]
 			var before: Array = _drive_state(drive)
@@ -966,6 +998,8 @@ func _advance_armatures(dt: float, result: StepResult) -> void:
 			var closed: bool = plc.output_armatures[k].no_closed
 			if closed != (closed_before[k] == 1):
 				_log(result, "%s: output Q%d on" if closed else "%s: output Q%d off", [plc.designation, k + 1], time + dt)
+	for i: int in _proximity_indices:
+		(_loads[i] as ProximitySensor).move_armatures(dt)
 
 
 ## Heats fuses, breakers and overload relays for [param dt] seconds with the
@@ -1041,10 +1075,10 @@ func _advance_travels(dt: float, result: StepResult) -> void:
 	for travel: Travel in travels:
 		if dt > 0.0:
 			travel.advance(dt)
-		for switch: LatchingSwitch in travel.apply():
-			if mode == Mode.IDEAL:
-				switch.actuator.snap(switch.actuator.target)
-			_log(result, "%s actuated" if switch.switched_on else "%s let go", [switch.designation], time + dt)
+		for switch: CircuitComponent in travel.apply():
+			if mode == Mode.IDEAL and switch is LatchingSwitch:
+				(switch as LatchingSwitch).actuator.snap((switch as LatchingSwitch).actuator.target)
+			_log(result, "%s actuated" if Travel.is_on(switch) else "%s let go", [switch.designation], time + dt)
 
 
 ## [method _evaluate], but first lets every fuse or breaker that carries the
@@ -1148,6 +1182,9 @@ func _record_trace() -> void:
 		elif load is Plc:
 			for k: int in (load as Plc).output_count():
 				trace.record("%s/Q%d" % [load.designation, k + 1], time, (load as Plc).output_armatures[k].position, true)
+		elif load is ProximitySensor:
+			for k: int in (load as ProximitySensor).output_count():
+				trace.record("%s/out%d" % [load.designation, k + 1], time, 1.0 if (load as ProximitySensor).output_on(k) else 0.0)
 	for drive: Vfd in _drives:
 		trace.record(drive.designation, time, 1.0 if drive.output else 0.0)
 		trace.record(drive.designation + "/frequency", time, absf(drive.frequency) / maxf(drive.max_frequency, 1.0), true)
@@ -1269,7 +1306,7 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 	# supply and by the analog outputs of the PLCs.
 	var analog: Dictionary[int, float] = {}
 	for i: int in _sensor_outputs:
-		analog[uf.find(_sensor_outputs[i])] = (_loads[i] as TemperatureSensor).output_volts(result[i] & 1 == 1)
+		analog[uf.find(_sensor_outputs[i])] = (_loads[i] as AnalogSensor).output_volts(result[i] & 1 == 1)
 	for p: int in _plc_indices.size():
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		for k: int in plc.analog_output_count():
@@ -1683,6 +1720,13 @@ func _signature() -> PackedByteArray:
 			if plc.output_on(k):
 				outputs[k >> 3] |= 1 << (k & 7)
 		sig.append_array(outputs)
+	for i: int in _proximity_indices:
+		var sensor: ProximitySensor = _loads[i] as ProximitySensor
+		var bits: int = 1 if sensor.energized else 0
+		for k: int in sensor.output_count():
+			if sensor.output_armatures[k].target:
+				bits |= 2 << k
+		sig.append(bits)
 	for device: CircuitComponent in _protective:
 		sig.append(device.protection_state())
 	for i: int in _plc_indices:
@@ -1697,14 +1741,14 @@ static func _plc_bytes(plc: Plc) -> int:
 	return 1 + ceili(plc.output_count() / 8.0)
 
 
-## Designations of coils and PLCs whose state differs anywhere in
-## [param states].
+## Designations of coils, PLCs and proximity sensors whose state differs
+## anywhere in [param states].
 func _changing_tags(states: Array[PackedByteArray]) -> PackedStringArray:
 	var tags: PackedStringArray = PackedStringArray()
 	if states.is_empty():
 		return tags
 	var at: int = 0
-	for i: int in _coil_indices + _plc_indices:
+	for i: int in _coil_indices + _plc_indices + _proximity_indices:
 		var size: int = _plc_bytes(_loads[i] as Plc) if _loads[i] is Plc else 1
 		var first: PackedByteArray = states[0].slice(at, at + size)
 		for s: PackedByteArray in states:

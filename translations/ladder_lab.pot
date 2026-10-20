@@ -1559,6 +1559,141 @@ msgstr ""
 msgid "Temperature at %s"
 msgstr ""
 
+msgid "Level transmitter (hydrostatic), output 0-10 V"
+msgstr ""
+
+msgid "Flow transmitter, output 0-10 V"
+msgstr ""
+
+msgid "Pressure transmitter, output 0-10 V"
+msgstr ""
+
+msgid "Three wires as on its M12 plug: 1 (BN) +24 V DC, 3 (BU) 0 V, 2 (WH) the output, 0-10 V against 3 over its range. While simulating, click it to set the value."
+msgstr ""
+
+#, c-format
+msgid "0 V at %s up to 10 V at %s, against %s."
+msgstr ""
+
+msgid "Terminals numbered as the pins of its M12 plug, cores coloured as in its cable."
+msgstr ""
+
+msgid "Capacitive proximity sensor, senses any material"
+msgstr ""
+
+msgid "Diffuse light sensor, senses what reflects its light"
+msgstr ""
+
+msgid "Magnetic sensor, senses the magnet of a cylinder's piston"
+msgstr ""
+
+msgid "Inductive proximity sensor, senses metal"
+msgstr ""
+
+msgid "Wires as ČSN EN 60947-5-2 colours them: 1 (BN) +24 V DC, 3 (BU) 0 V, 4 (BK) the output, 2 (WH) the second output of the 4-wire version. A PNP output goes to a PLC input whose common is on 0 V, an NPN output to one whose common is on +24 V. While simulating, click it to put something in front of it or take it away; in a group with a mechanical link the moving part works it."
+msgstr ""
+
+msgid "0 V."
+msgstr ""
+
+#, c-format
+msgid "Switches +24 V (%s) to it while nothing is in front of it."
+msgstr ""
+
+#, c-format
+msgid "Switches +24 V (%s) to it while something is in front of it."
+msgstr ""
+
+#, c-format
+msgid "Switches 0 V (%s) to it while nothing is in front of it."
+msgstr ""
+
+#, c-format
+msgid "Switches 0 V (%s) to it while something is in front of it."
+msgstr ""
+
+msgid "Output, NC"
+msgstr ""
+
+msgid "Output, NO"
+msgstr ""
+
+msgid "Solid-state output: no contact bounce, switches in under a millisecond."
+msgstr ""
+
+msgid "Output current"
+msgstr ""
+
+msgid "up to 200 mA"
+msgstr ""
+
+msgid "Switching distance"
+msgstr ""
+
+msgid "Transmitter: pressure, level, flow (0-10 V)"
+msgstr ""
+
+msgid "Proximity sensor (PNP / NPN)"
+msgstr ""
+
+#, c-format
+msgid "Range from (%s)"
+msgstr ""
+
+#, c-format
+msgid "Range to (%s)"
+msgstr ""
+
+#, c-format
+msgid "Value at the start (%s)"
+msgstr ""
+
+msgid "Sensing"
+msgstr ""
+
+msgid "Inductive (metal)"
+msgstr ""
+
+msgid "Capacitive (any material)"
+msgstr ""
+
+msgid "Optical (diffuse light)"
+msgstr ""
+
+msgid "Magnetic (cylinder sensor)"
+msgstr ""
+
+msgid "PNP (switches +24 V to the output)"
+msgstr ""
+
+msgid "NPN (switches 0 V to the output)"
+msgstr ""
+
+msgid "NO (on while it detects)"
+msgstr ""
+
+msgid "NC (on while it detects nothing)"
+msgstr ""
+
+msgid "NO + NC (4 wires, antivalent)"
+msgstr ""
+
+msgid "Measures"
+msgstr ""
+
+msgid "Pressure (bar)"
+msgstr ""
+
+msgid "Level (m)"
+msgstr ""
+
+msgid "Flow (m³/h)"
+msgstr ""
+
+#, c-format
+msgid "Value at %s"
+msgstr ""
+
 #, c-format
 msgid "Volts on the analog input (0-10 V = 0-%d)"
 msgstr ""
@@ -3290,7 +3425,7 @@ msgstr ""
 msgid "Starts at"
 msgstr ""
 
-msgid "The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch at an end is operated while the part is there, one in between while the part passes it."
+msgid "The motor moves the part from one end (0 %) to the other (100 %): turning forwards (clockwise) towards 100 %, backwards towards 0 %. A limit switch or proximity sensor at an end is operated while the part is there, one in between while the part passes it."
 msgstr ""
 
 msgid "A key of the keyboard that operates it while simulating"
