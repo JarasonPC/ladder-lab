@@ -244,7 +244,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   edit: the switchboard with fill_cabinet's devices; only once). Export: with "workspace"
   ticked, a residential document gets a "floor_plan" sheet (SheetRenderer) in place of the
   workspace: a FloorPlanCanvas with legend set, sized to paper_area() (the plan with a
-  margin and LEGEND_HEIGHT under it for the symbols and the standard heights)
+  margin and LEGEND_HEIGHT under it for the symbols and the standard heights), grown to
+  fill its paper (SheetLayout.fit with grow, up to MAX_GROW). Each part's designation goes
+  where it is clear of the symbols and the designations drawn before it (_label_spot: the
+  side into the room first, then right, left, below, above, a step further out when none is;
+  _taken holds the boxes, the symbols' from _symbol_box)
 - Single-line diagram of a residential installation (SingleLine, SchematicDocument.single_line,
   no nodes; saved as "single_line"): the consumer unit RD1 as Czech projects draw it. Its
   columns left to right are circuits (SingleLine.Feeder: its protective device, a circuit
@@ -427,7 +431,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   chosen in the preview (A5-A0, ExportPreview.largest_paper, user settings
   "export"/"largest_paper", SheetRenderer.largest_paper; A5 only when it is the largest; sheets
   larger than A2 rendered at fewer dpi, SheetRenderer.MAX_PIXELS)
-  (SheetLayout: 5 mm per cell, scaled down only when needed) with frame and title block
+  (SheetLayout: 5 mm per cell, scaled down only when needed; a floor plan grown to fill its paper) with frame and title block
   (SheetFrame), rendered by SheetRenderer at 200 dpi on white paper
   (SheetRenderer.begin_white_paper / end_white_paper count the renders, datasheets too; the last
   to end puts the paper shown back; the preview is empty and cannot be saved while it renders

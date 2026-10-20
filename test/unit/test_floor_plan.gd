@@ -320,3 +320,20 @@ func test_l_shaped_rooms_double_doors_and_labels() -> void:
 	assert_eq(again.rooms[0].points, room.points, "saved as its outline")
 	assert_true(again.doors[0].double, "a double door")
 	assert_eq(again.rooms[0].label_offset, Vector2(0.5, 1.0), "the label where it was moved")
+
+
+func test_designations_kept_clear_of_each_other() -> void:
+	var doc: SchematicDocument = _house()
+	doc.floor_plan.place("SF1", Vector2(3.0, 1.0), false)
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	var font: Font = ThemeDB.fallback_font
+	var s: float = FloorPlanCanvas.PX
+	var center: Vector2 = Vector2(200, 200)
+	# A switch back to back on the right: the designation goes left of it.
+	canvas._taken = [Rect2(center + Vector2(12, -12), Vector2(24, 24))]
+	var spot: Vector2 = canvas._label_spot("SF1", center, Vector2.RIGHT, "-SF1", "", s, font)
+	assert_lt(spot.x, center.x, "to the other side, clear of the other symbol")
+	var again: Vector2 = canvas._label_spot("SF1", center, Vector2.RIGHT, "-SF1", "", s, font)
+	assert_ne(again, spot, "never on a designation already there")
+	assert_eq(canvas._taken.size(), 3, "each takes its place")

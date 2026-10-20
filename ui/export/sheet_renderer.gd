@@ -300,7 +300,8 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 	add_child(viewport)
 	if sheet.has("view"):
 		(sheet["view"] as SchematicView).load_document(copy, false)
-	_place(sheet, SheetLayout.fit(extent, largest_paper))
+	# A floor plan as large as its paper takes, as plans are printed.
+	_place(sheet, SheetLayout.fit(extent, largest_paper, spec["kind"] == "floor_plan"))
 	return sheet
 
 

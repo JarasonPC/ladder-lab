@@ -312,3 +312,14 @@ func test_page_window_view_follows_the_main_view() -> void:
 	main_view.rebuild()
 	assert_eq(window_view.page, 0)
 	assert_not_null(window_view.get_symbol("L"))
+
+
+func test_sheet_layout_grows_a_drawing_to_fill_its_paper() -> void:
+	var grown: SheetLayout = SheetLayout.fit(Rect2(0, 0, 30, 20), "A3", true)
+	assert_eq(grown.paper_name, "A4", "the same paper")
+	assert_gt(grown.cell_mm, SheetLayout.CELL_MM, "drawn larger")
+	assert_lte(grown.cell_mm, SheetLayout.CELL_MM * SheetLayout.MAX_GROW + 1e-6)
+	assert_true(grown.frame.encloses(Rect2(0, 0, 30, 20)), "still inside the frame")
+	assert_true(grown.title_block.position.y >= 20.0 - 1e-4, "and above the title block")
+	var tiny: SheetLayout = SheetLayout.fit(Rect2(0, 0, 2, 2), "A3", true)
+	assert_almost_eq(tiny.cell_mm, SheetLayout.CELL_MM * SheetLayout.MAX_GROW, 1e-6, "no more than twice")

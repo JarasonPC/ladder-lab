@@ -64,6 +64,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   ČSN 33 2000-4-41 asks for one on everything an ordinary person can reach
 - Residual current devices of types F, B and B+ beside AC and A, and selective ones (S): a
   selective RCD lets the one nearest the fault trip alone
+- The floor plan sheet of a PDF export draws the plan as large as its paper takes, and the
+  designations of parts close together (switches back to back on a wall) no longer print over
+  each other: each goes where it is clear, into its room first
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
