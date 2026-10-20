@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.6.0 – 2026-10-20
+
 ### Schematic editor
 - "Wire facing terminals" in the right click menu wires the free terminals of the selected
   parts that face each other with straight wires in one go
