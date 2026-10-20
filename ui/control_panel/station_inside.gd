@@ -5,7 +5,9 @@ extends RefCounted
 ## side by side on the mounting adapter (NO, NC, CO; a lamp block between
 ## them in an illuminated one), behind a signal lamp its lamp block, behind a
 ## rotary cam switch its chambers, one a pole; every block with its screw
-## terminals at the top and the bottom. The cables of the workspace (see
+## terminals at the top and the bottom; behind a potentiometer its round
+## body with three solder lugs on top, the wires pushed on with insulated
+## fastons. The cables of the workspace (see
 ## [WorkspaceCables]) come in through glands in the top of the housing, a
 ## core of each to the terminal it lands on; terminals of one net are joined
 ## by short wires from terminal to terminal. Wires run in lanes of the
@@ -31,6 +33,12 @@ const BLOCK := Vector2(10.0, 36.0)
 const CO_BLOCK: float = 16.0
 const CHAMBER: float = 13.0
 const SCREW_Y: float = 12.0
+## A potentiometer's body (radius), its lugs (the middle of each above the
+## body's middle, their tops) and the length of a faston on a lug.
+const POT_R: float = 11.0
+const LUG_Y: float = 13.0
+const LUG_TOP: float = 15.5
+const FASTON: float = 7.0
 ## Half the height of the back of the biggest device (a cam switch's square).
 const BACK_HALF: float = 24.0
 ## Lanes of wires in the channels and down the side.
@@ -45,10 +53,10 @@ const WIRE_W: float = 1.6
 var size: Vector2 = Vector2.ZERO
 ## The items: {"item" (index in the station), "kind" ([enum ControlBoxItem.Kind]),
 ## "designation", "lamp", "cam" (a rotary cam switch), "rect", "center",
-## "blocks": [{"kind" ("NO", "NC", "CO", "LAMP", "POLE"), "rect",
-## "terminals": [{"name", "key", "at" (its screw), "entry" (where its wire
-## goes into the contact: the block's top or bottom face, under the screw),
-## "top"}]}]}.
+## "blocks": [{"kind" ("NO", "NC", "CO", "LAMP", "POLE", "POT"), "rect",
+## "terminals": [{"name", "key", "at" (its screw, a potentiometer's lug),
+## "entry" (where its wire goes into the contact: the block's top or bottom
+## face, under the screw; the top of a lug's faston), "top"}]}]}.
 var items: Array[Dictionary] = []
 ## Glands in the top: {"rect", "cable" (its name)}; on a door the harness's
 ## conduit at the bottom ("cable" [constant CabinetWiring.DOOR]).
@@ -56,9 +64,11 @@ var glands: Array[Dictionary] = []
 ## The back of a switchboard's door (see [method build_door]).
 var door: bool = false
 ## Wires: {"net", "conductor", "points", "external" (a core starting at a
-## gland), "mark", "markers" (sleeves as PackedVector2Array [from, to])}.
+## gland), "mark", "markers" (sleeves as PackedVector2Array [from, to]),
+## "pins" (as for [method CabinetParts.wire]: -1 at an end in a faston)}.
 var wires: Array[Dictionary] = []
-## Terminal key -> where it is: {"at", "entry", "top", "row"}.
+## Terminal key -> where it is: {"at", "entry", "top", "row", "faston"
+## (a potentiometer's lug)}.
 var terminals: Dictionary[String, Dictionary] = {}
 
 # Tops of the channels, x of the first lane down the side.
@@ -155,6 +165,8 @@ func _place_items(doc: SchematicDocument, box: ControlBox) -> void:
 		match item.kind:
 			ControlBoxItem.Kind.LAMP:
 				blocks.append_array(_lamp_blocks(doc, item.designation))
+			ControlBoxItem.Kind.POT:
+				blocks.append_array(_pot_blocks(doc, item.designation))
 			_:
 				var device: CircuitComponent = doc.circuit.get_operator(item.designation)
 				if device is CamSwitch:
@@ -200,6 +212,17 @@ static func _lamp_blocks(doc: SchematicDocument, designation: String) -> Array[D
 	return result
 
 
+## The body of potentiometer [param designation]: its lugs 1, 2, 3 on top.
+static func _pot_blocks(doc: SchematicDocument, designation: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var pot: CircuitComponent = doc.circuit.get_component(designation) if not designation.is_empty() else null
+	if pot is Potentiometer:
+		var names: PackedStringArray = pot.get_terminal_names()
+		var keys: PackedStringArray = pot.get_terminal_keys()
+		result.append({"kind": "POT", "terminals": [_terminal(names[0], keys[0], true), _terminal(names[1], keys[1], true), _terminal(names[2], keys[2], true)]})
+	return result
+
+
 ## A chamber of rotary cam switch [param cam] for each pole: its line side
 ## (and II side) on top, the load side (the common) below.
 static func _cam_blocks(cam: CamSwitch) -> Array[Dictionary]:
@@ -226,6 +249,8 @@ static func block_width(kind: String) -> float:
 			return CO_BLOCK
 		"POLE":
 			return CHAMBER
+		"POT":
+			return 2.0 * POT_R + 4.0
 	return BLOCK.x
 
 
@@ -414,6 +439,12 @@ func _place_blocks(entry: Dictionary) -> void:
 			var tx: float = x + w * (k + 1) / float(same.size() + 1)
 			t["at"] = Vector2(tx, center.y + (-SCREW_Y if t["top"] else SCREW_Y))
 			t["entry"] = Vector2(tx, block["rect"].position.y if t["top"] else block["rect"].end.y)
+			if block["kind"] == "POT":
+				# Lugs a little apart, the wire coming out of the top of its faston.
+				tx = center.x + (k - 1) * POT_R * 0.6
+				t["at"] = Vector2(tx, center.y - LUG_Y)
+				t["entry"] = Vector2(tx, center.y - LUG_TOP - FASTON)
+				terminals[t["key"]]["faston"] = true
 			terminals[t["key"]]["at"] = t["at"]
 			terminals[t["key"]]["entry"] = t["entry"]
 		x += w
@@ -464,7 +495,14 @@ func _route(links: Array[Dictionary], net: Dictionary[String, int], conductor: D
 				var from: float = minf(CabinetParts.MARKER_FROM, maxf(room - length, 0.0))
 				if room > from + 1.0:
 					markers.append(PackedVector2Array([tip + along * from, tip + along * minf(from + length, room)]))
-		wires.append({"net": n, "conductor": c, "points": _simplified(points), "external": link["external"], "mark": mark, "markers": markers})
+		var pins: Vector2 = Vector2(-1.0 if _in_faston(link["a"]) else 0.0, -1.0 if _in_faston(link["b"]) else 0.0)
+		wires.append({"net": n, "conductor": c, "points": _simplified(points), "external": link["external"], "mark": mark, "markers": markers, "pins": pins})
+
+
+## True when link end [param end] is a potentiometer's lug (the wire's end
+## is in its faston, no ferrule).
+func _in_faston(end: Variant) -> bool:
+	return end is String and terminals[end].get("faston", false)
 
 
 ## Where link end [param end] is: where a wire goes into a terminal's

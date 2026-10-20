@@ -76,7 +76,9 @@ const FORMAT: String = "ladder-lab"
 ## older PLCs get it added), network switches ("network_switch"), the
 ## network inputs of PLC programs ("network" in the program; missing
 ## before: none).
-const VERSION: int = 35
+## 36: potentiometers ("pot": turns, setting in %) and station or door
+## items of kind "pot".
+const VERSION: int = 36
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

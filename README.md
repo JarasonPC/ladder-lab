@@ -20,7 +20,7 @@ contact numbering 13-14 / 21-22, coils A1-A2.
   their terminal box if you like), bridge rectifiers, sensors for the PLC inputs (proximity
   sensors: inductive, capacitive, optical, magnetic, PNP / NPN, NO / NC / antivalent, wired
   1 BN / 3 BU / 4 BK / 2 WH as on the real ones; pressure, level, flow and temperature
-  transmitters 0-10 V), a frequency inverter, terminal strips and two PLCs: a logic module (8 inputs, 4 relay
+  transmitters 0-10 V; potentiometers of 1-10 turns), a frequency inverter, terminal strips and two PLCs: a logic module (8 inputs, 4 relay
   outputs, expansion and analog modules) and a compact 24 V DC CPU in three sizes with
   signal modules, each with an Ethernet port and an IP address, and a network switch to join
   more than two. Coils, lamps and PLCs carry a rated voltage. Undo / redo, rotating and

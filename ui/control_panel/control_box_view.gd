@@ -2,15 +2,18 @@ class_name ControlBoxView
 extends Control
 ## Draws one [ControlBox] (a control station) like the real thing: a grey
 ## housing with black label plates, coloured push buttons, selector switches
-## (0 / I) and signal lamps. While simulating, a push button is held with the
-## left mouse button, a switch turns over on click and a lamp lights while its
-## lamp in the schematic has power. While editing, a click selects an item.
+## (0 / I), signal lamps and potentiometers ([PotFace]). While simulating, a
+## push button is held with the left mouse button, a switch turns over on
+## click, a potentiometer turns with the mouse wheel or a drag up or down
+## (Shift: ten notches at a time) and a lamp lights while its lamp in the
+## schematic has power. While editing, a click selects an item.
 
 ## A push button was pressed (true) or let go (false) while simulating.
 signal button_held(designation: String, pressed: bool)
 ## A switch was clicked while simulating; a rotary cam switch is turned
 ## [param steps] positions to the right (negative: to the left), clicked
-## right or left of the middle of its knob.
+## right or left of the middle of its knob; a potentiometer [param steps]
+## notches clockwise (negative: anticlockwise).
 signal switch_toggled(designation: String, steps: int)
 ## An item was clicked while editing (-1: the housing beside the items).
 signal item_clicked(item_index: int)
@@ -49,6 +52,10 @@ const TITLE_TEXT := Color("80858a")
 ## Designations on the plates ("-SB1", "-H1"), teal as on the schematic.
 const PLATE_DESIGNATION := Color("5fd0c4")
 const DESIGNATION_FONT_SIZE: int = 10
+## Pixels of a drag up or down per notch of a potentiometer, notches a
+## wheel step or drag step turns it with Shift held.
+const DRAG_PX: float = 2.0
+const COARSE: int = 10
 ## Size of the keycaps of keys bound to the buttons and switches.
 const KEY_FONT_SIZE: int = 10
 ## Cap, grip and lens colours by [constant ControlBoxItem.COLORS] name.
@@ -74,6 +81,10 @@ var show_keys: bool = true
 
 ## Designation of the push button held with the mouse, "" for none.
 var _held: String = ""
+## Designation of the potentiometer being turned by a drag, "" for none,
+## and the part of a notch the drag has gone on since the last one.
+var _turning: String = ""
+var _drag_rest: float = 0.0
 
 
 func _ready() -> void:
@@ -166,6 +177,10 @@ func _three_positions(designation: String) -> bool:
 	return c is LatchingSwitch and (c as LatchingSwitch).three_positions
 
 
+func _pot(designation: String) -> Potentiometer:
+	return _device(designation) as Potentiometer
+
+
 func _lit(designation: String) -> bool:
 	var c: CircuitComponent = _device(designation)
 	return c is Lamp and (c as Lamp).energized
@@ -174,6 +189,18 @@ func _lit(designation: String) -> bool:
 # --- Input -------------------------------------------------------------------------
 
 func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and not _turning.is_empty():
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		_drag_rest -= motion.relative.y / DRAG_PX
+		var notches: int = int(_drag_rest)
+		if notches != 0:
+			_drag_rest -= notches
+			switch_toggled.emit(_turning, notches * (COARSE if motion.shift_pressed else 1))
+		accept_event()
+		return
+	if event is InputEventMouseButton and simulating and _wheel_turns(event as InputEventMouseButton):
+		accept_event()
+		return
 	if event is InputEventMouseMotion:
 		var hovered: int = _item_at((event as InputEventMouseMotion).position)
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if hovered >= 0 and _clickable(hovered) else Control.CURSOR_ARROW
@@ -192,6 +219,9 @@ func _gui_input(event: InputEvent) -> void:
 			button_held.emit(_held, false)
 			_held = ""
 			accept_event()
+		if not _turning.is_empty():
+			_turning = ""
+			accept_event()
 		return
 	var index: int = _item_at(mb.position)
 	if not simulating:
@@ -201,7 +231,10 @@ func _gui_input(event: InputEvent) -> void:
 	if index < 0 or not _clickable(index):
 		return
 	var item: ControlBoxItem = box().items[index]
-	if item.kind == ControlBoxItem.Kind.BUTTON:
+	if item.kind == ControlBoxItem.Kind.POT:
+		_turning = item.designation
+		_drag_rest = 0.0
+	elif item.kind == ControlBoxItem.Kind.BUTTON:
 		_held = item.designation
 		button_held.emit(_held, true)
 	elif _device(item.designation) is CamSwitch or _three_positions(item.designation):
@@ -209,6 +242,19 @@ func _gui_input(event: InputEvent) -> void:
 	else:
 		switch_toggled.emit(item.designation, 0)
 	accept_event()
+
+
+## Turns the potentiometer under the mouse wheel [param mb] a notch (Shift:
+## [constant COARSE]); false when it is not a wheel step over one.
+func _wheel_turns(mb: InputEventMouseButton) -> bool:
+	if not mb.pressed or (mb.button_index != MOUSE_BUTTON_WHEEL_UP and mb.button_index != MOUSE_BUTTON_WHEEL_DOWN) or mb.ctrl_pressed:
+		return false
+	var index: int = _item_at(mb.position)
+	if index < 0 or box().items[index].kind != ControlBoxItem.Kind.POT or not _clickable(index):
+		return false
+	var notches: int = COARSE if mb.shift_pressed else 1
+	switch_toggled.emit(box().items[index].designation, notches if mb.button_index == MOUSE_BUTTON_WHEEL_UP else -notches)
+	return true
 
 
 func _clickable(index: int) -> bool:
@@ -302,6 +348,9 @@ func _draw_item(item: ControlBoxItem, cell: Rect2) -> void:
 				_draw_switch(center, color, _turn(item.designation), light, _three_positions(item.designation))
 		ControlBoxItem.Kind.LAMP:
 			_draw_lamp(center, BEZEL_R - 1.0, color, _lit(item.designation))
+		ControlBoxItem.Kind.POT:
+			var pot: Potentiometer = _pot(item.designation)
+			PotFace.paint(CabinetPainter.new(self, 1.0), center, BEZEL_R, pot.turns if pot != null else 1, pot.setting if pot != null else 0.0, MARK_TEXT)
 	if not _assigned(item):
 		# Not connected to the schematic: faded.
 		draw_rect(cell.grow(-1.0), Color(COVER, 0.55))

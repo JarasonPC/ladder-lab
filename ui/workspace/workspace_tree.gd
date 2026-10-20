@@ -181,7 +181,7 @@ func _field(head: TreeItem, designation: String, filter: String) -> void:
 	var c: CircuitComponent = Workspace.field_component(document.circuit, designation)
 	if c == null:
 		return
-	var tile: WorkspaceTile.Kind = WorkspaceTile.of_field(Workspace.field_kind(c))
+	var tile: WorkspaceTile.Kind = WorkspaceTile.of_part(c)
 	var item: TreeItem = _entry(head, "-" + designation, tr(WorkspaceCanvas.field_title(tile)), {"place": -1, "name": "", "designation": designation, "kind": "field"}, filter)
 	if item != null:
 		item.set_icon(0, WorkspaceTile.icon(tile, 16))

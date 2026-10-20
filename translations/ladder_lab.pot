@@ -1694,6 +1694,123 @@ msgstr ""
 msgid "Value at %s"
 msgstr ""
 
+msgid "Potentiometer"
+msgstr ""
+
+msgid "Add a potentiometer"
+msgstr ""
+
+msgid "A setpoint for an analog input: 1 on 0 V, 3 on a 10 V reference (a frequency inverter's 10V, an analog output) and the wiper 2 on the input gives 0-10 V. Mounted on a control station or a switchboard's door; while simulating, turn it there with the mouse wheel or by dragging, or click it in the schematic."
+msgstr ""
+
+msgid "Track, start"
+msgstr ""
+
+msgid "The wiper is here turned fully anticlockwise."
+msgstr ""
+
+msgid "Wiper"
+msgstr ""
+
+#, c-format
+msgid "Its share of the voltage between %s and %s, as far as it is turned."
+msgstr ""
+
+msgid "Track, end"
+msgstr ""
+
+msgid "The wiper is here turned fully clockwise."
+msgstr ""
+
+msgid "Single-turn: a knob with a 0-10 scale over 270°."
+msgstr ""
+
+msgid "Multi-turn with a turns-counting dial: the window counts the turns, the ring reads hundredths of a turn."
+msgstr ""
+
+msgid "Wires pushed on its solder lugs with insulated fastons."
+msgstr ""
+
+msgid "Resistance"
+msgstr ""
+
+msgid "linear"
+msgstr ""
+
+msgid "Turns"
+msgstr ""
+
+msgid "Travel"
+msgstr ""
+
+msgid "Set per wheel notch"
+msgstr ""
+
+msgid "Mounting"
+msgstr ""
+
+msgid "22 mm panel hole"
+msgstr ""
+
+msgid "Potentiometer 10 kΩ (1, 2, 5 or 10 turns)"
+msgstr ""
+
+msgid "1 turn (knob, 0-10 scale)"
+msgstr ""
+
+#, c-format
+msgid "%d turns (counting dial)"
+msgstr ""
+
+msgid "Set at the start (%)"
+msgstr ""
+
+#, c-format
+msgid "Setting of %s"
+msgstr ""
+
+msgid "Inductive sensor"
+msgstr ""
+
+msgid "Capacitive sensor"
+msgstr ""
+
+msgid "Magnetic sensor"
+msgstr ""
+
+msgid "Light sensor"
+msgstr ""
+
+msgid "Pressure"
+msgstr ""
+
+msgid "Level"
+msgstr ""
+
+msgid "Flow"
+msgstr ""
+
+msgid "Temperature"
+msgstr ""
+
+#, c-format
+msgid "Potentiometer %s kΩ, %d turn"
+msgid_plural "Potentiometer %s kΩ, %d turns"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "%s kΩ, %d turn"
+msgid_plural "%s kΩ, %d turns"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "%d turn"
+msgid_plural "%d turns"
+msgstr[0] ""
+msgstr[1] ""
+
 #, c-format
 msgid "Volts on the analog input (0-10 V = 0-%d)"
 msgstr ""

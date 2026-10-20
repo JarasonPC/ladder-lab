@@ -8,7 +8,7 @@ extends RefCounted
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 const INVALID_CELL := Vector2i(-2147483648, -2147483648)
-const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity", "network_switch"]
+const TYPES: PackedStringArray = ["supply", "junction", "push_button", "latching_switch", "contact", "changeover", "coil", "timer", "lamp", "motor", "fuse", "breaker", "overload_relay", "overload_contact", "main_contacts", "fuse3", "breaker3", "motor3", "terminal", "limit_switch", "rectifier", "connector", "plc", "temp_sensor", "vfd", "cam_switch", "transmitter", "proximity", "network_switch", "pot"]
 const MOTOR_KINDS: PackedStringArray = ["standard", "star_delta", "dahlander", "two_windings", "three_windings"]
 const CONDUCTORS: PackedStringArray = ["L", "N", "L2", "L3", "+", "-", "PE"]
 ## Limits of rated currents and settings (amperes) and of the starting
@@ -379,6 +379,11 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["range_min"] = transmitter.range_min
 		d["range_max"] = transmitter.range_max
 		d["value"] = transmitter.value
+	elif c is Potentiometer:
+		d["type"] = "pot"
+		d["turns"] = (c as Potentiometer).turns
+		# Saved in per cent of the track.
+		d["setting"] = snappedf((c as Potentiometer).setting * 100.0, 0.001)
 	elif c is ProximitySensor:
 		var proximity: ProximitySensor = c as ProximitySensor
 		d["type"] = "proximity"
@@ -618,6 +623,10 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 				transmitter.range_min = minf(transmitter.range_min, transmitter.range_max - TRANSMITTER_RANGE_STEP)
 			transmitter.value = clampf(_number_or(d, "value", Transmitter.DEFAULT_VALUE[quantity]), Transmitter.LOWEST, Transmitter.HIGHEST)
 			return transmitter
+		"pot":
+			var pot: Potentiometer = Potentiometer.new(designation, _int(d, "turns", 1))
+			pot.setting = _number_or(d, "setting", Potentiometer.DEFAULT_SETTING * 100.0) / 100.0
+			return pot
 		"proximity":
 			var function: int = maxi(ProximitySensor.FUNCTION_NAMES.find(str(d.get("function", ""))), 0)
 			var proximity: ProximitySensor = ProximitySensor.new(designation, function as ProximitySensor.Function)

@@ -224,7 +224,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   _edit_workspace / _edit_cabinet).
   WorkspaceCanvas draws on schematic paper (SchematicTheme, follows White schematic paper)
   solid tiles (WorkspaceTile: switchboard teal, station blue, field grey, white signs; also the
-  tree's icons): the place's tile with "+RA1", its title and what it holds, a part's tile with
+  tree's icons; WorkspaceTile.of_part gives sensors a sign by what they sense: a threaded
+  barrel for inductive, capacitive and magnetic sensors, a light sensor, a gauge, a tank, a
+  pipe, a thermometer, named under the tile by WorkspaceCanvas.field_title): the place's tile with "+RA1", its title and what it holds, a part's tile with
   "-M1"; a station can be shown as its face instead (place menu in Edit mode, ControlBox.face_scale,
   saved as "face", SchematicDocument.set_station_face, undoable): a ControlBoxView over the canvas at
   its place and scale (WorkspaceCanvas._place_faces; Workspace.place_size gives its size to cables,
@@ -330,7 +332,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   lists every key, what it operates and where, rolled in or out (user settings "keys_rolled")
 - Control stations: control boxes (SchematicDocument.control_boxes,
   ControlBox / ControlBoxItem, saved) drawn like real ones (grey housing, black label plates,
-  coloured push buttons, 0/I selector switches, signal lamps, illuminated buttons and switches with a lamp inside, its designation on the plate too);
+  coloured push buttons, 0/I selector switches, signal lamps, potentiometers, illuminated buttons and switches with a lamp inside, its designation on the plate too);
   items name devices by designation (buttons, switches without limit switches, lamps) and follow
   renames; opened from the workspace (StationPanel: the box drawn large, ZoomBox, the editing
   tools beside it in Edit mode, undoable; the tools are ControlItemTools, shared with the
@@ -653,7 +655,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: A = PLC, KF = network switch, BT = temperature sensor, BG = proximity sensor, BP / BL / BF =
+- Device designations: A = PLC, KF = network switch, BT = temperature sensor, BG = proximity sensor, RP = potentiometer, BP / BL / BF =
   pressure / level / flow transmitter, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch (also the rotary cam switch, CamSwitch: a knob turned by hand,
   snap action, starts at 0, its position simulation state; 0-I poles 1-2, 3-4 … closed in I,
@@ -761,6 +763,27 @@ Architecture and conventions of the code base. Read this before changing the cod
   arrows, magnet), "PNP" / "NPN" under it, an NO / NC contact per output under its lead on a
   dashed link (drawn at rest without supply), core colours beside the leads; outputs on top
   SymbolGeometry.SENSOR_OUTPUT_CELL apart; saved as "proximity": sensing, output, function
+- Potentiometer (Potentiometer, "RP1", a CircuitComponent, no load): 10 kΩ, terminals 1 (start
+  of the track), 2 (wiper), 3 (end); turns 1, 2, 5 or 10 (Potentiometer.TURNS; a single turn
+  sweeps SINGLE_TURN_DEGREES 270°, more turns 360° each); setting 0-1 (simulation state, saved
+  as "setting" in % with "turns"); a notch (wheel step, drag step, Potentiometer.turn) turns
+  NOTCH_DEGREES, so more turns set it finer (Potentiometer.step). The simulator puts
+  wiper_volts (its share of the volts between 1 and 3, Simulator._known_volts: an analog
+  signal, a DC + pole, 0 on a - pole) on the wiper's net after the sensors', AQs' and VFDs'
+  10V and before the analog inputs are read; Potentiometer.volts (-1 unknown). Symbol
+  (PotentiometerSymbol, IEC 60617 S00557): upright resistor from 1 down to 3
+  (SymbolGeometry.POT_SPAN), the wiper an arrow from 2 at POT_WIPER_CELL; resistance and
+  turns under the designation, setting and volts while simulating; a click while
+  simulating opens a slider (SchematicView.set_pot). A station or door item of kind POT
+  (ControlBoxItem.Kind.POT, "pot", always black, never lit): PotFace draws it with a
+  CabinetPainter (1 turn: a black knob over a 0-10 scale printed on the panel; 2-10 turns:
+  a turns-counting dial, the window counting turns over a ring of hundredths turning
+  with it under a fixed index, a lock lever); turned while simulating by the mouse wheel
+  or a drag up and down (ControlBoxView.DRAG_PX a notch, Shift COARSE notches) through
+  switch_toggled with the notches as steps (SchematicView.toggle_switch). Inside
+  (StationInside "POT" block, StationInsideView._pot): a round body with three brass
+  solder lugs on top, numbered on the body, a red insulated faston pushed on each, the
+  wire out of its top (no ferrule there: wire "pins" -1) with its marker sleeve
 - Temperature sensor (TemperatureSensor, "BT1", an AnalogSensor on L+-M rated 24 V DC, output U): puts
   0-10 V on U over its range (range_min..range_max °C, saved with the start temperature);
   drawn as a transmitter (box holding a resistor varying with θ, IEC 60617 S00561, as a Pt100,

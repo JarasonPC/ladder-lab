@@ -156,6 +156,9 @@ var _connections: Dictionary[String, bool] = {}
 var _sensor_outputs: Dictionary[int, int] = {}
 ## Proximity sensors (load indices): loads with switching outputs.
 var _proximity_indices: PackedInt32Array = PackedInt32Array()
+## Potentiometers and the nets of their terminals 1, 2, 3 (three each).
+var _pots: Array[Potentiometer] = []
+var _pot_nets: PackedInt32Array = PackedInt32Array()
 ## Frequency inverters, the net and terminal index of each of their
 ## terminals ([constant Vfd.TERMINALS] per drive) and, from the last
 ## evaluation, whether their supply has the three phases, their inputs
@@ -349,6 +352,8 @@ func _build() -> void:
 	_ports_on_net.clear()
 	_sensor_outputs.clear()
 	_proximity_indices.clear()
+	_pots.clear()
+	_pot_nets.clear()
 	_drives.clear()
 	_drive_nets.clear()
 	_drive_terms.clear()
@@ -425,7 +430,11 @@ func _build() -> void:
 			continue
 		if not paths.is_empty():
 			continue
-		if c is ThreePhaseMotor:
+		if c is Potentiometer:
+			_pots.append(c as Potentiometer)
+			for t: int in 3:
+				_pot_nets.append(_net_of_key[keys[t]])
+		elif c is ThreePhaseMotor:
 			_motors.append(c as ThreePhaseMotor)
 			var windings: int = (c as ThreePhaseMotor).winding_terminal_count()
 			for t: int in MOTOR_TERMINALS:
@@ -1315,6 +1324,15 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 	for d: int in _drives.size():
 		if _drive_powered[d] == 1:
 			analog[uf.find(_drive_net(d, Vfd.REF_10V))] = Vfd.ANALOG_VOLTS
+	# Potentiometers: their wiper's share of the volts between 1 and 3.
+	for k: int in _pots.size():
+		var ends: Array = [_known_volts(uf.find(_pot_nets[3 * k]), masks, analog), _known_volts(uf.find(_pot_nets[3 * k + 2]), masks, analog)]
+		var wiper: int = uf.find(_pot_nets[3 * k + 1])
+		_pots[k].volts = -1.0
+		if ends[0] != null and ends[1] != null:
+			_pots[k].volts = _pots[k].wiper_volts(ends[0], ends[1])
+			if wiper != uf.find(_pot_nets[3 * k]) and wiper != uf.find(_pot_nets[3 * k + 2]):
+				analog[wiper] = _pots[k].volts
 	for p: int in _plc_indices.size():
 		var plc: Plc = _loads[_plc_indices[p]] as Plc
 		var volts: PackedFloat32Array = PackedFloat32Array()
@@ -1347,6 +1365,17 @@ func _evaluate(passing: bool = false) -> PackedByteArray:
 		_drive_ai[d] = snappedf(analog.get(ai_root, ai_dc), 0.001)
 	_evaluate_motors(uf, masks)
 	return result
+
+
+## Volts on net [param root] against the - poles where they are known: an
+## analog signal, a DC + pole, 0 on a - pole; null otherwise.
+static func _known_volts(root: int, masks: Dictionary[int, int], analog: Dictionary[int, float]) -> Variant:
+	if analog.has(root):
+		return analog[root]
+	var mask: int = masks.get(root, 0)
+	if not _is_single_source(mask) or mask & PowerSupply.DC_BITS == 0:
+		return null
+	return 0.0 if mask == PowerSupply.BIT_DC_MINUS else PowerSupply.dc_volts(mask)
 
 
 ## True when supply masks [param a] and [param b] give voltage: one supply

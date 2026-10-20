@@ -211,7 +211,7 @@ func name_of(doc: SchematicDocument, designation: String) -> String:
 		return tr(StationPanel.KIND_TITLES[control])
 	var field: Workspace.Field = Workspace.field_kind(part)
 	if field != Workspace.Field.NONE:
-		return tr(WorkspaceCanvas.field_title(WorkspaceTile.of_field(field)))
+		return tr(WorkspaceCanvas.field_title(WorkspaceTile.of_part(part)))
 	return Datasheet.of(part, doc).title
 
 
@@ -237,6 +237,8 @@ func data_of(doc: SchematicDocument, designation: String) -> String:
 		elif c is AnalogSensor:
 			var sensor: AnalogSensor = c as AnalogSensor
 			fact = "%s…%s %s, 0-10 V" % [_num(sensor.range_min), _num(sensor.range_max), sensor.unit()]
+		elif c is Potentiometer:
+			fact = tr_n("%s kΩ, %d turn", "%s kΩ, %d turns", (c as Potentiometer).turns) % [_num(Potentiometer.RESISTANCE / 1000.0), (c as Potentiometer).turns]
 		elif c is ProximitySensor:
 			var proximity: ProximitySensor = c as ProximitySensor
 			fact = "%s, %s %s" % [Datasheet.of(c, doc).summary, ProximitySensor.OUTPUT_TEXTS[proximity.output], ProximitySensor.FUNCTION_TEXTS[proximity.function]]

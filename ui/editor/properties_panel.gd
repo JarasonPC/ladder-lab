@@ -136,6 +136,14 @@ func show_component(component: CircuitComponent) -> void:
 			_number(tr("Value at the start (%s)") % unit, "value", Transmitter.LOWEST, Transmitter.HIGHEST, step)
 			_group = null
 			_note(tr("Three wires as on its M12 plug: 1 (BN) +24 V DC, 3 (BU) 0 V, 2 (WH) the output, 0-10 V against 3 over its range. While simulating, click it to set the value."), "MutedLabel")
+		"pot":
+			var titles: Array = []
+			for turns: int in Potentiometer.TURNS:
+				titles.append(tr("1 turn (knob, 0-10 scale)") if turns == 1 else tr("%d turns (counting dial)") % turns)
+			_choice(tr("Turns"), "turns", Array(Potentiometer.TURNS), titles)
+			_number(tr("Set at the start (%)"), "setting", 0.0, 100.0, 0.1)
+			_group = null
+			_note(tr("A setpoint for an analog input: 1 on 0 V, 3 on a 10 V reference (a frequency inverter's 10V, an analog output) and the wiper 2 on the input gives 0-10 V. Mounted on a control station or a switchboard's door; while simulating, turn it there with the mouse wheel or by dragging, or click it in the schematic."), "MutedLabel")
 		"proximity":
 			_choice(tr("Sensing"), "sensing", Array(ProximitySensor.SENSING_NAMES), [tr("Inductive (metal)"), tr("Capacitive (any material)"), tr("Optical (diffuse light)"), tr("Magnetic (cylinder sensor)")])
 			_choice(tr("Output"), "output", Array(ProximitySensor.OUTPUT_NAMES), [tr("PNP (switches +24 V to the output)"), tr("NPN (switches 0 V to the output)")])
