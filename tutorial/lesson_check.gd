@@ -195,6 +195,14 @@ static func state_of(c: CircuitComponent) -> bool:
 	return false
 
 
+## What a test run shows of [param c] after a step: where a potentiometer
+## is set (0-1), else whether it is on.
+static func level_of(c: CircuitComponent) -> Variant:
+	if c is Potentiometer:
+		return (c as Potentiometer).setting
+	return state_of(c)
+
+
 # --- Test runs -------------------------------------------------------------------------
 
 ## Runs [param goal] on a copy of the schematic in the simulator (instant
@@ -203,7 +211,7 @@ static func state_of(c: CircuitComponent) -> bool:
 ## wrong or -1, "short": the phase a short circuit stopped the run at or -1, "missing":
 ## role of a part the schematic does not have or "", "rows": [{"role",
 ## "label", "got": Array[bool], "expected": Array (bool or null)}]}, a row
-## per part operated or expected, a value per phase.
+## per part operated or expected, a value per phase ([method level_of]).
 func run(goal: Lesson.Goal) -> Dictionary:
 	var result: Dictionary = {"passed": false, "phase": -1, "short": -1, "missing": "", "rows": []}
 	for role: String in goal.needs:
@@ -255,10 +263,9 @@ func run(goal: Lesson.Goal) -> Dictionary:
 		for row: Dictionary in rows:
 			var role: String = row["role"]
 			var c: CircuitComponent = circuit.get_component(part(role).id) if has(role) else null
-			var got: bool = state_of(c)
-			(row["got"] as Array).append(got)
+			(row["got"] as Array).append(level_of(c))
 			(row["expected"] as Array).append(expect.get(role, null))
-			if expect.has(role) and got != bool(expect[role]) and result["phase"] < 0:
+			if expect.has(role) and state_of(c) != bool(expect[role]) and result["phase"] < 0:
 				result["phase"] = i
 		if step.short_circuit:
 			result["short"] = i
@@ -270,9 +277,11 @@ func run(goal: Lesson.Goal) -> Dictionary:
 	return result
 
 
-## Operates [param c] in a test run.
+## Operates [param c] in a test run ("set 70": a potentiometer to 70 %).
 static func _act(c: CircuitComponent, action: String) -> void:
-	if c is PushButton:
+	if c is Potentiometer and action.begins_with("set "):
+		(c as Potentiometer).setting = float(action.substr(4)) / 100.0
+	elif c is PushButton:
 		if action == "press":
 			(c as PushButton).press()
 		elif action == "release":

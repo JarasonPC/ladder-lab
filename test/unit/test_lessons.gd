@@ -200,3 +200,48 @@ func test_short_circuit_after_a_wrong_step_is_told_apart() -> void:
 	var result: Dictionary = LessonCheck.new(doc, lesson).run(goal)
 	assert_eq(result["phase"], 0, "the lamp was dark before")
 	assert_eq(result["short"], 1, "the short came with the switch")
+
+
+func _step_titled(lesson: Lesson, title: String) -> Lesson.Step:
+	for s: Lesson.Step in lesson.steps:
+		if s.title == title:
+			return s
+	return null
+
+
+func test_potentiometer_fed_from_24_v_fails() -> void:
+	var lesson: Lesson = Lessons.plc_pot()
+	var doc: SchematicDocument = lesson.solution.call()
+	(doc.circuit.get_component("+.2") as PowerSupply).voltage = 24.0
+	var check: LessonCheck = LessonCheck.new(doc, lesson)
+	assert_false(_step_titled(lesson, "Place a 10 V supply point").done.call(check, null), "no 10 V point")
+	# The goals find the roles by kind: with no 10 V point the run still
+	# turns the potentiometer, whose 30 % are now 7.2 V.
+	var dark: Lesson.Goal = lesson.goals[1]
+	assert_false(check.run(dark)["passed"], "30 % of 24 V is past the threshold")
+
+
+func test_potentiometer_lesson_ticks_its_simulation_steps() -> void:
+	var lesson: Lesson = Lessons.plc_pot()
+	var doc: SchematicDocument = lesson.solution.call()
+	var live: LessonCheck = LessonCheck.new(doc, lesson)
+	var sim: Simulator = Simulator.new(doc.circuit)
+	sim.mode = Simulator.Mode.IDEAL
+	sim.step()
+	var past: Lesson.Step = _step_titled(lesson, "Turn it past half")
+	var back: Lesson.Step = _step_titled(lesson, "Turn it back a little")
+	assert_false(past.done.call(live, live))
+	assert_false(back.done.call(live, live), "at 0 % nothing is lit")
+	var pot: Potentiometer = live.part("pot") as Potentiometer
+	pot.setting = 0.6
+	sim.step()
+	assert_true(past.done.call(live, live), "-H1 lit past half")
+	assert_false(back.done.call(live, live))
+	pot.setting = 0.45
+	sim.step()
+	assert_true(back.done.call(live, live), "still lit at 45 %")
+	pot.setting = 0.3
+	sim.step()
+	assert_false(live.is_on("lamp"), "dark under 40 %")
+	var result: Dictionary = live.run(lesson.goals[2])
+	assert_eq(result["rows"][0]["got"], [0.7, 0.45], "the chart shows where the potentiometer is set")

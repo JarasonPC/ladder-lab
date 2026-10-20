@@ -100,7 +100,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   switches and lamps on X2, motors with their PE on X3; a PE supply point under every motor;
   lamp purposes and station labels are translated when the example is built
 - Lessons and the tour (tutorial/ no nodes, ui/tutorial/): a Lesson (Lessons.all: lamp_switch,
-  start_stop, time_relay, motor; English source texts, designations as the editor gives them
+  start_stop, time_relay, motor, plc_pot; English source texts, designations as the editor gives them
   placing the parts in the order asked) has a start schematic (a new document each call), a
   solution laid out as the steps suggest, roles found in a schematic by kind, not by name
   (Lesson.roles: e.g. "stop" the first NC push button, "hold" the coil's NO contact across the
@@ -111,7 +111,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   toolbar control and roles they point at, wires [role, terminal index, role, terminal
   index] whose terminals are ringed and which Show me draws, wires to delete (cut, crossed
   out on the drawing), done(edited, live)) and goals
-  (phases of a test run: actions press / release / on / off / trip, waits, expected states).
+  (phases of a test run: actions press / release / on / off / trip, "set 70" a potentiometer to
+  70 %, waits, expected states; LessonCheck.level_of: a potentiometer's setting, drawn as a
+  level in the check's chart).
   LessonCheck: nets by wires and page connectors (UnionFind), series (parts one after the
   other, either way round, a part bridged by a wire breaks it), bridges, pole_chain, the
   state of a role while simulating, and run: a goal on a copy in the simulator (IDEAL, every
@@ -681,7 +683,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   AC joined to DC is a short; a short that no protective device interrupts drops out only the
   sources it is on (the mains, the DC source, an inverter's outputs) while it lasts, only the
   fault path shown; the - pole is drawn like N; a + supply has a voltage,
-  PowerSupply.voltage 12/24/48/110/220 V, default 24 V, each a source bit of its own, all sharing
+  PowerSupply.voltage 12/24/48/110/220 V or 10 V (a reference for potentiometers, BIT_DC_10), default 24 V, each a source bit of its own, all sharing
   the - poles, so two + of different voltages joined are a short), TB = bridge rectifier (Rectifier, a Load
   with terminals ~1 ~2 + -: while its input has voltage its + and - are DC poles, output taken as
   isolated, 207 V DC, a source bit of its own, BIT_DC_RECTIFIED; its input carries current only

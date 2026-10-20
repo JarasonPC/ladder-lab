@@ -413,7 +413,7 @@ func _badge(number: int, done: bool, next: bool) -> Control:
 
 
 ## A test run of a goal: a row per part, on (high) or off (low) after each
-## step of the run; where a part was expected otherwise, a dashed line shows
+## step of the run (a potentiometer as high as it is set); where a part was expected otherwise, a dashed line shows
 ## what was expected, and the step that went wrong is shaded.
 class TestRunChart:
 	extends Control
@@ -449,7 +449,7 @@ class TestRunChart:
 			var line: Color = AppTheme.tutorial_hover if expecting else AppTheme.text_muted
 			var points: PackedVector2Array = PackedVector2Array()
 			for i: int in phases:
-				var y: float = y_high if got[i] else y_low
+				var y: float = lerpf(y_low, y_high, float(got[i])) if got[i] is float else (y_high if got[i] else y_low)
 				points.append(Vector2(plot.position.x + i * step_w, y))
 				points.append(Vector2(plot.position.x + (i + 1) * step_w, y))
 			draw_polyline(points, line, 2.0, true)

@@ -42,8 +42,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   input over its range
 - A potentiometer's wiper gives its share of the voltage between 1 and 3 (e.g. 0-10 V from a
   frequency inverter's 10V) to an analog input; click it in the schematic to set it
-
-### Simulation
+- A + supply can be 10 V, a reference to feed potentiometers for 0-10 V analog inputs
 - Network inputs NI1-NI64 and network analog inputs NAI1-NAI32 in both program languages
   read an input, output or flag (or an analog input or output) of the PLC at the IP address
   set for them in the PLC window, as the network inputs of real logic modules do; they read 0 while it cannot be
@@ -72,6 +71,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   PLCs' IP addresses and the network switches (older files open with 192.168.0.1)
 
 ### Application
+- A fifth lesson, "A PLC reads a potentiometer": a 10 V supply point, a potentiometer wired
+  to the analog input of a compact PLC whose threshold trigger lights a lamp past half (and
+  only under 40 % dark again); Check turns the potentiometer to set positions
 - Lessons ring the terminals each wire of a wiring step goes between, every palette entry a
   step still needs (a contact and a lamp, not only the contact), the property field a step
   asks to set (the breaker's Poles, the time relay's Time t) and cross out the wire a step
