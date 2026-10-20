@@ -300,6 +300,11 @@ func _ready() -> void:
 	_floor_plan.switch_toggled.connect(view.toggle_light_switch)
 	_floor_plan.cabinet_edit_requested.connect(_edit_cabinet)
 	_floor_plan.operate_requested.connect(view.operate_device)
+	# The floor shown is the same in the schematic edited and the one simulated.
+	_floor_plan.floor_changed.connect(func(index: int) -> void:
+		edit_doc.floor = index
+		if view.document != null:
+			view.document.floor = index)
 	editor.edited.connect(_single_line.refresh)
 	view.stepped.connect(_single_line.show_step)
 	_single_line.edit_requested.connect(_edit_workspace)
@@ -1702,10 +1707,14 @@ func _on_single_line_selected(designation: String) -> void:
 ## Room [param room] shown on the floor plan (selected).
 func _show_room(room: String) -> void:
 	_set_area(Area.WORKSPACE)
-	for i: int in edit_doc.floor_plan.rooms.size():
-		if edit_doc.floor_plan.rooms[i].name == room:
-			_floor_plan.canvas.selected = {"kind": "room", "index": i}
-			_floor_plan.canvas.queue_redraw()
+	for f: int in edit_doc.floors.size():
+		for i: int in edit_doc.floors[f].rooms.size():
+			if edit_doc.floors[f].rooms[i].name == room:
+				# On its floor.
+				_floor_plan.show_floor(f)
+				_floor_plan.canvas.selected = {"kind": "room", "index": i}
+				_floor_plan.canvas.queue_redraw()
+				return
 
 
 func _single_selected() -> CircuitComponent:

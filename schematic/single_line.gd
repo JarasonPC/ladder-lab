@@ -765,7 +765,10 @@ static func switch_ports(sw: LightSwitch) -> Array[Dictionary]:
 ## switch, "EA1" for a luminaire, each with its neighbours.
 static func lighting_graph(doc: SchematicDocument) -> Dictionary[String, PackedStringArray]:
 	var graph: Dictionary[String, PackedStringArray] = {}
-	for link: FloorPlan.Link in doc.floor_plan.links:
+	var links: Array[FloorPlan.Link] = []
+	for plan: FloorPlan in doc.floors:
+		links.append_array(plan.links)
+	for link: FloorPlan.Link in links:
 		var ends: PackedStringArray = PackedStringArray()
 		for end: String in [link.a, link.b]:
 			var c: CircuitComponent = doc.circuit.get_component(end)

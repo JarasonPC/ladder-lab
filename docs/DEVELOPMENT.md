@@ -407,6 +407,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   (fixture_requested, resize_fixture); drawn faint under the parts (PlanSymbols.draw_fixture).
   A socket put behind a kitchen worktop (over_worktop) is WORKTOP_SOCKET_HEIGHT high
   (FloorPlanCanvas.add_part). Notes and fixtures move with their room.
+  Floors: SchematicDocument.floors (a FloorPlan each, lowest first: level 0 the ground floor
+  1.NP, 1 the next, -1 the basement 1.PP; floor_name, name set or not; room numbers 101.., 201..,
+  001..), floor the one shown, floor_plan its plan (set: one floor); add_floor, floor_of,
+  unplaced_parts (none on any floor); _forget_device and renames go through every floor, the
+  lighting graph takes every floor's links; saved "floors" and "floor" with more than one,
+  else "floor_plan". FloorPlanView: the floors as tabs over the plan (show_floor, floor_changed
+  -> main.gd sets both copies of the document) and a menu to add one above or a basement,
+  rename or remove the one shown; the export makes a floor plan sheet a floor with something
+  on it ("floor" in its spec). Underlay (FloorPlan.underlay: an image file, underlay_at,
+  underlay_scale m a pixel, underlay_shown; saved "underlay"): drawn at 35 % under the plan,
+  never on a sheet (FloorPlanCanvas._draw_underlay, underlay_texture caches the image);
+  Tool.SCALE takes two points, scale_requested -> the scale dialog (FloorPlanView.scale_underlay
+  keeps the first point), Tool.UNDERLAY drags it; the Underlay menu loads, shows, removes.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

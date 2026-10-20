@@ -7,7 +7,9 @@ extends VBoxContainer
 ## windows put in walls (Door, Window), the walls' thickness set (Walls),
 ## luminaires spread over a selected room or parts in a row along a
 ## selected wall (Array), notes with leaders written (Note), furniture put
-## in from the palette (a double click sets its size, R turns it), and a part chosen in the list is put where the plan is
+## in from the palette (a double click sets its size, R turns it), the
+## architect's drawing put under the plan, scaled and moved (Underlay),
+## floors added and chosen (the tabs over the plan), and a part chosen in the list is put where the plan is
 ## clicked next. A residential installation also draws its lighting (Wire),
 ## takes new parts from the palette ([method begin_place_template]) onto
 ## the circuit chosen beside the plan (where a selected part's circuit is
@@ -24,6 +26,9 @@ signal cabinet_edit_requested(change: Callable)
 ## Device [param designation] of the consumer unit was operated while
 ## simulating (a breaker switched, a fuse replaced).
 signal operate_requested(designation: String)
+## Floor [param index] is shown (not an edit; the other copy of the
+## document should show it too).
+signal floor_changed(index: int)
 
 var canvas: FloorPlanCanvas
 var _document: SchematicDocument
@@ -38,6 +43,19 @@ var _join_button: Button
 var _window_button: Button
 var _dimension_button: Button
 var _note_button: Button
+var _underlay_menu: MenuButton
+var _underlay_file: FileDialog
+var _scale_dialog: ConfirmationDialog
+var _scale_field: SpinBox
+## The two points of the underlay whose distance is asked (m).
+var _scale_points: PackedVector2Array = PackedVector2Array()
+var _floor_row: HBoxContainer
+var _floor_tabs: TabBar
+var _floor_menu: MenuButton
+## The floor tabs are being filled (their signals are not choices then).
+var _filling_floors: bool = false
+var _floor_dialog: ConfirmationDialog
+var _floor_name: LineEdit
 var _note_dialog: ConfirmationDialog
 var _note_text: TextEdit
 ## The note the dialog edits, -1 for a new one.
@@ -156,6 +174,13 @@ func _ready() -> void:
 	_array_button.icon = AppTheme.icon("plan_array")
 	_array_button.pressed.connect(_ask_array)
 	_bar.add_child(_array_button)
+	_underlay_menu = MenuButton.new()
+	_underlay_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_underlay_menu.theme_type_variation = "ToolButton"
+	_underlay_menu.icon = AppTheme.icon("plan_underlay")
+	_underlay_menu.get_popup().id_pressed.connect(_on_underlay_menu)
+	_underlay_menu.about_to_popup.connect(_fill_underlay_menu)
+	_bar.add_child(_underlay_menu)
 	_walls_button = Button.new()
 	_walls_button.theme_type_variation = "ToolButton"
 	_walls_button.focus_mode = Control.FOCUS_NONE
@@ -213,6 +238,27 @@ func _ready() -> void:
 	_list_hint.custom_minimum_size.x = 180.0
 	_side.add_child(_list_hint)
 
+	var plan_column: VBoxContainer = VBoxContainer.new()
+	plan_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	plan_column.add_theme_constant_override("separation", 0)
+	body.add_child(plan_column)
+	# The floors as tabs over the plan, with what can be done with them.
+	_floor_row = HBoxContainer.new()
+	plan_column.add_child(_floor_row)
+	_floor_tabs = TabBar.new()
+	_floor_tabs.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_floor_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_floor_tabs.tab_changed.connect(func(index: int) -> void:
+		if not _filling_floors and _document != null and index != _document.floor:
+			show_floor(index))
+	_floor_row.add_child(_floor_tabs)
+	_floor_menu = MenuButton.new()
+	_floor_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_floor_menu.theme_type_variation = "ToolButton"
+	_floor_menu.icon = AppTheme.icon("plan_floors")
+	_floor_menu.get_popup().id_pressed.connect(_on_floor_menu)
+	_floor_menu.about_to_popup.connect(_fill_floor_menu)
+	_floor_row.add_child(_floor_menu)
 	canvas = FloorPlanCanvas.new()
 	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -230,11 +276,12 @@ func _ready() -> void:
 	canvas.window_requested.connect(_ask_window)
 	canvas.note_requested.connect(_ask_note)
 	canvas.fixture_requested.connect(_ask_fixture)
+	canvas.scale_requested.connect(_ask_scale)
 	canvas.resized.connect(func() -> void:
 		if _fit_pending and canvas.size.x > 10.0 and _document != null:
 			_fit_pending = false
 			canvas.fit())
-	body.add_child(canvas)
+	plan_column.add_child(canvas)
 
 	_rename_dialog = ConfirmationDialog.new()
 	var dialog_column: VBoxContainer = VBoxContainer.new()
@@ -355,6 +402,33 @@ func _ready() -> void:
 		_fixture_dialog.register_text_enter(field.get_line_edit())
 	_fixture_dialog.confirmed.connect(_apply_fixture)
 	add_child(_fixture_dialog)
+	_underlay_file = FileDialog.new()
+	_underlay_file.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_underlay_file.access = FileDialog.ACCESS_FILESYSTEM
+	_underlay_file.use_native_dialog = true
+	_underlay_file.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Images"])
+	_underlay_file.file_selected.connect(_load_underlay)
+	add_child(_underlay_file)
+	_scale_dialog = ConfirmationDialog.new()
+	var scale_row: HBoxContainer = HBoxContainer.new()
+	_scale_dialog.add_child(scale_row)
+	var scale_label: Label = Label.new()
+	scale_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	scale_row.add_child(scale_label)
+	_scale_field = _metres()
+	_scale_field.min_value = 0.01
+	_scale_field.max_value = 500.0
+	scale_row.add_child(_scale_field)
+	_scale_dialog.register_text_enter(_scale_field.get_line_edit())
+	_scale_dialog.confirmed.connect(_apply_scale)
+	add_child(_scale_dialog)
+	_floor_dialog = ConfirmationDialog.new()
+	_floor_name = LineEdit.new()
+	_floor_name.custom_minimum_size.x = 220.0
+	_floor_dialog.add_child(_floor_name)
+	_floor_dialog.register_text_enter(_floor_name)
+	_floor_dialog.confirmed.connect(_apply_floor_name)
+	add_child(_floor_dialog)
 	_array_dialog = ConfirmationDialog.new()
 	var array_column: VBoxContainer = VBoxContainer.new()
 	_array_dialog.add_child(array_column)
@@ -496,15 +570,16 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	_update_array_button()
+	_fill_floor_tabs()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
 	_fill_circuits()
 	_fit_button.visible = plan_shown
 	(_side.get_parent() as Control).visible = _editing
-	_listed = _document.floor_plan.unplaced(_document.circuit)
+	_listed = _document.unplaced_parts()
 	_list.clear()
 	for designation: String in _listed:
 		_list.add_item(_entry_text(designation))
@@ -527,6 +602,15 @@ func retranslate() -> void:
 	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
 	_dimension_button.tooltip_text = tr("Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away")
 	_measure_button.tooltip_text = tr("Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn")
+	_underlay_menu.tooltip_text = tr("Underlay: the architect's drawing under the plan, to trace the walls over it (a PDF page saved as a PNG or JPG first); it does not print")
+	_scale_dialog.title = tr("Scale of the underlay")
+	_scale_dialog.ok_button_text = tr("OK")
+	_scale_dialog.cancel_button_text = tr("Cancel")
+	(_scale_field.get_parent().get_child(0) as Label).text = tr("The two points are this far apart")
+	_floor_menu.tooltip_text = tr("Floors: each its own plan and sheet")
+	_floor_dialog.title = tr("Name of the floor")
+	_floor_dialog.ok_button_text = tr("OK")
+	_floor_dialog.cancel_button_text = tr("Cancel")
 	_note_button.tooltip_text = tr("Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away")
 	_note_dialog.title = tr("Note")
 	_note_dialog.ok_button_text = tr("OK")
@@ -854,6 +938,161 @@ func _apply_fixture() -> void:
 	var width: float = _fixture_width.value
 	var depth: float = _fixture_depth.value
 	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.resize_fixture(index, width, depth))
+
+
+## Shows floor [param index] (the other copy of the document follows by
+## [signal floor_changed]).
+func show_floor(index: int) -> void:
+	if _document == null or index < 0 or index >= _document.floors.size():
+		return
+	_document.floor = index
+	canvas.selected = {}
+	canvas.tool = FloorPlanCanvas.Tool.SELECT
+	_select_button.set_pressed_no_signal(true)
+	floor_changed.emit(index)
+	refresh()
+
+
+## The tabs of the floors: shown with several floors, or while editing.
+func _fill_floor_tabs() -> void:
+	if _floor_tabs == null or _document == null:
+		return
+	_floor_row.visible = _unit == null and (_editing or _document.floors.size() > 1)
+	_filling_floors = true
+	_floor_tabs.clear_tabs()
+	for plan: FloorPlan in _document.floors:
+		_floor_tabs.add_tab(plan.floor_name())
+	_floor_tabs.current_tab = clampi(_document.floor, 0, _document.floors.size() - 1)
+	_filling_floors = false
+	_floor_menu.visible = _editing
+
+
+func _fill_floor_menu() -> void:
+	var popup: PopupMenu = _floor_menu.get_popup()
+	popup.clear()
+	popup.add_item(tr("Add a floor above"), 0)
+	popup.add_item(tr("Add a basement below"), 1)
+	popup.add_item(tr("Rename this floor"), 2)
+	popup.add_item(tr("Remove this floor"), 3)
+	popup.set_item_disabled(3, _document.floors.size() < 2)
+
+
+func _on_floor_menu(id: int) -> void:
+	match id:
+		0, 1:
+			var below: bool = id == 1
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor = doc.add_floor(below))
+			show_floor(0 if below else _document.floors.size() - 1)
+		2:
+			_floor_name.text = _document.floor_plan.floor_name()
+			_floor_dialog.reset_size()
+			_floor_dialog.popup_centered()
+			_floor_name.select_all()
+			_floor_name.grab_focus()
+		3:
+			if _document.floors.size() < 2:
+				return
+			var index: int = _document.floor
+			# What is on it goes back to the list of parts not on a plan.
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				doc.floors.remove_at(index)
+				doc.floor = clampi(index, 0, doc.floors.size() - 1))
+			show_floor(clampi(index, 0, _document.floors.size() - 1))
+
+
+func _apply_floor_name() -> void:
+	var text: String = _floor_name.text.strip_edges()
+	var index: int = _document.floor
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		var plan: FloorPlan = doc.floors[index]
+		plan.name = ""
+		if text != plan.floor_name():
+			plan.name = text)
+
+
+func _fill_underlay_menu() -> void:
+	var popup: PopupMenu = _underlay_menu.get_popup()
+	popup.clear()
+	var plan: FloorPlan = _document.floor_plan
+	var has: bool = not plan.underlay.is_empty()
+	popup.add_item(tr("Load the architect's drawing (PNG or JPG)…"), 0)
+	popup.add_item(tr("Set its scale: click two points a known distance apart"), 1)
+	popup.add_item(tr("Move it: drag it under the plan"), 2)
+	popup.add_check_item(tr("Show it"), 3)
+	popup.set_item_checked(popup.get_item_index(3), plan.underlay_shown)
+	popup.add_item(tr("Remove it"), 4)
+	for id: int in [1, 2, 3, 4]:
+		popup.set_item_disabled(popup.get_item_index(id), not has)
+	if has and canvas.underlay_texture(plan.underlay) == null:
+		popup.add_separator()
+		popup.add_item(tr("%s cannot be read") % plan.underlay.get_file(), 5)
+		popup.set_item_disabled(popup.get_item_index(5), true)
+
+
+func _on_underlay_menu(id: int) -> void:
+	match id:
+		0:
+			_underlay_file.popup_centered_ratio(0.6)
+		1:
+			canvas.tool = FloorPlanCanvas.Tool.SCALE
+			_deselect_tools()
+		2:
+			canvas.tool = FloorPlanCanvas.Tool.UNDERLAY
+			_deselect_tools()
+		3:
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.underlay_shown = not doc.floor_plan.underlay_shown)
+		4:
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.underlay = "")
+
+
+func _deselect_tools() -> void:
+	for button: Button in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+		button.set_pressed_no_signal(false)
+	canvas.grab_focus()
+
+
+## Puts the image at [param path] under the floor shown, its top left at the
+## plan's, at the usual scale; then asks for two points to scale it.
+func _load_underlay(path: String) -> void:
+	var at: Vector2 = _document.floor_plan.bounds().position if not _document.floor_plan.rooms.is_empty() else Vector2.ZERO
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		doc.floor_plan.underlay = path
+		doc.floor_plan.underlay_at = at
+		doc.floor_plan.underlay_scale = FloorPlan.UNDERLAY_SCALE
+		doc.floor_plan.underlay_shown = true)
+	canvas.tool = FloorPlanCanvas.Tool.SCALE
+	_deselect_tools()
+
+
+## Asks how far apart plan points [param a] and [param b] really are.
+func _ask_scale(a: Vector2, b: Vector2) -> void:
+	_scale_points = PackedVector2Array([a, b])
+	_scale_field.value = snappedf(a.distance_to(b), 0.01)
+	_scale_dialog.reset_size()
+	_scale_dialog.popup_centered()
+	_scale_field.get_line_edit().select_all()
+	_scale_field.get_line_edit().grab_focus()
+
+
+## Scales the underlay so the two points are the distance typed apart, the
+## first one staying where it is.
+func _apply_scale() -> void:
+	if _scale_points.size() != 2:
+		return
+	var a: Vector2 = _scale_points[0]
+	var measured: float = a.distance_to(_scale_points[1])
+	var real: float = _scale_field.value
+	canvas.tool = FloorPlanCanvas.Tool.SELECT
+	_select_button.set_pressed_no_signal(true)
+	if measured < 0.001:
+		return
+	edit_requested.emit(func(doc: SchematicDocument) -> void: FloorPlanView.scale_underlay(doc.floor_plan, a, real / measured))
+
+
+## Scales the underlay of [param plan] by [param factor] round plan point [param fixed].
+static func scale_underlay(plan: FloorPlan, fixed: Vector2, factor: float) -> void:
+	plan.underlay_scale *= factor
+	plan.underlay_at = fixed - (fixed - plan.underlay_at) * factor
 
 
 ## A count field from [param low] to [param high].

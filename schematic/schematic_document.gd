@@ -35,8 +35,48 @@ var residential: bool:
 	set(value):
 		if value != residential:
 			environment = Kind.PROTOTYPE if value else Kind.INDUSTRIAL
-## Floor plan of a house installation: rooms, doors and where its parts are.
-var floor_plan: FloorPlan = FloorPlan.new()
+## The floors of a house installation, each its own plan: rooms, doors and
+## where its parts are (each part on one of them), lowest first.
+var floors: Array[FloorPlan] = [FloorPlan.new()]
+## The floor shown and edited (an index into [member floors]).
+var floor: int = 0
+## The plan of the floor shown; set, the house has that one floor.
+var floor_plan: FloorPlan:
+	get:
+		return floors[clampi(floor, 0, floors.size() - 1)]
+	set(value):
+		floors = [value]
+		floor = 0
+
+
+## The floor part [param designation] is placed on, -1 for none.
+func floor_of(designation: String) -> int:
+	for i: int in floors.size():
+		if floors[i].parts.has(designation):
+			return i
+	return -1
+
+
+## Parts that go on a floor plan but are on none yet.
+func unplaced_parts() -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for designation: String in floors[0].unplaced(circuit):
+		if floor_of(designation) < 0:
+			result.append(designation)
+	return result
+
+
+## Adds a floor over the highest one ([param below]: under the lowest, a
+## basement); returns its index.
+func add_floor(below: bool = false) -> int:
+	var plan: FloorPlan = FloorPlan.new()
+	plan.level = floors[0].level - 1 if below else floors[floors.size() - 1].level + 1
+	if below:
+		floors.insert(0, plan)
+		floor += 1
+		return 0
+	floors.append(plan)
+	return floors.size() - 1
 ## The consumer unit of a residential installation as its single-line
 ## diagram: the order, phases and groups of its circuits, which it wires.
 var single_line: SingleLine = SingleLine.new()
@@ -984,7 +1024,8 @@ func remove_component(component_id: String) -> void:
 func _forget_device(designation: String) -> void:
 	key_bindings.erase(designation)
 	field_positions.erase(designation)
-	floor_plan.remove(designation)
+	for plan: FloorPlan in floors:
+		plan.remove(designation)
 	single_line.remove(designation)
 	for group: WorkspaceGroup in groups:
 		_leave_group(group, designation)
@@ -1435,7 +1476,8 @@ func replace_component(old_id: String, new_component: CircuitComponent) -> bool:
 		rename_control_device(old.designation, new_component.designation)
 		rename_cabinet_device(old.designation, new_component.designation)
 		rename_field_device(old.designation, new_component.designation)
-		floor_plan.rename(old.designation, new_component.designation)
+		for plan: FloorPlan in floors:
+			plan.rename(old.designation, new_component.designation)
 		single_line.rename(old.designation, new_component.designation)
 		if key_bindings.has(old.designation):
 			var key: String = key_bindings[old.designation]

@@ -13,7 +13,9 @@ extends Control
 ## window where a wall is clicked; DIMENSION adds a chain of dimensions
 ## along a wall clicked or one dragged between two points (both printed);
 ## MEASURE shows the distance dragged; NOTE adds a note pointing where it
-## is pressed, its text where it is let go; PLACE puts
+## is pressed, its text where it is let go; SCALE takes two points of the
+## architect's drawing under the plan (its underlay) to set its scale,
+## UNDERLAY drags it; PLACE puts
 ## [member placing] where it is clicked. Rooms snap to the walls of the
 ## others, switches, sockets and appliances onto the nearest wall. Delete
 ## takes the selection away, a double click renames a room. Simulate mode: a
@@ -53,8 +55,11 @@ signal window_requested(index: int)
 signal note_requested(index: int)
 ## Fixture [param index] should be edited (its width and depth).
 signal fixture_requested(index: int)
+## The distance between plan points [param a] and [param b] on the
+## underlay should be typed, to scale it.
+signal scale_requested(a: Vector2, b: Vector2)
 
-enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE, JOIN, WINDOW, DIMENSION, MEASURE, NOTE }
+enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE, JOIN, WINDOW, DIMENSION, MEASURE, NOTE, SCALE, UNDERLAY }
 
 ## Pixels a metre at zoom 1.
 const PX: float = 60.0
@@ -92,6 +97,7 @@ var tool: Tool = Tool.SELECT:
 	set(value):
 		tool = value
 		_typed = ""
+		_scale_from = Vector2(NAN, NAN)
 		mouse_default_cursor_shape = Control.CURSOR_CROSS if value != Tool.SELECT else Control.CURSOR_ARROW
 ## Designation (or [constant FloorPlan.UNIT]) put by a click with Tool.PLACE.
 var placing: String = ""
@@ -130,6 +136,10 @@ var _join_first: int = -1
 var _typed: String = ""
 ## A new note's point and where its text starts, while its text is asked (m).
 var pending_note: Array[Vector2] = []
+## With Tool.SCALE: the first point clicked (m), NAN for none yet.
+var _scale_from: Vector2 = Vector2(NAN, NAN)
+## Underlay images loaded, by file (null for one that could not be read).
+var _underlays: Dictionary[String, Texture2D] = {}
 
 
 func _ready() -> void:
@@ -614,6 +624,10 @@ func _pressed(point: Vector2) -> Dictionary:
 			return {"kind": "measure"}
 		Tool.NOTE:
 			return {"kind": "new_note"}
+		Tool.SCALE:
+			return {"kind": "scale_point"}
+		Tool.UNDERLAY:
+			return {"kind": "underlay"}
 		Tool.PLACE:
 			return {"kind": "new_part"}
 		Tool.JOIN:
@@ -672,6 +686,18 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				var at: Vector2 = wall["at"]
 				var vertical: bool = int(wall["facing"]) % 2 == 0
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.append(FloorPlan.Door.new(at, vertical)))
+		"scale_point":
+			if is_nan(_scale_from.x):
+				_scale_from = m
+			else:
+				var from: Vector2 = _scale_from
+				_scale_from = Vector2(NAN, NAN)
+				if from.distance_to(m) > 0.01:
+					scale_requested.emit(from, m)
+		"underlay":
+			if _dragging and by != Vector2.ZERO:
+				var moved: Vector2 = to_plan(point) - to_plan(_press_at)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.underlay_at += moved)
 		"new_note":
 			var anchor: Vector2 = FloorPlan.snap(to_plan(_press_at))
 			var label: Vector2 = FloorPlan.snap(m) if _dragging else anchor + Vector2(0.6, -0.6)
@@ -1082,6 +1108,7 @@ func _draw() -> void:
 	var font: Font = get_theme_default_font()
 	if editing:
 		_draw_grid(s)
+	_draw_underlay(s)
 	var shapes: Array[PackedVector2Array] = []
 	var rooms: Array[PackedVector2Array] = []
 	for i: int in plan().rooms.size():
@@ -1385,6 +1412,32 @@ func _draw_dimensions(index: int, s: float, font: Font) -> void:
 			draw_set_transform(mid + Vector2(TEXT_SIZE * 0.8 if toward.x < 0.0 else 0.0, width * 0.5), -PI / 2.0)
 			draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 			draw_set_transform(Vector2.ZERO)
+
+
+## The underlay image of a file (null when it cannot be read), kept once read.
+func underlay_texture(path: String) -> Texture2D:
+	if path.is_empty():
+		return null
+	if not _underlays.has(path):
+		var image: Image = Image.load_from_file(path) if FileAccess.file_exists(path) else null
+		_underlays[path] = ImageTexture.create_from_image(image) if image != null and not image.is_empty() else null
+	return _underlays[path]
+
+
+## The architect's drawing under the plan, faint (not on a sheet), where it
+## is dragged to with Tool.UNDERLAY; the first point taken with Tool.SCALE.
+func _draw_underlay(s: float) -> void:
+	if legend or not plan().underlay_shown:
+		return
+	var texture: Texture2D = underlay_texture(plan().underlay)
+	if texture != null:
+		var at: Vector2 = plan().underlay_at
+		if _dragging and _press.get("kind", "") == "underlay":
+			at += to_plan(_mouse) - to_plan(_press_at)
+		draw_texture_rect(texture, Rect2(to_screen(at), texture.get_size() * plan().underlay_scale * s), false, Color(1, 1, 1, 0.35))
+	if tool == Tool.SCALE and not is_nan(_scale_from.x):
+		draw_circle(to_screen(_scale_from), 4.0, SchematicTheme.SELECTED)
+		draw_dashed_line(to_screen(_scale_from), _mouse, SchematicTheme.SELECTED, 1.5, 5.0)
 
 
 ## Fixture [param fixture] over plan rectangle [param rect] in [param color].

@@ -46,6 +46,9 @@ const FIXTURE_NAMES: Dictionary[String, String] = {
 const WORKTOP_SOCKET_HEIGHT: float = 1.1
 ## A fixture dropped this close to a wall (m) goes against it.
 const AGAINST_WALL: float = 0.8
+## Metres a pixel of an underlay loaded (a drawing scanned at 1:50 and
+## 100 dpi is about this); set from two points of a known distance.
+const UNDERLAY_SCALE: float = 0.0127
 ## A new dimension this far from its wall or line (m).
 const DIMENSION_OFFSET: float = 0.5
 ## Thinnest and thickest wall offered (m).
@@ -272,6 +275,16 @@ class Fixture:
 		return rect.get_center() - FACING[facing] * extent().y * 0.5
 
 
+## Which floor it is: 0 the ground floor (1.NP), 1 the one over it (2.NP),
+## -1 the basement (1.PP); and its name ("" for the usual one).
+var level: int = 0
+var name: String = ""
+## The architect's drawing traced over (an image file, "" for none): where
+## its top left corner is (m), metres a pixel, whether it shows.
+var underlay: String = ""
+var underlay_at: Vector2 = Vector2.ZERO
+var underlay_scale: float = UNDERLAY_SCALE
+var underlay_shown: bool = true
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
 var windows: Array[WindowOpening] = []
@@ -477,9 +490,20 @@ static func inner_pieces_of(shapes: Array[PackedVector2Array]) -> Array[PackedVe
 	return pieces
 
 
-## Number of room [param index]: the one set, else counted from [constant FIRST_NUMBER].
+## Number of room [param index]: the one set, else counted from
+## [constant FIRST_NUMBER] on the ground floor, from 201 on the next, from
+## 001 in the basement.
 func room_number(index: int) -> String:
-	return rooms[index].number if not rooms[index].number.is_empty() else str(FIRST_NUMBER + index)
+	if not rooms[index].number.is_empty():
+		return rooms[index].number
+	return "%03d" % (FIRST_NUMBER + level * 100 + index) if level >= -1 else "%d%02d" % [level, index + 1]
+
+
+## Its name as shown: the one set, else 1.NP, 2.NP ... or 1.PP, 2.PP ...
+func floor_name() -> String:
+	if not name.is_empty():
+		return name
+	return "%d.NP" % (level + 1) if level >= 0 else "%d.PP" % -level
 
 
 ## Environment of room [param index]: the one set, else normal (a bathroom's after
@@ -1099,6 +1123,12 @@ func to_data() -> Dictionary:
 			entry.append(facing[designation])
 		placed[designation] = entry
 	var result: Dictionary = {"rooms": room_list, "doors": door_list, "parts": placed}
+	if level != 0:
+		result["level"] = level
+	if not name.is_empty():
+		result["name"] = name
+	if not underlay.is_empty():
+		result["underlay"] = {"path": underlay, "at": [underlay_at.x, underlay_at.y], "scale": underlay_scale, "shown": underlay_shown}
 	if not windows.is_empty():
 		var window_list: Array = []
 		for window: WindowOpening in windows:
@@ -1176,6 +1206,16 @@ static func from_data(raw: Variant) -> FloorPlan:
 				door.opens_back = dd.get("opens_back", false) == true
 				door.double = dd.get("double", false) == true
 				plan.doors.append(door)
+	var raw_level: Variant = d.get("level", 0)
+	plan.level = clampi(int(raw_level), -5, 50) if (raw_level is int or raw_level is float) else 0
+	plan.name = (d["name"] as String).strip_edges().left(40) if d.get("name", null) is String else ""
+	var under: Variant = d.get("underlay", null)
+	if under is Dictionary and (under as Dictionary).get("path", null) is String:
+		plan.underlay = under["path"]
+		if _numbers(under.get("at", []), 2):
+			plan.underlay_at = Vector2(float(under["at"][0]), float(under["at"][1]))
+		plan.underlay_scale = _length(under.get("scale", UNDERLAY_SCALE), UNDERLAY_SCALE, 0.00001, 10.0)
+		plan.underlay_shown = under.get("shown", true) != false
 	var window_list: Variant = d.get("windows", [])
 	if window_list is Array:
 		for wd: Variant in window_list:
