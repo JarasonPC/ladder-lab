@@ -448,7 +448,7 @@ static func component_from_dict(d: Dictionary) -> CircuitComponent:
 		# Saved before motors had a PE terminal (file version 4).
 		names.append("PE")
 	if c is Plc and names.size() == c.default_terminal_names().size() - 1:
-		# Saved before PLCs had an Ethernet port (file version 33).
+		# Saved before PLCs had an Ethernet port (file version 34 and older).
 		for port: String in [Plc.PORT_NAME, "X1P1", "ETH1"]:
 			if not names.has(port):
 				names.append(port)

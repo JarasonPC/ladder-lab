@@ -611,7 +611,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   "network_input" / "network_analog_input", LAD contacts and comparing contacts), each read
   from the PLC at an IP address (PlcProgram.network: "NI1" -> {"ip", "operand"}, I Q M of the
   partner for an NI, AI AQ for an NAI, PlcProgram.REMOTE_AREAS; saved in the program and in
-  .plcprog version 2), set in the PLC window's side panel for the selected NI / NAI. The
+  .plcprog version 2), set in the PLC window's side panel for the selected NI / NAI; only
+  those the program in its language names count (PlcProgram.used_network: an entry left
+  behind by a deleted block is kept but reads nothing); pasted PLCs reading one another
+  read their copies' new addresses (SchematicDocument._readdressed_program). The
   simulator (Simulator._network_reads, _partner, _segments) gives each working PLC what its
   network inputs read from the working partner on the same network (cables and working
   switches), on its subnet, both addresses unique there, else 0; values pass at once (IDEAL:

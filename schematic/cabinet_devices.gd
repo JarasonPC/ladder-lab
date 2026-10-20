@@ -102,7 +102,8 @@ static func device(circuit: Circuit, designation: String) -> CircuitComponent:
 ##   and "rating" (its version, see [VoltageRating])
 ## - VFD: "terminals", "powered", "output" (switched on), "frequency" (Hz,
 ##   negative in reverse)
-## - SWITCH: "terminals" (L+ M P1-P4), "powered", "links" (one bool per
+## - SWITCH: "terminals" (by the standard names L+ M P1-P4), "names" (standard
+##   name -> name in the schematic), "powered", "links" (one bool per
 ##   port with a link)
 static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 	var c: CircuitComponent = device(doc.circuit, designation)
@@ -154,7 +155,15 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 			d["frequency"] = drive.frequency
 		Kind.SWITCH:
 			var hub: NetworkSwitch = c as NetworkSwitch
-			d["terminals"] = _named_keys(c)
+			# By the standard names, where the device has its terminals
+			# (CabinetParts.terminal_points), whatever they are called.
+			var standard: PackedStringArray = hub.default_terminal_names()
+			var keys: PackedStringArray = hub.get_terminal_keys()
+			var shown: Dictionary = {}
+			for k: int in standard.size():
+				d["terminals"][standard[k]] = keys[k]
+				shown[standard[k]] = hub.get_terminal_names()[k]
+			d["names"] = shown
 			d["powered"] = hub.energized
 			var links: Array[bool] = []
 			for k: int in NetworkSwitch.PORTS:

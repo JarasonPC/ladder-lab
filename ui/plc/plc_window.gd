@@ -71,6 +71,9 @@ var _analog_outputs: Array[Label] = []
 ## from a partner (no partner answers here), and their operands.
 var _network_switches: Array[Button] = []
 var _network_operands: PackedStringArray = PackedStringArray()
+## Operand read there chosen for a network input before its partner's
+## address was given (kept until it is).
+var _pending_remotes: Dictionary[String, String] = {}
 var _sim_clock: Label
 
 
@@ -604,7 +607,7 @@ func _network_source(operand: String) -> void:
 	var choices: PackedStringArray = PlcProgram.operands(PlcProgram.REMOTE_AREAS[PlcProgram.area_of(operand)])
 	for op: String in choices:
 		option.add_item(op)
-	option.select(maxi(choices.find(str(source.get("operand", choices[0]))), 0))
+	option.select(maxi(choices.find(str(source.get("operand", _pending_remotes.get(operand, choices[0])))), 0))
 	option.disabled = not editable
 	_side.add_child(option)
 	var apply: Callable = func() -> void:
@@ -614,6 +617,11 @@ func _network_source(operand: String) -> void:
 		if not ip.is_empty() and not PlcProgram.valid_ip(ip):
 			field.text = str(_program.network_source(operand).get("ip", ""))
 			return
+		if ip.is_empty():
+			# No partner yet: the operand chosen waits for its address.
+			_pending_remotes[operand] = choices[option.selected]
+		else:
+			_pending_remotes.erase(operand)
 		_program.set_network_source(operand, ip, choices[option.selected])
 		_on_canvas_changed()
 	field.text_submitted.connect(func(_text: String) -> void: apply.call())
@@ -718,8 +726,9 @@ func _network_inputs() -> PackedStringArray:
 	var list: PackedStringArray = PackedStringArray()
 	if _program == null:
 		return list
+	var used: Dictionary[String, Dictionary] = _program.used_network()
 	for op: String in PlcProgram.operands("NI"):
-		if _program.network.has(op):
+		if used.has(op):
 			list.append(op)
 	return list
 
