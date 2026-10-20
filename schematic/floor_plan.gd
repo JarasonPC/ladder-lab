@@ -22,6 +22,35 @@ const ON_WALL: float = 0.5
 const MIN_ROOM: float = 0.8
 ## Width of a door (m) when none is set.
 const DOOR_WIDTH: float = 0.8
+## Width, sill height and height of a window (m) when none is set.
+const WINDOW_WIDTH: float = 1.2
+const WINDOW_SILL: float = 0.9
+const WINDOW_HEIGHT: float = 1.25
+## Thickness of the outside walls (drawn outside the rooms) and of the
+## walls between rooms (on their line) when none is set (m).
+const OUTER_WALL: float = 0.3
+const INNER_WALL: float = 0.15
+## Furniture and fixtures drawn faintly on the plan, by kind: their width
+## along the wall their back is against and their depth into the room (m),
+## and their names (English source text).
+const FIXTURES: Dictionary[String, Vector2] = {
+	"worktop": Vector2(2.4, 0.6), "bath": Vector2(1.7, 0.75), "shower": Vector2(0.9, 0.9),
+	"basin": Vector2(0.6, 0.45), "wc": Vector2(0.4, 0.65), "bed": Vector2(1.6, 2.0),
+	"wardrobe": Vector2(1.6, 0.6), "table": Vector2(1.4, 0.8), "sofa": Vector2(2.0, 0.9),
+}
+const FIXTURE_NAMES: Dictionary[String, String] = {
+	"worktop": "Kitchen worktop", "bath": "Bath", "shower": "Shower tray", "basin": "Washbasin",
+	"wc": "WC", "bed": "Double bed", "wardrobe": "Wardrobe", "table": "Table", "sofa": "Sofa",
+}
+## A socket put on the wall behind a kitchen worktop is this high (m).
+const WORKTOP_SOCKET_HEIGHT: float = 1.1
+## A fixture dropped this close to a wall (m) goes against it.
+const AGAINST_WALL: float = 0.8
+## A new dimension this far from its wall or line (m).
+const DIMENSION_OFFSET: float = 0.5
+## Thinnest and thickest wall offered (m).
+const MIN_WALL_THICKNESS: float = 0.05
+const MAX_WALL_THICKNESS: float = 0.8
 ## Room sizes offered to start from (m), by English source name; an "l"
 ## cut (m) out of the lower right corner makes an L-shaped room.
 const PRESETS: Array[Dictionary] = [
@@ -158,15 +187,24 @@ class Link:
 		return a_port if designation == a else b_port
 
 
-## A door in a wall: its middle on the wall, its width, whether the wall
-## runs up and down, and how it swings: its hinge at the start of its
-## opening (left or top) or at the end ([member hinge_end]), its leaf opening
-## down from a wall running across or left of one running up and down, or
-## to the other side ([member opens_back]).
-class Door:
+## An opening in a wall: its middle on the wall, its width, whether the
+## wall runs up and down.
+class Opening:
 	var at: Vector2 = Vector2.ZERO
 	var width: float = DOOR_WIDTH
 	var vertical: bool = false
+
+	## Its two ends on the wall.
+	func ends() -> PackedVector2Array:
+		var along: Vector2 = Vector2.DOWN if vertical else Vector2.RIGHT
+		return PackedVector2Array([at - along * width * 0.5, at + along * width * 0.5])
+
+
+## A door in a wall and how it swings: its hinge at the start of its
+## opening (left or top) or at the end ([member hinge_end]), its leaf opening
+## down from a wall running across or left of one running up and down, or
+## to the other side ([member opens_back]).
+class Door extends Opening:
 	var hinge_end: bool = false
 	var opens_back: bool = false
 	## Two leaves, hinged at both ends, meeting in the middle.
@@ -184,8 +222,65 @@ class Door:
 		width = p_width
 
 
+## A window in a wall: its sill and its height over the floor (m).
+class WindowOpening extends Opening:
+	var sill: float = WINDOW_SILL
+	var height: float = WINDOW_HEIGHT
+
+	func _init(p_at: Vector2 = Vector2.ZERO, p_vertical: bool = false, p_width: float = WINDOW_WIDTH) -> void:
+		at = p_at
+		vertical = p_vertical
+		width = p_width
+
+
+## A dimension printed with the plan: a chain along wall [member wall] of
+## room [member room] (its corners, the parts on it and the ends of its
+## doors and windows), or, with [member room] -1, between points
+## [member a] and [member b]. [member offset]: how far from the wall
+## outside its room (past the outside wall), or from the line a-b to its
+## left as seen from a (m).
+class Dimension:
+	var room: int = -1
+	var wall: int = 0
+	var a: Vector2 = Vector2.ZERO
+	var b: Vector2 = Vector2.ZERO
+	var offset: float = DIMENSION_OFFSET
+
+
+## A note printed with the plan: its text (lines split by line breaks), the
+## point it points to and where its text starts (m).
+class Note:
+	var text: String = ""
+	var at: Vector2 = Vector2.ZERO
+	var label: Vector2 = Vector2.ZERO
+
+
+## A piece of furniture or a fixture (one of [constant FIXTURES]): the
+## rectangle it covers (m) and the way it faces into the room from its back
+## (an index into [constant FACING]).
+class Fixture:
+	var kind: String = "table"
+	var rect: Rect2 = Rect2()
+	var facing: int = 1
+
+	## Its width along its back and its depth (m).
+	func extent() -> Vector2:
+		return Vector2(rect.size.y, rect.size.x) if facing % 2 == 0 else rect.size
+
+	## The middle of its back.
+	func back() -> Vector2:
+		return rect.get_center() - FACING[facing] * extent().y * 0.5
+
+
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
+var windows: Array[WindowOpening] = []
+## Thickness of the outside walls and of those between rooms (m).
+var outer_wall: float = OUTER_WALL
+var inner_wall: float = INNER_WALL
+var dimensions: Array[Dimension] = []
+var notes: Array[Note] = []
+var fixtures: Array[Fixture] = []
 ## Where each part (by designation) and the consumer unit ([constant UNIT])
 ## are (m).
 var parts: Dictionary[String, Vector2] = {}
@@ -197,7 +292,189 @@ var links: Array[Link] = []
 
 
 func is_empty() -> bool:
-	return rooms.is_empty() and doors.is_empty() and parts.is_empty() and links.is_empty()
+	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty() and notes.is_empty() and fixtures.is_empty()
+
+
+## A fixture of [param kind] at [param point]: its back against the wall
+## within [constant AGAINST_WALL] (in the middle there), else facing down
+## with its middle there.
+func fixture_at_point(kind: String, point: Vector2) -> Fixture:
+	var fixture: Fixture = Fixture.new()
+	fixture.kind = kind
+	var size: Vector2 = FIXTURES.get(kind, Vector2.ONE)
+	var wall: Dictionary = wall_near(point, AGAINST_WALL)
+	fixture.facing = int(wall["facing"]) if not wall.is_empty() else 1
+	var into: Vector2 = FACING[fixture.facing]
+	var along: Vector2 = into.orthogonal().abs()
+	var back: Vector2 = wall["at"] if not wall.is_empty() else snap(point) - into * size.y * 0.5
+	if not wall.is_empty():
+		# Along the wall where the point is.
+		back = snap(back + along * (point - back).dot(along))
+	var center: Vector2 = back + into * size.y * 0.5
+	var shape: Vector2 = Vector2(size.y, size.x) if fixture.facing % 2 == 0 else size
+	fixture.rect = Rect2(center - shape * 0.5, shape)
+	return fixture
+
+
+## Fixture [param index] moved by [param by] (m), against a wall again when
+## its back comes near one facing its way.
+func move_fixture(index: int, by: Vector2) -> void:
+	var fixture: Fixture = fixtures[index]
+	fixture.rect.position += by
+	var wall: Dictionary = wall_near(fixture.back(), 0.3)
+	if not wall.is_empty() and int(wall["facing"]) == fixture.facing:
+		fixture.rect.position += Vector2(wall["at"]) - fixture.back() - FACING[fixture.facing].orthogonal().abs() * (Vector2(wall["at"]) - fixture.back()).dot(FACING[fixture.facing].orthogonal().abs())
+
+
+## Fixture [param index] [param width] wide along its back and [param depth]
+## deep (m), its back where it was.
+func resize_fixture(index: int, width: float, depth: float) -> void:
+	var fixture: Fixture = fixtures[index]
+	var back: Vector2 = fixture.back()
+	var center: Vector2 = back + FACING[fixture.facing] * depth * 0.5
+	var shape: Vector2 = Vector2(depth, width) if fixture.facing % 2 == 0 else Vector2(width, depth)
+	fixture.rect = Rect2(center - shape * 0.5, shape)
+
+
+## Fixture [param index] turned a quarter round its middle.
+func turn_fixture(index: int) -> void:
+	var fixture: Fixture = fixtures[index]
+	var center: Vector2 = fixture.rect.get_center()
+	fixture.facing = (fixture.facing + 1) % 4
+	var size: Vector2 = Vector2(fixture.rect.size.y, fixture.rect.size.x)
+	fixture.rect = Rect2(center - size * 0.5, size)
+
+
+## Whether [param point] on a wall is behind a kitchen worktop: on the
+## worktop's back.
+func over_worktop(point: Vector2) -> bool:
+	for fixture: Fixture in fixtures:
+		if fixture.kind != "worktop":
+			continue
+		var along: Vector2 = FACING[fixture.facing].orthogonal().abs()
+		var back: Vector2 = fixture.back()
+		var off: Vector2 = point - back
+		if absf(off.dot(FACING[fixture.facing])) < 0.06 and absf(off.dot(along)) <= fixture.extent().x * 0.5 + 0.001:
+			return true
+	return false
+
+
+## The ends of dimension [param dim] (m): its wall's, or its two points.
+func dimension_ends(dim: Dimension) -> PackedVector2Array:
+	if dim.room >= 0 and dim.room < rooms.size() and dim.wall < rooms[dim.room].points.size():
+		return rooms[dim.room].wall(dim.wall)
+	return PackedVector2Array([dim.a, dim.b])
+
+
+## Where dimension [param dim] is cut, as distances from its first end (m),
+## in order: its ends and, along a wall, the parts on it and the ends of
+## its doors and windows.
+func dimension_stops(dim: Dimension) -> PackedFloat32Array:
+	var ends: PackedVector2Array = dimension_ends(dim)
+	var length: float = ends[0].distance_to(ends[1])
+	var stops: PackedFloat32Array = PackedFloat32Array([0.0, length])
+	if dim.room >= 0 and length > 0.001:
+		var dir: Vector2 = (ends[1] - ends[0]) / length
+		var points: Array[Vector2] = []
+		for designation: String in parts:
+			if facing.has(designation):
+				points.append(parts[designation])
+		for opening: Opening in openings():
+			points.append_array(Array(opening.ends()))
+		for p: Vector2 in points:
+			var t: float = (p - ends[0]).dot(dir)
+			if t > 0.01 and t < length - 0.01 and (ends[0] + dir * t).distance_to(p) < 0.02:
+				stops.append(snappedf(t, 0.001))
+	stops.sort()
+	var result: PackedFloat32Array = PackedFloat32Array()
+	for t: float in stops:
+		if result.is_empty() or t - result[result.size() - 1] > 0.005:
+			result.append(t)
+	return result
+
+
+## Takes room [param index] away, with the dimensions along its walls.
+func remove_room(index: int) -> void:
+	rooms.remove_at(index)
+	_forget_room(index, -1)
+
+
+## Dimensions along the walls of room [param gone] are dropped (and of
+## [param also], its walls changed); the rooms after [param gone] are one
+## further forward.
+func _forget_room(gone: int, also: int) -> void:
+	for i: int in range(dimensions.size() - 1, -1, -1):
+		var dim: Dimension = dimensions[i]
+		if dim.room < 0:
+			continue
+		if dim.room == gone or dim.room == also:
+			dimensions.remove_at(i)
+		elif dim.room > gone:
+			dim.room -= 1
+
+
+## The doors and the windows.
+func openings() -> Array[Opening]:
+	var list: Array[Opening] = []
+	list.append_array(doors)
+	list.append_array(windows)
+	return list
+
+
+## Whether the wall at [param point], seen from the room on the side of
+## [param into], is between two rooms (another room behind it).
+func inner_wall_at(point: Vector2, into: Vector2) -> bool:
+	return room_at(point - into * 0.05) >= 0 and room_at(point + into * 0.05) >= 0
+
+
+## The walls between rooms, each piece once: [from, to] on their line (m).
+func inner_pieces() -> Array[PackedVector2Array]:
+	var shapes: Array[PackedVector2Array] = []
+	for room: Room in rooms:
+		shapes.append(room.points)
+	return inner_pieces_of(shapes)
+
+
+## The walls between the rooms of outlines [param shapes] (see [method inner_pieces]).
+static func inner_pieces_of(shapes: Array[PackedVector2Array]) -> Array[PackedVector2Array]:
+	var pieces: Array[PackedVector2Array] = []
+	var seen: Dictionary[String, bool] = {}
+	for index: int in shapes.size():
+		var points: PackedVector2Array = shapes[index]
+		for k: int in points.size():
+			var w0: Vector2 = points[k]
+			var w1: Vector2 = points[(k + 1) % points.size()]
+			var vertical: bool = is_equal_approx(w0.x, w1.x)
+			var line: float = w0.x if vertical else w0.y
+			var a: float = minf(w0.y, w1.y) if vertical else minf(w0.x, w1.x)
+			var b: float = maxf(w0.y, w1.y) if vertical else maxf(w0.x, w1.x)
+			# Cut where the other rooms' corners on this line are.
+			var cuts: PackedFloat32Array = PackedFloat32Array([a, b])
+			for other: PackedVector2Array in shapes:
+				for p: Vector2 in other:
+					var on: float = p.x if vertical else p.y
+					var along: float = p.y if vertical else p.x
+					if absf(on - line) < 0.001 and along > a + 0.001 and along < b - 0.001:
+						cuts.append(along)
+			cuts.sort()
+			var out: Vector2 = -(w1 - w0).normalized().rotated(PI / 2.0).round()
+			for i: int in cuts.size() - 1:
+				if cuts[i + 1] - cuts[i] < 0.001:
+					continue
+				var mid: float = (cuts[i] + cuts[i + 1]) * 0.5
+				var m: Vector2 = Vector2(line, mid) if vertical else Vector2(mid, line)
+				var behind: bool = false
+				for j: int in shapes.size():
+					if j != index and Geometry2D.is_point_in_polygon(m + out * 0.05, shapes[j]):
+						behind = true
+				if not behind:
+					continue
+				var key: String = "%s|%.3f|%.3f|%.3f" % [vertical, line, cuts[i], cuts[i + 1]]
+				if seen.has(key):
+					continue
+				seen[key] = true
+				pieces.append(PackedVector2Array([Vector2(line, cuts[i]), Vector2(line, cuts[i + 1])] if vertical else [Vector2(cuts[i], line), Vector2(cuts[i + 1], line)]))
+	return pieces
 
 
 ## Number of room [param index]: the one set, else counted from [constant FIRST_NUMBER].
@@ -329,16 +606,23 @@ func free_spot(size: Vector2) -> Rect2:
 
 ## Moves room [param index] (the corner of the rectangle round it) to
 ## [param to], taking along the parts in it and on its walls and the doors
-## in its walls.
+## and windows in its walls.
 func move_room(index: int, to: Vector2) -> void:
 	var room: Room = rooms[index]
 	var by: Vector2 = to - room.rect.position
 	for designation: String in parts.keys():
 		if room.contains(parts[designation], 0.01):
 			parts[designation] += by
-	for door: Door in doors:
-		if room.contains(door.at, 0.01):
-			door.at += by
+	for opening: Opening in openings():
+		if room.contains(opening.at, 0.01):
+			opening.at += by
+	for note: Note in notes:
+		if room.contains(note.at, 0.01):
+			note.at += by
+			note.label += by
+	for fixture: Fixture in fixtures:
+		if room.contains(fixture.rect.get_center(), 0.01):
+			fixture.rect.position += by
 	for i: int in room.points.size():
 		room.points[i] += by
 
@@ -378,8 +662,8 @@ static func with_edge(points: PackedVector2Array, k: int, at: float) -> PackedVe
 ## runs up and down, else its y, snapped), never making the walls beside it
 ## shorter than [constant MIN_WALL] (a rectangle no smaller than
 ## [constant MIN_ROOM]) nor turning them round: a wall of another room on
-## the same line along it moves along (they keep sharing it), and the parts
-## and doors on it move with it.
+## the same line along it moves along (they keep sharing it), and the parts,
+## doors and windows on it move with it.
 func set_edge(index: int, k: int, at: float) -> void:
 	var room: Room = rooms[index]
 	var w: PackedVector2Array = room.wall(k)
@@ -409,10 +693,10 @@ func set_edge(index: int, k: int, at: float) -> void:
 		var along: float = p.y if vertical else p.x
 		if absf((p.x if vertical else p.y) - old) < 0.01 and along >= span.x - 0.01 and along <= span.y + 0.01:
 			parts[designation] = p + (Vector2(by, 0) if vertical else Vector2(0, by))
-	for door: Door in doors:
-		var along_door: float = door.at.y if vertical else door.at.x
-		if absf((door.at.x if vertical else door.at.y) - old) < 0.01 and along_door >= span.x and along_door <= span.y:
-			door.at += Vector2(by, 0) if vertical else Vector2(0, by)
+	for opening: Opening in openings():
+		var along_door: float = opening.at.y if vertical else opening.at.x
+		if absf((opening.at.x if vertical else opening.at.y) - old) < 0.01 and along_door >= span.x and along_door <= span.y:
+			opening.at += Vector2(by, 0) if vertical else Vector2(0, by)
 	for m: Vector2i in moving:
 		rooms[m.x].points = with_edge(rooms[m.x].points, m.y, at)
 
@@ -466,6 +750,7 @@ func join_rooms(a: int, b: int) -> bool:
 		return false
 	rooms[a].points = outline
 	rooms.remove_at(b)
+	_forget_room(b, a)
 	return true
 
 
@@ -562,6 +847,49 @@ func wall_near(point: Vector2, reach: float = ON_WALL) -> Dictionary:
 	return result
 
 
+## Where a distance along the wall at [param point] is measured from: the
+## nearest of the wall's corners and the ends of the doors and windows in
+## it, {"from", "dir" (from there towards the point), "distance", "wall"
+## ([from, to] of the wall)}; {} when no wall is there.
+func wall_reference(point: Vector2) -> Dictionary:
+	var best: float = 0.02
+	var wall: PackedVector2Array = PackedVector2Array()
+	for room: Room in rooms:
+		for k: int in room.points.size():
+			var w: PackedVector2Array = room.wall(k)
+			var d: float = Geometry2D.get_closest_point_to_segment(point, w[0], w[1]).distance_to(point)
+			if d < best:
+				best = d
+				wall = w
+	if wall.is_empty():
+		return {}
+	var along: Vector2 = (wall[1] - wall[0]).normalized()
+	var stops: Array[Vector2] = [wall[0], wall[1]]
+	for opening: Opening in openings():
+		for end: Vector2 in opening.ends():
+			if Geometry2D.get_closest_point_to_segment(end, wall[0], wall[1]).distance_to(end) < 0.02:
+				stops.append(end)
+	var from: Vector2 = wall[0]
+	for stop: Vector2 in stops:
+		if stop.distance_to(point) < from.distance_to(point):
+			from = stop
+	var dir: Vector2 = (point - from).normalized() if point.distance_to(from) > 0.001 else along
+	# Along the wall either way.
+	dir = along if dir.dot(along) >= 0.0 else -along
+	return {"from": from, "dir": dir, "distance": (point - from).dot(dir), "wall": wall}
+
+
+## The point [param distance] (m) along the wall at [param point] from its
+## reference (see [method wall_reference]), kept on the wall; [param point] when no wall is there.
+func at_distance(point: Vector2, distance: float) -> Vector2:
+	var ref: Dictionary = wall_reference(point)
+	if ref.is_empty():
+		return point
+	var wall: PackedVector2Array = ref["wall"]
+	var target: Vector2 = Vector2(ref["from"]) + Vector2(ref["dir"]) * maxf(distance, 0.0)
+	return Geometry2D.get_closest_point_to_segment(target, wall[0], wall[1])
+
+
 ## Puts part [param designation] at [param point]: a switch, socket,
 ## appliance or the consumer unit near a wall onto it facing into the room,
 ## a luminaire where it is (on the ceiling).
@@ -573,6 +901,52 @@ func place(designation: String, point: Vector2, on_ceiling: bool) -> void:
 	else:
 		parts[designation] = wall["at"]
 		facing[designation] = wall["facing"]
+
+
+## Puts part [param designation] exactly at [param point] on a wall (not
+## snapped to the grid), facing into the room there (or [param face], an
+## index into [constant FACING]).
+func place_on_wall(designation: String, point: Vector2, face: int = -1) -> void:
+	var wall: Dictionary = wall_near(point, 0.05)
+	if wall.is_empty() and face < 0:
+		place(designation, point, false)
+		return
+	parts[designation] = point
+	facing[designation] = face if face >= 0 else int(wall["facing"])
+
+
+## Points spread over room [param index] in [param rows] × [param columns]
+## (each in the middle of its cell of the rectangle round it, those in the
+## room kept), for luminaires on its ceiling.
+func grid_points(index: int, rows: int, columns: int) -> PackedVector2Array:
+	var room: Room = rooms[index]
+	var r: Rect2 = room.rect
+	var result: PackedVector2Array = PackedVector2Array()
+	for j: int in maxi(rows, 1):
+		for i: int in maxi(columns, 1):
+			var p: Vector2 = r.position + Vector2(r.size.x * (i + 0.5) / maxi(columns, 1), r.size.y * (j + 0.5) / maxi(rows, 1))
+			if room.contains(p):
+				result.append(snap(p))
+	return result
+
+
+## [param count] points along wall [param k] of room [param index]: spread
+## evenly (each in the middle of its share) when [param spacing] is 0, else
+## from [param start] (m from the wall's left or top end) every
+## [param spacing], as far as the wall goes.
+func row_points(index: int, k: int, count: int, start: float = 0.0, spacing: float = 0.0) -> PackedVector2Array:
+	var w: PackedVector2Array = rooms[index].wall(k)
+	if w[1].x < w[0].x or w[1].y < w[0].y:
+		w = PackedVector2Array([w[1], w[0]])
+	var length: float = w[0].distance_to(w[1])
+	var dir: Vector2 = (w[1] - w[0]) / length if length > 0.0 else Vector2.RIGHT
+	var result: PackedVector2Array = PackedVector2Array()
+	for i: int in maxi(count, 1):
+		var t: float = length * (i + 0.5) / maxi(count, 1) if spacing <= 0.0 else start + i * spacing
+		if t < 0.0 or t > length + 0.001:
+			break
+		result.append(w[0] + dir * t)
+	return result
 
 
 ## Takes part [param designation] off the plan, with its links.
@@ -683,7 +1057,9 @@ func bounds() -> Rect2:
 	var result: Rect2 = Rect2()
 	var first: bool = true
 	for room: Room in rooms:
-		result = room.rect if first else result.merge(room.rect)
+		# With the outside walls round it.
+		var walled: Rect2 = room.rect.grow(outer_wall)
+		result = walled if first else result.merge(walled)
 		first = false
 	for designation: String in parts:
 		result = Rect2(parts[designation], Vector2.ZERO) if first else result.expand(parts[designation])
@@ -723,6 +1099,36 @@ func to_data() -> Dictionary:
 			entry.append(facing[designation])
 		placed[designation] = entry
 	var result: Dictionary = {"rooms": room_list, "doors": door_list, "parts": placed}
+	if not windows.is_empty():
+		var window_list: Array = []
+		for window: WindowOpening in windows:
+			var wd: Dictionary = {"at": [window.at.x, window.at.y], "width": window.width, "vertical": window.vertical}
+			if not is_equal_approx(window.sill, WINDOW_SILL):
+				wd["sill"] = window.sill
+			if not is_equal_approx(window.height, WINDOW_HEIGHT):
+				wd["height"] = window.height
+			window_list.append(wd)
+		result["windows"] = window_list
+	if not is_equal_approx(outer_wall, OUTER_WALL) or not is_equal_approx(inner_wall, INNER_WALL):
+		result["walls"] = [outer_wall, inner_wall]
+	if not notes.is_empty():
+		var note_list: Array = []
+		for note: Note in notes:
+			note_list.append({"text": note.text, "at": [note.at.x, note.at.y], "label": [note.label.x, note.label.y]})
+		result["notes"] = note_list
+	if not fixtures.is_empty():
+		var fixture_list: Array = []
+		for fixture: Fixture in fixtures:
+			fixture_list.append({"kind": fixture.kind, "rect": [fixture.rect.position.x, fixture.rect.position.y, fixture.rect.size.x, fixture.rect.size.y], "facing": fixture.facing})
+		result["fixtures"] = fixture_list
+	if not dimensions.is_empty():
+		var dimension_list: Array = []
+		for dim: Dimension in dimensions:
+			if dim.room >= 0:
+				dimension_list.append({"room": dim.room, "wall": dim.wall, "offset": dim.offset})
+			else:
+				dimension_list.append({"a": [dim.a.x, dim.a.y], "b": [dim.b.x, dim.b.y], "offset": dim.offset})
+		result["dimensions"] = dimension_list
 	if not links.is_empty():
 		var link_list: Array = []
 		for link: Link in links:
@@ -770,6 +1176,55 @@ static func from_data(raw: Variant) -> FloorPlan:
 				door.opens_back = dd.get("opens_back", false) == true
 				door.double = dd.get("double", false) == true
 				plan.doors.append(door)
+	var window_list: Variant = d.get("windows", [])
+	if window_list is Array:
+		for wd: Variant in window_list:
+			if wd is Dictionary and _numbers(wd.get("at", []), 2):
+				var window: WindowOpening = WindowOpening.new(Vector2(float(wd["at"][0]), float(wd["at"][1])), wd.get("vertical", false) == true, _length(wd.get("width", WINDOW_WIDTH), WINDOW_WIDTH, 0.3, 6.0))
+				window.sill = _length(wd.get("sill", WINDOW_SILL), WINDOW_SILL, 0.0, 3.0)
+				window.height = _length(wd.get("height", WINDOW_HEIGHT), WINDOW_HEIGHT, 0.2, 3.0)
+				plan.windows.append(window)
+	if _numbers(d.get("walls", []), 2):
+		plan.outer_wall = clampf(float(d["walls"][0]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
+		plan.inner_wall = clampf(float(d["walls"][1]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
+	var note_list: Variant = d.get("notes", [])
+	if note_list is Array:
+		for nd: Variant in note_list:
+			if nd is Dictionary and nd.get("text", null) is String and _numbers(nd.get("at", []), 2) and _numbers(nd.get("label", []), 2):
+				var note: Note = Note.new()
+				note.text = (nd["text"] as String).left(500)
+				note.at = Vector2(float(nd["at"][0]), float(nd["at"][1]))
+				note.label = Vector2(float(nd["label"][0]), float(nd["label"][1]))
+				plan.notes.append(note)
+	var fixture_list: Variant = d.get("fixtures", [])
+	if fixture_list is Array:
+		for fd: Variant in fixture_list:
+			if fd is Dictionary and FIXTURES.has(str(fd.get("kind", ""))) and _numbers(fd.get("rect", []), 4):
+				var fixture: Fixture = Fixture.new()
+				fixture.kind = str(fd["kind"])
+				var fr: Array = fd["rect"]
+				fixture.rect = Rect2(float(fr[0]), float(fr[1]), clampf(float(fr[2]), 0.1, 10.0), clampf(float(fr[3]), 0.1, 10.0))
+				var face: Variant = fd.get("facing", 1)
+				fixture.facing = clampi(int(face), 0, 3) if (face is int or face is float) else 1
+				plan.fixtures.append(fixture)
+	var dimension_list: Variant = d.get("dimensions", [])
+	if dimension_list is Array:
+		for dd: Variant in dimension_list:
+			if not (dd is Dictionary):
+				continue
+			var dim: Dimension = Dimension.new()
+			dim.offset = _length(dd.get("offset", DIMENSION_OFFSET), DIMENSION_OFFSET, -20.0, 20.0)
+			var room: Variant = dd.get("room", -1)
+			var wall: Variant = dd.get("wall", 0)
+			if (room is int or room is float) and (wall is int or wall is float) and int(room) >= 0 and int(room) < plan.rooms.size() and int(wall) >= 0 and int(wall) < plan.rooms[int(room)].points.size():
+				dim.room = int(room)
+				dim.wall = int(wall)
+			elif _numbers(dd.get("a", []), 2) and _numbers(dd.get("b", []), 2):
+				dim.a = Vector2(float(dd["a"][0]), float(dd["a"][1]))
+				dim.b = Vector2(float(dd["b"][0]), float(dd["b"][1]))
+			else:
+				continue
+			plan.dimensions.append(dim)
 	var placed: Variant = d.get("parts", {})
 	if placed is Dictionary:
 		for designation: Variant in placed:
@@ -784,6 +1239,11 @@ static func from_data(raw: Variant) -> FloorPlan:
 			if ld is Array and (ld as Array).size() == 4 and ld[0] is String and ld[2] is String and (ld[1] is int or ld[1] is float) and (ld[3] is int or ld[3] is float):
 				plan.add_link(ld[0], clampi(int(ld[1]), 0, 1), ld[2], clampi(int(ld[3]), 0, 1))
 	return plan
+
+
+## [param value] as a length from [param low] to [param high], else [param fallback].
+static func _length(value: Variant, fallback: float, low: float, high: float) -> float:
+	return clampf(float(value), low, high) if (value is float or value is int) and is_finite(float(value)) else fallback
 
 
 static func _numbers(value: Variant, count: int) -> bool:

@@ -368,6 +368,45 @@ Architecture and conventions of the code base. Read this before changing the cod
   dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.
   Doors: hinge_end, opens_back, double (two leaves of half the width from both ends); a
   double click: door_requested -> FloorPlanView's door dialog; F / Shift+F on a selected door.
+  Windows (FloorPlan.WindowOpening: width, sill, height; saved "windows"), doors and windows
+  both FloorPlan.Opening (at, width, vertical, ends; openings() moves them with rooms and
+  walls), Tool.WINDOW, a double click: window_requested -> the window dialog. Walls have a
+  thickness (FloorPlan.outer_wall, inner_wall; saved "walls" when not OUTER_WALL / INNER_WALL;
+  the Walls dialog): FloorPlanCanvas._draw_building fills each room grown by outer_wall
+  (Geometry2D.offset_polygon, mitred) in wall_color, the floors over it, then the walls between
+  rooms (FloorPlan.inner_pieces_of: the pieces of the outlines with another room behind them)
+  on their line; an opening cuts its band (_band, _cut: outside the room in an outside wall,
+  centred in one between rooms); a part on a wall between rooms is drawn at its face
+  (_face, inner_wall_at); bounds and the dimensions (_dimension_gap) are past the outside walls.
+  Dimensions printed with the plan (FloorPlan.Dimension, saved "dimensions"): a chain along
+  wall "wall" of room "room" (dimension_stops: its corners, the parts on it, the ends of its
+  openings) or, room -1, between "a" and "b"; "offset" from the wall (past the outside wall)
+  or to the left of a-b. remove_room and join_rooms drop a room's chains and renumber the rest.
+  Tool.DIMENSION: a click on a wall adds its chain, a drag a free one (both ends caught by
+  _feature_point: corners, parts, opening ends); a dimension dragged sets its offset
+  (_dimension_geometry, saved_dimension_at); Tool.MEASURE shows the distance dragged
+  (_draw_measure), nothing saved. paper_area takes the dimensions in.
+  A distance typed (digits, in mm) while a part goes on a wall, or with one on a wall selected,
+  puts it that far from the nearest corner or end of a door or window on its wall
+  (FloorPlanCanvas._takes_distance, _type_distance, Enter; FloorPlan.wall_reference,
+  at_distance, place_on_wall: exactly there, not on the grid); the distance shows as a
+  dimension while placing or selected (_draw_wall_distance). Array (FloorPlanView): over a
+  selected room luminaires in rows × columns (FloorPlan.grid_points: the middles of the cells
+  of the rectangle round it, those inside), along a selected wall sockets or wall luminaires
+  evenly or from its left or top end every so far (row_points), each made by
+  FloorPlanCanvas.add_part (the palette's way: a component on the circuit chosen, on the plan
+  facing into the room). Selections on the plan are drawn in SchematicTheme.SELECTED.
+  Notes (FloorPlan.Note: text, at, label; saved "notes"): Tool.NOTE, pressed where it points,
+  let go where its text goes, then note_requested(-1) with pending_note -> FloorPlanView's
+  note dialog; a double click edits (empty: taken away); its point or its text dragged
+  (note_at); a dot, a leader to the nearer end of the underline (_draw_notes). Furniture and
+  fixtures (FloorPlan.Fixture: kind of FIXTURES, rect, facing; saved "fixtures"): the palette's
+  "fixture" templates (Palette.PLAN_ENTRIES, group "furniture", PlanGlyph.fixture) put by
+  fixture_at_point, the back against the wall within AGAINST_WALL; dragged (move_fixture, back
+  to a wall facing its way), R turns it (turn_fixture), a double click sizes it
+  (fixture_requested, resize_fixture); drawn faint under the parts (PlanSymbols.draw_fixture).
+  A socket put behind a kitchen worktop (over_worktop) is WORKTOP_SOCKET_HEIGHT high
+  (FloorPlanCanvas.add_part). Notes and fixtures move with their room.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

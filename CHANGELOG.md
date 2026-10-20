@@ -67,6 +67,23 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The floor plan sheet of a PDF export draws the plan as large as its paper takes, and the
   designations of parts close together (switches back to back on a wall) no longer print over
   each other: each goes where it is clear, into its room first
+- Floor plan: windows (Window tool; a double click sets width, sill and height) and walls
+  drawn with their thickness, outside walls outside the rooms and walls between rooms on their
+  line (Walls sets both); doors and windows cut through the whole wall
+- Floor plan: dimensions printed with it, a chain along a wall clicked (its corners, parts,
+  doors and windows) or one dragged between two points, set off by dragging; a measure tool
+  shows the distance between two points
+- Floor plan: while a socket or switch goes on a wall (or one there is selected), its distance
+  from the nearest corner or door or window frame shows; typing a number (mm) and Enter puts
+  it exactly that far
+- Floor plan: Array spreads luminaires over a selected room in rows and columns, or puts
+  sockets and wall luminaires in a row along a selected wall, evenly or every so far
+- Floor plan: notes with a leader to the point they are about, printed with the plan
+- Floor plan: furniture and fixtures from the palette (kitchen worktop, bath, shower tray,
+  washbasin, WC, bed, wardrobe, table, sofa), drawn faintly with their backs against a wall;
+  R turns one, a double click sets its size; a socket behind the worktop goes at 1.10 m
+- Floor plan: selected rooms, parts, doors and windows are drawn in the selection colour,
+  which shows on white paper
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 

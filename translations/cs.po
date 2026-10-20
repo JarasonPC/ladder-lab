@@ -5374,3 +5374,101 @@ msgstr "Na stěně (nástěnné svítidlo)"
 
 msgid "Wall luminaire"
 msgstr "Nástěnné svítidlo"
+
+msgid "Put a window in a wall by clicking it; a double click on a window sets its width, sill and height"
+msgstr "Okno vložíte do zdi kliknutím na ni; dvojklik na okno nastaví jeho šířku, parapet a výšku"
+
+msgid "Thickness of the walls: the outside ones (drawn outside the rooms) and those between rooms"
+msgstr "Tloušťka zdí: obvodových (kreslených vně místností) a příček mezi místnostmi"
+
+msgid "Window"
+msgstr "Okno"
+
+msgid "Sill height"
+msgstr "Výška parapetu"
+
+msgid "Walls"
+msgstr "Zdi"
+
+msgid "Outside walls"
+msgstr "Obvodové zdi"
+
+msgid "Walls between rooms"
+msgstr "Příčky"
+
+msgid "Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away"
+msgstr "Kóty tištěné s plánem: kliknutím na zeď přidáte řetězovou kótu podél ní (rohy, prvky, dveře a okna), tažením kótu mezi dvěma body; kótu odsunete tažením, Delete ji odstraní"
+
+msgid "Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn"
+msgstr "Měření: tažením mezi dvěma body (přichytí se k rohům, prvkům a okrajům dveří a oken) uvidíte vzdálenost; nic se nekreslí"
+
+msgid "Array: luminaires spread over the selected room in rows and columns, or sockets and wall luminaires in a row along the selected wall, on the circuit chosen"
+msgstr "Pole: svítidla rozložená po vybrané místnosti v řadách a sloupcích, nebo zásuvky a nástěnná svítidla v řadě podél vybrané zdi, na zvoleném obvodu"
+
+msgid "Array"
+msgstr "Pole"
+
+msgid "Put them in"
+msgstr "Vložit"
+
+msgid "Part"
+msgstr "Prvek"
+
+msgid "Rows"
+msgstr "Řady"
+
+msgid "Columns"
+msgstr "Sloupce"
+
+msgid "Count"
+msgstr "Počet"
+
+msgid "Spacing (0: evenly)"
+msgstr "Rozteč (0: rovnoměrně)"
+
+msgid "From the left or top end"
+msgstr "Od levého nebo horního konce"
+
+#, c-format
+msgid "Luminaires spread over room %s"
+msgstr "Svítidla rozložená po místnosti %s"
+
+#, c-format
+msgid "Parts in a row along a wall of room %s"
+msgstr "Prvky v řadě podél zdi místnosti %s"
+
+msgid "Furniture and fixtures"
+msgstr "Nábytek a zařizovací předměty"
+
+msgid "Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away"
+msgstr "Poznámka: stiskněte tam, kam ukazuje, táhněte tam, kde má být její text, a napište jej; dvojklik poznámku upraví, prázdný text ji odstraní"
+
+msgid "Note"
+msgstr "Poznámka"
+
+msgid "Depth"
+msgstr "Hloubka"
+
+msgid "Kitchen worktop"
+msgstr "Kuchyňská linka"
+
+msgid "Bath"
+msgstr "Vana"
+
+msgid "Shower tray"
+msgstr "Sprchová vanička"
+
+msgid "Washbasin"
+msgstr "Umyvadlo"
+
+msgid "Double bed"
+msgstr "Manželská postel"
+
+msgid "Wardrobe"
+msgstr "Šatní skříň"
+
+msgid "Table"
+msgstr "Stůl"
+
+msgid "Sofa"
+msgstr "Pohovka"

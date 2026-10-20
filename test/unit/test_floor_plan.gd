@@ -235,7 +235,7 @@ func test_wall_lengths_set_like_in_cad() -> void:
 	canvas.selected = {"kind": "room", "index": 1}
 	var asked: Array[Vector2i] = []
 	canvas.length_requested.connect(func(index: int, side: int) -> void: asked.append(Vector2i(index, side)))
-	var top: Vector2 = canvas.to_screen(Vector2(plan.rooms[1].rect.get_center().x, plan.rooms[1].rect.position.y - FloorPlanCanvas.DIMENSION_GAP))
+	var top: Vector2 = canvas.to_screen(Vector2(plan.rooms[1].rect.get_center().x, plan.rooms[1].rect.position.y - canvas._dimension_gap()))
 	assert_eq(canvas.dimension_at(top), Vector2i(1, 0), "its width over its top wall")
 
 
@@ -355,3 +355,168 @@ func test_wall_luminaire_goes_onto_a_wall() -> void:
 	for entry: Dictionary in Palette.PLAN_ENTRIES:
 		titles.append(entry["title"])
 	assert_true(titles.has("Wall luminaire"))
+
+
+func test_windows_and_wall_thickness() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	var window: FloorPlan.WindowOpening = FloorPlan.WindowOpening.new(Vector2(5.0, 0.0), false)
+	window.sill = 1.1
+	plan.windows.append(window)
+	plan.outer_wall = 0.45
+	# The hall and the room share x = 3 from y 0 to 1.5: the wall between them.
+	var pieces: Array[PackedVector2Array] = plan.inner_pieces()
+	assert_eq(pieces.size(), 1, "one wall between rooms")
+	assert_eq(pieces[0], PackedVector2Array([Vector2(3, 0), Vector2(3, 1.5)]))
+	assert_true(plan.inner_wall_at(Vector2(3.0, 1.0), Vector2.RIGHT), "between the hall and the room")
+	assert_false(plan.inner_wall_at(Vector2(3.0, 3.0), Vector2.RIGHT), "below the hall: an outside wall")
+	assert_true(plan.bounds().grow(0.001).encloses(Rect2(-0.45, -0.45, 7.9, 4.9)), "the outside walls are in the bounds")
+	# A window moves with its room, and is saved.
+	plan.move_room(1, Vector2(3.0, 1.0))
+	assert_eq(plan.windows[0].at, Vector2(5.0, 1.0))
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.windows.size(), 1)
+	assert_almost_eq(again.windows[0].sill, 1.1, 1e-6)
+	assert_almost_eq(again.windows[0].width, FloorPlan.WINDOW_WIDTH, 1e-6)
+	assert_almost_eq(again.outer_wall, 0.45, 1e-6)
+	assert_almost_eq(again.inner_wall, FloorPlan.INNER_WALL, 1e-6)
+	assert_false(FloorPlan.from_data({"rooms": []}).to_data().has("walls"), "the usual walls are not written")
+	# A socket on the wall between rooms is drawn at the wall's face.
+	plan.move_room(1, Vector2(3.0, 0.0))
+	plan.place("XD1", Vector2(3.0, 1.0), false)
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	assert_almost_eq(canvas._face("XD1").length(), FloorPlan.INNER_WALL * 0.5, 1e-6)
+
+
+func test_dimension_chains_and_free_dimensions() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	# The room's top wall (3,0)-(7,0): a socket at x 4, a window 5.5 wide 1.2.
+	plan.place("XD1", Vector2(4.0, 0.05), false)
+	plan.windows.append(FloorPlan.WindowOpening.new(Vector2(5.5, 0.0), false))
+	var chain: FloorPlan.Dimension = FloorPlan.Dimension.new()
+	chain.room = 1
+	chain.wall = 0
+	plan.dimensions.append(chain)
+	var stops: PackedFloat32Array = plan.dimension_stops(chain)
+	assert_eq(stops.size(), 5, "the corners, the socket and the window's ends")
+	assert_almost_eq(stops[1], 1.0, 0.002)
+	assert_almost_eq(stops[2], 1.9, 0.002)
+	assert_almost_eq(stops[3], 3.1, 0.002)
+	var free: FloorPlan.Dimension = FloorPlan.Dimension.new()
+	free.a = Vector2(0, 0)
+	free.b = Vector2(0, 1.5)
+	free.offset = -0.4
+	plan.dimensions.append(free)
+	assert_eq(plan.dimension_stops(free).size(), 2, "a free one: its two ends")
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.dimensions.size(), 2)
+	assert_eq(again.dimensions[0].room, 1)
+	assert_eq(again.dimensions[1].b, Vector2(0, 1.5))
+	assert_almost_eq(again.dimensions[1].offset, -0.4, 1e-6)
+	# The canvas finds it on its line and catches the corners.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	var line: PackedVector2Array = canvas._dimension_geometry(0)["line"]
+	assert_almost_eq(line[0].y, -(plan.outer_wall + FloorPlan.DIMENSION_OFFSET), 1e-4, "past the outside wall")
+	assert_eq(canvas.saved_dimension_at(canvas.to_screen((line[0] + line[1]) * 0.5)), 0)
+	assert_eq(canvas._feature_point(Vector2(3.05, 0.03)), Vector2(3, 0), "a corner caught")
+	# A room taken away takes its chains; a later room's move up.
+	plan.remove_room(0)
+	assert_eq(plan.dimensions.size(), 2)
+	assert_eq(plan.dimensions[0].room, 0, "the room after it is now first")
+	plan.remove_room(0)
+	assert_eq(plan.dimensions.size(), 1, "its chain gone, the free one kept")
+
+
+func test_typed_distance_and_arrays() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	# The room's top wall from (3,0) to (7,0), a door at 4.5 (ends 4.1 and 4.9).
+	plan.doors.append(FloorPlan.Door.new(Vector2(4.5, 0.0), false))
+	var ref: Dictionary = plan.wall_reference(Vector2(5.3, 0.0))
+	assert_eq(ref["from"], Vector2(4.9, 0.0), "the door's end is nearer than a corner")
+	assert_almost_eq(float(ref["distance"]), 0.4, 1e-4)
+	assert_eq(plan.at_distance(Vector2(5.3, 0.0), 0.15), Vector2(5.05, 0.0), "150 mm from the door frame")
+	assert_eq(plan.at_distance(Vector2(6.8, 0.0), 0.3), Vector2(6.7, 0.0), "300 mm from the corner")
+	plan.place_on_wall("XD1", Vector2(5.05, 0.0))
+	assert_eq(plan.parts["XD1"], Vector2(5.05, 0.0), "exactly there, not on the grid")
+	# Arrays.
+	assert_eq(plan.grid_points(1, 2, 2), PackedVector2Array([Vector2(4, 1), Vector2(6, 1), Vector2(4, 3), Vector2(6, 3)]))
+	assert_eq(plan.row_points(1, 2, 2), PackedVector2Array([Vector2(4, 4), Vector2(6, 4)]), "the bottom wall, from its left end, evenly")
+	assert_eq(plan.row_points(1, 0, 5, 0.5, 1.5), PackedVector2Array([Vector2(3.5, 0), Vector2(5, 0), Vector2(6.5, 0)]), "every 1.5 m from 0.5 m, as far as it goes")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	doc.single_line.add(doc, _component_of({"type": "breaker"}, "FA9"), 0)
+	var made: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, "FA9", Vector2(4, 4), true, 3)
+	assert_false(made.is_empty())
+	assert_eq(plan.facing[made], 3, "facing up into the room")
+	assert_true(doc.single_line.feeder_of("FA9").loads.has(made), "on the circuit")
+	# Typed while placing on the canvas.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas.selected = {"kind": "part", "designation": "XD1"}
+	assert_true(canvas._takes_distance())
+	var edits: Array[Callable] = []
+	canvas.edit_requested.connect(func(change: Callable) -> void: edits.append(change))
+	for code: int in [KEY_2, KEY_0, KEY_0]:
+		var key: InputEventKey = InputEventKey.new()
+		key.pressed = true
+		key.keycode = code
+		key.unicode = OS.get_keycode_string(code).unicode_at(0)
+		canvas._type_distance(key)
+	assert_eq(canvas._typed, "200")
+	var enter: InputEventKey = InputEventKey.new()
+	enter.pressed = true
+	enter.keycode = KEY_ENTER
+	canvas._type_distance(enter)
+	assert_eq(edits.size(), 1)
+	edits[0].call(doc)
+	assert_eq(plan.parts["XD1"], Vector2(5.1, 0.0), "200 mm from the door frame")
+
+
+func _component_of(template: Dictionary, designation: String) -> CircuitComponent:
+	var data: Dictionary = template.duplicate()
+	data["designation"] = designation
+	return DocumentSerializer.component_from_dict(data)
+
+
+func test_notes_and_furniture() -> void:
+	var doc: SchematicDocument = _house()
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	var plan: FloorPlan = doc.floor_plan
+	# A worktop dropped near the room's top wall goes against it, facing down.
+	var worktop: FloorPlan.Fixture = plan.fixture_at_point("worktop", Vector2(5.0, 0.4))
+	assert_eq(worktop.facing, 1)
+	assert_eq(worktop.rect, Rect2(3.8, 0.0, 2.4, 0.6), "its back on the wall, in the middle where dropped")
+	plan.fixtures.append(worktop)
+	assert_true(plan.over_worktop(Vector2(4.5, 0.0)))
+	assert_false(plan.over_worktop(Vector2(6.5, 0.0)), "past its end")
+	doc.single_line.add(doc, _component_of({"type": "breaker"}, "FA9"), 0)
+	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, "FA9", Vector2(4.5, 0.1))
+	assert_almost_eq((doc.circuit.get_component(socket) as SocketOutlet).height, FloorPlan.WORKTOP_SOCKET_HEIGHT, 1e-6, "over the worktop at 1.10 m")
+	# Turned, resized, moved with its room, saved.
+	plan.turn_fixture(0)
+	assert_eq(plan.fixtures[0].facing, 2)
+	assert_eq(plan.fixtures[0].rect.size, Vector2(0.6, 2.4))
+	plan.resize_fixture(0, 3.0, 0.65)
+	assert_almost_eq(plan.fixtures[0].extent().x, 3.0, 1e-6)
+	var note: FloorPlan.Note = FloorPlan.Note.new()
+	note.text = "Vývod pro digestoř\nh 2,20"
+	note.at = Vector2(5.0, 1.0)
+	note.label = Vector2(5.5, 0.5)
+	plan.notes.append(note)
+	plan.move_room(1, Vector2(3.0, 1.0))
+	assert_eq(plan.notes[0].at, Vector2(5.0, 2.0), "the note moves with its room")
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.notes.size(), 1)
+	assert_eq(again.notes[0].text, "Vývod pro digestoř\nh 2,20")
+	assert_eq(again.fixtures.size(), 1)
+	assert_eq(again.fixtures[0].kind, "worktop")
+	assert_eq(again.fixtures[0].facing, 2)
+	# The canvas finds them.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	assert_eq(canvas.note_at(canvas.to_screen(plan.notes[0].at))["end"], "anchor")
+	assert_eq(canvas.fixture_at(canvas.to_screen(plan.fixtures[0].rect.get_center())), 0)

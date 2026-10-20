@@ -5359,3 +5359,101 @@ msgstr ""
 
 msgid "Wall luminaire"
 msgstr ""
+
+msgid "Put a window in a wall by clicking it; a double click on a window sets its width, sill and height"
+msgstr ""
+
+msgid "Thickness of the walls: the outside ones (drawn outside the rooms) and those between rooms"
+msgstr ""
+
+msgid "Window"
+msgstr ""
+
+msgid "Sill height"
+msgstr ""
+
+msgid "Walls"
+msgstr ""
+
+msgid "Outside walls"
+msgstr ""
+
+msgid "Walls between rooms"
+msgstr ""
+
+msgid "Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away"
+msgstr ""
+
+msgid "Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn"
+msgstr ""
+
+msgid "Array: luminaires spread over the selected room in rows and columns, or sockets and wall luminaires in a row along the selected wall, on the circuit chosen"
+msgstr ""
+
+msgid "Array"
+msgstr ""
+
+msgid "Put them in"
+msgstr ""
+
+msgid "Part"
+msgstr ""
+
+msgid "Rows"
+msgstr ""
+
+msgid "Columns"
+msgstr ""
+
+msgid "Count"
+msgstr ""
+
+msgid "Spacing (0: evenly)"
+msgstr ""
+
+msgid "From the left or top end"
+msgstr ""
+
+#, c-format
+msgid "Luminaires spread over room %s"
+msgstr ""
+
+#, c-format
+msgid "Parts in a row along a wall of room %s"
+msgstr ""
+
+msgid "Furniture and fixtures"
+msgstr ""
+
+msgid "Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away"
+msgstr ""
+
+msgid "Note"
+msgstr ""
+
+msgid "Depth"
+msgstr ""
+
+msgid "Kitchen worktop"
+msgstr ""
+
+msgid "Bath"
+msgstr ""
+
+msgid "Shower tray"
+msgstr ""
+
+msgid "Washbasin"
+msgstr ""
+
+msgid "Double bed"
+msgstr ""
+
+msgid "Wardrobe"
+msgstr ""
+
+msgid "Table"
+msgstr ""
+
+msgid "Sofa"
+msgstr ""

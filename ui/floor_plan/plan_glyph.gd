@@ -7,6 +7,8 @@ extends Control
 
 ## The part drawn.
 var component: CircuitComponent
+## Or the furniture or fixture drawn (a kind of [constant FloorPlan.FIXTURES]).
+var fixture: String = ""
 
 ## Pixels a metre, by what is drawn: an appliance is taller.
 const SCALE: float = 68.0
@@ -14,10 +16,18 @@ const APPLIANCE_SCALE: float = 55.0
 
 
 func _draw() -> void:
-	if component == null:
-		return
 	var color: Color = SchematicTheme.LINE
 	var width: float = 1.4
+	if not fixture.is_empty():
+		# Against a piece of wall at the top, as large as the tile takes.
+		var extent: Vector2 = FloorPlan.FIXTURES.get(fixture, Vector2.ONE)
+		var fit: float = minf((size.x - 8.0) / extent.x, (size.y - 10.0) / extent.y)
+		var shape: Vector2 = extent * fit
+		draw_line(Vector2(size.x * 0.5 - shape.x * 0.5 - 3.0, 4.0), Vector2(size.x * 0.5 + shape.x * 0.5 + 3.0, 4.0), Color(color, 0.45), 3.0)
+		PlanSymbols.draw_fixture(self, fixture, Rect2(Vector2(size.x * 0.5 - shape.x * 0.5, 5.5), shape), Vector2.DOWN, Color(color, 0.8), 1.1)
+		return
+	if component == null:
+		return
 	if component is Luminaire and not (component as Luminaire).wall:
 		PlanSymbols.draw_luminaire(self, size * 0.5, SCALE, color, width, false)
 		return
