@@ -28,12 +28,12 @@ func _house() -> SchematicDocument:
 	doc.update_single_line()
 	var line: SingleLine = doc.single_line
 	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 10.0}, "FA1"), 0))
-	assert_true(line.add(doc, _component({"type": "luminaire"}, "EA1"), 0, -1, "FA1"))
+	assert_true(line.add(doc, _component({"type": "luminaire"}, "EA1"), 0, "", "FA1"))
 	assert_true(line.add(doc, _component({"type": "rcd", "poles": 2}, "FB1"), 1))
-	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 16.0}, "FA2"), 0, 1))
-	assert_true(line.add(doc, _component({"type": "socket", "gangs": 1}, "XD1"), 0, -1, "FA2"))
+	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 16.0}, "FA2"), 0, "FB1"))
+	assert_true(line.add(doc, _component({"type": "socket", "gangs": 1}, "XD1"), 0, "", "FA2"))
 	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 16.0}, "FA3"), 2))
-	assert_true(line.add(doc, _component({"type": "appliance", "kind": "water_heater"}, "EB1"), 0, -1, "FA3"))
+	assert_true(line.add(doc, _component({"type": "appliance", "kind": "water_heater"}, "EB1"), 0, "", "FA3"))
 	line.feeder_of("FA3").hdo = true
 	line.wire(doc)
 	return doc
@@ -62,9 +62,9 @@ func test_columns_and_phases() -> void:
 	assert_eq(line.cable_number(line.feeder_of("FA3")), 3)
 	assert_eq(SingleLine.cable_text(line.feeder_of("FA1"), doc.circuit), "CYKY-J 3×1,5", "10 A: 1.5 mm²")
 	assert_eq(SingleLine.cable_text(line.feeder_of("FA2"), doc.circuit), "CYKY-J 3×2,5")
-	assert_false(line.add(doc, _component({"type": "breaker", "poles": 3}, "FA4"), 0, 1), "no three-pole circuit under a two-pole RCD")
+	assert_false(line.add(doc, _component({"type": "breaker", "poles": 3}, "FA4"), 0, "FB1"), "no three-pole circuit under a two-pole RCD")
 	assert_null(doc.circuit.get_component("FA4"))
-	assert_false(line.add(doc, _component({"type": "rcd", "poles": 2}, "FB2"), 0, 1), "no group in a group")
+	assert_false(line.add(doc, _component({"type": "rcd", "poles": 4}, "FB2"), 0, "FB1"), "no four-pole RCD under a two-pole one")
 
 
 func test_wired_with_n_and_pe_and_simulated() -> void:
@@ -99,8 +99,8 @@ func test_three_pole_hob_and_four_pole_group() -> void:
 	doc.environment = SchematicDocument.Kind.RESIDENTIAL
 	var line: SingleLine = doc.single_line
 	assert_true(line.add(doc, _component({"type": "rcd", "poles": 4}, "FB1"), 0))
-	assert_true(line.add(doc, _component({"type": "breaker", "poles": 3, "characteristic": "B", "rated_current": 16.0}, "FA1"), 0, 0))
-	assert_true(line.add(doc, _component({"type": "appliance", "kind": "hob"}, "EB1"), 0, -1, "FA1"))
+	assert_true(line.add(doc, _component({"type": "breaker", "poles": 3, "characteristic": "B", "rated_current": 16.0}, "FA1"), 0, "FB1"))
+	assert_true(line.add(doc, _component({"type": "appliance", "kind": "hob"}, "EB1"), 0, "", "FA1"))
 	assert_eq(line.phases_of(line.feeder_of("FA1"), doc.circuit), PackedInt32Array([1, 2, 3]))
 	assert_eq(SingleLine.cable_text(line.feeder_of("FA1"), doc.circuit), "CYKY-J 5×2,5")
 	_switch_all_on(doc.circuit)
@@ -136,16 +136,16 @@ func test_moved_renamed_and_removed() -> void:
 	var doc: SchematicDocument = _house()
 	var line: SingleLine = doc.single_line
 	# FA3 into the group, then FA1 after the group.
-	assert_true(line.move(doc, "FA3", 1, 1))
-	assert_eq(line.group_of("FB1").feeders.size(), 2)
-	assert_eq(line.group_of("FB1").feeders[1].device, "FA3")
+	assert_true(line.move(doc, "FA3", 1, "FB1"))
+	assert_eq(line.group_of("FB1").items.size(), 2)
+	assert_eq((line.group_of("FB1").items[1] as SingleLine.Feeder).device, "FA3")
 	assert_true(line.move(doc, "FA1", 1))
 	assert_true(line.columns[0] is SingleLine.Group)
 	assert_eq((line.columns[1] as SingleLine.Feeder).device, "FA1")
-	assert_false(line.move(doc, "FB1", 0, 0), "a group never goes into a group")
+	assert_false(line.move(doc, "FB1", 0, "FB1"), "a group never goes under itself")
 	line.set_phase(doc, "FB1", 3)
-	for f: SingleLine.Feeder in line.group_of("FB1").feeders:
-		assert_eq(f.phase, 3, "its circuits along")
+	for f: RefCounted in line.group_of("FB1").items:
+		assert_eq((f as SingleLine.Feeder).phase, 3, "its circuits along")
 	var breaker: CircuitComponent = doc.circuit.get_component("FA1")
 	var renamed: CircuitComponent = _component(DocumentSerializer.component_to_dict(breaker), "FA9")
 	assert_true(doc.replace_component(breaker.id, renamed))
@@ -219,3 +219,196 @@ func test_single_line_sheet_in_the_export() -> void:
 	for entry: Dictionary in canvas._circuits:
 		assert_true(area.has_point(Vector2(entry["v"], SingleLineCanvas.LOAD_U)), "every circuit on the sheet")
 	assert_true(area.has_point(Vector2(SingleLineCanvas.MAIN_V, SingleLineCanvas.SUPPLY_U)), "the supply too")
+
+
+## A selective 300 mA four-pole RCD FB1 over a 30 mA two-pole one FB2 with
+## breaker FA1 feeding water heater EB1 under it, and breaker FA2 feeding
+## socket XD1 under FB1 alone.
+func _nested() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	var line: SingleLine = doc.single_line
+	assert_true(line.add(doc, _component({"type": "rcd", "poles": 4, "residual": 0.3, "selective": true}, "FB1"), 0))
+	assert_true(line.add(doc, _component({"type": "rcd", "poles": 2, "residual": 0.03}, "FB2"), 0, "FB1"))
+	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 16.0}, "FA1"), 0, "FB2"))
+	assert_true(line.add(doc, _component({"type": "appliance", "kind": "water_heater"}, "EB1"), 0, "", "FA1"))
+	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 16.0}, "FA2"), 1, "FB1"))
+	assert_true(line.add(doc, _component({"type": "socket", "gangs": 1}, "XD1"), 0, "", "FA2"))
+	return doc
+
+
+func test_rcd_under_rcd_wired_and_selective() -> void:
+	var doc: SchematicDocument = _nested()
+	var line: SingleLine = doc.single_line
+	assert_eq(line.columns.size(), 1)
+	assert_eq(line.group_holding(line.group_of("FB2")), line.group_of("FB1"))
+	assert_eq(line.depth_of(line.feeder_of("FA1")), 2)
+	assert_eq(line.feeder_of("FA1").phase, line.group_of("FB2").phase, "on the phase of the two-pole RCD it is under")
+	assert_eq(line.column_of("FA1"), 0)
+	var circuit: Circuit = doc.circuit
+	_switch_all_on(circuit)
+	var sim: Simulator = Simulator.new(circuit)
+	sim.step()
+	var heater: Appliance = circuit.get_component("EB1") as Appliance
+	assert_true(heater.energized, "through both RCDs")
+	assert_true((circuit.get_component("XD1") as SocketOutlet).energized)
+	# An insulation fault under the 30 mA one: it alone trips, the selective one waits.
+	heater.frame_fault = true
+	sim.step()
+	assert_true((circuit.get_component("FB2") as ResidualCurrentDevice).tripped)
+	assert_false((circuit.get_component("FB1") as ResidualCurrentDevice).tripped, "selective: stays on")
+	assert_true((circuit.get_component("XD1") as SocketOutlet).energized, "the socket keeps its supply")
+	# Not selective, both trip.
+	heater.frame_fault = false
+	(circuit.get_component("FB1") as ResidualCurrentDevice).selective = false
+	# Everything reset (the breaker tripped on the fault current too).
+	for c: CircuitComponent in circuit.get_components():
+		if c is MotorBreaker:
+			(c as MotorBreaker).tripped = false
+		elif c is CircuitBreaker:
+			(c as CircuitBreaker).tripped = false
+	_switch_all_on(circuit)
+	sim.step()
+	assert_true(heater.energized)
+	heater.frame_fault = true
+	sim.step()
+	assert_true((circuit.get_component("FB1") as ResidualCurrentDevice).tripped, "not selective: trips too")
+
+
+func test_nested_groups_saved_moved_and_removed() -> void:
+	var doc: SchematicDocument = _nested()
+	var again: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	var line: SingleLine = again.single_line
+	assert_not_null(line.group_of("FB2"))
+	assert_eq(line.group_holding(line.group_of("FB2")), line.group_of("FB1"), "saved under it")
+	assert_eq(line.group_holding(line.feeder_of("FA1")), line.group_of("FB2"))
+	assert_true((again.circuit.get_component("FB1") as ResidualCurrentDevice).selective)
+	assert_eq(again.get_wire_count(), doc.get_wire_count())
+	line = doc.single_line
+	assert_false(line.move(doc, "FB1", 0, "FB2"), "never under one under it")
+	# Both circuits together out onto the busbars, in their order.
+	assert_true(line.move_many(doc, PackedStringArray(["FA2", "FA1"]), 1))
+	assert_eq(line.columns.size(), 3)
+	assert_eq((line.columns[1] as SingleLine.Feeder).device, "FA1")
+	assert_eq((line.columns[2] as SingleLine.Feeder).device, "FA2")
+	# The group moved with what is under it; the one taken away leaves its circuits.
+	assert_true(line.move_many(doc, PackedStringArray(["FA1"]), 0, "FB2"))
+	doc.remove_component(doc.circuit.get_component("FB2").id)
+	doc.update_single_line()
+	assert_eq(line.group_holding(line.feeder_of("FA1")), line.group_of("FB1"), "now under the 300 mA one")
+
+
+func test_rcd_types_and_the_30_ma_rule() -> void:
+	var rcd: ResidualCurrentDevice = _component({"type": "rcd", "rcd_type": "B", "selective": true}, "FB1") as ResidualCurrentDevice
+	assert_eq(rcd.type, "B")
+	assert_eq(rcd.type_text(), "B S")
+	for type: String in ["AC", "A", "F", "B", "B+"]:
+		var again: ResidualCurrentDevice = _component({"type": "rcd", "rcd_type": type}, "FB1") as ResidualCurrentDevice
+		assert_eq(again.type, type)
+	var doc: SchematicDocument = _nested()
+	var line: SingleLine = doc.single_line
+	assert_false(line.lacks_rcd(line.feeder_of("FA1"), doc.circuit), "under the 30 mA one")
+	assert_true(line.lacks_rcd(line.feeder_of("FA2"), doc.circuit), "the socket under 300 mA alone")
+	assert_almost_eq(line.residual_protection(line.feeder_of("FA2"), doc.circuit), 0.3, 1e-6)
+
+
+func test_several_selected_dragged_and_deleted() -> void:
+	var doc: SchematicDocument = _house()
+	var canvas: SingleLineCanvas = autofree(SingleLineCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas.size = Vector2(1600, 900)
+	var edits: Array[Callable] = []
+	canvas.edit_requested.connect(func(change: Callable) -> void: edits.append(change))
+	canvas._layout()
+	# A box round FA1 and the RCD selects both.
+	var fa1: float = canvas._circuit_entry("FA1")["v"]
+	var group: Dictionary = canvas._group_entry("FB1")
+	canvas._select_box(canvas.at(SingleLineCanvas.RCD_U - 10.0, fa1 - 20.0), canvas.at(SingleLineCanvas.BREAKER_U + 50.0, float(group["v0"]) + 20.0), false)
+	assert_eq(canvas.selection, PackedStringArray(["FB1", "FA1"]))
+	canvas._toggle("FA3")
+	assert_eq(canvas.selection.size(), 3, "Shift+click adds")
+	canvas._toggle("FA3")
+	assert_eq(canvas.selection.size(), 2, "and takes out")
+	# Dragged right of FA3: both go there, in order.
+	var fa3: float = canvas._circuit_entry("FA3")["v"]
+	canvas._move(canvas._moving_with("FA1"), canvas.at(SingleLineCanvas.BREAKER_U, fa3 + SingleLineCanvas.SPACING))
+	assert_eq(edits.size(), 1)
+	edits[0].call(doc)
+	assert_eq(SingleLine.device_of(doc.single_line.columns[0]), "FA3")
+	assert_eq(SingleLine.device_of(doc.single_line.columns[1]), "FA1")
+	assert_eq(SingleLine.device_of(doc.single_line.columns[2]), "FB1")
+	# Deleted in one edit.
+	canvas._layout()
+	canvas.selection = PackedStringArray(["FA1", "FA3"])
+	canvas.delete_selected()
+	assert_eq(edits.size(), 2)
+	edits[1].call(doc)
+	assert_null(doc.circuit.get_component("FA1"))
+	assert_null(doc.circuit.get_component("FA3"))
+	assert_null(doc.circuit.get_component("EB1"), "with what it fed")
+	assert_eq(doc.single_line.columns.size(), 1)
+
+
+func test_ghost_marks_where_it_goes() -> void:
+	var doc: SchematicDocument = _house()
+	var canvas: SingleLineCanvas = autofree(SingleLineCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas._layout()
+	var fa3: float = canvas._circuit_entry("FA3")["v"]
+	var point: Vector2 = canvas.at(SingleLineCanvas.BREAKER_U, fa3 + SingleLineCanvas.SPACING)
+	var template: Dictionary = {"type": "breaker", "characteristic": "B", "rated_current": 16.0}
+	var target: Dictionary = canvas.drop_target(point, template)
+	assert_eq(target["index"], 3, "after the last column")
+	canvas.begin_place(template)
+	var preview: Dictionary = canvas._preview(target, template, PackedStringArray())
+	var ghost: String = canvas._ghost.designation
+	assert_eq(preview["shown"], PackedStringArray([ghost]), "the breaker to be drawn see-through")
+	var ghost_v: float = SingleLineCanvas._attach_v(preview["laid"], ghost)
+	assert_almost_eq(ghost_v, fa3 + SingleLineCanvas.SPACING, 0.01, "where the new circuit will be")
+	doc.single_line.add(doc, _component(template, ghost), target["index"], target["into"])
+	canvas._layout()
+	assert_almost_eq(float(canvas._circuit_entry(ghost)["v"]), ghost_v, 0.01)
+	canvas.end_place()
+	# Under the RCD's busbar: into its group, an RCD too.
+	var group: Dictionary = canvas._group_entry("FB1")
+	var into: Dictionary = canvas.drop_target(canvas.at(SingleLineCanvas.GROUP_BREAKER_U + 10.0, float(group["v0"]) + SingleLineCanvas.SPACING * 0.4), {"type": "rcd", "poles": 2})
+	assert_eq(into["into"], "FB1")
+	assert_eq(into["index"], 1)
+	assert_true(canvas.drop_target(canvas.at(SingleLineCanvas.GROUP_BREAKER_U + 10.0, float(group["v0"])), {"type": "rcd", "poles": 4}).is_empty(), "no four-pole RCD under a two-pole one")
+
+
+func test_anything_nests_under_a_breaker() -> void:
+	var doc: SchematicDocument = _house()
+	var line: SingleLine = doc.single_line
+	# A main B32 breaker with circuits under it: it heads a group once they are.
+	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 32.0}, "FA5"), 0))
+	assert_false(line.can_hold("FA1"), "a circuit feeding something holds nothing")
+	assert_true(line.can_hold("FA5"))
+	assert_true(line.move_many(doc, PackedStringArray(["FA3", "FB1"]), 0, "FA5"))
+	assert_not_null(line.group_of("FA5"))
+	assert_eq(line.group_holding(line.group_of("FB1")), line.group_of("FA5"))
+	assert_eq(line.feeder_of("FA3").phase, line.group_of("FA5").phase, "on the phase of the one-pole breaker")
+	assert_false(line.add(doc, _component({"type": "breaker", "poles": 3}, "FA6"), 0, "FA5"), "no three poles under one")
+	var circuit: Circuit = doc.circuit
+	_switch_all_on(circuit)
+	var sim: Simulator = Simulator.new(circuit)
+	sim.step()
+	assert_true((circuit.get_component("XD1") as SocketOutlet).energized, "through the breaker and the RCD")
+	(circuit.get_component("FA5") as CircuitBreaker).switched_on = false
+	sim.step()
+	assert_false((circuit.get_component("XD1") as SocketOutlet).energized, "the breaker over it off")
+	assert_true((circuit.get_component("EA1") as Luminaire).energized, "the light not under it")
+	# Everything out again: a circuit once more.
+	assert_true(line.move_many(doc, PackedStringArray(["FA3", "FB1"]), 0))
+	assert_null(line.group_of("FA5"))
+	assert_not_null(line.feeder_of("FA5"))
+	# Dropped below its breaker on the diagram.
+	var canvas: SingleLineCanvas = autofree(SingleLineCanvas.new())
+	canvas.document = doc
+	canvas._layout()
+	var fa5: float = canvas._circuit_entry("FA5")["v"]
+	var target: Dictionary = canvas.drop_target(canvas.at(SingleLineCanvas.BREAKER_U + 90.0, fa5), {"type": "breaker"})
+	assert_eq(target["into"], "FA5")
+	assert_eq(target["index"], 0)

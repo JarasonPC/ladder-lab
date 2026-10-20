@@ -1071,13 +1071,17 @@ func _time_to_heat_trip() -> float:
 
 
 ## Breakers whose magnetic release the present currents reach trip at once.
-## Returns true if one did.
+## A selective residual current device waits a round: where another part
+## tripping clears the fault, it stays on. Returns true if one did.
 func _instant_trips(result: StepResult) -> bool:
 	var any: bool = false
+	var selective: Array[ResidualCurrentDevice] = []
 	for device: CircuitComponent in _device_paths:
 		if device.trips_instantly(_device_currents(device)):
 			_log(result, "%s tripped (short-circuit release)", [device.designation])
 			any = true
+		elif device is ResidualCurrentDevice and (device as ResidualCurrentDevice).selective:
+			selective.append(device as ResidualCurrentDevice)
 		elif device is ResidualCurrentDevice:
 			var residual: float = _residual_current(device)
 			if (device as ResidualCurrentDevice).residual_trips(residual):
@@ -1089,6 +1093,13 @@ func _instant_trips(result: StepResult) -> bool:
 					_log(result, "%s tripped (arc fault)", [device.designation])
 					any = true
 					break
+	if any:
+		return true
+	for rcd: ResidualCurrentDevice in selective:
+		var residual: float = _residual_current(rcd)
+		if rcd.residual_trips(residual):
+			_log(result, "%s tripped (residual current %d mA)", [rcd.designation, roundi(residual * 1000.0)])
+			any = true
 	return any
 
 
@@ -1164,10 +1175,14 @@ func _evaluate_protected(result: StepResult) -> PackedByteArray:
 				if c.trip_path(_switch_paths[i]):
 					tripped = true
 					_log(result, c.trip_message(), [c.designation])
-			for rcd: CircuitComponent in rcd_poles:
-				if (rcd as ResidualCurrentDevice).residual_short(rcd_poles[rcd]):
-					tripped = true
-					_log(result, "%s tripped (fault current to PE)", [rcd.designation])
+			# A selective one waits for the others.
+			for waits: bool in [false, true]:
+				if waits and tripped:
+					break
+				for rcd: CircuitComponent in rcd_poles:
+					if (rcd as ResidualCurrentDevice).selective == waits and (rcd as ResidualCurrentDevice).residual_short(rcd_poles[rcd]):
+						tripped = true
+						_log(result, "%s tripped (fault current to PE)", [rcd.designation])
 		if not tripped:
 			break
 		desired = _evaluate()

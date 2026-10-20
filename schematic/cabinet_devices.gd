@@ -122,7 +122,7 @@ static func describe(doc: SchematicDocument, designation: String) -> Dictionary:
 				if c is ResidualCurrentDevice:
 					var rcd: ResidualCurrentDevice = c as ResidualCurrentDevice
 					var ma: String = "%dmA" % roundi(rcd.residual_rating * 1000.0)
-					d["test"] = ma + " " + rcd.type if rcd.overcurrent else rcd.type
+					d["test"] = ma + " " + rcd.type_text() if rcd.overcurrent else rcd.type_text()
 					if not rcd.overcurrent:
 						d["rating"] = ma
 				elif c is ArcFaultDevice:

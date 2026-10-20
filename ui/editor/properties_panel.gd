@@ -193,7 +193,8 @@ func show_component(component: CircuitComponent) -> void:
 				residuals.append(r)
 				residual_titles.append("%d mA" % roundi(r * 1000.0))
 			_choice(tr("Rated residual current IΔn"), "residual", residuals, residual_titles)
-			_choice(tr("Type"), "rcd_type", Array(ResidualCurrentDevice.TYPES), [tr("AC (AC residual currents)"), tr("A (also pulsating DC)")])
+			_choice(tr("Type"), "rcd_type", Array(ResidualCurrentDevice.TYPES), [tr("AC (AC residual currents)"), tr("A (also pulsating DC)"), tr("F (also mixed frequencies: a single-phase inverter)"), tr("B (also smooth DC: three-phase inverters, chargers)"), tr("B+ (B up to 20 kHz)")])
+			_check(tr("Selective, time-delayed (S)"), "selective")
 			_check(tr("With overcurrent release (RCBO)"), "overcurrent")
 			if bool(_data.get("overcurrent", false)):
 				_choice(tr("Characteristic"), "characteristic", ["B", "C", "D"], [tr("B (magnetic release 3-5x In)"), tr("C (magnetic release 5-10x In)"), tr("D (magnetic release 10-20x In)")])

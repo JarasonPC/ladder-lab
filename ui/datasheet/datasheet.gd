@@ -564,7 +564,7 @@ func _rcd(rcd: ResidualCurrentDevice) -> void:
 	_row(names[names.size() - 1], tr("Neutral, load side"), tr("Joined to %s while it is on.") % names[names.size() - 2])
 	_data(tr("Rated residual current IΔn"), "%d mA" % ma)
 	_data(tr("Trips from"), "%d mA" % roundi(rcd.residual_rating * ResidualCurrentDevice.TRIP_SHARE * 1000.0))
-	_data(tr("Type"), rcd.type)
+	_data(tr("Type"), rcd.type_text())
 	_data(tr("Rated current In"), "%s A" % _num(rcd.rated_current))
 	if rcd.overcurrent:
 		_data(tr("Characteristic"), TripCurve.LETTERS[rcd.characteristic])

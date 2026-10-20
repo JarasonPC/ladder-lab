@@ -41,7 +41,6 @@ What changed in each LadderLab version. Version numbers follow the rules in
   contacts further off have a fixed arm up to the lever, and every lever rests off
 - Socket outlets on the floor plan are drawn as on Czech installation drawings: a stem from
   the wall to the back of a half circle open to the room, a double socket two of them
-
 - Floor plan: the palette draws the parts as the plan does; a selected room shows its
   dimensions, and a double click on one (or Enter with a wall selected) types that wall's
   length, the room dialog a rectangle's width and height; a wall moved takes the room sharing
@@ -54,6 +53,17 @@ What changed in each LadderLab version. Version numbers follow the rules in
   apart from the symbols; the consumer unit is a box with a second one inside it; the room
   environments are explained in the room dialog and under the legend of the rooms
 - Ctrl+Z and Ctrl+Y undo and redo on the floor plan, the workspace and the single-line diagram
+- Single-line diagram: anything nests under anything in the consumer unit: a 30 mA RCD under a
+  selective 300 mA one, breakers under a breaker, an RCBO or AFDD with circuits under it,
+  to any depth; a device is put under another below its busbar, or below the breaker of a
+  circuit that feeds nothing
+- Single-line diagram: Shift or Ctrl+click and a box drawn from an empty place select several
+  devices and parts, dragged or deleted together; while placing or dragging, the diagram makes
+  room and shows a see-through ghost of what goes there
+- Single-line diagram: a circuit without an RCD of 30 mA or less over it is marked, as
+  ČSN 33 2000-4-41 asks for one on everything an ordinary person can reach
+- Residual current devices of types F, B and B+ beside AC and A, and selective ones (S): a
+  selective RCD lets the one nearest the fault trip alone
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
