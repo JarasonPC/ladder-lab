@@ -108,10 +108,10 @@ var _right: float = 0.0
 # Every screw of the devices on the rails, wired or not: centre and radius
 # (mm) as x, y, z.
 var _screws: Array[Vector3] = []
-## Strip terminals ("X2:5", strip and label) that take more wires than
-## they have blocks (one wire each) -> how many more: laid out again with
-## that many blocks more beside them ([method CabinetLayout.build]).
-var doubled: Dictionary[String, int] = {}
+## Twin ferrules: where two wires go into one strip terminal entry together
+## (see [method _tree]) {"at" (mm, the entry), "up" (the wires come from
+## above), "width" (of each wire)}.
+var twins: Array[Dictionary] = []
 # Wires come out from behind each overload relay (by its position) so far.
 var _behind_taken: Dictionary[Vector2, int] = {}
 
@@ -552,10 +552,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 						if net.has(key) and not nets.has(net[key]):
 							nets[net[key]] = true
 							# One wire into each block of a strip terminal.
-							result.append({"key": key, "at": at, "duct": rail, "up": true, "bridge": p * 1000 + run, "room": 1, "strip": "%s:%s" % [place["designation"], terminals[i]["label"]]})
-							if terminals[i].get("span", 1) == 0:
-								# A block more of the terminal before: its top alone.
-								continue
+							result.append({"key": key, "at": at, "duct": rail, "up": true, "bridge": p * 1000 + run, "room": 1, "strip": true})
 							var owner: CircuitComponent = _circuit.get_terminal_owner(key)
 							if owner is PowerSupply:
 								# The supply comes in on the field side.
@@ -663,39 +660,32 @@ func _behind_height(relay: Rect2) -> float:
 ## in any terminal's clamp (one in a strip terminal's), so nets are looped
 ## from terminal to terminal where they would branch; terminals a plug-in
 ## bridge joins take no wire between them. A strip terminal takes a second
-## wire only where nothing else can (see [member doubled]). [param single]: the first point gets one wire only (a core
+## wire only where nothing else can, both in one twin ferrule (the point
+## gets "twin"). [param single]: the first point gets one wire only (a core
 ## of an incoming cable goes to one terminal).
 func _tree(points: Array, single: bool = false) -> Array[Vector2i]:
 	var tree: Dictionary = _grow(points, single, false)
-	if not tree["doubled"].is_empty():
+	if not tree["twins"].is_empty():
 		# Strip terminals last: the device terminals joined first, the strip
 		# terminals at the ends of what joins them, where a second wire
 		# into a strip terminal can be done without.
 		var ends: Dictionary = _grow(points, single, true)
-		if _count(ends["doubled"]) < _count(tree["doubled"]):
+		if ends["twins"].size() < tree["twins"].size():
 			tree = ends
-	for key: String in tree["doubled"]:
-		doubled[key] = doubled.get(key, 0) + tree["doubled"][key]
+	for i: int in tree["twins"]:
+		points[i]["twin"] = true
 	return tree["pairs"]
 
 
-## Sum of the values of [param counts].
-static func _count(counts: Dictionary) -> int:
-	var sum: int = 0
-	for key: Variant in counts:
-		sum += counts[key]
-	return sum
-
-
-## The tree of [method _tree]: {"pairs", "doubled" (strip terminal -> wires
-## more than it has entries for, see [member doubled])}; [param strips_last]:
+## The tree of [method _tree]: {"pairs", "twins" (indices of the strip
+## terminals taking a second wire)}; [param strips_last]:
 ## strip terminals joined only once every other terminal is (bridged ones
 ## any time).
 func _grow(points: Array, single: bool, strips_last: bool) -> Dictionary:
 	var pairs: Array[Vector2i] = []
-	var more: Dictionary[String, int] = {}
+	var twins: Array[int] = []
 	if points.size() < 2:
-		return {"pairs": pairs, "doubled": more}
+		return {"pairs": pairs, "twins": twins}
 	var room: Array[int] = []
 	for i: int in points.size():
 		# Less a wire out to another switchboard from it.
@@ -732,8 +722,7 @@ func _grow(points: Array, single: bool, strips_last: bool) -> Dictionary:
 					pair = Vector2i(j, i)
 		if pair.x < 0:
 			# No terminal joined has room left in its clamp: the nearest
-			# strip terminal takes one more wire, in a block more beside it
-			# (see [member doubled]).
+			# strip terminal takes one more wire, in a twin ferrule.
 			for j: int in points.size():
 				if not joined[j] or (room[j] <= 0 and not points[j].has("strip")):
 					continue
@@ -748,14 +737,14 @@ func _grow(points: Array, single: bool, strips_last: bool) -> Dictionary:
 				break
 			for end: int in [pair.x, pair.y]:
 				if room[end] <= 0:
-					more[points[end]["strip"]] = more.get(points[end]["strip"], 0) + 1
+					twins.append(end)
 					room[end] += 1
 		joined[pair.y] = true
 		if not _bridged(points[pair.x], points[pair.y]):
 			room[pair.x] -= 1
 			room[pair.y] -= 1
 		pairs.append(pair)
-	return {"pairs": pairs, "doubled": more}
+	return {"pairs": pairs, "twins": twins}
 
 
 ## Which neighbouring terminals of a strip ([param terminals] as in
@@ -811,7 +800,7 @@ func _route(edges: Array[Dictionary]) -> void:
 		for side: String in ["a", "b"]:
 			var point: Dictionary = edges[e][side]
 			shared[point["id"]] = shared.get(point["id"], 0) + 1
-			ends.append({"edge": e, "side": side, "point": point, "sleeve": CabinetParts.marker_length(edges[e]["mark"]) if not str(edges[e]["mark"]).is_empty() else 0.0})
+			ends.append({"edge": e, "side": side, "point": point, "width": edges[e]["width"], "sleeve": CabinetParts.marker_length(edges[e]["mark"]) if not str(edges[e]["mark"]).is_empty() else 0.0})
 	var used: Dictionary[int, int] = {}
 	for end: Dictionary in ends:
 		var id: int = end["point"]["id"]
@@ -819,8 +808,15 @@ func _route(edges: Array[Dictionary]) -> void:
 		used[id] = index + 1
 		end["index"] = index
 		end["shared"] = shared[id]
-		end["x"] = end["point"]["at"].x + (index - (shared[id] - 1) * 0.5) * SHARED
+		# Two wires in one twin ferrule lie against each other.
+		var twin: bool = end["point"].get("twin", false)
+		end["x"] = end["point"]["at"].x + (index - (shared[id] - 1) * 0.5) * (end["width"] if twin else SHARED)
 		end["start"] = Vector2(end["x"], end["point"]["at"].y)
+		if twin:
+			# Out of the twin ferrule's collar (drawn over them).
+			end["start"].y += CabinetParts.TWIN_IN * (-1.0 if end["point"]["up"] else 1.0)
+		if twin and index == 0:
+			twins.append({"at": end["point"]["at"], "up": end["point"]["up"], "width": end["width"]})
 		end["via"] = PackedVector2Array()
 		if end["point"].has("lead"):
 			# Out from a distribution block to its left, then on to the duct.
@@ -935,7 +931,7 @@ func _fan(ends: Array[Dictionary], shared: Dictionary[int, int]) -> void:
 	for end: Dictionary in ends:
 		var point: Dictionary = end["point"]
 		var count: int = shared[point["id"]]
-		if count < 2 or not end["via"].is_empty() or point.get("external", false):
+		if count < 2 or not end["via"].is_empty() or point.get("external", false) or point.get("twin", false):
 			continue
 		if not steps.has(point["id"]):
 			steps[point["id"]] = _fan_step(point, count, ends)
@@ -1103,9 +1099,10 @@ func _fan_step(point: Dictionary, count: int, ends: Array[Dictionary]) -> float:
 ## [method _route]): none where it goes all the way into a device
 ## terminal's clamp, a little going into a strip terminal's opening; -1
 ## where the wire comes out from behind an overload relay at its side (no
-## ferrule).
+## ferrule) and where it goes into a twin ferrule (drawn on its own, see
+## [member twins]).
 static func _pin(end: Dictionary) -> float:
-	if end["point"].get("behind", false):
+	if end["point"].get("behind", false) or end["point"].get("twin", false):
 		return -1.0
 	return 0.0 if end["point"].get("clamp", false) else CabinetParts.FERRULE
 
