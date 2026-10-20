@@ -69,7 +69,9 @@ const FORMAT: String = "ladder-lab"
 ## "positions": "I-0-II" and "operated_in" I or II; missing: 0-I).
 ## 33: the door of a switchboard ("door": columns and items like a control
 ## station's; missing before: an empty door).
-const VERSION: int = 33
+## 34: proximity sensors ("proximity": sensing, output, function) and
+## transmitters ("transmitter": quantity, range, value).
+const VERSION: int = 34
 
 
 ## PLC program files (see [method save_plc_program]).

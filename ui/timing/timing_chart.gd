@@ -88,6 +88,12 @@ func set_document(doc: SchematicDocument, p_trace: TraceRecorder) -> void:
 			_rows.append({"label": c.designation, "band": "", "line": c.designation + "/shaft", "step": c.designation})
 		elif c is Lamp or c is Motor:
 			_rows.append({"label": c.designation, "band": "", "line": "", "step": c.designation})
+		elif c is ProximitySensor:
+			# Each output on as a step line, named by its terminal when two.
+			var sensor: ProximitySensor = c as ProximitySensor
+			for k: int in sensor.output_count():
+				var label: String = c.designation if sensor.output_count() == 1 else "%s %s" % [c.designation, c.get_terminal_names()[2 + k]]
+				_rows.append({"label": label, "band": "", "line": "", "step": "%s/out%d" % [c.designation, k + 1]})
 		elif c is Plc:
 			# The outputs that are wired, as relays.
 			var keys: PackedStringArray = c.get_terminal_keys()

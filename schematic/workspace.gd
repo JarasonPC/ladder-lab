@@ -56,9 +56,15 @@ static func field_kind(c: CircuitComponent) -> Field:
 		return Field.MOTOR
 	if c is LimitSwitch:
 		return Field.LIMIT_SWITCH
-	if c is TemperatureSensor:
+	if c is AnalogSensor or c is ProximitySensor:
 		return Field.SENSOR
 	return Field.NONE
+
+
+## Whether [param c] can be operated by a mechanical link: a limit switch or
+## a proximity sensor.
+static func is_stop(c: CircuitComponent) -> bool:
+	return c is LimitSwitch or c is ProximitySensor
 
 
 ## Designations of the parts in the field, in circuit order (each once).
@@ -193,7 +199,8 @@ static func unplaced(doc: SchematicDocument) -> Array[Dictionary]:
 
 ## The machine parts moved by motors (the mechanical links of the groups,
 ## see [method SchematicDocument.set_group_link]) for a simulation of
-## [param doc]: only a member motor drives, only member limit switches count.
+## [param doc]: only a member motor drives, only member limit switches and
+## proximity sensors count.
 static func travels(doc: SchematicDocument) -> Array[Travel]:
 	var result: Array[Travel] = []
 	for group: WorkspaceGroup in doc.groups:
@@ -204,8 +211,10 @@ static func travels(doc: SchematicDocument) -> Array[Travel]:
 			continue
 		var travel: Travel = Travel.new(group.name, motor, group.travel_time, group.start)
 		for designation: String in group.stops:
-			var switch: LatchingSwitch = doc.circuit.get_operator(designation) as LatchingSwitch
-			if group.members.has(designation) and switch is LimitSwitch:
+			var switch: CircuitComponent = doc.circuit.get_operator(designation)
+			if switch == null:
+				switch = field_component(doc.circuit, designation)
+			if group.members.has(designation) and is_stop(switch):
 				travel.add_switch(switch, group.stops[designation])
 		result.append(travel)
 	return result

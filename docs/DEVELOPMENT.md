@@ -78,7 +78,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; fuses,
   breakers, multi-pole devices, motors and sensors upright, other two-terminal symbols lying; symbols too wide
   for a tile draw a simpler version there, SchematicSymbol.preview_rect: the inverter a box saying
-  "VFD 3~ f", PLCs a box saying "PLC relay" / "PLC CPU", the temperature sensor a thermometer → U, 3~ motors a circle with "M 3~" and beside it
+  "VFD 3~ f", PLCs a box saying "PLC relay" / "PLC CPU", the temperature sensor a thermometer → U,
+  a transmitter its circle → U, the proximity sensor its rhombus working an NO contact, 3~ motors a circle with "M 3~" and beside it
   Y over Δ (star/delta) or the number of speeds over "Dahl." / "speed"; the 1~ motor has its
   "M"; tiles show the rating a new part gets); the timing panel is resized by its top edge and the grip before the
   event log (at most MAX_HEIGHT_SHARE of the height the other bars leave, the log never wider
@@ -214,7 +215,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   title, members, position while empty; SchematicDocument.groups); names unique over all places
   (next_place_name, rename_place), new places at a free spot right of the others (free_spot)
   or where the menu was opened. Parts in the field (Workspace.field_devices: motors, limit
-  switches, temperature sensors; VFDs and PLCs sit in switchboards) stand on the workspace by
+  switches, sensors; VFDs and PLCs sit in switchboards) stand on the workspace by
   themselves: where they were put (SchematicDocument.field_positions), else in a row under
   everything (Workspace.field_positions); a group's frame is round its members
   (Workspace.group_rect), dragging it moves them (move_place), a part dropped into a frame
@@ -301,7 +302,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   moves its part, e.g. a gate, from 0 to 1 in travel_time at full speed (the rated speed of its
   fastest speed step), forwards (clockwise;
   a plain Motor while it has power) towards 1; it starts at start; member limit switches
-  (stops: designation -> 0-1) are operated at an end while the part is there, between the ends
+  and proximity sensors (stops: designation -> 0-1) are operated at an end while the part is there, between the ends
   within Travel.BAND (both blocks of a switch, through its actuator); the part stops at the
   ends (no stall modelled). Set in the group's menu, "Mechanical link…"
   (SchematicDocument.set_group_link, undoable; saved with the group). Workspace.travels builds
@@ -618,7 +619,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 
 ## Conventions (Czech practice: ČSN EN 60617 / 81346 / 60947 / 60445)
 
-- Device designations: A = PLC, BT = temperature sensor, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
+- Device designations: A = PLC, BT = temperature sensor, BG = proximity sensor, BP / BL / BF =
+  pressure / level / flow transmitter, TA = frequency inverter, KM = contactor, KA = auxiliary (control) relay, KT = time relay, SB = push
   button, RB = rotary switch (also the rotary cam switch, CamSwitch: a knob turned by hand,
   snap action, starts at 0, its position simulation state; 0-I poles 1-2, 3-4 … closed in I,
   drawn as NO contacts; I-0-II poles I side 1, 3 … / II side 1', 3' … / common 2, 4 … below
@@ -700,7 +702,29 @@ Architecture and conventions of the code base. Read this before changing the cod
   (ThreePhaseMotor.shaft, simulation state) runs down in coast_time when switched off, in brake_time
   with DC braking; braking force follows the rotor field (rotor_flux, decays with ROTOR_TIME_CONSTANT
   after the AC cut), so DC applied at once brakes best; a star/delta motor running shows a large Y or Δ under "M3~"
-- Temperature sensor (TemperatureSensor, "BT1", a Load on L+-M rated 24 V DC, output U): puts
+- Analog sensors (AnalogSensor, a Load with a 0-10 V output: range_min..range_max of what it
+  measures, AnalogSensor.measured / set_measured / unit; the simulator puts output_volts on the
+  net of output_terminal() while it has its supply; a click while simulating opens a slider,
+  SchematicView.set_measured; geometry, field kind SENSOR and parts list shared):
+  TemperatureSensor and Transmitter (pressure / level / flow, "BP1" / "BL1" / "BF1" by
+  Transmitter.LETTERS, Transmitter.Quantity with its unit, default range and value; terminals
+  1 3 2 as on its M12 plug, core colours BN BU WH drawn beside the leads, rated "1530dc"
+  15-30 V DC; TransmitterSymbol: the temperature sensor's box with the instrument circle
+  "PT" / "LT" / "FT" (ČSN EN 62424) and an arrow to U; saved as "transmitter": quantity,
+  range_min, range_max, value)
+- Proximity sensor (ProximitySensor, "BG1", ČSN EN 81346-2 BG; a Load on 1-3 rated "1030dc"
+  10-30 V DC): sensing inductive / capacitive / optical (diffuse) / magnetic, output PNP (a switch
+  path from 1 to each output) or NPN (from 3), function NO / NC / antivalent; terminals as
+  ČSN EN 60947-5-2: 1 BN L+, 3 BU M, 4 BK output, 2 WH the antivalent version's NC output
+  (core_colour); detecting (simulation state: a click, or a mechanical link as a stop like a
+  limit switch, Workspace.is_stop, Travel.is_on) switches each output through an Armature of
+  SWITCH_TIME while it works (aim_outputs; the simulator settles them like coils, in its
+  signature; trace "BG1/out1" rows in the timing chart). ProximitySensorSymbol: a box with the
+  proximity rhombus (filled while detecting) and its sensing mark ("Fe", capacitor, light
+  arrows, magnet), "PNP" / "NPN" under it, an NO / NC contact per output under its lead on a
+  dashed link (drawn at rest without supply), core colours beside the leads; outputs on top
+  SymbolGeometry.SENSOR_OUTPUT_CELL apart; saved as "proximity": sensing, output, function
+- Temperature sensor (TemperatureSensor, "BT1", an AnalogSensor on L+-M rated 24 V DC, output U): puts
   0-10 V on U over its range (range_min..range_max °C, saved with the start temperature);
   drawn as a transmitter (box holding a resistor varying with θ, IEC 60617 S00561, as a Pt100,
   and U; TemperatureSensorSymbol; in the palette a thermometer → U), its range,
