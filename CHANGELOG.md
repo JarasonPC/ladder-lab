@@ -42,6 +42,19 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Socket outlets on the floor plan are drawn as on Czech installation drawings: a stem from
   the wall to the back of a half circle open to the room, a double socket two of them
 
+- Floor plan: the palette draws the parts as the plan does; a selected room shows its
+  dimensions, and a double click on one (or Enter with a wall selected) types that wall's
+  length, the room dialog a rectangle's width and height; a wall moved takes the room sharing
+  it and the parts and doors on it along
+- Rooms of any outline: two rooms touching along a wall are joined into one (Join), an
+  L-shaped room is offered ready-made; every wall is dragged and its length typed
+- Doors: a double click sets a door's width, single or double, the end of its hinges and the
+  side it opens to (F and Shift+F swap them on a selected door)
+- A room's number or name and its area are dragged where they suit; walls are drawn grey,
+  apart from the symbols; the consumer unit is a box with a second one inside it; the room
+  environments are explained in the room dialog and under the legend of the rooms
+- Ctrl+Z and Ctrl+Y undo and redo on the floor plan, the workspace and the single-line diagram
+
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
   side by side

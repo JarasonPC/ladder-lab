@@ -56,6 +56,8 @@ var _length_wall: Vector2i = Vector2i(-1, -1)
 var _number_field: LineEdit
 var _environment_field: OptionButton
 var _lux_field: LineEdit
+## What the environment chosen means.
+var _environment_note: Label
 var _presets: MenuButton
 var _delete_button: Button
 var _fit_button: Button
@@ -210,6 +212,13 @@ func _ready() -> void:
 		_room_fields.add_child(field)
 		if field is LineEdit:
 			_rename_dialog.register_text_enter(field as LineEdit)
+	_environment_note = Label.new()
+	_environment_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_environment_note.theme_type_variation = "MutedLabel"
+	_environment_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_environment_note.custom_minimum_size.x = 380.0
+	dialog_column.add_child(_environment_note)
+	_environment_field.item_selected.connect(func(index: int) -> void: _environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[index]))
 	_rename_dialog.confirmed.connect(_apply_rename)
 	add_child(_rename_dialog)
 	_length_dialog = ConfirmationDialog.new()
@@ -591,6 +600,8 @@ func _ask_rename(index: int) -> void:
 	_number_field.text = plan.rooms[index].number
 	_number_field.placeholder_text = str(FloorPlan.FIRST_NUMBER + index)
 	_environment_field.select(maxi(FloorPlan.ENVIRONMENTS.find(plan.room_environment(index)), 0))
+	_environment_note.visible = _room_fields.visible
+	_environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[_environment_field.selected])
 	_lux_field.text = plan.rooms[index].lux
 	_lux_field.placeholder_text = plan.room_lux(index)
 	_rename_dialog.reset_size()

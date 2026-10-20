@@ -45,6 +45,13 @@ const FIRST_NUMBER: int = 101
 ## Environments (prostředí) after ČSN 33 2000-5-51 offered for a room: normal,
 ## a bathroom (ČSN 33 2000-7-701), outdoors, an attic.
 const ENVIRONMENTS: PackedStringArray = ["N", "ČSN 33 2000-7-701", "AB8, AD4", "AB7"]
+## What each of [constant ENVIRONMENTS] means (English source text).
+const ENVIRONMENT_NOTES: PackedStringArray = [
+	"Normal: a dry room heated as usual, no water, dust or other influence beyond the normal range",
+	"A room with a bath or shower: zones 0, 1 and 2 around it, parts in them IPX4 and more, every circuit behind a 30 mA RCD",
+	"Outdoors: open air from -50 to +40 °C (AB8), water splashing from any direction (AD4), parts IP44 and more",
+	"Sheltered but not heated, such as an attic or a garage: from -25 to +55 °C (AB7)",
+]
 ## Illuminance (lx) of a room by its English source name after ČSN EN 12464-1,
 ## when none is set.
 const LUX: Dictionary[String, String] = {"Living room": "150, 300/500", "Bedroom": "150", "Kitchen": "300/500", "Bathroom": "200", "WC": "100", "Hall": "100", "Room": "150"}

@@ -147,7 +147,8 @@ func _room_legend_rect() -> Rect2:
 	var width: float = 0.0
 	for w: float in ROOM_COLUMNS:
 		width += w
-	return Rect2(Vector2(rooms_area.end.x + 1.2, rooms_area.position.y + 0.6), Vector2(width, ROOM_ROW * (plan().rooms.size() + 1)))
+	# The rows and room under them for what the environments mean.
+	return Rect2(Vector2(rooms_area.end.x + 1.2, rooms_area.position.y + 0.6), Vector2(width, ROOM_ROW * (plan().rooms.size() + 4)))
 
 
 ## Shows everything, as large as fits.
@@ -965,7 +966,7 @@ func _draw_room_legend(s: float, font: Font) -> void:
 	draw_string(font, top_left + Vector2(0, -0.2 * s), tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE + 2, color)
 	var heads: PackedStringArray = PackedStringArray([tr("Number"), tr("Purpose of the room"), tr("Environment (ČSN 33 2000-5-51)"), tr("Illuminance (lx)")])
 	var rows: int = plan().rooms.size() + 1
-	draw_rect(Rect2(top_left, rect.size * s), color, false, 1.0)
+	draw_rect(Rect2(top_left, Vector2(rect.size.x, rows * ROOM_ROW) * s), color, false, 1.0)
 	for row: int in range(1, rows):
 		var y: float = top_left.y + row * ROOM_ROW * s
 		draw_line(Vector2(top_left.x, y), Vector2(top_left.x + rect.size.x * s, y), color, 1.0)
@@ -980,6 +981,20 @@ func _draw_room_legend(s: float, font: Font) -> void:
 			var values: PackedStringArray = PackedStringArray([plan().room_number(i), tr(plan().rooms[i].name), plan().room_environment(i), plan().room_lux(i)])
 			draw_string(font, Vector2(x + 4.0, top_left.y + (i + 1.7) * ROOM_ROW * s), values[column], HORIZONTAL_ALIGNMENT_LEFT, width, text_size, SchematicTheme.TEXT)
 		x += ROOM_COLUMNS[column] * s
+	# What the environments used mean, under the legend.
+	var used: PackedStringArray = PackedStringArray()
+	for i: int in plan().rooms.size():
+		var environment: String = plan().room_environment(i)
+		if not used.has(environment):
+			used.append(environment)
+	var y: float = top_left.y + (rows + 0.8) * ROOM_ROW * s
+	for environment: String in used:
+		var index: int = FloorPlan.ENVIRONMENTS.find(environment)
+		if index < 0:
+			continue
+		var note: String = "%s – %s" % [environment, tr(FloorPlan.ENVIRONMENT_NOTES[index])]
+		draw_multiline_string(font, Vector2(top_left.x, y), note, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x * s, text_size - 1, -1, SchematicTheme.TEXT)
+		y += (text_size + 2) * maxf(1.0, ceilf(font.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size - 1).x / (rect.size.x * s)))
 
 
 func _draw_cables(s: float, font: Font) -> void:

@@ -318,7 +318,28 @@ Architecture and conventions of the code base. Read this before changing the cod
   2000-5-51 (room_environment: set, else N, a Bathroom ČSN 33 2000-7-701; ENVIRONMENTS
   offered), illuminance (room_lux: set, else LUX by its name); the number in the room, and
   beside the plan the legend of the rooms (_draw_room_legend, ROOM_COLUMNS; in paper_area and
-  fit); the room dialog (double click) asks them too
+  fit); the room dialog (double click) asks them too, each environment offered with what
+  it means (FloorPlan.ENVIRONMENT_NOTES), the ones used explained under the legend
+- Floor plan rooms are outlines (FloorPlan.Room.points, clockwise as drawn, every wall across
+  or up and down; rect is the rectangle round it, set makes a rectangle; contains, area,
+  wall(k), inward(k), corner; saved as "points" beside "rect" when not a rectangle): wall_near,
+  room_at and move_room work on them; set_edge(index, k, at) moves wall k (snapped, kept by
+  _clamp_edge: the walls beside it MIN_WALL long, a rectangle no smaller than MIN_ROOM), a
+  wall of another room on the same line along it moves along and the parts and doors on it
+  with it (set_wall: a rectangle's side 0 left .. 3 bottom, side_wall); set_wall_length (its
+  start stays, the next wall moves); resize_room; join_rooms (union_outline: the cells of
+  the corners' grid inside either, their border traced into one loop; refused for pieces
+  apart, touching at a corner or with a hole); preset_room ("l": an L cut out of a preset).
+  FloorPlanCanvas: walls in wall_color (grey), corners filled (_draw_walls); edge_at gives
+  (room, wall); Tool.JOIN clicks two rooms; the selected room's dimensions (_dimension_walls:
+  a rectangle's top and left, every wall of another outline; _dimension_line outside it),
+  double-clicked or Enter on a selected wall: length_requested -> FloorPlanView's length
+  dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.
+  Doors: hinge_end, opens_back, double (two leaves of half the width from both ends); a
+  double click: door_requested -> FloorPlanView's door dialog; F / Shift+F on a selected door.
+  The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
+  two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
+  undo and redo where the editor is not active (floor plan, workspace, single-line diagram)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
