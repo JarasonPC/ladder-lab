@@ -532,6 +532,9 @@ msgstr "Soubor"
 msgid "View"
 msgstr "Zobrazení"
 
+msgid "Settings"
+msgstr "Nastavení"
+
 msgid "Edit"
 msgstr "Úpravy"
 
@@ -666,12 +669,6 @@ msgstr "Mřížka při úpravách"
 
 msgid "Wiring"
 msgstr "Zapojování"
-
-msgid "Wire facing terminals (right click)"
-msgstr "Propojit protilehlé svorky (pravé tlačítko)"
-
-msgid "The right click menu wires the free terminals of the selected parts that face each other"
-msgstr "Nabídka pravého tlačítka propojí volné svorky vybraných součástek, které stojí proti sobě"
 
 msgid "Wire all poles at once"
 msgstr "Propojovat všechny póly najednou"

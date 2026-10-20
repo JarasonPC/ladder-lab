@@ -9,7 +9,8 @@ enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, LANGUAGE = 10, SCALE = 20, CABLES_CZECH = 40, CABLES_HARMONISED, WIRE_FACING = 50, WIRE_POLES, WIRE_ON_DROP }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, SCALE = 20 }
+enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, LANGUAGE = 10 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS, TOUR }
@@ -51,6 +52,7 @@ var _after_discard: Callable = Callable()
 var _file_menu: MenuButton
 var _recent_menu: PopupMenu
 var _view_menu: MenuButton
+var _settings_menu: MenuButton
 var _help_menu: MenuButton
 ## Shown in the toolbar when a newer version is released; opens its page.
 var _update_button: Button
@@ -478,6 +480,9 @@ func _build_ui() -> void:
 	_view_menu = _menu(bar)
 	_view_menu.get_popup().id_pressed.connect(_on_view_menu)
 	_view_menu.about_to_popup.connect(_rebuild_view_menu)
+	_settings_menu = _menu(bar)
+	_settings_menu.get_popup().id_pressed.connect(_on_settings_menu)
+	_settings_menu.about_to_popup.connect(_rebuild_settings_menu)
 	_help_menu = _menu(bar)
 	_help_menu.get_popup().id_pressed.connect(_on_help_menu)
 	_help_menu.about_to_popup.connect(_rebuild_help_menu)
@@ -886,6 +891,7 @@ func _retranslate() -> void:
 	_file_menu.text = tr("File")
 	_rebuild_file_menu()
 	_view_menu.text = tr("View")
+	_settings_menu.text = tr("Settings")
 	_help_menu.text = tr("Help")
 	_update_new_release_button()
 	_schematic_button.text = tr("Schematic")
@@ -1028,30 +1034,11 @@ func _rebuild_view_menu() -> void:
 	popup.set_item_tooltip(popup.item_count - 1, tr("Number the current paths above the columns (left of the rows), also on export"))
 	popup.add_check_item(tr("Grid while editing"), ViewMenuId.GRID)
 	popup.set_item_checked(popup.item_count - 1, _edit_grid)
-	popup.add_separator(tr("Wiring"))
-	popup.add_check_item(tr("Wire facing terminals (right click)"), ViewMenuId.WIRE_FACING)
-	popup.set_item_checked(popup.item_count - 1, editor.wire_facing_menu)
-	popup.set_item_tooltip(popup.item_count - 1, tr("The right click menu wires the free terminals of the selected parts that face each other"))
-	popup.add_check_item(tr("Wire all poles at once"), ViewMenuId.WIRE_POLES)
-	popup.set_item_checked(popup.item_count - 1, editor.wire_all_poles)
-	popup.set_item_tooltip(popup.item_count - 1, tr("A wire drawn between multi-pole parts takes the poles beside it along (Shift: that wire alone)"))
-	popup.add_check_item(tr("Wire parts placed in line"), ViewMenuId.WIRE_ON_DROP)
-	popup.set_item_checked(popup.item_count - 1, editor.wire_on_drop)
-	popup.set_item_tooltip(popup.item_count - 1, tr("A part placed or dropped gets straight wires to the free terminals it faces"))
 	popup.add_separator(tr("Simulation"))
 	popup.add_radio_check_item(tr("Voltage view"), ViewMenuId.VOLTAGE_VIEW)
 	popup.set_item_checked(popup.item_count - 1, not _current_view)
 	popup.add_radio_check_item(tr("Current view"), ViewMenuId.CURRENT_VIEW)
 	popup.set_item_checked(popup.item_count - 1, _current_view)
-	popup.add_separator(tr("Cable types"))
-	popup.add_radio_check_item(tr("Czech (CGSG, JYTY, CYKY)"), ViewMenuId.CABLES_CZECH)
-	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.CZECH)
-	popup.add_radio_check_item(tr("European (H07RN-F, H05VV5-F, NYY)"), ViewMenuId.CABLES_HARMONISED)
-	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED)
-	popup.add_separator(tr("Language"))
-	for i: int in LOCALE_NAMES.size():
-		popup.add_radio_check_item(LOCALE_NAMES[i], ViewMenuId.LANGUAGE + i)
-		popup.set_item_checked(popup.item_count - 1, i == _locale_index)
 	popup.add_separator(tr("Interface size"))
 	for i: int in UI_SCALES.size():
 		var title: String = tr("Automatic") if UI_SCALES[i] == 0.0 else "%d %%" % roundi(UI_SCALES[i] * 100.0)
@@ -1080,29 +1067,52 @@ func _on_view_menu(id: int) -> void:
 		_white_paper = not _white_paper
 		_apply_theme()
 		_save_settings()
-	elif id == ViewMenuId.WIRE_FACING:
-		editor.wire_facing_menu = not editor.wire_facing_menu
-		_save_settings()
-	elif id == ViewMenuId.WIRE_POLES:
-		editor.wire_all_poles = not editor.wire_all_poles
-		editor._emit_hint()
-		_save_settings()
-	elif id == ViewMenuId.WIRE_ON_DROP:
-		editor.wire_on_drop = not editor.wire_on_drop
-		_save_settings()
-	elif id == ViewMenuId.CABLES_CZECH or id == ViewMenuId.CABLES_HARMONISED:
-		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if id == ViewMenuId.CABLES_HARMONISED else WorkspaceCables.Naming.CZECH
-		_workspace.refresh()
-		for window: PlaceWindow in _place_windows():
-			window.refresh()
-		_save_settings()
 	elif id >= ViewMenuId.SCALE:
 		_ui_scale = UI_SCALES[id - ViewMenuId.SCALE]
 		_apply_ui_scale()
 		_save_settings()
 		_fit_camera_later()
-	elif id >= ViewMenuId.LANGUAGE:
-		set_language(id - ViewMenuId.LANGUAGE)
+
+
+## Settings that change how the program works rather than what it shows:
+## wiring helpers, cable type names, language.
+func _rebuild_settings_menu() -> void:
+	var popup: PopupMenu = _settings_menu.get_popup()
+	popup.clear()
+	popup.add_separator(tr("Wiring"))
+	popup.add_check_item(tr("Wire all poles at once"), SettingsMenuId.WIRE_POLES)
+	popup.set_item_checked(popup.item_count - 1, editor.wire_all_poles)
+	popup.set_item_tooltip(popup.item_count - 1, tr("A wire drawn between multi-pole parts takes the poles beside it along (Shift: that wire alone)"))
+	popup.add_check_item(tr("Wire parts placed in line"), SettingsMenuId.WIRE_ON_DROP)
+	popup.set_item_checked(popup.item_count - 1, editor.wire_on_drop)
+	popup.set_item_tooltip(popup.item_count - 1, tr("A part placed or dropped gets straight wires to the free terminals it faces"))
+	popup.add_separator(tr("Cable types"))
+	popup.add_radio_check_item(tr("Czech (CGSG, JYTY, CYKY)"), SettingsMenuId.CABLES_CZECH)
+	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.CZECH)
+	popup.add_radio_check_item(tr("European (H07RN-F, H05VV5-F, NYY)"), SettingsMenuId.CABLES_HARMONISED)
+	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED)
+	popup.add_separator(tr("Language"))
+	for i: int in LOCALE_NAMES.size():
+		popup.add_radio_check_item(LOCALE_NAMES[i], SettingsMenuId.LANGUAGE + i)
+		popup.set_item_checked(popup.item_count - 1, i == _locale_index)
+
+
+func _on_settings_menu(id: int) -> void:
+	if id == SettingsMenuId.WIRE_POLES:
+		editor.wire_all_poles = not editor.wire_all_poles
+		editor._emit_hint()
+		_save_settings()
+	elif id == SettingsMenuId.WIRE_ON_DROP:
+		editor.wire_on_drop = not editor.wire_on_drop
+		_save_settings()
+	elif id == SettingsMenuId.CABLES_CZECH or id == SettingsMenuId.CABLES_HARMONISED:
+		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if id == SettingsMenuId.CABLES_HARMONISED else WorkspaceCables.Naming.CZECH
+		_workspace.refresh()
+		for window: PlaceWindow in _place_windows():
+			window.refresh()
+		_save_settings()
+	elif id >= SettingsMenuId.LANGUAGE:
+		set_language(id - SettingsMenuId.LANGUAGE)
 
 
 func _rebuild_help_menu() -> void:
@@ -2409,7 +2419,6 @@ func _load_settings() -> void:
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
 		_current_view = bool(config.get_value("view", "current_view", false))
-		editor.wire_facing_menu = bool(config.get_value("editor", "wire_facing", true))
 		editor.wire_all_poles = bool(config.get_value("editor", "wire_all_poles", false))
 		editor.wire_on_drop = bool(config.get_value("editor", "wire_on_drop", false))
 		_timing_size = Vector2(float(config.get_value("view", "event_log_width", 340.0)), float(config.get_value("view", "timing_height", 220.0)))
@@ -2450,7 +2459,6 @@ func _save_settings() -> void:
 	config.set_value("view", "path_numbers", _path_numbers)
 	config.set_value("view", "palette_grid", _palette_grid)
 	config.set_value("view", "current_view", _current_view)
-	config.set_value("editor", "wire_facing", editor.wire_facing_menu)
 	config.set_value("editor", "wire_all_poles", editor.wire_all_poles)
 	config.set_value("editor", "wire_on_drop", editor.wire_on_drop)
 	if _timing_panel != null:

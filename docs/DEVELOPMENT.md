@@ -165,6 +165,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   DatasheetWindow lists the part from the schematic and
   every palette part, zooms (ZoomBox) and exports a PDF (200 dpi pages). Opened from the right
   click menu (Datasheet, F1), the properties (Datasheet button) and Help > Part datasheets
+- Menu bar: File, View (what is shown: fullscreen, theme and paper, wire and path numbers,
+  grid, voltage or current view, interface size), Settings (how the program works: wiring
+  helpers, cable type names, language), Help; View and Settings rebuild their items each
+  time they open (main.gd _rebuild_view_menu / _rebuild_settings_menu)
 - Current path numbers (the number alone, no box; above the columns, left of the rows) can be turned off in View >
   Current path numbers (saved; page windows and export follow it)
 - Export: File > Export page as PNG / Export as PDF first show the sheets in a preview
@@ -261,7 +265,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   last. A cable's type (WorkspaceCables.type_text) follows its use (WorkspaceCables.use, "use"
   in the cable: a motor at an end MOTOR, else a sensor SENSOR, else a limit switch FIELD;
   between switchboards and stations FEEDER with power cores, else CONTROL) from
-  WorkspaceCables.TYPES, Czech or European by WorkspaceCables.naming (View menu, user settings
+  WorkspaceCables.TYPES, Czech or European by WorkspaceCables.naming (Settings menu, user settings
   "cable_types"): motor and field CGSG-J / H07RN-F, sensor LiYCY / H05VVC4V5-K (shielded),
   feeder CYKY-J / NYY-J, control JYTY-O / H05VV5-F ("J" with a PE core, "O" without; harmonised
   H0... types "4G2,5" with PE, "4x2,5" without); its cross-section (WorkspaceCables.section,
@@ -792,9 +796,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   markings, a tick and number at every cell, the cells each part will take marked) and keeps
   the dialog off it. Branch dots
   join wires of one net only
-- Wiring helpers (View > Wiring, user settings "editor": wire_facing on, wire_all_poles and
-  wire_on_drop off by default; SchematicEditor.wire_facing_menu / wire_all_poles /
-  wire_on_drop). SchematicDocument.facing_pairs: free terminals (no wire) facing each other
+- Wiring helpers (Settings > Wiring, user settings "editor": wire_all_poles and wire_on_drop,
+  off by default; SchematicEditor.wire_all_poles / wire_on_drop; "Wire facing terminals" is
+  always in the right click menu). SchematicDocument.facing_pairs: free terminals (no wire) facing each other
   straight along a column or row, the first terminal straight ahead facing back (or without
   a lead: supply points), nothing in the way (WireRouter.is_clear); each terminal in one
   pair; connect_pairs wires pairs, routed. "Wire facing terminals (n)" in the right click

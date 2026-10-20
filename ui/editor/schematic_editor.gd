@@ -13,11 +13,11 @@ extends Node2D
 ## parts in a column or a row, a set number of cells apart, with a ruler on
 ## the drawing while the number is asked for), wire facing terminals,
 ## cut/copy/paste, delete.
-## Wiring helpers (each turned on or off in the View menu): "Wire facing
-## terminals" in the right click menu wires the free terminals of the selected
-## parts that face each other straight; a wire drawn between multi-pole parts
-## takes the poles beside it along (Shift: that wire alone); parts placed or
-## dropped get straight wires to the free terminals they face.
+## "Wire facing terminals" in the right click menu wires the free terminals
+## of the selected parts that face each other straight. Wiring helpers turned
+## on or off in the Settings menu: a wire drawn between multi-pole parts takes
+## the poles beside it along (Shift: that wire alone); parts placed or dropped
+## get straight wires to the free terminals they face.
 ## Keys: R rotate, F mirror, Delete remove, Ctrl+Z undo, Ctrl+Y redo,
 ## Ctrl+X/C/V cut/copy/paste, Ctrl+A select all.
 
@@ -63,11 +63,9 @@ var active: bool = false:
 		visible = value
 
 var tool: Tool = Tool.SELECT
-## Wiring helpers, set from the View menu: "Wire facing terminals" in the
-## right click menu; a wire drawn between multi-pole parts takes the poles
-## beside it along; parts placed or dropped are wired to the terminals they
-## face.
-var wire_facing_menu: bool = true
+## Wiring helpers, set from the Settings menu: a wire drawn between
+## multi-pole parts takes the poles beside it along; parts placed or dropped
+## are wired to the terminals they face.
 var wire_all_poles: bool = false
 var wire_on_drop: bool = false:
 	set(value):
@@ -921,7 +919,7 @@ func _open_context_menu() -> void:
 		_menu.add_item(tr("Mirror left-right"), MenuId.MIRROR, KEY_F)
 		_menu.add_item(tr("Mirror top-bottom"), MenuId.FLIP, KEY_MASK_SHIFT | KEY_F)
 		var line_up: bool = _line_up_ids().size() >= 2
-		var facing: bool = wire_facing_menu and selected_components.size() >= 2
+		var facing: bool = selected_components.size() >= 2
 		if line_up or facing:
 			_menu.add_separator()
 		if line_up:
