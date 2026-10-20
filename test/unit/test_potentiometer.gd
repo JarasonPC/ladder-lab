@@ -112,6 +112,39 @@ func test_on_a_control_station() -> void:
 	assert_true(inside.wires.all(func(w: Dictionary) -> bool: return not w["mark"].is_empty() or w["markers"].is_empty()), "numbered wires carry their sleeves")
 
 
+func test_on_a_station_wired_to_supply_points_of_its_own() -> void:
+	# As the lesson draws it: 1 on a - point of its own, 3 on a 10 V point,
+	# the wiper on AI0 of A1 in the switchboard.
+	var doc: SchematicDocument = SchematicDocument.new("pot")
+	doc.add_switchboard()
+	doc.add(PowerSupply.new("+", PowerSupply.Conductor.DC_PLUS), Vector2i(0, 0))
+	doc.add(PowerSupply.new("-", PowerSupply.Conductor.DC_MINUS), Vector2i(0, 20))
+	doc.add(PowerSupply.new("-.2", PowerSupply.Conductor.DC_MINUS), Vector2i(30, 20))
+	var ref: PowerSupply = PowerSupply.new("+.2", PowerSupply.Conductor.DC_PLUS)
+	ref.voltage = 10.0
+	doc.add(ref, Vector2i(30, 0))
+	doc.add(CompactPlc.new("A1", null, [], CompactPlc.Cpu.DI8_DQ6), Vector2i(8, 5))
+	doc.add(Potentiometer.new("RP1"), Vector2i(30, 5))
+	doc.connect_terminals("+", "A1:L+")
+	doc.connect_terminals("A1:M", "-")
+	doc.connect_terminals("A1:2M", "-")
+	doc.connect_terminals("-.2", "RP1:1")
+	doc.connect_terminals("RP1:3", "+.2")
+	doc.connect_terminals("RP1:2", "A1:AI0")
+	doc.fill_cabinet(0)
+	doc.add_control_box_for_all()
+	var net: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
+	assert_eq(net["RP1:1"], net["A1:M"], "the - points are one conductor")
+	assert_ne(net["RP1:3"], net["A1:L+"], "the 10 V reference is not the 24 V +")
+	var cables: Array[Dictionary] = WorkspaceCables.cables(doc)
+	assert_eq(cables.size(), 1)
+	assert_eq(cables[0]["cores"].size(), 3, "a core to each lug, the 10 V one from the switchboard where the supply comes in")
+	var inside: StationInside = StationInside.build(doc, 0)
+	for key: String in ["RP1:1", "RP1:2", "RP1:3"]:
+		var entry: Vector2 = inside.terminals[key]["entry"]
+		assert_true(inside.wires.any(func(w: Dictionary) -> bool: return w["points"][w["points"].size() - 1] == entry), "a wire into lug %s" % key)
+
+
 func test_turned_while_simulating() -> void:
 	var doc: SchematicDocument = SchematicDocument.new()
 	doc.add(PowerSupply.new("+", PowerSupply.Conductor.DC_PLUS), Vector2i(0, 0))

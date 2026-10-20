@@ -84,7 +84,8 @@ static func build(doc: SchematicDocument, box_index: int) -> StationInside:
 		return inside
 	var box: ControlBox = doc.control_boxes[box_index]
 	inside._place_items(doc, box)
-	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	# The nets as the cables run them: supply points of one conductor joined.
+	var net: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
 	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, net)
 	var marks: Dictionary[int, String] = CabinetWiring.wire_marks(doc, net)
 	# The connections first, then the channels sized for them.
