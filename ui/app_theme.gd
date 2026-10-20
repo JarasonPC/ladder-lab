@@ -99,6 +99,8 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"room": '<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 13h8v8"/>',
 	"door": '<path d="M5 21V3h11v18"/><path d="M3 21h18"/><path d="M13 12v.5"/>',
 	"plan_window": '<rect x="3" y="6" width="18" height="12"/><path d="M3 10h18M3 14h18"/>',
+	"plan_dimension": '<path d="M3 15h18"/><path d="M3 11v8M21 11v8M12 11v8"/><path d="M5 5h4M15 5h4"/>',
+	"plan_measure": '<path d="M3 16 16 3l5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/>',
 	"walls": '<rect x="3" y="3" width="18" height="18"/><rect x="7" y="7" width="10" height="10"/><path d="M3 12h4"/>',
 	"house": '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v12h14V9"/><path d="M10 21v-6h4v6"/>',
 	"join": '<path d="M3 3h8v8H3z"/><path d="M11 7h10v14H7v-10"/>',

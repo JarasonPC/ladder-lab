@@ -70,6 +70,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Floor plan: windows (Window tool; a double click sets width, sill and height) and walls
   drawn with their thickness, outside walls outside the rooms and walls between rooms on their
   line (Walls sets both); doors and windows cut through the whole wall
+- Floor plan: dimensions printed with it, a chain along a wall clicked (its corners, parts,
+  doors and windows) or one dragged between two points, set off by dragging; a measure tool
+  shows the distance between two points
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 

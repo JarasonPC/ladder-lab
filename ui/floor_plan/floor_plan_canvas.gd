@@ -10,7 +10,9 @@ extends Control
 ## Edit mode, by [member tool]: SELECT drags rooms (with what is in them and
 ## the doors and windows in their walls), their edges, parts, doors and
 ## windows; ROOM draws a room by dragging; DOOR and WINDOW put a door or a
-## window where a wall is clicked; PLACE puts
+## window where a wall is clicked; DIMENSION adds a chain of dimensions
+## along a wall clicked or one dragged between two points (both printed);
+## MEASURE shows the distance dragged; PLACE puts
 ## [member placing] where it is clicked. Rooms snap to the walls of the
 ## others, switches, sockets and appliances onto the nearest wall. Delete
 ## takes the selection away, a double click renames a room. Simulate mode: a
@@ -46,7 +48,7 @@ signal door_requested(index: int)
 ## Window [param index] should be edited (its width, sill, height).
 signal window_requested(index: int)
 
-enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE, JOIN, WINDOW }
+enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE, JOIN, WINDOW, DIMENSION, MEASURE }
 
 ## Pixels a metre at zoom 1.
 const PX: float = 60.0
@@ -55,6 +57,9 @@ const MAX_ZOOM: float = 6.0
 const ZOOM_STEP: float = 1.15
 ## Thickness of the walls drawn (m).
 const WALL: float = 0.08
+## The dimension and measure tools catch a corner, a part or an end of an
+## opening this close (pixels).
+const FEATURE_GRAB: float = 12.0
 ## A press this close to a room's edge (pixels) drags the edge.
 const EDGE_GRAB: float = 6.0
 ## A part within this (m) of the mouse is under it.
@@ -94,7 +99,7 @@ var offset: Vector2 = Vector2(60.0, 60.0)
 ## under the plan (see [method paper_area]).
 var legend: bool = false
 ## What is selected: {"kind": "room" / "edge" / "door" / "window" / "part" /
-## "link" / "label", "index", "designation"}.
+## "link" / "label" / "dimension", "index", "designation"}.
 var selected: Dictionary = {}:
 	set(value):
 		var changed: bool = value != selected
@@ -143,6 +148,9 @@ func paper_area() -> Rect2:
 	if installation() and not plan().rooms.is_empty():
 		# The room legend beside the plan.
 		area = area.merge(_room_legend_rect().grow(0.4))
+	for i: int in plan().dimensions.size():
+		var line: PackedVector2Array = _dimension_geometry(i)["line"]
+		area = area.expand(line[0]).expand(line[1])
 	# The legend's two columns need their width.
 	return Rect2(area.position, Vector2(maxf(area.size.x, LEGEND_WIDTH), area.size.y + LEGEND_HEIGHT))
 
@@ -254,6 +262,54 @@ func _dimensioned_room() -> int:
 		return -1
 	var index: int = selected.get("index", -1)
 	return index if index >= 0 and index < plan().rooms.size() else -1
+
+
+## The corner, the part on a wall or the end of a door or window nearest
+## to plan point [param m] within [constant FEATURE_GRAB], else [param m] snapped.
+func _feature_point(m: Vector2) -> Vector2:
+	var best: float = FEATURE_GRAB / (PX * zoom)
+	var found: Vector2 = FloorPlan.snap(m)
+	var points: Array[Vector2] = []
+	for room: FloorPlan.Room in plan().rooms:
+		points.append_array(Array(room.points))
+	for designation: String in plan().parts:
+		points.append(plan().parts[designation])
+	for opening: FloorPlan.Opening in plan().openings():
+		points.append_array(Array(opening.ends()))
+	for p: Vector2 in points:
+		if p.distance_to(m) < best:
+			best = p.distance_to(m)
+			found = p
+	return found
+
+
+## Saved dimension [param index] as drawn (m): {"ends" on the wall or the
+## two points, "out" (the way it is set off), "base" (where its extension
+## lines start: past the outside wall for a wall), "line": its two ends,
+## "stops": its cuts from the first end}.
+func _dimension_geometry(index: int) -> Dictionary:
+	var dim: FloorPlan.Dimension = plan().dimensions[index]
+	var ends: PackedVector2Array = plan().dimension_ends(dim)
+	var dir: Vector2 = (ends[1] - ends[0]).normalized()
+	var out: Vector2 = dir.orthogonal()
+	var base: float = 0.05
+	if dim.room >= 0:
+		out = -plan().rooms[dim.room].inward(dim.wall)
+		base = plan().outer_wall
+	var offset: float = dim.offset
+	if _dragging and _press.get("kind", "") == "dimension" and _press.get("index", -1) == index:
+		offset = (to_plan(_mouse) - ends[0]).dot(out) - base
+	var away: Vector2 = out * (base + offset)
+	return {"ends": ends, "out": out, "base": base, "line": PackedVector2Array([ends[0] + away, ends[1] + away]), "stops": plan().dimension_stops(dim), "dir": dir}
+
+
+## The saved dimension under screen point [param point], -1 for none.
+func saved_dimension_at(point: Vector2) -> int:
+	for i: int in plan().dimensions.size():
+		var line: PackedVector2Array = _dimension_geometry(i)["line"]
+		if Geometry2D.get_closest_point_to_segment(point, to_screen(line[0]), to_screen(line[1])).distance_to(point) < LINK_GRAB:
+			return i
+	return -1
 
 
 ## The link of the lighting under screen point [param point], -1 for none.
@@ -462,7 +518,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_press_at = mb.position
 				_dragging = false
 				_press = _pressed(mb.position)
-				if _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label"]:
+				if _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label", "dimension"]:
 					selected = _press
 				elif tool == Tool.SELECT:
 					selected = {}
@@ -484,6 +540,10 @@ func _pressed(point: Vector2) -> Dictionary:
 			return {"kind": "new_door"}
 		Tool.WINDOW:
 			return {"kind": "new_window"}
+		Tool.DIMENSION:
+			return {"kind": "new_dimension"}
+		Tool.MEASURE:
+			return {"kind": "measure"}
 		Tool.PLACE:
 			return {"kind": "new_part"}
 		Tool.JOIN:
@@ -497,6 +557,9 @@ func _pressed(point: Vector2) -> Dictionary:
 	var part: String = part_at(point)
 	if not part.is_empty():
 		return {"kind": "part", "designation": part}
+	var saved: int = saved_dimension_at(point)
+	if saved >= 0:
+		return {"kind": "dimension", "index": saved}
 	var link: int = link_at(point)
 	if link >= 0:
 		return {"kind": "link", "index": link}
@@ -533,6 +596,35 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				var at: Vector2 = wall["at"]
 				var vertical: bool = int(wall["facing"]) % 2 == 0
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.append(FloorPlan.Door.new(at, vertical)))
+		"new_dimension":
+			var from: Vector2 = _feature_point(to_plan(_press_at))
+			var to: Vector2 = _feature_point(m)
+			if not _dragging or from.distance_to(to) < 0.05:
+				# A click on a wall: the chain along it.
+				var edge: Vector2i = edge_at(_press_at)
+				if edge.x < 0:
+					return
+				for dim: FloorPlan.Dimension in plan().dimensions:
+					if dim.room == edge.x and dim.wall == edge.y:
+						return
+				edit_requested.emit(func(doc: SchematicDocument) -> void:
+					var dim: FloorPlan.Dimension = FloorPlan.Dimension.new()
+					dim.room = edge.x
+					dim.wall = edge.y
+					doc.floor_plan.dimensions.append(dim))
+			else:
+				edit_requested.emit(func(doc: SchematicDocument) -> void:
+					var dim: FloorPlan.Dimension = FloorPlan.Dimension.new()
+					dim.a = from
+					dim.b = to
+					doc.floor_plan.dimensions.append(dim))
+		"dimension":
+			if _dragging:
+				var index: int = press["index"]
+				var g: Dictionary = _dimension_geometry(index)
+				var ends: PackedVector2Array = g["ends"]
+				var offset: float = snappedf((m - ends[0]).dot(g["out"]) - float(g["base"]), FloorPlan.SNAP)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.dimensions[index].offset = offset)
 		"new_window":
 			var wall: Dictionary = plan().wall_near(m, 0.3)
 			if not wall.is_empty():
@@ -655,13 +747,16 @@ func delete_selected() -> void:
 	match selected.get("kind", ""):
 		"room", "edge":
 			var index: int = selected["index"]
-			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.rooms.remove_at(index))
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.remove_room(index))
 		"door":
 			var door: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.remove_at(door))
 		"window":
 			var window: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.windows.remove_at(window))
+		"dimension":
+			var dim: int = selected["index"]
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.dimensions.remove_at(dim))
 		"part":
 			var designation: String = selected["designation"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.remove(designation))
@@ -813,6 +908,9 @@ func _draw() -> void:
 		draw_circle(to_screen(wall_point.get("at", FloorPlan.snap(m))), 4.0, SchematicTheme.HOVER)
 	if editing and tool == Tool.WIRE and _press.get("kind", "") == "new_link":
 		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.HOVER, 1.6, 5.0)
+	_draw_saved_dimensions(font)
+	if editing and tool in [Tool.MEASURE, Tool.DIMENSION] and _press.get("kind", "") in ["measure", "new_dimension"] and _dragging:
+		_draw_measure(font)
 	if installation() and not plan().rooms.is_empty():
 		_draw_room_legend(s, font)
 	if _dimensioned_room() >= 0:
@@ -1045,6 +1143,66 @@ func _draw_dimensions(index: int, s: float, font: Font) -> void:
 			draw_set_transform(mid + Vector2(TEXT_SIZE * 0.8 if toward.x < 0.0 else 0.0, width * 0.5), -PI / 2.0)
 			draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 			draw_set_transform(Vector2.ZERO)
+
+
+## The saved dimensions: a line with a slanted tick and an extension line
+## at each cut, the length of each piece over it (the selected one in the
+## hover colour).
+func _draw_saved_dimensions(font: Font) -> void:
+	for i: int in plan().dimensions.size():
+		var g: Dictionary = _dimension_geometry(i)
+		var color: Color = SchematicTheme.HOVER if selected.get("kind", "") == "dimension" and selected.get("index", -1) == i else SchematicTheme.TEXT
+		var line: PackedVector2Array = g["line"]
+		var ends: PackedVector2Array = g["ends"]
+		var dir: Vector2 = g["dir"]
+		var out: Vector2 = g["out"]
+		var stops: PackedFloat32Array = g["stops"]
+		draw_line(to_screen(line[0]), to_screen(line[1]), color, 1.0, true)
+		for t: float in stops:
+			var on: Vector2 = to_screen(line[0] + dir * t)
+			var foot: Vector2 = to_screen(ends[0] + dir * t + out * float(g["base"]))
+			draw_line(foot, on + (on - foot).normalized() * 4.0, color, 1.0, true)
+			var tick: Vector2 = (to_screen(line[1]) - to_screen(line[0])).normalized().rotated(PI / 4.0) * 5.0
+			draw_line(on - tick, on + tick, color, 1.6, true)
+		for k: int in stops.size() - 1:
+			_draw_length(font, to_screen(line[0] + dir * stops[k]), to_screen(line[0] + dir * stops[k + 1]), (to_screen(out) - to_screen(Vector2.ZERO)).normalized(), stops[k + 1] - stops[k], color)
+
+
+## The length [param length] (m) written along the dimension line from
+## [param a] to [param b] (screen), on its side [param away] from the wall.
+func _draw_length(font: Font, a: Vector2, b: Vector2, away: Vector2, length: float, color: Color) -> void:
+	var text: String = SingleLineCanvas._decimal(String.num(length, 2).pad_decimals(2))
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+	var mid: Vector2 = (a + b) * 0.5 + away * 3.0
+	var dir: Vector2 = (b - a).normalized()
+	if absf(dir.y) < 0.5:
+		draw_string(font, mid + Vector2(-width * 0.5, 0.0 if away.y < 0.0 else TEXT_SIZE), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+	else:
+		draw_set_transform(mid + Vector2(0.0 if away.x < 0.0 else TEXT_SIZE * 0.8, width * 0.5), -PI / 2.0)
+		draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+		draw_set_transform(Vector2.ZERO)
+
+
+## What the measure (or the dimension being dragged) spans: a dashed line
+## between the points caught, its length and how far across and down.
+func _draw_measure(font: Font) -> void:
+	var a: Vector2 = _feature_point(to_plan(_press_at))
+	var b: Vector2 = _feature_point(to_plan(_mouse))
+	var sa: Vector2 = to_screen(a)
+	var sb: Vector2 = to_screen(b)
+	draw_dashed_line(sa, sb, SchematicTheme.HOVER, 1.5, 5.0)
+	for p: Vector2 in [sa, sb]:
+		draw_circle(p, 3.0, SchematicTheme.HOVER)
+	var d: Vector2 = (b - a).abs()
+	var text: String = "%s m   (↔ %s  ↕ %s)" % [_metres_text(a.distance_to(b)), _metres_text(d.x), _metres_text(d.y)]
+	var at: Vector2 = (sa + sb) * 0.5 + Vector2(10, -10)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+	draw_rect(Rect2(at + Vector2(-4, -TEXT_SIZE - 2), Vector2(width + 8, TEXT_SIZE + 8)), SchematicTheme.BACKGROUND)
+	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.HOVER)
+
+
+static func _metres_text(metres: float) -> String:
+	return SingleLineCanvas._decimal(String.num(metres, 2).pad_decimals(2))
 
 
 ## The lighting of a residential installation: each link along the walls,

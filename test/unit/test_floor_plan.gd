@@ -387,3 +387,44 @@ func test_windows_and_wall_thickness() -> void:
 	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
 	canvas.document = doc
 	assert_almost_eq(canvas._face("XD1").length(), FloorPlan.INNER_WALL * 0.5, 1e-6)
+
+
+func test_dimension_chains_and_free_dimensions() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	# The room's top wall (3,0)-(7,0): a socket at x 4, a window 5.5 wide 1.2.
+	plan.place("XD1", Vector2(4.0, 0.05), false)
+	plan.windows.append(FloorPlan.WindowOpening.new(Vector2(5.5, 0.0), false))
+	var chain: FloorPlan.Dimension = FloorPlan.Dimension.new()
+	chain.room = 1
+	chain.wall = 0
+	plan.dimensions.append(chain)
+	var stops: PackedFloat32Array = plan.dimension_stops(chain)
+	assert_eq(stops.size(), 5, "the corners, the socket and the window's ends")
+	assert_almost_eq(stops[1], 1.0, 0.002)
+	assert_almost_eq(stops[2], 1.9, 0.002)
+	assert_almost_eq(stops[3], 3.1, 0.002)
+	var free: FloorPlan.Dimension = FloorPlan.Dimension.new()
+	free.a = Vector2(0, 0)
+	free.b = Vector2(0, 1.5)
+	free.offset = -0.4
+	plan.dimensions.append(free)
+	assert_eq(plan.dimension_stops(free).size(), 2, "a free one: its two ends")
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.dimensions.size(), 2)
+	assert_eq(again.dimensions[0].room, 1)
+	assert_eq(again.dimensions[1].b, Vector2(0, 1.5))
+	assert_almost_eq(again.dimensions[1].offset, -0.4, 1e-6)
+	# The canvas finds it on its line and catches the corners.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	var line: PackedVector2Array = canvas._dimension_geometry(0)["line"]
+	assert_almost_eq(line[0].y, -(plan.outer_wall + FloorPlan.DIMENSION_OFFSET), 1e-4, "past the outside wall")
+	assert_eq(canvas.saved_dimension_at(canvas.to_screen((line[0] + line[1]) * 0.5)), 0)
+	assert_eq(canvas._feature_point(Vector2(3.05, 0.03)), Vector2(3, 0), "a corner caught")
+	# A room taken away takes its chains; a later room's move up.
+	plan.remove_room(0)
+	assert_eq(plan.dimensions.size(), 2)
+	assert_eq(plan.dimensions[0].room, 0, "the room after it is now first")
+	plan.remove_room(0)
+	assert_eq(plan.dimensions.size(), 1, "its chain gone, the free one kept")

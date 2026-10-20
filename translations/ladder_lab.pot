@@ -5380,3 +5380,9 @@ msgstr ""
 
 msgid "Walls between rooms"
 msgstr ""
+
+msgid "Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away"
+msgstr ""
+
+msgid "Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn"
+msgstr ""

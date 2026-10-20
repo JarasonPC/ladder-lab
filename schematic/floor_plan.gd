@@ -30,6 +30,8 @@ const WINDOW_HEIGHT: float = 1.25
 ## walls between rooms (on their line) when none is set (m).
 const OUTER_WALL: float = 0.3
 const INNER_WALL: float = 0.15
+## A new dimension this far from its wall or line (m).
+const DIMENSION_OFFSET: float = 0.5
 ## Thinnest and thickest wall offered (m).
 const MIN_WALL_THICKNESS: float = 0.05
 const MAX_WALL_THICKNESS: float = 0.8
@@ -215,12 +217,27 @@ class WindowOpening extends Opening:
 		width = p_width
 
 
+## A dimension printed with the plan: a chain along wall [member wall] of
+## room [member room] (its corners, the parts on it and the ends of its
+## doors and windows), or, with [member room] -1, between points
+## [member a] and [member b]. [member offset]: how far from the wall
+## outside its room (past the outside wall), or from the line a-b to its
+## left as seen from a (m).
+class Dimension:
+	var room: int = -1
+	var wall: int = 0
+	var a: Vector2 = Vector2.ZERO
+	var b: Vector2 = Vector2.ZERO
+	var offset: float = DIMENSION_OFFSET
+
+
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
 var windows: Array[WindowOpening] = []
 ## Thickness of the outside walls and of those between rooms (m).
 var outer_wall: float = OUTER_WALL
 var inner_wall: float = INNER_WALL
+var dimensions: Array[Dimension] = []
 ## Where each part (by designation) and the consumer unit ([constant UNIT])
 ## are (m).
 var parts: Dictionary[String, Vector2] = {}
@@ -232,7 +249,61 @@ var links: Array[Link] = []
 
 
 func is_empty() -> bool:
-	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty()
+	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty()
+
+
+## The ends of dimension [param dim] (m): its wall's, or its two points.
+func dimension_ends(dim: Dimension) -> PackedVector2Array:
+	if dim.room >= 0 and dim.room < rooms.size() and dim.wall < rooms[dim.room].points.size():
+		return rooms[dim.room].wall(dim.wall)
+	return PackedVector2Array([dim.a, dim.b])
+
+
+## Where dimension [param dim] is cut, as distances from its first end (m),
+## in order: its ends and, along a wall, the parts on it and the ends of
+## its doors and windows.
+func dimension_stops(dim: Dimension) -> PackedFloat32Array:
+	var ends: PackedVector2Array = dimension_ends(dim)
+	var length: float = ends[0].distance_to(ends[1])
+	var stops: PackedFloat32Array = PackedFloat32Array([0.0, length])
+	if dim.room >= 0 and length > 0.001:
+		var dir: Vector2 = (ends[1] - ends[0]) / length
+		var points: Array[Vector2] = []
+		for designation: String in parts:
+			if facing.has(designation):
+				points.append(parts[designation])
+		for opening: Opening in openings():
+			points.append_array(Array(opening.ends()))
+		for p: Vector2 in points:
+			var t: float = (p - ends[0]).dot(dir)
+			if t > 0.01 and t < length - 0.01 and (ends[0] + dir * t).distance_to(p) < 0.02:
+				stops.append(snappedf(t, 0.001))
+	stops.sort()
+	var result: PackedFloat32Array = PackedFloat32Array()
+	for t: float in stops:
+		if result.is_empty() or t - result[result.size() - 1] > 0.005:
+			result.append(t)
+	return result
+
+
+## Takes room [param index] away, with the dimensions along its walls.
+func remove_room(index: int) -> void:
+	rooms.remove_at(index)
+	_forget_room(index, -1)
+
+
+## Dimensions along the walls of room [param gone] are dropped (and of
+## [param also], its walls changed); the rooms after [param gone] are one
+## further forward.
+func _forget_room(gone: int, also: int) -> void:
+	for i: int in range(dimensions.size() - 1, -1, -1):
+		var dim: Dimension = dimensions[i]
+		if dim.room < 0:
+			continue
+		if dim.room == gone or dim.room == also:
+			dimensions.remove_at(i)
+		elif dim.room > gone:
+			dim.room -= 1
 
 
 ## The doors and the windows.
@@ -565,6 +636,7 @@ func join_rooms(a: int, b: int) -> bool:
 		return false
 	rooms[a].points = outline
 	rooms.remove_at(b)
+	_forget_room(b, a)
 	return true
 
 
@@ -836,6 +908,14 @@ func to_data() -> Dictionary:
 		result["windows"] = window_list
 	if not is_equal_approx(outer_wall, OUTER_WALL) or not is_equal_approx(inner_wall, INNER_WALL):
 		result["walls"] = [outer_wall, inner_wall]
+	if not dimensions.is_empty():
+		var dimension_list: Array = []
+		for dim: Dimension in dimensions:
+			if dim.room >= 0:
+				dimension_list.append({"room": dim.room, "wall": dim.wall, "offset": dim.offset})
+			else:
+				dimension_list.append({"a": [dim.a.x, dim.a.y], "b": [dim.b.x, dim.b.y], "offset": dim.offset})
+		result["dimensions"] = dimension_list
 	if not links.is_empty():
 		var link_list: Array = []
 		for link: Link in links:
@@ -894,6 +974,24 @@ static func from_data(raw: Variant) -> FloorPlan:
 	if _numbers(d.get("walls", []), 2):
 		plan.outer_wall = clampf(float(d["walls"][0]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
 		plan.inner_wall = clampf(float(d["walls"][1]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
+	var dimension_list: Variant = d.get("dimensions", [])
+	if dimension_list is Array:
+		for dd: Variant in dimension_list:
+			if not (dd is Dictionary):
+				continue
+			var dim: Dimension = Dimension.new()
+			dim.offset = _length(dd.get("offset", DIMENSION_OFFSET), DIMENSION_OFFSET, -20.0, 20.0)
+			var room: Variant = dd.get("room", -1)
+			var wall: Variant = dd.get("wall", 0)
+			if (room is int or room is float) and (wall is int or wall is float) and int(room) >= 0 and int(room) < plan.rooms.size() and int(wall) >= 0 and int(wall) < plan.rooms[int(room)].points.size():
+				dim.room = int(room)
+				dim.wall = int(wall)
+			elif _numbers(dd.get("a", []), 2) and _numbers(dd.get("b", []), 2):
+				dim.a = Vector2(float(dd["a"][0]), float(dd["a"][1]))
+				dim.b = Vector2(float(dd["b"][0]), float(dd["b"][1]))
+			else:
+				continue
+			plan.dimensions.append(dim)
 	var placed: Variant = d.get("parts", {})
 	if placed is Dictionary:
 		for designation: Variant in placed:

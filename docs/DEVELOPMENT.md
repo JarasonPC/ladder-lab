@@ -378,6 +378,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   on their line; an opening cuts its band (_band, _cut: outside the room in an outside wall,
   centred in one between rooms); a part on a wall between rooms is drawn at its face
   (_face, inner_wall_at); bounds and the dimensions (_dimension_gap) are past the outside walls.
+  Dimensions printed with the plan (FloorPlan.Dimension, saved "dimensions"): a chain along
+  wall "wall" of room "room" (dimension_stops: its corners, the parts on it, the ends of its
+  openings) or, room -1, between "a" and "b"; "offset" from the wall (past the outside wall)
+  or to the left of a-b. remove_room and join_rooms drop a room's chains and renumber the rest.
+  Tool.DIMENSION: a click on a wall adds its chain, a drag a free one (both ends caught by
+  _feature_point: corners, parts, opening ends); a dimension dragged sets its offset
+  (_dimension_geometry, saved_dimension_at); Tool.MEASURE shows the distance dragged
+  (_draw_measure), nothing saved. paper_area takes the dimensions in.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

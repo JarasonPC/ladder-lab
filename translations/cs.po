@@ -5395,3 +5395,9 @@ msgstr "Obvodové zdi"
 
 msgid "Walls between rooms"
 msgstr "Příčky"
+
+msgid "Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away"
+msgstr "Kóty tištěné s plánem: kliknutím na zeď přidáte řetězovou kótu podél ní (rohy, prvky, dveře a okna), tažením kótu mezi dvěma body; kótu odsunete tažením, Delete ji odstraní"
+
+msgid "Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn"
+msgstr "Měření: tažením mezi dvěma body (přichytí se k rohům, prvkům a okrajům dveří a oken) uvidíte vzdálenost; nic se nekreslí"

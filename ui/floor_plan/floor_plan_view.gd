@@ -33,6 +33,8 @@ var _door_button: Button
 var _wire_button: Button
 var _join_button: Button
 var _window_button: Button
+var _dimension_button: Button
+var _measure_button: Button
 var _walls_button: Button
 var _window_dialog: ConfirmationDialog
 var _window_width: SpinBox
@@ -111,6 +113,8 @@ func _ready() -> void:
 	_window_button = _tool_button("plan_window", FloorPlanCanvas.Tool.WINDOW, group)
 	_wire_button = _tool_button("wire", FloorPlanCanvas.Tool.WIRE, group)
 	_join_button = _tool_button("join", FloorPlanCanvas.Tool.JOIN, group)
+	_dimension_button = _tool_button("plan_dimension", FloorPlanCanvas.Tool.DIMENSION, group)
+	_measure_button = _tool_button("plan_measure", FloorPlanCanvas.Tool.MEASURE, group)
 	_select_button.set_pressed_no_signal(true)
 	_presets = MenuButton.new()
 	_presets.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -404,7 +408,7 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _door_button, _window_button, _presets, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _presets, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
@@ -432,6 +436,8 @@ func retranslate() -> void:
 	_door_button.tooltip_text = tr("Put a door in a wall by clicking it; a double click on a door sets its width, double door and swing; a selected door: F swaps its hinge, Shift+F opens it to the other side")
 	_join_button.tooltip_text = tr("Join two rooms into one (an L-shaped room and the like): click one, then the other touching it")
 	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
+	_dimension_button.tooltip_text = tr("Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away")
+	_measure_button.tooltip_text = tr("Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn")
 	_walls_button.tooltip_text = tr("Thickness of the walls: the outside ones (drawn outside the rooms) and those between rooms")
 	_window_dialog.title = tr("Window")
 	_window_dialog.ok_button_text = tr("OK")
@@ -495,7 +501,7 @@ func begin_place_template(template: Dictionary) -> void:
 	canvas.placing = ""
 	canvas.placing_template = template
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
-	for button: Button in [_select_button, _room_button, _door_button, _window_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.grab_focus()

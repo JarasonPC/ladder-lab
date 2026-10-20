@@ -109,7 +109,8 @@ const FORMAT: String = "ladder-lab"
 ## circuits and groups, each with its "kind"; missing: a circuit); wall
 ## luminaires ("luminaire": "wall"; missing: on the ceiling); the floor
 ## plan's windows ("windows": at, width, vertical, sill, height) and wall
-## thickness ("walls": [outside, between rooms]; missing: 0.30 and 0.15).
+## thickness ("walls": [outside, between rooms]; missing: 0.30 and 0.15)
+## and dimensions ("dimensions": a room's wall or two points, offset).
 const VERSION: int = 44
 
 
