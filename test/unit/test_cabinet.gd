@@ -44,6 +44,23 @@ func test_devices_and_kinds() -> void:
 	assert_eq(CabinetDevices.kind_of(doc.circuit.get_component("H1")), CabinetDevices.Kind.NONE)
 
 
+func test_overload_relays_on_joined_contactor_outputs_fit_under_both() -> void:
+	# Two motors with an overload relay each, the outputs of KM1 and KM2
+	# joined pole by pole: every heater follows both contactors.
+	var doc: SchematicDocument = ExampleCircuits.build(2)
+	for pole: int in 3:
+		doc.connect_terminals("KM1:%d" % (2 * pole + 2), "KM2:%d" % (2 * pole + 2))
+	assert_eq(CabinetDevices.overloads_under_contactors(doc.circuit), {"KM1": "F1", "KM2": "F2"})
+	doc.add_switchboard()
+	doc.fill_cabinet(0)
+	var under: Dictionary = {}
+	for place: Dictionary in CabinetLayout.build(doc, 4.0).places:
+		assert_ne(place["kind"], CabinetDevices.Kind.OVERLOAD, "no overload relay on a rail of its own")
+		if place.has("under_designation"):
+			under[place["designation"]] = place["under_designation"]
+	assert_eq(under, {"KM1": "F1", "KM2": "F2"})
+
+
 func test_overload_relay_without_contactor_is_its_own_place() -> void:
 	var doc: SchematicDocument = _doc()
 	doc.remove_wire(0)
