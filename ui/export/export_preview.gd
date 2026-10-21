@@ -4,7 +4,8 @@ extends ConfirmationDialog
 ## page) as they will be saved, one at a time with page buttons, and the
 ## paper each is on. The wire numbers can be left out; a PDF holds, as
 ## ticked, the schematic, the control stations, the switchboards, the PLC
-## programs, the workspace and the parts list. OK asks where to save.
+## programs, the time relays, the workspace and the parts list. OK asks where
+## to save.
 
 ## Wire numbers were switched on or off: render the sheets again.
 signal wire_numbers_toggled(on: bool)
@@ -14,8 +15,8 @@ signal contents_changed
 signal paper_changed
 
 ## What a PDF can hold, in order (keys of [method contents]).
-const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "plc_programs", "workspace", "split_plan", "parts_list"]
-const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "PLC programs", "Workspace", "Lighting and sockets apart", "Parts list"]
+const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "plc_programs", "timers", "workspace", "split_plan", "parts_list"]
+const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "PLC programs", "Time relays", "Workspace", "Lighting and sockets apart", "Parts list"]
 ## Contents ticked when nothing was chosen: all but these.
 const OFF_AT_FIRST: PackedStringArray = ["split_plan"]
 
@@ -112,6 +113,7 @@ func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, larges
 		check.disabled = not bool(available.get(CONTENTS[i], true))
 		# The plan's lighting and sockets on sheets of their own: a house installation's.
 		check.visible = residential or CONTENTS[i] != "split_plan"
+	_contents["timers"].tooltip_text = tr("The function, times and control input of each time relay, with the timing diagram of its function")
 	_contents["split_plan"].tooltip_text = tr("Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)")
 	_update_numbers()
 	rendering()

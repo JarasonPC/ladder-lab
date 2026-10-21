@@ -618,7 +618,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   StationsSheet.arrange: as many as fit, then the next sheet), each switchboard with something in
   it on a sheet of its own, the PLC programs (PlcCanvas.paper: read-only, no editing aids; a
   function block diagram on one sheet, a ladder LADDER_ROWS rows to a sheet,
-  PlcLadCanvas.paper_pages / paper_rows, whole rungs together where they fit) (CabinetView SWITCHBOARD_WIDTH wide), the workspace
+  PlcLadCanvas.paper_pages / paper_rows, whole rungs together where they fit) (CabinetView SWITCHBOARD_WIDTH wide), the time
+  relays (TimersSheet.entries: by designation, the function's title, its times t or t1 / t2,
+  the F7 pulse, the control input by its name; each beside its TimerDiagram on paper,
+  TimersSheet.split: as many as fit an A4 portrait sheet), the workspace
   (WorkspaceCanvas at zoom 1 around WorkspaceCanvas.bounds) and the parts list (PartsList.rows:
   devices under the place they sit in, terminal strips with their count, the groups' and other
   parts in the field, what has no place, the cables with type and ends; within a place identical
@@ -1337,7 +1340,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   protective devices in % and a motor's line current and speed while simulating; the
   properties panel draws the time-current characteristic (TripCurveDiagram)
 - `ui/export/` SheetRenderer (renders sheets in SubViewports), SheetFrame (frame, title block),
-  StationsSheet, PartsSheet, PartsList (rows of the parts list),
+  StationsSheet, TimersSheet, PartsSheet, PartsList (rows of the parts list),
   ExportPreview (dialog)
 - `sim/plc/` PlcProgram, PlcBlock, PlcRung, PlcRuntime, PlcTimer, PlcCounter (PLC programs)
 - `ui/plc/` PlcWindow, PlcCanvas, PlcFbdCanvas, PlcLadCanvas (PLC program window)

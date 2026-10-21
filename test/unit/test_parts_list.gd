@@ -203,3 +203,43 @@ func test_plc_programs_on_sheets() -> void:
 	for page: Vector2i in pages:
 		assert_lte(page.y - page.x, 16)
 	assert_eq(PlcLadCanvas.paper_pages(PlcRung.new(), 16), [Vector2i(0, 1)] as Array[Vector2i], "an empty ladder: one sheet")
+
+
+func test_time_relays_on_sheets() -> void:
+	var doc: SchematicDocument = _doc()
+	assert_false(SheetRenderer.available(doc)["timers"], "no time relay, no sheet")
+	var cycler: TimerRelay = TimerRelay.new("KT10", TimerRelay.Mode.CYCLE_PULSE_FIRST, 2.0)
+	cycler.delay2 = 0.5
+	doc.add(cycler, Vector2i(30, 30))
+	var delay: TimerRelay = TimerRelay.new("KT2", TimerRelay.Mode.PULSE_ON_PRESS, 1.5)
+	delay.control_input = true
+	delay.custom_terminals = PackedStringArray(["A1", "A2", "TL"])
+	doc.add(delay, Vector2i(40, 30))
+	assert_true(SheetRenderer.available(doc)["timers"])
+	var entries: Array[Dictionary] = TimersSheet.entries(doc)
+	assert_eq(entries.size(), 2)
+	assert_eq(entries[0]["designation"], "-KT2", "by designation, KT2 before KT10")
+	assert_eq(entries[0]["mode"], TimerRelay.Mode.PULSE_ON_PRESS)
+	assert_true(str(entries[0]["function"]).begins_with("F3"), entries[0]["function"])
+	assert_true(str(entries[0]["function"]).contains("TL"), "the control input by its name")
+	assert_eq(entries[0]["data"], [["Time t", "1.5 s"], ["Control input", "TL"]])
+	assert_eq(entries[1]["data"], [["Times t1 / t2", "2 s / 0.5 s"], ["Control input", "–"]])
+	var renderer: SheetRenderer = autofree(SheetRenderer.new())
+	renderer.schematic = false
+	var specs: Array[Dictionary] = renderer.sheets(doc, PackedInt32Array([0]))
+	assert_true(specs.is_empty(), "not unless ticked")
+	renderer.timers = true
+	specs = renderer.sheets(doc, PackedInt32Array([0]))
+	assert_eq(specs.size(), 1)
+	assert_eq(specs[0]["kind"], "timers")
+	assert_eq(specs[0]["relays"].size(), 2)
+	var many: Array[Dictionary] = []
+	for i: int in 20:
+		many.append(entries[0])
+	var sheets: Array[Array] = TimersSheet.split(many)
+	var count: int = 0
+	for sheet: Array in sheets:
+		count += sheet.size()
+		assert_lte(sheet.size() * TimersSheet.ENTRY_H, TimersSheet.SIZE.y, "every relay fits its sheet")
+	assert_eq(count, 20)
+	assert_gt(sheets.size(), 1)

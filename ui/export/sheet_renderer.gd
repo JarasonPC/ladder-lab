@@ -2,10 +2,10 @@ class_name SheetRenderer
 extends Node
 ## Renders the sheets of an export (PNG, PDF): the pages of the schematic at
 ## rest, and, as chosen, the control stations ([StationsSheet]), each
-## switchboard ([CabinetView]), the workspace ([WorkspaceCanvas]) and the parts
-## list ([PartsSheet]), on white paper, each on the sheet chosen by
-## [SheetLayout] with its frame and title block ([SheetFrame]), numbered in
-## turn, at [constant DPI] dots per inch of the paper.
+## switchboard ([CabinetView]), the time relays ([TimersSheet]), the workspace
+## ([WorkspaceCanvas]) and the parts list ([PartsSheet]), on white paper, each
+## on the sheet chosen by [SheetLayout] with its frame and title block
+## ([SheetFrame]), numbered in turn, at [constant DPI] dots per inch of the paper.
 
 const G: float = float(SymbolGeometry.GRID)
 const DPI: float = 200.0
@@ -32,10 +32,12 @@ var title: String = ""
 var file_name: String = ""
 var untitled_page: String = "Page %d"
 ## What is exported: the pages asked for, the control stations, every
-## switchboard, the workspace, the parts list.
+## switchboard, the time relays, the workspace, the parts list.
 var schematic: bool = true
 var stations: bool = false
 var switchboards: bool = false
+## The time relays: function, times and control input of each.
+var timers: bool = false
 var workspace: bool = false
 ## A house's floor plans on two sheets a floor: lighting, sockets and appliances.
 var split_plan: bool = false
@@ -71,7 +73,8 @@ static func end_white_paper() -> void:
 
 
 ## What [param doc] has sheets of: {"stations", "switchboards" (one with
-## something in it), "workspace" (places or parts)}.
+## something in it), "workspace" (places or parts), "split_plan", "plc_programs",
+## "timers" (time relays)}.
 static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 	var fitted: bool = false
 	for board: Switchboard in doc.switchboards:
@@ -82,6 +85,7 @@ static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 		"workspace": _floors_drawn(doc).size() > 0 if doc.residential else not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()),
 		"split_plan": _floors_drawn(doc).size() > 0 and doc.residential,
 		"plc_programs": not _programs(doc).is_empty(),
+		"timers": not TimersSheet.entries(doc).is_empty(),
 	}
 
 
@@ -116,8 +120,9 @@ static func _fitted(board: Switchboard) -> bool:
 
 ## What the sheets of an export of [param doc] show, in order: {"kind"
 ## ("page", or "single_line" for a residential installation, "stations",
-## "switchboard", "workspace" or "floor_plan", "parts") and "page",
-## "boxes" (see [method StationsSheet.arrange]), "board" or "rows"}. Only
+## "switchboard", "plc", "timers", "workspace" or "floor_plan", "parts") and
+## "page", "boxes" (see [method StationsSheet.arrange]), "board", "relays" (see
+## [method TimersSheet.entries]) or "rows"}. Only
 ## what [param doc] has: stations, switchboards with something in them, a
 ## workspace with places or parts.
 func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary]:
@@ -143,6 +148,9 @@ func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary
 					result.append({"kind": "plc", "id": plc.id, "rows": rows})
 			else:
 				result.append({"kind": "plc", "id": plc.id})
+	if timers:
+		for relays: Array in TimersSheet.split(TimersSheet.entries(doc)):
+			result.append({"kind": "timers", "relays": relays})
 	if workspace and available(doc)["workspace"]:
 		# A house installation's floor plans in place of the workspace, a sheet a floor.
 		if doc.residential:
@@ -282,6 +290,12 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			content.add_child(diagram)
 			frame.page_title = "-%s  %s" % [plc.designation, tr("Ladder diagram (LAD)") if lad else tr("Function block diagram (FBD)")]
 			extent = Rect2(Vector2.ZERO, diagram.size / G)
+		"timers":
+			var list: TimersSheet = TimersSheet.new()
+			list.relays = spec["relays"]
+			content.add_child(list)
+			frame.page_title = tr("Time relays")
+			extent = list.extent()
 		"workspace":
 			var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
 			canvas.document = copy
