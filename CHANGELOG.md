@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.7.0 – 2026-10-21
+
 ### Schematic editor
 - Three kinds of schematic at File > New: industrial, prototype residential (light switches,
   luminaires and sockets drawn and wired freely, as residential schematics were) and
