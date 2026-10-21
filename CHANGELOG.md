@@ -101,6 +101,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   the stage of the documentation and the scale and format
 - Export: a house's parts list has each floor's parts, the wall and luminaire boxes and the
   metres of each cable type; File > Export parts list as CSV writes it for a spreadsheet
+- Floor plan: the symbols and the texts can be drawn larger or smaller (Plan settings, 50 to
+  300 %), on the plan, its sheet and its legend
 - Floor plan: what is selected shows handles to change its size by dragging: a room's
   corners, a door's or window's ends, a piece of furniture's corners, a dimension's ends;
   the legend of the rooms is dragged anywhere

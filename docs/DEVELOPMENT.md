@@ -452,6 +452,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   while dragged), a fixture's corners (stretch_rect), a free dimension's ends (caught by
   _feature_point). The legend of the rooms is dragged anywhere (FloorPlan.legend_offset,
   saved "legend").
+  Sizes (FloorPlan.symbol_scale, text_scale, MIN_SIZE..MAX_SIZE, saved "sizes"; the Plan
+  settings dialog sets every floor alike): FloorPlanCanvas._symbols scales the parts' symbols,
+  their offset from the wall, their hold and the legend's symbols; _sized every text of the
+  plan; the legend's rows (_legend_row) open up for either.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

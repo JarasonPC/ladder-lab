@@ -5629,3 +5629,15 @@ msgstr "Stupeň (DUR, DSP, DPS …)"
 
 msgid "Lighting and sockets apart"
 msgstr "Osvětlení a zásuvky zvlášť"
+
+msgid "Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn"
+msgstr "Nastavení plánu: tloušťka obvodových zdí a příček, kde je sever, jak velké se kreslí značky a texty"
+
+msgid "Plan settings"
+msgstr "Nastavení plánu"
+
+msgid "Size of the symbols"
+msgstr "Velikost značek"
+
+msgid "Size of the texts"
+msgstr "Velikost textů"
