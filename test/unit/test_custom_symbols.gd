@@ -391,3 +391,50 @@ func test_designations_clear_their_symbols_at_any_size() -> void:
 		center = canvas.to_screen(canvas.symbol_center(pump))
 		spot = canvas._label_spot(pump, center, Vector2.DOWN, "-" + pump, "", s, font)
 		assert_almost_eq(spot.y - ascent, own.end.y + 0.02 * s + 2.0, 0.01, "past its own box (size %s)" % size)
+
+
+func test_symbols_exported_and_imported() -> void:
+	var tv: CustomSymbol = _tv()
+	var fan: CustomSymbol = _fan()
+	_library.put(tv)
+	_library.put(fan)
+	var file: String = "user://test_export." + SymbolLibrary.EXTENSION
+	assert_eq(_library.export_file(file), OK)
+	var only_data: String = "user://test_export_data." + SymbolLibrary.EXTENSION
+	assert_eq(_library.export_file(only_data, PackedStringArray([tv.id])), OK)
+	# Someone else's library takes them in.
+	var other: SymbolLibrary = SymbolLibrary.new()
+	other.path = "user://test_other_symbols.json"
+	var mine: CustomSymbol = _tv()
+	mine.name = "My own"
+	other.put(mine)
+	var changes: Array[int] = [0]
+	other.changed.connect(func() -> void: changes[0] += 1)
+	var result: Dictionary = other.import_file(only_data)
+	assert_eq(result["added"], PackedStringArray([tv.id]), "only the category exported")
+	assert_eq(other.symbols.size(), 2, "added to what it had")
+	assert_eq(changes[0], 1)
+	# The whole file: what it has already is drawn as in the file.
+	tv.shapes.clear()
+	_library.put(tv)
+	assert_eq(_library.export_file(file), OK)
+	result = other.import_file(file)
+	assert_eq(result["added"], PackedStringArray([fan.id]))
+	assert_eq(result["replaced"], PackedStringArray([tv.id]))
+	assert_eq(other.find(tv.id).shapes.size(), 0, "the file's drawing")
+	assert_eq(other.find(fan.id).shapes.size(), 3)
+	assert_true(other.find(fan.id).electrical)
+	var read: SymbolLibrary = SymbolLibrary.new()
+	read.path = other.path
+	read.load_file()
+	assert_eq(read.symbols.size(), 3, "kept in its file")
+	# Files that are not symbols, or from a newer version, are refused.
+	var junk: String = "user://test_junk." + SymbolLibrary.EXTENSION
+	ProjectFile.write_atomically(junk, "{\"format\": \"ladder-lab\", \"symbols\": []}")
+	assert_true(other.import_file(junk).has("error"))
+	ProjectFile.write_atomically(junk, JSON.stringify({"format": SymbolLibrary.FORMAT, "version": SymbolLibrary.VERSION + 1, "symbols": []}))
+	assert_eq(other.import_file(junk)["error"], "%s was saved by a newer version of LadderLab.")
+	assert_true(other.import_file("user://test_missing." + SymbolLibrary.EXTENSION).has("error"))
+	assert_eq(other.symbols.size(), 3, "nothing taken from them")
+	for path: String in [file, only_data, junk, other.path]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

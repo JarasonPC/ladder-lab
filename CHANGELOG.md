@@ -118,6 +118,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   electrical one, a load of its power on the circuit chosen: on the single-line diagram,
   in the parts list and the simulation like an appliance. Both are in the legend with their
   count, and a schematic keeps the symbols it uses, so it opens with them anywhere
+- Floor plan: your symbols are exported to a file (all of them or one category) and
+  imported from one, to share them or move them to another computer; a symbol you have
+  already is drawn as in the file
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers

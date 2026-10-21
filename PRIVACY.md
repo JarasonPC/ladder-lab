@@ -23,7 +23,8 @@ for it, with one exception: **the update check**.
 
 Everything below stays on your computer:
 
-- **Your files**: schematics (`.ladder`) and exported PNG and PDF files, where you save them.
+- **Your files**: schematics (`.ladder`), exported PNG and PDF files and exported symbols
+  (`.ladsym`), where you save them.
 - **Settings**: recent files, view options, language, panel sizes and the update check
   setting, in `settings.cfg` in the LadderLab data folder.
 - **Your symbols**: the floor plan symbols you draw, in `symbols.json` in the data folder

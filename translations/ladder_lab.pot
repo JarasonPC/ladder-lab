@@ -5771,3 +5771,58 @@ msgstr ""
 
 msgid "My symbols: draw your own from lines, shapes, curves and text, sorted into your categories; the palette offers them for the plan, drawings or loads on a circuit"
 msgstr ""
+
+msgid "Import symbols"
+msgstr ""
+
+msgid "Take in the symbols of a file someone shared; one you have already is drawn as in the file"
+msgstr ""
+
+msgid "Export"
+msgstr ""
+
+msgid "Write your symbols to a file to share or keep"
+msgstr ""
+
+msgid "All symbols…"
+msgstr ""
+
+#, c-format
+msgid "Only the category %s…"
+msgstr ""
+
+msgid "Export symbols"
+msgstr ""
+
+#, c-format
+msgid "%s cannot be written."
+msgstr ""
+
+#, c-format
+msgid "%d already in your library, now drawn as in the file"
+msgstr ""
+
+#, c-format
+msgid "%s is not a file of LadderLab symbols."
+msgstr ""
+
+#, c-format
+msgid "%s cannot be read."
+msgstr ""
+
+msgid "LadderLab symbols"
+msgstr ""
+
+#, c-format
+msgid "%d symbol written to %s."
+msgid_plural "%d symbols written to %s."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#, c-format
+msgid "%d new symbol"
+msgid_plural "%d new symbols"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""

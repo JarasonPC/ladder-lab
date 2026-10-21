@@ -2,7 +2,9 @@ class_name SymbolLibraryDialog
 extends AcceptDialog
 ## The user's own floor plan symbols ([SymbolLibrary]) by category, the one
 ## picked drawn beside the list: New, Edit (or a double click), Duplicate
-## and Delete. The palette of a residential installation's floor plan offers
+## and Delete; Import takes the symbols of a file in (see
+## [method SymbolLibrary.import_file]), Export writes all of them or the
+## picked one's category to a file to share. The palette of a residential installation's floor plan offers
 ## them under their categories.
 
 ## [param def] was drawn and kept in the library (new or changed).
@@ -19,6 +21,14 @@ var _duplicate: Button
 var _remove: Button
 var _editor: SymbolEditor
 var _confirm: ConfirmationDialog
+var _import: Button
+var _export: MenuButton
+var _import_file: FileDialog
+var _export_file: FileDialog
+## What the export writes: the symbols' ids (all of them when empty).
+var _exporting: PackedStringArray = PackedStringArray()
+## What an import or an export did, or why it could not.
+var _message: AcceptDialog
 
 
 func _init() -> void:
@@ -66,6 +76,33 @@ func _init() -> void:
 			_confirm.dialog_text = tr("Delete %s from your symbols? Schematics using it keep their copy.") % _picked().name
 			_confirm.reset_size()
 			_confirm.popup_centered())
+	side.add_child(HSeparator.new())
+	_import = _button(side, func() -> void:
+		_import_file.title = tr("Import symbols")
+		_import_file.popup_centered_ratio(0.6))
+	_export = MenuButton.new()
+	_export.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_export.flat = false
+	_export.about_to_popup.connect(_fill_export)
+	_export.get_popup().id_pressed.connect(_ask_export)
+	side.add_child(_export)
+	var filter: String = "*.%s ; %s" % [SymbolLibrary.EXTENSION, tr("LadderLab symbols")]
+	_import_file = FileDialog.new()
+	_import_file.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_import_file.access = FileDialog.ACCESS_FILESYSTEM
+	_import_file.use_native_dialog = true
+	_import_file.filters = PackedStringArray([filter])
+	_import_file.file_selected.connect(_import_symbols)
+	add_child(_import_file)
+	_export_file = FileDialog.new()
+	_export_file.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_export_file.access = FileDialog.ACCESS_FILESYSTEM
+	_export_file.use_native_dialog = true
+	_export_file.filters = PackedStringArray([filter])
+	_export_file.file_selected.connect(_export_symbols)
+	add_child(_export_file)
+	_message = AcceptDialog.new()
+	add_child(_message)
 	_editor = SymbolEditor.new()
 	_editor.saved.connect(func(def: CustomSymbol) -> void:
 		SymbolLibrary.shared().put(def)
@@ -89,6 +126,11 @@ func open(id: String = "") -> void:
 	_edit.text = tr("Edit…")
 	_duplicate.text = tr("Duplicate")
 	_remove.text = tr("Delete")
+	_import.text = tr("Import…")
+	_import.tooltip_text = tr("Take in the symbols of a file someone shared; one you have already is drawn as in the file")
+	_export.text = tr("Export")
+	_export.tooltip_text = tr("Write your symbols to a file to share or keep")
+	_message.ok_button_text = tr("OK")
 	_confirm.title = tr("Delete symbol")
 	_confirm.ok_button_text = tr("Delete")
 	_confirm.cancel_button_text = tr("Cancel")
@@ -110,7 +152,7 @@ func _fill(id: String) -> void:
 	for def: CustomSymbol in SymbolLibrary.shared().sorted():
 		if not heads.has(def.category):
 			var head: TreeItem = _tree.create_item(root)
-			head.set_text(0, def.category if not def.category.is_empty() else tr("My symbols"))
+			head.set_text(0, _category_title(def.category))
 			head.set_selectable(0, false)
 			head.set_custom_color(0, AppTheme.text_muted)
 			heads[def.category] = head
@@ -124,6 +166,71 @@ func _fill(id: String) -> void:
 		empty.set_text(0, tr("No symbols yet: draw one with New symbol."))
 		empty.set_selectable(0, false)
 	_update()
+
+
+## The export menu: every symbol, or only the picked one's category.
+func _fill_export() -> void:
+	var popup: PopupMenu = _export.get_popup()
+	popup.clear()
+	popup.add_item(tr("All symbols…"), 0)
+	popup.set_item_disabled(0, SymbolLibrary.shared().symbols.is_empty())
+	var picked: CustomSymbol = _picked()
+	if picked != null:
+		popup.add_item(tr("Only the category %s…") % _category_title(picked.category), 1)
+
+
+func _ask_export(id: int) -> void:
+	var picked: CustomSymbol = _picked()
+	_exporting = PackedStringArray()
+	var file_name: String = "symbols"
+	if id == 1 and picked != null:
+		for def: CustomSymbol in SymbolLibrary.shared().symbols:
+			if def.category == picked.category:
+				_exporting.append(def.id)
+		file_name = _category_title(picked.category).validate_filename()
+	_export_file.title = tr("Export symbols")
+	_export_file.current_file = "%s.%s" % [file_name, SymbolLibrary.EXTENSION]
+	_export_file.popup_centered_ratio(0.6)
+
+
+func _export_symbols(file_path: String) -> void:
+	if file_path.get_extension().is_empty():
+		file_path += "." + SymbolLibrary.EXTENSION
+	var count: int = _exporting.size() if not _exporting.is_empty() else SymbolLibrary.shared().symbols.size()
+	if SymbolLibrary.shared().export_file(file_path, _exporting) != OK:
+		_tell(tr("Export symbols"), tr("%s cannot be written.") % file_path.get_file())
+		return
+	_tell(tr("Export symbols"), tr_n("%d symbol written to %s.", "%d symbols written to %s.", count) % [count, file_path.get_file()])
+
+
+func _import_symbols(file_path: String) -> void:
+	var result: Dictionary = SymbolLibrary.shared().import_file(file_path)
+	if result.has("error"):
+		_tell(tr("Import symbols"), tr(str(result["error"])) % file_path.get_file())
+		return
+	var added: PackedStringArray = result["added"]
+	var replaced: PackedStringArray = result["replaced"]
+	# The schematic takes the new drawings of the symbols it uses.
+	for id: String in replaced:
+		symbol_saved.emit(SymbolLibrary.shared().find(id))
+	var first: String = added[0] if not added.is_empty() else (replaced[0] if not replaced.is_empty() else "")
+	_fill(first)
+	var text: String = tr_n("%d new symbol", "%d new symbols", added.size()) % added.size()
+	if not replaced.is_empty():
+		text += ", " + tr("%d already in your library, now drawn as in the file") % replaced.size()
+	_tell(tr("Import symbols"), text + ".")
+
+
+func _tell(heading: String, text: String) -> void:
+	_message.title = heading
+	_message.dialog_text = text
+	_message.reset_size()
+	_message.popup_centered()
+
+
+## How category [param category] is listed ("" is "My symbols").
+func _category_title(category: String) -> String:
+	return category if not category.is_empty() else tr("My symbols")
 
 
 func _picked() -> CustomSymbol:

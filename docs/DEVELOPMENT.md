@@ -471,7 +471,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   draw_shape on any CanvasItem in its pixels. SymbolLibrary (schematic/, no nodes): the
   library of every schematic in user://symbols.json (PATH, written whole by put and remove,
   changed signal; shared() the program's, set_shared for tests), categories() and sorted()
-  by category then name. A schematic keeps a copy of each symbol it uses
+  by category then name; files of symbols (EXTENSION .ladsym, the library file's format
+  FORMAT / VERSION: to_text, parse {"symbols"} or {"error"} with a %s for the file) written by
+  export_file (all, or the ids given) and taken in by import_file (the same id replaces the
+  drawing, the others are added: {"added", "replaced"}); SymbolLibraryDialog's Import… and
+  Export (all symbols, or the picked one's category), the schematic taking the drawings
+  replaced through symbol_saved. A schematic keeps a copy of each symbol it uses
   (SchematicDocument.symbols by id, saved "symbols", only those used_symbols finds;
   symbol(id) its copy, else the library's; use_symbol takes a copy and renames the loads
   drawn with it). On the plan of a residential installation (Palette.symbol_entries after
