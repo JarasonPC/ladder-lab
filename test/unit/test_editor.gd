@@ -152,13 +152,50 @@ func test_properties_change_and_conflict() -> void:
 	assert_true(editor.document().circuit.has_terminal("SB2:11"))
 	data["contact"] = "NO"
 	data["designation"] = "SB1"
-	assert_ne(editor.apply_properties("SB2", data), "", "SB1 13-14 is taken")
-	assert_not_null(editor.document().circuit.get_component("SB2"))
-	data["contact"] = "NC"
-	data["sequence"] = 2
-	assert_eq(editor.apply_properties("SB2", data), "", "SB1 21-22 is a second block of S1")
-	assert_eq((editor.document().circuit.get_component("SB1:21-22") as PushButton).actuator,
+	assert_eq(editor.apply_properties("SB2", data), "", "SB1 13-14 is taken: the next free numbers")
+	assert_eq((editor.document().circuit.get_component("SB1:23-24") as PushButton).actuator,
 		(editor.document().circuit.get_component("SB1:13-14") as PushButton).actuator, "blocks share the button")
+	data = DocumentSerializer.component_to_dict(editor.document().circuit.get_component("SB1:23-24"))
+	data["contact"] = "NC"
+	data["sequence"] = 3
+	assert_eq(editor.apply_properties("SB1:23-24", data), "", "numbers set by hand")
+	assert_not_null(editor.document().circuit.get_component("SB1:31-32"))
+
+
+func test_a_renamed_contact_takes_the_type_its_designation_gives() -> void:
+	_place({"type": "contact", "contact": "NO"}, Vector2i(5, 2))
+	_place({"type": "limit_switch", "contact": "NC"}, Vector2i(9, 2))
+	_place({"type": "limit_switch", "contact": "NC"}, Vector2i(13, 2))
+	var doc: SchematicDocument = editor.document()
+	var contact: CircuitComponent = doc.circuit.get_components().filter(func(c: CircuitComponent) -> bool: return c is Contact)[0]
+	var data: Dictionary = DocumentSerializer.component_to_dict(contact)
+	data["designation"] = "SB3"
+	assert_eq(editor.apply_properties(contact.id, data), "")
+	assert_true(doc.circuit.get_component("SB3:13-14") is PushButton, "named SB: a push button")
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("SB3:13-14"))
+	data["designation"] = "SQ1"
+	assert_eq(editor.apply_properties("SB3:13-14", data), "")
+	var block: LimitSwitch = doc.circuit.get_component("SQ1:13-14") as LimitSwitch
+	assert_not_null(block, "named like a limit switch: one more block of it")
+	assert_eq(block.actuator, (doc.circuit.get_component("SQ1:11-12") as LimitSwitch).actuator, "operated together")
+	# A second NC block of SQ1: the next free numbers, not a clash.
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("SQ2:11-12"))
+	data["designation"] = "SQ1"
+	assert_eq(editor.apply_properties("SQ2:11-12", data), "")
+	assert_true(doc.circuit.get_component("SQ1:21-22") is LimitSwitch, "three blocks of SQ1")
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("SQ1:21-22"))
+	data["designation"] = "RB4"
+	assert_eq(editor.apply_properties("SQ1:21-22", data), "")
+	assert_true(doc.circuit.get_component("RB4:21-22") is LatchingSwitch and not (doc.circuit.get_component("RB4:21-22") is LimitSwitch), "named RB: a switch")
+	data = DocumentSerializer.component_to_dict(doc.circuit.get_component("RB4:21-22"))
+	data["designation"] = "KA2"
+	assert_eq(editor.apply_properties("RB4:21-22", data), "")
+	var plain: CircuitComponent = doc.circuit.get_component("KA2:21-22")
+	assert_true(plain is Contact, "named KA: a contact")
+	data = DocumentSerializer.component_to_dict(plain)
+	data["designation"] = "X9"
+	assert_eq(editor.apply_properties(plain.id, data), "")
+	assert_true(doc.circuit.get_component("X9:21-22") is Contact, "letters of no switching device: the type stays")
 
 
 func test_rotate_selection_turns_component() -> void:

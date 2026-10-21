@@ -306,7 +306,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var under: Array = []
 		var index: int = _place_at((event as InputEventMouseMotion).position, under)
-		var clickable: bool = index >= 0 and _layout.places[index]["index"] >= 0 and (not simulating or not _operated(index, not under.is_empty()).is_empty())
+		var clickable: bool = index >= 0 and (simulating and not _operated(index, not under.is_empty()).is_empty() or not simulating and _selectable(_layout.places[index]))
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if clickable else Control.CURSOR_ARROW
 		return
 	if not (event is InputEventMouseButton):
@@ -322,12 +322,28 @@ func _gui_input(event: InputEvent) -> void:
 			operate_requested.emit(designation)
 			accept_event()
 		return
-	if index < 0 or _layout.places[index]["index"] < 0:
+	if index < 0 or not _selectable(_layout.places[index]):
 		# Nothing, or a place the switchboard adds by itself.
 		place_clicked.emit(-1, -1)
 	else:
 		place_clicked.emit(_layout.places[index]["rail"], _layout.places[index]["index"])
 	accept_event()
+
+
+## True for a place picked by a click in Edit mode: a rail item, or a
+## distribution block the switchboard put by itself (to be moved).
+static func _selectable(place: Dictionary) -> bool:
+	return place["index"] >= 0 or place["kind"] == CabinetLayout.BUS_BLOCK
+
+
+## The place laid out for rail [param rail] and index [param index] (see
+## [member CabinetLayout.places]), {} for none.
+func place_of(rail: int, index: int) -> Dictionary:
+	if _layout != null:
+		for place: Dictionary in _layout.places:
+			if place["rail"] == rail and place["index"] == index:
+				return place
+	return {}
 
 
 func _get_tooltip(at_position: Vector2) -> String:

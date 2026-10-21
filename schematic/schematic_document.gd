@@ -3010,6 +3010,26 @@ func move_cabinet_item_to_rail(board: int, rail_index: int, item_index: int, del
 	return true
 
 
+## Puts the distribution block [param name] ("N" or "PE") of switchboard
+## [param board] at place [param index] of rail [param rail_index] (moved
+## from where it was), where it stays while the switchboard needs it, instead
+## of after the strip its incoming conductor lands on. Returns false when
+## there is no such rail.
+func place_bus_block(board: int, rail_index: int, index: int, name: String) -> bool:
+	if not _has_board(board) or rail_index < 0 or rail_index >= switchboards[board].rails.size() or not CabinetItem.BUSES.has(name):
+		return false
+	var item: CabinetItem = CabinetItem.new(CabinetItem.Kind.BUS, name)
+	for rail: CabinetRail in switchboards[board].rails:
+		for i: int in rail.items.size():
+			if rail.items[i].kind == CabinetItem.Kind.BUS and rail.items[i].designation == name:
+				item = rail.items[i]
+				rail.items.remove_at(i)
+				break
+	var items: Array[CabinetItem] = switchboards[board].rails[rail_index].items
+	items.insert(clampi(index, 0, items.size()), item)
+	return true
+
+
 ## True when the device or strip already has a place in a switchboard.
 func cabinet_has(kind: CabinetItem.Kind, designation: String) -> bool:
 	return Workspace.switchboard_of(self, kind, designation) >= 0

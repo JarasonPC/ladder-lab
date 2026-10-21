@@ -1,14 +1,15 @@
 extends GutTest
 ## Cables of the workspace worked out from the wiring: a gate opened from two
-## control stations, its stop buttons looped through from one to the other.
+## control stations, its stop buttons in series through the switchboard.
 
 const NO := SwitchingElement.ContactType.NO
 const NC := SwitchingElement.ContactType.NC
 
 
 ## +RA1 holds KM1 and strip X2; +ST1 has SB1 (stop) and SB2 (open), +ST2
-## has SB4 (stop). L comes through X2:1 to SB1, SB1 goes straight on to SB4,
-## SB4 back through X2:2 to SB2, SB2 to the coil.
+## has SB4 (stop). L comes through X2:1 to SB1, SB1 is wired straight on to
+## SB4 (no strip terminal between them), SB4 back through X2:2 to SB2, SB2
+## to the coil.
 func _doc() -> SchematicDocument:
 	var doc: SchematicDocument = SchematicDocument.new("gate")
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(0, 0))
@@ -52,18 +53,18 @@ func _by_ends(list: Array[Dictionary]) -> Dictionary:
 
 func test_cables_follow_the_wiring() -> void:
 	var cables: Dictionary = _by_ends(WorkspaceCables.cables(_doc()))
-	assert_eq(cables.keys(), ["+RA1|+ST1", "+RA1|+ST2", "+RA1|-M1", "+ST1|+ST2"])
+	assert_eq(cables.keys(), ["+RA1|+ST1", "+RA1|+ST2", "+RA1|-M1"], "no cable from station to station")
 	var inside: Dictionary = cables["+RA1|+ST1"]
 	var landed: PackedStringArray = PackedStringArray()
 	for core: Dictionary in inside["cores"]:
 		landed.append("%s>%s" % [",".join(core["a"]), ",".join(core["b"])])
-	assert_eq(landed, PackedStringArray(["X2:1>SB1:11", "X2:2>SB2:13", "KM1:A1>SB2:14"]), "each core: what it lands on at both ends")
-	assert_eq((inside["cores"] as Array).size(), 3, "L in through X2:1, back from X2:2, out to the coil")
-	assert_eq((cables["+ST1|+ST2"]["cores"] as Array).size(), 1, "the stop buttons looped through from station to station")
-	assert_eq(cables["+ST1|+ST2"]["cores"][0]["a"], PackedStringArray(["SB1:12"]))
-	assert_eq(cables["+ST1|+ST2"]["cores"][0]["b"], PackedStringArray(["SB4:11"]))
-	assert_eq((cables["+RA1|+ST2"]["cores"] as Array).size(), 1, "SB4 back to X2:2: a star from the strip")
-	assert_eq(cables["+RA1|+ST2"]["cores"][0]["a"], PackedStringArray(["X2:2"]))
+	assert_eq(landed, PackedStringArray(["X2:1>SB1:11", ">SB1:12", "X2:2>SB2:13", "KM1:A1>SB2:14"]), "each core: what it lands on at both ends (nothing in the switchboard without a strip terminal)")
+	assert_eq((inside["cores"] as Array).size(), 4, "L in through X2:1, on from SB1 to SB4, back from X2:2, out to the coil")
+	var outside: Array = cables["+RA1|+ST2"]["cores"]
+	assert_eq(outside.size(), 2, "SB4 to SB1 and back to X2:2: both through the switchboard")
+	assert_eq(outside[0]["a"], PackedStringArray(), "SB1 to SB4 through the switchboard")
+	assert_eq(outside[0]["b"], PackedStringArray(["SB4:11"]))
+	assert_eq(outside[1]["a"], PackedStringArray(["X2:2"]), "a star from the strip")
 
 
 func test_names_in_turn_kept_and_renamed() -> void:
@@ -71,10 +72,10 @@ func test_names_in_turn_kept_and_renamed() -> void:
 	var names: PackedStringArray = PackedStringArray()
 	for cable: Dictionary in WorkspaceCables.cables(doc):
 		names.append(cable["name"])
-	assert_eq(names, PackedStringArray(["W1", "W2", "W3", "W4"]))
+	assert_eq(names, PackedStringArray(["W1", "W2", "W3"]))
 	doc.name_cables()
-	assert_eq(doc.cable_names["+ST1|+ST2"], "W4")
-	assert_true(doc.rename_cable("+ST1|+ST2", "W10"))
+	assert_eq(doc.cable_names["+RA1|+ST2"], "W2")
+	assert_true(doc.rename_cable("+RA1|+ST2", "W10"))
 	assert_false(doc.rename_cable("+RA1|+ST1", "W10"), "another cable has the name")
 	assert_false(doc.rename_cable("+RA1|+ST1", "W 1"), "no spaces")
 	assert_false(doc.rename_cable("+RA9|+ST1", "W11"), "no such cable")
@@ -84,8 +85,8 @@ func test_names_in_turn_kept_and_renamed() -> void:
 	doc.control_boxes[1].items.clear()
 	doc.name_cables()
 	var cables: Dictionary = _by_ends(WorkspaceCables.cables(doc))
-	assert_false(cables.has("+ST1|+ST2"), "SB4 has no place now")
-	assert_false(doc.cable_names.has("+ST1|+ST2"), "the name of a cable that is gone is dropped")
+	assert_false(cables.has("+RA1|+ST2"), "SB4 has no place now")
+	assert_false(doc.cable_names.has("+RA1|+ST2"), "the name of a cable that is gone is dropped")
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
 	assert_eq(copy.cable_names, doc.cable_names, "names are saved")
 
@@ -109,7 +110,7 @@ func test_types_follow_the_use() -> void:
 	doc.add(sensor, Vector2i(40, 10))
 	var cables: Dictionary = _by_ends(WorkspaceCables.cables(doc))
 	assert_eq(cables["+RA1|+ST1"]["use"], WorkspaceCables.Use.CONTROL, "to a control station")
-	assert_eq(cables["+ST1|+ST2"]["use"], WorkspaceCables.Use.CONTROL, "between stations")
+	assert_eq(cables["+RA1|+ST2"]["use"], WorkspaceCables.Use.CONTROL, "to the other station")
 	assert_eq(cables["+RA1|-M1"]["use"], WorkspaceCables.Use.MOTOR, "to a motor")
 	var power: Array = [{"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.POWER}, {"conductor": CabinetDevices.Conductor.PE}]
 	var control: Array = [{"conductor": CabinetDevices.Conductor.CONTROL}, {"conductor": CabinetDevices.Conductor.CONTROL}, {"conductor": CabinetDevices.Conductor.CONTROL}]
@@ -118,7 +119,7 @@ func test_types_follow_the_use() -> void:
 	assert_eq(WorkspaceCables.use(doc, {"a": "+RA1", "b": "+RA2", "cores": control}), WorkspaceCables.Use.CONTROL, "control between switchboards")
 	var station: Dictionary = cables["+RA1|+ST1"]
 	assert_eq(station["section"], WorkspaceCables.CONTROL_CABLE_SECTION)
-	assert_eq(WorkspaceCables.type_text(station), "JYTY-O 3x1")
+	assert_eq(WorkspaceCables.type_text(station), "JYTY-O 4x1")
 	var feeder: Dictionary = {"cores": power, "use": WorkspaceCables.Use.FEEDER, "section": 10.0}
 	var probe: Dictionary = {"cores": control, "use": WorkspaceCables.Use.SENSOR, "section": WorkspaceCables.SENSOR_SECTION}
 	var motor: Dictionary = {"cores": power, "use": WorkspaceCables.Use.MOTOR, "section": 2.5}
@@ -126,7 +127,7 @@ func test_types_follow_the_use() -> void:
 	assert_eq(WorkspaceCables.type_text(feeder), "CYKY-J 4x10")
 	assert_eq(WorkspaceCables.type_text(probe), "LiYCY 3x0,75")
 	WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED
-	assert_eq(WorkspaceCables.type_text(station), "H05VV5-F 3x1")
+	assert_eq(WorkspaceCables.type_text(station), "H05VV5-F 4x1")
 	assert_eq(WorkspaceCables.type_text(motor), "H07RN-F 4G2,5")
 	assert_eq(WorkspaceCables.type_text(feeder), "NYY-J 4x10")
 	assert_eq(WorkspaceCables.type_text(probe), "H05VVC4V5-K 3x0,75")
@@ -172,10 +173,17 @@ func test_switchboard_field_cables_take_the_workspace_names() -> void:
 	for cable: String in bottom:
 		assert_true(names.has(cable) and str(names[cable]).begins_with("+RA1|"), "%s is a cable of the workspace from +RA1" % cable)
 	doc.control_boxes.clear()
+	names.clear()
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		names[cable["name"]] = cable["key"]
 	wiring = CabinetWiring.build(doc, CabinetLayout.build(doc, 2.0, 0), 2.0, 0)
+	bottom.clear()
 	for gland: Dictionary in wiring.glands:
 		if gland["bottom"]:
-			assert_true(str(gland["cable"]).begins_with("-SB"), "a button with no place: its own cable, named after it")
+			bottom.append(gland["cable"])
+			assert_true(str(gland["cable"]).begins_with("-SB") or names.has(gland["cable"]), "%s: a cable of the workspace or of a button" % gland["cable"])
+	for button: String in ["-SB1", "-SB2", "-SB4"]:
+		assert_has(bottom, button, "a button with no place: its own cable, named after it")
 
 
 func test_renamed_places_keep_their_cables_names() -> void:
@@ -200,10 +208,10 @@ func test_type_section_and_length_set_by_hand() -> void:
 	assert_eq(cable["section"], 1.5)
 	assert_eq(cable["auto_section"], WorkspaceCables.CONTROL_CABLE_SECTION)
 	assert_eq(cable["length"], 35.0)
-	assert_eq(WorkspaceCables.type_text(cable), "ÖLFLEX 110 3x1,5")
-	assert_eq(WorkspaceCables.type_and_length(cable), "ÖLFLEX 110 3x1,5, 35 m")
+	assert_eq(WorkspaceCables.type_text(cable), "ÖLFLEX 110 4x1,5")
+	assert_eq(WorkspaceCables.type_and_length(cable), "ÖLFLEX 110 4x1,5, 35 m")
 	WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED
-	assert_eq(WorkspaceCables.type_text(cable), "ÖLFLEX 110 3x1,5", "the cores written the European way")
+	assert_eq(WorkspaceCables.type_text(cable), "ÖLFLEX 110 4x1,5", "the cores written the European way")
 	WorkspaceCables.naming = WorkspaceCables.Naming.CZECH
 	# Saved with the schematic.
 	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))

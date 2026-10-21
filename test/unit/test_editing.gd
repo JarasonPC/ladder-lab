@@ -482,6 +482,18 @@ func test_rerouted_wire_without_corners_takes_no_hook() -> void:
 	assert_eq(length, 11, "no detour: %s" % [points])
 
 
+func test_dragged_part_takes_a_corner_not_a_step_back() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(0, 5))
+	doc.connect_terminals("H1:X2", "H2:X1")
+	assert_eq(doc.wire_points(0).size(), 2, "straight down")
+	# H2:X1 to (3, 4): the cell over it, where the wire comes in along its
+	# lead, is level with H1:X2.
+	doc.drag_components(doc.drag_start(PackedStringArray(["H2"])), Vector2i(3, -1))
+	assert_eq(doc.wire_points(0).size(), 3, "one corner, no step down and back up: %s" % [doc.wire_points(0)])
+
+
 func test_parts_turned_together_keep_their_places() -> void:
 	var doc: SchematicDocument = _lamp_doc()
 	var ids: PackedStringArray = PackedStringArray(["S1", "H1"])

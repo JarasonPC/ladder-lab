@@ -261,6 +261,19 @@ func _field_cables(edges: Array[Dictionary], net: Dictionary[String, int], condu
 		for i: int in chosen:
 			cores.append(points[i])
 		cables[cable] = cores
+	# A strip terminal sending cores out in two cables (on a wire between two
+	# parts in different places) takes both in its field side, in one twin
+	# ferrule: one point for both.
+	var landing: Dictionary[String, Dictionary] = {}
+	for cable: String in cables:
+		var cores: Array = cables[cable]
+		for i: int in cores.size():
+			var spot: String = "%s@%s" % [cores[i]["key"], cores[i]["at"]]
+			if landing.has(spot):
+				landing[spot]["twin"] = true
+				cores[i] = landing[spot]
+			else:
+				landing[spot] = cores[i]
 	var middle: Callable = func(points: Array) -> float:
 		var sum: float = 0.0
 		for point: Dictionary in points:
@@ -335,17 +348,15 @@ static func bottom_slots(doc: SchematicDocument, board: int, strips: Dictionary)
 				for key: String in terminal["keys"]:
 					if not net.has(key) or doc.circuit.get_terminal_owner(key) is PowerSupply:
 						continue
-					var part: String = CabinetDevices.field_device(doc.circuit, key, net)
-					if part.is_empty():
-						continue
-					var station: int = Workspace.station_of(doc, part)
-					var door: int = Workspace.door_of(doc, part)
-					var to: String = "+" + doc.control_boxes[station].name if station >= 0 else "-" + part
-					if door >= 0:
-						to = DOOR if door == board else "+" + doc.switchboards[door].name
-					if not ends.has(to):
-						ends[to] = {}
-					ends[to][net[key]] = true
+					for part: String in CabinetDevices.field_devices(doc.circuit, key, net):
+						var station: int = Workspace.station_of(doc, part)
+						var door: int = Workspace.door_of(doc, part)
+						var to: String = "+" + doc.control_boxes[station].name if station >= 0 else "-" + part
+						if door >= 0:
+							to = DOOR if door == board else "+" + doc.switchboards[door].name
+						if not ends.has(to):
+							ends[to] = {}
+						ends[to][net[key]] = true
 	var slots: int = 0
 	for to: String in ends:
 		slots += ceili(ends[to].size() / 3.0)
@@ -371,10 +382,11 @@ static func door_harness(doc: SchematicDocument, board: int) -> Array[Dictionary
 				for key: String in terminal["keys"]:
 					if not net.has(key) or seen.has(net[key]) or doc.circuit.get_terminal_owner(key) is PowerSupply:
 						continue
-					var part: String = CabinetDevices.field_device(doc.circuit, key, net)
-					if not part.is_empty() and Workspace.door_of(doc, part) == board:
-						seen[net[key]] = true
-						result.append({"net": net[key], "key": key, "label": terminal["label"]})
+					for part: String in CabinetDevices.field_devices(doc.circuit, key, net):
+						if Workspace.door_of(doc, part) == board:
+							seen[net[key]] = true
+							result.append({"net": net[key], "key": key, "label": terminal["label"]})
+							break
 	return result
 
 
@@ -574,9 +586,9 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 								if not _entries.has((owner as PowerSupply).conductor):
 									_entries[(owner as PowerSupply).conductor] = {"key": key, "at": below, "duct": rail + 1, "up": false}
 								continue
-							# The field side: the wire out to the part outside.
-							var part: String = CabinetDevices.field_device(_circuit, key, net)
-							if not part.is_empty():
+							# The field side: the wires out to the parts outside
+							# (a terminal on a wire between two of them leads to both).
+							for part: String in CabinetDevices.field_devices(_circuit, key, net):
 								# "on_lead": the terminal sits on the lead of that part (else the part was found on its net).
 								_field.append({"key": key, "at": below, "duct": rail + 1, "up": false, "field": part, "kind": terminals[i]["kind"], "on_lead": owner != null and owner.designation == part})
 			CabinetLayout.MISSING_DEVICE:

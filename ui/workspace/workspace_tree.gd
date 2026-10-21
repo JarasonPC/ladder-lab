@@ -114,6 +114,8 @@ func _fill(root: TreeItem) -> void:
 		var head: TreeItem = _place(root, Workspace.Place.SWITCHBOARD, board.name, board.title if not board.title.is_empty() else tr("Switchboard"))
 		for rail: CabinetRail in board.rails:
 			for place: CabinetItem in rail.items:
+				if place.kind == CabinetItem.Kind.BUS:
+					continue
 				var strip: bool = place.kind == CabinetItem.Kind.STRIP
 				var c: CircuitComponent = CabinetDevices.device(document.circuit, place.designation)
 				var what: String = tr("Terminal strip") if strip else (tr(CabinetPanel.KIND_TITLES[CabinetDevices.kind_of(c)]) if c != null else tr("not in the schematic"))

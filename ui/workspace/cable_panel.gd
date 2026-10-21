@@ -129,8 +129,9 @@ func _rebuild() -> void:
 		if pe:
 			row.set_custom_color(0, SchematicTheme.PE)
 		row.set_text(1, str(core["number"]))
-		row.set_text(2, ", ".join(core["a"]))
-		row.set_text(3, ", ".join(core["b"]))
+		# Nothing to land on (a net through a switchboard without a strip terminal): a dash.
+		row.set_text(2, ", ".join(core["a"]) if not (core["a"] as PackedStringArray).is_empty() else "–")
+		row.set_text(3, ", ".join(core["b"]) if not (core["b"] as PackedStringArray).is_empty() else "–")
 
 
 ## The fields with what is set on cable [param shown], and its voltage drop.

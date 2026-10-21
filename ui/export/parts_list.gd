@@ -27,6 +27,9 @@ func rows(doc: SchematicDocument) -> Array[Dictionary]:
 		var apart: Dictionary[int, bool] = CabinetLayout.bus_nets(buses)
 		for rail: CabinetRail in board.rails:
 			for item: CabinetItem in rail.items:
+				if item.kind == CabinetItem.Kind.BUS:
+					# Listed with the distribution blocks below.
+					continue
 				if item.kind == CabinetItem.Kind.STRIP:
 					part.append(_strip(item.designation, strips))
 					part.append_array(_bridges(item.designation, strips, CabinetDevices.supply_nets(doc.circuit, net), apart))

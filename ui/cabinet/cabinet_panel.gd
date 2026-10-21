@@ -322,7 +322,13 @@ func _rebuild() -> void:
 	_view.refresh()
 	if not _editing:
 		return
-	if _selected.x >= 0:
+	if _selected.y < 0 and _selected.x >= 0 and _view.place_of(_selected.x, _selected.y).is_empty():
+		# The distribution block picked is not there any more.
+		_selected = Vector2i(-1, -1)
+		_view.selected = _selected
+	if _selected.x >= 0 and _selected.y < 0:
+		_bus_editor(b, _selected.x, _view.place_of(_selected.x, _selected.y))
+	elif _selected.x >= 0:
 		_place_editor(b, _selected.x, _selected.y)
 	for r: int in rails.size():
 		_rail_row(b, r)
@@ -484,6 +490,9 @@ func _place_editor(b: int, r: int, i: int) -> void:
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actions.add_child(spacer)
+	if item.kind == CabinetItem.Kind.BUS:
+		# The switchboard adds it while it is needed: it moves, it is not removed.
+		return
 	var remove: Button = _button(tr("Remove"), "delete")
 	remove.pressed.connect(func() -> void:
 		_selected = Vector2i(-1, -1)
@@ -491,6 +500,45 @@ func _place_editor(b: int, r: int, i: int) -> void:
 	actions.add_child(remove)
 	if item.kind == CabinetItem.Kind.STRIP:
 		_strip_split(fields, item.designation)
+
+
+## The distribution block [param place] the switchboard put by itself on
+## rail [param r]: moving it puts it on the rail as an item, where it then
+## stays (see [method SchematicDocument.place_bus_block]).
+func _bus_editor(b: int, r: int, place: Dictionary) -> void:
+	var rails: Array[CabinetRail] = _document.switchboards[b].rails
+	var name: String = place["designation"]
+	var slot: int = place["slot"]
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "FunctionCard"
+	_list.add_child(card)
+	var fields: VBoxContainer = VBoxContainer.new()
+	fields.add_theme_constant_override("separation", 4)
+	card.add_child(fields)
+	var heading: Label = Label.new()
+	heading.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	heading.text = _bus_title(name)
+	fields.add_child(heading)
+	var actions: HBoxContainer = HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 2)
+	fields.add_child(actions)
+	for step: int in [-1, 1]:
+		var move: Button = _tool("arrow_left" if step < 0 else "arrow_right", tr("Move it one place left") if step < 0 else tr("Move it one place right"))
+		# It stands before the item at slot: one place left is before the
+		# item before it, one place right after the item after it.
+		var at: int = slot + step
+		move.disabled = at < 0 or at > rails[r].items.size()
+		move.pressed.connect(func() -> void:
+			_selected = Vector2i(r, at)
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.place_bus_block(b, r, at, name)))
+		actions.add_child(move)
+	for step: int in [-1, 1]:
+		var to_rail: Button = _tool("arrow_up" if step < 0 else "arrow_down", tr("Move it to the rail above") if step < 0 else tr("Move it to the rail below"))
+		to_rail.disabled = r + step < 0 or r + step >= rails.size()
+		to_rail.pressed.connect(func() -> void:
+			_selected = Vector2i(r + step, rails[r + step].items.size())
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.place_bus_block(b, r + step, rails[r + step].items.size(), name)))
+		actions.add_child(to_rail)
 
 
 ## Splitting terminal strip [param strip]: its terminals to pick and where
@@ -572,14 +620,21 @@ func _strip_split(fields: VBoxContainer, strip: String) -> void:
 	row.add_child(move)
 
 
-## "Contactor -KM1", "Terminal strip -X1".
+## "Contactor -KM1", "Terminal strip -X1", "N distribution block".
 func _item_title(item: CabinetItem) -> String:
 	if item.kind == CabinetItem.Kind.STRIP:
 		return tr("Terminal strip") + " -" + item.designation
+	if item.kind == CabinetItem.Kind.BUS:
+		return _bus_title(item.designation)
 	var c: CircuitComponent = CabinetDevices.device(_document.circuit, item.designation)
 	if c == null:
 		return "-%s (%s)" % [item.designation, tr("not in the schematic")]
 	return tr(KIND_TITLES[CabinetDevices.kind_of(c)]) + " -" + item.designation
+
+
+## "N distribution block" or "PE distribution block" for [param name] "N" or "PE".
+func _bus_title(name: String) -> String:
+	return tr("N distribution block") if name == "N" else tr("PE distribution block")
 
 
 # --- Controls ---------------------------------------------------------------------

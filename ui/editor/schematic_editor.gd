@@ -55,6 +55,11 @@ const PICK_PIXELS: float = 8.0
 const OVERLAP_SIGN: float = 7.0
 ## Phase conductors as the palette names them, in phase order.
 const PHASES: PackedStringArray = ["L", "L2", "L3"]
+## Single switching elements whose type follows a new designation (see
+## [method _follow_device]), and the type the letters of a designation give
+## one where no device of that name is drawn.
+const SWITCH_TYPES: PackedStringArray = ["contact", "push_button", "latching_switch", "limit_switch"]
+const TYPE_BY_LETTERS: Dictionary[String, String] = {"SB": "push_button", "RB": "latching_switch", "SQ": "limit_switch", "KM": "contact", "KA": "contact", "KT": "contact"}
 
 var view: SchematicView
 var history: UndoHistory = UndoHistory.new()
@@ -474,9 +479,10 @@ func apply_properties(component_id: String, data: Dictionary) -> String:
 			data["designation"] = doc.next_device_designation(new_prefix)
 	_follow_device(data, old.designation)
 	adapt_terminals(data, old.default_terminal_names())
-	# A contact given the designation of a device that already has a contact
-	# with its numbers takes the next free sequence digit (13-14 -> 23-24).
-	if (data["type"] == "contact" or data["type"] == "changeover") and data["designation"] != old.designation and not data.has("terminals"):
+	# A contact (or button, switch, limit switch) given the designation of a
+	# device that already has a contact with its numbers takes the next free
+	# sequence digit (13-14 -> 23-24).
+	if (SWITCH_TYPES.has(data["type"]) or data["type"] == "changeover") and data["designation"] != old.designation and not data.has("terminals"):
 		var probe: CircuitComponent = DocumentSerializer.component_from_dict(data)
 		if probe != null and doc.circuit.has_component_id(probe.id):
 			data["sequence"] = doc.next_contact_sequence(data["designation"])
@@ -1396,10 +1402,26 @@ func _rename_clash(old: CircuitComponent, designation: String) -> String:
 ## designation stays); a contact designated like an overload relay (e.g. "F2")
 ## becomes its overload contact (95-96 / 97-98, drawn with the thermal
 ## actuator); an overload contact designated otherwise becomes a plain
-## contact again. [param old_designation]: before the edit ("" when new).
+## contact again. A contact, push button, switch or limit switch renamed
+## takes the type its new designation gives (see [method _type_by_designation]):
+## named "SB2" it becomes a push button, "SQ1" a limit switch (one more block
+## of SQ1 where it is drawn), "KM1" a contact. [param old_designation]:
+## before the edit ("" when new).
 func _follow_device(data: Dictionary, old_designation: String = "") -> void:
 	var doc: SchematicDocument = document()
 	var designation: String = str(data.get("designation", ""))
+	if SWITCH_TYPES.has(data["type"]) and not old_designation.is_empty() and designation != old_designation:
+		var kind: String = _type_by_designation(designation)
+		if not kind.is_empty() and kind != data["type"]:
+			data["type"] = kind
+			data.erase("positions")
+			data.erase("operated_in")
+			if kind == "latching_switch":
+				# One more block of a switch with three positions has them too.
+				for c: CircuitComponent in doc.circuit.get_components():
+					if c is LatchingSwitch and not (c is LimitSwitch) and c.designation == designation and (c as LatchingSwitch).three_positions:
+						data["positions"] = "I-0-II"
+						break
 	if (data["type"] == "contact" or data["type"] == "changeover") and (not data.has("delayed") or designation != old_designation):
 		data["delayed"] = doc.circuit.get_coil(designation) is TimerRelay
 	var relay: OverloadRelay = doc.circuit.get_overload_relay(str(data.get("designation", "")))
@@ -1411,6 +1433,33 @@ func _follow_device(data: Dictionary, old_designation: String = "") -> void:
 		data["type"] = "contact"
 		data["sequence"] = doc.next_contact_sequence(str(data["designation"]))
 		data.erase("terminals")
+
+
+## Type (as in [constant SWITCH_TYPES]) a single switching element named
+## [param designation] is: that of the device drawn with that name (a
+## contact of a coil, overload relay or breaker; a block of a push button,
+## switch or limit switch; a coil of that name wins), else the one its
+## letters give ([constant TYPE_BY_LETTERS]); "" to keep its type.
+func _type_by_designation(designation: String) -> String:
+	var found: String = ""
+	for c: CircuitComponent in document().circuit.get_components():
+		if c.designation != designation:
+			continue
+		if c is Coil:
+			return "contact"
+		if c is OverloadRelay or c is CircuitBreaker or c is MotorBreaker:
+			found = "contact"
+		elif c is PushButton:
+			found = "push_button"
+		elif c is LimitSwitch:
+			found = "limit_switch"
+		elif c is LatchingSwitch:
+			found = "latching_switch"
+		elif c is CamSwitch:
+			return ""
+	if not found.is_empty():
+		return found
+	return TYPE_BY_LETTERS.get(SchematicDocument._designation_prefix(designation), "")
 
 
 ## Designation for a new part made from [param data]; [param changing] is

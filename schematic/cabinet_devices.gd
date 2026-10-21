@@ -546,16 +546,27 @@ static func is_outside(circuit: Circuit, c: CircuitComponent) -> bool:
 ## joining [param key] leads to: the part whose lead it sits on, else the
 ## first such part on its net; "" for none.
 static func field_device(circuit: Circuit, key: String, net: Dictionary[String, int]) -> String:
+	var parts: PackedStringArray = field_devices(circuit, key, net)
+	return parts[0] if not parts.is_empty() else ""
+
+
+## Designations of every part outside the switchboard on the net of the
+## strip terminal joining [param key]: the part whose lead it sits on first,
+## then the others on its net in circuit order (a terminal on a wire between
+## two limit switches leads to both).
+static func field_devices(circuit: Circuit, key: String, net: Dictionary[String, int]) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
 	var owner: CircuitComponent = circuit.get_terminal_owner(key)
 	if owner != null and is_outside(circuit, owner):
-		return owner.designation
+		result.append(owner.designation)
 	var n: int = net.get(key, -1)
 	for c: CircuitComponent in circuit.get_components():
-		if is_outside(circuit, c):
+		if is_outside(circuit, c) and not result.has(c.designation):
 			for k: String in c.get_terminal_keys():
 				if net.get(k, -2) == n:
-					return c.designation
-	return ""
+					result.append(c.designation)
+					break
+	return result
 
 
 # --- Terminal strips -----------------------------------------------------------------

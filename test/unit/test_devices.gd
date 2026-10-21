@@ -131,9 +131,9 @@ func test_editor_lets_a_contact_take_a_buttons_name() -> void:
 	var data: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("KM1:23-24"))
 	data["designation"] = "SB1"
 	assert_eq(editor.apply_properties("KM1:23-24", data), "")
-	var contact: Contact = doc.circuit.get_component("SB1:23-24") as Contact
-	assert_not_null(contact, "renamed")
-	assert_eq(contact.linked_actuator, (doc.circuit.get_operator("SB1") as PushButton).actuator)
+	var block: PushButton = doc.circuit.get_component("SB1:23-24") as PushButton
+	assert_not_null(block, "renamed: one more block of the push button")
+	assert_eq(block.actuator, (doc.circuit.get_operator("SB1") as PushButton).actuator)
 	var lamp: Dictionary = DocumentSerializer.component_to_dict(doc.circuit.get_component("H1"))
 	lamp["designation"] = "SB1"
 	assert_ne(editor.apply_properties("H1", lamp), "", "a lamp is no part of a button")

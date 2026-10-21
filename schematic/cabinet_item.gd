@@ -2,14 +2,18 @@ class_name CabinetItem
 extends RefCounted
 ## One place on a DIN rail of the switchboard (rozvaděč, see [CabinetRail]):
 ## a device of the circuit named by its designation ("FA1", "KM1", "KT1") or a
-## terminal strip named by its strip ("X1"). How it looks (poles, contacts)
-## follows the circuit (see [CabinetDevices]); a name the circuit no longer
-## has leaves an empty place. Design data only.
+## terminal strip named by its strip ("X1"), or the switchboard's N or PE
+## distribution block ("N", "PE") where it was moved by hand. How it looks
+## (poles, contacts) follows the circuit (see [CabinetDevices]); a name the
+## circuit no longer has leaves an empty place, a distribution block not
+## needed none. Design data only.
 
-enum Kind { DEVICE, STRIP }
+enum Kind { DEVICE, STRIP, BUS }
 
 ## Kind names as saved, in [enum Kind] order.
-const KINDS: PackedStringArray = ["device", "strip"]
+const KINDS: PackedStringArray = ["device", "strip", "bus"]
+## Designations of the distribution blocks: N, then PE.
+const BUSES: PackedStringArray = ["N", "PE"]
 
 var kind: Kind = Kind.DEVICE
 ## Designation of the device, or name of the terminal strip.
@@ -33,5 +37,7 @@ static func from_data(data: Variant) -> CabinetItem:
 	var kind_index: int = KINDS.find(str(d.get("kind", "")))
 	var designation: String = str(d.get("designation", "")).strip_edges()
 	if kind_index < 0 or designation.is_empty() or designation.contains(" ") or designation.contains(":"):
+		return null
+	if kind_index == Kind.BUS and not BUSES.has(designation):
 		return null
 	return CabinetItem.new(kind_index as Kind, designation)
