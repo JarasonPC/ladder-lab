@@ -121,6 +121,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Floor plan: your symbols are exported to a file (all of them or one category) and
   imported from one, to share them or move them to another computer; a symbol you have
   already is drawn as in the file
+- On an industrial schematic a warning sign marks terminals of two parts lying on one another
+  without being connected; with the mouse over it the status bar names them
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
@@ -130,6 +132,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Inside a control station, terminals wired only to a supply point of their own (a
   potentiometer's - point or 10 V reference) get their wires: supply points of one conductor
   are one core, and a supply only wired to the station comes from the switchboard
+- "Wire facing terminals" also wires terminals that already have a wire to something else
 
 ## 0.6.0 – 2026-10-20
 

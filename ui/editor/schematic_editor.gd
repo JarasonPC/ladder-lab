@@ -44,6 +44,8 @@ const CLICK_SLOP: float = 6.0
 enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, LINE_UP_VERTICAL, LINE_UP_HORIZONTAL, WIRE_FACING, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
+## Half the height of the warning sign of terminals lying on one another.
+const OVERLAP_SIGN: float = 7.0
 ## Phase conductors as the palette names them, in phase order.
 const PHASES: PackedStringArray = ["L", "L2", "L3"]
 
@@ -132,6 +134,9 @@ var _marking_drag: bool = false
 var _marking_drag_origin: Vector2 = Vector2.ZERO
 var _marking_drag_offset: Vector2 = Vector2.ZERO
 var _marking_drag_recorded: bool = false
+## The hint of the warning sign under the mouse shown in place of the
+## tool's (see [method _overlap_hint]), or "".
+var _shown_overlap_hint: String = ""
 # Selection box.
 var _boxing: bool = false
 var _box_origin: Vector2 = Vector2.ZERO
@@ -360,11 +365,12 @@ func mirror_selection() -> void:
 	_changed()
 
 
-## Wires the free terminals of the selected parts that face each other with
-## straight wires (see [method SchematicDocument.facing_pairs]), one undo
-## step. Returns how many wires were added.
+## Wires the terminals of the selected parts that face each other with
+## straight wires (see [method SchematicDocument.facing_pairs]), also those
+## wired to something else already, one undo step. Returns how many wires
+## were added.
 func wire_facing_terminals() -> int:
-	var pairs: Array[PackedStringArray] = document().facing_pairs(PackedStringArray(selected_components.keys()))
+	var pairs: Array[PackedStringArray] = document().facing_pairs(PackedStringArray(selected_components.keys()), PackedStringArray(), true)
 	if pairs.is_empty():
 		return 0
 	_record()
@@ -932,9 +938,9 @@ func _open_context_menu() -> void:
 			_menu.add_item(tr("Line up horizontally…"), MenuId.LINE_UP_HORIZONTAL)
 			_menu.set_item_tooltip(_menu.item_count - 1, tr("Side by side, the same number of cells apart"))
 		if facing:
-			var count: int = doc.facing_pairs(PackedStringArray(selected_components.keys())).size()
+			var count: int = doc.facing_pairs(PackedStringArray(selected_components.keys()), PackedStringArray(), true).size()
 			_menu.add_item(tr("Wire facing terminals") + ("  (%d)" % count if count > 0 else ""), MenuId.WIRE_FACING)
-			_menu.set_item_tooltip(_menu.item_count - 1, tr("Straight wires between the free terminals of the selected parts that face each other"))
+			_menu.set_item_tooltip(_menu.item_count - 1, tr("Straight wires between the terminals of the selected parts that face each other, also those wired already"))
 			_menu.set_item_disabled(_menu.item_count - 1, count == 0)
 		_menu.add_separator()
 		_menu.add_item(tr("Cut"), MenuId.CUT, KEY_MASK_CTRL | KEY_X)
@@ -1032,6 +1038,16 @@ func _on_mouse_moved() -> void:
 					_drag_number_to(_mouse_point - _number_drag_origin)
 				elif _marking_drag:
 					_drag_marking_to(_mouse_point - _marking_drag_origin)
+			elif not _holding():
+				# The warning sign of terminals lying on one another explains
+				# itself in the hint while the mouse is over it.
+				var hint: String = _overlap_hint()
+				if hint != _shown_overlap_hint:
+					_shown_overlap_hint = hint
+					if hint.is_empty():
+						_emit_hint()
+					else:
+						hint_changed.emit(hint)
 	queue_redraw()
 
 
@@ -1948,6 +1964,7 @@ func _can_replace(old: CircuitComponent, replacement: CircuitComponent) -> bool:
 
 
 func _emit_hint() -> void:
+	_shown_overlap_hint = ""
 	match tool:
 		Tool.PLACE:
 			hint_changed.emit(tr("Click to place. R rotates, F mirrors left-right, Shift+F top-bottom. Right click or Esc stops placing."))
@@ -2014,6 +2031,9 @@ func _draw() -> void:
 		for key: String in c.get_terminal_keys():
 			if not connected.has(key):
 				draw_arc(Vector2(doc.terminal_cell(key)) * G, 3.5, 0.0, TAU, 12, SchematicTheme.TERMINAL_TEXT, 1.5)
+	# Terminals lying on one another without being connected.
+	for pair: PackedStringArray in _overlaps():
+		_draw_overlap_warning(doc.terminal_cell(pair[0]))
 	# Selection.
 	for id: String in selected_components:
 		var c: CircuitComponent = doc.circuit.get_component(id)
@@ -2136,6 +2156,45 @@ func _draw_line_up_ruler() -> void:
 		else:
 			pos = Vector2(at * G - text_size.x * 0.5, band_far * G - 3.0)
 		draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, SchematicTheme.TEXT)
+
+
+## Terminals of two parts on one cell of the page shown that are not
+## connected (see [method SchematicDocument.overlapping_terminals]), on an
+## industrial schematic.
+func _overlaps() -> Array[PackedStringArray]:
+	if document().environment != SchematicDocument.Kind.INDUSTRIAL:
+		return []
+	return document().overlapping_terminals()
+
+
+## Middle of the warning sign of terminals lying on one another at
+## [param cell], above right of it.
+static func _overlap_sign_at(cell: Vector2i) -> Vector2:
+	return (Vector2(cell) + Vector2(0.6, -0.6)) * G
+
+
+## A ring round the terminals at [param cell] and a warning triangle beside
+## them: they look joined but are not.
+func _draw_overlap_warning(cell: Vector2i) -> void:
+	draw_arc(Vector2(cell) * G, 6.0, 0.0, TAU, 16, SchematicTheme.WARNING, 2.0)
+	var c: Vector2 = _overlap_sign_at(cell)
+	var h: float = OVERLAP_SIGN
+	var triangle: PackedVector2Array = PackedVector2Array([c + Vector2(0, -h), c + Vector2(h, h * 0.8), c + Vector2(-h, h * 0.8)])
+	draw_colored_polygon(triangle, SchematicTheme.WARNING)
+	var font: Font = AppTheme.schematic_font()
+	var font_size: int = 9
+	var w: float = font.get_string_size("!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	draw_string(font, c + Vector2(-w * 0.5, h * 0.65), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, SchematicTheme.BACKGROUND)
+
+
+## The hint of the warning sign under the mouse, or "".
+func _overlap_hint() -> String:
+	var doc: SchematicDocument = document()
+	for pair: PackedStringArray in _overlaps():
+		var cell: Vector2i = doc.terminal_cell(pair[0])
+		if (_mouse_point * G).distance_to(_overlap_sign_at(cell)) <= OVERLAP_SIGN * 1.5 or _mouse_point.distance_to(Vector2(cell)) <= 0.3:
+			return tr("Terminals %s and %s lie on one another but are not connected.") % [pair[0], pair[1]]
+	return ""
 
 
 ## Dashed wires the wiring helpers would add between the terminal pairs

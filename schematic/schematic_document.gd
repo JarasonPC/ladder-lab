@@ -222,8 +222,11 @@ func connect_pairs(pairs: Array[PackedStringArray]) -> int:
 ## join them: [key_a, key_b] pairs, each terminal in one pair at most. Pairs
 ## of terminals of components [param ids], with each other or with those of
 ## [param others]. A terminal without a lead (a supply point) is met from
-## any side. Only the page of the first of [param ids] counts.
-func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStringArray()) -> Array[PackedStringArray]:
+## any side. Only the page of the first of [param ids] counts. With
+## [param wired_too] terminals that already have wires pair as well, unless
+## the two are on one net already; the way may then run along the wires of
+## either end's net.
+func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStringArray(), wired_too: bool = false) -> Array[PackedStringArray]:
 	var result: Array[PackedStringArray] = []
 	var own: Dictionary[String, bool] = {}
 	var allowed: Dictionary[String, bool] = {}
@@ -253,7 +256,8 @@ func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStri
 			if not cells.has(at):
 				cells[at] = []
 			cells[at].append(key)
-	var router: WireRouter = _router(on_page, _terminal_nets(), {})
+	var nets: Dictionary[String, int] = _terminal_nets()
+	var router: WireRouter = _router(on_page, nets, {})
 	# An Ethernet port pairs with another port only.
 	var ports: Dictionary[String, bool] = CabinetDevices.network_keys(circuit)
 	# A net no terminal or wire has: anything of another net is in the way.
@@ -264,7 +268,7 @@ func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStri
 			continue
 		for key: String in c.get_terminal_keys():
 			var out: Vector2i = terminal_outward(key)
-			if out == Vector2i.ZERO or wired.has(key) or used.has(key):
+			if out == Vector2i.ZERO or (wired.has(key) and not wired_too) or used.has(key):
 				continue
 			var start: Vector2i = terminal_cell(key)
 			var cell: Vector2i = start + out
@@ -279,9 +283,15 @@ func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStri
 				var back: Vector2i = terminal_outward(other)
 				if partner == c or not allowed.has(partner.id) or not (own.has(c.id) or own.has(partner.id)):
 					continue
-				if wired.has(other) or used.has(other) or (back != -out and back != Vector2i.ZERO) or ports.has(key) != ports.has(other):
+				if (wired.has(other) and not wired_too) or used.has(other) or (back != -out and back != Vector2i.ZERO) or ports.has(key) != ports.has(other):
 					continue
-				if router.is_clear([start, cell] as Array[Vector2i], lone):
+				var net_a: int = nets.get(key, lone)
+				var net_b: int = nets.get(other, lone)
+				if net_a != lone and net_a == net_b:
+					# Joined already.
+					break
+				var way: Array[Vector2i] = [start, cell]
+				if router.is_clear(way, net_a) or (net_b != net_a and router.is_clear(way, net_b)):
 					result.append(PackedStringArray([key, other]))
 					used[key] = true
 					used[other] = true
@@ -289,6 +299,29 @@ func facing_pairs(ids: PackedStringArray, others: PackedStringArray = PackedStri
 	_caching = cached
 	if not cached:
 		_cell_cache.clear()
+	return result
+
+
+## Terminals of two parts drawn on one cell of page [param on_page] (-1: the
+## current page) that are not connected (not on one net, not supply points
+## of one conductor): they look joined but are not. [key_a, key_b] pairs.
+func overlapping_terminals(on_page: int = -1) -> Array[PackedStringArray]:
+	var result: Array[PackedStringArray] = []
+	var nets: Dictionary[String, int] = _terminal_nets()
+	var cells: Dictionary[Vector2i, Array] = {}
+	for c: CircuitComponent in components_on_page(on_page):
+		for key: String in c.get_terminal_keys():
+			var at: Vector2i = terminal_cell(key)
+			if not cells.has(at):
+				cells[at] = []
+			for other: String in cells[at]:
+				var owner: CircuitComponent = circuit.get_terminal_owner(other)
+				if owner == c or (nets.has(key) and nets.get(other, -1) == nets[key]):
+					continue
+				if c is PowerSupply and owner is PowerSupply and (c as PowerSupply).conductor == (owner as PowerSupply).conductor:
+					continue
+				result.append(PackedStringArray([other, key]))
+			cells[at].append(key)
 	return result
 
 
