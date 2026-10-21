@@ -352,26 +352,57 @@ static func _named_keys(c: CircuitComponent) -> Dictionary:
 
 ## Contactor designation -> designation of the overload relay fitted under
 ## it: a three-pole overload relay whose heater inputs (1, 3, 5) are wired to
-## the outputs (2, 4, 6) of the contactor's main contacts.
+## the outputs (2, 4, 6) of the contactor's main contacts. One relay under
+## each contactor: where the outputs of several contactors are joined (a
+## reversing pair) each relay takes one of them, as many fitted as can be,
+## the first in circuit order preferred.
 static func overloads_under_contactors(circuit: Circuit) -> Dictionary[String, String]:
-	var result: Dictionary[String, String] = {}
 	var net: Dictionary[String, int] = nets(circuit)
-	var outputs: Dictionary[int, String] = {}
+	var outputs: Dictionary[int, PackedStringArray] = {}
 	for c: CircuitComponent in circuit.get_components():
 		if c is MainContacts and circuit.get_coil(c.designation) != null:
 			var keys: PackedStringArray = c.get_terminal_keys()
 			for k: int in range(1, keys.size(), 2):
 				if net.has(keys[k]):
-					outputs[net[keys[k]]] = c.designation
+					var on: PackedStringArray = outputs.get(net[keys[k]], PackedStringArray())
+					if not on.has(c.designation):
+						on.append(c.designation)
+					outputs[net[keys[k]]] = on
+	# Relay -> the contactors its heaters follow.
+	var candidates: Dictionary[String, PackedStringArray] = {}
 	for c: CircuitComponent in circuit.get_components():
-		if c is OverloadRelay and (c as OverloadRelay).poles == 3:
+		if c is OverloadRelay and (c as OverloadRelay).poles == 3 and not candidates.has(c.designation):
 			var keys: PackedStringArray = c.get_terminal_keys()
+			var found: PackedStringArray = PackedStringArray()
 			for k: int in range(0, keys.size(), 2):
-				var contactor: String = outputs.get(net.get(keys[k], -1), "")
-				if not contactor.is_empty() and not result.has(contactor):
-					result[contactor] = c.designation
-					break
+				for contactor: String in outputs.get(net.get(keys[k], -1), PackedStringArray()):
+					if not found.has(contactor):
+						found.append(contactor)
+			candidates[c.designation] = found
+	var result: Dictionary[String, String] = {}
+	for relay: String in candidates:
+		_fit_overload(relay, candidates, result, {})
 	return result
+
+
+## Fits [param relay] under one of its contactors in [param result]
+## (contactor -> relay): under the first free one, else moving a relay
+## fitted there already to another of its own where it has one; false when
+## it cannot be fitted.
+static func _fit_overload(relay: String, candidates: Dictionary[String, PackedStringArray], result: Dictionary[String, String], tried: Dictionary) -> bool:
+	for contactor: String in candidates[relay]:
+		if not result.has(contactor) and not tried.has(contactor):
+			tried[contactor] = true
+			result[contactor] = relay
+			return true
+	for contactor: String in candidates[relay]:
+		if tried.has(contactor):
+			continue
+		tried[contactor] = true
+		if not result.has(contactor) or _fit_overload(result[contactor], candidates, result, tried):
+			result[contactor] = relay
+			return true
+	return false
 
 
 ## Terminal key -> net number: terminals joined by wires or by page
