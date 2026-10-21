@@ -128,6 +128,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   mirrored and scaled together, copied, cut, pasted (into another symbol too) and
   duplicated; points snap to those of other shapes, the grid is 1, 5 or 10 mm or none, and
   the points of a shape can be typed in millimetres
+- Symbol editor: the points of a polygon or polyline are edited (a double click on it, or
+  Edit points): dragged, put in on an edge or from the plus in its middle, taken out with
+  Delete or Ctrl+click
 - Symbol editor: shapes turn by any angle (Rotate, Ctrl+R, or dragging the round handle over
   the shapes picked, by 15° with Shift; R still turns a quarter), and a
   rectangle, ellipse or picture has an angle of its own; texts in any font of the computer

@@ -29,6 +29,8 @@ var _tools: Array[Button] = []
 var _actions: Dictionary[String, Button] = {}
 var _grid: OptionButton
 var _picture: Button
+## Edits the points of the polygon or polyline picked (toggled).
+var _edit_points: Button
 var _picture_file: FileDialog
 var _message: AcceptDialog
 var _rotate: Button
@@ -122,6 +124,13 @@ func _init() -> void:
 				canvas.tool = tool
 				_update())
 		_tools.append(button)
+	_edit_points = _tool_button(tools, "edit_points")
+	_edit_points.toggle_mode = true
+	_edit_points.toggled.connect(func(on: bool) -> void:
+		if on:
+			_tools[0].button_pressed = true
+		canvas.editing_points = on
+		_edit_points.set_pressed_no_signal(canvas.editing_points))
 	_picture = _tool_button(tools, "plan_underlay")
 	_picture.pressed.connect(func() -> void:
 		_picture_file.title = tr("Picture")
@@ -202,6 +211,9 @@ func _init() -> void:
 	canvas.changed.connect(_show_selected)
 	canvas.selection_changed.connect(_show_selected)
 	canvas.rotate_requested.connect(_ask_rotate)
+	canvas.points_mode_changed.connect(func(on: bool) -> void:
+		_edit_points.set_pressed_no_signal(on)
+		_update())
 	paper.add_child(canvas)
 	body.add_child(_build_panel())
 	_hint = Label.new()
@@ -535,6 +547,7 @@ func _update() -> void:
 	_two_phases.disabled = not electrical
 	get_ok_button().disabled = _name.text.strip_edges().is_empty() or _def.shapes.is_empty()
 	var none: bool = canvas.selection.is_empty()
+	_edit_points.disabled = not canvas.can_edit_points()
 	for key: String in ["turn", "turn_back", "rotate", "mirror", "flip", "copy", "duplicate", "delete"]:
 		_actions[key].disabled = none
 	_actions["paste"].disabled = SymbolCanvas.clipboard.is_empty()
@@ -550,7 +563,10 @@ func _update() -> void:
 		tr("Type the text in the panel, then click where its middle goes."),
 	]
 	var wall_hint: String = tr("The wall is the grey band at the top: the symbol hangs from it into the room, drawn upright on every wall.") if _wall.button_pressed else tr("The axes cross where the symbol's middle goes.")
-	_hint.text = hints[canvas.tool] + " " + wall_hint + " " + tr("Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans.")
+	var hint: String = hints[canvas.tool]
+	if canvas.editing_points:
+		hint = tr("Editing points: drag a point to move it; click an edge, or drag the plus in its middle, to put a point in; Delete or Ctrl+click takes the point clicked out. Esc or a click elsewhere ends it.")
+	_hint.text = hint + " " + wall_hint + " " + tr("Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans.")
 
 
 func _fill_categories() -> void:
@@ -598,6 +614,7 @@ func _retranslate() -> void:
 	for step: float in SymbolCanvas.GRIDS:
 		_grid.add_item(tr("Grid %s mm") % String.num(step * 1000.0, 3) if step > 0.0 else tr("No grid"))
 	_grid.select(maxi(SymbolCanvas.GRIDS.find(canvas.grid), 0))
+	_edit_points.tooltip_text = tr("Edit points of the polygon or polyline picked: move, put in and take out its points (or double-click it)")
 	_picture.tooltip_text = tr("Picture: take in an image file (PNG, JPG, WebP, SVG); it is kept in the symbol and moved, scaled, turned and mirrored like the other shapes")
 	var tips: PackedStringArray = [tr("Select and move"), tr("Line"), tr("Polyline"), tr("Polygon"), tr("Rectangle"), tr("Ellipse or circle"), tr("Arc through three points"), tr("Curve"), tr("Text")]
 	for k: int in _tools.size():

@@ -6003,3 +6003,9 @@ msgstr "Běží vzad"
 #, c-format
 msgid "Where the part moved by %s is, and the limit switches along its way (lit while it operates them)"
 msgstr "Kde je díl poháněný %s a koncové spínače na jeho dráze (svítí, když je díl ovládá)"
+
+msgid "Editing points: drag a point to move it; click an edge, or drag the plus in its middle, to put a point in; Delete or Ctrl+click takes the point clicked out. Esc or a click elsewhere ends it."
+msgstr "Úprava bodů: tažením bod posunete; klikem na hranu nebo tažením plusu v jejím středu bod přidáte; Delete nebo Ctrl+klik naposledy kliknutý bod odebere. Esc nebo klik jinam úpravu ukončí."
+
+msgid "Edit points of the polygon or polyline picked: move, put in and take out its points (or double-click it)"
+msgstr "Upravit body vybraného mnohoúhelníku nebo lomené čáry: posouvat, přidávat a odebírat body (nebo na něj dvakrát klikněte)"

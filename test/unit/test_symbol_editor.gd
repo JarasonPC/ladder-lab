@@ -403,3 +403,67 @@ func test_turned_by_the_rotation_handle() -> void:
 	_canvas._dragging = false
 	_canvas._release({"kind": "rotate"}, _canvas._press_at)
 	assert_almost_eq(_def.shapes[0].angle, 0.0, 1e-6)
+
+
+func test_points_of_a_polygon_edited() -> void:
+	var polygon: CustomSymbol.Shape = CustomSymbol.Shape.new()
+	polygon.kind = "polygon"
+	polygon.points = PackedVector2Array([Vector2(0, 0), Vector2(0.2, 0), Vector2(0.2, 0.2)])
+	_def.shapes.append(polygon)
+	_def.shapes.append(_rect(Vector2(0.4, 0.0), Vector2(0.5, 0.1)))
+	_canvas.tool = SymbolCanvas.Tool.SELECT
+	_canvas.selected = 1
+	_canvas.editing_points = true
+	assert_false(_canvas.editing_points, "not for a rectangle")
+	_canvas.selected = 0
+	_canvas.editing_points = true
+	assert_true(_canvas.editing_points)
+	# The mark in the middle of an edge dragged: a point put in there.
+	var middle: Vector2 = _canvas.to_screen(Vector2(0.1, 0.0))
+	assert_eq(_canvas.midpoint_at(middle), 0)
+	_drag(Vector2(0.1, 0.0), Vector2(0.1, -0.05))
+	assert_eq(polygon.points.size(), 4)
+	assert_true(polygon.points[1].is_equal_approx(Vector2(0.1, -0.05)), "after the edge's first point, where dragged")
+	# A click on the closing edge puts one in where clicked.
+	_click(Vector2(0.15, 0.15))
+	assert_eq(polygon.points.size(), 5)
+	assert_true(polygon.points[4].is_equal_approx(Vector2(0.15, 0.15)), "on the edge back to the first point")
+	# A point dragged; Delete takes the one clicked last out.
+	_drag(Vector2(0.2, 0.0), Vector2(0.25, 0.0))
+	assert_true(polygon.points[2].is_equal_approx(Vector2(0.25, 0.0)))
+	var delete: InputEventKey = InputEventKey.new()
+	delete.keycode = KEY_DELETE
+	delete.pressed = true
+	assert_true(_canvas._key(delete))
+	assert_eq(polygon.points.size(), 4, "the point taken out")
+	assert_eq(_def.shapes.size(), 2, "not the polygon")
+	# Ctrl+click takes a point out; never fewer than three.
+	_canvas._release(_canvas._pressed(_canvas.to_screen(polygon.points[1]), true), Vector2.ZERO)
+	assert_eq(polygon.points.size(), 3)
+	_canvas._release(_canvas._pressed(_canvas.to_screen(polygon.points[1]), true), Vector2.ZERO)
+	assert_eq(polygon.points.size(), 3, "a polygon keeps three points")
+	_canvas.undo()
+	assert_eq(_def.shapes[0].points.size(), 4, "each change one undo step")
+	assert_false(_canvas.editing_points, "undo ends the editing")
+	# Esc ends it, so does a click on another shape.
+	_canvas.selected = 0
+	_canvas.editing_points = true
+	var escape: InputEventKey = InputEventKey.new()
+	escape.keycode = KEY_ESCAPE
+	escape.pressed = true
+	assert_true(_canvas._key(escape))
+	assert_false(_canvas.editing_points)
+	_canvas.editing_points = true
+	_click(Vector2(0.45, 0.0))
+	assert_false(_canvas.editing_points)
+	assert_eq(_canvas.selected, 1, "the other shape picked")
+	# A polyline keeps two points.
+	var line: CustomSymbol.Shape = CustomSymbol.Shape.new()
+	line.kind = "polyline"
+	line.points = PackedVector2Array([Vector2(0, 0.3), Vector2(0.2, 0.3)])
+	_def.shapes.append(line)
+	_canvas.selected = 2
+	_canvas.editing_points = true
+	assert_false(_canvas.delete_point(0), "a polyline keeps two points")
+	assert_eq(_canvas.edge_at(_canvas.to_screen(Vector2(0.05, 0.3))), 0)
+	assert_eq(_canvas.midpoint_at(_canvas.to_screen(Vector2(0.1, 0.0))), -1, "no closing edge")

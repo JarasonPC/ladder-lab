@@ -14,7 +14,11 @@ extends Control
 ## with a double click, Enter or a right click (a polygon also a click on
 ## its first point); ARC and CURVE are dragged from one end to the other,
 ## then a click sets the point the arc goes through or the curve bends
-## towards; TEXT puts [member text] where it is clicked (a picture is
+## towards; TEXT puts [member text] where it is clicked. Editing the points
+## of a polygon or polyline ([member editing_points]: a double click on it,
+## Esc or a click elsewhere ends it), a point is dragged, a click on an
+## edge or a drag of the mark in its middle puts a point in, Delete or
+## Ctrl+click takes the point clicked last out (a picture is
 ## added by [method add_shape] with [method CustomSymbol.image_shape],
 ## then moved and scaled as any shape). Esc drops what is
 ## being drawn. New shapes take the look of [member look]. Points snap to
@@ -31,6 +35,8 @@ signal changed
 signal selection_changed
 ## The angle the shapes picked turn by should be asked (Ctrl+R).
 signal rotate_requested
+## Editing the points of the shape picked began or ended.
+signal points_mode_changed(on: bool)
 
 enum Tool { SELECT, LINE, POLYLINE, POLYGON, RECT, ELLIPSE, ARC, CURVE, TEXT }
 
@@ -62,6 +68,8 @@ var symbol: CustomSymbol = CustomSymbol.new()
 var tool: Tool = Tool.SELECT:
 	set(value):
 		tool = value
+		if value != Tool.SELECT:
+			editing_points = false
 		_pending = PackedVector2Array()
 		_path = PackedVector2Array()
 		mouse_default_cursor_shape = Control.CURSOR_CROSS if value != Tool.SELECT else Control.CURSOR_ARROW
@@ -81,6 +89,8 @@ var selection: PackedInt32Array = PackedInt32Array():
 		var was: PackedInt32Array = selection
 		selection = sorted
 		if was != sorted:
+			# Another pick ends editing the points of the one before.
+			editing_points = false
 			selection_changed.emit()
 		queue_redraw()
 ## The one shape picked, -1 for none or several; set, it is picked alone.
@@ -89,6 +99,18 @@ var selected: int:
 		return selection[0] if selection.size() == 1 else -1
 	set(value):
 		selection = PackedInt32Array([value]) if value >= 0 else PackedInt32Array()
+## The points of the polygon or polyline picked alone are being edited
+## (see [method can_edit_points]); set true for another shape, it stays false.
+var editing_points: bool = false:
+	set(value):
+		var on: bool = value and can_edit_points()
+		var was: bool = editing_points
+		editing_points = on
+		if not on:
+			_active_point = -1
+		if was != on:
+			points_mode_changed.emit(on)
+		queue_redraw()
 var zoom: float = 1.0
 ## Screen position of the origin.
 var offset: Vector2 = Vector2.ZERO
@@ -104,6 +126,8 @@ var _shift: bool = false
 var _pending: PackedVector2Array = PackedVector2Array()
 ## The points of a polyline or polygon being drawn.
 var _path: PackedVector2Array = PackedVector2Array()
+## While editing points: the point clicked last (Delete takes it out), -1 for none.
+var _active_point: int = -1
 ## Pastes since the last copy (each further off).
 var _pastes: int = 0
 var _undo: Array[Array] = []
@@ -426,6 +450,94 @@ func shape_at(point: Vector2) -> int:
 	return symbol.shape_at(to_symbol(point), GRAB / (PX * zoom))
 
 
+# --- Editing points ---------------------------------------------------------------
+
+## Whether the shape picked alone takes points in and out: a polygon or a polyline.
+func can_edit_points() -> bool:
+	return selected >= 0 and symbol.shapes[selected].kind in ["polygon", "polyline"]
+
+
+## The edges of the shape whose points are edited: [from, to] (m) each, a
+## polygon's last back to its first.
+func _edges() -> Array[PackedVector2Array]:
+	var list: Array[PackedVector2Array] = []
+	if not editing_points:
+		return list
+	var shape: CustomSymbol.Shape = symbol.shapes[selected]
+	var n: int = shape.points.size()
+	for k: int in (n if shape.kind == "polygon" else n - 1):
+		list.append(PackedVector2Array([shape.points[k], shape.points[(k + 1) % n]]))
+	return list
+
+
+## The edge whose middle mark is under screen point [param point], -1 for none.
+func midpoint_at(point: Vector2) -> int:
+	var edges: Array[PackedVector2Array] = _edges()
+	for k: int in edges.size():
+		if to_screen((edges[k][0] + edges[k][1]) * 0.5).distance_to(point) <= HANDLE + 3.0:
+			return k
+	return -1
+
+
+## The edge under screen point [param point], -1 for none.
+func edge_at(point: Vector2) -> int:
+	var edges: Array[PackedVector2Array] = _edges()
+	for k: int in edges.size():
+		var near: Vector2 = Geometry2D.get_closest_point_to_segment(point, to_screen(edges[k][0]), to_screen(edges[k][1]))
+		if near.distance_to(point) <= GRAB:
+			return k
+	return -1
+
+
+## Puts a point at [param at] (m) into the shape picked after its point
+## [param after] (on edge [param after]); one undo step, the new point the
+## one clicked last.
+func insert_point(after: int, at: Vector2) -> void:
+	if selected < 0 or symbol.shapes[selected].points.size() >= CustomSymbol.MAX_POINTS:
+		return
+	change_selected(func(shape: CustomSymbol.Shape) -> void: shape.points.insert(after + 1, at))
+	_active_point = after + 1
+
+
+## Takes point [param k] out of the shape picked, unless it would have too
+## few (a polygon three, a polyline two); one undo step. Returns whether it
+## was taken out.
+func delete_point(k: int) -> bool:
+	if selected < 0:
+		return false
+	var shape: CustomSymbol.Shape = symbol.shapes[selected]
+	if k < 0 or k >= shape.points.size() or shape.points.size() <= CustomSymbol.MIN_POINTS.get(shape.kind, shape.points.size()):
+		return false
+	change_selected(func(edited: CustomSymbol.Shape) -> void: edited.points.remove_at(k))
+	_active_point = -1
+	return true
+
+
+## What a press at [param point] takes hold of while points are edited: a
+## point (with [param adding]: taken out), an edge's middle mark or an edge
+## (a point put in), the shape (moved); {} elsewhere (the editing ends).
+func _pressed_points(point: Vector2, adding: bool) -> Dictionary:
+	var handle: int = handle_at(point)
+	if handle >= 0:
+		if adding:
+			delete_point(handle)
+			return {"kind": "none"}
+		_active_point = handle
+		queue_redraw()
+		return {"kind": "handle", "which": handle}
+	var middle: int = midpoint_at(point)
+	if middle >= 0:
+		var edge: PackedVector2Array = _edges()[middle]
+		return {"kind": "insert", "which": middle, "at": (edge[0] + edge[1]) * 0.5}
+	var on_edge: int = edge_at(point)
+	if on_edge >= 0:
+		var edge: PackedVector2Array = _edges()[on_edge]
+		return {"kind": "insert", "which": on_edge, "at": Geometry2D.get_closest_point_to_segment(to_symbol(point), edge[0], edge[1])}
+	if shape_at(point) == selected:
+		return {"kind": "shape"}
+	return {}
+
+
 ## The shapes whose box meets [param box] (m).
 func shapes_in(box: Rect2) -> PackedInt32Array:
 	var found: PackedInt32Array = PackedInt32Array()
@@ -492,12 +604,18 @@ func _key(key: InputEventKey) -> bool:
 		KEY_F when not command:
 			mirror_selected(not key.shift_pressed)
 		KEY_DELETE, KEY_BACKSPACE:
-			delete_selected()
+			if editing_points:
+				delete_point(_active_point)
+			else:
+				delete_selected()
 		KEY_ENTER, KEY_KP_ENTER:
 			if _path.is_empty():
 				return false
 			finish_path()
 		KEY_ESCAPE:
+			if editing_points and _pending.is_empty() and _path.is_empty():
+				editing_points = false
+				return true
 			if _pending.is_empty() and _path.is_empty():
 				return false
 			_pending = PackedVector2Array()
@@ -535,6 +653,14 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				finish_path()
 				_press = {}
 				return
+			if mb.pressed and mb.double_click and tool == Tool.SELECT:
+				# A double click on a polygon or polyline edits its points.
+				var hit: int = shape_at(mb.position)
+				if hit >= 0 and symbol.shapes[hit].kind in ["polygon", "polyline"]:
+					selected = hit
+					editing_points = true
+					_press = {}
+					return
 			if mb.pressed:
 				_press_at = mb.position
 				_mouse = mb.position
@@ -557,6 +683,11 @@ func _pressed(point: Vector2, adding: bool = false) -> Dictionary:
 		return {"kind": "middle"}
 	if tool != Tool.SELECT:
 		return {"kind": "new"}
+	if editing_points:
+		var on_points: Dictionary = _pressed_points(point, adding)
+		if not on_points.is_empty():
+			return on_points
+		editing_points = false
 	var handle: int = handle_at(point)
 	if handle >= 0:
 		return {"kind": "handle", "which": handle}
@@ -620,6 +751,8 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if _dragging:
 				var scaled: Array = _corner_scale(press["which"], point)
 				scale_selected(scaled[0], scaled[1])
+		"insert":
+			insert_point(press["which"], snap_point(point, selection) if _dragging else press["at"])
 		"rotate":
 			if _dragging:
 				rotate_selected(_rotation_degrees(point))
@@ -696,7 +829,7 @@ func _new_shape(kind: String, points: Array) -> CustomSymbol.Shape:
 ## Shape [param index] as it is shown: moved, scaled or its point dragged.
 func _shown(index: int) -> CustomSymbol.Shape:
 	var shape: CustomSymbol.Shape = symbol.shapes[index]
-	if not _dragging or not selection.has(index) or not (_press.get("kind", "") in ["handle", "shape", "corner", "rotate"]):
+	if not _dragging or not selection.has(index) or not (_press.get("kind", "") in ["handle", "shape", "corner", "rotate", "insert"]):
 		return shape
 	var moved: CustomSymbol.Shape = shape.copy()
 	match _press["kind"]:
@@ -707,6 +840,8 @@ func _shown(index: int) -> CustomSymbol.Shape:
 			CustomSymbol.scale_shape(moved, scaled[1], scaled[0])
 		"rotate":
 			CustomSymbol.rotate_shape(moved, _selection_middle(), _rotation_degrees(_mouse))
+		"insert":
+			moved.points.insert(int(_press["which"]) + 1, snap_point(_mouse, selection))
 		_:
 			CustomSymbol.move_shape(moved, _drag_by(_mouse))
 	return moved
@@ -787,6 +922,9 @@ func _draw_selection(origin: Vector2, s: float) -> void:
 		var screen: Rect2 = Rect2(origin + box.position * s, box.size * s).grow(3.0)
 		var round: PackedVector2Array = PackedVector2Array([screen.position, Vector2(screen.end.x, screen.position.y), screen.end, Vector2(screen.position.x, screen.end.y), screen.position])
 		CustomSymbol.stroke_line(self, round, Color(SchematicTheme.SELECTED, 0.8), 1.0, "dash")
+	if editing_points:
+		_draw_point_editing()
+		return
 	if selected >= 0:
 		for p: Vector2 in CustomSymbol.handle_points(_shown(selected)):
 			var handle: Rect2 = Rect2(to_screen(p) - Vector2(HANDLE, HANDLE), Vector2(HANDLE, HANDLE) * 2.0)
@@ -809,6 +947,24 @@ func _draw_selection(origin: Vector2, s: float) -> void:
 		draw_line(top, knob + Vector2(0, HANDLE + 1.0), SchematicTheme.SELECTED, 1.0, true)
 		draw_circle(knob, HANDLE + 1.0, SchematicTheme.BACKGROUND)
 		draw_arc(knob, HANDLE + 1.0, 0.0, TAU, 16, SchematicTheme.SELECTED, 1.5, true)
+
+
+## Editing points: each point's square (the one clicked last filled) and a
+## round mark with a plus in the middle of each edge (where a point goes in).
+func _draw_point_editing() -> void:
+	var shape: CustomSymbol.Shape = _shown(selected)
+	for k: int in shape.points.size():
+		var handle: Rect2 = Rect2(to_screen(shape.points[k]) - Vector2(HANDLE, HANDLE), Vector2(HANDLE, HANDLE) * 2.0)
+		draw_rect(handle, SchematicTheme.SELECTED if k == _active_point and not _dragging else SchematicTheme.BACKGROUND)
+		draw_rect(handle, SchematicTheme.SELECTED, false, 1.5)
+	if _dragging:
+		return
+	for edge: PackedVector2Array in _edges():
+		var c: Vector2 = to_screen((edge[0] + edge[1]) * 0.5)
+		draw_circle(c, HANDLE, SchematicTheme.BACKGROUND)
+		draw_arc(c, HANDLE, 0.0, TAU, 16, Color(SchematicTheme.SELECTED, 0.8), 1.0, true)
+		draw_line(c - Vector2(HANDLE - 2.0, 0), c + Vector2(HANDLE - 2.0, 0), SchematicTheme.SELECTED, 1.0)
+		draw_line(c - Vector2(0, HANDLE - 2.0), c + Vector2(0, HANDLE - 2.0), SchematicTheme.SELECTED, 1.0)
 
 
 ## Metres [param metres] in millimetres as written: whole, or to a tenth

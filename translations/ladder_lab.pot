@@ -5987,3 +5987,9 @@ msgstr ""
 #, c-format
 msgid "Where the part moved by %s is, and the limit switches along its way (lit while it operates them)"
 msgstr ""
+
+msgid "Editing points: drag a point to move it; click an edge, or drag the plus in its middle, to put a point in; Delete or Ctrl+click takes the point clicked out. Esc or a click elsewhere ends it."
+msgstr ""
+
+msgid "Edit points of the polygon or polyline picked: move, put in and take out its points (or double-click it)"
+msgstr ""

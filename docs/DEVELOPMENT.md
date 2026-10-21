@@ -534,7 +534,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   by their handles, the corners of the box round them scale them (_corner_scale); Tool
   SELECT, LINE / RECT / ELLIPSE dragged corner to corner, POLYLINE / POLYGON a point a click
   (finish_path: double click, Enter, right click, a polygon's first point), ARC / CURVE
-  dragged end to end and then a click for the middle point, TEXT; R / F turn a quarter and
+  dragged end to end and then a click for the middle point, TEXT; editing_points (the
+  polygon or polyline picked alone, can_edit_points; a double click on it or the editor's
+  Edit points toggle, points_mode_changed; ends with Esc, another pick, undo or another
+  tool): _pressed_points takes a point (dragged; Ctrl+click: delete_point, never below
+  MIN_POINTS), an edge's middle mark (midpoint_at) or the edge (edge_at) to insert_point
+  there (dragged: where let go), Delete the point clicked last (_active_point),
+  _draw_point_editing its squares and plus marks; R / F turn a quarter and
   mirror, rotate_selected by any angle (Ctrl+R: rotate_requested; the round handle
   ROTATE_REACH over the box round the shapes picked, rotation_handle / rotation_at,
   dragged about their middle by whole degrees or ROTATE_STEP with Shift,
