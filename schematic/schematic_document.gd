@@ -57,6 +57,44 @@ func floor_of(designation: String) -> int:
 	return -1
 
 
+## The user's own symbols ([CustomSymbol]) its floor plans use, by id: a
+## copy of each from the library ([SymbolLibrary]), so it opens with them
+## anywhere.
+var symbols: Dictionary[String, CustomSymbol] = {}
+
+
+## Custom symbol [param id]: the schematic's copy, else the library's; null
+## for none.
+func symbol(id: String) -> CustomSymbol:
+	if symbols.has(id):
+		return symbols[id]
+	return SymbolLibrary.shared().find(id) if not id.is_empty() else null
+
+
+## Keeps a copy of [param def] (in place of an older one of its id); the
+## loads drawn with it take its name.
+func use_symbol(def: CustomSymbol) -> void:
+	symbols[def.id] = def.copy()
+	for c: CircuitComponent in circuit.get_components():
+		if c is Appliance and (c as Appliance).symbol == def.id:
+			(c as Appliance).title = def.name
+
+
+## The custom symbols on the floor plans (marks and loads), sorted.
+func used_symbols() -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for plan: FloorPlan in floors:
+		for mark: FloorPlan.Mark in plan.marks:
+			if symbols.has(mark.symbol) and not result.has(mark.symbol):
+				result.append(mark.symbol)
+	for c: CircuitComponent in circuit.get_components():
+		var id: String = (c as Appliance).symbol if c is Appliance else ""
+		if symbols.has(id) and not result.has(id):
+			result.append(id)
+	result.sort()
+	return result
+
+
 ## Parts that go on a floor plan but are on none yet.
 func unplaced_parts() -> PackedStringArray:
 	var result: PackedStringArray = PackedStringArray()

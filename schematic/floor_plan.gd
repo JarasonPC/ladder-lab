@@ -275,6 +275,15 @@ class Fixture:
 		return rect.get_center() - FACING[facing] * extent().y * 0.5
 
 
+## A drawing-only symbol of the user's own ([CustomSymbol], by its id) on
+## the plan: where its origin is (m) and, on a wall, the way it faces into
+## the room (an index into [constant FACING]; -1 on the ceiling or the floor).
+class Mark:
+	var symbol: String = ""
+	var at: Vector2 = Vector2.ZERO
+	var facing: int = -1
+
+
 ## Which floor it is: 0 the ground floor (1.NP), 1 the one over it (2.NP),
 ## -1 the basement (1.PP); and its name ("" for the usual one).
 var level: int = 0
@@ -298,6 +307,7 @@ var inner_wall: float = INNER_WALL
 var dimensions: Array[Dimension] = []
 var notes: Array[Note] = []
 var fixtures: Array[Fixture] = []
+var marks: Array[Mark] = []
 ## Where each part (by designation) and the consumer unit ([constant UNIT])
 ## are (m).
 var parts: Dictionary[String, Vector2] = {}
@@ -309,7 +319,7 @@ var links: Array[Link] = []
 
 
 func is_empty() -> bool:
-	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty() and notes.is_empty() and fixtures.is_empty()
+	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty() and notes.is_empty() and fixtures.is_empty() and marks.is_empty()
 
 
 ## A fixture of [param kind] at [param point]: its back against the wall
@@ -331,6 +341,29 @@ func fixture_at_point(kind: String, point: Vector2) -> Fixture:
 	var shape: Vector2 = Vector2(size.y, size.x) if fixture.facing % 2 == 0 else size
 	fixture.rect = Rect2(center - shape * 0.5, shape)
 	return fixture
+
+
+## A mark of symbol [param id] at [param point]: onto the nearest wall within
+## [constant ON_WALL] facing into the room when [param on_wall] (where the
+## point is when there is none), else there, snapped.
+func mark_at_point(id: String, point: Vector2, on_wall: bool) -> Mark:
+	var mark: Mark = Mark.new()
+	mark.symbol = id
+	mark.at = snap(point)
+	if on_wall:
+		var wall: Dictionary = wall_near(point)
+		if not wall.is_empty():
+			mark.at = wall["at"]
+			mark.facing = int(wall["facing"])
+	return mark
+
+
+## Mark [param index] moved to [param to]: onto the nearest wall if it is on one.
+func move_mark(index: int, to: Vector2) -> void:
+	var mark: Mark = marks[index]
+	var moved: Mark = mark_at_point(mark.symbol, to, mark.facing >= 0)
+	mark.at = moved.at
+	mark.facing = moved.facing if moved.facing >= 0 else mark.facing
 
 
 ## Fixture [param index] moved by [param by] (m), against a wall again when
@@ -690,6 +723,9 @@ func move_room(index: int, to: Vector2) -> void:
 	for fixture: Fixture in fixtures:
 		if room.contains(fixture.rect.get_center(), 0.01):
 			fixture.rect.position += by
+	for mark: Mark in marks:
+		if room.contains(mark.at, 0.01):
+			mark.at += by
 	for i: int in room.points.size():
 		room.points[i] += by
 
@@ -760,6 +796,10 @@ func set_edge(index: int, k: int, at: float) -> void:
 		var along: float = p.y if vertical else p.x
 		if absf((p.x if vertical else p.y) - old) < 0.01 and along >= span.x - 0.01 and along <= span.y + 0.01:
 			parts[designation] = p + (Vector2(by, 0) if vertical else Vector2(0, by))
+	for mark: Mark in marks:
+		var along_mark: float = mark.at.y if vertical else mark.at.x
+		if mark.facing >= 0 and absf((mark.at.x if vertical else mark.at.y) - old) < 0.01 and along_mark >= span.x - 0.01 and along_mark <= span.y + 0.01:
+			mark.at += Vector2(by, 0) if vertical else Vector2(0, by)
 	for opening: Opening in openings():
 		var along_door: float = opening.at.y if vertical else opening.at.x
 		if absf((opening.at.x if vertical else opening.at.y) - old) < 0.01 and along_door >= span.x and along_door <= span.y:
@@ -1198,6 +1238,14 @@ func to_data() -> Dictionary:
 		for fixture: Fixture in fixtures:
 			fixture_list.append({"kind": fixture.kind, "rect": [fixture.rect.position.x, fixture.rect.position.y, fixture.rect.size.x, fixture.rect.size.y], "facing": fixture.facing})
 		result["fixtures"] = fixture_list
+	if not marks.is_empty():
+		var mark_list: Array = []
+		for mark: Mark in marks:
+			var md: Dictionary = {"symbol": mark.symbol, "at": [mark.at.x, mark.at.y]}
+			if mark.facing >= 0:
+				md["facing"] = mark.facing
+			mark_list.append(md)
+		result["marks"] = mark_list
 	if not dimensions.is_empty():
 		var dimension_list: Array = []
 		for dim: Dimension in dimensions:
@@ -1297,6 +1345,16 @@ static func from_data(raw: Variant) -> FloorPlan:
 				var face: Variant = fd.get("facing", 1)
 				fixture.facing = clampi(int(face), 0, 3) if (face is int or face is float) else 1
 				plan.fixtures.append(fixture)
+	var mark_list: Variant = d.get("marks", [])
+	if mark_list is Array:
+		for md: Variant in mark_list:
+			if md is Dictionary and md.get("symbol", null) is String and not (md["symbol"] as String).is_empty() and _numbers(md.get("at", []), 2):
+				var mark: Mark = Mark.new()
+				mark.symbol = (md["symbol"] as String).left(40)
+				mark.at = Vector2(float(md["at"][0]), float(md["at"][1]))
+				var face: Variant = md.get("facing", -1)
+				mark.facing = clampi(int(face), -1, 3) if (face is int or face is float) else -1
+				plan.marks.append(mark)
 	var dimension_list: Variant = d.get("dimensions", [])
 	if dimension_list is Array:
 		for dd: Variant in dimension_list:

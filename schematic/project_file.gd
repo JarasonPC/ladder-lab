@@ -118,7 +118,12 @@ const FORMAT: String = "ladder-lab"
 ## single-line diagram ("ze"; missing: 0.4 Ω); where north is on a plan
 ## ("north", degrees; missing: up), where its legend of rooms was moved
 ## ("legend"; missing: right of the plan) and the title block's "stage".
-const VERSION: int = 44
+## 45: the user's own floor plan symbols ("symbols": id, name, category,
+## wall, electrical, power, two_phases and shapes, each a kind with its
+## points, filled, text and size), put on a plan as marks ("marks": symbol,
+## at, facing) or as appliances drawn with one ("symbol", "title",
+## "ceiling"; missing: none).
+const VERSION: int = 45
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

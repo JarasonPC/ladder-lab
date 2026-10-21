@@ -455,6 +455,40 @@ Architecture and conventions of the code base. Read this before changing the cod
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)
+- The user's own floor plan symbols (CustomSymbol in schematic/, no nodes): id (new_id,
+  never changes), name, category (free text; "" none), wall (its origin on the wall, the
+  room below, drawn upright like the other wall parts; else its middle), electrical (power,
+  two_phases) and shapes (CustomSymbol.Shape: kind of KINDS, points as POINTS says, in m
+  about the origin, y down: line a-b, rect and ellipse by two corners, filled; arc through
+  three points, arc_points; curve a quadratic Bézier, its middle point the control; text
+  centred on its point, size its height); outline_of, bounds, shape_at, draw / draw_fitted /
+  draw_shape on any CanvasItem in its pixels. SymbolLibrary (schematic/, no nodes): the
+  library of every schematic in user://symbols.json (PATH, written whole by put and remove,
+  changed signal; shared() the program's, set_shared for tests), categories() and sorted()
+  by category then name. A schematic keeps a copy of each symbol it uses
+  (SchematicDocument.symbols by id, saved "symbols", only those used_symbols finds;
+  symbol(id) its copy, else the library's; use_symbol takes a copy and renames the loads
+  drawn with it). On the plan of a residential installation (Palette.symbol_entries after
+  PLAN_ENTRIES in plan mode, group "custom:" + category, titles never translated, rebuilt
+  when the library changes): a drawing-only symbol is a "custom_symbol" template put as a
+  FloorPlan.Mark (symbol, at, facing -1 or into FACING; saved "marks"; mark_at_point,
+  move_mark, moved with its room and its wall), selected, dragged and deleted like a
+  fixture (FloorPlanCanvas mark_at, _mark_origin, _mark_box); an electrical one an
+  "appliance" template with "symbol", "title", power, two_phases and "ceiling" (not on a
+  wall): an Appliance with symbol / title / ceiling (saved; FloorPlanCanvas.on_ceiling)
+  fed by its circuit like any appliance, drawn with its symbol on the plan (glowing while it
+  works), in its box on the single-line diagram, named by its title (ApplianceSymbol.title_of,
+  the datasheet, the circuit picker; no kind in the properties). Placing takes the
+  library's version (FloorPlanCanvas.template_symbol) into the schematic. The legend lists
+  both by symbol with their count ("symbol" in the row). FloorPlanView's Symbols button
+  opens SymbolLibraryDialog (a Tree by category, the symbol picked drawn by a PlanGlyph with
+  custom, New / Edit / Duplicate / Delete); SymbolEditor (a ConfirmationDialog: name,
+  category typed or picked, On a wall, Electrical with power and 400 V, the tools, Filled,
+  the text and its height) draws on a SymbolCanvas (SNAP 5 mm, a grid of cm, the wall as a
+  grey band above the origin; Tool SELECT moves a shape or drags a point's handle, LINE /
+  RECT / ELLIPSE dragged corner to corner, ARC / CURVE dragged end to end and then a click
+  for the middle point, TEXT; its own undo of shape copies). A symbol saved there that the
+  schematic uses is taken into it as one undoable edit (FloorPlanView._on_symbol_saved)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page
   = the page shown). Drawing queries (bounds, component_at, terminal_at, wire_at, current_paths,
@@ -1171,12 +1205,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   settle, and a short or too high a voltage between two coil switchings trips and burns nothing,
   only the settled state counts; S of a time relay is applied before its power
 - `schematic/` drawing data (SchematicDocument, Placement, WireRoute, WireRouter, SymbolGeometry,
-  ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile; the workspace: Workspace,
+  CustomSymbol, SymbolLibrary, ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile; the workspace: Workspace,
   Switchboard, WorkspaceGroup, ControlBox) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
 - `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd;
-  floor_plan/ (FloorPlanView, FloorPlanCanvas, PlanSymbols), single_line/ (SingleLineView,
+  floor_plan/ (FloorPlanView, FloorPlanCanvas, PlanSymbols, PlanGlyph, SymbolLibraryDialog,
+  SymbolEditor, SymbolCanvas), single_line/ (SingleLineView,
   SingleLineCanvas)
 - UI look: `ui/app_theme.gd` (AppTheme) builds the whole Godot theme in code from colour tokens
   (dark/light), system fonts (MSDF font for schematic text), line icons as inline SVG via

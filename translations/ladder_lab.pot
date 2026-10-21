@@ -5614,3 +5614,149 @@ msgstr ""
 
 msgid "Lighting and sockets apart"
 msgstr ""
+
+msgid "New symbol"
+msgstr ""
+
+#, c-format
+msgid "Symbol %s"
+msgstr ""
+
+msgid "Click a shape to pick it, drag it to move it, drag its squares to move its points; Delete takes it away."
+msgstr ""
+
+msgid "Drag from one end of the line to the other."
+msgstr ""
+
+msgid "Drag from corner to corner."
+msgstr ""
+
+msgid "Drag from corner to corner of the box round the ellipse."
+msgstr ""
+
+msgid "Drag from one end of the arc to the other, then click where it goes through."
+msgstr ""
+
+msgid "Drag from one end of the curve to the other, then click where it bends towards."
+msgstr ""
+
+msgid "Type the text beside the tools, then click where its middle goes."
+msgstr ""
+
+msgid "The wall is the grey band at the top: the symbol hangs from it into the room, drawn upright on every wall."
+msgstr ""
+
+msgid "The axes cross where the symbol's middle goes."
+msgstr ""
+
+msgid "Ctrl+Z undoes; wheel zooms; right drag pans."
+msgstr ""
+
+msgid "No categories yet: type one"
+msgstr ""
+
+msgid "Save to my symbols"
+msgstr ""
+
+msgid "Category"
+msgstr ""
+
+msgid "Power"
+msgstr ""
+
+msgid "e.g. TV socket, smoke detector"
+msgstr ""
+
+msgid "e.g. Data, Fire alarm"
+msgstr ""
+
+msgid "Pick a category the library has"
+msgstr ""
+
+msgid "On a wall"
+msgstr ""
+
+msgid "Put onto the nearest wall, facing into the room; else where it is clicked (on the ceiling)"
+msgstr ""
+
+msgid "Electrical: a load on a circuit"
+msgstr ""
+
+msgid "Put on the plan on the circuit chosen, like an appliance: it is on the single-line diagram and in the consumer unit's circuits, draws its power while simulating and is in the parts list"
+msgstr ""
+
+msgid "400 V between two phases"
+msgstr ""
+
+msgid "Filled"
+msgstr ""
+
+msgid "Select and move"
+msgstr ""
+
+msgid "Line"
+msgstr ""
+
+msgid "Rectangle"
+msgstr ""
+
+msgid "Ellipse or circle"
+msgstr ""
+
+msgid "Arc through three points"
+msgstr ""
+
+msgid "Curve"
+msgstr ""
+
+msgid "Delete the shape picked"
+msgstr ""
+
+#, c-format
+msgid "%s (copy)"
+msgstr ""
+
+#, c-format
+msgid "Delete %s from your symbols? Schematics using it keep their copy."
+msgstr ""
+
+msgid "My symbols"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "New symbol…"
+msgstr ""
+
+msgid "Edit…"
+msgstr ""
+
+msgid "Duplicate"
+msgstr ""
+
+msgid "Delete symbol"
+msgstr ""
+
+#, c-format
+msgid "%s (load)"
+msgstr ""
+
+msgid "No symbols yet: draw one with New symbol."
+msgstr ""
+
+#, c-format
+msgid "A load on a circuit, %s, %s"
+msgstr ""
+
+msgid "on a wall"
+msgstr ""
+
+msgid "A drawing on the plan"
+msgstr ""
+
+msgid "Symbols"
+msgstr ""
+
+msgid "My symbols: draw your own from lines, shapes, curves and text, sorted into your categories; the palette offers them for the plan, drawings or loads on a circuit"
+msgstr ""

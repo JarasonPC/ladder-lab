@@ -109,6 +109,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   dimensions up and down are written across like all other text
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
+- Floor plan: your own symbols (Symbols in the plan's bar): draw them from lines, rectangles,
+  ellipses, arcs, curves and text on a grid of centimetres, give each a name and a category
+  of your own, put them on a wall or anywhere; the palette offers them under their
+  categories for every residential installation. A symbol can be a drawing only or an
+  electrical one, a load of its power on the circuit chosen: on the single-line diagram,
+  in the parts list and the simulation like an appliance. Both are in the legend with their
+  count, and a schematic keeps the symbols it uses, so it opens with them anywhere
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers

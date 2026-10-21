@@ -35,6 +35,12 @@ var two_phases: bool = false:
 		_update_id()
 ## Mounting height of its connection over the floor in metres (design data).
 var height: float = STANDARD_HEIGHT
+## A load drawn with a symbol of the user's own (the [member CustomSymbol.id]
+## of the copy its schematic keeps, "" for none), what it is called then,
+## and whether it is on the ceiling rather than on a wall (design data).
+var symbol: String = ""
+var title: String = ""
+var ceiling: bool = false
 ## Insulation fault: its phase on its metal frame (simulation state).
 var frame_fault: bool = false
 

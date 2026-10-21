@@ -200,14 +200,39 @@ var _headers: Array[Label] = []
 var _header_titles: PackedStringArray = []
 
 
-## Entries offered, by [member environment].
+## Entries offered, by [member environment]; a residential installation's
+## floor plan also the user's own symbols ([method symbol_entries]).
 func entries() -> Array[Dictionary]:
 	match environment:
 		SchematicDocument.Kind.PROTOTYPE:
 			return RESIDENTIAL_ENTRIES
 		SchematicDocument.Kind.RESIDENTIAL:
-			return PLAN_ENTRIES if plan else INSTALLATION_ENTRIES
+			if not plan:
+				return INSTALLATION_ENTRIES
+			var result: Array[Dictionary] = PLAN_ENTRIES.duplicate()
+			result.append_array(symbol_entries())
+			return result
 	return ENTRIES
+
+
+## The symbols of the user's library ([SymbolLibrary]) as entries, by
+## category: a drawing-only one a "custom_symbol" template, an electrical
+## one an appliance drawn with it ([member Appliance.symbol]). Their titles
+## are the user's own (never translated), their group "custom:" and the
+## category.
+static func symbol_entries() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for def: CustomSymbol in SymbolLibrary.shared().sorted():
+		var template: Dictionary = {"type": "custom_symbol", "symbol": def.id}
+		if def.electrical:
+			template = {"type": "appliance", "kind": Appliance.KIND_NAMES[Appliance.Kind.HEATER], "symbol": def.id, "title": def.name, "power": def.power, "two_phases": def.two_phases, "ceiling": not def.wall}
+		result.append({"title": def.name, "template": template, "group": "custom:" + def.category, "custom": true})
+	return result
+
+
+## Palette section of [param entry]: its own group or its template's.
+static func entry_group(entry: Dictionary) -> String:
+	return entry["group"] if entry.has("group") else group_of(entry["template"])
 
 
 ## Every entry of both palettes, each title once (industrial first): the
@@ -255,6 +280,9 @@ static func group_of(template: Dictionary) -> String:
 
 
 func _group_title(group: String) -> String:
+	if group.begins_with("custom:"):
+		# A category of the user's own symbols.
+		return group.trim_prefix("custom:") if group != "custom:" else tr("My symbols")
 	match group:
 		"supplies":
 			return tr("Supplies and terminals")
@@ -315,6 +343,9 @@ func _ready() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 1)
 	scroll.add_child(_list)
+	SymbolLibrary.shared().changed.connect(func() -> void:
+		if plan and environment == SchematicDocument.Kind.RESIDENTIAL:
+			_build())
 	_build()
 
 
@@ -335,8 +366,8 @@ func _build() -> void:
 	var row: Container = _list
 	for entry: Dictionary in entries():
 		var template: Dictionary = entry["template"]
-		if group_of(template) != group:
-			group = group_of(template)
+		if entry_group(entry) != group:
+			group = entry_group(entry)
 			if grid:
 				# Groups apart, without titles.
 				if not _buttons.is_empty():
@@ -423,7 +454,7 @@ func refresh_paper() -> void:
 
 
 ## [param component] on a paper tile of [param button] as the floor plan draws it.
-func _add_plan_icon(button: Button, component: CircuitComponent, fixture: String = "") -> void:
+func _add_plan_icon(button: Button, component: CircuitComponent, fixture: String = "", custom: CustomSymbol = null) -> void:
 	var paper: Panel = Panel.new()
 	_tiles.append(paper)
 	_style_tile(paper)
@@ -435,6 +466,7 @@ func _add_plan_icon(button: Button, component: CircuitComponent, fixture: String
 	var glyph: PlanGlyph = PlanGlyph.new()
 	glyph.component = component
 	glyph.fixture = fixture
+	glyph.custom = custom
 	glyph.size = TILE.size
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	paper.add_child(glyph)
@@ -449,9 +481,11 @@ func retranslate() -> void:
 	if _list_button != null:
 		_list_button.tooltip_text = tr("Show the parts as a list with their names")
 		_grid_button.tooltip_text = tr("Show the parts as a grid of symbols")
-	for i: int in _buttons.size():
-		_buttons[i].text = "" if grid else tr(entries()[i]["title"])
-		_buttons[i].tooltip_text = tr(entries()[i]["title"]) if grid else ""
+	var shown: Array[Dictionary] = entries()
+	for i: int in mini(_buttons.size(), shown.size()):
+		var title: String = shown[i]["title"] if shown[i].get("custom", false) else tr(shown[i]["title"])
+		_buttons[i].text = "" if grid else title
+		_buttons[i].tooltip_text = title if grid else ""
 	for i: int in _headers.size():
 		_headers[i].text = _group_title(_header_titles[i]).to_upper()
 
@@ -463,6 +497,9 @@ func retranslate() -> void:
 func _add_icon(button: Button, template: Dictionary) -> void:
 	if template.get("type", "") == "fixture":
 		_add_plan_icon(button, null, str(template.get("kind", "")))
+		return
+	if template.has("symbol"):
+		_add_plan_icon(button, null, "", SymbolLibrary.shared().find(str(template["symbol"])))
 		return
 	var data: Dictionary = template.duplicate()
 	var conductor: String = str(data.get("conductor", ""))

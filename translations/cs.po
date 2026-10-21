@@ -5629,3 +5629,149 @@ msgstr "Stupeň (DUR, DSP, DPS …)"
 
 msgid "Lighting and sockets apart"
 msgstr "Osvětlení a zásuvky zvlášť"
+
+msgid "New symbol"
+msgstr "Nová značka"
+
+#, c-format
+msgid "Symbol %s"
+msgstr "Značka %s"
+
+msgid "Click a shape to pick it, drag it to move it, drag its squares to move its points; Delete takes it away."
+msgstr "Kliknutím tvar vyberete, tažením ho posunete, tažením jeho čtverečků posunete jeho body; Delete ho odstraní."
+
+msgid "Drag from one end of the line to the other."
+msgstr "Táhněte od jednoho konce čáry ke druhému."
+
+msgid "Drag from corner to corner."
+msgstr "Táhněte od rohu k rohu."
+
+msgid "Drag from corner to corner of the box round the ellipse."
+msgstr "Táhněte od rohu k rohu obdélníku kolem elipsy."
+
+msgid "Drag from one end of the arc to the other, then click where it goes through."
+msgstr "Táhněte od jednoho konce oblouku ke druhému, pak klikněte, kudy má procházet."
+
+msgid "Drag from one end of the curve to the other, then click where it bends towards."
+msgstr "Táhněte od jednoho konce křivky ke druhému, pak klikněte, kam se má ohýbat."
+
+msgid "Type the text beside the tools, then click where its middle goes."
+msgstr "Napište text vedle nástrojů, pak klikněte, kam má přijít jeho střed."
+
+msgid "The wall is the grey band at the top: the symbol hangs from it into the room, drawn upright on every wall."
+msgstr "Stěna je šedý pruh nahoře: značka z ní visí do místnosti a na každé stěně se kreslí svisle."
+
+msgid "The axes cross where the symbol's middle goes."
+msgstr "Osy se kříží tam, kde je střed značky."
+
+msgid "Ctrl+Z undoes; wheel zooms; right drag pans."
+msgstr "Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."
+
+msgid "No categories yet: type one"
+msgstr "Zatím žádné kategorie: napište nějakou"
+
+msgid "Save to my symbols"
+msgstr "Uložit do mých značek"
+
+msgid "Category"
+msgstr "Kategorie"
+
+msgid "Power"
+msgstr "Příkon"
+
+msgid "e.g. TV socket, smoke detector"
+msgstr "např. TV zásuvka, hlásič kouře"
+
+msgid "e.g. Data, Fire alarm"
+msgstr "např. Data, EPS"
+
+msgid "Pick a category the library has"
+msgstr "Vybrat kategorii, kterou knihovna už má"
+
+msgid "On a wall"
+msgstr "Na stěně"
+
+msgid "Put onto the nearest wall, facing into the room; else where it is clicked (on the ceiling)"
+msgstr "Umístí se na nejbližší stěnu, čelem do místnosti; jinak tam, kam kliknete (na strop)"
+
+msgid "Electrical: a load on a circuit"
+msgstr "Elektrická: spotřebič na obvodu"
+
+msgid "Put on the plan on the circuit chosen, like an appliance: it is on the single-line diagram and in the consumer unit's circuits, draws its power while simulating and is in the parts list"
+msgstr "Umístí se na půdorys na zvolený obvod jako spotřebič: je v jednopólovém schématu i v obvodech rozvaděče, při simulaci odebírá svůj příkon a je v seznamu dílů"
+
+msgid "400 V between two phases"
+msgstr "400 V mezi dvěma fázemi"
+
+msgid "Filled"
+msgstr "Vyplněný"
+
+msgid "Select and move"
+msgstr "Vybrat a posunout"
+
+msgid "Line"
+msgstr "Čára"
+
+msgid "Rectangle"
+msgstr "Obdélník"
+
+msgid "Ellipse or circle"
+msgstr "Elipsa nebo kružnice"
+
+msgid "Arc through three points"
+msgstr "Oblouk třemi body"
+
+msgid "Curve"
+msgstr "Křivka"
+
+msgid "Delete the shape picked"
+msgstr "Smazat vybraný tvar"
+
+#, c-format
+msgid "%s (copy)"
+msgstr "%s (kopie)"
+
+#, c-format
+msgid "Delete %s from your symbols? Schematics using it keep their copy."
+msgstr "Smazat %s z vašich značek? Schémata, která ji používají, si ponechají svou kopii."
+
+msgid "My symbols"
+msgstr "Moje značky"
+
+msgid "Close"
+msgstr "Zavřít"
+
+msgid "New symbol…"
+msgstr "Nová značka…"
+
+msgid "Edit…"
+msgstr "Upravit…"
+
+msgid "Duplicate"
+msgstr "Duplikovat"
+
+msgid "Delete symbol"
+msgstr "Smazat značku"
+
+#, c-format
+msgid "%s (load)"
+msgstr "%s (spotřebič)"
+
+msgid "No symbols yet: draw one with New symbol."
+msgstr "Zatím žádné značky: nakreslete si nějakou tlačítkem Nová značka."
+
+#, c-format
+msgid "A load on a circuit, %s, %s"
+msgstr "Spotřebič na obvodu, %s, %s"
+
+msgid "on a wall"
+msgstr "na stěně"
+
+msgid "A drawing on the plan"
+msgstr "Kresba na půdorysu"
+
+msgid "Symbols"
+msgstr "Značky"
+
+msgid "My symbols: draw your own from lines, shapes, curves and text, sorted into your categories; the palette offers them for the plan, drawings or loads on a circuit"
+msgstr "Moje značky: nakreslete si vlastní z čar, tvarů, křivek a textu, roztříděné do vašich kategorií; paleta je nabízí pro půdorys jako kresby nebo spotřebiče na obvodu"

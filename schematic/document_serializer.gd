@@ -73,6 +73,11 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		result["floor"] = doc.floor
 	elif not doc.floor_plan.is_empty():
 		result["floor_plan"] = doc.floor_plan.to_data()
+	var symbol_list: Array = []
+	for id: String in doc.used_symbols():
+		symbol_list.append(doc.symbols[id].to_data())
+	if not symbol_list.is_empty():
+		result["symbols"] = symbol_list
 	if not doc.control_boxes.is_empty():
 		var boxes: Array[Dictionary] = []
 		for box: ControlBox in doc.control_boxes:
@@ -206,6 +211,12 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 		doc.floor = clampi(int(shown), 0, floors.size() - 1) if (shown is int or shown is float) else 0
 	else:
 		doc.floor_plan = FloorPlan.from_data(d.get("floor_plan", {}))
+	var symbol_list: Variant = d.get("symbols", [])
+	if symbol_list is Array:
+		for raw: Variant in symbol_list:
+			var symbol: CustomSymbol = CustomSymbol.from_data(raw)
+			if symbol != null:
+				doc.symbols[symbol.id] = symbol
 	for plan: FloorPlan in doc.floors:
 		plan.prune(doc.circuit)
 	if doc.environment == SchematicDocument.Kind.RESIDENTIAL:
@@ -351,6 +362,11 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["power"] = appliance.power
 		d["two_phases"] = appliance.two_phases
 		d["height"] = appliance.height
+		if not appliance.symbol.is_empty():
+			d["symbol"] = appliance.symbol
+			d["title"] = appliance.title
+			if appliance.ceiling:
+				d["ceiling"] = true
 	elif c is CamSwitch:
 		d["type"] = "cam_switch"
 		d["poles"] = (c as CamSwitch).poles
@@ -734,6 +750,10 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			appliance.power = clampf(_number_or(d, "power", appliance.power), Appliance.MIN_POWER, Appliance.MAX_POWER)
 			appliance.two_phases = _bool(d, "two_phases", appliance.two_phases)
 			appliance.height = _height(d, Appliance.STANDARD_HEIGHT)
+			if d.get("symbol", null) is String and not (d["symbol"] as String).is_empty():
+				appliance.symbol = (d["symbol"] as String).left(40)
+				appliance.title = (d["title"] as String).strip_edges().left(CustomSymbol.MAX_NAME) if d.get("title", null) is String else ""
+				appliance.ceiling = _bool(d, "ceiling", false)
 			return appliance
 		"rcd":
 			var rcd: ResidualCurrentDevice = ResidualCurrentDevice.new(designation, 4 if _int(d, "poles", 2) == 4 else 2)

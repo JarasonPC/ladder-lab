@@ -1354,6 +1354,8 @@ func _kind_name(c: CircuitComponent) -> String:
 		return tr("Sockets")
 	if c is Luminaire:
 		return tr("Lighting")
+	if c is Appliance and not (c as Appliance).title.is_empty():
+		return (c as Appliance).title
 	if c is Appliance:
 		return tr(["Water heater", "Oven", "Induction hob", "Microwave", "Washing machine", "Dishwasher", "Heater", "Fridge", "Kettle"][(c as Appliance).kind])
 	return ""
@@ -1396,6 +1398,11 @@ func _load(c: CircuitComponent, u: float, v: float, chosen: bool) -> void:
 	draw_rect(box, PlanSymbols.GLOW if on else SchematicTheme.BACKGROUND)
 	draw_rect(box, color, false, width)
 	var thin: float = maxf(1.1 * zoom, 1.0)
+	var def: CustomSymbol = document.symbol(appliance.symbol)
+	if def != null:
+		# The user's own symbol in its box.
+		def.draw_fitted(self, box.grow(-2.5 * zoom), INF, color, thin, get_theme_default_font())
+		return
 	match appliance.kind:
 		Appliance.Kind.HOB:
 			for a: float in [-6.5, 6.5]:
