@@ -5005,8 +5005,8 @@ msgstr "Všechny přístroje jsou v půdorysu."
 msgid "Select and move rooms, doors and parts; drag a room's edge to resize it"
 msgstr "Výběr a přesun místností, dveří a přístrojů; tažením stěny místnosti změníte její velikost"
 
-msgid "Draw a room by dragging; it snaps to the walls of the others"
-msgstr "Nakreslete místnost tažením; přichytí se ke stěnám ostatních"
+msgid "Draw a room: drag from corner to corner, or click both corners; type its width, Tab, its depth in mm and Enter for an exact size; it snaps to the walls of the others"
+msgstr "Kreslit místnost: táhněte od rohu k rohu nebo klikněte na oba rohy; pro přesný rozměr napište šířku, Tab, hloubku v mm a Enter; přichytává se ke stěnám ostatních"
 
 msgid "Put a door in a wall by clicking it"
 msgstr "Kliknutím na stěnu do ní vložíte dveře"
@@ -6019,3 +6019,68 @@ msgstr "Libovolný úhel"
 
 msgid "Lines drawn from a point, and points dragged, snap to these angles (Shift: 15° while any angle is set); points and the middles of edges near the mouse are caught first"
 msgstr "Čáry kreslené z bodu a tažené body se přichytávají k těmto úhlům (Shift: po 15°, je-li nastaven libovolný úhel); body a středy hran u myši mají přednost"
+
+msgid "Name of the room"
+msgstr "Název místnosti"
+
+msgid "A usual name: a bathroom, a kitchen, ... (in a house installation it sets the environment and illuminance)"
+msgstr "Obvyklý název: koupelna, kuchyně, … (v elektroinstalaci domu podle něj prostředí a osvětlenost)"
+
+msgid "Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)"
+msgstr "Zdvojit místnost vedle ní (Ctrl+D); šipky místnost posouvají (Shift: po 50 cm)"
+
+msgid "Split the room by a wall: drag across it where the wall goes"
+msgstr "Rozdělit místnost příčkou: táhněte přes ni tam, kde má příčka být"
+
+msgid "Take the room away (what is in it stays)"
+msgstr "Odstranit místnost (co v ní je, zůstane)"
+
+msgid "Draw a room by its corners: click each corner (walls go across or up and down), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
+msgstr "Kreslit místnost po rozích: klikněte na každý roh (stěny vedou vodorovně nebo svisle), nebo napište délku stěny v mm a stiskněte Enter; klik na první roh, dvojklik, Enter nebo pravé tlačítko ji uzavře"
+
+msgid "Split a room in two: drag across it where the new wall goes"
+msgstr "Rozdělit místnost na dvě: táhněte přes ni tam, kde má být nová příčka"
+
+#, c-format
+msgid "Area %s m²"
+msgstr "Plocha %s m²"
+
+msgid "Another name…"
+msgstr "Jiný název…"
+
+msgid "Split by a wall"
+msgstr "Rozdělit příčkou"
+
+msgid "Join with another room…"
+msgstr "Spojit s jinou místností…"
+
+msgid "Dining room"
+msgstr "Jídelna"
+
+msgid "Children's room"
+msgstr "Dětský pokoj"
+
+msgid "Study"
+msgstr "Pracovna"
+
+msgid "Utility room"
+msgstr "Technická místnost"
+
+msgid "Storeroom"
+msgstr "Komora"
+
+msgid "Garage"
+msgstr "Garáž"
+
+msgid "Staircase"
+msgstr "Schodiště"
+
+msgid "Corridor"
+msgstr "Chodba"
+
+#, c-format
+msgid "%d place where rooms overlap: drag them apart"
+msgid_plural "%d places where rooms overlap: drag them apart"
+msgstr[0] "%d místo, kde se místnosti překrývají: odtáhněte je od sebe"
+msgstr[1] "%d místa, kde se místnosti překrývají: odtáhněte je od sebe"
+msgstr[2] "%d míst, kde se místnosti překrývají: odtáhněte je od sebe"

@@ -150,7 +150,11 @@ func test_floor_plan_in_the_main_window() -> void:
 	main.editor.redo()
 	assert_true(main.edit_doc.floor_plan.parts.has("SF1"))
 	plan_view._add_preset(0)
-	assert_eq(main.edit_doc.floor_plan.rooms.size(), 3, "a living room added")
+	assert_eq(plan_view.canvas.tool, FloorPlanCanvas.Tool.PLACE_ROOM, "a living room follows the mouse")
+	plan_view.canvas._press_at = plan_view.canvas.to_screen(Vector2(10.0, 2.0))
+	plan_view.canvas._mouse = plan_view.canvas._press_at
+	plan_view.canvas._release({"kind": "place_room"}, plan_view.canvas._press_at)
+	assert_eq(main.edit_doc.floor_plan.rooms.size(), 3, "a living room put where clicked")
 	await wait_process_frames(2)
 	# While simulating, a click on the switch on the plan switches it.
 	main._set_mode(Main.Mode.SIMULATE)
@@ -275,6 +279,10 @@ func test_door_swing_and_undo_on_the_plan() -> void:
 	main._replace_document(_house(), "")
 	main._set_area(Main.Area.WORKSPACE)
 	main._floor_plan._add_preset(0)
+	var plan_canvas: FloorPlanCanvas = main._floor_plan.canvas
+	plan_canvas._press_at = plan_canvas.to_screen(Vector2(10.0, 2.0))
+	plan_canvas._mouse = plan_canvas._press_at
+	plan_canvas._release({"kind": "place_room"}, plan_canvas._press_at)
 	assert_eq(main.edit_doc.floor_plan.rooms.size(), 3)
 	var key: InputEventKey = InputEventKey.new()
 	key.keycode = KEY_Z

@@ -868,6 +868,122 @@ func join_rooms(a: int, b: int) -> bool:
 	return true
 
 
+## Room [param index] split in two along the line across it
+## ([param vertical]: x = [param at], else y = [param at]): it keeps the
+## part left of or above the line, a new room [param new_name] (the last)
+## gets the other. Refused (-1) when the line does not cut it into two
+## pieces, each one piece at least [constant MIN_ROOM] across; else the new
+## room's index. The chains of dimensions along its walls are dropped.
+func split_room(index: int, vertical: bool, at: float, new_name: String) -> int:
+	if index < 0 or index >= rooms.size():
+		return -1
+	var room: Room = rooms[index]
+	var box: Rect2 = room.rect
+	at = snappedf(at, SNAP)
+	var low: float = box.position.x if vertical else box.position.y
+	var high: float = box.end.x if vertical else box.end.y
+	if at - low < MIN_ROOM - 0.001 or high - at < MIN_ROOM - 0.001:
+		return -1
+	var far: float = 1000.0
+	var first_half: PackedVector2Array = PackedVector2Array([Vector2(-far, -far), Vector2(at, -far), Vector2(at, far), Vector2(-far, far)]) if vertical else PackedVector2Array([Vector2(-far, -far), Vector2(far, -far), Vector2(far, at), Vector2(-far, at)])
+	var second_half: PackedVector2Array = PackedVector2Array([Vector2(at, -far), Vector2(far, -far), Vector2(far, far), Vector2(at, far)]) if vertical else PackedVector2Array([Vector2(-far, at), Vector2(far, at), Vector2(far, far), Vector2(-far, far)])
+	var pieces: Array[PackedVector2Array] = []
+	for half: PackedVector2Array in [first_half, second_half]:
+		var cut: Array[PackedVector2Array] = Geometry2D.intersect_polygons(room.points, half)
+		if cut.size() != 1:
+			return -1
+		var outline: PackedVector2Array = union_outline([_tidy(cut[0])])
+		if outline.is_empty() or polygon_area(outline) < MIN_ROOM * MIN_ROOM * 0.5:
+			return -1
+		pieces.append(outline)
+	room.points = pieces[0]
+	room.label_offset = Vector2.ZERO
+	var other: Room = Room.new(new_name)
+	other.points = pieces[1]
+	rooms.append(other)
+	for i: int in range(dimensions.size() - 1, -1, -1):
+		if dimensions[i].room == index:
+			dimensions.remove_at(i)
+	return rooms.size() - 1
+
+
+## [param points] put on the [constant SNAP] grid (cuts of a polygon come
+## back a hair off it).
+static func _tidy(points: PackedVector2Array) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	for p: Vector2 in points:
+		result.append(p.snapped(Vector2(0.0001, 0.0001)))
+	return result
+
+
+## Area of polygon [param points] (m²).
+static func polygon_area(points: PackedVector2Array) -> float:
+	var sum: float = 0.0
+	for i: int in points.size():
+		sum += points[i].cross(points[(i + 1) % points.size()])
+	return absf(sum) * 0.5
+
+
+## A room [param room_name] of the corners [param corners] clicked (every
+## wall across or up and down; a corner on a straight run left out); null
+## when they do not make one room without crossings at least
+## [constant MIN_ROOM] across.
+static func outline_room(corners: PackedVector2Array, room_name: String) -> Room:
+	if corners.size() < 4:
+		return null
+	for k: int in corners.size():
+		var d: Vector2 = corners[(k + 1) % corners.size()] - corners[k]
+		if not (is_zero_approx(d.x) or is_zero_approx(d.y)):
+			return null
+	if not Geometry2D.triangulate_polygon(corners).size() > 0:
+		return null
+	var outline: PackedVector2Array = union_outline([corners])
+	if outline.is_empty():
+		return null
+	var room: Room = Room.new(room_name)
+	room.points = outline
+	if room.rect.size.x < MIN_ROOM - 0.001 or room.rect.size.y < MIN_ROOM - 0.001:
+		return null
+	return room
+
+
+## Where rooms overlap: each piece shared by two rooms (more than a sliver
+## along a shared wall).
+func overlaps() -> Array[PackedVector2Array]:
+	var result: Array[PackedVector2Array] = []
+	for i: int in rooms.size():
+		for j: int in range(i + 1, rooms.size()):
+			if not rooms[i].rect.intersects(rooms[j].rect):
+				continue
+			for piece: PackedVector2Array in Geometry2D.intersect_polygons(rooms[i].points, rooms[j].points):
+				if polygon_area(piece) > 0.01:
+					result.append(piece)
+	return result
+
+
+## A copy of room [param index] (its name, environment and illuminance, not
+## its number) right beside it, or right of all the rooms where that is
+## taken; returns its index.
+func duplicate_room(index: int) -> int:
+	var room: Room = rooms[index]
+	var twin: Room = Room.new(room.name)
+	twin.points = room.points.duplicate()
+	twin.environment = room.environment
+	twin.lux = room.lux
+	var by: Vector2 = Vector2(room.rect.size.x, 0.0)
+	var free: bool = true
+	for other: Room in rooms:
+		var shifted: Rect2 = Rect2(room.rect.position + by, room.rect.size).grow(-0.01)
+		if other.rect.intersects(shifted):
+			free = false
+	if not free:
+		by = free_spot(room.rect.size).position - room.rect.position
+	for k: int in twin.points.size():
+		twin.points[k] += by
+	rooms.append(twin)
+	return rooms.size() - 1
+
+
 ## The outline of the polygons [param shapes] (every side across or up and
 ## down) put together, clockwise as drawn; empty when they do not make one
 ## piece without holes.
