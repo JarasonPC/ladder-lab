@@ -249,8 +249,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   margin and LEGEND_HEIGHT under it for the symbols and the standard heights), grown to
   fill its paper (SheetLayout.fit with grow, up to MAX_GROW). Each part's designation goes
   where it is clear of the symbols and the designations drawn before it (_label_spot: the
-  side into the room first, then right, left, below, above, a step further out when none is;
-  _taken holds the boxes, the symbols' from _symbol_box)
+  side into the room first, then right, left, below, above, just past the symbol's own box
+  (a user's symbol reaches as far as its drawing), a step further out when none is; _taken
+  holds the boxes, the symbols' from _symbol_box at the symbols' size, the same box its own
+  designation leaves out)
 - Single-line diagram of a residential installation (SingleLine, SchematicDocument.single_line,
   no nodes; saved as "single_line"): the consumer unit RD1 as Czech projects draw it. Its
   columns left to right are circuits (SingleLine.Feeder: its protective device, a circuit
