@@ -5787,3 +5787,58 @@ msgstr "Značky"
 
 msgid "My symbols: draw your own from lines, shapes, curves and text, sorted into your categories; the palette offers them for the plan, drawings or loads on a circuit"
 msgstr "Moje značky: nakreslete si vlastní z čar, tvarů, křivek a textu, roztříděné do vašich kategorií; paleta je nabízí pro půdorys jako kresby nebo spotřebiče na obvodu"
+
+msgid "Import symbols"
+msgstr "Import značek"
+
+msgid "Take in the symbols of a file someone shared; one you have already is drawn as in the file"
+msgstr "Převezme značky ze souboru, který vám někdo poslal; značka, kterou už máte, se překreslí podle souboru"
+
+msgid "Export"
+msgstr "Export"
+
+msgid "Write your symbols to a file to share or keep"
+msgstr "Zapíše vaše značky do souboru ke sdílení nebo zálohování"
+
+msgid "All symbols…"
+msgstr "Všechny značky…"
+
+#, c-format
+msgid "Only the category %s…"
+msgstr "Jen kategorii %s…"
+
+msgid "Export symbols"
+msgstr "Export značek"
+
+#, c-format
+msgid "%s cannot be written."
+msgstr "%s nelze zapsat."
+
+#, c-format
+msgid "%d already in your library, now drawn as in the file"
+msgstr "%d už v knihovně, nyní nakreslené podle souboru"
+
+#, c-format
+msgid "%s is not a file of LadderLab symbols."
+msgstr "%s není soubor značek LadderLabu."
+
+#, c-format
+msgid "%s cannot be read."
+msgstr "%s nelze přečíst."
+
+msgid "LadderLab symbols"
+msgstr "Značky LadderLab"
+
+#, c-format
+msgid "%d symbol written to %s."
+msgid_plural "%d symbols written to %s."
+msgstr[0] "%d značka zapsána do %s."
+msgstr[1] "%d značky zapsány do %s."
+msgstr[2] "%d značek zapsáno do %s."
+
+#, c-format
+msgid "%d new symbol"
+msgid_plural "%d new symbols"
+msgstr[0] "%d nová značka"
+msgstr[1] "%d nové značky"
+msgstr[2] "%d nových značek"
