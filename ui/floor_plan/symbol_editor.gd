@@ -9,8 +9,9 @@ extends ConfirmationDialog
 ## pasting, the grid. The panel beside the
 ## drawing sets the look of the shapes picked (or of new ones while none
 ## is): line width, style and colour, fill and its colour, a text's words,
-## height, angle, bold and italic, and the points of a shape picked alone
-## typed in millimetres. OK keeps it ([signal saved]); it needs a name and
+## font, height, bold and italic, the angle of a text, rectangle, ellipse
+## or picture, and the points of a shape picked alone typed in millimetres;
+## Rotate (Ctrl+R) turns the shapes picked by an angle typed. OK keeps it ([signal saved]); it needs a name and
 ## a shape.
 
 ## [param def] was drawn (a new symbol or one changed; the same id).
@@ -30,6 +31,13 @@ var _grid: OptionButton
 var _picture: Button
 var _picture_file: FileDialog
 var _message: AcceptDialog
+var _rotate: Button
+var _rotate_dialog: ConfirmationDialog
+var _rotate_angle: SpinBox
+var _rotate_label: Label
+var _font: OptionButton
+## The angle row, shown for texts, rectangles, ellipses and pictures.
+var _angle_rows: Array[Control] = []
 var _labels: Array[Label] = []
 var _hint: Label
 var _panel_title: Label
@@ -127,10 +135,31 @@ func _init() -> void:
 	add_child(_picture_file)
 	_message = AcceptDialog.new()
 	add_child(_message)
+	_rotate_dialog = ConfirmationDialog.new()
+	var rotate_row: HBoxContainer = HBoxContainer.new()
+	_rotate_dialog.add_child(rotate_row)
+	_rotate_label = Label.new()
+	_rotate_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	rotate_row.add_child(_rotate_label)
+	_rotate_angle = SpinBox.new()
+	_rotate_angle.min_value = -360.0
+	_rotate_angle.max_value = 360.0
+	_rotate_angle.step = 0.5
+	_rotate_angle.value = 45.0
+	_rotate_angle.suffix = "°"
+	rotate_row.add_child(_rotate_angle)
+	# The angle as typed, Enter or OK (the field takes it only after the
+	# dialog would have closed).
+	_rotate_angle.get_line_edit().text_submitted.connect(func(_text: String) -> void:
+		_rotate_dialog.hide()
+		_rotate_by_typed())
+	_rotate_dialog.confirmed.connect(_rotate_by_typed)
+	add_child(_rotate_dialog)
 	tools.add_child(VSeparator.new())
 	var actions: Array[Array] = [
 		["turn", "rotate", func() -> void: canvas.turn_selected(true)],
 		["turn_back", "rotate_back", func() -> void: canvas.turn_selected(false)],
+		["rotate", "rotate_any", _ask_rotate],
 		["mirror", "mirror", func() -> void: canvas.mirror_selected(true)],
 		["flip", "flip", func() -> void: canvas.mirror_selected(false)],
 		["", "", Callable()],
@@ -172,6 +201,7 @@ func _init() -> void:
 	canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	canvas.changed.connect(_show_selected)
 	canvas.selection_changed.connect(_show_selected)
+	canvas.rotate_requested.connect(_ask_rotate)
 	paper.add_child(canvas)
 	body.add_child(_build_panel())
 	_hint = Label.new()
@@ -244,6 +274,16 @@ func _build_panel() -> Control:
 				if shape.kind == "text":
 					shape.text = value.strip_edges()))
 	_text_rows.append_array(_add_row(grid, _text))
+	_font = OptionButton.new()
+	_font.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_font.fit_to_longest_item = false
+	_font.clip_text = true
+	_font.item_selected.connect(func(index: int) -> void:
+		var family: String = str(_font.get_item_metadata(index))
+		_apply(func(shape: CustomSymbol.Shape) -> void:
+			if shape.kind == "text" or shape == canvas.look:
+				shape.font = family))
+	_text_rows.append_array(_add_row(grid, _font))
 	_text_size = SpinBox.new()
 	_text_size.min_value = CustomSymbol.MIN_TEXT * 1000.0
 	_text_size.max_value = CustomSymbol.MAX_TEXT * 1000.0
@@ -257,8 +297,10 @@ func _build_panel() -> Control:
 	_angle.max_value = 180.0
 	_angle.step = 1.0
 	_angle.suffix = "°"
-	_angle.value_changed.connect(func(value: float) -> void: _apply(func(shape: CustomSymbol.Shape) -> void: shape.angle = value))
-	_text_rows.append_array(_add_row(grid, _angle))
+	_angle.value_changed.connect(func(value: float) -> void: _apply(func(shape: CustomSymbol.Shape) -> void:
+		if shape.kind == "text" or shape.kind in CustomSymbol.BOXED or shape == canvas.look:
+			shape.angle = value))
+	_angle_rows.append_array(_add_row(grid, _angle))
 	var face: HBoxContainer = HBoxContainer.new()
 	_bold = _check(face)
 	_italic = _check(face)
@@ -366,11 +408,17 @@ func _show_selected() -> void:
 	var texts: bool = picked.is_empty() or picked.any(func(s: CustomSymbol.Shape) -> bool: return s.kind == "text")
 	for row: Control in _text_rows:
 		row.visible = texts
+	var turned: bool = texts or picked.any(func(s: CustomSymbol.Shape) -> bool: return s.kind in CustomSymbol.BOXED)
+	for row: Control in _angle_rows:
+		row.visible = turned
+	var angled: Array[CustomSymbol.Shape] = picked.filter(func(s: CustomSymbol.Shape) -> bool: return s.kind == "text" or s.kind in CustomSymbol.BOXED)
+	var angle_of: CustomSymbol.Shape = angled[0] if not angled.is_empty() else shape
 	if shape.kind == "text":
 		_text.text = shape.text
 		canvas.text = shape.text
 	_text_size.value = shape.size * 1000.0
-	_angle.value = shape.angle
+	_angle.value = angle_of.angle
+	_show_font(shape.font)
 	_bold.button_pressed = shape.bold
 	_italic.button_pressed = shape.italic
 	_fill_points()
@@ -404,15 +452,58 @@ func _fill_points() -> void:
 				field.value_changed.connect(func(value: float) -> void:
 					_apply(func(s: CustomSymbol.Shape) -> void:
 						if point < s.points.size():
-							var p: Vector2 = s.points[point]
+							var p: Vector2 = CustomSymbol.handle_points(s)[point]
 							p[along] = value / 1000.0
-							s.points[point] = p))
+							CustomSymbol.set_handle(s, point, p)))
 				_points.add_child(field)
+	var shown: PackedVector2Array = CustomSymbol.handle_points(shape) if shape != null else PackedVector2Array()
 	for k: int in count:
 		for axis: int in 2:
 			var field: SpinBox = _points.get_child(k * 3 + 1 + axis) as SpinBox
 			if not field.get_line_edit().has_focus():
-				field.set_value_no_signal(shape.points[k][axis] * 1000.0)
+				field.set_value_no_signal(shown[k][axis] * 1000.0)
+
+
+## The font list: the plan's font, then the computer's families; a family
+## the computer lacks (a symbol from another one) is listed as missing.
+func _fill_fonts() -> void:
+	_font.clear()
+	_font.add_item(tr("Plan font"))
+	_font.set_item_metadata(0, "")
+	for family: String in CustomSymbol.families():
+		_font.add_item(family)
+		_font.set_item_metadata(_font.item_count - 1, family)
+
+
+## Family [param family] picked in the font list.
+func _show_font(family: String) -> void:
+	for i: int in _font.item_count:
+		if str(_font.get_item_metadata(i)) == family:
+			_font.select(i)
+			return
+	_font.add_item(tr("%s (missing here)") % family)
+	_font.set_item_metadata(_font.item_count - 1, family)
+	_font.select(_font.item_count - 1)
+
+
+## Turns the shapes picked by the angle typed in the Rotate dialog.
+func _rotate_by_typed() -> void:
+	_rotate_angle.apply()
+	canvas.rotate_selected(_rotate_angle.value)
+
+
+## Asks the angle the shapes picked turn by.
+func _ask_rotate() -> void:
+	if canvas.selection.is_empty():
+		return
+	_rotate_dialog.title = tr("Rotate")
+	_rotate_label.text = tr("Angle, anticlockwise")
+	_rotate_dialog.ok_button_text = tr("Rotate")
+	_rotate_dialog.cancel_button_text = tr("Cancel")
+	_rotate_dialog.reset_size()
+	_rotate_dialog.popup_centered()
+	_rotate_angle.get_line_edit().grab_focus()
+	_rotate_angle.get_line_edit().select_all()
 
 
 func _kind_title(kind: String) -> String:
@@ -444,7 +535,7 @@ func _update() -> void:
 	_two_phases.disabled = not electrical
 	get_ok_button().disabled = _name.text.strip_edges().is_empty() or _def.shapes.is_empty()
 	var none: bool = canvas.selection.is_empty()
-	for key: String in ["turn", "turn_back", "mirror", "flip", "copy", "duplicate", "delete"]:
+	for key: String in ["turn", "turn_back", "rotate", "mirror", "flip", "copy", "duplicate", "delete"]:
 		_actions[key].disabled = none
 	_actions["paste"].disabled = SymbolCanvas.clipboard.is_empty()
 	var hints: PackedStringArray = [
@@ -459,7 +550,7 @@ func _update() -> void:
 		tr("Type the text in the panel, then click where its middle goes."),
 	]
 	var wall_hint: String = tr("The wall is the grey band at the top: the symbol hangs from it into the room, drawn upright on every wall.") if _wall.button_pressed else tr("The axes cross where the symbol's middle goes.")
-	_hint.text = hints[canvas.tool] + " " + wall_hint + " " + tr("Points snap to the points of other shapes. R turns, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans.")
+	_hint.text = hints[canvas.tool] + " " + wall_hint + " " + tr("Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans.")
 
 
 func _fill_categories() -> void:
@@ -480,7 +571,7 @@ func _retranslate() -> void:
 	ok_button_text = tr("Save to my symbols")
 	cancel_button_text = tr("Cancel")
 	# The labels of the fields in the order they were made.
-	var texts: PackedStringArray = [tr("Name"), tr("Category"), tr("Power"), tr("Line width"), tr("Line style"), tr("Line colour"), tr("Filled"), tr("Fill colour"), tr("Text"), tr("Height"), tr("Angle"), tr("Face")]
+	var texts: PackedStringArray = [tr("Name"), tr("Category"), tr("Power"), tr("Line width"), tr("Line style"), tr("Line colour"), tr("Filled"), tr("Fill colour"), tr("Text"), tr("Font"), tr("Height"), tr("Angle"), tr("Face")]
 	for k: int in _labels.size():
 		_labels[k].text = texts[k]
 	_name.placeholder_text = tr("e.g. TV socket, smoke detector")
@@ -502,6 +593,7 @@ func _retranslate() -> void:
 	_bold.text = tr("Bold")
 	_italic.text = tr("Italic")
 	_points_title.text = tr("Points (mm)").to_upper()
+	_fill_fonts()
 	_grid.clear()
 	for step: float in SymbolCanvas.GRIDS:
 		_grid.add_item(tr("Grid %s mm") % String.num(step * 1000.0, 3) if step > 0.0 else tr("No grid"))
@@ -512,6 +604,7 @@ func _retranslate() -> void:
 		_tools[k].tooltip_text = tips[k]
 	var action_tips: Dictionary[String, String] = {
 		"turn": tr("Turn a quarter clockwise (R)"), "turn_back": tr("Turn a quarter anticlockwise (Shift+R)"),
+		"rotate": tr("Rotate by an angle (Ctrl+R)"),
 		"mirror": tr("Mirror left to right (F)"), "flip": tr("Mirror top to bottom (Shift+F)"),
 		"copy": tr("Copy (Ctrl+C)"), "paste": tr("Paste (Ctrl+V)"), "duplicate": tr("Duplicate (Ctrl+D)"),
 		"delete": tr("Delete the shapes picked"), "undo": tr("Undo"), "redo": tr("Redo"), "fit": tr("Show all"),

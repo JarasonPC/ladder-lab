@@ -479,12 +479,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   box of two corners. Every shape has width (mm, 0 the plan's own), style of STYLES (dashes
   and dots spaced by the width, stroke_line), color ("" the plan's line colour), the
   FILLABLE ones filled and fill ("" its line colour; an arc or curve closed by its chord);
-  a text size (its height), angle (degrees, anticlockwise; text_corners), bold and italic
-  (face: a FontVariation embolden / skew); an image its PNG in Base64 (image_shape: at most
-  IMAGE_PIXELS a side, IMAGE_SIZE long; picture() caches the texture, null for one not a
-  PNG, drawn as a crossed box), angle and flipped). take_style copies the look;
-  move_shape, turn_shape (a quarter about a point, the angle along), mirror_shape (a text
-  turned back to read left to right; an image flipped), scale_shape (a text's height too);
+  a text size (its height), angle (degrees, anticlockwise; text_corners), font (a family of
+  the computer, "" the plan's; face: a SystemFont of it, bold 700 / italic, the plan's font
+  its fallback, the plan's font itself where families() lacks it; else a FontVariation
+  embolden / skew), bold and italic; the BOXED kinds (rect, ellipse, image) an angle too,
+  their two points the corners of their box before it is turned about its middle
+  (box_middle, _turned in outline_of; handle_points the corners as drawn, set_handle moves
+  one keeping the other where it is drawn); an image its PNG in Base64 (image_shape: at
+  most IMAGE_PIXELS a side, IMAGE_SIZE long; picture() caches the texture, null for one not
+  a PNG, drawn as a crossed box) and flipped. take_style copies the look; move_shape,
+  rotate_shape (any angle about a point: points, or a BOXED shape's middle and angle; a
+  rectangle or ellipse lying square turned a quarter keeps its angle 0, its box turned; a
+  text's angle along), turn_shape (a quarter), mirror_shape (a text turned back to read
+  left to right; a box's angle negated; an image flipped), scale_shape (a text's height too);
   outline_of, bounds / bounds_of, distance_to (0 inside a filled shape, a text's box or an
   image), shape_at, draw / draw_fitted / draw_shape on any CanvasItem in its pixels, in
   the shapes' own colours or all in one with recolor (selected or a ghost on the plan). SymbolLibrary (schematic/, no nodes): the
@@ -517,15 +524,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   (add_picture from an image file), turn, mirror, copy, paste, duplicate, delete, the grid
   of GRIDS, undo, redo, fit; beside the drawing a panel for the look of the shapes picked
   or, none picked, of new ones (SymbolCanvas.look): width, style, line colour and fill
-  (Own: a colour of its own), the text, height, angle, bold and italic, the points of one
-  picked alone in mm) draws on a SymbolCanvas (a grid of mm / cm, the wall as a grey band
+  (Own: a colour of its own), the text, its font (the computer's families, one missing
+  listed as such), height, bold and italic, the angle of texts and BOXED shapes, the points
+  of one picked alone in mm as drawn; Rotate asks an angle, _rotate_by_typed on OK or
+  Enter) draws on a SymbolCanvas (a grid of mm / cm, the wall as a grey band
   above the origin; points snap to the key_points of other shapes within POINT_SNAP, else
   to the grid; selection several shapes: Shift / Ctrl+click, a box from an empty place,
   Ctrl+A; dragged together (_drag_by, snapping the point grabbed), the points of one alone
   by their handles, the corners of the box round them scale them (_corner_scale); Tool
   SELECT, LINE / RECT / ELLIPSE dragged corner to corner, POLYLINE / POLYGON a point a click
   (finish_path: double click, Enter, right click, a polygon's first point), ARC / CURVE
-  dragged end to end and then a click for the middle point, TEXT; R / F turn and mirror,
+  dragged end to end and then a click for the middle point, TEXT; R / F turn a quarter and
+  mirror, rotate_selected by any angle (Ctrl+R: rotate_requested),
   Ctrl+C / X / V / D with a clipboard for any symbol of the run (PASTE_OFFSET further each
   paste); its own undo of shape copies). A symbol saved there that the
   schematic uses is taken into it as one undoable edit (FloorPlanView._on_symbol_saved)

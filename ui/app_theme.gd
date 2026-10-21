@@ -121,6 +121,7 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"shape_polyline": '<path d="M3 18 9 8l6 8 6-11"/>',
 	"shape_polygon": '<path d="M12 3 21 10 17.5 21h-11L3 10z"/>',
 	"rotate_back": '<path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+	"rotate_any": '<path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 3v4h-4"/><path d="M12 12l4.5-2.5"/><path d="M12 12h5"/>',
 	"copy": '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/>',
 	"paste": '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2"/><path d="M9 11h6"/><path d="M9 15h6"/>',
 	"duplicate": '<rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/>',

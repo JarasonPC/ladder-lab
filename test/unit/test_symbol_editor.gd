@@ -275,3 +275,94 @@ func test_editor_panel_sets_the_look_and_points() -> void:
 	editor.add_picture("user://test_missing.png")
 	assert_eq(canvas.symbol.shapes.size(), 2, "a file that cannot be read adds nothing")
 	editor.hide()
+
+
+func test_turned_by_any_angle() -> void:
+	_def.shapes.append(_rect(Vector2(-0.1, -0.05), Vector2(0.1, 0.05)))
+	var line: CustomSymbol.Shape = CustomSymbol.Shape.new()
+	line.kind = "line"
+	line.points = PackedVector2Array([Vector2(0.3, 0.0), Vector2(0.5, 0.0)])
+	_def.shapes.append(line)
+	_canvas.selected = 0
+	_canvas.rotate_selected(30.0)
+	var rect: CustomSymbol.Shape = _def.shapes[0]
+	assert_almost_eq(rect.angle, 30.0, 1e-6, "a rectangle keeps its box and turns by its angle")
+	assert_true(CustomSymbol.box_middle(rect).is_equal_approx(Vector2.ZERO), "about its middle")
+	var corner: Vector2 = CustomSymbol.handle_points(rect)[1]
+	assert_true(corner.is_equal_approx(Vector2(0.1, 0.05).rotated(-deg_to_rad(30.0))), "its corner turned anticlockwise")
+	assert_gt(CustomSymbol.shape_bounds(rect).size.y, 0.1, "the box round it grows")
+	# A corner dragged: the other one stays where it is drawn.
+	var other: Vector2 = CustomSymbol.handle_points(rect)[0]
+	CustomSymbol.set_handle(rect, 1, corner + Vector2(0.05, 0.0))
+	assert_true(CustomSymbol.handle_points(rect)[0].is_equal_approx(other))
+	assert_true(CustomSymbol.handle_points(rect)[1].is_equal_approx(corner + Vector2(0.05, 0.0)))
+	assert_almost_eq(rect.angle, 30.0, 1e-6)
+	# R still turns it a quarter, F mirrors its angle; saved.
+	_canvas.turn_selected(true)
+	assert_almost_eq(rect.angle, -60.0, 1e-6)
+	_canvas.mirror_selected(true)
+	assert_almost_eq(rect.angle, 60.0, 1e-6)
+	var again: CustomSymbol.Shape = CustomSymbol.shape_from_data(CustomSymbol.shape_to_data(rect))
+	assert_almost_eq(again.angle, 60.0, 1e-6)
+	# Several together about their middle; a line by its points.
+	_canvas.select_all()
+	var middle: Vector2 = _canvas.selection_bounds().get_center().snapped(Vector2(_canvas.grid, _canvas.grid))
+	_canvas.rotate_selected(90.0)
+	assert_true(_def.shapes[1].points[0].is_equal_approx(middle + (Vector2(0.3, 0.0) - middle).rotated(-PI / 2.0)), "the line round the middle of both")
+	assert_almost_eq(_def.shapes[1].angle, 0.0, 1e-6, "a line has no angle of its own")
+	_canvas.selected = 1
+	_canvas.rotate_selected(45.0)
+	var d: Vector2 = _def.shapes[1].points[1] - _def.shapes[1].points[0]
+	assert_almost_eq(absf(d.x), absf(d.y), 1e-6, "a line turned by 45°")
+	# A turned picture is picked inside its turned box only.
+	var image: Image = Image.create(20, 10, false, Image.FORMAT_RGBA8)
+	var picture: CustomSymbol.Shape = CustomSymbol.image_shape(image)
+	CustomSymbol.rotate_shape(picture, Vector2.ZERO, 90.0)
+	assert_almost_eq(picture.angle, 90.0, 1e-6)
+	assert_eq(CustomSymbol.distance_to(picture, Vector2(0.0, 0.09)), 0.0, "standing up")
+	assert_gt(CustomSymbol.distance_to(picture, Vector2(0.09, 0.0)), 0.0)
+
+
+func test_fonts_of_the_computer() -> void:
+	var label: CustomSymbol.Shape = CustomSymbol.Shape.new()
+	label.kind = "text"
+	label.text = "TV"
+	label.points = PackedVector2Array([Vector2.ZERO])
+	var plan_font: Font = ThemeDB.fallback_font
+	assert_eq(CustomSymbol.face(plan_font, "", false, false), plan_font, "the plan's own font")
+	assert_eq(CustomSymbol.face(plan_font, "No Such Family", false, false), plan_font, "a family the computer lacks: the plan's")
+	var families: PackedStringArray = CustomSymbol.families()
+	if not families.is_empty():
+		var system: Font = CustomSymbol.face(plan_font, families[0], true, false)
+		assert_true(system is SystemFont, "a family of the computer")
+		assert_eq((system as SystemFont).font_weight, 700, "bold")
+		label.font = families[0]
+	var again: CustomSymbol.Shape = CustomSymbol.shape_from_data(JSON.parse_string(JSON.stringify(CustomSymbol.shape_to_data(label))))
+	assert_eq(again.font, label.font, "saved")
+	# Picked in the editor's list; one from another computer is listed as missing.
+	var editor: SymbolEditor = SymbolEditor.new()
+	add_child_autofree(editor)
+	var def: CustomSymbol = CustomSymbol.new()
+	def.id = CustomSymbol.new_id()
+	def.name = "Label"
+	var other: CustomSymbol.Shape = label.copy()
+	other.font = "Font Of Another Computer"
+	def.shapes.append(other)
+	editor.open(def)
+	var list: OptionButton = editor.get("_font")
+	assert_eq(str(list.get_item_metadata(0)), "", "the plan's font first")
+	assert_eq(list.item_count, families.size() + 1)
+	editor.canvas.selected = 0
+	assert_eq(str(list.get_item_metadata(list.selected)), "Font Of Another Computer")
+	assert_string_contains(list.get_item_text(list.selected), "Font Of Another Computer")
+	list.item_selected.emit(0)
+	assert_eq(editor.canvas.symbol.shapes[0].font, "", "back to the plan's font")
+	# Rotate asks for an angle.
+	var typed: LineEdit = (editor.get("_rotate_angle") as SpinBox).get_line_edit()
+	typed.text = "30"
+	(editor.get("_rotate_dialog") as ConfirmationDialog).confirmed.emit()
+	assert_almost_eq(editor.canvas.symbol.shapes[0].angle, 30.0, 1e-6, "turned by the angle typed, OK")
+	typed.text = "-10"
+	typed.text_submitted.emit("-10")
+	assert_almost_eq(editor.canvas.symbol.shapes[0].angle, 20.0, 1e-6, "and by Enter")
+	editor.hide()
