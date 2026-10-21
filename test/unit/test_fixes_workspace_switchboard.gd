@@ -213,6 +213,42 @@ func test_place_shows_its_name_under_its_tile_and_the_rest_in_its_tooltip() -> v
 	assert_eq(canvas.place_tooltip(item), "+ST1  Operator desk at the loading bay\n1 item\nKeys: Q")
 
 
+func test_group_frame_resized_by_its_corner() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(0)
+	doc.add_group(Vector2(0.0, 400.0))
+	var canvas: WorkspaceCanvas = WorkspaceCanvas.new()
+	add_child_autofree(canvas)
+	canvas.document = doc
+	canvas.editing = true
+	var changes: Array[Callable] = []
+	canvas.edit_requested.connect(func(change: Callable) -> void: changes.append(change))
+	var rect: Rect2 = Workspace.group_rect(doc.groups[0], Workspace.field_positions(doc))
+	var corner: Vector2 = canvas.offset + rect.end * canvas.zoom
+	assert_eq(canvas.call("_group_handle_at", corner), -1, "no handle until it is selected")
+	canvas.selected = "+" + doc.groups[0].name
+	_mouse(canvas, corner, true)
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = corner + Vector2(100.0, 40.0)
+	canvas._gui_input(motion)
+	var frame: Rect2 = Rect2()
+	for item: Dictionary in canvas.items():
+		if item["kind"] == "group":
+			frame = item["rect"]
+	assert_eq(frame.size, rect.size + Vector2(100.0, 40.0), "drawn as large as dragged")
+	_mouse(canvas, motion.position, false)
+	assert_eq(changes.size(), 1, "one edit at the drop")
+	changes[0].call(doc)
+	assert_eq(doc.groups[0].size, rect.size + Vector2(100.0, 40.0))
+
+
+func _mouse(canvas: WorkspaceCanvas, at: Vector2, pressed: bool) -> void:
+	var button: InputEventMouseButton = InputEventMouseButton.new()
+	button.button_index = MOUSE_BUTTON_LEFT
+	button.position = at
+	button.pressed = pressed
+	canvas._gui_input(button)
+
+
 func test_an_empty_group_moves_while_dragged() -> void:
 	var doc: SchematicDocument = ExampleCircuits.build(0)
 	doc.add_group(Vector2(0.0, 400.0))

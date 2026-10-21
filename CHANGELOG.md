@@ -140,6 +140,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
   side by side
+- A group on the workspace is resized by dragging the corner of its frame in Edit mode; a
+  group with a mechanical link shows where its part is (or starts) in per cent in its heading
 
 ### Fixed
 - Inside a control station, terminals wired only to a supply point of their own (a

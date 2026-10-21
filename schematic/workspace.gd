@@ -113,7 +113,7 @@ static func field_positions(doc: SchematicDocument) -> Dictionary[String, Vector
 	for designation: String in result:
 		known.append(Rect2(result[designation], FIELD_SIZE))
 	for group: WorkspaceGroup in doc.groups:
-		known.append(Rect2(group.position, EMPTY_GROUP))
+		known.append(Rect2(group.position, EMPTY_GROUP.max(group.size)))
 	for rect: Rect2 in known:
 		bottom = maxf(bottom, rect.end.y)
 		left = minf(left, rect.position.x)
@@ -134,9 +134,18 @@ static func field_positions(doc: SchematicDocument) -> Dictionary[String, Vector
 	return result
 
 
-## Frame of [param group] round its members at [param positions] (see
-## [method field_positions]); while it has none, [constant EMPTY_GROUP] at its position.
+## Frame of [param group]: from the top-left corner of [method group_fit],
+## at least as large as the group was resized to ([member WorkspaceGroup.size]).
 static func group_rect(group: WorkspaceGroup, positions: Dictionary[String, Vector2]) -> Rect2:
+	var rect: Rect2 = group_fit(group, positions)
+	rect.size = rect.size.max(group.size)
+	return rect
+
+
+## Smallest frame of [param group]: round its members at [param positions]
+## (see [method field_positions]); while it has none, [constant EMPTY_GROUP]
+## at its position.
+static func group_fit(group: WorkspaceGroup, positions: Dictionary[String, Vector2]) -> Rect2:
 	var rect: Rect2 = Rect2()
 	var found: bool = false
 	for member: String in group.members:

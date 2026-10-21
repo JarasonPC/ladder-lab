@@ -8,7 +8,8 @@ extends Control
 ## their name beside them, power cables thicker, Ethernet cables green. A click on a switchboard or
 ## station opens it, a click on a cable lists its cores; in Edit mode
 ## everything is dragged around (a part dropped into a group's frame joins
-## the group, dropped outside leaves it). The wheel zooms at the mouse, a
+## the group, dropped outside leaves it) and a selected group's frame or
+## station's face is resized by its corner. The wheel zooms at the mouse, a
 ## right or middle drag pans, a right click (no drag) asks for a menu.
 
 ## Switchboard or station [param place_name] was clicked: open it.
@@ -26,7 +27,7 @@ signal button_held(designation: String, pressed: bool)
 ## A switch on a station shown as its face was clicked while simulating.
 signal switch_toggled(designation: String, steps: int)
 
-## Reach (pixels) of the handle resizing a station's face.
+## Reach (pixels) of the handle resizing a station's face or a group's frame.
 const HANDLE: float = 9.0
 const MIN_ZOOM: float = 0.25
 const MAX_ZOOM: float = 3.0
@@ -65,6 +66,7 @@ var document: SchematicDocument:
 			_dragging = false
 			_drag = Vector2.ZERO
 			_resizing = -1
+			_resizing_group = -1
 		document = value
 ## Things are dragged only while editing.
 var editing: bool = false
@@ -94,6 +96,10 @@ var _faces: Dictionary[String, ControlBoxView] = {}
 ## and the scale it is dragged to.
 var _resizing: int = -1
 var _resize_scale: float = 0.0
+## Group whose frame is being resized by its corner handle (-1 for none),
+## and the size it is dragged to.
+var _resizing_group: int = -1
+var _group_size: Vector2 = Vector2.ZERO
 ## Angle of the marks turning on each motor's tile while simulating
 ## (designation -> radians), and whether any turned at the last frame.
 var _spin: Dictionary[String, float] = {}
@@ -465,6 +471,8 @@ func items() -> Array[Dictionary]:
 		if empty:
 			# A frame without members is dragged by its own position.
 			rect.position = _moved("+" + group.name, group.position)
+		if g == _resizing_group:
+			rect.size = _group_size
 		result.append({"key": "+" + group.name, "kind": "group", "index": g, "name": group.name, "rect": rect, "tile": WorkspaceTile.Kind.GROUP})
 	for b: int in document.switchboards.size():
 		var board: Switchboard = document.switchboards[b]
@@ -674,6 +682,12 @@ func _gui_input(event: InputEvent) -> void:
 		var box: ControlBox = document.control_boxes[_resizing]
 		_resize_scale = ControlBox.valid_face((to_workspace(motion.position).x - box.position.x) / box.face_size().x)
 		queue_redraw()
+	elif _resizing_group >= 0:
+		# From the frame's top-left corner to the mouse, never smaller than
+		# round the members.
+		var fit: Rect2 = Workspace.group_fit(document.groups[_resizing_group], Workspace.field_positions(document))
+		_group_size = (to_workspace(motion.position) - fit.position).snappedf(SNAP).max(fit.size).min(WorkspaceGroup.MAX_SIZE)
+		queue_redraw()
 	elif not _press.is_empty():
 		if not _dragging and editing and _press["kind"] != "cable" and motion.position.distance_to(_press_at) >= SchematicEditor.CLICK_SLOP:
 			_dragging = true
@@ -709,6 +723,10 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_resizing = _handle_at(mb.position)
 				_resize_scale = document.control_boxes[_resizing].face_scale
 				return
+			if mb.pressed and editing and _group_handle_at(mb.position) >= 0:
+				_resizing_group = _group_handle_at(mb.position)
+				_group_size = Workspace.group_rect(document.groups[_resizing_group], Workspace.field_positions(document)).size
+				return
 			if not mb.pressed and _resizing >= 0:
 				var index: int = _resizing
 				var scale: float = _resize_scale
@@ -716,6 +734,14 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				queue_redraw()
 				if not is_equal_approx(scale, document.control_boxes[index].face_scale):
 					edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_station_face(index, scale))
+				return
+			if not mb.pressed and _resizing_group >= 0:
+				var index: int = _resizing_group
+				var new_size: Vector2 = _group_size
+				_resizing_group = -1
+				queue_redraw()
+				if not new_size.is_equal_approx(Workspace.group_rect(document.groups[index], Workspace.field_positions(document)).size):
+					edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_group_size(index, new_size))
 				return
 			if mb.pressed:
 				_press = item_at(mb.position)
@@ -743,6 +769,17 @@ func _on_button(mb: InputEventMouseButton) -> void:
 func _handle_at(point: Vector2) -> int:
 	for item: Dictionary in items():
 		if item["kind"] == "station" and selected == item["key"] and document.control_boxes[item["index"]].face_scale > 0.0:
+			var corner: Vector2 = offset + (item["rect"] as Rect2).end * zoom
+			if point.distance_to(corner) <= HANDLE:
+				return item["index"]
+	return -1
+
+
+## Group whose resize handle (the bottom right corner of its frame, while
+## selected) is under screen point [param point], -1 for none.
+func _group_handle_at(point: Vector2) -> int:
+	for item: Dictionary in items():
+		if item["kind"] == "group" and selected == item["key"]:
 			var corner: Vector2 = offset + (item["rect"] as Rect2).end * zoom
 			if point.distance_to(corner) <= HANDLE:
 				return item["index"]
@@ -789,6 +826,7 @@ func _group_under(designation: String, point: Vector2) -> int:
 	for g: int in range(document.groups.size() - 1, -1, -1):
 		var group: WorkspaceGroup = document.groups[g]
 		var others: WorkspaceGroup = WorkspaceGroup.new(group.name, group.position)
+		others.size = group.size
 		for member: String in group.members:
 			if member != designation:
 				others.members.append(member)
@@ -951,8 +989,21 @@ func _draw_group(item: Dictionary) -> void:
 	var at: Vector2 = rect.position + Vector2(12.0, 18.0)
 	draw_string(font, at, "+" + group.name, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE + 1, SchematicTheme.DESIGNATION)
 	at.x += font.get_string_size("+" + group.name, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE + 1).x + 8.0
-	draw_string(font, at, group.title if not group.title.is_empty() else tr("Group"), HORIZONTAL_ALIGNMENT_LEFT, rect.end.x - at.x - 8.0, TEXT_SIZE, SchematicTheme.PATH_TEXT)
-	if group.members.has(group.drive):
+	var linked: bool = group.members.has(group.drive)
+	var simulating: bool = travel_positions.has(group.name)
+	var share: float = travel_positions[group.name] if simulating else group.start
+	var room: float = rect.end.x - at.x - 8.0
+	if linked:
+		# Where the part is (or starts) in per cent, at the right of the heading.
+		var readout: String = "%d %%" % roundi(share * 100.0)
+		var width: float = font.get_string_size(readout, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+		draw_string(font, Vector2(rect.end.x - 12.0 - width, at.y), readout, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.SELECTED if simulating else SchematicTheme.PATH_TEXT)
+		room -= width + 8.0
+	draw_string(font, at, group.title if not group.title.is_empty() else tr("Group"), HORIZONTAL_ALIGNMENT_LEFT, room, TEXT_SIZE, SchematicTheme.PATH_TEXT)
+	if editing and selected == item["key"]:
+		var corner: Vector2 = rect.end
+		draw_colored_polygon(PackedVector2Array([corner, corner - Vector2(12.0, 0.0), corner - Vector2(0.0, 12.0)]), SchematicTheme.SELECTED)
+	if linked:
 		# The way the part travels along the bottom of the frame: a tick for
 		# each limit switch, the part where it starts (or is, while simulating).
 		var from: Vector2 = Vector2(rect.position.x + 14.0, rect.end.y - 9.0)
@@ -963,8 +1014,7 @@ func _draw_group(item: Dictionary) -> void:
 				continue
 			var x: float = from.x + length * group.stops[designation]
 			draw_line(Vector2(x, from.y - 5.0), Vector2(x, from.y + 5.0), SchematicTheme.LINE, 1.5, true)
-		var simulating: bool = travel_positions.has(group.name)
-		var at_x: float = from.x + length * (travel_positions[group.name] if simulating else group.start)
+		var at_x: float = from.x + length * share
 		if simulating:
 			draw_line(from, Vector2(at_x, from.y), SchematicTheme.SELECTED, 4.0, true)
 		draw_circle(Vector2(at_x, from.y), 4.5, SchematicTheme.SELECTED if simulating else SchematicTheme.BACKGROUND, true, -1.0, true)
