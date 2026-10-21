@@ -1417,7 +1417,7 @@ func _draw() -> void:
 	_taken = []
 	for designation: String in plan().parts:
 		if layer_shows(designation):
-			_taken.append(_symbol_box(designation, s))
+			_taken.append(_symbol_box(designation, s * _symbols()))
 	for designation: String in plan().parts:
 		if layer_shows(designation):
 			_draw_part(designation, s, font)
@@ -2126,25 +2126,32 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 var _taken: Array[Rect2] = []
 
 
-## The box round the symbol of part [param designation] on screen.
+## The box round the symbol of part [param designation] on screen, its
+## symbol drawn [param s] pixels a metre (the plan's symbol size taken in).
 func _symbol_box(designation: String, s: float) -> Rect2:
-	var center: Vector2 = to_screen(_shown_at(designation) + symbol_center(designation) - plan().parts[designation])
+	var center: Vector2 = _symbol_middle(designation)
 	var c: CircuitComponent = document.circuit.get_component(designation) if designation != FloorPlan.UNIT else null
 	var def: CustomSymbol = document.symbol((c as Appliance).symbol) if c is Appliance else null
 	if def != null:
 		# The user's symbol: what it covers, from its origin.
-		var origin: Vector2 = center - (Vector2(0, WALL_SYMBOL_OFFSET * _symbols() * s) if plan().facing.has(designation) else Vector2.ZERO)
+		var origin: Vector2 = center - (Vector2(0, WALL_SYMBOL_OFFSET * s) if plan().facing.has(designation) else Vector2.ZERO)
 		var box: Rect2 = def.bounds()
-		return Rect2(origin + box.position * s * _symbols(), box.size * s * _symbols())
-	var half: float = 0.2 * s * _symbols()
+		return Rect2(origin + box.position * s, box.size * s)
+	var half: float = 0.2 * s
 	return Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0)
 
 
+## Where the middle of part [param designation]'s symbol is on screen (dragged: where it goes).
+func _symbol_middle(designation: String) -> Vector2:
+	return to_screen(_shown_at(designation) + symbol_center(designation) - plan().parts[designation])
+
+
 ## Where the designation [param label] (with [param height_text] under it)
-## of part [param designation] goes: beside its symbol at [param center], on
-## the side into the room ([param into]) first, else right, left, below or
-## above, the first clear of the other symbols and designations, a step
-## further out when none is. Takes the box it gets.
+## of part [param designation] goes: beside its symbol at [param center]
+## (drawn [param s] pixels a metre), just past its symbol's box, on the side
+## into the room ([param into]) first, else right, left, below or above, the
+## first clear of the other symbols and designations, a step further out
+## when none is. Takes the box it gets.
 func _label_spot(designation: String, center: Vector2, into: Vector2, label: String, height_text: String, s: float, font: Font) -> Vector2:
 	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
 	if not height_text.is_empty():
@@ -2159,9 +2166,13 @@ func _label_spot(designation: String, center: Vector2, into: Vector2, label: Str
 			sides.append(side)
 	var own: Rect2 = _symbol_box(designation, s)
 	var first: Vector2 = Vector2.INF
+	# How far the symbol reaches from its centre on each side: at least as
+	# far as a symbol of the palette does.
+	var middle: Vector2 = _symbol_middle(designation)
+	var reach: Dictionary[Vector2, float] = {Vector2.RIGHT: own.end.x - middle.x, Vector2.LEFT: middle.x - own.position.x, Vector2.DOWN: own.end.y - middle.y, Vector2.UP: middle.y - own.position.y}
 	for step: int in 3:
-		var gap: float = 0.22 * s + 2.0 + step * _sized(TEXT_SIZE)
 		for side: Vector2 in sides:
+			var gap: float = maxf(0.22 * s, reach[side] + 0.02 * s) + 2.0 + step * _sized(TEXT_SIZE)
 			# The box's top left, its near edge [gap] from the centre.
 			var corner: Vector2 = center + Vector2(gap, -2.0 - ascent)
 			if side == Vector2.LEFT:

@@ -360,3 +360,34 @@ func test_symbol_canvas_draws_and_undoes() -> void:
 	assert_eq(def.shapes.size(), 2)
 	canvas.undo()
 	assert_eq(def.shapes.size(), 3)
+
+
+func test_designations_clear_their_symbols_at_any_size() -> void:
+	var doc: SchematicDocument = _house()
+	var wide: CustomSymbol = CustomSymbol.new()
+	wide.id = CustomSymbol.new_id()
+	wide.name = "Heat pump"
+	wide.electrical = true
+	wide.wall = true
+	wide.shapes.append(_shape("rect", [Vector2(-0.5, 0.0), Vector2(0.5, 0.4)]))
+	_library.put(wide)
+	var pump: String = FloorPlanCanvas.add_part(doc, Palette.symbol_entries()[0]["template"], "FA1", Vector2(2.0, 0.1))
+	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 1}, "FA1", Vector2(5.5, 0.1))
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.size = Vector2(1200, 800)
+	var font: Font = ThemeDB.fallback_font
+	for size: float in [1.0, 2.0]:
+		doc.floor_plan.symbol_scale = size
+		var s: float = FloorPlanCanvas.PX * canvas.zoom * size
+		var ascent: float = font.get_ascent(canvas._sized(FloorPlanCanvas.TEXT_SIZE))
+		canvas._taken = [canvas._symbol_box(pump, s), canvas._symbol_box(socket, s)]
+		# A palette symbol's designation just into the room, as before.
+		var center: Vector2 = canvas.to_screen(canvas.symbol_center(socket))
+		var spot: Vector2 = canvas._label_spot(socket, center, Vector2.DOWN, "-" + socket, "", s, font)
+		assert_almost_eq(spot.y, center.y + 0.22 * s + 2.0 + ascent, 0.01, "into the room, the first spot (size %s)" % size)
+		# The user's wide symbol: just under its drawing, not over it.
+		var own: Rect2 = canvas._symbol_box(pump, s)
+		center = canvas.to_screen(canvas.symbol_center(pump))
+		spot = canvas._label_spot(pump, center, Vector2.DOWN, "-" + pump, "", s, font)
+		assert_almost_eq(spot.y - ascent, own.end.y + 0.02 * s + 2.0, 0.01, "past its own box (size %s)" % size)
