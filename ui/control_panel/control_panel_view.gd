@@ -4,8 +4,10 @@ extends PanelContainer
 ## while simulating: every control station and switchboard door with push
 ## buttons, switches or lamps on it, each drawn by a [ControlBoxView] under
 ## its name and title and fitted to the panel's width, so the circuit is
-## operated with the schematic in view. Its title rolls it in to a narrow tab
-## at the edge of the window ([SideTab]).
+## operated with the schematic in view; under them the mechanical links of
+## the workspace's groups, each a [TravelView] showing where its part is and
+## which limit switches it operates. Its title rolls it in to a narrow tab at
+## the edge of the window ([SideTab]).
 
 ## A push button was pressed (true) or let go (false).
 signal button_held(designation: String, pressed: bool)
@@ -17,8 +19,13 @@ signal roll_requested
 var _document: SchematicDocument
 var _title: Button
 var _note: Label
+var _links_caption: Label
 var _list: VBoxContainer
+var _links: VBoxContainer
 var _views: Array[ControlBoxView] = []
+## The mechanical links of the simulation, and their views.
+var _travels: Array[Travel] = []
+var _travel_views: Array[TravelView] = []
 
 
 func _ready() -> void:
@@ -38,12 +45,21 @@ func _ready() -> void:
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 4)
 	column.add_child(_list)
+	_links_caption = Label.new()
+	_links_caption.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_links_caption.theme_type_variation = "MutedLabel"
+	column.add_child(_links_caption)
+	_links = VBoxContainer.new()
+	_links.add_theme_constant_override("separation", 6)
+	column.add_child(_links)
 	retranslate()
 
 
-## Shows the stations and doors of [param doc] (the simulation's copy).
-func set_document(doc: SchematicDocument) -> void:
+## Shows the stations and doors of [param doc] (the simulation's copy) and
+## the parts its motors move ([param travels], see [member Simulator.travels]).
+func set_document(doc: SchematicDocument, travels: Array[Travel] = []) -> void:
 	_document = doc
+	_travels = travels
 	_rebuild()
 
 
@@ -53,14 +69,17 @@ func retranslate() -> void:
 	_title.text = tr("Control panel")
 	_title.tooltip_text = tr("Roll the control panel in to a tab at the edge of the window")
 	_note.text = tr("No push buttons, switches or lamps on a control station or switchboard door yet. Put them there on the workspace in Edit mode.")
+	_links_caption.text = tr("Mechanical links")
 	_rebuild()
 
 
 func _process(_delta: float) -> void:
 	if is_visible_in_tree():
-		# Buttons, switches and lamps follow the simulation.
+		# Buttons, switches, lamps and the moving parts follow the simulation.
 		for view: ControlBoxView in _views:
 			view.queue_redraw()
+		for travel_view: TravelView in _travel_views:
+			travel_view.queue_redraw()
 
 
 func _rebuild() -> void:
@@ -92,7 +111,28 @@ func _rebuild() -> void:
 		fit.add_child(view)
 		_list.add_child(fit)
 		_views.append(view)
-	_note.visible = _views.is_empty()
+	for child: Node in _links.get_children():
+		_links.remove_child(child)
+		child.queue_free()
+	_travel_views.clear()
+	for travel: Travel in _travels:
+		var travel_view: TravelView = TravelView.new()
+		travel_view.travel = travel
+		var group: WorkspaceGroup = _group(travel.name)
+		travel_view.title = group.title if group != null else ""
+		_links.add_child(travel_view)
+		_travel_views.append(travel_view)
+	_links_caption.visible = not _travel_views.is_empty()
+	_note.visible = _views.is_empty() and _travel_views.is_empty()
+
+
+## The workspace group named [param group_name], or null.
+func _group(group_name: String) -> WorkspaceGroup:
+	if _document != null:
+		for group: WorkspaceGroup in _document.groups:
+			if group.name == group_name:
+				return group
+	return null
 
 
 ## Name and title of control panel [param index] (a station, or the door of

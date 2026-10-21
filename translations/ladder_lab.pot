@@ -5971,3 +5971,19 @@ msgstr ""
 
 msgid "Control panel: the control stations and switchboard doors, to operate the circuit beside the schematic"
 msgstr ""
+
+msgid "Mechanical links"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Running forwards"
+msgstr ""
+
+msgid "Running in reverse"
+msgstr ""
+
+#, c-format
+msgid "Where the part moved by %s is, and the limit switches along its way (lit while it operates them)"
+msgstr ""

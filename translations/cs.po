@@ -5987,3 +5987,19 @@ msgstr "Na ovládacích skříňkách ani dveřích rozvaděčů zatím nejsou �
 
 msgid "Control panel: the control stations and switchboard doors, to operate the circuit beside the schematic"
 msgstr "Ovládací panel: ovládací skříňky a dveře rozvaděčů pro ovládání obvodu vedle schématu"
+
+msgid "Mechanical links"
+msgstr "Mechanické vazby"
+
+msgid "Stopped"
+msgstr "Stojí"
+
+msgid "Running forwards"
+msgstr "Běží vpřed"
+
+msgid "Running in reverse"
+msgstr "Běží vzad"
+
+#, c-format
+msgid "Where the part moved by %s is, and the limit switches along its way (lit while it operates them)"
+msgstr "Kde je díl poháněný %s a koncové spínače na jeho dráze (svítí, když je díl ovládá)"
