@@ -1281,7 +1281,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   straight along a column or row, the first terminal straight ahead facing back (or without
   a lead: supply points), nothing in the way (WireRouter.is_clear); each terminal in one
   pair; connect_pairs wires pairs, routed. "Wire facing terminals (n)" in the right click
-  menu (two or more selected) wires those of the selection, one undo step. parallel_pairs:
+  menu (two or more selected) wires those of the selection, one undo step, also terminals
+  wired already (facing_pairs wired_too: not two on one net already; the way may run along
+  wires of either end's net). parallel_pairs:
   a wire drawn from terminal to terminal brings along the free terminals beside each end in
   its row leaving the same way (the other supply points in line for a supply point), paired
   off in order from the two ends; Shift on the click that ends the wire draws it alone. A
@@ -1289,6 +1291,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminals of the page it faces. The wires to come are drawn dashed: the poles while
   hovering the end terminal, the part being placed (facing_wires_placed: added for the
   query and taken out again) or dragged
+- Terminals of two parts on one cell that are not connected (SchematicDocument
+  .overlapping_terminals: not on one net, not supply points of one conductor) look joined:
+  on an industrial schematic the editor rings them in the warning colour with a warning
+  triangle above right; the mouse over either puts the terminals in the status bar (hint)
 - Protection: Fuse/CircuitBreaker (ProtectiveDevice, terminals 1-2) trip when fault current flows
   through them; OverloadRelay (no control terminals) + OverloadContact 95-96/97-98; faults are
   simulation-only state (never saved). Overcurrent: every fuse, breaker and 3-pole overload

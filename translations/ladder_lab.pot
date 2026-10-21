@@ -479,7 +479,11 @@ msgstr ""
 msgid "Wire facing terminals"
 msgstr ""
 
-msgid "Straight wires between the free terminals of the selected parts that face each other"
+#, c-format
+msgid "Terminals %s and %s lie on one another but are not connected."
+msgstr ""
+
+msgid "Straight wires between the terminals of the selected parts that face each other, also those wired already"
 msgstr ""
 
 msgid "Line up vertically"

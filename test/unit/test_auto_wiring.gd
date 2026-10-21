@@ -194,3 +194,26 @@ func test_parts_placed_or_dropped_in_line_are_wired() -> void:
 	editor.undo()
 	assert_eq(editor.document().get_wire_count(), 0, "dropped and wired in one step")
 	assert_eq(editor.document().get_placement("KM1").cell, Vector2i(20, 10))
+
+
+func test_facing_terminals_wired_elsewhere_pair_when_asked() -> void:
+	var doc: SchematicDocument = _power_column()
+	# FA1:2 wired to a lamp beside: down the column first, then across.
+	doc.add(Lamp.new("H1"), Vector2i(12, 4))
+	var below: Vector2i = doc.terminal_cell("FA1:2") + Vector2i(0, 1)
+	doc.connect_terminals("FA1:2", "H1:X1", [below, Vector2i(12, below.y)] as Array[Vector2i])
+	assert_false(_sorted(doc.facing_pairs(PackedStringArray(["FA1", "KM1"]))).has("FA1:2|KM1:1"), "only free terminals")
+	var pairs: Array[PackedStringArray] = doc.facing_pairs(PackedStringArray(["FA1", "KM1"]), PackedStringArray(), true)
+	assert_eq(_sorted(pairs), ["FA1:2|KM1:1", "FA1:4|KM1:3", "FA1:6|KM1:5"], "along the wire of its own net")
+	doc.connect_pairs(pairs)
+	assert_eq(doc.facing_pairs(PackedStringArray(["FA1", "KM1"]), PackedStringArray(), true), [] as Array[PackedStringArray], "joined already")
+
+
+func test_wire_facing_terminals_takes_wired_ones_too() -> void:
+	var doc: SchematicDocument = _power_column()
+	doc.connect_terminals("KM1:2", "F1:1")
+	var editor: SchematicEditor = _editor(doc)
+	editor.select_all()
+	assert_eq(editor.wire_facing_terminals(), 11, "every pole but the one wired")
+	assert_true(_sorted(editor.document().circuit.get_wires()).has("F1:2|M1:U1"))
+	assert_true(_sorted(editor.document().circuit.get_wires()).has("FA1:2|KM1:1"), "KM1 has a wired terminal")

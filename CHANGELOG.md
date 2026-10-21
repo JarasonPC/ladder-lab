@@ -118,6 +118,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   electrical one, a load of its power on the circuit chosen: on the single-line diagram,
   in the parts list and the simulation like an appliance. Both are in the legend with their
   count, and a schematic keeps the symbols it uses, so it opens with them anywhere
+- On an industrial schematic a warning sign marks terminals of two parts lying on one another
+  without being connected; with the mouse over it the status bar names them
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers
@@ -127,6 +129,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Inside a control station, terminals wired only to a supply point of their own (a
   potentiometer's - point or 10 V reference) get their wires: supply points of one conductor
   are one core, and a supply only wired to the station comes from the switchboard
+- "Wire facing terminals" also wires terminals that already have a wire to something else
 
 ## 0.6.0 – 2026-10-20
 

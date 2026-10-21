@@ -482,8 +482,12 @@ msgstr "Vedle sebe, se stejným počtem polí mezi nimi"
 msgid "Wire facing terminals"
 msgstr "Propojit protilehlé svorky"
 
-msgid "Straight wires between the free terminals of the selected parts that face each other"
-msgstr "Rovné vodiče mezi volnými svorkami vybraných součástek, které stojí proti sobě"
+#, c-format
+msgid "Terminals %s and %s lie on one another but are not connected."
+msgstr "Svorky %s a %s leží na sobě, ale nejsou propojené."
+
+msgid "Straight wires between the terminals of the selected parts that face each other, also those wired already"
+msgstr "Rovné vodiče mezi svorkami vybraných součástek, které stojí proti sobě, i těmi už zapojenými"
 
 msgid "Line up vertically"
 msgstr "Seřadit pod sebe"

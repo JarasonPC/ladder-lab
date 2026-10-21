@@ -196,3 +196,50 @@ func test_wire_without_its_corners_runs_across_and_down() -> void:
 			assert_true(points[k].x == points[k - 1].x or points[k].y == points[k - 1].y, "wire %d step %d is straight" % [w, k])
 	assert_eq(doc.junction_cells(0), [] as Array[Vector2i], "worked out (no endless loop)")
 	DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc)).junction_cells(0)
+
+
+## H2 standing under H1, its X1 on H1's X2.
+func _lamps_on_one_another() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(Lamp.new("H1"), Vector2i(0, 0))
+	doc.add(Lamp.new("H2"), Vector2i(0, 3))
+	return doc
+
+
+func test_terminals_on_one_another_not_connected_are_found() -> void:
+	var doc: SchematicDocument = _lamps_on_one_another()
+	assert_eq(doc.terminal_cell("H1:X2"), doc.terminal_cell("H2:X1"))
+	assert_eq(doc.overlapping_terminals(), [PackedStringArray(["H1:X2", "H2:X1"])] as Array[PackedStringArray])
+	doc.add(Lamp.new("H3"), Vector2i(5, 0))
+	doc.connect_terminals("H1:X2", "H3:X1")
+	doc.connect_terminals("H2:X1", "H3:X1")
+	assert_eq(doc.overlapping_terminals(), [] as Array[PackedStringArray], "joined through H3")
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(10, 0))
+	doc.add(PowerSupply.new("N.2", PowerSupply.Conductor.N), Vector2i(10, 0))
+	assert_eq(doc.overlapping_terminals(), [] as Array[PackedStringArray], "supply points of one conductor are connected")
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(10, 0))
+	assert_eq(doc.overlapping_terminals().size(), 2, "L on both N")
+
+
+func test_editor_explains_the_warning_on_an_industrial_schematic() -> void:
+	var view: SchematicView = SchematicView.new()
+	add_child_autofree(view)
+	var editor: SchematicEditor = SchematicEditor.new()
+	editor.view = view
+	add_child_autofree(editor)
+	var doc: SchematicDocument = _lamps_on_one_another()
+	view.load_document(doc, false)
+	editor.active = true
+	var hints: Array[String] = []
+	editor.hint_changed.connect(func(text: String) -> void: hints.append(text))
+	editor._mouse_point = Vector2(doc.terminal_cell("H1:X2"))
+	editor._on_mouse_moved()
+	assert_eq(hints.size(), 1)
+	assert_string_contains(hints[-1], "H1:X2")
+	assert_string_contains(hints[-1], "H2:X1")
+	editor._mouse_point = Vector2(20, 20)
+	editor._on_mouse_moved()
+	assert_eq(hints.size(), 2, "the tool's hint again")
+	assert_false(hints[-1].contains("H1:X2"))
+	doc.environment = SchematicDocument.Kind.PROTOTYPE
+	assert_eq(editor._overlaps(), [] as Array[PackedStringArray], "industrial schematics only")
