@@ -81,6 +81,9 @@ func load_document(doc: SchematicDocument, simulate: bool = true) -> void:
 	document = doc
 	clamps.clear()
 	simulating = simulate
+	if simulate:
+		# Breakers, fuse holders and switches set at the start.
+		doc.apply_start_settings()
 	simulator = Simulator.new(doc.circuit)
 	simulator.mode = Simulator.Mode.REALISTIC if doc.realistic_timing else Simulator.Mode.IDEAL
 	trace = TraceRecorder.new()

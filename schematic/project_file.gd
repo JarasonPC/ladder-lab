@@ -124,7 +124,9 @@ const FORMAT: String = "ladder-lab"
 ## points, filled, text and size), put on a plan as marks ("marks": symbol,
 ## at, facing) or as appliances drawn with one ("symbol", "title",
 ## "ceiling"; missing: none).
-const VERSION: int = 45
+## 46: breakers, fuse holders and switches switched on or operated when a
+## simulation starts ("set_at_start"; missing: off).
+const VERSION: int = 46
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

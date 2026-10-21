@@ -18,6 +18,9 @@ var custom_terminals: PackedStringArray = PackedStringArray():
 	set(value):
 		custom_terminals = value
 		_update_id()
+## Switched on or operated when a simulation starts (breakers, fuse holders,
+## switches; see [method SchematicDocument.can_set_at_start]). Design data.
+var set_at_start: bool = false
 
 
 func _init(p_designation: String) -> void:

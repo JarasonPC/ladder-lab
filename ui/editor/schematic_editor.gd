@@ -41,9 +41,16 @@ enum Tool { SELECT, PLACE, WIRE }
 const G: float = float(SymbolGeometry.GRID)
 const CLICK_SLOP: float = 6.0
 
-enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, LINE_UP_VERTICAL, LINE_UP_HORIZONTAL, WIRE_FACING, GO_TO = 100 }
+enum MenuId { ROTATE, MIRROR, FLIP, CUT, COPY, PASTE, DELETE, SELECT_ALL, ADD_STRIP, REMOVE_STRIP, DATASHEET, BIND_KEY, LINE_UP_VERTICAL, LINE_UP_HORIZONTAL, WIRE_FACING, SET_AT_START, GO_TO = 100 }
 const SELECTION_COLOR := Color("2d7ff9")
 const PREVIEW_COLOR := Color(0.18, 0.5, 0.98, 0.8)
+## How near the mouse must be to a terminal to take it (cells): drawing a
+## wire, anywhere in the terminal's cell; starting one with the select tool,
+## a little less, so a part is still taken by its lead. Never less than
+## PICK_PIXELS on screen, however far out the view is zoomed.
+const WIRE_PICK: float = 0.5
+const START_PICK: float = 0.4
+const PICK_PIXELS: float = 8.0
 ## Half the height of the warning sign of terminals lying on one another.
 const OVERLAP_SIGN: float = 7.0
 ## Phase conductors as the palette names them, in phase order.
@@ -362,6 +369,31 @@ func mirror_selection() -> void:
 	_record()
 	document().mirror_components(PackedStringArray(selected_components.keys()))
 	_turned_while_dragging()
+	_changed()
+
+
+## The selected parts that can be set at simulation start (see
+## [method SchematicDocument.can_set_at_start]), on an industrial schematic.
+func _set_at_start_ids() -> PackedStringArray:
+	var ids: PackedStringArray = PackedStringArray()
+	if document().environment != SchematicDocument.Kind.INDUSTRIAL:
+		return ids
+	for id: String in selected_components:
+		var c: CircuitComponent = document().circuit.get_component(id)
+		if c != null and SchematicDocument.can_set_at_start(c):
+			ids.append(id)
+	return ids
+
+
+## Has the selected parts that can be set switched on or operated when a
+## simulation starts ([param on] false: no longer), one undo step.
+func set_at_start(on: bool) -> void:
+	var ids: PackedStringArray = _set_at_start_ids()
+	if ids.is_empty():
+		return
+	_record()
+	for id: String in ids:
+		document().circuit.get_component(id).set_at_start = on
 	_changed()
 
 
@@ -924,6 +956,12 @@ func _open_context_menu() -> void:
 				_change_menu.set_item_checked(i, matches_template(hit, _change_options[i]["template"]))
 			_menu.add_submenu_node_item(tr("Change to"), _change_menu)
 			_menu.add_separator()
+	var settable: PackedStringArray = _set_at_start_ids()
+	if not settable.is_empty():
+		_menu.add_check_item(tr("Set at simulation start"), MenuId.SET_AT_START)
+		_menu.set_item_tooltip(_menu.item_count - 1, tr("Switched on (breakers, fuse holders) or operated (switches) when the simulation starts"))
+		_menu.set_item_checked(_menu.item_count - 1, Array(settable).all(func(id: String) -> bool: return doc.circuit.get_component(id).set_at_start))
+		_menu.add_separator()
 	if not selected_components.is_empty():
 		_menu.add_item(tr("Rotate"), MenuId.ROTATE, KEY_R)
 		_menu.add_item(tr("Mirror left-right"), MenuId.MIRROR, KEY_F)
@@ -981,6 +1019,9 @@ func _on_menu_id(id: int) -> void:
 			ask_line_up(id == MenuId.LINE_UP_VERTICAL)
 		MenuId.WIRE_FACING:
 			wire_facing_terminals()
+		MenuId.SET_AT_START:
+			var settable: PackedStringArray = _set_at_start_ids()
+			set_at_start(not Array(settable).all(func(c_id: String) -> bool: return document().circuit.get_component(c_id).set_at_start))
 		MenuId.DATASHEET:
 			if selected_components.size() == 1:
 				datasheet_requested.emit(selected_components.keys()[0])
@@ -1064,7 +1105,7 @@ func _on_left_pressed(shift: bool) -> void:
 		Tool.PLACE:
 			_place_at(_mouse_cell)
 		Tool.WIRE:
-			var key: String = doc.terminal_at(_mouse_point)
+			var key: String = doc.terminal_at(_mouse_point, _pick_radius(WIRE_PICK))
 			if not key.is_empty() and key != _wire_start:
 				_finish_wire(key, -1, shift)
 				return
@@ -1099,7 +1140,7 @@ func _on_left_pressed(shift: bool) -> void:
 				_marking_drag_recorded = false
 				_selection_updated()
 				return
-			var key: String = doc.terminal_at(_mouse_point, 0.3)
+			var key: String = doc.terminal_at(_mouse_point, _pick_radius(START_PICK))
 			var hit: CircuitComponent = doc.component_at(_mouse_point)
 			if not key.is_empty() and not shift:
 				_start_wire(key)
@@ -1547,10 +1588,17 @@ func _wire_to_join() -> int:
 	return w
 
 
+## [param cells] (see [constant WIRE_PICK]), or more where the view is
+## zoomed out so far that it would be under [constant PICK_PIXELS] on screen.
+func _pick_radius(cells: float) -> float:
+	var on_screen: float = G * get_global_transform_with_canvas().get_scale().x
+	return maxf(cells, PICK_PIXELS / on_screen) if on_screen > 0.0 else cells
+
+
 ## Points from the last fixed wire point to the mouse cell, with one elbow.
 func _preview_points() -> Array[Vector2i]:
 	var target: Vector2i = _mouse_cell
-	var key: String = document().terminal_at(_mouse_point)
+	var key: String = document().terminal_at(_mouse_point, _pick_radius(WIRE_PICK))
 	if not key.is_empty():
 		target = document().terminal_cell(key)
 	return _route_to(target)
@@ -2069,7 +2117,7 @@ func _draw() -> void:
 			draw_rect(box, SELECTION_COLOR, false, 2.0 if _number_drag.x >= 0 else 1.0)
 	# Hovered terminal.
 	if tool != Tool.PLACE and not _dragging:
-		var key: String = doc.terminal_at(_mouse_point, 0.3 if tool == Tool.SELECT else 0.4)
+		var key: String = doc.terminal_at(_mouse_point, _pick_radius(START_PICK if tool == Tool.SELECT else WIRE_PICK))
 		if not key.is_empty():
 			draw_circle(Vector2(doc.terminal_cell(key)) * G, 6.0, Color(SELECTION_COLOR, 0.35))
 	# Wire in progress.
@@ -2077,7 +2125,7 @@ func _draw() -> void:
 		var points: Array[Vector2i] = _wire_points.duplicate()
 		var preview: Array[Vector2i] = _preview_points()
 		var w: int = _wire_to_join()
-		if w >= 0 and doc.terminal_at(_mouse_point).is_empty():
+		if w >= 0 and doc.terminal_at(_mouse_point, _pick_radius(WIRE_PICK)).is_empty():
 			var cell: Vector2i = doc.wire_cell_near(w, _mouse_point)
 			preview = _route_to(cell)
 			draw_circle(Vector2(cell) * G, 5.0, PREVIEW_COLOR)
@@ -2085,7 +2133,7 @@ func _draw() -> void:
 			points.append(preview[i])
 		if points.size() >= 2:
 			draw_polyline(_pixels(points), PREVIEW_COLOR, 2.5)
-		var end_key: String = doc.terminal_at(_mouse_point)
+		var end_key: String = doc.terminal_at(_mouse_point, _pick_radius(WIRE_PICK))
 		if wire_all_poles and not end_key.is_empty() and end_key != _wire_start and not Input.is_key_pressed(KEY_SHIFT):
 			_draw_pairs(doc.parallel_pairs(_wire_start, end_key))
 	if _dragging and _drag_recorded:

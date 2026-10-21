@@ -479,6 +479,12 @@ msgstr ""
 msgid "Wire facing terminals"
 msgstr ""
 
+msgid "Set at simulation start"
+msgstr ""
+
+msgid "Switched on (breakers, fuse holders) or operated (switches) when the simulation starts"
+msgstr ""
+
 #, c-format
 msgid "Terminals %s and %s lie on one another but are not connected."
 msgstr ""

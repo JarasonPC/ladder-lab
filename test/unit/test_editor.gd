@@ -844,3 +844,84 @@ func test_phase_supplies_placed_in_turn() -> void:
 		editor._on_left_released(false)
 	editor._cancel_tool()
 	assert_null(editor.document().circuit.get_component("L2"), "no L2 in a single-phase drawing")
+
+
+func _menu_item(id: int) -> int:
+	editor._open_context_menu()
+	var index: int = editor._menu.get_item_index(id)
+	editor._menu.hide()
+	return index
+
+
+func test_set_at_simulation_start_from_the_right_click_menu() -> void:
+	_place({"type": "breaker"}, Vector2i(5, 2))
+	_place({"type": "lamp"}, Vector2i(9, 2))
+	var doc: SchematicDocument = editor.document()
+	var breaker: CircuitComponent = doc.circuit.get_component("FA1")
+	_at(doc.component_body(doc.circuit.get_component("H1")).get_center())
+	assert_eq(_menu_item(SchematicEditor.MenuId.SET_AT_START), -1, "a lamp has nothing to set")
+	_at(doc.component_body(breaker).get_center())
+	var index: int = _menu_item(SchematicEditor.MenuId.SET_AT_START)
+	assert_true(index >= 0)
+	assert_false(editor._menu.is_item_checked(index))
+	editor._on_menu_id(SchematicEditor.MenuId.SET_AT_START)
+	breaker = editor.document().circuit.get_component("FA1")
+	assert_true(breaker.set_at_start)
+	assert_true(editor._menu.is_item_checked(_menu_item(SchematicEditor.MenuId.SET_AT_START)), "shown ticked")
+	editor.undo()
+	assert_false(editor.document().circuit.get_component("FA1").set_at_start, "one undo step")
+	editor.redo()
+	# The simulation starts from a copy, with the breaker switched on.
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(editor.document()))
+	assert_true(copy.circuit.get_component("FA1").set_at_start, "saved")
+	assert_false((editor.document().circuit.get_component("FA1") as CircuitBreaker).switched_on, "drawn off while editing")
+	view.load_document(copy, true)
+	assert_true((copy.circuit.get_component("FA1") as CircuitBreaker).switched_on)
+	copy.environment = SchematicDocument.Kind.PROTOTYPE
+	view.load_document(copy, false)
+	editor.selected_components = {"FA1": true}
+	assert_eq(editor._set_at_start_ids(), PackedStringArray(), "industrial schematics only")
+
+
+func test_parts_set_at_start() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	var holder: Fuse = Fuse.new("FU1")
+	holder.holder = true
+	var selector: LatchingSwitch = LatchingSwitch.new("SA1", SwitchingElement.ContactType.NO, 1)
+	selector.three_positions = true
+	selector.side = 2
+	doc.add(holder, Vector2i(0, 0))
+	doc.add(selector, Vector2i(4, 0))
+	doc.add(CamSwitch.new("RB1"), Vector2i(8, 0))
+	doc.add(Fuse.new("FU2"), Vector2i(16, 0))
+	assert_false(SchematicDocument.can_set_at_start(doc.circuit.get_component("FU2")), "a plain fuse cannot be opened")
+	for c: CircuitComponent in doc.circuit.get_components():
+		c.set_at_start = true
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_false(copy.circuit.get_component("FU2").set_at_start, "not read for a plain fuse")
+	copy.apply_start_settings()
+	assert_true((copy.circuit.get_component("FU1") as Fuse).switched_on)
+	var turned: LatchingSwitch = copy.circuit.get_component("SA1") as LatchingSwitch
+	assert_eq(turned.get_position(), 2, "on the position of its block")
+	assert_eq(turned.actuator_two.position, 1.0, "there at once")
+	assert_eq((copy.circuit.get_component("RB1") as CamSwitch).position, CamSwitch.ONE)
+
+
+func test_terminals_are_taken_anywhere_in_their_cell_while_wiring() -> void:
+	_place({"type": "lamp"}, Vector2i(5, 7))
+	var doc: SchematicDocument = editor.document()
+	_at(Vector2(2.38, 1.0))
+	editor._on_left_pressed(false)
+	editor._on_left_released(false)
+	assert_eq(editor._wire_start, "L", "started a little beside the terminal")
+	_at(Vector2(5, 1))
+	editor._on_left_pressed(false)
+	editor._on_left_released(false)
+	_at(Vector2(5.3, 6.65))
+	editor._on_left_pressed(false)
+	editor._on_left_released(false)
+	assert_eq(doc.get_wire_count(), 1)
+	assert_eq(Array(doc.circuit.get_wires()[0]), ["L", "H1:X1"], "ended in the terminal's cell, off its middle")
+	editor.scale = Vector2(0.25, 0.25)
+	assert_almost_eq(editor._pick_radius(SchematicEditor.WIRE_PICK), SchematicEditor.PICK_PIXELS / (SymbolGeometry.GRID * 0.25), 0.001, "never too small on screen")
+	editor.scale = Vector2.ONE
