@@ -5540,6 +5540,9 @@ msgstr ""
 msgid "Loop impedance of the supply Ze"
 msgstr ""
 
+msgid "The function, times and control input of each time relay, with the timing diagram of its function"
+msgstr ""
+
 msgid "Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)"
 msgstr ""
 

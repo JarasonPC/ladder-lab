@@ -5555,6 +5555,9 @@ msgstr "Impedance smyčky %s Ω: příliš vysoká, při poruše nevypne okamži
 msgid "Loop impedance of the supply Ze"
 msgstr "Impedance smyčky přívodu Ze"
 
+msgid "The function, times and control input of each time relay, with the timing diagram of its function"
+msgstr "Funkce, časy a řídicí vstup každého časového relé s časovým diagramem jeho funkce"
+
 msgid "Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)"
 msgstr "Každé podlaží na dvou výkresech: osvětlení (spínače, svítidla a jejich vedení) a zásuvky (zásuvky a spotřebiče)"
 

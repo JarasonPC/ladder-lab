@@ -172,6 +172,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   runs forwards, in reverse or stands, and the limit switches along the way, lit while the
   part operates them
 
+### Files and export
+- Export to PDF can hold the time relays: each relay's function, its times (t, or t1 and t2)
+  and control input, beside the timing diagram of its function (Time relays in the preview)
+
 ### Fixed
 - Inside a control station, terminals wired only to a supply point of their own (a
   potentiometer's - point or 10 V reference) get their wires: supply points of one conductor
