@@ -150,6 +150,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   every control station and switchboard door with its push buttons, switches, lamps and
   potentiometers, operated there with the schematic in view. A click on its title rolls it in
   to a narrow tab at the edge of the window, a click on the tab rolls it out again
+- The control panel also shows the mechanical links of the workspace's groups while
+  simulating: where the part a motor moves is (in per cent and on its way), whether the motor
+  runs forwards, in reverse or stands, and the limit switches along the way, lit while the
+  part operates them
 
 ### Fixed
 - Inside a control station, terminals wired only to a supply point of their own (a

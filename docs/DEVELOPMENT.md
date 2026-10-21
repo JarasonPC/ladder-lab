@@ -783,7 +783,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   "+ST1" and title (a door "+RA1 Door") over a ControlBoxView fitted to the panel's width
   (scaled down only), operated as on the workspace; its title rolls it in to a SideTab (a
   narrow tab at the window's right edge, the title written down it; a click rolls it out;
-  user settings "control_panel_rolled"). Every switchboard has a door
+  user settings "control_panel_rolled"). Under them, captioned "Mechanical links", a TravelView
+  for each Travel of the simulation (main.gd passes view.simulator.travels with the document
+  while simulating): "+G1" and the group's title, the position in per cent, the motor and
+  whether it runs forwards, in reverse or stands (Travel.velocity), the way with the part on
+  it (an arrow ahead of it while it moves) and a tick per switch, its designation below the
+  way (above where the one before is in the way), lit while operated (Travel.is_on); redrawn
+  every frame like the stations. Every switchboard has a door
   (Switchboard.door, a ControlBox: columns and items only, saved as the switchboard's "door"
   when it has items or other columns): SchematicDocument.control_panels lists the stations,
   then the doors; the item edits (add/set/move/remove_control_item, fill_control_box,
@@ -1307,7 +1313,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 - `ui/tutorial/` LessonPanel, LessonMarks, TutorialRings, TourOverlay, WelcomeCard
 - `ui/workspace/` WorkspaceView, WorkspaceCanvas, WorkspaceTree, WorkspaceTile, PlaceWindow
 - `ui/control_panel/` StationPanel (one opened station), ControlBoxView (one box drawn with _draw()),
-  ControlPanelView (all of them beside the schematic while simulating); `ui/side_tab.gd` SideTab
+  ControlPanelView (all of them beside the schematic while simulating), TravelView (a
+  mechanical link there); `ui/side_tab.gd` SideTab
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes

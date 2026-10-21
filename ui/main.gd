@@ -1566,7 +1566,10 @@ func _on_view_loaded() -> void:
 	_workspace.show_travels(view.travel_positions())
 	_floor_plan.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
 	_single_line.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
-	_control_panel.set_document(view.document)
+	var travels: Array[Travel] = []
+	if mode == Mode.SIMULATE and view.simulator != null:
+		travels = view.simulator.travels
+	_control_panel.set_document(view.document, travels)
 	_workspace_fit = false
 	for window: PlaceWindow in _place_windows():
 		window.set_document(view.document, mode == Mode.EDIT)
