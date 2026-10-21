@@ -49,6 +49,9 @@ const AGAINST_WALL: float = 0.8
 ## Metres a pixel of an underlay loaded (a drawing scanned at 1:50 and
 ## 100 dpi is about this); set from two points of a known distance.
 const UNDERLAY_SCALE: float = 0.0127
+## Smallest and largest size of the symbols and texts, as a part of the usual one.
+const MIN_SIZE: float = 0.5
+const MAX_SIZE: float = 3.0
 ## A new dimension this far from its wall or line (m).
 const DIMENSION_OFFSET: float = 0.5
 ## Thinnest and thickest wall offered (m).
@@ -289,6 +292,10 @@ var underlay_shown: bool = true
 var north: float = 0.0
 ## The legend of the rooms moved from its place right of the plan (m).
 var legend_offset: Vector2 = Vector2.ZERO
+## How large the symbols and the texts are drawn, 1 as usual (on the
+## plan, its sheet and its legend).
+var symbol_scale: float = 1.0
+var text_scale: float = 1.0
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
 var windows: Array[WindowOpening] = []
@@ -1172,6 +1179,8 @@ func to_data() -> Dictionary:
 		result["north"] = north
 	if legend_offset != Vector2.ZERO:
 		result["legend"] = [legend_offset.x, legend_offset.y]
+	if not is_equal_approx(symbol_scale, 1.0) or not is_equal_approx(text_scale, 1.0):
+		result["sizes"] = [symbol_scale, text_scale]
 	if not name.is_empty():
 		result["name"] = name
 	if not underlay.is_empty():
@@ -1257,6 +1266,9 @@ static func from_data(raw: Variant) -> FloorPlan:
 	plan.level = clampi(int(raw_level), -5, 50) if (raw_level is int or raw_level is float) else 0
 	plan.name = (d["name"] as String).strip_edges().left(40) if d.get("name", null) is String else ""
 	plan.north = fposmod(_length(d.get("north", 0.0), 0.0, -3600.0, 3600.0), 360.0)
+	if _numbers(d.get("sizes", []), 2):
+		plan.symbol_scale = clampf(float(d["sizes"][0]), MIN_SIZE, MAX_SIZE)
+		plan.text_scale = clampf(float(d["sizes"][1]), MIN_SIZE, MAX_SIZE)
 	if _numbers(d.get("legend", []), 2):
 		plan.legend_offset = Vector2(clampf(float(d["legend"][0]), -200.0, 200.0), clampf(float(d["legend"][1]), -200.0, 200.0))
 	var under: Variant = d.get("underlay", null)

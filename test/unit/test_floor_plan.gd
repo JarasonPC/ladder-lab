@@ -593,3 +593,21 @@ func test_handles_resize_what_is_selected() -> void:
 	assert_eq(canvas.handle_at(canvas.to_screen(Vector2(3, 0)))["kind"], "corner")
 	plan.legend_offset = Vector2(-2, 6)
 	assert_eq(FloorPlan.from_data(plan.to_data()).legend_offset, Vector2(-2, 6))
+
+
+func test_symbol_and_text_sizes() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	plan.place("SF1", Vector2(3.0, 1.0), false)
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	assert_eq(canvas._sized(FloorPlanCanvas.TEXT_SIZE), FloorPlanCanvas.TEXT_SIZE, "as usual")
+	var usual: float = canvas.symbol_center("SF1").distance_to(plan.parts["SF1"])
+	plan.symbol_scale = 2.0
+	plan.text_scale = 1.5
+	assert_eq(canvas._sized(FloorPlanCanvas.TEXT_SIZE), roundi(FloorPlanCanvas.TEXT_SIZE * 1.5))
+	assert_almost_eq(canvas.symbol_center("SF1").distance_to(plan.parts["SF1"]), usual + FloorPlanCanvas.WALL_SYMBOL_OFFSET, 1e-4, "a larger symbol's middle further in")
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_almost_eq(again.symbol_scale, 2.0, 1e-6)
+	assert_almost_eq(again.text_scale, 1.5, 1e-6)
+	assert_false(FloorPlan.from_data({"rooms": []}).to_data().has("sizes"), "the usual sizes are not written")

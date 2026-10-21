@@ -5614,3 +5614,15 @@ msgstr ""
 
 msgid "Lighting and sockets apart"
 msgstr ""
+
+msgid "Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn"
+msgstr ""
+
+msgid "Plan settings"
+msgstr ""
+
+msgid "Size of the symbols"
+msgstr ""
+
+msgid "Size of the texts"
+msgstr ""

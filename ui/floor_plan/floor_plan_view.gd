@@ -92,6 +92,9 @@ var _outer_wall: SpinBox
 var _inner_wall: SpinBox
 ## Where north is on the plan (degrees clockwise from up), for the sheet's arrow.
 var _north: SpinBox
+## How large the plan's symbols and texts are drawn (%).
+var _symbol_size: SpinBox
+var _text_size: SpinBox
 var _door_dialog: ConfirmationDialog
 var _door_width: SpinBox
 var _door_double: CheckBox
@@ -483,6 +486,14 @@ func _ready() -> void:
 	walls_grid.add_child(north_label)
 	walls_grid.add_child(_north)
 	_walls_dialog.register_text_enter(_north.get_line_edit())
+	_symbol_size = _percent()
+	_text_size = _percent()
+	for field: SpinBox in [_symbol_size, _text_size]:
+		var size_label: Label = Label.new()
+		size_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		walls_grid.add_child(size_label)
+		walls_grid.add_child(field)
+		_walls_dialog.register_text_enter(field.get_line_edit())
 	_walls_dialog.confirmed.connect(_apply_walls)
 	add_child(_walls_dialog)
 	retranslate()
@@ -640,7 +651,7 @@ func retranslate() -> void:
 	var array_labels: Array[String] = [tr("Part"), tr("Rows"), tr("Columns"), tr("Count"), tr("Spacing (0: evenly)"), tr("From the left or top end")]
 	for k: int in array_labels.size():
 		(_array_grid.get_child(2 * k) as Label).text = array_labels[k]
-	_walls_button.tooltip_text = tr("Thickness of the walls: the outside ones (drawn outside the rooms) and those between rooms")
+	_walls_button.tooltip_text = tr("Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn")
 	_window_dialog.title = tr("Window")
 	_window_dialog.ok_button_text = tr("OK")
 	_window_dialog.cancel_button_text = tr("Cancel")
@@ -648,10 +659,10 @@ func retranslate() -> void:
 	var window_grid: GridContainer = _window_width.get_parent() as GridContainer
 	for k: int in window_labels.size():
 		(window_grid.get_child(2 * k) as Label).text = window_labels[k]
-	_walls_dialog.title = tr("Walls and north")
+	_walls_dialog.title = tr("Plan settings")
 	_walls_dialog.ok_button_text = tr("OK")
 	_walls_dialog.cancel_button_text = tr("Cancel")
-	var wall_labels: Array[String] = [tr("Outside walls"), tr("Walls between rooms"), tr("North (clockwise from up)")]
+	var wall_labels: Array[String] = [tr("Outside walls"), tr("Walls between rooms"), tr("North (clockwise from up)"), tr("Size of the symbols"), tr("Size of the texts")]
 	var walls_grid: GridContainer = _outer_wall.get_parent() as GridContainer
 	for k: int in wall_labels.size():
 		(walls_grid.get_child(2 * k) as Label).text = wall_labels[k]
@@ -1107,6 +1118,17 @@ static func scale_underlay(plan: FloorPlan, fixed: Vector2, factor: float) -> vo
 	plan.underlay_at = fixed - (fixed - plan.underlay_at) * factor
 
 
+## A field of a size in percent of the usual one.
+func _percent() -> SpinBox:
+	var field: SpinBox = SpinBox.new()
+	field.min_value = FloorPlan.MIN_SIZE * 100.0
+	field.max_value = FloorPlan.MAX_SIZE * 100.0
+	field.step = 5.0
+	field.suffix = "%"
+	field.custom_minimum_size.x = 120.0
+	return field
+
+
 ## A count field from [param low] to [param high].
 func _count_field(low: int, high: int) -> SpinBox:
 	var field: SpinBox = SpinBox.new()
@@ -1186,6 +1208,8 @@ func _ask_walls() -> void:
 	_outer_wall.value = _document.floor_plan.outer_wall
 	_inner_wall.value = _document.floor_plan.inner_wall
 	_north.value = _document.floor_plan.north
+	_symbol_size.value = _document.floor_plan.symbol_scale * 100.0
+	_text_size.value = _document.floor_plan.text_scale * 100.0
 	_walls_dialog.reset_size()
 	_walls_dialog.popup_centered()
 
@@ -1194,10 +1218,16 @@ func _apply_walls() -> void:
 	var outer: float = _outer_wall.value
 	var inner: float = _inner_wall.value
 	var north: float = _north.value
+	var symbols: float = _symbol_size.value / 100.0
+	var texts: float = _text_size.value / 100.0
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
 		doc.floor_plan.outer_wall = outer
 		doc.floor_plan.inner_wall = inner
-		doc.floor_plan.north = north)
+		doc.floor_plan.north = north
+		# The sizes for every floor alike.
+		for plan: FloorPlan in doc.floors:
+			plan.symbol_scale = symbols
+			plan.text_scale = texts)
 
 
 func _ask_rename(index: int) -> void:
