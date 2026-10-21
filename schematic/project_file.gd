@@ -123,9 +123,8 @@ const FORMAT: String = "ladder-lab"
 ## wall, electrical, power, two_phases and shapes, each a kind with its
 ## points, width, style, color, filled, fill, a text's text, size, angle,
 ## bold and italic, an image's PNG, angle and flipped), put on a plan as
-## marks ("marks": symbol,
-## at, facing) or as appliances drawn with one ("symbol", "title",
-## "ceiling"; missing: none).
+## marks ("marks": symbol, at, facing) or as appliances drawn with one
+## ("symbol", "title", "ceiling"; missing: none).
 ## 46: breakers, fuse holders and switches switched on or operated when a
 ## simulation starts ("set_at_start"; missing: off).
 const VERSION: int = 46
