@@ -441,6 +441,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   consumer unit, each floor's parts, those on no floor, wall boxes (a gang each), luminaire
   boxes and the metres of each cable (cable_totals from SingleLine.cable_length); File >
   Export parts list as CSV (PartsList.to_csv, UTF-8 with a byte order mark).
+  Every symbol on the plan is drawn upright, as in the legend and the palette, whatever wall
+  it is on (FloorPlanCanvas._draw_part: from WALL_SYMBOL_OFFSET over its middle, which is that
+  far into the room from its wall; a two-rocker switch's left rocker the first), and every
+  text across, dimensions up and down included.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)
