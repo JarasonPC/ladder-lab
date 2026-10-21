@@ -5637,9 +5637,6 @@ msgstr ""
 msgid "Symbol %s"
 msgstr ""
 
-msgid "Click a shape to pick it, drag it to move it, drag its squares to move its points; Delete takes it away."
-msgstr ""
-
 msgid "Drag from one end of the line to the other."
 msgstr ""
 
@@ -5655,16 +5652,10 @@ msgstr ""
 msgid "Drag from one end of the curve to the other, then click where it bends towards."
 msgstr ""
 
-msgid "Type the text beside the tools, then click where its middle goes."
-msgstr ""
-
 msgid "The wall is the grey band at the top: the symbol hangs from it into the room, drawn upright on every wall."
 msgstr ""
 
 msgid "The axes cross where the symbol's middle goes."
-msgstr ""
-
-msgid "Ctrl+Z undoes; wheel zooms; right drag pans."
 msgstr ""
 
 msgid "No categories yet: type one"
@@ -5722,9 +5713,6 @@ msgid "Arc through three points"
 msgstr ""
 
 msgid "Curve"
-msgstr ""
-
-msgid "Delete the shape picked"
 msgstr ""
 
 #, c-format
@@ -5827,6 +5815,125 @@ msgstr[2] ""
 #, c-format
 msgid "%d new symbol"
 msgid_plural "%d new symbols"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Picture"
+msgstr ""
+
+msgid "New shapes"
+msgstr ""
+
+msgid "Polyline"
+msgstr ""
+
+msgid "Polygon"
+msgstr ""
+
+msgid "Click a shape to pick it, Shift or Ctrl+click to pick more, or drag a box round them; drag to move them, drag a point's square to move it, drag a corner of the box round them to scale them."
+msgstr ""
+
+msgid "Click each point; a double click, Enter or a right click ends the line."
+msgstr ""
+
+msgid "Click each corner; a click on the first, a double click, Enter or a right click closes it."
+msgstr ""
+
+msgid "Type the text in the panel, then click where its middle goes."
+msgstr ""
+
+msgid "Points snap to the points of other shapes. R turns, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
+msgstr ""
+
+msgid "Line width"
+msgstr ""
+
+msgid "Line style"
+msgstr ""
+
+msgid "Line colour"
+msgstr ""
+
+msgid "Fill colour"
+msgstr ""
+
+msgid "Angle"
+msgstr ""
+
+msgid "Face"
+msgstr ""
+
+msgid "0: as thin as the plan's own lines"
+msgstr ""
+
+msgid "Solid"
+msgstr ""
+
+msgid "Dashed"
+msgstr ""
+
+msgid "Dotted"
+msgstr ""
+
+msgid "Dash and dot"
+msgstr ""
+
+msgid "Own"
+msgstr ""
+
+msgid "A colour of its own; else the plan's line colour (black on paper)"
+msgstr ""
+
+msgid "A fill colour of its own; else its line colour"
+msgstr ""
+
+msgid "Bold"
+msgstr ""
+
+msgid "Italic"
+msgstr ""
+
+msgid "Points (mm)"
+msgstr ""
+
+#, c-format
+msgid "Grid %s mm"
+msgstr ""
+
+msgid "No grid"
+msgstr ""
+
+msgid "Picture: take in an image file (PNG, JPG, WebP, SVG); it is kept in the symbol and moved, scaled, turned and mirrored like the other shapes"
+msgstr ""
+
+msgid "Turn a quarter clockwise (R)"
+msgstr ""
+
+msgid "Turn a quarter anticlockwise (Shift+R)"
+msgstr ""
+
+msgid "Mirror left to right (F)"
+msgstr ""
+
+msgid "Mirror top to bottom (Shift+F)"
+msgstr ""
+
+msgid "Copy (Ctrl+C)"
+msgstr ""
+
+msgid "Paste (Ctrl+V)"
+msgstr ""
+
+msgid "Duplicate (Ctrl+D)"
+msgstr ""
+
+msgid "Delete the shapes picked"
+msgstr ""
+
+#, c-format
+msgid "%d shape"
+msgid_plural "%d shapes"
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""

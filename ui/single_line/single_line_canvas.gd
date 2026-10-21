@@ -1401,7 +1401,7 @@ func _load(c: CircuitComponent, u: float, v: float, chosen: bool) -> void:
 	var def: CustomSymbol = document.symbol(appliance.symbol)
 	if def != null:
 		# The user's own symbol in its box.
-		def.draw_fitted(self, box.grow(-2.5 * zoom), INF, color, thin, get_theme_default_font())
+		def.draw_fitted(self, box.grow(-2.5 * zoom), INF, color, thin, get_theme_default_font(), chosen)
 		return
 	match appliance.kind:
 		Appliance.Kind.HOB:

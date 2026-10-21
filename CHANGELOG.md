@@ -121,6 +121,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Floor plan: your symbols are exported to a file (all of them or one category) and
   imported from one, to share them or move them to another computer; a symbol you have
   already is drawn as in the file
+- Symbol editor: polylines and polygons, pictures from image files (PNG, JPG, WebP, SVG),
+  a line width, style (dashed, dotted, dash and dot) and colour for every shape and a fill
+  colour for closed ones, arcs and curves filled too; texts at any angle, bold or italic.
+  Several shapes are picked at once (Shift or Ctrl+click, a box, Ctrl+A), moved, turned,
+  mirrored and scaled together, copied, cut, pasted (into another symbol too) and
+  duplicated; points snap to those of other shapes, the grid is 1, 5 or 10 mm or none, and
+  the points of a shape can be typed in millimetres
 - On an industrial schematic a warning sign marks terminals of two parts lying on one another
   without being connected; with the mouse over it the status bar names them
 

@@ -5653,9 +5653,6 @@ msgstr "Nová značka"
 msgid "Symbol %s"
 msgstr "Značka %s"
 
-msgid "Click a shape to pick it, drag it to move it, drag its squares to move its points; Delete takes it away."
-msgstr "Kliknutím tvar vyberete, tažením ho posunete, tažením jeho čtverečků posunete jeho body; Delete ho odstraní."
-
 msgid "Drag from one end of the line to the other."
 msgstr "Táhněte od jednoho konce čáry ke druhému."
 
@@ -5671,17 +5668,11 @@ msgstr "Táhněte od jednoho konce oblouku ke druhému, pak klikněte, kudy má 
 msgid "Drag from one end of the curve to the other, then click where it bends towards."
 msgstr "Táhněte od jednoho konce křivky ke druhému, pak klikněte, kam se má ohýbat."
 
-msgid "Type the text beside the tools, then click where its middle goes."
-msgstr "Napište text vedle nástrojů, pak klikněte, kam má přijít jeho střed."
-
 msgid "The wall is the grey band at the top: the symbol hangs from it into the room, drawn upright on every wall."
 msgstr "Stěna je šedý pruh nahoře: značka z ní visí do místnosti a na každé stěně se kreslí svisle."
 
 msgid "The axes cross where the symbol's middle goes."
 msgstr "Osy se kříží tam, kde je střed značky."
-
-msgid "Ctrl+Z undoes; wheel zooms; right drag pans."
-msgstr "Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."
 
 msgid "No categories yet: type one"
 msgstr "Zatím žádné kategorie: napište nějakou"
@@ -5739,9 +5730,6 @@ msgstr "Oblouk třemi body"
 
 msgid "Curve"
 msgstr "Křivka"
-
-msgid "Delete the shape picked"
-msgstr "Smazat vybraný tvar"
 
 #, c-format
 msgid "%s (copy)"
@@ -5846,3 +5834,122 @@ msgid_plural "%d new symbols"
 msgstr[0] "%d nová značka"
 msgstr[1] "%d nové značky"
 msgstr[2] "%d nových značek"
+
+msgid "Picture"
+msgstr "Obrázek"
+
+msgid "New shapes"
+msgstr "Nové tvary"
+
+msgid "Polyline"
+msgstr "Lomená čára"
+
+msgid "Polygon"
+msgstr "Mnohoúhelník"
+
+msgid "Click a shape to pick it, Shift or Ctrl+click to pick more, or drag a box round them; drag to move them, drag a point's square to move it, drag a corner of the box round them to scale them."
+msgstr "Kliknutím tvar vyberete, Shift nebo Ctrl+klikem přidáte další, nebo je obtáhněte rámečkem; tažením je posunete, tažením čtverečku bodu posunete bod, tažením rohu rámečku kolem nich je zvětšíte či zmenšíte."
+
+msgid "Click each point; a double click, Enter or a right click ends the line."
+msgstr "Klikněte na každý bod; dvojklik, Enter nebo pravé tlačítko čáru ukončí."
+
+msgid "Click each corner; a click on the first, a double click, Enter or a right click closes it."
+msgstr "Klikněte na každý roh; klik na první, dvojklik, Enter nebo pravé tlačítko ho uzavře."
+
+msgid "Type the text in the panel, then click where its middle goes."
+msgstr "Napište text do panelu, pak klikněte, kam má přijít jeho střed."
+
+msgid "Points snap to the points of other shapes. R turns, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
+msgstr "Body se přichytávají k bodům jiných tvarů. R otáčí, F zrcadlí (Shift: opačně); Ctrl+C, X, V, D kopíruje, vyjímá, vkládá, duplikuje; Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."
+
+msgid "Line width"
+msgstr "Šířka čáry"
+
+msgid "Line style"
+msgstr "Styl čáry"
+
+msgid "Line colour"
+msgstr "Barva čáry"
+
+msgid "Fill colour"
+msgstr "Barva výplně"
+
+msgid "Angle"
+msgstr "Úhel"
+
+msgid "Face"
+msgstr "Řez písma"
+
+msgid "0: as thin as the plan's own lines"
+msgstr "0: tenká jako čáry půdorysu"
+
+msgid "Solid"
+msgstr "Plná"
+
+msgid "Dashed"
+msgstr "Čárkovaná"
+
+msgid "Dotted"
+msgstr "Tečkovaná"
+
+msgid "Dash and dot"
+msgstr "Čerchovaná"
+
+msgid "Own"
+msgstr "Vlastní"
+
+msgid "A colour of its own; else the plan's line colour (black on paper)"
+msgstr "Vlastní barva; jinak barva čar půdorysu (na papíře černá)"
+
+msgid "A fill colour of its own; else its line colour"
+msgstr "Vlastní barva výplně; jinak barva čáry"
+
+msgid "Bold"
+msgstr "Tučné"
+
+msgid "Italic"
+msgstr "Kurzíva"
+
+msgid "Points (mm)"
+msgstr "Body (mm)"
+
+#, c-format
+msgid "Grid %s mm"
+msgstr "Mřížka %s mm"
+
+msgid "No grid"
+msgstr "Bez mřížky"
+
+msgid "Picture: take in an image file (PNG, JPG, WebP, SVG); it is kept in the symbol and moved, scaled, turned and mirrored like the other shapes"
+msgstr "Obrázek: vloží soubor obrázku (PNG, JPG, WebP, SVG); uloží se do značky a posouvá, zvětšuje, otáčí a zrcadlí se jako ostatní tvary"
+
+msgid "Turn a quarter clockwise (R)"
+msgstr "Otočit o čtvrt doprava (R)"
+
+msgid "Turn a quarter anticlockwise (Shift+R)"
+msgstr "Otočit o čtvrt doleva (Shift+R)"
+
+msgid "Mirror left to right (F)"
+msgstr "Zrcadlit zleva doprava (F)"
+
+msgid "Mirror top to bottom (Shift+F)"
+msgstr "Zrcadlit shora dolů (Shift+F)"
+
+msgid "Copy (Ctrl+C)"
+msgstr "Kopírovat (Ctrl+C)"
+
+msgid "Paste (Ctrl+V)"
+msgstr "Vložit (Ctrl+V)"
+
+msgid "Duplicate (Ctrl+D)"
+msgstr "Duplikovat (Ctrl+D)"
+
+msgid "Delete the shapes picked"
+msgstr "Smazat vybrané tvary"
+
+#, c-format
+msgid "%d shape"
+msgid_plural "%d shapes"
+msgstr[0] "%d tvar"
+msgstr[1] "%d tvary"
+msgstr[2] "%d tvarů"

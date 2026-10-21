@@ -464,11 +464,22 @@ Architecture and conventions of the code base. Read this before changing the cod
 - The user's own floor plan symbols (CustomSymbol in schematic/, no nodes): id (new_id,
   never changes), name, category (free text; "" none), wall (its origin on the wall, the
   room below, drawn upright like the other wall parts; else its middle), electrical (power,
-  two_phases) and shapes (CustomSymbol.Shape: kind of KINDS, points as POINTS says, in m
-  about the origin, y down: line a-b, rect and ellipse by two corners, filled; arc through
-  three points, arc_points; curve a quadratic Bézier, its middle point the control; text
-  centred on its point, size its height); outline_of, bounds, shape_at, draw / draw_fitted /
-  draw_shape on any CanvasItem in its pixels. SymbolLibrary (schematic/, no nodes): the
+  two_phases) and shapes (CustomSymbol.Shape: kind of KINDS, points as POINTS says (0:
+  MIN_POINTS to MAX_POINTS), in m about the origin, y down: line a-b, polyline, polygon,
+  rect and ellipse by two corners; arc through three points, arc_points; curve a quadratic
+  Bézier, its middle point the control; text centred on its point; image a picture in the
+  box of two corners. Every shape has width (mm, 0 the plan's own), style of STYLES (dashes
+  and dots spaced by the width, stroke_line), color ("" the plan's line colour), the
+  FILLABLE ones filled and fill ("" its line colour; an arc or curve closed by its chord);
+  a text size (its height), angle (degrees, anticlockwise; text_corners), bold and italic
+  (face: a FontVariation embolden / skew); an image its PNG in Base64 (image_shape: at most
+  IMAGE_PIXELS a side, IMAGE_SIZE long; picture() caches the texture, null for one not a
+  PNG, drawn as a crossed box), angle and flipped). take_style copies the look;
+  move_shape, turn_shape (a quarter about a point, the angle along), mirror_shape (a text
+  turned back to read left to right; an image flipped), scale_shape (a text's height too);
+  outline_of, bounds / bounds_of, distance_to (0 inside a filled shape, a text's box or an
+  image), shape_at, draw / draw_fitted / draw_shape on any CanvasItem in its pixels, in
+  the shapes' own colours or all in one with recolor (selected or a ghost on the plan). SymbolLibrary (schematic/, no nodes): the
   library of every schematic in user://symbols.json (PATH, written whole by put and remove,
   changed signal; shared() the program's, set_shared for tests), categories() and sorted()
   by category then name; files of symbols (EXTENSION .ladsym, the library file's format
@@ -494,11 +505,21 @@ Architecture and conventions of the code base. Read this before changing the cod
   both by symbol with their count ("symbol" in the row). FloorPlanView's Symbols button
   opens SymbolLibraryDialog (a Tree by category, the symbol picked drawn by a PlanGlyph with
   custom, New / Edit / Duplicate / Delete); SymbolEditor (a ConfirmationDialog: name,
-  category typed or picked, On a wall, Electrical with power and 400 V, the tools, Filled,
-  the text and its height) draws on a SymbolCanvas (SNAP 5 mm, a grid of cm, the wall as a
-  grey band above the origin; Tool SELECT moves a shape or drags a point's handle, LINE /
-  RECT / ELLIPSE dragged corner to corner, ARC / CURVE dragged end to end and then a click
-  for the middle point, TEXT; its own undo of shape copies). A symbol saved there that the
+  category typed or picked, On a wall, Electrical with power and 400 V; the tools, Picture
+  (add_picture from an image file), turn, mirror, copy, paste, duplicate, delete, the grid
+  of GRIDS, undo, redo, fit; beside the drawing a panel for the look of the shapes picked
+  or, none picked, of new ones (SymbolCanvas.look): width, style, line colour and fill
+  (Own: a colour of its own), the text, height, angle, bold and italic, the points of one
+  picked alone in mm) draws on a SymbolCanvas (a grid of mm / cm, the wall as a grey band
+  above the origin; points snap to the key_points of other shapes within POINT_SNAP, else
+  to the grid; selection several shapes: Shift / Ctrl+click, a box from an empty place,
+  Ctrl+A; dragged together (_drag_by, snapping the point grabbed), the points of one alone
+  by their handles, the corners of the box round them scale them (_corner_scale); Tool
+  SELECT, LINE / RECT / ELLIPSE dragged corner to corner, POLYLINE / POLYGON a point a click
+  (finish_path: double click, Enter, right click, a polygon's first point), ARC / CURVE
+  dragged end to end and then a click for the middle point, TEXT; R / F turn and mirror,
+  Ctrl+C / X / V / D with a clipboard for any symbol of the run (PASTE_OFFSET further each
+  paste); its own undo of shape copies). A symbol saved there that the
   schematic uses is taken into it as one undoable edit (FloorPlanView._on_symbol_saved)
 - Pages: a schematic has one or more pages (SchematicDocument.pages: titles, English source text
   shown through tr(), e.g. "Power section" = Silová část; Placement.page; SchematicDocument.page

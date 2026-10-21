@@ -1396,7 +1396,7 @@ func _draw() -> void:
 		var def: CustomSymbol = document.symbol(plan().marks[i].symbol)
 		if def != null:
 			var chosen_mark: bool = selected.get("kind", "") == "mark" and selected.get("index", -1) == i
-			def.draw(self, to_screen(_mark_origin(i)), s * _symbols(), SchematicTheme.SELECTED if chosen_mark else SchematicTheme.LINE, line_width, font)
+			def.draw(self, to_screen(_mark_origin(i)), s * _symbols(), SchematicTheme.SELECTED if chosen_mark else SchematicTheme.LINE, line_width, font, chosen_mark)
 	if editing and tool == Tool.PLACE and placing_template.has("symbol"):
 		# The user's symbol where it would go.
 		var ghost_def: CustomSymbol = template_symbol(document, placing_template)
@@ -1406,7 +1406,7 @@ func _draw() -> void:
 				var near: Dictionary = plan().wall_near(to_plan(_mouse))
 				if not near.is_empty():
 					ghost_at = Vector2(near["at"]) + (FloorPlan.FACING[int(near["facing"])] - Vector2.DOWN) * WALL_SYMBOL_OFFSET * _symbols()
-			ghost_def.draw(self, to_screen(ghost_at), s * _symbols(), Color(SchematicTheme.SELECTED, 0.6), line_width, font)
+			ghost_def.draw(self, to_screen(ghost_at), s * _symbols(), Color(SchematicTheme.SELECTED, 0.6), line_width, font, true)
 	if installation():
 		if layer != "power":
 			_draw_links(font)
@@ -2107,7 +2107,7 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 			if not editing and (c as Load).energized:
 				var box: Rect2 = def.bounds()
 				draw_circle(at + box.get_center() * s, maxf(box.size.x, box.size.y) * 0.6 * s, PlanSymbols.GLOW)
-			def.draw(self, at, s, color, width, font)
+			def.draw(self, at, s, color, width, font, chosen)
 			if not is_equal_approx((c as Appliance).height, Appliance.STANDARD_HEIGHT):
 				height_text = _height((c as Appliance).height)
 		elif c is Appliance:
