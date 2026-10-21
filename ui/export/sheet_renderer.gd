@@ -292,6 +292,7 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			extent = Rect2(Vector2.ZERO, diagram.size / G)
 		"timers":
 			var list: TimersSheet = TimersSheet.new()
+			list.document = copy
 			list.relays = spec["relays"]
 			content.add_child(list)
 			frame.page_title = tr("Time relays")

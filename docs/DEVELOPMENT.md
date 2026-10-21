@@ -620,8 +620,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   function block diagram on one sheet, a ladder LADDER_ROWS rows to a sheet,
   PlcLadCanvas.paper_pages / paper_rows, whole rungs together where they fit) (CabinetView SWITCHBOARD_WIDTH wide), the time
   relays (TimersSheet.entries: by designation, the function's title, its times t or t1 / t2,
-  the F7 pulse, the control input by its name; each beside its TimerDiagram on paper,
-  TimersSheet.split: as many as fit an A4 portrait sheet), the workspace
+  the F7 pulse, the control input by its name; a row each: its symbol upright as in the
+  palette (SymbolFactory, scaled to DatasheetLayout.symbol_extent in SYMBOL_W), the texts,
+  its TimerDiagram on paper; TimersSheet.split: as many as fit an A4 portrait sheet), the workspace
   (WorkspaceCanvas at zoom 1 around WorkspaceCanvas.bounds) and the parts list (PartsList.rows:
   devices under the place they sit in, terminal strips with their count, the groups' and other
   parts in the field, what has no place, the cables with type and ends; within a place identical

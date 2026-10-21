@@ -173,8 +173,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   part operates them
 
 ### Files and export
-- Export to PDF can hold the time relays: each relay's function, its times (t, or t1 and t2)
-  and control input, beside the timing diagram of its function (Time relays in the preview)
+- Export to PDF can hold the time relays: each relay's symbol as on the schematic, its
+  designation, function, times (t, or t1 and t2) and control input, beside the timing
+  diagram of its function (Time relays in the preview)
 
 ### Fixed
 - Inside a control station, terminals wired only to a supply point of their own (a
