@@ -145,6 +145,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   side by side
 - A group on the workspace is resized by dragging the corner of its frame in Edit mode; a
   group with a mechanical link shows where its part is (or starts) in per cent in its heading
+- The control panel is back beside the schematic of an industrial circuit while simulating:
+  every control station and switchboard door with its push buttons, switches, lamps and
+  potentiometers, operated there with the schematic in view. A click on its title rolls it in
+  to a narrow tab at the edge of the window, a click on the tab rolls it out again
 
 ### Fixed
 - Inside a control station, terminals wired only to a supply point of their own (a

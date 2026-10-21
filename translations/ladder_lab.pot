@@ -5959,3 +5959,15 @@ msgstr ""
 
 msgid "Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
 msgstr ""
+
+msgid "Control panel"
+msgstr ""
+
+msgid "Roll the control panel in to a tab at the edge of the window"
+msgstr ""
+
+msgid "No push buttons, switches or lamps on a control station or switchboard door yet. Put them there on the workspace in Edit mode."
+msgstr ""
+
+msgid "Control panel: the control stations and switchboard doors, to operate the circuit beside the schematic"
+msgstr ""

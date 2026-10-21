@@ -5975,3 +5975,15 @@ msgstr "Otočit o úhel (Ctrl+R)"
 
 msgid "Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
 msgstr "Body se přichytávají k bodům jiných tvarů. R otočí o čtvrt, Ctrl+R o libovolný úhel, F zrcadlí (Shift: opačně); Ctrl+C, X, V, D kopíruje, vyjímá, vkládá, duplikuje; Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."
+
+msgid "Control panel"
+msgstr "Ovládací panel"
+
+msgid "Roll the control panel in to a tab at the edge of the window"
+msgstr "Zasunout ovládací panel do záložky na okraji okna"
+
+msgid "No push buttons, switches or lamps on a control station or switchboard door yet. Put them there on the workspace in Edit mode."
+msgstr "Na ovládacích skříňkách ani dveřích rozvaděčů zatím nejsou žádná tlačítka, přepínače ani signálky. Umístěte je tam na pracovní ploše v režimu Úpravy."
+
+msgid "Control panel: the control stations and switchboard doors, to operate the circuit beside the schematic"
+msgstr "Ovládací panel: ovládací skříňky a dveře rozvaděčů pro ovládání obvodu vedle schématu"

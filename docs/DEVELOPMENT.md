@@ -79,8 +79,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   free number on its strip; wire segments can be dragged; wire
   numbers (WireRoute.number, one per net, shown once per terminal right next to its square,
   a short wire once at its upper/left end, draggable offsets) via the
-  numbering tool or double click; side panels (palette, properties + check, the workspace tree)
-  are SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with
+  numbering tool or double click; side panels (palette, properties + check, the workspace tree,
+  the control panel) are SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with
   oversampling_with_scale, so text stays sharp), scrolled when taller than the window and shown
   at most SideBar.MAX_WIDTH_SHARE (30 %) of the window wide (the chosen width is kept); the
   palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; fuses,
@@ -774,7 +774,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   comes out of its fitting too, on both sides of the hinge, and the conduit a tag with
   their numbers); while
   simulating the terminals are ringed in their voltage's colour (StationPanel.show_step) and
-  lamp blocks light Every switchboard has a door
+  lamp blocks light. The control panel (ControlPanelView, a SideBar "control_panel" on the right,
+  CONTROL_PANEL_WIDTH at first): while simulating an industrial schematic (Schematic shown,
+  main.gd _update_control_panel), every station and door of control_panels() with items, its
+  "+ST1" and title (a door "+RA1 Door") over a ControlBoxView fitted to the panel's width
+  (scaled down only), operated as on the workspace; its title rolls it in to a SideTab (a
+  narrow tab at the window's right edge, the title written down it; a click rolls it out;
+  user settings "control_panel_rolled"). Every switchboard has a door
   (Switchboard.door, a ControlBox: columns and items only, saved as the switchboard's "door"
   when it has items or other columns): SchematicDocument.control_panels lists the stations,
   then the doors; the item edits (add/set/move/remove_control_item, fill_control_box,
@@ -1297,7 +1303,8 @@ Architecture and conventions of the code base. Read this before changing the cod
 - `tutorial/` Lesson, Lessons, LessonCheck, LessonRun (lessons, no nodes)
 - `ui/tutorial/` LessonPanel, LessonMarks, TutorialRings, TourOverlay, WelcomeCard
 - `ui/workspace/` WorkspaceView, WorkspaceCanvas, WorkspaceTree, WorkspaceTile, PlaceWindow
-- `ui/control_panel/` StationPanel (one opened station), ControlBoxView (one box drawn with _draw())
+- `ui/control_panel/` StationPanel (one opened station), ControlBoxView (one box drawn with _draw()),
+  ControlPanelView (all of them beside the schematic while simulating); `ui/side_tab.gd` SideTab
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
