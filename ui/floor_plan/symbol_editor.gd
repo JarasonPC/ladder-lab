@@ -28,6 +28,8 @@ var _two_phases: CheckBox
 var _tools: Array[Button] = []
 var _actions: Dictionary[String, Button] = {}
 var _grid: OptionButton
+## The angles lines drawn from a point snap to.
+var _angles: OptionButton
 var _picture: Button
 ## Edits the points of the polygon or polyline picked (toggled).
 var _edit_points: Button
@@ -193,6 +195,12 @@ func _init() -> void:
 		canvas.grid = SymbolCanvas.GRIDS[index]
 		canvas.queue_redraw())
 	tools.add_child(_grid)
+	_angles = OptionButton.new()
+	_angles.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_angles.item_selected.connect(func(index: int) -> void:
+		canvas.angles = SymbolCanvas.ANGLES[index]
+		canvas.queue_redraw())
+	tools.add_child(_angles)
 	for action: Array in [["undo", "undo", func() -> void: canvas.undo()], ["redo", "redo", func() -> void: canvas.redo()], ["fit", "fit", func() -> void: canvas.fit()]]:
 		var button: Button = _tool_button(tools, action[1])
 		button.pressed.connect(action[2])
@@ -566,7 +574,7 @@ func _update() -> void:
 	var hint: String = hints[canvas.tool]
 	if canvas.editing_points:
 		hint = tr("Editing points: drag a point to move it; click an edge, or drag the plus in its middle, to put a point in; Delete or Ctrl+click takes the point clicked out. Esc or a click elsewhere ends it.")
-	_hint.text = hint + " " + wall_hint + " " + tr("Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans.")
+	_hint.text = hint + " " + wall_hint + " " + tr("Points snap to the points and the middles of the edges of other shapes, Shift to angles of 15°. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans.")
 
 
 func _fill_categories() -> void:
@@ -614,6 +622,11 @@ func _retranslate() -> void:
 	for step: float in SymbolCanvas.GRIDS:
 		_grid.add_item(tr("Grid %s mm") % String.num(step * 1000.0, 3) if step > 0.0 else tr("No grid"))
 	_grid.select(maxi(SymbolCanvas.GRIDS.find(canvas.grid), 0))
+	_angles.clear()
+	for step: float in SymbolCanvas.ANGLES:
+		_angles.add_item(tr("Angles %s°") % String.num(step, 0) if step > 0.0 else tr("Any angle"))
+	_angles.select(maxi(SymbolCanvas.ANGLES.find(canvas.angles), 0))
+	_angles.tooltip_text = tr("Lines drawn from a point, and points dragged, snap to these angles (Shift: 15° while any angle is set); points and the middles of edges near the mouse are caught first")
 	_edit_points.tooltip_text = tr("Edit points of the polygon or polyline picked: move, put in and take out its points (or double-click it)")
 	_picture.tooltip_text = tr("Picture: take in an image file (PNG, JPG, WebP, SVG); it is kept in the symbol and moved, scaled, turned and mirrored like the other shapes")
 	var tips: PackedStringArray = [tr("Select and move"), tr("Line"), tr("Polyline"), tr("Polygon"), tr("Rectangle"), tr("Ellipse or circle"), tr("Arc through three points"), tr("Curve"), tr("Text")]

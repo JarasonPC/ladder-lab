@@ -47,6 +47,10 @@ const MAX_ZOOM: float = 8.0
 const ZOOM_STEP: float = 1.15
 ## Grid steps offered (m), the first the one at the start; 0 snaps to none.
 const GRIDS: PackedFloat32Array = [0.005, 0.001, 0.01, 0.0]
+## Angle steps offered for lines drawn from a point (degrees; 0: any), and
+## the one Shift snaps to while none is set.
+const ANGLES: PackedFloat32Array = [0.0, 15.0, 45.0, 90.0]
+const SHIFT_ANGLES: float = 15.0
 ## A shape this close to the mouse (pixels) is under it; a handle this
 ## close; a point of another shape this close is snapped to.
 const GRAB: float = 6.0
@@ -81,6 +85,9 @@ var look: CustomSymbol.Shape = CustomSymbol.Shape.new()
 var text: String = "TV"
 ## Points snap to this (m); 0 to none.
 var grid: float = GRIDS[0]
+## Lines drawn from a point snap to angles of this step (degrees; 0: any,
+## but [constant SHIFT_ANGLES] with Shift held).
+var angles: float = 0.0
 ## The shapes picked, in the order of [member CustomSymbol.shapes].
 var selection: PackedInt32Array = PackedInt32Array():
 	set(value):
@@ -122,6 +129,8 @@ var _mouse: Vector2 = Vector2.ZERO
 var _pan_button: MouseButton = MOUSE_BUTTON_NONE
 ## Shift was held at the last move or click of the mouse.
 var _shift: bool = false
+## The point found by [method _point_near] last was the middle of an edge.
+var _near_middle: bool = false
 ## An arc's or curve's two ends while its middle point is chosen.
 var _pending: PackedVector2Array = PackedVector2Array()
 ## The points of a polyline or polygon being drawn.
@@ -168,31 +177,61 @@ func snap(point: Vector2) -> Vector2:
 	return on.clamp(-Vector2.ONE * CustomSymbol.REACH, Vector2.ONE * CustomSymbol.REACH)
 
 
-## Screen point [param point] as a point of the symbol: on a point of a
-## shape near it (not of [param skip]), else on the grid.
-func snap_point(point: Vector2, skip: PackedInt32Array = PackedInt32Array()) -> Vector2:
+## Screen point [param point] as a point of the symbol: on a point or the
+## middle of an edge of a shape near it (not of [param skip]); else, drawn
+## from [param anchor] (m; NAN for none) with angles snapping
+## ([method angle_step]), on the nearest line from it at such an angle, as
+## far as the grid takes it; else on the grid.
+func snap_point(point: Vector2, skip: PackedInt32Array = PackedInt32Array(), anchor: Vector2 = Vector2(NAN, NAN)) -> Vector2:
 	var found: Vector2 = _point_near(point, skip)
-	return found if not is_nan(found.x) else snap(to_symbol(point))
+	if not is_nan(found.x):
+		return found
+	var step: float = angle_step()
+	if step > 0.0 and not is_nan(anchor.x):
+		var d: Vector2 = to_symbol(point) - anchor
+		if d.length() > 0.0001:
+			var angle: float = snappedf(d.angle(), deg_to_rad(step))
+			var length: float = d.dot(Vector2.from_angle(angle))
+			if grid > 0.0:
+				length = snappedf(length, grid)
+			return (anchor + Vector2.from_angle(angle) * length).clamp(-Vector2.ONE * CustomSymbol.REACH, Vector2.ONE * CustomSymbol.REACH)
+	return snap(to_symbol(point))
+
+
+## The angles lines drawn from a point snap to (degrees): [member angles],
+## or [constant SHIFT_ANGLES] while Shift is held with none set; 0 for any.
+func angle_step() -> float:
+	return angles if angles > 0.0 else (SHIFT_ANGLES if _shift else 0.0)
 
 
 ## The point of a shape (not of [param skip]) within [constant POINT_SNAP]
 ## of screen point [param point] (m), NAN for none: the points of each
-## shape, a rectangle's corners, an ellipse's middle.
+## shape (see [method key_points]) or the middles of its edges (see
+## [method middle_points]), the points of the polyline being drawn.
+## [member _near_middle] says which it was.
 func _point_near(point: Vector2, skip: PackedInt32Array = PackedInt32Array()) -> Vector2:
 	var best: float = POINT_SNAP
 	var found: Vector2 = Vector2(NAN, NAN)
+	_near_middle = false
 	for i: int in symbol.shapes.size():
 		if skip.has(i):
 			continue
-		for p: Vector2 in key_points(symbol.shapes[i]):
-			var d: float = to_screen(p).distance_to(point)
-			if d < best:
-				best = d
+		for middle: bool in [false, true]:
+			for p: Vector2 in (middle_points(symbol.shapes[i]) if middle else key_points(symbol.shapes[i])):
+				var d: float = to_screen(p).distance_to(point)
+				if d < best:
+					best = d
+					found = p
+					_near_middle = middle
+	for k: int in _path.size():
+		for middle: bool in [false, true]:
+			if middle and k == 0:
+				continue
+			var p: Vector2 = (_path[k - 1] + _path[k]) * 0.5 if middle else _path[k]
+			if to_screen(p).distance_to(point) < best:
+				best = to_screen(p).distance_to(point)
 				found = p
-	for p: Vector2 in _path:
-		if to_screen(p).distance_to(point) < best:
-			best = to_screen(p).distance_to(point)
-			found = p
+				_near_middle = middle
 	return found
 
 
@@ -208,6 +247,55 @@ static func key_points(shape: CustomSymbol.Shape) -> PackedVector2Array:
 		"ellipse":
 			return PackedVector2Array([CustomSymbol.box_middle(shape)])
 	return p.duplicate()
+
+
+## The middles others snap to (m): of each straight edge of [param shape]
+## (a polygon's back to its first point, a rectangle's or picture's sides
+## as drawn), the middle along an arc or a curve.
+static func middle_points(shape: CustomSymbol.Shape) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	match shape.kind:
+		"line", "polyline", "polygon", "rect", "image":
+			var round: PackedVector2Array = CustomSymbol.outline_of(shape) if shape.kind in ["polygon", "rect", "image"] else shape.points
+			for k: int in round.size() - 1:
+				result.append((round[k] + round[k + 1]) * 0.5)
+		"arc", "curve":
+			var along: PackedVector2Array = CustomSymbol.outline_of(shape)
+			result.append(along[along.size() / 2] if along.size() % 2 == 1 else (along[along.size() / 2 - 1] + along[along.size() / 2]) * 0.5)
+	return result
+
+
+## Where what is being drawn or dragged is drawn from, for angles to snap
+## (m): the first point of a line, box, arc or curve dragged, the last
+## point of a polyline or polygon, the point before a point dragged or put
+## in; NAN for none.
+func _anchor() -> Vector2:
+	if not _path.is_empty():
+		return _path[_path.size() - 1]
+	var kind: String = _press.get("kind", "")
+	if kind == "new" and _dragging and tool in [Tool.LINE, Tool.RECT, Tool.ELLIPSE, Tool.ARC, Tool.CURVE]:
+		return snap_point(_press_at)
+	if kind == "handle":
+		return _handle_anchor(int(_press["which"]))
+	if kind == "insert" and selected >= 0:
+		return symbol.shapes[selected].points[int(_press["which"])]
+	return Vector2(NAN, NAN)
+
+
+## The point a point [param k] of the shape picked is dragged from, for
+## angles to snap: the one before it (a polygon's last for its first, the
+## second for the first of others, a box's other corner); NAN for a text or
+## a picture.
+func _handle_anchor(k: int) -> Vector2:
+	if selected < 0:
+		return Vector2(NAN, NAN)
+	var shape: CustomSymbol.Shape = symbol.shapes[selected]
+	var points: PackedVector2Array = CustomSymbol.handle_points(shape)
+	if points.size() < 2 or shape.kind in ["text", "image"]:
+		return Vector2(NAN, NAN)
+	if shape.kind == "polygon":
+		return points[(k - 1 + points.size()) % points.size()]
+	return points[k - 1] if k > 0 else points[1]
 
 
 ## Shows the symbol (at least half a metre round the origin) as large as fits.
@@ -714,7 +802,14 @@ func _pressed(point: Vector2, adding: bool = false) -> Dictionary:
 
 func _release(press: Dictionary, point: Vector2) -> void:
 	var a: Vector2 = snap_point(_press_at)
-	var b: Vector2 = snap_point(point)
+	# A line, box, arc or curve is drawn from where it was pressed, a
+	# polyline's next point from its last: angles snap from there.
+	var anchor: Vector2 = Vector2(NAN, NAN)
+	if press["kind"] == "new" and tool in [Tool.POLYLINE, Tool.POLYGON] and not _path.is_empty():
+		anchor = _path[_path.size() - 1]
+	elif press["kind"] == "new" and tool in [Tool.LINE, Tool.RECT, Tool.ELLIPSE, Tool.ARC, Tool.CURVE]:
+		anchor = a
+	var b: Vector2 = snap_point(point, PackedInt32Array(), anchor)
 	match press["kind"]:
 		"middle":
 			var ends: PackedVector2Array = _pending
@@ -745,14 +840,15 @@ func _release(press: Dictionary, point: Vector2) -> void:
 		"handle":
 			if _dragging:
 				var which: int = press["which"]
-				var to: Vector2 = snap_point(point, selection)
+				var to: Vector2 = snap_point(point, selection, _handle_anchor(which))
 				change_selected(func(shape: CustomSymbol.Shape) -> void: CustomSymbol.set_handle(shape, which, to))
 		"corner":
 			if _dragging:
 				var scaled: Array = _corner_scale(press["which"], point)
 				scale_selected(scaled[0], scaled[1])
 		"insert":
-			insert_point(press["which"], snap_point(point, selection) if _dragging else press["at"])
+			var after: Vector2 = symbol.shapes[selected].points[int(press["which"])] if selected >= 0 else Vector2(NAN, NAN)
+			insert_point(press["which"], snap_point(point, selection, after) if _dragging else press["at"])
 		"rotate":
 			if _dragging:
 				rotate_selected(_rotation_degrees(point))
@@ -834,14 +930,14 @@ func _shown(index: int) -> CustomSymbol.Shape:
 	var moved: CustomSymbol.Shape = shape.copy()
 	match _press["kind"]:
 		"handle":
-			CustomSymbol.set_handle(moved, int(_press["which"]), snap_point(_mouse, selection))
+			CustomSymbol.set_handle(moved, int(_press["which"]), snap_point(_mouse, selection, _anchor()))
 		"corner":
 			var scaled: Array = _corner_scale(_press["which"], _mouse)
 			CustomSymbol.scale_shape(moved, scaled[1], scaled[0])
 		"rotate":
 			CustomSymbol.rotate_shape(moved, _selection_middle(), _rotation_degrees(_mouse))
 		"insert":
-			moved.points.insert(int(_press["which"]) + 1, snap_point(_mouse, selection))
+			moved.points.insert(int(_press["which"]) + 1, snap_point(_mouse, selection, _anchor()))
 		_:
 			CustomSymbol.move_shape(moved, _drag_by(_mouse))
 	return moved
@@ -877,7 +973,8 @@ func _draw() -> void:
 		CustomSymbol.draw_shape(self, _shown(i), origin, s, SchematicTheme.LINE, width, font)
 	_draw_selection(origin, s)
 	# What is being drawn.
-	var m: Vector2 = snap_point(_mouse)
+	var anchor: Vector2 = _anchor()
+	var m: Vector2 = snap_point(_mouse, PackedInt32Array(), anchor)
 	var ghost: Color = Color(SchematicTheme.SELECTED, 0.7)
 	if not _pending.is_empty():
 		CustomSymbol.draw_shape(self, _new_shape("arc" if tool == Tool.ARC else "curve", [_pending[0], m, _pending[1]]), origin, s, ghost, width, font, true)
@@ -892,13 +989,29 @@ func _draw() -> void:
 		var box: Rect2 = _box(_mouse)
 		draw_rect(Rect2(to_screen(box.position), box.size * s), Color(SchematicTheme.SELECTED, 0.08))
 		draw_rect(Rect2(to_screen(box.position), box.size * s), SchematicTheme.SELECTED, false, 1.0)
-	if tool != Tool.SELECT and Rect2(Vector2.ZERO, size).has_point(_mouse):
-		if not is_nan(_point_near(_mouse).x):
-			# Caught on a point of a shape.
-			var c: Vector2 = to_screen(m)
-			draw_polyline(PackedVector2Array([c + Vector2(0, -6), c + Vector2(6, 0), c + Vector2(0, 6), c + Vector2(-6, 0), c + Vector2(0, -6)]), SchematicTheme.SELECTED, 1.5, true)
-		draw_circle(to_screen(m), 3.0, SchematicTheme.SELECTED)
-		draw_string(font, to_screen(m) + Vector2(8, -6), "%s, %s mm" % [_mm(m.x), _mm(m.y)], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, SchematicTheme.TEXT)
+	var dragging_point: bool = _dragging and _press.get("kind", "") in ["handle", "insert"]
+	if (tool != Tool.SELECT or dragging_point) and Rect2(Vector2.ZERO, size).has_point(_mouse):
+		var c: Vector2 = to_screen(m) if not dragging_point else to_screen(snap_point(_mouse, selection, anchor))
+		var at: Vector2 = to_symbol(c)
+		if not is_nan(_point_near(_mouse, selection if dragging_point else PackedInt32Array()).x):
+			if _near_middle:
+				# Caught on the middle of an edge: a triangle.
+				draw_polyline(PackedVector2Array([c + Vector2(0, -7), c + Vector2(6, 4), c + Vector2(-6, 4), c + Vector2(0, -7)]), SchematicTheme.SELECTED, 1.5, true)
+			else:
+				# Caught on a point of a shape: a diamond.
+				draw_polyline(PackedVector2Array([c + Vector2(0, -6), c + Vector2(6, 0), c + Vector2(0, 6), c + Vector2(-6, 0), c + Vector2(0, -6)]), SchematicTheme.SELECTED, 1.5, true)
+		elif not is_nan(anchor.x) and angle_step() > 0.0 and to_screen(anchor).distance_to(c) > 2.0:
+			# On an angle from where it is drawn: the line it lies on.
+			var start: Vector2 = to_screen(anchor)
+			var reach: Vector2 = (c - start).normalized() * maxf(size.x, size.y)
+			CustomSymbol.stroke_line(self, PackedVector2Array([start, start + reach]), Color(SchematicTheme.SELECTED, 0.45), 1.0, "dash")
+		var text: String = "%s, %s mm" % [_mm(at.x), _mm(at.y)]
+		if not is_nan(anchor.x) and anchor.distance_to(at) > 0.0001:
+			# How long and at what angle (anticlockwise from the right).
+			var degrees: float = fposmod(-rad_to_deg((at - anchor).angle()), 360.0)
+			text += "   %s mm  %s°" % [_mm(anchor.distance_to(at)), String.num(degrees, 1)]
+		draw_circle(c, 3.0, SchematicTheme.SELECTED)
+		draw_string(font, c + Vector2(8, -6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, SchematicTheme.TEXT)
 	if tool == Tool.TEXT and _press.is_empty() and Rect2(Vector2.ZERO, size).has_point(_mouse) and not text.strip_edges().is_empty():
 		var preview: CustomSymbol.Shape = _new_shape("text", [m])
 		preview.text = text.strip_edges()

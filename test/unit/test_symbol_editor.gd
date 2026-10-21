@@ -467,3 +467,50 @@ func test_points_of_a_polygon_edited() -> void:
 	assert_false(_canvas.delete_point(0), "a polyline keeps two points")
 	assert_eq(_canvas.edge_at(_canvas.to_screen(Vector2(0.05, 0.3))), 0)
 	assert_eq(_canvas.midpoint_at(_canvas.to_screen(Vector2(0.1, 0.0))), -1, "no closing edge")
+
+
+func test_snapping_to_middles_and_angles() -> void:
+	_def.shapes.append(_rect(Vector2(0.0, 0.0), Vector2(0.2, 0.1)))
+	var line: CustomSymbol.Shape = CustomSymbol.Shape.new()
+	line.kind = "line"
+	line.points = PackedVector2Array([Vector2(-0.3, 0.2), Vector2(-0.1, 0.2)])
+	_def.shapes.append(line)
+	# The middle of a side, of a line.
+	assert_true(_canvas.snap_point(_canvas.to_screen(Vector2(0.1, 0.0)) + Vector2(3, 4)).is_equal_approx(Vector2(0.1, 0.0)), "the middle of the rectangle's top")
+	assert_true(_canvas._near_middle)
+	assert_true(_canvas.snap_point(_canvas.to_screen(Vector2(-0.2, 0.2)) + Vector2(-3, 2)).is_equal_approx(Vector2(-0.2, 0.2)), "the middle of the line")
+	assert_true(_canvas.snap_point(_canvas.to_screen(Vector2(0.2, 0.1)) + Vector2(2, 2)).is_equal_approx(Vector2(0.2, 0.1)))
+	assert_false(_canvas._near_middle, "a corner is a point")
+	assert_eq(SymbolCanvas.middle_points(_def.shapes[0]).size(), 4)
+	var arc: CustomSymbol.Shape = CustomSymbol.Shape.new()
+	arc.kind = "arc"
+	arc.points = PackedVector2Array([Vector2(-0.1, 0.0), Vector2(0.0, 0.07), Vector2(0.1, 0.0)])
+	assert_lt(SymbolCanvas.middle_points(arc)[0].distance_to(Vector2(0.0, 0.07)), 0.002, "an arc's middle along it")
+	# Angles from where it is drawn: 45°, the length on the grid.
+	var anchor: Vector2 = Vector2(0.0, 0.4)
+	var off: Vector2 = _canvas.to_screen(anchor + Vector2(0.1, -0.093))
+	assert_true(_canvas.snap_point(off, PackedInt32Array(), anchor).is_equal_approx(_canvas.snap(_canvas.to_symbol(off))), "any angle: the grid")
+	_canvas.angles = 45.0
+	var on: Vector2 = _canvas.snap_point(off, PackedInt32Array(), anchor)
+	var d: Vector2 = on - anchor
+	assert_almost_eq(absf(d.x), absf(d.y), 1e-6, "at 45°")
+	assert_almost_eq(d.length(), snappedf(d.length(), _canvas.grid), 1e-6, "as long as the grid takes it")
+	_canvas.angles = 0.0
+	_canvas._shift = true
+	var steep: Vector2 = _canvas.snap_point(_canvas.to_screen(anchor + Vector2(0.1, -0.17)), PackedInt32Array(), anchor) - anchor
+	assert_almost_eq(rad_to_deg(-steep.angle()), 60.0, 1e-4, "Shift: 15° steps")
+	_canvas._shift = false
+	# A point near beats the angle.
+	_canvas.angles = 90.0
+	assert_true(_canvas.snap_point(_canvas.to_screen(Vector2(0.1, 0.0)), PackedInt32Array(), anchor).is_equal_approx(Vector2(0.1, 0.0)))
+	# Drawing a line: its end snaps to the angle from its start.
+	_canvas.tool = SymbolCanvas.Tool.LINE
+	_drag(Vector2(0.3, 0.3), Vector2(0.41, 0.31))
+	var drawn: CustomSymbol.Shape = _def.shapes[2]
+	assert_almost_eq(drawn.points[1].y, 0.3, 1e-6, "flat at 90° steps")
+	# A point dragged snaps to the angle from the one before it.
+	_canvas.tool = SymbolCanvas.Tool.SELECT
+	_canvas.selected = 2
+	_drag(Vector2(0.41, 0.3), Vector2(0.305, 0.45))
+	assert_almost_eq(drawn.points[1].x, 0.3, 1e-6, "straight down from its start")
+	_canvas.angles = 0.0

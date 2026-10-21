@@ -5957,7 +5957,7 @@ msgstr ""
 msgid "Rotate by an angle (Ctrl+R)"
 msgstr ""
 
-msgid "Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
+msgid "Points snap to the points and the middles of the edges of other shapes, Shift to angles of 15°. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
 msgstr ""
 
 msgid "Control panel"
@@ -5992,4 +5992,14 @@ msgid "Editing points: drag a point to move it; click an edge, or drag the plus 
 msgstr ""
 
 msgid "Edit points of the polygon or polyline picked: move, put in and take out its points (or double-click it)"
+msgstr ""
+
+#, c-format
+msgid "Angles %s°"
+msgstr ""
+
+msgid "Any angle"
+msgstr ""
+
+msgid "Lines drawn from a point, and points dragged, snap to these angles (Shift: 15° while any angle is set); points and the middles of edges near the mouse are caught first"
 msgstr ""
