@@ -30,6 +30,8 @@ const SETTINGS_PATH: String = "user://settings.cfg"
 const MAX_RECENT: int = 8
 ## Width of the lesson panel until one is chosen.
 const LESSON_WIDTH: float = 330.0
+## Width of the control panel until one is chosen (a station of two columns).
+const CONTROL_PANEL_WIDTH: float = 320.0
 
 var mode: Mode = Mode.EDIT
 var area: Area = Area.SCHEMATIC
@@ -206,6 +208,13 @@ var _lesson_run: LessonRun = null
 var _lesson_index: int = -1
 var _lesson_panel: LessonPanel
 var _lesson_bar: SideBar
+## The control stations and switchboard doors beside the schematic of an
+## industrial control circuit while simulating, and the tab they roll in to.
+var _control_panel: ControlPanelView
+var _control_bar: SideBar
+var _control_tab: SideTab
+## The control panel shows only its tab (remembered).
+var _control_rolled: bool = false
 ## What the lesson points at on the drawing, and in the window.
 var _lesson_marks: LessonMarks
 var _lesson_rings: TutorialRings
@@ -290,6 +299,8 @@ func _ready() -> void:
 	_workspace.cabinet_edit_requested.connect(_edit_cabinet)
 	_workspace.button_held.connect(view.hold_button)
 	_workspace.switch_toggled.connect(view.toggle_switch)
+	_control_panel.button_held.connect(view.hold_button)
+	_control_panel.switch_toggled.connect(view.toggle_switch)
 	_workspace.operate_requested.connect(view.operate_device)
 	_workspace.window_requested.connect(open_place_window)
 	_workspace.schematic_requested.connect(_show_in_schematic)
@@ -699,6 +710,12 @@ func _build_ui() -> void:
 	_lesson_panel.restart_requested.connect(func() -> void: start_lesson(_lesson_index))
 	_lesson_panel.check_requested.connect(_check_lesson)
 	_lesson_panel.marks_changed.connect(_refresh_lesson_marks)
+	_control_panel = ControlPanelView.new()
+	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
+	_control_panel.roll_requested.connect(func() -> void: _set_control_rolled(true))
+	_control_tab = SideTab.new()
+	_control_tab.pressed.connect(func() -> void: _set_control_rolled(false))
+	middle.add_child(_control_tab)
 	_welcome = WelcomeCard.new()
 	# The language first, before the tour or a lesson is offered in it.
 	_welcome.languages = LOCALE_NAMES
@@ -993,8 +1010,11 @@ func _retranslate() -> void:
 	_refresh_pages()
 	_palette.retranslate()
 	_update_environment()
-	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar, _control_bar]:
 		bar.retranslate()
+	_control_panel.retranslate()
+	_control_tab.title = tr("Control panel")
+	_control_tab.tooltip_text = tr("Control panel: the control stations and switchboard doors, to operate the circuit beside the schematic")
 	_workspace.retranslate()
 	_floor_plan.retranslate()
 	_single_line.retranslate()
@@ -1326,12 +1346,37 @@ func _apply_ui_scale() -> void:
 func _side_panel(parent: Control, content: Control, key: String, grip_left: bool) -> SideBar:
 	var bar: SideBar = SideBar.new(content, grip_left)
 	bar.name = key
-	var saved: Vector2 = _bar_settings.get(key, Vector2(LESSON_WIDTH if key == "lesson" else 250.0, 1.0))
+	var saved: Vector2 = _bar_settings.get(key, Vector2(_bar_width(key), 1.0))
 	bar.width = saved.x
 	bar.zoom = saved.y
 	bar.changed.connect(_save_settings)
 	parent.add_child(bar)
 	return bar
+
+
+## Width of side panel [param key] until one is chosen.
+static func _bar_width(key: String) -> float:
+	match key:
+		"lesson":
+			return LESSON_WIDTH
+		"control_panel":
+			return CONTROL_PANEL_WIDTH
+	return 250.0
+
+
+## The control panel beside the schematic of an industrial control circuit
+## while simulating, or the tab it is rolled in to.
+func _update_control_panel() -> void:
+	var shown: bool = area == Area.SCHEMATIC and mode == Mode.SIMULATE and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.INDUSTRIAL
+	_control_bar.visible = shown and not _control_rolled
+	_control_tab.visible = shown and _control_rolled
+
+
+## Rolls the control panel in to its tab ([param rolled]) or out again.
+func _set_control_rolled(rolled: bool) -> void:
+	_control_rolled = rolled
+	_update_control_panel()
+	_save_settings()
 
 
 ## The properties (and check results) beside the schematic: only in Edit
@@ -1397,6 +1442,7 @@ func _update_mode_ui() -> void:
 	_palette_bar.visible = editing and (schematic or plan_parts)
 	_lesson_bar.visible = schematic and _lesson_run != null
 	_update_side_bar()
+	_update_control_panel()
 	_sim_tools.visible = not editing
 	_sim_options.visible = not editing
 	_time_label.visible = not editing
@@ -1418,6 +1464,7 @@ func _update_environment() -> void:
 	_palette.environment = environment
 	_environment_label.text = NewSchematicDialog.environment_name(environment)
 	_environment_label.tooltip_text = NewSchematicDialog.environment_text(environment)
+	_update_control_panel()
 	# A house installation has its floor plan in place of the workspace.
 	_workspace_button.text = tr("Floor plan") if residential else tr("Workspace")
 	_workspace_button.icon = AppTheme.icon("house" if residential else "workspace")
@@ -1519,6 +1566,7 @@ func _on_view_loaded() -> void:
 	_workspace.show_travels(view.travel_positions())
 	_floor_plan.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
 	_single_line.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
+	_control_panel.set_document(view.document)
 	_workspace_fit = false
 	for window: PlaceWindow in _place_windows():
 		window.set_document(view.document, mode == Mode.EDIT)
@@ -2579,6 +2627,7 @@ func _load_settings() -> void:
 		_show_chart = config.get_value("view", "timing_chart", false)
 		_show_log = config.get_value("view", "event_log", false)
 		_keys_rolled = bool(config.get_value("view", "keys_rolled", false))
+		_control_rolled = bool(config.get_value("view", "control_panel_rolled", false))
 		for key: String in ExportPreview.CONTENTS:
 			_export_contents[key] = bool(config.get_value("export", key, not ExportPreview.OFF_AT_FIRST.has(key)))
 		var paper: String = str(config.get_value("export", "largest_paper", SheetLayout.DEFAULT_LARGEST))
@@ -2599,9 +2648,8 @@ func _load_settings() -> void:
 		if hidden_rows is PackedStringArray or hidden_rows is Array:
 			for key: Variant in hidden_rows:
 				_timing_hidden[str(key)] = true
-		for key: String in ["palette", "properties", "workspace_tree", "lesson"]:
-			var width: float = LESSON_WIDTH if key == "lesson" else 250.0
-			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", width)), float(config.get_value("view", key + "_zoom", 1.0)))
+		for key: String in ["palette", "properties", "workspace_tree", "lesson", "control_panel"]:
+			_bar_settings[key] = Vector2(float(config.get_value("view", key + "_width", _bar_width(key))), float(config.get_value("view", key + "_zoom", 1.0)))
 		_ui_scale = float(config.get_value("view", "ui_scale", 0.0))
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 		_check_updates = bool(config.get_value("updates", "check_at_start", true))
@@ -2620,6 +2668,7 @@ func _save_settings() -> void:
 	config.set_value("view", "timing_chart", _show_chart)
 	config.set_value("view", "event_log", _show_log)
 	config.set_value("view", "keys_rolled", _keys_rolled)
+	config.set_value("view", "control_panel_rolled", _control_rolled)
 	for key: String in _export_contents:
 		config.set_value("export", key, _export_contents[key])
 	config.set_value("export", "largest_paper", _export_paper)
@@ -2639,7 +2688,7 @@ func _save_settings() -> void:
 		config.set_value("view", "timing_height", _timing_panel.panel_height)
 		config.set_value("view", "event_log_width", _timing_panel.log_width)
 		config.set_value("view", "timing_hidden", PackedStringArray(_timing_panel.chart.hidden_rows.keys()))
-	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar, _control_bar]:
 		if bar != null:
 			config.set_value("view", bar.name + "_width", bar.width)
 			config.set_value("view", bar.name + "_zoom", bar.zoom)
