@@ -73,6 +73,9 @@ const WALL: float = 0.08
 const FEATURE_GRAB: float = 12.0
 ## A press this close to a room's edge (pixels) drags the edge.
 const EDGE_GRAB: float = 6.0
+## The middle of a symbol of a part on a wall is this far into the room (m);
+## upright, it is drawn from this far over its middle.
+const WALL_SYMBOL_OFFSET: float = 0.15
 ## A part within this (m) of the mouse is under it.
 const PART_GRAB: float = 0.25
 ## Least height of the legend under the plan on a sheet (m): room for the
@@ -250,7 +253,7 @@ func symbol_center(designation: String) -> Vector2:
 	if not plan().facing.has(designation):
 		return at
 	var into: Vector2 = FloorPlan.FACING[plan().facing[designation]]
-	return at + _face(designation) + into * 0.15
+	return at + _face(designation) + into * WALL_SYMBOL_OFFSET
 
 
 ## From the line of its wall to the wall's face, for a part on a wall
@@ -424,9 +427,9 @@ func _port_at(designation: String, point: Vector2) -> int:
 	var sw: LightSwitch = document.circuit.get_component(designation) as LightSwitch
 	if sw == null or SingleLine.switch_ports(sw).size() < 2:
 		return 0
+	# Drawn upright: the left rocker is the first.
 	var center: Vector2 = to_screen(symbol_center(designation))
-	var into: Vector2 = FloorPlan.FACING[plan().facing.get(designation, 1)]
-	return 0 if (point - center).dot(into.rotated(-PI / 2.0)) < 0.0 else 1
+	return 0 if point.x < center.x else 1
 
 
 ## The door under screen point [param point], -1 for none.
@@ -1016,9 +1019,8 @@ func _operate(point: Vector2) -> void:
 	var rocker: int = 0
 	if sw.rocker_count() > 1:
 		var center: Vector2 = to_screen(symbol_center(designation))
-		var into: Vector2 = FloorPlan.FACING[plan().facing.get(designation, 1)]
-		# Seen from the room, the left rocker is the first.
-		rocker = 0 if (point - center).dot(into.rotated(-PI / 2.0)) < 0.0 else 1
+		# Drawn upright: the left rocker is the first.
+		rocker = 0 if point.x < center.x else 1
 	switch_toggled.emit(designation, rocker)
 
 
@@ -1542,9 +1544,8 @@ func _draw_dimensions(index: int, s: float, font: Font) -> void:
 			# Over a dimension above its wall, under one below it.
 			draw_string(font, mid + Vector2(-width * 0.5, TEXT_SIZE if toward.y < 0.0 else 0.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 		else:
-			draw_set_transform(mid + Vector2(TEXT_SIZE * 0.8 if toward.x < 0.0 else 0.0, width * 0.5), -PI / 2.0)
-			draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
-			draw_set_transform(Vector2.ZERO)
+			# Across, beside a dimension up and down, on its side away from the wall.
+			draw_string(font, mid + Vector2(-width - 2.0 if toward.x > 0.0 else 2.0, TEXT_SIZE * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 
 
 ## The underlay image of a file (null when it cannot be read), kept once read.
@@ -1649,9 +1650,8 @@ func _draw_length(font: Font, a: Vector2, b: Vector2, away: Vector2, length: flo
 	if absf(dir.y) < 0.5:
 		draw_string(font, mid + Vector2(-width * 0.5, 0.0 if away.y < 0.0 else TEXT_SIZE), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 	else:
-		draw_set_transform(mid + Vector2(0.0 if away.x < 0.0 else TEXT_SIZE * 0.8, width * 0.5), -PI / 2.0)
-		draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
-		draw_set_transform(Vector2.ZERO)
+		# Across, beside a dimension up and down, on its side away from the wall.
+		draw_string(font, mid + Vector2(-width - 2.0 if away.x < 0.0 else 2.0, TEXT_SIZE * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 
 
 ## What the measure (or the dimension being dragged) spans: a dashed line
@@ -1795,15 +1795,19 @@ func _cable_end(designation: String) -> Vector2:
 
 
 func _draw_part(designation: String, s: float, font: Font) -> void:
-	var at: Vector2 = to_screen(_shown_at(designation) + _face(designation))
 	var into: Vector2 = FloorPlan.FACING[plan().facing[designation]] if plan().facing.has(designation) else Vector2.ZERO
+	# Every symbol upright, as in the legend and the palette, whatever wall
+	# it is on: its middle where it is, drawn from above it.
+	var middle: Vector2 = _shown_at(designation) + symbol_center(designation) - plan().parts[designation]
+	var upright: Vector2 = Vector2.DOWN if into != Vector2.ZERO else Vector2.ZERO
+	var at: Vector2 = to_screen(middle - upright * WALL_SYMBOL_OFFSET)
 	var chosen: bool = selected.get("kind", "") == "part" and selected.get("designation", "") == designation
 	var color: Color = SchematicTheme.SELECTED if chosen else SchematicTheme.LINE
 	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
 	var label: String = designation
 	var height_text: String = ""
 	if designation == FloorPlan.UNIT:
-		PlanSymbols.draw_unit(self, at, into, s, color, width)
+		PlanSymbols.draw_unit(self, at, upright, s, color, width)
 	else:
 		var c: CircuitComponent = document.circuit.get_component(designation)
 		label = "-" + designation
@@ -1813,25 +1817,25 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 			if not tag.is_empty():
 				label = tag
 		if c is LightSwitch:
-			PlanSymbols.draw_switch(self, c as LightSwitch, at, into, s, color, width)
+			PlanSymbols.draw_switch(self, c as LightSwitch, at, upright, s, color, width)
 			if not is_equal_approx((c as LightSwitch).height, LightSwitch.STANDARD_HEIGHT):
 				height_text = _height((c as LightSwitch).height)
 		elif c is SocketOutlet:
 			var socket: SocketOutlet = c as SocketOutlet
-			PlanSymbols.draw_socket(self, socket, at, into, s, color, width, not editing and socket.energized)
+			PlanSymbols.draw_socket(self, socket, at, upright, s, color, width, not editing and socket.energized)
 			if not is_equal_approx(socket.height, SocketOutlet.STANDARD_HEIGHT):
 				height_text = _height(socket.height)
 		elif c is Luminaire:
 			var luminaire: Luminaire = c as Luminaire
-			PlanSymbols.draw_luminaire(self, at, s, color, width, not editing and luminaire.energized, into if luminaire.wall else Vector2.ZERO)
+			PlanSymbols.draw_luminaire(self, at, s, color, width, not editing and luminaire.energized, upright if luminaire.wall else Vector2.ZERO)
 			if not is_equal_approx(luminaire.height, luminaire.standard_height()):
 				height_text = _height(luminaire.height)
 		elif c is Appliance:
-			PlanSymbols.draw_appliance(self, c as Appliance, at, into, s, color, width, not editing and (c as Load).energized)
+			PlanSymbols.draw_appliance(self, c as Appliance, at, upright, s, color, width, not editing and (c as Load).energized)
 			if not is_equal_approx((c as Appliance).height, Appliance.STANDARD_HEIGHT):
 				height_text = _height((c as Appliance).height)
 	# The designation beside the symbol, away from its wall.
-	var center: Vector2 = to_screen(_shown_at(designation) + symbol_center(designation) - plan().parts[designation])
+	var center: Vector2 = to_screen(middle)
 	var text_at: Vector2 = _label_spot(designation, center, into, label, height_text, s, font)
 	draw_string(font, text_at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
 	if not height_text.is_empty():
