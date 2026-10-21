@@ -287,6 +287,8 @@ var underlay_scale: float = UNDERLAY_SCALE
 var underlay_shown: bool = true
 ## Where north is: degrees clockwise from up on the plan.
 var north: float = 0.0
+## The legend of the rooms moved from its place right of the plan (m).
+var legend_offset: Vector2 = Vector2.ZERO
 var rooms: Array[Room] = []
 var doors: Array[Door] = []
 var windows: Array[WindowOpening] = []
@@ -349,6 +351,45 @@ func resize_fixture(index: int, width: float, depth: float) -> void:
 	var center: Vector2 = back + FACING[fixture.facing] * depth * 0.5
 	var shape: Vector2 = Vector2(depth, width) if fixture.facing % 2 == 0 else Vector2(width, depth)
 	fixture.rect = Rect2(center - shape * 0.5, shape)
+
+
+## Moves corner [param k] of room [param index] to [param at]: the two
+## walls meeting there go along (see [method set_edge]).
+func set_corner(index: int, k: int, at: Vector2) -> void:
+	var room: Room = rooms[index]
+	var n: int = room.points.size()
+	for wall: int in [(k + n - 1) % n, k]:
+		var w: PackedVector2Array = rooms[index].wall(wall)
+		set_edge(index, wall, at.x if is_equal_approx(w[0].x, w[1].x) else at.y)
+
+
+## Opening [param opening] with end [param which] (0 its left or top end)
+## pulled to [param to] along its wall, the other end staying: its width
+## kept from [param low] to [param high] (m).
+static func stretch_opening(opening: Opening, which: int, to: Vector2, low: float, high: float) -> void:
+	var ends: PackedVector2Array = opening.ends()
+	var along: Vector2 = Vector2.DOWN if opening.vertical else Vector2.RIGHT
+	var fixed: Vector2 = ends[1 - which]
+	var reach: float = (to - fixed).dot(along) * (1.0 if which == 1 else -1.0)
+	var width: float = clampf(snappedf(reach, SNAP), low, high)
+	opening.width = width
+	opening.at = fixed + along * width * 0.5 * (1.0 if which == 1 else -1.0)
+
+
+## The rectangle of [param rect] with corner [param which] (0 top left,
+## clockwise) pulled to [param to], the opposite one staying, at least
+## [param least] (m) a side.
+static func stretch_rect(rect: Rect2, which: int, to: Vector2, least: float = 0.2) -> Rect2:
+	var corners: Array[Vector2] = [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]
+	var fixed: Vector2 = corners[(which + 2) % 4]
+	var moved: Vector2 = snap(to)
+	var a: Vector2 = Vector2(minf(fixed.x, moved.x), minf(fixed.y, moved.y))
+	var size: Vector2 = (moved - fixed).abs()
+	if size.x < least:
+		a.x = fixed.x - least if moved.x < fixed.x else fixed.x
+	if size.y < least:
+		a.y = fixed.y - least if moved.y < fixed.y else fixed.y
+	return Rect2(a, Vector2(maxf(size.x, least), maxf(size.y, least)))
 
 
 ## Fixture [param index] turned a quarter round its middle.
@@ -1129,6 +1170,8 @@ func to_data() -> Dictionary:
 		result["level"] = level
 	if not is_zero_approx(north):
 		result["north"] = north
+	if legend_offset != Vector2.ZERO:
+		result["legend"] = [legend_offset.x, legend_offset.y]
 	if not name.is_empty():
 		result["name"] = name
 	if not underlay.is_empty():
@@ -1214,6 +1257,8 @@ static func from_data(raw: Variant) -> FloorPlan:
 	plan.level = clampi(int(raw_level), -5, 50) if (raw_level is int or raw_level is float) else 0
 	plan.name = (d["name"] as String).strip_edges().left(40) if d.get("name", null) is String else ""
 	plan.north = fposmod(_length(d.get("north", 0.0), 0.0, -3600.0, 3600.0), 360.0)
+	if _numbers(d.get("legend", []), 2):
+		plan.legend_offset = Vector2(clampf(float(d["legend"][0]), -200.0, 200.0), clampf(float(d["legend"][1]), -200.0, 200.0))
 	var under: Variant = d.get("underlay", null)
 	if under is Dictionary and (under as Dictionary).get("path", null) is String:
 		plan.underlay = under["path"]
