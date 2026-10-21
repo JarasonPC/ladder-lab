@@ -123,6 +123,12 @@ What changed in each LadderLab version. Version numbers follow the rules in
   already is drawn as in the file
 - On an industrial schematic a warning sign marks terminals of two parts lying on one another
   without being connected; with the mouse over it the status bar names them
+- "Set at simulation start" in the right click menu of an industrial schematic: circuit
+  breakers, fuse holders, switches and cam switches set this way are switched on (or turned to
+  I) when the simulation starts
+- Terminals are easier to hit: while drawing a wire a click anywhere in a terminal's cell takes
+  it, a wire is started a little beside a terminal too, and zoomed out the area never gets
+  smaller than a few pixels on screen
 
 ### Panels
 - The narrowest switchboard has a 12-module DIN rail: room for four 3-pole circuit breakers

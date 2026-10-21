@@ -482,6 +482,12 @@ msgstr "Vedle sebe, se stejným počtem polí mezi nimi"
 msgid "Wire facing terminals"
 msgstr "Propojit protilehlé svorky"
 
+msgid "Set at simulation start"
+msgstr "Zapnout při spuštění simulace"
+
+msgid "Switched on (breakers, fuse holders) or operated (switches) when the simulation starts"
+msgstr "Při spuštění simulace zapnuté (jističe, pojistkové odpojovače) nebo přepnuté (přepínače)"
+
 #, c-format
 msgid "Terminals %s and %s lie on one another but are not connected."
 msgstr "Svorky %s a %s leží na sobě, ale nejsou propojené."

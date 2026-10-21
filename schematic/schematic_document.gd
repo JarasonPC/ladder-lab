@@ -2684,6 +2684,39 @@ func _spot_without(place: RefCounted) -> Vector2:
 	return Vector2.ZERO if right == -INF else Vector2(right + Workspace.SPACING, 0.0)
 
 
+# --- Set at simulation start --------------------------------------------------------------
+
+## True for a part that can be switched on or operated when a simulation
+## starts (see [member CircuitComponent.set_at_start]): a circuit breaker, a
+## fuse holder, a switch (also a limit switch) or a rotary cam switch.
+static func can_set_at_start(c: CircuitComponent) -> bool:
+	return c is CircuitBreaker or c is MotorBreaker or (c is Fuse and (c as Fuse).holder) or (c is ThreePoleFuse and (c as ThreePoleFuse).holder) or c is LatchingSwitch or c is CamSwitch
+
+
+## Switches on or operates the parts set at start: breakers and fuse holders
+## on, a switch in the position of its block (I, or II for an I-0-II block on
+## II), a cam switch in I, at once. Run on the copy a simulation starts from.
+func apply_start_settings() -> void:
+	for c: CircuitComponent in circuit.get_components():
+		if not c.set_at_start or not can_set_at_start(c):
+			continue
+		if c is CircuitBreaker:
+			(c as CircuitBreaker).switched_on = true
+		elif c is MotorBreaker:
+			(c as MotorBreaker).switched_on = true
+		elif c is Fuse:
+			(c as Fuse).switched_on = true
+		elif c is ThreePoleFuse:
+			(c as ThreePoleFuse).switched_on = true
+		elif c is LatchingSwitch:
+			var selector: LatchingSwitch = c as LatchingSwitch
+			selector.switched_on = true
+			selector.actuator.snap(selector.actuator.target)
+			selector.actuator_two.snap(selector.actuator_two.target)
+		elif c is CamSwitch:
+			(c as CamSwitch).position = CamSwitch.ONE
+
+
 # --- Keys -------------------------------------------------------------------------------
 
 ## True for a device a key can operate: a push button or a switch (not a

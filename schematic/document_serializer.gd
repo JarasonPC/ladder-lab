@@ -508,6 +508,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 		d["rating"] = (c as Load).rating
 	if not c.custom_terminals.is_empty():
 		d["terminals"] = Array(c.custom_terminals)
+	if c.set_at_start:
+		d["set_at_start"] = true
 	return d
 
 
@@ -533,6 +535,8 @@ static func plc_modules(raw: Variant, cpu: int = -1, version: String = "") -> Ar
 ## Builds a component, or returns null for unknown or invalid data.
 static func component_from_dict(d: Dictionary) -> CircuitComponent:
 	var c: CircuitComponent = _component_from_dict(d)
+	if c != null and _bool(d, "set_at_start", false) and SchematicDocument.can_set_at_start(c):
+		c.set_at_start = true
 	if c is Load and d.has("rating") and VoltageRating.is_known(str(d["rating"])) and not (c is CompactPlc):
 		(c as Load).rating = str(d["rating"])
 	if c == null or not d.has("terminals"):

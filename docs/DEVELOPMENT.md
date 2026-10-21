@@ -28,7 +28,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   shows it). Every moving part (blades,
   buttons, holders) moves smoothly (SchematicSymbol.shown); marks fixed to a blade (breaker
   releases, delay marks) turn with it; button and switch heads stay straight on a dashed stem;
-  the limit switch's roller stays straight on a solid stem from the middle of the blade; the overload contact's bimetal step stays straight on a solid stem. Breakers and fuse holders start switched off (open).
+  the limit switch's roller stays straight on a solid stem from the middle of the blade; the overload contact's bimetal step stays straight on a solid stem. Breakers and fuse holders start switched off (open),
+  unless set at simulation start: on an industrial schematic the right click menu's "Set at
+  simulation start" (a tick, all the selected parts that can be set, one undo step) marks
+  breakers, fuse holders, switches (limit switches too) and cam switches
+  (CircuitComponent.set_at_start, design data, saved "set_at_start";
+  SchematicDocument.can_set_at_start); SchematicView.load_document runs
+  SchematicDocument.apply_start_settings on the copy a simulation starts from: breakers and
+  fuse holders on, a switch at its block's position (I, or II for an I-0-II block on II),
+  a cam switch in I, armatures there at once; the edited schematic draws them off.
 - Time relays (TimerRelay) are multifunction relays: functions F1-F12 (TimerRelay.Mode, codes as in
   real relays; F10-F12 use two times t1 = delay, t2 = delay2) plus a true off-delay; optional control input S (terminals A1-A2-S, S renameable,
   active with voltage against A2; A1-A2 never renamed); the properties panel shows a timing diagram
@@ -1282,6 +1290,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   markings, a tick and number at every cell, the cells each part will take marked) and keeps
   the dialog off it. Branch dots
   join wires of one net only
+- Terminals are taken by the mouse (SchematicDocument.terminal_at) anywhere in their cell while
+  a wire is drawn (SchematicEditor.WIRE_PICK, half a cell), within START_PICK to start one
+  with the select tool, never less than PICK_PIXELS on screen (_pick_radius); the terminal
+  that would be taken is highlighted
 - Wiring helpers (Settings > Wiring, user settings "editor": wire_all_poles and wire_on_drop,
   off by default; SchematicEditor.wire_all_poles / wire_on_drop; "Wire facing terminals" is
   always in the right click menu). SchematicDocument.facing_pairs: free terminals (no wire) facing each other
