@@ -535,7 +535,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   SELECT, LINE / RECT / ELLIPSE dragged corner to corner, POLYLINE / POLYGON a point a click
   (finish_path: double click, Enter, right click, a polygon's first point), ARC / CURVE
   dragged end to end and then a click for the middle point, TEXT; R / F turn a quarter and
-  mirror, rotate_selected by any angle (Ctrl+R: rotate_requested),
+  mirror, rotate_selected by any angle (Ctrl+R: rotate_requested; the round handle
+  ROTATE_REACH over the box round the shapes picked, rotation_handle / rotation_at,
+  dragged about their middle by whole degrees or ROTATE_STEP with Shift,
+  _rotation_degrees, shown turned while dragged with the angle beside the mouse),
   Ctrl+C / X / V / D with a clipboard for any symbol of the run (PASTE_OFFSET further each
   paste); its own undo of shape copies). A symbol saved there that the
   schematic uses is taken into it as one undoable edit (FloorPlanView._on_symbol_saved)

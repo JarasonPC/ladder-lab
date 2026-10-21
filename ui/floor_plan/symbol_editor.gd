@@ -539,7 +539,7 @@ func _update() -> void:
 		_actions[key].disabled = none
 	_actions["paste"].disabled = SymbolCanvas.clipboard.is_empty()
 	var hints: PackedStringArray = [
-		tr("Click a shape to pick it, Shift or Ctrl+click to pick more, or drag a box round them; drag to move them, drag a point's square to move it, drag a corner of the box round them to scale them."),
+		tr("Click a shape to pick it, Shift or Ctrl+click to pick more, or drag a box round them; drag to move them, drag a point's square to move it, a corner of the box round them to scale them, the round handle over it to turn them (Shift: by 15°)."),
 		tr("Drag from one end of the line to the other."),
 		tr("Click each point; a double click, Enter or a right click ends the line."),
 		tr("Click each corner; a click on the first, a double click, Enter or a right click closes it."),
