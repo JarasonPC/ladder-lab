@@ -6,6 +6,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+## 0.8.0 – 2026-10-21
+
 ### Schematic editor
 - A contact renamed to SB, SQ or RB becomes a push button, limit switch or switch (one more
   block of the device of that name where it is drawn), a button or switch renamed to KM, KA
