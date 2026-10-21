@@ -366,3 +366,40 @@ func test_fonts_of_the_computer() -> void:
 	typed.text_submitted.emit("-10")
 	assert_almost_eq(editor.canvas.symbol.shapes[0].angle, 20.0, 1e-6, "and by Enter")
 	editor.hide()
+
+
+func test_turned_by_the_rotation_handle() -> void:
+	_def.shapes.append(_rect(Vector2(-0.1, -0.05), Vector2(0.1, 0.05)))
+	_canvas.tool = SymbolCanvas.Tool.SELECT
+	assert_true(is_nan(_canvas.rotation_handle().x), "none with nothing picked")
+	_canvas.selected = 0
+	var knob: Vector2 = _canvas.rotation_handle()
+	assert_almost_eq(knob.x, _canvas.to_screen(Vector2.ZERO).x, 0.01, "over the middle")
+	assert_almost_eq(knob.y, _canvas.to_screen(Vector2(0, -0.05)).y - SymbolCanvas.ROTATE_REACH, 0.01, "over the top of the box")
+	assert_eq(_canvas._pressed(knob)["kind"], "rotate")
+	# Dragged a quarter round its middle anticlockwise, a little off: whole degrees.
+	var middle: Vector2 = _canvas.to_screen(Vector2.ZERO)
+	var reach: float = knob.distance_to(middle)
+	var to: Vector2 = middle + Vector2.from_angle(-PI / 2.0 - deg_to_rad(37.3)) * reach
+	_canvas._press_at = knob
+	_canvas._press = {"kind": "rotate"}
+	_canvas._dragging = true
+	_canvas._mouse = to
+	assert_almost_eq(_canvas._rotation_degrees(to), 37.0, 1e-6, "whole degrees")
+	assert_almost_eq(_canvas._shown(0).angle, 37.0, 1e-6, "shown turned while dragged")
+	_canvas._shift = true
+	assert_almost_eq(_canvas._rotation_degrees(to), 30.0, 1e-6, "15° steps with Shift")
+	_canvas._shift = false
+	_canvas._press = {}
+	_canvas._release({"kind": "rotate"}, to)
+	_canvas._dragging = false
+	assert_almost_eq(_def.shapes[0].angle, 37.0, 1e-6, "turned anticlockwise")
+	assert_true(CustomSymbol.box_middle(_def.shapes[0]).is_equal_approx(Vector2.ZERO), "about its middle")
+	_canvas.undo()
+	assert_almost_eq(_def.shapes[0].angle, 0.0, 1e-6, "one undo step")
+	# A click on it without dragging turns nothing.
+	_canvas.selected = 0
+	_canvas._press_at = _canvas.rotation_handle()
+	_canvas._dragging = false
+	_canvas._release({"kind": "rotate"}, _canvas._press_at)
+	assert_almost_eq(_def.shapes[0].angle, 0.0, 1e-6)

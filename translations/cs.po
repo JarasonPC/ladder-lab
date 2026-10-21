@@ -5853,8 +5853,8 @@ msgstr "Lomená čára"
 msgid "Polygon"
 msgstr "Mnohoúhelník"
 
-msgid "Click a shape to pick it, Shift or Ctrl+click to pick more, or drag a box round them; drag to move them, drag a point's square to move it, drag a corner of the box round them to scale them."
-msgstr "Kliknutím tvar vyberete, Shift nebo Ctrl+klikem přidáte další, nebo je obtáhněte rámečkem; tažením je posunete, tažením čtverečku bodu posunete bod, tažením rohu rámečku kolem nich je zvětšíte či zmenšíte."
+msgid "Click a shape to pick it, Shift or Ctrl+click to pick more, or drag a box round them; drag to move them, drag a point's square to move it, a corner of the box round them to scale them, the round handle over it to turn them (Shift: by 15°)."
+msgstr "Kliknutím tvar vyberete, Shift nebo Ctrl+klikem přidáte další, nebo je obtáhněte rámečkem; tažením je posunete, tažením čtverečku bodu posunete bod, rohu rámečku kolem nich je zvětšíte či zmenšíte, kulatého úchytu nad ním je otočíte (Shift: po 15°)."
 
 msgid "Click each point; a double click, Enter or a right click ends the line."
 msgstr "Klikněte na každý bod; dvojklik, Enter nebo pravé tlačítko čáru ukončí."

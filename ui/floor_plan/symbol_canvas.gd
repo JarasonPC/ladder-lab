@@ -8,7 +8,8 @@ extends Control
 ## By [member tool]: SELECT picks shapes (a click one, Shift or Ctrl+click
 ## more, a box dragged from an empty place all it touches; dragged, they
 ## move; the points of one picked alone drag by their handles, the corners
-## of the box round them scale them); LINE, RECT and ELLIPSE are dragged
+## of the box round them scale them, the round handle over it turns them
+## about their middle, by whole degrees, by 15° with Shift); LINE, RECT and ELLIPSE are dragged
 ## from corner to corner; POLYLINE and POLYGON take a point a click and end
 ## with a double click, Enter or a right click (a polygon also a click on
 ## its first point); ARC and CURVE are dragged from one end to the other,
@@ -44,6 +45,10 @@ const GRIDS: PackedFloat32Array = [0.005, 0.001, 0.01, 0.0]
 ## close; a point of another shape this close is snapped to.
 const GRAB: float = 6.0
 const HANDLE: float = 4.5
+## The handle that turns the shapes picked is this far over the box round
+## them (pixels); held with Shift it turns them by this many degrees a step.
+const ROTATE_REACH: float = 24.0
+const ROTATE_STEP: float = 15.0
 const POINT_SNAP: float = 8.0
 ## Pasted and duplicated shapes are put this far off the originals (m).
 const PASTE_OFFSET: Vector2 = Vector2(0.01, 0.01)
@@ -93,6 +98,8 @@ var _press_at: Vector2 = Vector2.ZERO
 var _dragging: bool = false
 var _mouse: Vector2 = Vector2.ZERO
 var _pan_button: MouseButton = MOUSE_BUTTON_NONE
+## Shift was held at the last move or click of the mouse.
+var _shift: bool = false
 ## An arc's or curve's two ends while its middle point is chosen.
 var _pending: PackedVector2Array = PackedVector2Array()
 ## The points of a polyline or polygon being drawn.
@@ -388,6 +395,33 @@ func corner_at(point: Vector2) -> int:
 	return -1
 
 
+## Where the handle that turns the shapes picked is on screen: over the
+## middle of the top of the box round them; NAN when nothing is picked.
+func rotation_handle() -> Vector2:
+	if corners().is_empty():
+		return Vector2(NAN, NAN)
+	var box: Rect2 = selection_bounds()
+	return to_screen(Vector2(box.get_center().x, box.position.y)) - Vector2(0, ROTATE_REACH)
+
+
+func rotation_at(point: Vector2) -> bool:
+	var at: Vector2 = rotation_handle()
+	return not is_nan(at.x) and at.distance_to(point) <= HANDLE + 4.0
+
+
+## How far the turning handle dragged to screen point [param point] turns
+## the shapes picked (degrees, anticlockwise) round their middle: whole
+## degrees, steps of [constant ROTATE_STEP] with Shift.
+func _rotation_degrees(point: Vector2) -> float:
+	var about: Vector2 = to_screen(_selection_middle())
+	var from: Vector2 = _press_at - about
+	var to: Vector2 = point - about
+	if from.length() < 1.0 or to.length() < 1.0:
+		return 0.0
+	var degrees: float = -rad_to_deg(from.angle_to(to))
+	return wrapf(snappedf(degrees, ROTATE_STEP if _shift else 1.0), -180.0, 180.0)
+
+
 func shape_at(point: Vector2) -> int:
 	return symbol.shape_at(to_symbol(point), GRAB / (PX * zoom))
 
@@ -417,6 +451,10 @@ func _gui_input(event: InputEvent) -> void:
 	var motion: InputEventMouseMotion = event as InputEventMouseMotion
 	if motion != null:
 		_mouse = motion.position
+		_shift = motion.shift_pressed
+		if tool == Tool.SELECT and _press.is_empty():
+			var over_handle: bool = handle_at(motion.position) >= 0 or corner_at(motion.position) >= 0
+			mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if rotation_at(motion.position) else (Control.CURSOR_DRAG if over_handle else Control.CURSOR_ARROW)
 		if _pan_button != MOUSE_BUTTON_NONE:
 			offset += motion.relative
 		elif not _press.is_empty() and not _dragging and motion.position.distance_to(_press_at) >= SchematicEditor.CLICK_SLOP:
@@ -506,6 +544,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 			elif not _press.is_empty():
 				var press: Dictionary = _press
 				_press = {}
+				_shift = mb.shift_pressed
 				_release(press, mb.position)
 				_dragging = false
 				queue_redraw()
@@ -521,6 +560,8 @@ func _pressed(point: Vector2, adding: bool = false) -> Dictionary:
 	var handle: int = handle_at(point)
 	if handle >= 0:
 		return {"kind": "handle", "which": handle}
+	if rotation_at(point):
+		return {"kind": "rotate"}
 	var corner: int = corner_at(point)
 	if corner >= 0:
 		return {"kind": "corner", "which": corner}
@@ -579,6 +620,9 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if _dragging:
 				var scaled: Array = _corner_scale(press["which"], point)
 				scale_selected(scaled[0], scaled[1])
+		"rotate":
+			if _dragging:
+				rotate_selected(_rotation_degrees(point))
 		"shape":
 			if _dragging:
 				var by: Vector2 = _drag_by(point)
@@ -652,7 +696,7 @@ func _new_shape(kind: String, points: Array) -> CustomSymbol.Shape:
 ## Shape [param index] as it is shown: moved, scaled or its point dragged.
 func _shown(index: int) -> CustomSymbol.Shape:
 	var shape: CustomSymbol.Shape = symbol.shapes[index]
-	if not _dragging or not selection.has(index) or not (_press.get("kind", "") in ["handle", "shape", "corner"]):
+	if not _dragging or not selection.has(index) or not (_press.get("kind", "") in ["handle", "shape", "corner", "rotate"]):
 		return shape
 	var moved: CustomSymbol.Shape = shape.copy()
 	match _press["kind"]:
@@ -661,6 +705,8 @@ func _shown(index: int) -> CustomSymbol.Shape:
 		"corner":
 			var scaled: Array = _corner_scale(_press["which"], _mouse)
 			CustomSymbol.scale_shape(moved, scaled[1], scaled[0])
+		"rotate":
+			CustomSymbol.rotate_shape(moved, _selection_middle(), _rotation_degrees(_mouse))
 		_:
 			CustomSymbol.move_shape(moved, _drag_by(_mouse))
 	return moved
@@ -726,7 +772,9 @@ func _draw() -> void:
 
 
 ## The shapes picked: a dashed box round each, the handles of the points of
-## one alone and the corners of the box round them all (filled: they scale).
+## one alone, the corners of the box round them all (filled: they scale)
+## and the round handle over it that turns them; while it is dragged, a
+## line from their middle to the mouse and the angle.
 func _draw_selection(origin: Vector2, s: float) -> void:
 	if selection.is_empty():
 		return
@@ -744,10 +792,23 @@ func _draw_selection(origin: Vector2, s: float) -> void:
 			var handle: Rect2 = Rect2(to_screen(p) - Vector2(HANDLE, HANDLE), Vector2(HANDLE, HANDLE) * 2.0)
 			draw_rect(handle, SchematicTheme.BACKGROUND)
 			draw_rect(handle, SchematicTheme.SELECTED, false, 1.5)
+	if _dragging and _press.get("kind", "") == "rotate":
+		var middle: Vector2 = to_screen(_selection_middle())
+		draw_line(middle, _mouse, Color(SchematicTheme.SELECTED, 0.6), 1.0, true)
+		draw_circle(middle, 3.0, SchematicTheme.SELECTED)
+		draw_arc(_mouse, HANDLE + 1.0, 0.0, TAU, 16, SchematicTheme.SELECTED, 1.5, true)
+		var text: String = "%s°" % String.num(_rotation_degrees(_mouse), 0)
+		draw_string(get_theme_default_font(), _mouse + Vector2(12, -8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, SchematicTheme.SELECTED)
+		return
 	if all.size.x >= 0.001 or all.size.y >= 0.001:
 		for corner: Vector2 in [all.position, Vector2(all.end.x, all.position.y), all.end, Vector2(all.position.x, all.end.y)]:
 			var handle: Rect2 = Rect2(to_screen(corner) - Vector2(HANDLE - 1.0, HANDLE - 1.0), Vector2(HANDLE - 1.0, HANDLE - 1.0) * 2.0)
 			draw_rect(handle, SchematicTheme.SELECTED)
+		var top: Vector2 = to_screen(Vector2(all.get_center().x, all.position.y))
+		var knob: Vector2 = top - Vector2(0, ROTATE_REACH)
+		draw_line(top, knob + Vector2(0, HANDLE + 1.0), SchematicTheme.SELECTED, 1.0, true)
+		draw_circle(knob, HANDLE + 1.0, SchematicTheme.BACKGROUND)
+		draw_arc(knob, HANDLE + 1.0, 0.0, TAU, 16, SchematicTheme.SELECTED, 1.5, true)
 
 
 ## Metres [param metres] in millimetres as written: whole, or to a tenth
