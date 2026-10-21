@@ -128,6 +128,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   mirrored and scaled together, copied, cut, pasted (into another symbol too) and
   duplicated; points snap to those of other shapes, the grid is 1, 5 or 10 mm or none, and
   the points of a shape can be typed in millimetres
+- Symbol editor: shapes turn by any angle (Rotate, Ctrl+R; R still turns a quarter), and a
+  rectangle, ellipse or picture has an angle of its own; texts in any font of the computer
+  (where a symbol's font is missing, the plan's font stands in)
 - On an industrial schematic a warning sign marks terminals of two parts lying on one another
   without being connected; with the mouse over it the status bar names them
 - "Set at simulation start" in the right click menu of an industrial schematic: circuit

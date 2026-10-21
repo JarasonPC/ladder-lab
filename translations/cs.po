@@ -5865,9 +5865,6 @@ msgstr "Klikněte na každý roh; klik na první, dvojklik, Enter nebo pravé tl
 msgid "Type the text in the panel, then click where its middle goes."
 msgstr "Napište text do panelu, pak klikněte, kam má přijít jeho střed."
 
-msgid "Points snap to the points of other shapes. R turns, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
-msgstr "Body se přichytávají k bodům jiných tvarů. R otáčí, F zrcadlí (Shift: opačně); Ctrl+C, X, V, D kopíruje, vyjímá, vkládá, duplikuje; Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."
-
 msgid "Line width"
 msgstr "Šířka čáry"
 
@@ -5959,3 +5956,22 @@ msgid_plural "%d shapes"
 msgstr[0] "%d tvar"
 msgstr[1] "%d tvary"
 msgstr[2] "%d tvarů"
+
+msgid "Font"
+msgstr "Písmo"
+
+msgid "Plan font"
+msgstr "Písmo půdorysu"
+
+#, c-format
+msgid "%s (missing here)"
+msgstr "%s (zde chybí)"
+
+msgid "Angle, anticlockwise"
+msgstr "Úhel, proti směru hodinových ručiček"
+
+msgid "Rotate by an angle (Ctrl+R)"
+msgstr "Otočit o úhel (Ctrl+R)"
+
+msgid "Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
+msgstr "Body se přichytávají k bodům jiných tvarů. R otočí o čtvrt, Ctrl+R o libovolný úhel, F zrcadlí (Shift: opačně); Ctrl+C, X, V, D kopíruje, vyjímá, vkládá, duplikuje; Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."

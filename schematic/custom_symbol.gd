@@ -27,6 +27,9 @@ const MAX_POINTS: int = 100
 ## Kinds that can be filled (an arc or a curve closed by a straight line
 ## between its ends).
 const FILLABLE: PackedStringArray = ["polygon", "rect", "ellipse", "arc", "curve"]
+## Kinds drawn in the box of their two corners turned by their angle about
+## its middle (their points are the box's corners before it is turned).
+const BOXED: PackedStringArray = ["rect", "ellipse", "image"]
 ## Line styles: solid, dashed, dotted, dash and dot.
 const STYLES: PackedStringArray = ["solid", "dash", "dot", "dashdot"]
 ## Thickest line (mm); 0 is as thin as the plan's own lines.
@@ -64,9 +67,13 @@ class Shape:
 	var filled: bool = false
 	var fill: String = ""
 	var text: String = ""
-	## A text's height (m) and its angle (degrees, anticlockwise).
+	## A text's height (m); a text's or a [constant BOXED] shape's angle
+	## (degrees, anticlockwise, about its point or its box's middle).
 	var size: float = TEXT_SIZE
 	var angle: float = 0.0
+	## A text's font (the family of a font of the computer, "" the plan's
+	## own; where it is missing another one stands in), bold and italic.
+	var font: String = ""
 	var bold: bool = false
 	var italic: bool = false
 	## A picture: the PNG file in Base64, and whether it is mirrored (left to
@@ -78,14 +85,14 @@ class Shape:
 		var shape: Shape = Shape.new()
 		shape.kind = kind
 		shape.points = points.duplicate()
-		for key: String in ["width", "style", "color", "filled", "fill", "text", "size", "angle", "bold", "italic", "image", "flipped"]:
+		for key: String in ["width", "style", "color", "filled", "fill", "text", "size", "angle", "font", "bold", "italic", "image", "flipped"]:
 			shape.set(key, get(key))
 		return shape
 
 	## Takes the look of [param other] (width, style, colours, fill, a text's
 	## height, bold and italic), not its points, text or angle.
 	func take_style(other: Shape) -> void:
-		for key: String in ["width", "style", "color", "fill", "size", "bold", "italic"]:
+		for key: String in ["width", "style", "color", "fill", "size", "font", "bold", "italic"]:
 			set(key, other.get(key))
 		filled = other.filled and kind in FILLABLE
 
@@ -106,8 +113,9 @@ var two_phases: bool = false
 var wall: bool = false
 var shapes: Array[Shape] = []
 
-## Bold and italic faces of the fonts texts were drawn in, by font and face.
+## The fonts texts were drawn in, by family (or the plan's font) and face.
 static var _faces: Dictionary[String, Font] = {}
+static var _families: PackedStringArray = PackedStringArray()
 ## Pictures drawn, by the hash of their data (null: one that cannot be read).
 static var _pictures: Dictionary[int, Texture2D] = {}
 
@@ -166,14 +174,14 @@ static func outline_of(shape: Shape) -> PackedVector2Array:
 			round.append(p[0])
 			return round
 		"rect", "image":
-			return PackedVector2Array([p[0], Vector2(p[1].x, p[0].y), p[1], Vector2(p[0].x, p[1].y), p[0]])
+			return _turned(PackedVector2Array([p[0], Vector2(p[1].x, p[0].y), p[1], Vector2(p[0].x, p[1].y), p[0]]), shape)
 		"ellipse":
 			var c: Vector2 = (p[0] + p[1]) * 0.5
 			var r: Vector2 = (p[1] - p[0]).abs() * 0.5
 			var round: PackedVector2Array = PackedVector2Array()
 			for k: int in 41:
 				round.append(c + Vector2(cos(TAU * k / 40.0) * r.x, sin(TAU * k / 40.0) * r.y))
-			return round
+			return _turned(round, shape)
 		"arc":
 			return arc_points(p[0], p[1], p[2])
 		"curve":
@@ -183,6 +191,45 @@ static func outline_of(shape: Shape) -> PackedVector2Array:
 				curve.append(p[0].lerp(p[1], t).lerp(p[1].lerp(p[2], t), t))
 			return curve
 	return p.duplicate()
+
+
+## [param points] of [constant BOXED] [param shape] turned by its angle
+## about the middle of its box.
+static func _turned(points: PackedVector2Array, shape: Shape) -> PackedVector2Array:
+	if is_zero_approx(shape.angle):
+		return points
+	var c: Vector2 = box_middle(shape)
+	var result: PackedVector2Array = PackedVector2Array()
+	for p: Vector2 in points:
+		result.append(c + (p - c).rotated(-deg_to_rad(shape.angle)))
+	return result
+
+
+## The middle of the box of a [constant BOXED] shape (m).
+static func box_middle(shape: Shape) -> Vector2:
+	return (shape.points[0] + shape.points[1]) * 0.5
+
+
+## Where the points of [param shape] are as drawn (m): a [constant BOXED]
+## shape's corners turned with it.
+static func handle_points(shape: Shape) -> PackedVector2Array:
+	if not shape.kind in BOXED or is_zero_approx(shape.angle):
+		return shape.points.duplicate()
+	var c: Vector2 = box_middle(shape)
+	return PackedVector2Array([c + (shape.points[0] - c).rotated(-deg_to_rad(shape.angle)), c + (shape.points[1] - c).rotated(-deg_to_rad(shape.angle))])
+
+
+## Point [param k] of [param shape] moved to [param to] as drawn (m): a
+## turned box's other corner stays where it is drawn.
+static func set_handle(shape: Shape, k: int, to: Vector2) -> void:
+	if not shape.kind in BOXED or is_zero_approx(shape.angle):
+		shape.points[k] = to
+		return
+	var other: Vector2 = handle_points(shape)[1 - k]
+	var c: Vector2 = (to + other) * 0.5
+	var back: float = deg_to_rad(shape.angle)
+	shape.points[k] = c + (to - c).rotated(back)
+	shape.points[1 - k] = c + (other - c).rotated(back)
 
 
 ## Whether [param shape] ends where it starts (its outline is round).
@@ -223,12 +270,30 @@ static func move_shape(shape: Shape, by: Vector2) -> void:
 
 
 ## [param shape] turned a quarter round [param about], clockwise as seen
-## when [param clockwise]; a text's angle turns along.
+## when [param clockwise] (see [method rotate_shape]).
 static func turn_shape(shape: Shape, about: Vector2, clockwise: bool) -> void:
+	rotate_shape(shape, about, -90.0 if clockwise else 90.0)
+
+
+## [param shape] turned by [param degrees] (anticlockwise) round
+## [param about]: its points, or a [constant BOXED] shape's box's middle
+## and its angle (a rectangle or ellipse lying square turned a quarter
+## stays square, its box turned); a text's angle turns along.
+static func rotate_shape(shape: Shape, about: Vector2, degrees: float) -> void:
+	var turn: float = -deg_to_rad(degrees)
+	var quarter: bool = is_zero_approx(fposmod(degrees + 45.0, 90.0) - 45.0)
+	if shape.kind in BOXED and not (shape.kind != "image" and quarter and is_zero_approx(shape.angle)):
+		var c: Vector2 = box_middle(shape)
+		var moved: Vector2 = about + (c - about).rotated(turn) - c
+		move_shape(shape, moved)
+		shape.angle = wrapf(shape.angle + degrees, -180.0, 180.0)
+		return
 	for k: int in shape.points.size():
-		var d: Vector2 = shape.points[k] - about
-		shape.points[k] = about + (Vector2(-d.y, d.x) if clockwise else Vector2(d.y, -d.x))
-	shape.angle = wrapf(shape.angle + (-90.0 if clockwise else 90.0), -180.0, 180.0)
+		var p: Vector2 = about + (shape.points[k] - about).rotated(turn)
+		# A quarter turn exactly, kept on the grid.
+		shape.points[k] = p.snapped(Vector2(0.000001, 0.000001)) if quarter else p
+	if shape.kind == "text":
+		shape.angle = wrapf(shape.angle + degrees, -180.0, 180.0)
 
 
 ## [param shape] mirrored across [param about]: left to right when
@@ -242,6 +307,11 @@ static func mirror_shape(shape: Shape, about: Vector2, across: bool) -> void:
 		# The picture itself mirrored.
 		shape.flipped = not shape.flipped
 		shape.angle = wrapf(-shape.angle if across else 180.0 - shape.angle, -180.0, 180.0)
+		return
+	if shape.kind in BOXED:
+		shape.angle = wrapf(-shape.angle, -180.0, 180.0)
+		return
+	if shape.kind != "text":
 		return
 	var angle: float = 180.0 - shape.angle if across else -shape.angle
 	if cos(deg_to_rad(angle)) < -1e-6:
@@ -346,7 +416,7 @@ static func stroke_line(item: CanvasItem, points: PackedVector2Array, color: Col
 
 
 static func _draw_text(item: CanvasItem, shape: Shape, at: Vector2, s: float, color: Color, font: Font) -> void:
-	var used: Font = face(font if font != null else ThemeDB.fallback_font, shape.bold, shape.italic)
+	var used: Font = face(font if font != null else ThemeDB.fallback_font, shape.font, shape.bold, shape.italic)
 	var height: int = maxi(roundi(shape.size * s), 1)
 	if height < 3 or shape.text.is_empty():
 		return
@@ -367,14 +437,16 @@ static func _draw_image(item: CanvasItem, shape: Shape, at: Vector2, s: float, c
 	var box: Rect2 = Rect2(at + shape.points[0] * s, (shape.points[1] - shape.points[0]) * s).abs()
 	var texture: Texture2D = picture(shape.image)
 	if texture == null:
-		item.draw_rect(box, color, false, width)
-		item.draw_line(box.position, box.end, color, width, true)
-		item.draw_line(Vector2(box.end.x, box.position.y), Vector2(box.position.x, box.end.y), color, width, true)
+		var round: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in outline_of(shape):
+			round.append(at + p * s)
+		item.draw_polyline(round, color, width, true)
+		item.draw_line(round[0], round[2], color, width, true)
+		item.draw_line(round[1], round[3], color, width, true)
 		return
-	# Turned a quarter or three, the picture lies across its box.
-	var size: Vector2 = box.size if posmod(roundi(shape.angle / 90.0), 2) == 0 else Vector2(box.size.y, box.size.x)
+	# Its box turned by its angle about its middle.
 	item.draw_set_transform(box.get_center(), -deg_to_rad(shape.angle), Vector2(-1.0 if shape.flipped else 1.0, 1.0))
-	item.draw_texture_rect(texture, Rect2(-size * 0.5, size), false, Color(color, 0.7) if recolor else Color.WHITE)
+	item.draw_texture_rect(texture, Rect2(-box.size * 0.5, box.size), false, Color(color, 0.7) if recolor else Color.WHITE)
 	item.draw_set_transform(Vector2.ZERO)
 
 
@@ -408,8 +480,29 @@ static func image_shape(image: Image) -> Shape:
 	return shape
 
 
-## [param font] bold and / or italic (itself when neither).
-static func face(font: Font, bold: bool, italic: bool) -> Font:
+## The font families of the computer, sorted (read once).
+static func families() -> PackedStringArray:
+	if _families.is_empty():
+		_families = OS.get_system_fonts()
+		_families.sort()
+	return _families
+
+
+## The font a text is drawn in: font family [param family] where the
+## computer has it (the plan's [param font] standing in for the letters it
+## lacks), else [param font]; bold and / or italic.
+static func face(font: Font, family: String, bold: bool, italic: bool) -> Font:
+	if not family.is_empty() and families().has(family):
+		var named: String = "%s/%s/%s" % [family, bold, italic]
+		if not _faces.has(named):
+			var system: SystemFont = SystemFont.new()
+			system.font_names = PackedStringArray([family])
+			system.font_weight = 700 if bold else 400
+			system.font_italic = italic
+			system.allow_system_fallback = true
+			system.fallbacks = [font]
+			_faces[named] = system
+		return _faces[named]
 	if not bold and not italic:
 		return font
 	var key: String = "%d/%s/%s" % [font.get_instance_id(), bold, italic]
@@ -450,7 +543,7 @@ func shape_at(point: Vector2, reach: float) -> int:
 static func distance_to(shape: Shape, point: Vector2) -> float:
 	if shape.kind == "text":
 		return 0.0 if Geometry2D.is_point_in_polygon(point, text_corners(shape)) else shape_bounds(shape).get_center().distance_to(point)
-	if shape.kind == "image" and shape_bounds(shape).has_point(point):
+	if shape.kind == "image" and Geometry2D.is_point_in_polygon(point, outline_of(shape)):
 		return 0.0
 	var outline: PackedVector2Array = outline_of(shape)
 	if shape.filled and shape.kind in FILLABLE and outline.size() >= 3 and Geometry2D.is_point_in_polygon(point, outline):
@@ -501,14 +594,16 @@ static func shape_to_data(shape: Shape) -> Dictionary:
 		sd["size"] = shape.size
 		if not is_zero_approx(shape.angle):
 			sd["angle"] = shape.angle
+		if not shape.font.is_empty():
+			sd["font"] = shape.font
 		if shape.bold:
 			sd["bold"] = true
 		if shape.italic:
 			sd["italic"] = true
+	if shape.kind in BOXED and not is_zero_approx(shape.angle):
+		sd["angle"] = shape.angle
 	if shape.kind == "image":
 		sd["image"] = shape.image
-		if not is_zero_approx(shape.angle):
-			sd["angle"] = shape.angle
 		if shape.flipped:
 			sd["flipped"] = true
 	return sd
@@ -560,19 +655,21 @@ static func shape_from_data(raw: Variant) -> Shape:
 	shape.color = _color(raw.get("color", ""))
 	shape.filled = raw.get("filled", false) == true and shape.kind in FILLABLE
 	shape.fill = _color(raw.get("fill", ""))
+	if shape.kind in BOXED:
+		shape.angle = _number(raw.get("angle", 0.0), 0.0, -360.0, 360.0)
 	if shape.kind == "text":
 		if not (raw.get("text", null) is String):
 			return null
 		shape.text = (raw["text"] as String).strip_edges().left(MAX_TEXT_LENGTH)
 		shape.size = _number(raw.get("size", TEXT_SIZE), TEXT_SIZE, MIN_TEXT, MAX_TEXT)
 		shape.angle = _number(raw.get("angle", 0.0), 0.0, -360.0, 360.0)
+		shape.font = (raw["font"] as String).strip_edges().left(MAX_NAME) if raw.get("font", null) is String else ""
 		shape.bold = raw.get("bold", false) == true
 		shape.italic = raw.get("italic", false) == true
 	if shape.kind == "image":
 		if not (raw.get("image", null) is String) or (raw["image"] as String).is_empty() or (raw["image"] as String).length() > MAX_IMAGE_DATA:
 			return null
 		shape.image = raw["image"]
-		shape.angle = _number(raw.get("angle", 0.0), 0.0, -360.0, 360.0)
 		shape.flipped = raw.get("flipped", false) == true
 	return shape
 

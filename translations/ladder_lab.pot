@@ -5849,9 +5849,6 @@ msgstr ""
 msgid "Type the text in the panel, then click where its middle goes."
 msgstr ""
 
-msgid "Points snap to the points of other shapes. R turns, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
-msgstr ""
-
 msgid "Line width"
 msgstr ""
 
@@ -5943,3 +5940,22 @@ msgid_plural "%d shapes"
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
+
+msgid "Font"
+msgstr ""
+
+msgid "Plan font"
+msgstr ""
+
+#, c-format
+msgid "%s (missing here)"
+msgstr ""
+
+msgid "Angle, anticlockwise"
+msgstr ""
+
+msgid "Rotate by an angle (Ctrl+R)"
+msgstr ""
+
+msgid "Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
+msgstr ""

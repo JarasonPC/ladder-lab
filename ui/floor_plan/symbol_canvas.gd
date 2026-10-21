@@ -19,7 +19,8 @@ extends Control
 ## being drawn. New shapes take the look of [member look]. Points snap to
 ## the points of the other shapes near them, else to [member grid] (0: not
 ## at all). Keys: Delete, Ctrl+A / C / X / V / D (select all, copy, cut,
-## paste, duplicate), R / Shift+R turn a quarter clockwise / back, F /
+## paste, duplicate), R / Shift+R turn a quarter clockwise / back (Ctrl+R
+## asks for any angle: [signal rotate_requested]), F /
 ## Shift+F mirror left to right / top to bottom, Ctrl+Z / Ctrl+Y undo and
 ## redo.
 
@@ -27,6 +28,8 @@ extends Control
 signal changed
 ## [member selection] changed.
 signal selection_changed
+## The angle the shapes picked turn by should be asked (Ctrl+R).
+signal rotate_requested
 
 enum Tool { SELECT, LINE, POLYLINE, POLYGON, RECT, ELLIPSE, ARC, CURVE, TEXT }
 
@@ -167,9 +170,12 @@ static func key_points(shape: CustomSymbol.Shape) -> PackedVector2Array:
 	var p: PackedVector2Array = shape.points
 	match shape.kind:
 		"rect", "image":
-			return PackedVector2Array([p[0], Vector2(p[1].x, p[0].y), p[1], Vector2(p[0].x, p[1].y), (p[0] + p[1]) * 0.5])
+			# Its corners as drawn, turned with it, and its middle.
+			var round: PackedVector2Array = CustomSymbol.outline_of(shape).slice(0, 4)
+			round.append(CustomSymbol.box_middle(shape))
+			return round
 		"ellipse":
-			return PackedVector2Array([(p[0] + p[1]) * 0.5])
+			return PackedVector2Array([CustomSymbol.box_middle(shape)])
 	return p.duplicate()
 
 
@@ -290,6 +296,14 @@ func turn_selected(clockwise: bool) -> void:
 	change_selected(func(shape: CustomSymbol.Shape) -> void: CustomSymbol.turn_shape(shape, about, clockwise))
 
 
+## Turns the shapes picked by [param degrees] (anticlockwise) round their middle.
+func rotate_selected(degrees: float) -> void:
+	if is_zero_approx(fposmod(degrees, 360.0)):
+		return
+	var about: Vector2 = _selection_middle()
+	change_selected(func(shape: CustomSymbol.Shape) -> void: CustomSymbol.rotate_shape(shape, about, degrees))
+
+
 ## Mirrors the shapes picked about their middle, left to right when
 ## [param across], else top to bottom.
 func mirror_selected(across: bool) -> void:
@@ -348,9 +362,9 @@ static func _moved_copies(list: Array[CustomSymbol.Shape], by: Vector2) -> Array
 func handle_at(point: Vector2) -> int:
 	if selected < 0:
 		return -1
-	var shape: CustomSymbol.Shape = symbol.shapes[selected]
-	for k: int in shape.points.size():
-		if to_screen(shape.points[k]).distance_to(point) <= HANDLE + 3.0:
+	var points: PackedVector2Array = CustomSymbol.handle_points(symbol.shapes[selected])
+	for k: int in points.size():
+		if to_screen(points[k]).distance_to(point) <= HANDLE + 3.0:
 			return k
 	return -1
 
@@ -432,7 +446,10 @@ func _key(key: InputEventKey) -> bool:
 			paste()
 		KEY_D when command:
 			duplicate_selected()
-		KEY_R when not command:
+		KEY_R when command:
+			if not selection.is_empty():
+				rotate_requested.emit()
+		KEY_R:
 			turn_selected(not key.shift_pressed)
 		KEY_F when not command:
 			mirror_selected(not key.shift_pressed)
@@ -557,7 +574,7 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if _dragging:
 				var which: int = press["which"]
 				var to: Vector2 = snap_point(point, selection)
-				change_selected(func(shape: CustomSymbol.Shape) -> void: shape.points[which] = to)
+				change_selected(func(shape: CustomSymbol.Shape) -> void: CustomSymbol.set_handle(shape, which, to))
 		"corner":
 			if _dragging:
 				var scaled: Array = _corner_scale(press["which"], point)
@@ -640,7 +657,7 @@ func _shown(index: int) -> CustomSymbol.Shape:
 	var moved: CustomSymbol.Shape = shape.copy()
 	match _press["kind"]:
 		"handle":
-			moved.points[int(_press["which"])] = snap_point(_mouse, selection)
+			CustomSymbol.set_handle(moved, int(_press["which"]), snap_point(_mouse, selection))
 		"corner":
 			var scaled: Array = _corner_scale(_press["which"], _mouse)
 			CustomSymbol.scale_shape(moved, scaled[1], scaled[0])
@@ -723,7 +740,7 @@ func _draw_selection(origin: Vector2, s: float) -> void:
 		var round: PackedVector2Array = PackedVector2Array([screen.position, Vector2(screen.end.x, screen.position.y), screen.end, Vector2(screen.position.x, screen.end.y), screen.position])
 		CustomSymbol.stroke_line(self, round, Color(SchematicTheme.SELECTED, 0.8), 1.0, "dash")
 	if selected >= 0:
-		for p: Vector2 in _shown(selected).points:
+		for p: Vector2 in CustomSymbol.handle_points(_shown(selected)):
 			var handle: Rect2 = Rect2(to_screen(p) - Vector2(HANDLE, HANDLE), Vector2(HANDLE, HANDLE) * 2.0)
 			draw_rect(handle, SchematicTheme.BACKGROUND)
 			draw_rect(handle, SchematicTheme.SELECTED, false, 1.5)
