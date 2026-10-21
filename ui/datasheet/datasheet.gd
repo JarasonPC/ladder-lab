@@ -591,7 +591,10 @@ func _afdd(afdd: ArcFaultDevice) -> void:
 
 func _appliance(appliance: Appliance) -> void:
 	var names: PackedStringArray = _names()
-	summary = tr("%s, %s") % [ApplianceSymbol.kind_title(appliance.kind), ApplianceSymbol.power_text(appliance.power)]
+	if not appliance.title.is_empty():
+		# Drawn with a symbol of the user's own: called as the user calls it.
+		title = appliance.title
+	summary = tr("%s, %s") % [ApplianceSymbol.title_of(appliance), ApplianceSymbol.power_text(appliance.power)]
 	description.append(tr("Appliance wired for good to its own circuit. It draws its rated power while it has its voltage; its metal frame is joined to PE. An insulation fault puts its phase on the frame: with the frame on PE that is a short to PE (the breaker and the RCD trip), without it the frame is live."))
 	_row(names[0], tr("Phase") if not appliance.two_phases else tr("Phase 1"), tr("Supply against %s.") % names[1])
 	_row(names[1], tr("Neutral") if not appliance.two_phases else tr("Phase 2"), tr("Other end of the supply."))

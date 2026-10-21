@@ -29,6 +29,9 @@ extends Control
 ## the palette ([member placing_template]) on [member circuit]; sockets and
 ## appliances carry their tag ("Z 6.1"), rooms their number, and beside the
 ## plan the legend of the rooms with their environment and illuminance.
+## The user's own symbols ([CustomSymbol]) come from the palette too: a
+## drawing-only one as a mark ([FloorPlan.Mark]), an electrical one as an
+## appliance drawn with it.
 
 ## Changes the plan: [param change] is called with the document.
 signal edit_requested(change: Callable)
@@ -140,7 +143,7 @@ var layer: String = ""
 ## scale bar and the north arrow are drawn by the legend.
 var print_scale: int = 0
 ## What is selected: {"kind": "room" / "edge" / "door" / "window" / "part" /
-## "link" / "label" / "dimension" / "note" / "fixture", "index",
+## "link" / "label" / "dimension" / "note" / "fixture" / "mark", "index",
 ## "designation"}.
 var selected: Dictionary = {}:
 	set(value):
@@ -268,7 +271,32 @@ func fit() -> void:
 ## Whether [param c] goes on the ceiling (a luminaire not on a wall), not
 ## onto the nearest wall.
 static func on_ceiling(c: CircuitComponent) -> bool:
-	return c is Luminaire and not (c as Luminaire).wall
+	return (c is Luminaire and not (c as Luminaire).wall) or (c is Appliance and (c as Appliance).ceiling)
+
+
+## Whether a part made from palette template [param template] goes where it
+## is clicked rather than onto the nearest wall.
+func _template_on_ceiling(template: Dictionary) -> bool:
+	match template.get("type", ""):
+		"luminaire":
+			return not template.get("wall", false)
+		"appliance":
+			return template.get("ceiling", false) == true
+		"custom_symbol":
+			var def: CustomSymbol = template_symbol(document, template)
+			return def == null or not def.wall
+	return false
+
+
+## The user's symbol palette template [param template] is drawn with: the
+## library's (the schematic takes it when it is put in), else the
+## schematic's copy; null for none.
+static func template_symbol(doc: SchematicDocument, template: Dictionary) -> CustomSymbol:
+	var id: String = str(template.get("symbol", ""))
+	if id.is_empty():
+		return null
+	var def: CustomSymbol = SymbolLibrary.shared().find(id)
+	return def if def != null else doc.symbol(id)
 
 
 func symbol_center(designation: String) -> Vector2:
@@ -475,6 +503,40 @@ func fixture_at(point: Vector2) -> int:
 		if plan().fixtures[i].rect.has_point(m):
 			return i
 	return -1
+
+
+## The mark under screen point [param point], -1 for none.
+func mark_at(point: Vector2) -> int:
+	var m: Vector2 = to_plan(point)
+	for i: int in range(plan().marks.size() - 1, -1, -1):
+		if _mark_box(i).grow(0.05).has_point(m):
+			return i
+	return -1
+
+
+## Where the origin of mark [param index]'s symbol is drawn (m): on a wall
+## [constant WALL_SYMBOL_OFFSET] over its middle, as the other wall symbols
+## (dragged: where it goes).
+func _mark_origin(index: int) -> Vector2:
+	var mark: FloorPlan.Mark = plan().marks[index]
+	var at: Vector2 = mark.at
+	var facing: int = mark.facing
+	if _dragging and _press.get("kind", "") == "mark" and _press.get("index", -1) == index:
+		var moved: FloorPlan.Mark = plan().mark_at_point(mark.symbol, mark.at + FloorPlan.snap(to_plan(_mouse) - to_plan(_press_at)), mark.facing >= 0)
+		at = moved.at
+		facing = moved.facing if moved.facing >= 0 else facing
+	if facing < 0:
+		return at
+	var into: Vector2 = FloorPlan.FACING[facing]
+	var face: Vector2 = into * plan().inner_wall * 0.5 if plan().inner_wall_at(at, into) else Vector2.ZERO
+	return at + face + (into - Vector2.DOWN) * WALL_SYMBOL_OFFSET * _symbols()
+
+
+## What mark [param index]'s symbol covers (m).
+func _mark_box(index: int) -> Rect2:
+	var def: CustomSymbol = document.symbol(plan().marks[index].symbol)
+	var box: Rect2 = def.bounds() if def != null else Rect2(-0.15, -0.15, 0.3, 0.3)
+	return Rect2(box.position * _symbols() + _mark_origin(index), box.size * _symbols())
 
 
 ## The saved dimension under screen point [param point], -1 for none.
@@ -701,7 +763,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					_press = {}
 					return
 				var room: int = plan().room_at(to_plan(mb.position))
-				if room >= 0 and part_at(mb.position).is_empty():
+				if room >= 0 and part_at(mb.position).is_empty() and mark_at(mb.position) < 0:
 					rename_requested.emit(room)
 				_press = {}
 				return
@@ -715,7 +777,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_press = _pressed(mb.position)
 				if _press.get("handle", false) or _press["kind"] == "room_legend":
 					pass
-				elif _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label", "dimension", "note", "fixture"]:
+				elif _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label", "dimension", "note", "fixture", "mark"]:
 					selected = _press
 				elif tool == Tool.SELECT:
 					selected = {}
@@ -763,6 +825,9 @@ func _pressed(point: Vector2) -> Dictionary:
 	var part: String = part_at(point)
 	if not part.is_empty():
 		return {"kind": "part", "designation": part}
+	var mark: int = mark_at(point)
+	if mark >= 0:
+		return {"kind": "mark", "index": mark}
 	var saved: int = saved_dimension_at(point)
 	if saved >= 0:
 		return {"kind": "dimension", "index": saved}
@@ -877,6 +942,11 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if _dragging and by != Vector2.ZERO:
 				var index: int = press["index"]
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.move_fixture(index, by))
+		"mark":
+			if _dragging and by != Vector2.ZERO:
+				var index: int = press["index"]
+				var to: Vector2 = plan().marks[index].at + by
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.move_mark(index, to))
 		"new_dimension":
 			var from: Vector2 = _feature_point(to_plan(_press_at))
 			var to: Vector2 = _feature_point(m)
@@ -987,6 +1057,14 @@ func _put_part(m: Vector2, exact: bool) -> void:
 		var kind: String = placing_template.get("kind", "table")
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.fixtures.append(doc.floor_plan.fixture_at_point(kind, m)))
 		return
+	if placing_template.get("type", "") == "custom_symbol":
+		var def: CustomSymbol = template_symbol(document, placing_template)
+		if def == null:
+			return
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			doc.use_symbol(def)
+			doc.floor_plan.marks.append(doc.floor_plan.mark_at_point(def.id, m, def.wall)))
+		return
 	if not placing_template.is_empty():
 		var template: Dictionary = placing_template.duplicate()
 		var feeder: String = circuit
@@ -1020,6 +1098,10 @@ static func add_part(doc: SchematicDocument, template: Dictionary, feeder: Strin
 	if part == null:
 		return ""
 	doc.add(part, SingleLine.hidden_cell(doc))
+	# Drawn with a symbol of the user's own: the schematic keeps a copy.
+	var def: CustomSymbol = template_symbol(doc, template)
+	if def != null:
+		doc.use_symbol(def)
 	var f: SingleLine.Feeder = doc.single_line.feeder_of(feeder)
 	if f != null:
 		f.loads.append(part.designation)
@@ -1037,10 +1119,10 @@ static func add_part(doc: SchematicDocument, template: Dictionary, feeder: Strin
 ## selected.
 func _takes_distance() -> bool:
 	if tool == Tool.PLACE:
-		if placing_template.get("type", "") == "fixture":
+		if placing_template.get("type", "") in ["fixture", "custom_symbol"]:
 			return false
 		if not placing_template.is_empty():
-			return not (placing_template.get("type", "") == "luminaire" and not placing_template.get("wall", false))
+			return not _template_on_ceiling(placing_template)
 		return not placing.is_empty() and not on_ceiling(document.circuit.get_component(placing))
 	return tool == Tool.SELECT and selected.get("kind", "") == "part" and plan().facing.has(str(selected.get("designation", "")))
 
@@ -1175,6 +1257,9 @@ func delete_selected() -> void:
 		"fixture":
 			var fixture: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.fixtures.remove_at(fixture))
+		"mark":
+			var mark: int = selected["index"]
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.marks.remove_at(mark))
 		"part":
 			var designation: String = selected["designation"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.remove(designation))
@@ -1252,7 +1337,7 @@ func _tooltip(designation: String) -> String:
 		if not editing:
 			text += "\n" + tr("Click to switch it")
 	elif c is Appliance:
-		text += "  " + ApplianceSymbol.kind_title((c as Appliance).kind)
+		text += "  " + ApplianceSymbol.title_of(c as Appliance)
 	var height: float = float(c.get("height"))
 	return text + "\n" + tr("Mounting height %s m") % String.num(height, 2).pad_decimals(2)
 
@@ -1306,6 +1391,22 @@ func _draw() -> void:
 	if editing and tool == Tool.PLACE and placing_template.get("type", "") == "fixture":
 		var ghost: FloorPlan.Fixture = plan().fixture_at_point(str(placing_template.get("kind", "table")), to_plan(_mouse))
 		_draw_fixture(ghost, ghost.rect, SchematicTheme.SELECTED)
+	var line_width: float = clampf(1.6 * zoom, 1.0, 2.5)
+	for i: int in plan().marks.size():
+		var def: CustomSymbol = document.symbol(plan().marks[i].symbol)
+		if def != null:
+			var chosen_mark: bool = selected.get("kind", "") == "mark" and selected.get("index", -1) == i
+			def.draw(self, to_screen(_mark_origin(i)), s * _symbols(), SchematicTheme.SELECTED if chosen_mark else SchematicTheme.LINE, line_width, font)
+	if editing and tool == Tool.PLACE and placing_template.has("symbol"):
+		# The user's symbol where it would go.
+		var ghost_def: CustomSymbol = template_symbol(document, placing_template)
+		if ghost_def != null:
+			var ghost_at: Vector2 = FloorPlan.snap(to_plan(_mouse))
+			if not _template_on_ceiling(placing_template):
+				var near: Dictionary = plan().wall_near(to_plan(_mouse))
+				if not near.is_empty():
+					ghost_at = Vector2(near["at"]) + (FloorPlan.FACING[int(near["facing"])] - Vector2.DOWN) * WALL_SYMBOL_OFFSET * _symbols()
+			ghost_def.draw(self, to_screen(ghost_at), s * _symbols(), Color(SchematicTheme.SELECTED, 0.6), line_width, font)
 	if installation():
 		if layer != "power":
 			_draw_links(font)
@@ -1333,7 +1434,7 @@ func _draw() -> void:
 		draw_string(font, to_screen(at) + Vector2(8, -6), ("-" if placing != FloorPlan.UNIT else "") + placing, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.DESIGNATION)
 	if editing and tool == Tool.PLACE and not placing_template.is_empty():
 		var m: Vector2 = to_plan(_mouse)
-		var wall_point: Dictionary = {} if placing_template.get("type", "") == "luminaire" and not placing_template.get("wall", false) else plan().wall_near(m)
+		var wall_point: Dictionary = {} if _template_on_ceiling(placing_template) else plan().wall_near(m)
 		draw_circle(to_screen(wall_point.get("at", FloorPlan.snap(m))), 4.0, SchematicTheme.SELECTED)
 	if editing and tool == Tool.WIRE and _press.get("kind", "") == "new_link":
 		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.SELECTED, 1.6, 5.0)
@@ -1371,9 +1472,11 @@ func layer_shows(designation: String) -> bool:
 
 ## The rows of the legend: a symbol used on the plan shown (on its layer),
 ## each {"key", "sample" (a part drawn so; null for the unit and the cable),
+## "symbol" (the user's own symbol it is drawn with, if it is),
 ## "title", "height" (its standard height as written, "" for none), "count"},
 ## switches by their number, sockets single and double, ceiling and wall
-## luminaires, appliances by kind, then the consumer unit and the cable.
+## luminaires, appliances by kind and by the user's symbol, the user's
+## drawing-only symbols, then the consumer unit and the cable.
 func legend_rows() -> Array[Dictionary]:
 	var rows: Dictionary[String, Dictionary] = {}
 	for designation: String in plan().parts:
@@ -1397,6 +1500,9 @@ func legend_rows() -> Array[Dictionary]:
 			var wall: bool = (c as Luminaire).wall
 			key = "3" if wall else "2"
 			row = {"title": tr("Wall luminaire") if wall else tr("Luminaire"), "height": tr("%s m over the floor") % _num(Luminaire.WALL_HEIGHT) if wall else tr("on the ceiling, %s m") % _num(Luminaire.STANDARD_HEIGHT)}
+		elif c is Appliance and document.symbol((c as Appliance).symbol) != null:
+			key = "4~" + (c as Appliance).symbol
+			row = {"title": (c as Appliance).title, "height": "", "symbol": document.symbol((c as Appliance).symbol)}
 		elif c is Appliance:
 			var kind: int = (c as Appliance).kind
 			key = "4%02d" % kind
@@ -1410,6 +1516,15 @@ func legend_rows() -> Array[Dictionary]:
 			row["sample"] = c
 			row["count"] = 1
 			rows[key] = row
+	for mark: FloorPlan.Mark in plan().marks:
+		var def: CustomSymbol = document.symbol(mark.symbol)
+		if def == null:
+			continue
+		var key: String = "5" + mark.symbol
+		if rows.has(key):
+			rows[key]["count"] += 1
+		else:
+			rows[key] = {"key": key, "sample": null, "symbol": def, "title": def.name, "height": "", "count": 1}
 	var cabled: bool = not plan().links.is_empty() if installation() else not plan().cables(document.circuit).is_empty()
 	if layer != "power" and cabled:
 		rows["7"] = {"key": "7", "sample": null, "title": tr("Cable, a tick per core"), "height": "", "count": 0}
@@ -1441,7 +1556,9 @@ func _draw_legend(s: float, font: Font) -> void:
 		var at: Vector2 = top + Vector2(column * LEGEND_COLUMN * s, (0.45 + (i % rows_in_column) * _legend_row()) * s)
 		var symbol: Vector2 = at + Vector2(0.3 * ss, -0.08 * s)
 		var sample: CircuitComponent = rows[i]["sample"]
-		match str(rows[i]["key"]).left(1):
+		if rows[i].has("symbol"):
+			(rows[i]["symbol"] as CustomSymbol).draw_fitted(self, Rect2(symbol - Vector2(0.3, 0.24) * ss, Vector2(0.6, 0.44) * ss), ss, color, width, font)
+		match str(rows[i]["key"]).left(1) if not rows[i].has("symbol") else "":
 			"0":
 				PlanSymbols.draw_switch(self, sample as LightSwitch, symbol + Vector2(0, -0.1 * ss), Vector2.DOWN, ss, color, width)
 			"1":
@@ -1984,6 +2101,15 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 			PlanSymbols.draw_luminaire(self, at, s, color, width, not editing and luminaire.energized, upright if luminaire.wall else Vector2.ZERO)
 			if not is_equal_approx(luminaire.height, luminaire.standard_height()):
 				height_text = _height(luminaire.height)
+		elif c is Appliance and document.symbol((c as Appliance).symbol) != null:
+			# Drawn with the user's own symbol, glowing while it works.
+			var def: CustomSymbol = document.symbol((c as Appliance).symbol)
+			if not editing and (c as Load).energized:
+				var box: Rect2 = def.bounds()
+				draw_circle(at + box.get_center() * s, maxf(box.size.x, box.size.y) * 0.6 * s, PlanSymbols.GLOW)
+			def.draw(self, at, s, color, width, font)
+			if not is_equal_approx((c as Appliance).height, Appliance.STANDARD_HEIGHT):
+				height_text = _height((c as Appliance).height)
 		elif c is Appliance:
 			PlanSymbols.draw_appliance(self, c as Appliance, at, upright, s, color, width, not editing and (c as Load).energized)
 			if not is_equal_approx((c as Appliance).height, Appliance.STANDARD_HEIGHT):
@@ -2003,6 +2129,13 @@ var _taken: Array[Rect2] = []
 ## The box round the symbol of part [param designation] on screen.
 func _symbol_box(designation: String, s: float) -> Rect2:
 	var center: Vector2 = to_screen(_shown_at(designation) + symbol_center(designation) - plan().parts[designation])
+	var c: CircuitComponent = document.circuit.get_component(designation) if designation != FloorPlan.UNIT else null
+	var def: CustomSymbol = document.symbol((c as Appliance).symbol) if c is Appliance else null
+	if def != null:
+		# The user's symbol: what it covers, from its origin.
+		var origin: Vector2 = center - (Vector2(0, WALL_SYMBOL_OFFSET * _symbols() * s) if plan().facing.has(designation) else Vector2.ZERO)
+		var box: Rect2 = def.bounds()
+		return Rect2(origin + box.position * s * _symbols(), box.size * s * _symbols())
 	var half: float = 0.2 * s * _symbols()
 	return Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0)
 

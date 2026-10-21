@@ -56,7 +56,7 @@ func _draw_labels() -> void:
 	var anchor: Vector2 = _designation_anchor()
 	draw_label(designation_text(), anchor, SchematicTheme.LABEL_SIZE, SchematicTheme.DESIGNATION)
 	var volts: String = "400 V" if appliance.two_phases else "230 V"
-	draw_label(kind_title(appliance.kind), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
+	draw_label(title_of(appliance), anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 1)
 	draw_label("%s %s" % [power_text(appliance.power), volts], anchor, SchematicTheme.TERMINAL_SIZE, SchematicTheme.TEXT, 2)
 	var line: int = 3
 	if not is_equal_approx(appliance.height, Appliance.STANDARD_HEIGHT):
@@ -69,6 +69,12 @@ func _draw_labels() -> void:
 	draw_label(names[0], Vector2(0.35 * G, 0.4 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[1], Vector2(-0.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
 	draw_label(names[2], Vector2(1.35 * G, 2.6 * G), SchematicTheme.TERMINAL_SIZE, SchematicTheme.TERMINAL_TEXT)
+
+
+## What [param appliance] is: the name of the user's symbol it is drawn
+## with on the floor plan, else its kind's.
+static func title_of(appliance: Appliance) -> String:
+	return appliance.title if not appliance.title.is_empty() else kind_title(appliance.kind)
 
 
 ## Power as written: "150 W", "2 kW", "3.5 kW".

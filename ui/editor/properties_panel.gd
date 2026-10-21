@@ -180,7 +180,10 @@ func show_component(component: CircuitComponent) -> void:
 			_group = null
 			_note(tr("Czech type E socket 16 A / 250 V with the protective pin: L, N and PE. While simulating it shows 230 V while it has its voltage, and an appliance plugged in draws its power."), "MutedLabel")
 		"appliance":
-			_appliance_kind()
+			if str(_data.get("symbol", "")).is_empty():
+				_appliance_kind()
+			else:
+				_note(str(_data.get("title", "")), "HeaderLabel")
 			_number(tr("Rated power (W)"), "power", Appliance.MIN_POWER, Appliance.MAX_POWER, 10.0)
 			_choice(tr("Supply"), "two_phases", [false, true], [tr("230 V (L, N)"), tr("400 V between two phases (L1, L2)")])
 			_height(Appliance.STANDARD_HEIGHT)

@@ -26,6 +26,8 @@ Everything below stays on your computer:
 - **Your files**: schematics (`.ladder`) and exported PNG and PDF files, where you save them.
 - **Settings**: recent files, view options, language, panel sizes and the update check
   setting, in `settings.cfg` in the LadderLab data folder.
+- **Your symbols**: the floor plan symbols you draw, in `symbols.json` in the data folder
+  (a schematic also keeps a copy of those it uses).
 - **Recovery copies**: while a schematic has unsaved changes, a copy is kept in the
   `recovery` folder of the data folder, so the work survives a crash. It is removed when
   you save the schematic or discard the changes.
@@ -34,7 +36,7 @@ Everything below stays on your computer:
 - **File association (Windows)**: see [System changes](CODE_SIGNING.md#system-changes).
 
 The data folder is `%APPDATA%\Godot\app_userdata\LadderLab` on Windows. Deleting it
-removes all of the above except your own files.
+removes all of the above except your own files (your symbols with it).
 
 ## Questions
 

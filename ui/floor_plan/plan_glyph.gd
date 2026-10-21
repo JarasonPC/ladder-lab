@@ -9,6 +9,9 @@ extends Control
 var component: CircuitComponent
 ## Or the furniture or fixture drawn (a kind of [constant FloorPlan.FIXTURES]).
 var fixture: String = ""
+## Or the user's own symbol drawn, at most [member custom_scale] pixels a metre.
+var custom: CustomSymbol
+var custom_scale: float = SCALE
 
 ## Pixels a metre, by what is drawn: an appliance is taller.
 const SCALE: float = 68.0
@@ -18,6 +21,14 @@ const APPLIANCE_SCALE: float = 55.0
 func _draw() -> void:
 	var color: Color = SchematicTheme.LINE
 	var width: float = 1.4
+	if custom != null:
+		var top: float = 3.0
+		if custom.wall:
+			# Hung from a piece of wall at the top.
+			draw_line(Vector2(size.x * 0.5 - 0.22 * SCALE, 4.0), Vector2(size.x * 0.5 + 0.22 * SCALE, 4.0), Color(color, 0.45), 3.0)
+			top = 6.0
+		custom.draw_fitted(self, Rect2(Vector2(4.0, top), Vector2(size.x - 8.0, size.y - top - 3.0)), custom_scale, color, width, get_theme_default_font())
+		return
 	if not fixture.is_empty():
 		# Against a piece of wall at the top, as large as the tile takes.
 		var extent: Vector2 = FloorPlan.FIXTURES.get(fixture, Vector2.ONE)

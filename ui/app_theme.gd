@@ -117,6 +117,13 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"target": '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
 	"tick": '<path d="M20 6 9 17l-5-5"/>',
 	"cabinet": '<rect x="3" y="2" width="18" height="20" rx="2"/><path d="M3 9h18"/><path d="M3 16h18"/><path d="M7 4.5v3"/><path d="M10 4.5v3"/><path d="M13 4.5v3"/><path d="M7 11.5v3"/><path d="M12 11.5v3"/>',
+	"shape_line": '<path d="M5 19 19 5"/>',
+	"shape_rect": '<rect x="4" y="6" width="16" height="12"/>',
+	"shape_ellipse": '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
+	"shape_arc": '<path d="M4 18a8 8 0 0 1 16 0"/>',
+	"shape_curve": '<path d="M4 18C8 4 16 20 20 6"/>',
+	"shape_text": '<path d="M5 6V4h14v2"/><path d="M12 4v16"/><path d="M9 20h6"/>',
+	"symbols": '<circle cx="7" cy="7" r="3.5"/><rect x="13.5" y="3.5" width="7" height="7"/><path d="M3.5 20.5 10.5 13.5"/><path d="M14 17h6"/><path d="M17 14v6"/>',
 }
 
 

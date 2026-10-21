@@ -14,7 +14,9 @@ extends VBoxContainer
 ## takes new parts from the palette ([method begin_place_template]) onto
 ## the circuit chosen beside the plan (where a selected part's circuit is
 ## changed too), and gives each room its number, environment and
-## illuminance. Every change is emitted as one undoable edit of the document.
+## illuminance; Symbols opens the user's own symbols ([SymbolLibraryDialog]),
+## drawn there and put in from the palette. Every change is emitted as one
+## undoable edit of the document.
 
 ## A change of the plan: [param change] is called with the document.
 signal edit_requested(change: Callable)
@@ -67,6 +69,8 @@ var _fixture_depth: SpinBox
 var _fixture: int = -1
 var _measure_button: Button
 var _walls_button: Button
+var _symbols_button: Button
+var _symbols_dialog: SymbolLibraryDialog
 var _window_dialog: ConfirmationDialog
 var _window_width: SpinBox
 var _window_sill: SpinBox
@@ -192,6 +196,13 @@ func _ready() -> void:
 	_walls_button.icon = AppTheme.icon("walls")
 	_walls_button.pressed.connect(_ask_walls)
 	_bar.add_child(_walls_button)
+	_symbols_button = Button.new()
+	_symbols_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_symbols_button.theme_type_variation = "ToolButton"
+	_symbols_button.focus_mode = Control.FOCUS_NONE
+	_symbols_button.icon = AppTheme.icon("symbols")
+	_symbols_button.pressed.connect(func() -> void: _symbols_dialog.open())
+	_bar.add_child(_symbols_button)
 	_delete_button = Button.new()
 	_delete_button.theme_type_variation = "ToolButton"
 	_delete_button.focus_mode = Control.FOCUS_NONE
@@ -496,6 +507,9 @@ func _ready() -> void:
 		_walls_dialog.register_text_enter(field.get_line_edit())
 	_walls_dialog.confirmed.connect(_apply_walls)
 	add_child(_walls_dialog)
+	_symbols_dialog = SymbolLibraryDialog.new()
+	_symbols_dialog.symbol_saved.connect(_on_symbol_saved)
+	add_child(_symbols_dialog)
 	retranslate()
 
 
@@ -598,6 +612,7 @@ func refresh() -> void:
 	_update_array_button()
 	_fill_floor_tabs()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
+	_symbols_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
 	_fill_circuits()
 	_fit_button.visible = plan_shown
@@ -651,6 +666,8 @@ func retranslate() -> void:
 	var array_labels: Array[String] = [tr("Part"), tr("Rows"), tr("Columns"), tr("Count"), tr("Spacing (0: evenly)"), tr("From the left or top end")]
 	for k: int in array_labels.size():
 		(_array_grid.get_child(2 * k) as Label).text = array_labels[k]
+	_symbols_button.text = tr("Symbols")
+	_symbols_button.tooltip_text = tr("My symbols: draw your own from lines, shapes, curves and text, sorted into your categories; the palette offers them for the plan, drawings or loads on a circuit")
 	_walls_button.tooltip_text = tr("Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn")
 	_window_dialog.title = tr("Window")
 	_window_dialog.ok_button_text = tr("OK")
@@ -708,6 +725,14 @@ func retranslate() -> void:
 		refresh()
 
 
+## Symbol [param def] was drawn in the library: a schematic using it takes
+## the new drawing (an edit, undone like any).
+func _on_symbol_saved(def: CustomSymbol) -> void:
+	if _document != null and _document.symbols.has(def.id):
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.use_symbol(def))
+	canvas.queue_redraw()
+
+
 ## Puts a new part made from the palette's [param template] where the plan
 ## is clicked next (on the circuit chosen), again until a right click.
 func begin_place_template(template: Dictionary) -> void:
@@ -749,7 +774,7 @@ func _fill_circuits() -> void:
 			elif end is Luminaire:
 				where = tr("Lighting")
 			elif end is Appliance:
-				where = ApplianceSymbol.kind_title((end as Appliance).kind)
+				where = ApplianceSymbol.title_of(end as Appliance)
 		_circuit.add_item(("-%s  %s" % [f.device, where]).strip_edges())
 	var current: String = canvas.circuit
 	if not part.is_empty():
@@ -790,7 +815,7 @@ func _entry_text(designation: String) -> String:
 	elif c is Luminaire:
 		what = tr("Luminaire")
 	elif c is Appliance:
-		what = ApplianceSymbol.kind_title((c as Appliance).kind)
+		what = ApplianceSymbol.title_of(c as Appliance)
 	return "-%s  %s" % [designation, what]
 
 
