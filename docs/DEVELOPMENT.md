@@ -841,7 +841,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   contacts mounted on their sides beyond six (CabinetParts.side_blocks: the first on the right,
   the second on the left, further ones outside them; the overload relay stays under the
   contactor itself; a changeover contact takes an NC and an NO place), the overload relay fitted
-  under the contactor its heaters follow (drawn there only, even when it is on a rail too; on a
+  under the contactor its heaters follow (CabinetDevices.overloads_under_contactors: one relay
+  under each contactor; where the outputs of several are joined the relays are matched so as
+  many fit as can, each under the first free one in circuit order; drawn there only, even when it is on a rail too; on a
   rail of its own it sits on a mounting unit with its heaters' terminals 1 3 5 on top), relays
   one changeover contact per contact used (1: 6.2 mm module, 2: slim socket,
   3-4: wide socket), time relays 1-3 changeover contacts (more contacts on further relays or

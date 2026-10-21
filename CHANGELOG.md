@@ -166,6 +166,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   potentiometer's - point or 10 V reference) get their wires: supply points of one conductor
   are one core, and a supply only wired to the station comes from the switchboard
 - "Wire facing terminals" also wires terminals that already have a wire to something else
+- In a switchboard, two overload relays behind contactors whose outputs are joined (each
+  feeding both motors, or a reversing pair) are both fitted under a contactor, one under
+  each; the second one no longer stands beside them on the rail
 
 ## 0.6.0 – 2026-10-20
 
