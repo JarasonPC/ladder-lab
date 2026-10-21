@@ -566,3 +566,30 @@ func test_floors_and_underlay() -> void:
 	for spec: Dictionary in renderer.sheets(again, PackedInt32Array([0])):
 		floors.append(spec.get("floor", -1))
 	assert_eq(floors, [0, 1, 2])
+
+
+func test_handles_resize_what_is_selected() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	# The room's top right corner (7, 0) pulled to (8, -1): its top and right walls follow.
+	plan.set_corner(1, 1, Vector2(8.0, -1.0))
+	assert_eq(plan.rooms[1].rect, Rect2(3, -1, 5, 5))
+	# A door's right end pulled out: its left end stays.
+	var door: FloorPlan.Door = FloorPlan.Door.new(Vector2(5.0, 4.0), false)
+	FloorPlan.stretch_opening(door, 1, Vector2(6.0, 4.1), 0.5, 3.0)
+	assert_almost_eq(door.width, 1.4, 1e-4)
+	assert_eq(door.ends()[0], Vector2(4.6, 4.0), "the other end stays")
+	FloorPlan.stretch_opening(door, 0, Vector2(6.0, 4.0), 0.5, 3.0)
+	assert_almost_eq(door.width, 0.5, 1e-4, "never narrower than a door can be")
+	# A fixture's corner pulled; the opposite one stays.
+	assert_eq(FloorPlan.stretch_rect(Rect2(1, 1, 2, 1), 2, Vector2(4.0, 3.0)), Rect2(1, 1, 3, 2))
+	assert_eq(FloorPlan.stretch_rect(Rect2(1, 1, 2, 1), 0, Vector2(3.1, 0.0)), Rect2(3, 0, 0.2, 2), "past the other corner: at least its least side")
+	# The canvas shows the handles of the selection and the room legend moves.
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas.selected = {"kind": "room", "index": 0}
+	assert_eq(canvas.handles().size(), 4, "a room's corners")
+	assert_eq(canvas.handle_at(canvas.to_screen(Vector2(3, 0)))["kind"], "corner")
+	plan.legend_offset = Vector2(-2, 6)
+	assert_eq(FloorPlan.from_data(plan.to_data()).legend_offset, Vector2(-2, 6))

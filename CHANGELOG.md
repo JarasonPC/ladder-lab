@@ -101,8 +101,12 @@ What changed in each LadderLab version. Version numbers follow the rules in
   the stage of the documentation and the scale and format
 - Export: a house's parts list has each floor's parts, the wall and luminaire boxes and the
   metres of each cable type; File > Export parts list as CSV writes it for a spreadsheet
+- Floor plan: what is selected shows handles to change its size by dragging: a room's
+  corners, a door's or window's ends, a piece of furniture's corners, a dimension's ends;
+  the legend of the rooms is dragged anywhere
 - Floor plan: every symbol is drawn upright, the way the legend and the palette show it, on
-  whatever wall it is; dimensions up and down are written across like all other text
+  whatever wall it is, but socket outlets, which face into the room from their wall;
+  dimensions up and down are written across like all other text
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
 

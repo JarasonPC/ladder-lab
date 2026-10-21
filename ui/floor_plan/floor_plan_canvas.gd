@@ -71,6 +71,9 @@ const WALL: float = 0.08
 ## The dimension and measure tools catch a corner, a part or an end of an
 ## opening this close (pixels).
 const FEATURE_GRAB: float = 12.0
+## Half the side of a selection's handle (pixels): a room's corners, a door's
+## or window's ends, a fixture's corners, a free dimension's ends.
+const HANDLE: float = 4.5
 ## A press this close to a room's edge (pixels) drags the edge.
 const EDGE_GRAB: float = 6.0
 ## The middle of a symbol of a part on a wall is this far into the room (m);
@@ -219,8 +222,12 @@ func _room_legend_rect() -> Rect2:
 	var width: float = 0.0
 	for w: float in ROOM_COLUMNS:
 		width += w
-	# The rows and room under them for what the environments mean.
-	return Rect2(Vector2(rooms_area.end.x + 1.2, rooms_area.position.y + 0.6), Vector2(width, ROOM_ROW * (plan().rooms.size() + 4)))
+	# Right of the plan unless moved (and while dragged); the rows and room
+	# under them for what the environments mean.
+	var by: Vector2 = plan().legend_offset
+	if _dragging and _press.get("kind", "") == "room_legend":
+		by += FloorPlan.snap(to_plan(_mouse) - to_plan(_press_at))
+	return Rect2(Vector2(rooms_area.end.x + 1.2, rooms_area.position.y + 0.6) + by, Vector2(width, ROOM_ROW * (plan().rooms.size() + 4)))
 
 
 ## Shows everything, as large as fits.
@@ -348,6 +355,8 @@ func _feature_point(m: Vector2) -> Vector2:
 func _dimension_geometry(index: int) -> Dictionary:
 	var dim: FloorPlan.Dimension = plan().dimensions[index]
 	var ends: PackedVector2Array = plan().dimension_ends(dim)
+	if _dragging and _press.get("kind", "") == "dimension_end" and _press.get("index", -1) == index:
+		ends[int(_press["which"])] = _feature_point(to_plan(_mouse))
 	var dir: Vector2 = (ends[1] - ends[0]).normalized()
 	var out: Vector2 = dir.orthogonal()
 	var base: float = 0.05
@@ -359,6 +368,65 @@ func _dimension_geometry(index: int) -> Dictionary:
 		offset = (to_plan(_mouse) - ends[0]).dot(out) - base
 	var away: Vector2 = out * (base + offset)
 	return {"ends": ends, "out": out, "base": base, "line": PackedVector2Array([ends[0] + away, ends[1] + away]), "stops": plan().dimension_stops(dim), "dir": dir}
+
+
+## The handles of what is selected: {"kind": "corner" / "door_end" /
+## "window_end" / "fixture_corner" / "dimension_end", "index", "which",
+## "at" (m), "handle": true}; dragged, they change its size or shape.
+func handles() -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	if not editing or plan() == null:
+		return list
+	var index: int = selected.get("index", -1)
+	match selected.get("kind", ""):
+		"room", "edge":
+			if index >= 0 and index < plan().rooms.size():
+				var points: PackedVector2Array = _shown_points(index)
+				for k: int in points.size():
+					list.append({"kind": "corner", "index": index, "which": k, "at": points[k]})
+		"door", "window":
+			var openings: Array = plan().doors if selected["kind"] == "door" else plan().windows
+			if index >= 0 and index < openings.size():
+				var ends: PackedVector2Array = _shown_opening(selected["kind"], index).ends()
+				for which: int in 2:
+					list.append({"kind": selected["kind"] + "_end", "index": index, "which": which, "at": ends[which]})
+		"fixture":
+			if index >= 0 and index < plan().fixtures.size():
+				var r: Rect2 = _shown_fixture_rect(index)
+				var corners: Array[Vector2] = [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+				for which: int in 4:
+					list.append({"kind": "fixture_corner", "index": index, "which": which, "at": corners[which]})
+		"dimension":
+			if index >= 0 and index < plan().dimensions.size() and plan().dimensions[index].room < 0:
+				var ends: PackedVector2Array = _dimension_geometry(index)["ends"]
+				for which: int in 2:
+					list.append({"kind": "dimension_end", "index": index, "which": which, "at": ends[which]})
+	for handle: Dictionary in list:
+		handle["handle"] = true
+	return list
+
+
+## The handle under screen point [param point], {} for none.
+func handle_at(point: Vector2) -> Dictionary:
+	for handle: Dictionary in handles():
+		if to_screen(handle["at"]).distance_to(point) <= HANDLE + 4.0:
+			return handle
+	return {}
+
+
+## Door or window [param kind] [param index] as shown: its end dragged.
+func _shown_opening(kind: String, index: int) -> FloorPlan.Opening:
+	var original: FloorPlan.Opening = plan().doors[index] if kind == "door" else plan().windows[index]
+	if not (_dragging and _press.get("kind", "") == kind + "_end" and _press.get("index", -1) == index):
+		return original
+	var shown: FloorPlan.Opening = FloorPlan.Door.new(original.at, original.vertical, original.width) if kind == "door" else FloorPlan.WindowOpening.new(original.at, original.vertical, original.width)
+	if kind == "door":
+		var door: FloorPlan.Door = original as FloorPlan.Door
+		(shown as FloorPlan.Door).hinge_end = door.hinge_end
+		(shown as FloorPlan.Door).opens_back = door.opens_back
+		(shown as FloorPlan.Door).double = door.double
+	FloorPlan.stretch_opening(shown, _press["which"], to_plan(_mouse), 0.5 if kind == "door" else 0.3, 3.0 if kind == "door" else 6.0)
+	return shown
 
 
 ## The note under screen point [param point]: {"index", "end": "anchor"
@@ -553,6 +621,8 @@ func _gui_input(event: InputEvent) -> void:
 	elif _press.is_empty():
 		var over: String = part_at(motion.position)
 		tooltip_text = _tooltip(over) if not over.is_empty() else ""
+		if tool == Tool.SELECT and editing:
+			mouse_default_cursor_shape = Control.CURSOR_DRAG if not handle_at(motion.position).is_empty() else Control.CURSOR_ARROW
 	if tool != Tool.SELECT or _dragging or _pan_button != MOUSE_BUTTON_NONE:
 		queue_redraw()
 	accept_event()
@@ -627,7 +697,9 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_press_at = mb.position
 				_dragging = false
 				_press = _pressed(mb.position)
-				if _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label", "dimension", "note", "fixture"]:
+				if _press.get("handle", false) or _press["kind"] == "room_legend":
+					pass
+				elif _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label", "dimension", "note", "fixture"]:
 					selected = _press
 				elif tool == Tool.SELECT:
 					selected = {}
@@ -669,6 +741,9 @@ func _pressed(point: Vector2) -> Dictionary:
 			if c is LightSwitch or c is Luminaire:
 				return {"kind": "new_link", "designation": from, "port": _port_at(from, point)}
 			return {"kind": "empty"}
+	var handle: Dictionary = handle_at(point)
+	if not handle.is_empty():
+		return handle
 	var part: String = part_at(point)
 	if not part.is_empty():
 		return {"kind": "part", "designation": part}
@@ -696,6 +771,8 @@ func _pressed(point: Vector2) -> Dictionary:
 	var fixture: int = fixture_at(point)
 	if fixture >= 0:
 		return {"kind": "fixture", "index": fixture}
+	if installation() and not plan().rooms.is_empty() and _room_legend_rect().has_point(to_plan(point)):
+		return {"kind": "room_legend"}
 	var room: int = plan().room_at(to_plan(point))
 	if room >= 0:
 		return {"kind": "room", "index": room}
@@ -729,6 +806,42 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if _dragging and by != Vector2.ZERO:
 				var moved: Vector2 = to_plan(point) - to_plan(_press_at)
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.underlay_at += moved)
+		"corner":
+			if _dragging:
+				var index: int = press["index"]
+				var k: int = press["which"]
+				var to: Vector2 = FloorPlan.snap(m)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_corner(index, k, to))
+		"door_end", "window_end":
+			if _dragging:
+				var index: int = press["index"]
+				var door: bool = press["kind"] == "door_end"
+				var shown: FloorPlan.Opening = _shown_opening("door" if door else "window", index)
+				var width: float = shown.width
+				var at: Vector2 = shown.at
+				edit_requested.emit(func(doc: SchematicDocument) -> void:
+					var opening: FloorPlan.Opening = doc.floor_plan.doors[index] if door else doc.floor_plan.windows[index]
+					opening.width = width
+					opening.at = at)
+		"fixture_corner":
+			if _dragging:
+				var index: int = press["index"]
+				var rect: Rect2 = FloorPlan.stretch_rect(plan().fixtures[index].rect, press["which"], m)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.fixtures[index].rect = rect)
+		"dimension_end":
+			if _dragging:
+				var index: int = press["index"]
+				var which: int = press["which"]
+				var to: Vector2 = _feature_point(m)
+				edit_requested.emit(func(doc: SchematicDocument) -> void:
+					if which == 0:
+						doc.floor_plan.dimensions[index].a = to
+					else:
+						doc.floor_plan.dimensions[index].b = to)
+		"room_legend":
+			if _dragging and by != Vector2.ZERO:
+				var to: Vector2 = plan().legend_offset + by
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.legend_offset = to)
 		"new_note":
 			var anchor: Vector2 = FloorPlan.snap(to_plan(_press_at))
 			var label: Vector2 = FloorPlan.snap(m) if _dragging else anchor + Vector2(0.6, -0.6)
@@ -1154,9 +1267,9 @@ func _draw() -> void:
 		if chosen or i == _join_first:
 			_draw_walls(rooms[i], SchematicTheme.SELECTED, 2.0)
 	for i: int in plan().doors.size():
-		_draw_door(plan().doors[i], s, wall, selected.get("kind", "") == "door" and selected.get("index", -1) == i)
+		_draw_door(_shown_opening("door", i), s, wall, selected.get("kind", "") == "door" and selected.get("index", -1) == i)
 	for i: int in plan().windows.size():
-		_draw_window(plan().windows[i], s, selected.get("kind", "") == "window" and selected.get("index", -1) == i)
+		_draw_window(_shown_opening("window", i), s, selected.get("kind", "") == "window" and selected.get("index", -1) == i)
 	for i: int in rooms.size():
 		# Name and area in the room's corner, clear of its ceiling light (or
 		# where it was dragged to); in a residential installation its number
@@ -1211,6 +1324,11 @@ func _draw() -> void:
 	_draw_saved_dimensions(font)
 	_draw_wall_distance(font)
 	_draw_notes(font)
+	for handle: Dictionary in handles():
+		var c: Vector2 = to_screen(handle["at"])
+		var box: Rect2 = Rect2(c - Vector2(HANDLE, HANDLE), Vector2(HANDLE, HANDLE) * 2.0)
+		draw_rect(box, SchematicTheme.BACKGROUND)
+		draw_rect(box, SchematicTheme.SELECTED, false, 1.5)
 	if editing and tool in [Tool.MEASURE, Tool.DIMENSION] and _press.get("kind", "") in ["measure", "new_dimension"] and _dragging:
 		_draw_measure(font)
 	if installation() and not plan().rooms.is_empty():
@@ -1401,6 +1519,19 @@ func _shown_points(index: int) -> PackedVector2Array:
 			return moved
 		"edge":
 			return FloorPlan.with_edge(room.points, _press["side"], _edge_target(index, _press["side"]))
+		"corner":
+			var n: int = room.points.size()
+			var k: int = _press["which"]
+			var to: Vector2 = FloorPlan.snap(to_plan(_mouse))
+			var shaped: PackedVector2Array = room.points
+			for wall: int in [(k + n - 1) % n, k]:
+				var w0: Vector2 = shaped[wall]
+				var w1: Vector2 = shaped[(wall + 1) % n]
+				var vertical: bool = is_equal_approx(w0.x, w1.x)
+				var probe: FloorPlan.Room = FloorPlan.Room.new()
+				probe.points = shaped
+				shaped = FloorPlan.with_edge(shaped, wall, FloorPlan._clamp_edge(probe, wall, to.x if vertical else to.y))
+			return shaped
 	return room.points
 
 
@@ -1585,6 +1716,8 @@ func _shown_fixture_rect(index: int) -> Rect2:
 	var rect: Rect2 = plan().fixtures[index].rect
 	if _dragging and _press.get("kind", "") == "fixture" and _press.get("index", -1) == index:
 		rect.position += FloorPlan.snap(to_plan(_mouse) - to_plan(_press_at))
+	elif _dragging and _press.get("kind", "") == "fixture_corner" and _press.get("index", -1) == index:
+		rect = FloorPlan.stretch_rect(rect, _press["which"], to_plan(_mouse))
 	return rect
 
 
@@ -1797,7 +1930,8 @@ func _cable_end(designation: String) -> Vector2:
 func _draw_part(designation: String, s: float, font: Font) -> void:
 	var into: Vector2 = FloorPlan.FACING[plan().facing[designation]] if plan().facing.has(designation) else Vector2.ZERO
 	# Every symbol upright, as in the legend and the palette, whatever wall
-	# it is on: its middle where it is, drawn from above it.
+	# it is on: its middle where it is, drawn from above it; but a socket
+	# outlet turned to face into the room from its wall.
 	var middle: Vector2 = _shown_at(designation) + symbol_center(designation) - plan().parts[designation]
 	var upright: Vector2 = Vector2.DOWN if into != Vector2.ZERO else Vector2.ZERO
 	var at: Vector2 = to_screen(middle - upright * WALL_SYMBOL_OFFSET)
@@ -1822,7 +1956,7 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 				height_text = _height((c as LightSwitch).height)
 		elif c is SocketOutlet:
 			var socket: SocketOutlet = c as SocketOutlet
-			PlanSymbols.draw_socket(self, socket, at, upright, s, color, width, not editing and socket.energized)
+			PlanSymbols.draw_socket(self, socket, to_screen(_shown_at(designation) + _face(designation)), into, s, color, width, not editing and socket.energized)
 			if not is_equal_approx(socket.height, SocketOutlet.STANDARD_HEIGHT):
 				height_text = _height(socket.height)
 		elif c is Luminaire:
