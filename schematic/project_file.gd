@@ -130,7 +130,10 @@ const FORMAT: String = "ladder-lab"
 ## simulation starts ("set_at_start"; missing: off).
 ## 47: the size a workspace group's frame was resized to ("size" in a
 ## group; missing: round its members).
-const VERSION: int = 47
+## 48: N and PE distribution blocks put on a rail by hand ("kind": "bus",
+## "designation" "N" or "PE" among a rail's items; missing: after the strip
+## the incoming conductor lands on).
+const VERSION: int = 48
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

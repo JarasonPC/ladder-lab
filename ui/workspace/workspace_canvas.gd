@@ -540,7 +540,7 @@ func place_tooltip(item: Dictionary) -> String:
 			for place: CabinetItem in rail.items:
 				if place.kind == CabinetItem.Kind.STRIP:
 					strips += 1
-				else:
+				elif place.kind == CabinetItem.Kind.DEVICE:
 					devices += 1
 		summary = tr_n("%d device", "%d devices", devices) % devices + ", " + tr_n("%d terminal strip", "%d terminal strips", strips) % strips
 		if not board.door.items.is_empty():

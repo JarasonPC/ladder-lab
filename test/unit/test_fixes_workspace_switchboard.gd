@@ -271,6 +271,8 @@ func test_an_empty_group_moves_while_dragged() -> void:
 
 func test_renamed_cable_between_two_parts_keeps_its_name_when_one_is_moved() -> void:
 	var doc: SchematicDocument = ExampleCircuits.build(0)
+	# Without a switchboard parts in the field are cabled to one another.
+	doc.switchboards.clear()
 	var a: LimitSwitch = LimitSwitch.new("SQ1", NC)
 	var b: LimitSwitch = LimitSwitch.new("SQ2", NC)
 	doc.add(a, Vector2i(40, 10))

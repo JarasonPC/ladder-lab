@@ -4,10 +4,10 @@ extends RefCounted
 ## circuit that joins terminals in two or more places (a switchboard, a
 ## control station, a part in the field) needs a core between them. A net
 ## with a terminal on a strip in a switchboard runs from there to each other
-## place (a star from the strip); a net in a switchboard runs from the first
-## switchboard; a net only between stations and parts in the field runs the
-## shortest way between them (e.g. a stop button looped through from one
-## station to the next). The cores between two places make one cable, named
+## place (a star from the strip); any other net runs from the first
+## switchboard to each other place, so stations and parts in the field are
+## never cabled to one another (without a switchboard: the shortest way
+## between them). The cores between two places make one cable, named
 ## W1, W2, ... ([member SchematicDocument.cable_names] keeps the names), and
 ## gets a type as a real cable by what it is used for ([method use],
 ## [method type_text]). An Ethernet cable between the ports of two PLCs (or
@@ -168,6 +168,13 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 			hub = strip_boards[n][0]
 		elif places[0].begins_with("+") and _is_board(doc, places[0]):
 			hub = places[0]
+		elif not doc.switchboards.is_empty():
+			# Stations and parts in the field are never cabled to one another:
+			# each goes to the first switchboard, where the net lands on
+			# nothing until a strip terminal is put on it.
+			hub = "+" + doc.switchboards[0].name
+			ends[n][hub] = []
+			places.push_front(hub)
 		if not hub.is_empty():
 			for place: String in places:
 				if place != hub:

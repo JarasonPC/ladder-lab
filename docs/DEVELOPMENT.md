@@ -51,7 +51,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   type: a contact, changeover or main contacts named like a push button, switch or limit switch
   is one more block of it (follows its actuator; a coil of that name wins), one named like a
   circuit breaker is its auxiliary contact; buttons, switches and limit switches of one name
-  share one actuator (Circuit.get_operator finds the device to click or panel-operate). Markings (designations, terminal names, lamp and terminal labels,
+  share one actuator (Circuit.get_operator finds the device to click or panel-operate). A
+  contact, push button, switch or limit switch renamed takes the type its new designation gives
+  (SchematicEditor._follow_device, _type_by_designation: that of the device drawn with that
+  name, a coil's contact, a breaker's or overload relay's, a button's, switch's or limit
+  switch's block; else by its letters, TYPE_BY_LETTERS: SB, RB, SQ, KM / KA / KT); renamed
+  onto numbers its device has already (two NC blocks of SQ1) it takes the next free sequence
+  digit, so a device takes any number of blocks. Markings (designations, terminal names, lamp and terminal labels,
   wire numbers) are edited by double-clicking them on the drawing, not in the properties panel;
   a click highlights a marking, dragging moves it (Placement.labels, saved). A new device (coil,
   time relay, button, breaker, overload relay) takes the designation of contacts drawn before it
@@ -709,9 +715,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   a net on a supply point with no switchboard among its places lands on that supply point in
   the first switchboard (the supply comes in there: a potentiometer's 10 V reference); a net
   reaching two or more places gets a core between them: from the switchboard with a strip
-  terminal on it to each other place (a star from the strip), else from the first switchboard,
-  else along the shortest tree between the places' centres (stop buttons looped through from
-  station to station). A strip terminal on the lead of a part at the other end has a core of
+  terminal on it to each other place (a star from the strip), else from the first switchboard
+  (also a net with nothing in it: its cores land on nothing there, "–" in the CablePanel, until
+  a strip terminal is put on it; stations and parts in the field are never cabled to one
+  another), else (no switchboard) along the shortest tree between the places' centres. A strip terminal on the lead of a part at the other end has a core of
   its own to that part where its net has two or more such terminals (WorkspaceCables._split; the
   switchboard lands each, joined there by a plug-in bridge or wires). The cores between two places are one cable (key "+RA1|+ST1", its ends in
   workspace order: switchboards, stations, parts in circuit order), each core with what it lands
@@ -889,9 +896,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   more than CabinetLayout.BUS_LOADS (1) load takes N or PE in a switchboard (strip terminals on
   the net but the incoming one, devices' terminals on it; not N wired to the supply point of
   another conductor), it gets an N or PE distribution block
-  by itself (CabinetLayout.bus_blocks, N first: a place of kind BUS_BLOCK, index -1, not a rail
-  item and not selectable, desc "neutral", "nets", "connections", right after the strip the
-  incoming conductor lands on, CabinetParts.BUS_SIZES 7, 12 or 15
+  by itself (CabinetLayout.bus_blocks, N first: a place of kind BUS_BLOCK, index AUTO_N or
+  AUTO_PE with its "slot", not a rail item, desc "neutral", "nets", "connections", right after
+  the strip the incoming conductor lands on, unless moved by hand: clicked in Edit mode it is
+  picked and its arrows move it, SchematicDocument.place_bus_block making it a rail item of
+  kind CabinetItem.Kind.BUS "N" or "PE", saved, moved like the others, never removed, drawn there
+  while the switchboard needs it; CabinetParts.BUS_SIZES 7, 12 or 15
   screw connections, drawn as made, standing across the rail: a brass bar in a yellow base under a
   green cover for PE, a grey base under a blue cover for N, with a round hole over each screw, the
   wires going in under the cover's left edge
@@ -957,8 +967,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   core per supply conductor (L1 L2 L3 N PE, + -) straight down into the top duct to the first
   terminal it feeds, or onto the field side (bottom entry) of the strip terminal on a supply
   point's lead. Strip terminals leading to parts outside (CabinetDevices.is_outside:
-  buttons, switches, lamps, motors; field_device finds the part: the one whose lead the
-  terminal is on, else the first on its net) send field wires out of their bottom entries to
+  buttons, switches, lamps, motors; field_devices finds the parts: the one whose lead the
+  terminal is on, then every other on its net, field_device the first; a terminal on a wire
+  between two parts in different places sends a core in each of their cables, both in its
+  field side in one twin ferrule) send field wires out of their bottom entries to
   the bottom duct and out through a gland in the bottom of the enclosure, one cable for each
   cable of the workspace from this switchboard, with a core for each net as on the workspace
   (the first of its terminals; the others joined inside; a net going on to another switchboard
@@ -1363,7 +1375,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   else WireRouter (A* on the grid of its page, near the wire's ends first) finds one: never
   across a symbol (supplies and page connectors: beyond their terminal), over a terminal of
   another net or along a wire of another net when a clean route exists, leaving terminals along
-  their lead, few corners and crossings. The wires of moved or turned parts are routed one after
+  their lead (WireRouter.LEAD: sideways rather than a step out and back, which costs two
+  corners more; a hook past the end of a lead, one corner more, still beats sideways), few
+  corners and crossings. The wires of moved or turned parts are routed one after
   another, each keeping off those before; then wires the parts now cover and wires between two
   moved parts are re-routed if no longer clean. Several selected parts turn and mirror together
   (rotate_components, mirror_components, flip_components: about the middle of their terminals,

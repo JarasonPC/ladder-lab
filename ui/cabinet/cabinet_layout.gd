@@ -47,6 +47,10 @@ const MISSING_DEVICE: int = 101
 ## Kind of a place the switchboard adds by itself: an N or PE distribution
 ## block (see [method bus_blocks]).
 const BUS_BLOCK: int = 102
+## "index" of the N and the PE distribution block where the switchboard
+## puts them by itself (not moved by hand, so not a rail item).
+const AUTO_N: int = -2
+const AUTO_PE: int = -3
 ## Most loads taking N or PE in a switchboard before it gets a distribution
 ## block for it.
 const BUS_LOADS: int = 1
@@ -60,8 +64,9 @@ var wiring: CabinetWiring
 var ducts: Array[Dictionary] = []
 ## DIN rails, one per [member Switchboard.rails].
 var rails: Array[Rect2] = []
-## Places on the rails: {"rail", "index" (-1 for a place the switchboard
-## adds by itself), "kind" (CabinetDevices.Kind, STRIP, MISSING_DEVICE or
+## Places on the rails: {"rail", "index" (of its rail item; AUTO_N or
+## AUTO_PE for a distribution block the switchboard puts by itself, with
+## "slot"), "kind" (CabinetDevices.Kind, STRIP, MISSING_DEVICE or
 ## BUS_BLOCK, its desc as in [method bus_blocks]), "designation", "desc" (see [method CabinetDevices.describe];
 ## for a strip {"terminals": [...], "bridges" (see
 ## [method CabinetWiring.strip_bridges])}), "origin" (top-left of the drawing),
@@ -141,6 +146,8 @@ static func bus_blocks(doc: SchematicDocument, board: int, strips: Dictionary, n
 		var key: String = ""
 		for rail: CabinetRail in doc.switchboards[board].rails:
 			for item: CabinetItem in rail.items:
+				if item.kind == CabinetItem.Kind.BUS:
+					continue
 				if item.kind == CabinetItem.Kind.STRIP:
 					for t: Dictionary in strips.get(item.designation, []):
 						var hit: String = ""
@@ -172,6 +179,25 @@ static func bus_blocks(doc: SchematicDocument, board: int, strips: Dictionary, n
 				break
 		blocks.append({"connections": connections, "neutral": which == 0, "after": after, "key": key, "nets": PackedInt32Array(nets.keys())})
 	return blocks
+
+
+## Designation of a distribution block of [method bus_blocks]: "N" or "PE"
+## (as a rail item of kind [constant CabinetItem.Kind.BUS] names it).
+static func bus_name(bus: Dictionary) -> String:
+	return "N" if bus["neutral"] else "PE"
+
+
+## The place of distribution block [param bus] on rail [param r] at
+## [param x] (mm along it) with index [param index]; "end" is where the next
+## place starts.
+static func _bus_place(bus: Dictionary, r: int, index: int, x: float) -> Dictionary:
+	var block: Dictionary = {"designation": bus_name(bus), "label_w": 0.0, "kind": BUS_BLOCK, "desc": bus, "rail": r, "index": index}
+	_box(block, CabinetParts.bus_size(bus["connections"]))
+	# Room on its left for its wires' leads (see [CabinetWiring]).
+	var room: float = CabinetWiring.BUS_LEAD + ceili(bus["connections"] / 2.0) * CabinetWiring.LANE + CabinetWiring.WIRE_W
+	block["origin"] = Vector2(x + room, block["origin"].y)
+	block["end"] = x + block["size"].x + room + GAP
+	return block
 
 
 ## The nets the distribution [param blocks] (of [method bus_blocks]) join.
@@ -210,6 +236,12 @@ static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[fl
 	for contactor: String in under:
 		if doc.cabinet_has(CabinetItem.Kind.DEVICE, contactor):
 			fitted[under[contactor]] = true
+	# Distribution blocks moved by hand stay where they were put.
+	var pinned: Dictionary[String, bool] = {}
+	for rail: CabinetRail in board_rails:
+		for item: CabinetItem in rail.items:
+			if item.kind == CabinetItem.Kind.BUS:
+				pinned[item.designation] = true
 	for r: int in board_rails.size():
 		var rail: CabinetRail = board_rails[r]
 		var row: Dictionary = {"places": [], "top": -EMPTY_ROW * 0.5, "bottom": EMPTY_ROW * 0.5}
@@ -217,25 +249,33 @@ static func _build(doc: SchematicDocument, k: float, board: int, sizes: Array[fl
 		for i: int in rail.items.size():
 			if rail.items[i].kind == CabinetItem.Kind.DEVICE and fitted.has(rail.items[i].designation):
 				continue
-			var place: Dictionary = _place(doc, strips, rail.items[i], k, net, apart)
-			place["rail"] = r
-			place["index"] = i
-			var slot: float = maxf(place["size"].x + 2.0 * place.get("channel", 0.0), place["label_w"])
-			place["origin"] = Vector2(x + (slot - place["size"].x) * 0.5, place["origin"].y)
-			x += slot + GAP
-			var added: Array[Dictionary] = [place]
+			var added: Array[Dictionary] = []
+			if rail.items[i].kind == CabinetItem.Kind.BUS:
+				# A distribution block put here by hand (none while it is not needed).
+				for bus: Dictionary in buses:
+					if bus_name(bus) == rail.items[i].designation:
+						var block: Dictionary = _bus_place(bus, r, i, x)
+						x = block["end"]
+						added.append(block)
+			else:
+				var place: Dictionary = _place(doc, strips, rail.items[i], k, net, apart)
+				place["rail"] = r
+				place["index"] = i
+				var slot: float = maxf(place["size"].x + 2.0 * place.get("channel", 0.0), place["label_w"])
+				place["origin"] = Vector2(x + (slot - place["size"].x) * 0.5, place["origin"].y)
+				x += slot + GAP
+				added.append(place)
 			# The distribution blocks after the strip their incoming
-			# conductor lands on (else at the end of the last rail).
+			# conductor lands on (else at the end of the last rail), unless
+			# moved by hand: not selectable as items, "index" AUTO_N or
+			# AUTO_PE, "slot" the place on the rail they take when moved.
 			var last: bool = r == board_rails.size() - 1 and i == rail.items.size() - 1
 			for bus: Dictionary in buses:
-				if not ((rail.items[i].kind == CabinetItem.Kind.STRIP and rail.items[i].designation == bus["after"]) or (bus["after"].is_empty() and last)):
+				if pinned.has(bus_name(bus)) or not ((rail.items[i].kind == CabinetItem.Kind.STRIP and rail.items[i].designation == bus["after"]) or (bus["after"].is_empty() and last)):
 					continue
-				var block: Dictionary = {"designation": "N" if bus["neutral"] else "PE", "label_w": 0.0, "kind": BUS_BLOCK, "desc": bus, "rail": r, "index": -1}
-				_box(block, CabinetParts.bus_size(bus["connections"]))
-				# Room on its left for its wires' leads (see [CabinetWiring]).
-				var room: float = CabinetWiring.BUS_LEAD + ceili(bus["connections"] / 2.0) * CabinetWiring.LANE + CabinetWiring.WIRE_W
-				block["origin"] = Vector2(x + room, block["origin"].y)
-				x += block["size"].x + room + GAP
+				var block: Dictionary = _bus_place(bus, r, AUTO_N if bus["neutral"] else AUTO_PE, x)
+				block["slot"] = i + 1
+				x = block["end"]
 				added.append(block)
 			for put: Dictionary in added:
 				row["places"].append(put)

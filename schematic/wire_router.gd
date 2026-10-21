@@ -18,8 +18,11 @@ const CROSS: int = 2
 const TOUCH: int = 8
 const SHARED: int = 1
 const BLOCKED: int = 1000
-## Leaving a terminal other than straight out along its lead.
-const LEAD: int = 40
+## Leaving a terminal other than straight out along its lead: more than a
+## hook past the end of the lead (a corner and two cells), less than a step
+## out and back (two corners and two cells), which looks worse than leaving
+## sideways.
+const LEAD: int = 12
 ## Free cells around everything on the page.
 const MARGIN: int = 4
 ## Cells around the ends of a wire searched first.

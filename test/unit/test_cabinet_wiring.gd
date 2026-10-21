@@ -661,7 +661,7 @@ func test_pe_goes_through_a_distribution_block_for_more_than_one_load() -> void:
 			strip_x1 = place
 	assert_false(block.is_empty(), "three loads: a PE distribution block")
 	assert_eq(block["desc"]["connections"], CabinetParts.BUS_SIZES[0], "the smallest size taking the loads and the incoming PE")
-	assert_eq(block["index"], -1, "added by the switchboard, not an item of the rail")
+	assert_eq(block["index"], CabinetLayout.AUTO_PE, "added by the switchboard, not an item of the rail")
 	assert_eq(block["rail"], strip_x1["rail"], "on the rail of the strip the incoming PE lands on")
 	assert_true(block["origin"].x > strip_x1["origin"].x, "right after it")
 	# A star: every PE wire inside the switchboard goes to the block, one to
@@ -726,3 +726,103 @@ func test_n_goes_through_a_distribution_block_for_more_than_two_loads() -> void:
 	for row: Dictionary in PartsList.new().rows(doc):
 		names.append(row.get("name", ""))
 	assert_true(names.has("N distribution block"), "in the parts list")
+
+
+## Limit switches SQ1 and SQ2 in the field in series from KM1's 13 to its
+## coil, strip terminals on the wires between them: X1:1 from KM1:13 to
+## SQ1, X1:2 between SQ1 and SQ2, X1:3 from SQ2 to the coil.
+func _limit_switches() -> SchematicDocument:
+	var doc: SchematicDocument = SchematicDocument.new("limits")
+	doc.add(PowerSupply.new("L1", PowerSupply.Conductor.L), Vector2i(0, 0))
+	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(0, 40))
+	doc.add(Contact.new("KM1", NO, 1), Vector2i(4, 2))
+	doc.add(LimitSwitch.new("SQ1", SwitchingElement.ContactType.NC), Vector2i(4, 10))
+	doc.add(LimitSwitch.new("SQ2", SwitchingElement.ContactType.NC), Vector2i(4, 18))
+	doc.add(Coil.new("KM1"), Vector2i(4, 30))
+	doc.connect_terminals("L1", "KM1:13")
+	var pairs: Array = [["KM1:14", "SQ1:11"], ["SQ1:12", "SQ2:11"], ["SQ2:12", "KM1:A1"]]
+	for i: int in pairs.size():
+		doc.connect_terminals(pairs[i][0], pairs[i][1])
+		var w: int = doc.get_wire_count() - 1
+		var points: Array[Vector2i] = doc.wire_points(w)
+		var block: TerminalBlock = TerminalBlock.new(doc.next_designation("X"))
+		block.label = str(i + 1)
+		doc.split_wire(w, points[0] + (points[1] - points[0]).sign(), block)
+	doc.connect_terminals("KM1:A2", "N")
+	doc.add_switchboard()
+	doc.fill_cabinet(0)
+	return doc
+
+
+func test_a_terminal_on_a_wire_between_two_parts_outside_takes_both_cores() -> void:
+	var doc: SchematicDocument = _limit_switches()
+	var between: String = ""
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is TerminalBlock and (c as TerminalBlock).label == "2":
+			between = c.designation
+	var names: Dictionary[String, String] = {}
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		names[cable["b"]] = cable["name"]
+	var wiring: CabinetWiring = CabinetWiring.build(doc, CabinetLayout.build(doc, 2.0), 2.0)
+	var cables: PackedStringArray = PackedStringArray()
+	for wire: Dictionary in wiring.wires:
+		if wire["external"] and wire["to"] == between:
+			cables.append(wire["cable"])
+	cables.sort()
+	assert_eq(cables, PackedStringArray([names["-SQ1"], names["-SQ2"]]), "X1:2 joins the core from SQ1 to the one from SQ2")
+	assert_eq(wiring.twins.size(), 1, "both in its field side, in one twin ferrule")
+	for label: String in ["1", "3"]:
+		var cores: int = 0
+		for wire: Dictionary in wiring.wires:
+			var block: CircuitComponent = doc.circuit.get_component(str(wire["to"]))
+			if wire["external"] and block is TerminalBlock and (block as TerminalBlock).label == label:
+				cores += 1
+		assert_eq(cores, 1, "X1:%s: one core out" % label)
+
+
+func test_a_distribution_block_moved_by_hand_stays_where_it_was_put() -> void:
+	var doc: SchematicDocument = _motors(3)
+	var auto: Dictionary = {}
+	for place: Dictionary in CabinetLayout.build(doc, 2.0).places:
+		if place["kind"] == CabinetLayout.BUS_BLOCK:
+			auto = place
+	assert_false(auto.is_empty())
+	var rail: int = auto["rail"]
+	assert_true(doc.place_bus_block(0, rail, 0, "PE"), "moved to the start of its rail")
+	assert_eq(doc.switchboards[0].rails[rail].items[0].kind, CabinetItem.Kind.BUS)
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	var layout: CabinetLayout = CabinetLayout.build(copy, 2.0)
+	var block: Dictionary = {}
+	for place: Dictionary in layout.places:
+		if place["kind"] == CabinetLayout.BUS_BLOCK:
+			assert_true(block.is_empty(), "one PE block")
+			block = place
+	assert_eq(block["rail"], rail, "saved and loaded where it was put")
+	assert_eq(block["index"], 0, "an item of the rail now")
+	for place: Dictionary in layout.places:
+		if place != block and place["rail"] == rail:
+			assert_true(place["origin"].x > block["origin"].x, "before -%s" % place["designation"])
+	for wire: Dictionary in layout.wiring.wires:
+		if wire["conductor"] == CabinetDevices.Conductor.PE and not wire["external"]:
+			var path: PackedVector2Array = wire["points"]
+			assert_true((block["rect"] as Rect2).grow(0.1).has_point(path[0]) or (block["rect"] as Rect2).grow(0.1).has_point(path[path.size() - 1]), "still a star from the block")
+	# To another rail, at its end.
+	doc.add_cabinet_rail(0)
+	var last: int = doc.switchboards[0].rails.size() - 1
+	assert_true(doc.place_bus_block(0, last, 0, "PE"))
+	var items: int = 0
+	for r: int in doc.switchboards[0].rails.size():
+		for item: CabinetItem in doc.switchboards[0].rails[r].items:
+			if item.kind == CabinetItem.Kind.BUS:
+				items += 1
+				assert_eq(r, last, "on the new rail")
+	assert_eq(items, 1, "one place for it")
+	# Not needed any more: not drawn, and nothing else of it anywhere.
+	var single: SchematicDocument = _motors(1)
+	single.place_bus_block(0, 0, 0, "PE")
+	for place: Dictionary in CabinetLayout.build(single, 2.0).places:
+		assert_ne(place["kind"], CabinetLayout.BUS_BLOCK, "one load: no block even where one was put")
+	var names: Array = []
+	for row: Dictionary in PartsList.new().rows(single):
+		names.append(row.get("name", ""))
+	assert_false(names.has("PE distribution block"), "nor in the parts list")

@@ -6,6 +6,24 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- A contact renamed to SB, SQ or RB becomes a push button, limit switch or switch (one more
+  block of the device of that name where it is drawn), a button or switch renamed to KM, KA
+  or KT becomes a contact
+- A device takes any number of blocks: a second NC block named SQ1 takes the next free numbers
+  (21-22) instead of being refused
+
+### Panels
+- The N and PE distribution blocks in a switchboard can be picked and moved along a rail or to
+  another rail; they stay where they were put
+
+### Fixed
+- Wires of a moved part no longer step out of a terminal and back; they take a corner instead
+- A strip terminal on a wire between two parts in different places (two limit switches) gets
+  the cores of both cables in the switchboard, not just one
+- Stations and parts in the field are no longer cabled to one another: each cable runs to the
+  switchboard
+
 ## 0.7.0 – 2026-10-21
 
 ### Schematic editor
