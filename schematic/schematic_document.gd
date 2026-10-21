@@ -2500,6 +2500,20 @@ func set_station_face(index: int, scale: float) -> void:
 		control_boxes[index].face_scale = ControlBox.valid_face(scale)
 
 
+## Resizes the frame of group [param index] to [param new_size] (kept no
+## smaller than round its members; as small as that or smaller: just round
+## them again).
+func set_group_size(index: int, new_size: Vector2) -> void:
+	if index < 0 or index >= groups.size():
+		return
+	var group: WorkspaceGroup = groups[index]
+	var fit: Vector2 = Workspace.group_fit(group, Workspace.field_positions(self)).size
+	if new_size.x <= fit.x and new_size.y <= fit.y:
+		group.size = Vector2.ZERO
+	else:
+		group.size = WorkspaceGroup.valid_size(new_size.max(fit))
+
+
 ## Puts part [param designation] in the field at [param at], in group
 ## [param group] (-1 for none). A part leaving a group leaves its mechanical
 ## link too.

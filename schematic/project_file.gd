@@ -128,7 +128,9 @@ const FORMAT: String = "ladder-lab"
 ## ("symbol", "title", "ceiling"; missing: none).
 ## 46: breakers, fuse holders and switches switched on or operated when a
 ## simulation starts ("set_at_start"; missing: off).
-const VERSION: int = 46
+## 47: the size a workspace group's frame was resized to ("size" in a
+## group; missing: round its members).
+const VERSION: int = 47
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

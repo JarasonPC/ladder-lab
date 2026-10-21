@@ -73,6 +73,32 @@ func test_groups_take_their_members_along() -> void:
 	assert_eq(doc.field_positions["M1"], Vector2(140, 390), "its parts stay where they are")
 
 
+func test_group_frame_resized() -> void:
+	var doc: SchematicDocument = _doc()
+	var group: WorkspaceGroup = doc.add_group(Vector2(0, 300))
+	doc.place_field_device("M1", Vector2(40, 340), 0)
+	var fit: Rect2 = Workspace.group_rect(group, Workspace.field_positions(doc))
+	doc.set_group_size(0, Vector2(500, 300))
+	var frame: Rect2 = Workspace.group_rect(group, Workspace.field_positions(doc))
+	assert_eq(frame, Rect2(fit.position, Vector2(500, 300)), "larger from the corner round its members")
+	doc.set_group_size(0, Vector2(500, 10))
+	assert_eq(group.size, Vector2(500, fit.size.y), "never smaller than round its members")
+	doc.set_group_size(0, fit.size - Vector2(20, 20))
+	assert_eq(group.size, Vector2.ZERO, "as small as round its members: just round them again")
+	doc.set_group_size(0, Vector2(9000, 9000))
+	assert_eq(group.size, WorkspaceGroup.MAX_SIZE)
+	doc.set_group_size(0, Vector2(500, 300))
+	doc.place_field_device("SQ1", Vector2(800, 340), 0)
+	assert_eq(Workspace.group_rect(group, Workspace.field_positions(doc)).end.x, 800 + Workspace.FIELD_SIZE.x + Workspace.GROUP_PAD, "a member beyond it widens it")
+	var empty: WorkspaceGroup = doc.add_group(Vector2(0, 900))
+	doc.set_group_size(1, Vector2(400, 200))
+	assert_eq(Workspace.group_rect(empty, Workspace.field_positions(doc)), Rect2(Vector2(0, 900), Vector2(400, 200)), "an empty frame too")
+	var data: Dictionary = JSON.parse_string(JSON.stringify(DocumentSerializer.to_dict(doc)))
+	assert_eq(DocumentSerializer.from_dict(data).groups[1].size, Vector2(400, 200), "saved and loaded")
+	data["groups"][1]["size"] = [-5, 100]
+	assert_eq(DocumentSerializer.from_dict(data).groups[1].size, Vector2.ZERO, "a wrong size is left out")
+
+
 func test_renamed_part_keeps_its_place() -> void:
 	var doc: SchematicDocument = _doc()
 	doc.add_group()

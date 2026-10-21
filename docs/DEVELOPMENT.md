@@ -623,7 +623,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   switches, sensors; VFDs and PLCs sit in switchboards) stand on the workspace by
   themselves: where they were put (SchematicDocument.field_positions), else in a row under
   everything (Workspace.field_positions); a group's frame is round its members
-  (Workspace.group_rect), dragging it moves them (move_place), a part dropped into a frame
+  (Workspace.group_fit), at least as large as it was resized to by the handle at its corner
+  while selected (Edit mode; WorkspaceGroup.size up to MAX_SIZE, saved as "size", ZERO: just
+  round them; dragged back inside them it goes round them again; Workspace.group_rect,
+  SchematicDocument.set_group_size, undoable), dragging it moves them (move_place), a part dropped into a frame
   joins the group, dropped outside leaves it, and its link role (place_field_device); renamed
   parts keep both. Workspace, station and switchboard edits only apply in Edit mode (main.gd
   _edit_workspace / _edit_cabinet).
@@ -727,7 +730,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   "let go". The canvas draws the link (between members of the group only) as dashed lines from
   the motor to the switches and the
   way along the bottom of the group's frame: a tick per switch, the start (Edit) or where the
-  part is (Simulate, SchematicView.travel_positions)
+  part is (Simulate, SchematicView.travel_positions), also in per cent at the right of the
+  frame's heading
 - Keys: SchematicDocument.key_bindings (designation -> key name as OS.get_keycode_string, e.g.
   "A", "F2"; saved as "keys") for push buttons and switches (can_have_key); set_key keeps a key
   on one device (undoable through SchematicEditor.edit_workspace), device_of_key finds it; a

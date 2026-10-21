@@ -7,6 +7,9 @@ extends RefCounted
 ## [member travel_time] from one end to the other and operates its limit
 ## switches where they are ([member stops]). Design data only.
 
+## Largest size a frame can be resized to (workspace units).
+const MAX_SIZE := Vector2(4000.0, 4000.0)
+
 ## Location designation without the "+", e.g. "G1".
 var name: String = ""
 ## Free text, e.g. "Gate"; may be empty.
@@ -15,6 +18,9 @@ var title: String = ""
 var members: PackedStringArray = PackedStringArray()
 ## Where the frame sits while it has no members (top-left corner).
 var position: Vector2 = Vector2.ZERO
+## Size the frame was resized to (it is never smaller than round its
+## members, see [method Workspace.group_rect]); ZERO: just round them.
+var size: Vector2 = Vector2.ZERO
 ## Mechanical link: the member motor that moves the part, "" for none.
 var drive: String = ""
 ## Seconds the part takes from one end to the other at full speed.
@@ -35,6 +41,8 @@ func to_data() -> Dictionary:
 	var d: Dictionary = {"name": name, "position": [position.x, position.y], "members": Array(members)}
 	if not title.is_empty():
 		d["title"] = title
+	if size != Vector2.ZERO:
+		d["size"] = [size.x, size.y]
 	if not drive.is_empty():
 		var at: Dictionary = {}
 		for designation: String in stops:
@@ -53,6 +61,7 @@ static func from_data(data: Variant) -> WorkspaceGroup:
 	var d: Dictionary = data
 	var group: WorkspaceGroup = WorkspaceGroup.new(Workspace.place_name(d.get("name", "")), Workspace.position_from(d.get("position", null)))
 	group.title = str(d.get("title", "")).strip_edges()
+	group.size = valid_size(Workspace.position_from(d.get("size", null)))
 	var raw_members: Variant = d.get("members", [])
 	if raw_members is Array:
 		for raw: Variant in raw_members:
@@ -71,3 +80,11 @@ static func from_data(data: Variant) -> WorkspaceGroup:
 			if key is String and (value is float or value is int):
 				group.stops[key] = clampf(float(value), 0.0, 1.0)
 	return group
+
+
+## A frame size as kept: within [constant MAX_SIZE], ZERO when either side
+## is not positive.
+static func valid_size(value: Vector2) -> Vector2:
+	if value.x <= 0.0 or value.y <= 0.0:
+		return Vector2.ZERO
+	return value.min(MAX_SIZE)
