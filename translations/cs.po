@@ -5973,8 +5973,8 @@ msgstr "Úhel, proti směru hodinových ručiček"
 msgid "Rotate by an angle (Ctrl+R)"
 msgstr "Otočit o úhel (Ctrl+R)"
 
-msgid "Points snap to the points of other shapes. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
-msgstr "Body se přichytávají k bodům jiných tvarů. R otočí o čtvrt, Ctrl+R o libovolný úhel, F zrcadlí (Shift: opačně); Ctrl+C, X, V, D kopíruje, vyjímá, vkládá, duplikuje; Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."
+msgid "Points snap to the points and the middles of the edges of other shapes, Shift to angles of 15°. R turns a quarter, Ctrl+R by any angle, F mirrors (Shift: the other way); Ctrl+C, X, V, D copy, cut, paste, duplicate; Ctrl+Z undoes; wheel zooms; right drag pans."
+msgstr "Body se přichytávají k bodům a ke středům hran jiných tvarů, se Shiftem k úhlům po 15°. R otočí o čtvrt, Ctrl+R o libovolný úhel, F zrcadlí (Shift: opačně); Ctrl+C, X, V, D kopíruje, vyjímá, vkládá, duplikuje; Ctrl+Z vrací zpět; kolečko přibližuje; tažení pravým tlačítkem posouvá."
 
 msgid "Control panel"
 msgstr "Ovládací panel"
@@ -6009,3 +6009,13 @@ msgstr "Úprava bodů: tažením bod posunete; klikem na hranu nebo tažením pl
 
 msgid "Edit points of the polygon or polyline picked: move, put in and take out its points (or double-click it)"
 msgstr "Upravit body vybraného mnohoúhelníku nebo lomené čáry: posouvat, přidávat a odebírat body (nebo na něj dvakrát klikněte)"
+
+#, c-format
+msgid "Angles %s°"
+msgstr "Úhly %s°"
+
+msgid "Any angle"
+msgstr "Libovolný úhel"
+
+msgid "Lines drawn from a point, and points dragged, snap to these angles (Shift: 15° while any angle is set); points and the middles of edges near the mouse are caught first"
+msgstr "Čáry kreslené z bodu a tažené body se přichytávají k těmto úhlům (Shift: po 15°, je-li nastaven libovolný úhel); body a středy hran u myši mají přednost"

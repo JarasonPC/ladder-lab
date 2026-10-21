@@ -128,6 +128,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   mirrored and scaled together, copied, cut, pasted (into another symbol too) and
   duplicated; points snap to those of other shapes, the grid is 1, 5 or 10 mm or none, and
   the points of a shape can be typed in millimetres
+- Symbol editor: points also snap to the middles of edges (a triangle marks one), and lines
+  drawn from a point or points dragged to angles of 15°, 45° or 90° (chosen beside the
+  grid, or 15° with Shift), the length on the grid; a guide shows the angle and the length
 - Symbol editor: the points of a polygon or polyline are edited (a double click on it, or
   Edit points): dragged, put in on an edge or from the plus in its middle, taken out with
   Delete or Ctrl+click

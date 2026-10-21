@@ -528,8 +528,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   listed as such), height, bold and italic, the angle of texts and BOXED shapes, the points
   of one picked alone in mm as drawn; Rotate asks an angle, _rotate_by_typed on OK or
   Enter) draws on a SymbolCanvas (a grid of mm / cm, the wall as a grey band
-  above the origin; points snap to the key_points of other shapes within POINT_SNAP, else
-  to the grid; selection several shapes: Shift / Ctrl+click, a box from an empty place,
+  above the origin; points snap to the key_points (a diamond) or middle_points (the
+  middles of straight edges, an arc's or curve's along it; a triangle; _near_middle) of
+  other shapes within POINT_SNAP, else, drawn from an anchor (_anchor: a drag's first
+  point, a polyline's last, the point before one dragged or put in, _handle_anchor), at
+  the angles of angle_step (angles of ANGLES, SHIFT_ANGLES with Shift) as far as the grid
+  takes the length (a dashed guide, the length and angle beside the mouse), else to the
+  grid; selection several shapes: Shift / Ctrl+click, a box from an empty place,
   Ctrl+A; dragged together (_drag_by, snapping the point grabbed), the points of one alone
   by their handles, the corners of the box round them scale them (_corner_scale); Tool
   SELECT, LINE / RECT / ELLIPSE dragged corner to corner, POLYLINE / POLYGON a point a click
