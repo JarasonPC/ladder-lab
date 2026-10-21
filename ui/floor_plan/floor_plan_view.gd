@@ -32,6 +32,9 @@ signal operate_requested(designation: String)
 ## document should show it too).
 signal floor_changed(index: int)
 
+## Size of the icons of the plan's tools (logical pixels).
+const ICON_SIZE: int = 22
+
 var canvas: FloorPlanCanvas
 var _document: SchematicDocument
 var _editing: bool = false
@@ -39,6 +42,8 @@ var _fit_pending: bool = true
 var _bar: HBoxContainer
 var _select_button: Button
 var _room_button: Button
+var _outline_button: Button
+var _split_button: Button
 var _door_button: Button
 var _wire_button: Button
 var _join_button: Button
@@ -138,9 +143,26 @@ var _listed: PackedStringArray = PackedStringArray()
 var _unit: CabinetPanel
 var _back_button: Button
 var _body: HBoxContainer
-var _rename_dialog: ConfirmationDialog
+## The room picked, at the top of the side panel: its name (typed or
+## picked from the usual ones), size, area, number, environment and
+## illuminance, changed as they are typed; Duplicate, Split, Delete.
+var _room_box: VBoxContainer
+var _room_title: Label
 var _rename_field: LineEdit
+var _name_menu: MenuButton
+var _area_label: Label
+var _room_duplicate: Button
+var _room_split: Button
+var _room_delete: Button
+## The room the panel shows, -1 for none.
 var _renaming: int = -1
+## The panel is being filled (its signals are not changes then).
+var _filling_room: bool = false
+## The names offered for a room just drawn, and the menu of a room right-clicked.
+var _name_picker: PopupMenu
+var _room_menu: PopupMenu
+## The room the name picker or the menu is for.
+var _menu_room: int = -1
 
 
 func _ready() -> void:
@@ -163,6 +185,8 @@ func _ready() -> void:
 	_bar.add_child(_back_button)
 	_select_button = _tool_button("select", FloorPlanCanvas.Tool.SELECT, group)
 	_room_button = _tool_button("room", FloorPlanCanvas.Tool.ROOM, group)
+	_outline_button = _tool_button("room_outline", FloorPlanCanvas.Tool.OUTLINE, group)
+	_split_button = _tool_button("room_split", FloorPlanCanvas.Tool.SPLIT, group)
 	_door_button = _tool_button("door", FloorPlanCanvas.Tool.DOOR, group)
 	_window_button = _tool_button("plan_window", FloorPlanCanvas.Tool.WINDOW, group)
 	_wire_button = _tool_button("wire", FloorPlanCanvas.Tool.WIRE, group)
@@ -175,38 +199,39 @@ func _ready() -> void:
 	_presets.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_presets.flat = false
 	_presets.theme_type_variation = "ToolButton"
+	_presets.icon = AppTheme.icon("room_add", ICON_SIZE)
 	_presets.get_popup().id_pressed.connect(_add_preset)
 	_bar.add_child(_presets)
 	_array_button = Button.new()
 	_array_button.theme_type_variation = "ToolButton"
 	_array_button.focus_mode = Control.FOCUS_NONE
-	_array_button.icon = AppTheme.icon("plan_array")
+	_array_button.icon = AppTheme.icon("plan_array", ICON_SIZE)
 	_array_button.pressed.connect(_ask_array)
 	_bar.add_child(_array_button)
 	_underlay_menu = MenuButton.new()
 	_underlay_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_underlay_menu.theme_type_variation = "ToolButton"
-	_underlay_menu.icon = AppTheme.icon("plan_underlay")
+	_underlay_menu.icon = AppTheme.icon("plan_underlay", ICON_SIZE)
 	_underlay_menu.get_popup().id_pressed.connect(_on_underlay_menu)
 	_underlay_menu.about_to_popup.connect(_fill_underlay_menu)
 	_bar.add_child(_underlay_menu)
 	_walls_button = Button.new()
 	_walls_button.theme_type_variation = "ToolButton"
 	_walls_button.focus_mode = Control.FOCUS_NONE
-	_walls_button.icon = AppTheme.icon("walls")
+	_walls_button.icon = AppTheme.icon("walls", ICON_SIZE)
 	_walls_button.pressed.connect(_ask_walls)
 	_bar.add_child(_walls_button)
 	_symbols_button = Button.new()
 	_symbols_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_symbols_button.theme_type_variation = "ToolButton"
 	_symbols_button.focus_mode = Control.FOCUS_NONE
-	_symbols_button.icon = AppTheme.icon("symbols")
+	_symbols_button.icon = AppTheme.icon("symbols", ICON_SIZE)
 	_symbols_button.pressed.connect(func() -> void: _symbols_dialog.open())
 	_bar.add_child(_symbols_button)
 	_delete_button = Button.new()
 	_delete_button.theme_type_variation = "ToolButton"
 	_delete_button.focus_mode = Control.FOCUS_NONE
-	_delete_button.icon = AppTheme.icon("delete")
+	_delete_button.icon = AppTheme.icon("delete", ICON_SIZE)
 	_delete_button.pressed.connect(func() -> void: canvas.delete_selected())
 	_bar.add_child(_delete_button)
 	var spacer: Control = Control.new()
@@ -271,7 +296,7 @@ func _ready() -> void:
 	_floor_menu = MenuButton.new()
 	_floor_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_floor_menu.theme_type_variation = "ToolButton"
-	_floor_menu.icon = AppTheme.icon("plan_floors")
+	_floor_menu.icon = AppTheme.icon("plan_floors", ICON_SIZE)
 	_floor_menu.get_popup().id_pressed.connect(_on_floor_menu)
 	_floor_menu.about_to_popup.connect(_fill_floor_menu)
 	_floor_row.add_child(_floor_menu)
@@ -299,51 +324,17 @@ func _ready() -> void:
 			canvas.fit())
 	plan_column.add_child(canvas)
 
-	_rename_dialog = ConfirmationDialog.new()
-	var dialog_column: VBoxContainer = VBoxContainer.new()
-	_rename_dialog.add_child(dialog_column)
-	_rename_field = LineEdit.new()
-	_rename_field.custom_minimum_size = Vector2(260, 0)
-	dialog_column.add_child(_rename_field)
-	_rename_dialog.register_text_enter(_rename_field)
-	# Its inside, as typed lengths.
-	var size_fields: GridContainer = GridContainer.new()
-	size_fields.columns = 2
-	dialog_column.add_child(size_fields)
-	_width_field = _metres()
-	_height_field = _metres()
-	for field: SpinBox in [_width_field, _height_field]:
-		var label: Label = Label.new()
-		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		size_fields.add_child(label)
-		size_fields.add_child(field)
-	# A residential installation's room: its number, environment, illuminance.
-	_room_fields = GridContainer.new()
-	_room_fields.columns = 2
-	dialog_column.add_child(_room_fields)
-	_number_field = LineEdit.new()
-	_environment_field = OptionButton.new()
-	_environment_field.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	for environment: String in FloorPlan.ENVIRONMENTS:
-		_environment_field.add_item(environment)
-	_lux_field = LineEdit.new()
-	for field: Control in [_number_field, _environment_field, _lux_field]:
-		var label: Label = Label.new()
-		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		_room_fields.add_child(label)
-		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_room_fields.add_child(field)
-		if field is LineEdit:
-			_rename_dialog.register_text_enter(field as LineEdit)
-	_environment_note = Label.new()
-	_environment_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_environment_note.theme_type_variation = "MutedLabel"
-	_environment_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_environment_note.custom_minimum_size.x = 380.0
-	dialog_column.add_child(_environment_note)
-	_environment_field.item_selected.connect(func(index: int) -> void: _environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[index]))
-	_rename_dialog.confirmed.connect(_apply_rename)
-	add_child(_rename_dialog)
+	_build_room_panel()
+	_name_picker = PopupMenu.new()
+	_name_picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_name_picker.id_pressed.connect(_on_name_picked)
+	add_child(_name_picker)
+	_room_menu = PopupMenu.new()
+	_room_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_room_menu.id_pressed.connect(_on_room_menu)
+	add_child(_room_menu)
+	canvas.room_drawn.connect(_pick_room_name)
+	canvas.room_menu_requested.connect(_open_room_menu)
 	_length_dialog = ConfirmationDialog.new()
 	var length_row: HBoxContainer = HBoxContainer.new()
 	_length_label = Label.new()
@@ -520,7 +511,7 @@ func _tool_button(icon_name: String, tool: FloorPlanCanvas.Tool, group: ButtonGr
 	button.focus_mode = Control.FOCUS_NONE
 	button.toggle_mode = true
 	button.button_group = group
-	button.icon = AppTheme.icon(icon_name)
+	button.icon = AppTheme.icon(icon_name, ICON_SIZE)
 	button.toggled.connect(func(on: bool) -> void:
 		if on:
 			canvas.tool = tool
@@ -607,7 +598,7 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	_update_array_button()
 	_fill_floor_tabs()
@@ -622,6 +613,7 @@ func refresh() -> void:
 	for designation: String in _listed:
 		_list.add_item(_entry_text(designation))
 	_list_hint.text = tr("Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling.") if not _listed.is_empty() else tr("Every part is on the plan.")
+	_fill_room()
 	canvas.queue_redraw()
 
 
@@ -634,7 +626,7 @@ func show_step(result: StepResult) -> void:
 
 func retranslate() -> void:
 	_select_button.tooltip_text = tr("Select and move rooms, doors and parts; drag a room's edge to resize it")
-	_room_button.tooltip_text = tr("Draw a room by dragging; it snaps to the walls of the others")
+	_room_button.tooltip_text = tr("Draw a room: drag from corner to corner, or click both corners; type its width, Tab, its depth in mm and Enter for an exact size; it snaps to the walls of the others")
 	_door_button.tooltip_text = tr("Put a door in a wall by clicking it; a double click on a door sets its width, double door and swing; a selected door: F swaps its hinge, Shift+F opens it to the other side")
 	_join_button.tooltip_text = tr("Join two rooms into one (an L-shaped room and the like): click one, then the other touching it")
 	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
@@ -697,7 +689,7 @@ func retranslate() -> void:
 	_door_side.add_item(tr("Down or left"))
 	_door_side.add_item(tr("Up or right"))
 	_wire_button.tooltip_text = tr("Draw the lighting: drag from a light switch (of two rockers, from the side of the one) to a luminaire it switches, or to the other switch of a staircase; it is wired by itself")
-	var size_labels: Array[String] = [tr("Width"), tr("Height")]
+	var size_labels: Array[String] = [tr("Width"), tr("Depth")]
 	var size_grid: GridContainer = _width_field.get_parent() as GridContainer
 	for k: int in size_labels.size():
 		(size_grid.get_child(2 * k) as Label).text = size_labels[k]
@@ -718,9 +710,14 @@ func retranslate() -> void:
 	_delete_button.tooltip_text = tr("Take the selected room, door or part away")
 	_fit_button.text = tr("Show all")
 	_list_title.text = tr("Not on the plan").to_upper()
-	_rename_dialog.title = tr("Room")
-	_rename_dialog.ok_button_text = tr("OK")
-	_rename_dialog.cancel_button_text = tr("Cancel")
+	_room_title.text = tr("Room").to_upper()
+	_rename_field.placeholder_text = tr("Name of the room")
+	_name_menu.tooltip_text = tr("A usual name: a bathroom, a kitchen, ... (in a house installation it sets the environment and illuminance)")
+	_room_duplicate.tooltip_text = tr("Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)")
+	_room_split.tooltip_text = tr("Split the room by a wall: drag across it where the wall goes")
+	_room_delete.tooltip_text = tr("Take the room away (what is in it stays)")
+	_outline_button.tooltip_text = tr("Draw a room by its corners: click each corner (walls go across or up and down), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it")
+	_split_button.tooltip_text = tr("Split a room in two: drag across it where the new wall goes")
 	if _document != null:
 		refresh()
 
@@ -739,7 +736,7 @@ func begin_place_template(template: Dictionary) -> void:
 	canvas.placing = ""
 	canvas.placing_template = template
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
-	for button: Button in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.grab_focus()
@@ -830,12 +827,13 @@ func _on_listed(index: int) -> void:
 	canvas.grab_focus()
 
 
+## Ready room [param index] follows the mouse to be put where the plan is
+## clicked (again until a right click or Esc).
 func _add_preset(index: int) -> void:
-	var preset: Dictionary = FloorPlan.PRESETS[index]
-	var room_name: String = preset["name"]
-	var rect: Rect2 = _document.floor_plan.free_spot(preset["size"])
-	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.rooms.append(FloorPlan.preset_room(index, rect.position, room_name)))
-	canvas.queue_redraw()
+	for button: Button in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+		button.set_pressed_no_signal(false)
+	_list.deselect_all()
+	canvas.begin_place_room(index)
 
 
 ## A field of metres, to the centimetre.
@@ -1094,7 +1092,7 @@ func _on_underlay_menu(id: int) -> void:
 
 
 func _deselect_tools() -> void:
-	for button: Button in [_select_button, _room_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	canvas.grab_focus()
 
@@ -1255,47 +1253,268 @@ func _apply_walls() -> void:
 			plan.text_scale = texts)
 
 
-func _ask_rename(index: int) -> void:
-	_renaming = index
-	_rename_field.text = tr(_document.floor_plan.rooms[index].name)
-	_room_fields.visible = canvas.installation()
-	var plan: FloorPlan = _document.floor_plan
-	# Width and height of a rectangle; an L's walls are typed one by one.
-	(_width_field.get_parent() as Control).visible = plan.rooms[index].is_rectangle()
-	_width_field.value = plan.rooms[index].rect.size.x
-	_height_field.value = plan.rooms[index].rect.size.y
-	_number_field.text = plan.rooms[index].number
-	_number_field.placeholder_text = str(FloorPlan.FIRST_NUMBER + index)
-	_environment_field.select(maxi(FloorPlan.ENVIRONMENTS.find(plan.room_environment(index)), 0))
-	_environment_note.visible = _room_fields.visible
-	_environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[_environment_field.selected])
-	_lux_field.text = plan.rooms[index].lux
-	_lux_field.placeholder_text = plan.room_lux(index)
-	_rename_dialog.reset_size()
-	_rename_dialog.popup_centered()
-	_rename_field.select_all()
-	_rename_field.grab_focus()
+## The room panel at the top of the side panel (shown while a room is
+## picked in Edit mode).
+func _build_room_panel() -> void:
+	_room_box = VBoxContainer.new()
+	_room_box.add_theme_constant_override("separation", 4)
+	_side.add_child(_room_box)
+	_side.move_child(_room_box, 0)
+	_room_title = Label.new()
+	_room_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_room_title.theme_type_variation = "HeaderLabel"
+	_room_box.add_child(_room_title)
+	var name_row: HBoxContainer = HBoxContainer.new()
+	_room_box.add_child(name_row)
+	_rename_field = LineEdit.new()
+	_rename_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rename_field.text_submitted.connect(func(_text: String) -> void: _apply_rename())
+	_rename_field.focus_exited.connect(_apply_rename)
+	name_row.add_child(_rename_field)
+	_name_menu = MenuButton.new()
+	_name_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_name_menu.flat = false
+	_name_menu.theme_type_variation = "ToolButton"
+	_name_menu.icon = AppTheme.icon("chevron_down")
+	_name_menu.about_to_popup.connect(func() -> void: _fill_names(_name_menu.get_popup(), false))
+	_name_menu.get_popup().id_pressed.connect(func(id: int) -> void: _set_room_name(_renaming, _usual_names()[id]))
+	name_row.add_child(_name_menu)
+	# Its inside, as typed lengths.
+	var size_fields: GridContainer = GridContainer.new()
+	size_fields.columns = 2
+	_room_box.add_child(size_fields)
+	_width_field = _metres()
+	_height_field = _metres()
+	for field: SpinBox in [_width_field, _height_field]:
+		var label: Label = Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		size_fields.add_child(label)
+		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		field.value_changed.connect(func(_value: float) -> void: _apply_rename())
+		size_fields.add_child(field)
+	_area_label = Label.new()
+	_area_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_area_label.theme_type_variation = "MutedLabel"
+	_room_box.add_child(_area_label)
+	# A residential installation's room: its number, environment, illuminance.
+	# Each label over its field: the panel stays narrow.
+	_room_fields = GridContainer.new()
+	_room_fields.columns = 1
+	_room_box.add_child(_room_fields)
+	_number_field = LineEdit.new()
+	_environment_field = OptionButton.new()
+	_environment_field.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	for environment: String in FloorPlan.ENVIRONMENTS:
+		_environment_field.add_item(environment)
+	_lux_field = LineEdit.new()
+	for field: Control in [_number_field, _environment_field, _lux_field]:
+		var label: Label = Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		_room_fields.add_child(label)
+		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_room_fields.add_child(field)
+		if field is LineEdit:
+			(field as LineEdit).text_submitted.connect(func(_text: String) -> void: _apply_rename())
+			field.focus_exited.connect(_apply_rename)
+	_environment_note = Label.new()
+	_environment_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_environment_note.theme_type_variation = "MutedLabel"
+	_environment_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_environment_note.custom_minimum_size.x = 180.0
+	_room_box.add_child(_environment_note)
+	_environment_field.item_selected.connect(func(index: int) -> void:
+		_environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[index])
+		_apply_rename())
+	var actions: HBoxContainer = HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 4)
+	_room_box.add_child(actions)
+	_room_duplicate = _room_action(actions, "duplicate", func() -> void: _duplicate_room(_renaming))
+	_room_split = _room_action(actions, "room_split", func() -> void: _split_button.button_pressed = true)
+	_room_delete = _room_action(actions, "delete", func() -> void: canvas.delete_selected())
+	_room_box.add_child(HSeparator.new())
+	canvas.selection_changed.connect(_fill_room)
 
 
-func _apply_rename() -> void:
-	var index: int = _renaming
-	var room_name: String = _rename_field.text.strip_edges()
-	if index < 0 or index >= _document.floor_plan.rooms.size() or room_name.is_empty():
+func _room_action(row: HBoxContainer, icon_name: String, action: Callable) -> Button:
+	var button: Button = Button.new()
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.theme_type_variation = "ToolButton"
+	button.focus_mode = Control.FOCUS_NONE
+	button.icon = AppTheme.icon(icon_name, ICON_SIZE)
+	button.pressed.connect(action)
+	row.add_child(button)
+	return button
+
+
+## The room panel for the room picked (hidden for none); a field being
+## typed in is left as it is.
+func _fill_room() -> void:
+	if _room_box == null or _document == null:
 		return
+	var plan: FloorPlan = _document.floor_plan
+	var index: int = canvas.selected.get("index", -1) if canvas.selected.get("kind", "") in ["room", "edge"] else -1
+	var shown: bool = _editing and _unit == null and index >= 0 and index < plan.rooms.size()
+	_room_box.visible = shown
+	if not shown:
+		_renaming = -1
+		return
+	var changed_room: bool = index != _renaming
+	_renaming = index
+	var room: FloorPlan.Room = plan.rooms[index]
+	_filling_room = true
+	if changed_room or not _rename_field.has_focus():
+		_rename_field.text = tr(room.name)
+	# Width and depth of a rectangle; an L's walls are dragged or typed one by one.
+	(_width_field.get_parent() as Control).visible = room.is_rectangle()
+	_width_field.set_value_no_signal(room.rect.size.x)
+	_height_field.set_value_no_signal(room.rect.size.y)
+	_width_field.get_line_edit().text = String.num(room.rect.size.x, 2) + " m"
+	_height_field.get_line_edit().text = String.num(room.rect.size.y, 2) + " m"
+	_area_label.text = tr("Area %s m²") % String.num(room.area(), 2) + ("" if room.is_rectangle() else "  ·  %s × %s m" % [String.num(room.rect.size.x, 2), String.num(room.rect.size.y, 2)])
+	_room_fields.visible = canvas.installation()
+	_environment_note.visible = _room_fields.visible
+	if changed_room or not _number_field.has_focus():
+		_number_field.text = room.number
+	_number_field.placeholder_text = plan.room_number(index)
+	_environment_field.select(maxi(FloorPlan.ENVIRONMENTS.find(plan.room_environment(index)), 0))
+	_environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[_environment_field.selected])
+	if changed_room or not _lux_field.has_focus():
+		_lux_field.text = room.lux
+	_lux_field.placeholder_text = plan.room_lux(index)
+	_filling_room = false
+
+
+## Room [param index] picked and its name ready to be typed (a double click on it).
+func _ask_rename(index: int) -> void:
+	canvas.selected = {"kind": "room", "index": index}
+	_fill_room()
+	_rename_field.grab_focus()
+	_rename_field.select_all()
+
+
+## What the room panel says, taken into the room picked (one edit, only
+## when something changed).
+func _apply_rename() -> void:
+	if _filling_room or _document == null:
+		return
+	var index: int = _renaming
+	var plan: FloorPlan = _document.floor_plan
+	if index < 0 or index >= plan.rooms.size():
+		return
+	var room: FloorPlan.Room = plan.rooms[index]
+	var typed: String = _rename_field.text.strip_edges()
+	# The name as it was (perhaps shown translated) is kept as it is.
+	var room_name: String = room.name if typed.is_empty() or typed == tr(room.name) else typed
 	var number: String = _number_field.text.strip_edges()
 	var environment: String = FloorPlan.ENVIRONMENTS[maxi(_environment_field.selected, 0)]
 	var lux: String = _lux_field.text.strip_edges()
-	var details: bool = _room_fields.visible
+	var details: bool = canvas.installation()
 	var size: Vector2 = Vector2(_width_field.value, _height_field.value)
+	var resized: bool = room.is_rectangle() and not room.rect.size.is_equal_approx(size)
+	var same: bool = room_name == room.name and not resized
+	if details:
+		same = same and number == room.number and lux == room.lux and environment == plan.room_environment(index)
+	if same:
+		return
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
-		var room: FloorPlan.Room = doc.floor_plan.rooms[index]
-		room.name = room_name
-		if room.is_rectangle() and not room.rect.size.is_equal_approx(size):
+		var edited: FloorPlan.Room = doc.floor_plan.rooms[index]
+		edited.name = room_name
+		if resized:
 			doc.floor_plan.resize_room(index, size)
 		if details:
-			room.number = number
-			room.lux = lux
+			edited.number = number
+			edited.lux = lux
 			# The usual one for the room is kept as none set.
-			room.environment = ""
+			edited.environment = ""
 			if environment != doc.floor_plan.room_environment(index):
-				room.environment = environment)
+				edited.environment = environment)
+	_fill_room()
+
+
+## The usual names of rooms (English source text), each once.
+static func _usual_names() -> PackedStringArray:
+	var names: PackedStringArray = PackedStringArray()
+	for preset: Dictionary in FloorPlan.PRESETS:
+		if not names.has(preset["name"]):
+			names.append(preset["name"])
+	for more: String in ["Dining room", "Children's room", "Study", "Utility room", "Storeroom", "Garage", "Staircase", "Corridor"]:
+		names.append(more)
+	return names
+
+
+## [param popup] filled with the usual names (ids their index), with
+## [param other] a last item to type another.
+func _fill_names(popup: PopupMenu, other: bool) -> void:
+	popup.clear()
+	var names: PackedStringArray = _usual_names()
+	for i: int in names.size():
+		popup.add_item(tr(names[i]), i)
+	if other:
+		popup.add_separator()
+		popup.add_item(tr("Another name…"), names.size())
+
+
+## Room [param index] named [param room_name] (one edit).
+func _set_room_name(index: int, room_name: String) -> void:
+	if _document == null or index < 0 or index >= _document.floor_plan.rooms.size():
+		return
+	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.rooms[index].name = room_name)
+	_renaming = -1
+	_fill_room()
+
+
+## Room [param index] was just drawn: the usual names offered at the mouse.
+func _pick_room_name(index: int) -> void:
+	_menu_room = index
+	_fill_names(_name_picker, true)
+	if _name_picker.is_inside_tree():
+		AppTheme.popup_at_mouse(_name_picker)
+
+
+func _on_name_picked(id: int) -> void:
+	var names: PackedStringArray = _usual_names()
+	if id < names.size():
+		_set_room_name(_menu_room, names[id])
+	else:
+		_ask_rename(_menu_room)
+
+
+## The menu of room [param index], right-clicked at screen point [param _at].
+func _open_room_menu(index: int, _at: Vector2) -> void:
+	_menu_room = index
+	_room_menu.clear()
+	_room_menu.add_item(tr("Rename…"), 0)
+	_room_menu.add_item(tr("Duplicate") + "\tCtrl+D", 1)
+	_room_menu.add_item(tr("Split by a wall"), 2)
+	_room_menu.add_item(tr("Join with another room…"), 3)
+	_room_menu.add_separator()
+	_room_menu.add_item(tr("Delete"), 4)
+	AppTheme.popup_at_mouse(_room_menu)
+
+
+func _on_room_menu(id: int) -> void:
+	var index: int = _menu_room
+	if index < 0 or index >= _document.floor_plan.rooms.size():
+		return
+	match id:
+		0:
+			_ask_rename(index)
+		1:
+			_duplicate_room(index)
+		2:
+			_split_button.button_pressed = true
+		3:
+			_join_button.button_pressed = true
+			canvas.begin_join(index)
+		4:
+			canvas.selected = {"kind": "room", "index": index}
+			canvas.delete_selected()
+
+
+## A copy of room [param index] beside it, picked.
+func _duplicate_room(index: int) -> void:
+	if _document == null or index < 0 or index >= _document.floor_plan.rooms.size():
+		return
+	var twin: int = _document.floor_plan.rooms.size()
+	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.duplicate_room(index))
+	canvas.selected = {"kind": "room", "index": twin}

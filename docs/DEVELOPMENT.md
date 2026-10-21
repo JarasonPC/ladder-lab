@@ -466,6 +466,25 @@ Architecture and conventions of the code base. Read this before changing the cod
   settings dialog sets every floor alike): FloorPlanCanvas._symbols scales the parts' symbols,
   their offset from the wall, their hold and the legend's symbols; _sized every text of the
   plan; the legend's rows (_legend_row) open up for either.
+  Making and changing rooms: Tool.ROOM by a drag or two clicks (_room_from), the width and
+  depth typed (_room_typed, _room_field: digits, Tab, Enter, Esc; _drawn_room takes them the
+  way the mouse is); Tool.OUTLINE by its corners (_corners, _next_corner: across or up and
+  down from the last, onto walls near, level with the first; a length typed; closed by a
+  click on the first, a double click, Enter or a right click, _close_outline adding one
+  corner where needed; FloorPlan.outline_room); Tool.SPLIT dragged across a room
+  (split_line, FloorPlan.split_room: two pieces each one piece, its chains dropped);
+  Tool.PLACE_ROOM (begin_place_room, placing_room, _placed_room snapped with snap_room) for
+  "Add room"; room_drawn after each new room -> FloorPlanView's name picker
+  (_usual_names; a name sets a bathroom's environment and illuminance as before);
+  room_menu_requested on a right click -> its menu (rename, duplicate, split, join with
+  begin_join, delete); Ctrl+D (FloorPlan.duplicate_room) and the arrows (5 cm, Shift 50 cm)
+  on the room picked (_room_key). The room picked is edited in the panel at the top of the
+  side panel (_room_box, _fill_room, _apply_rename: one edit, none when nothing changed; a
+  double click on a room focuses its name). Feedback (_draw_room_feedback): _hover_at
+  lights the wall or room under the mouse with the cursor of a drag there, a drag shows the
+  size and area by the mouse and _draw_wall_guides along walls lined up with another
+  room's; corners dragged snap onto other rooms' walls (_corner_target); FloorPlan.overlaps
+  hatched with a warning at the top left. The plan's tool icons are ICON_SIZE.
   The palette's plan tiles: PlanGlyph (PlanSymbols on a piece of wall). The consumer unit:
   two nested boxes (PlanSymbols.draw_unit, UNIT_INSET). main.gd _shortcut: Ctrl+Z / Ctrl+Y
   undo and redo where the editor is not active (floor plan, workspace, single-line diagram)

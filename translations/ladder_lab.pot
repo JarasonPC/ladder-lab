@@ -4990,7 +4990,7 @@ msgstr ""
 msgid "Select and move rooms, doors and parts; drag a room's edge to resize it"
 msgstr ""
 
-msgid "Draw a room by dragging; it snaps to the walls of the others"
+msgid "Draw a room: drag from corner to corner, or click both corners; type its width, Tab, its depth in mm and Enter for an exact size; it snaps to the walls of the others"
 msgstr ""
 
 msgid "Put a door in a wall by clicking it"
@@ -6003,3 +6003,68 @@ msgstr ""
 
 msgid "Lines drawn from a point, and points dragged, snap to these angles (Shift: 15° while any angle is set); points and the middles of edges near the mouse are caught first"
 msgstr ""
+
+msgid "Name of the room"
+msgstr ""
+
+msgid "A usual name: a bathroom, a kitchen, ... (in a house installation it sets the environment and illuminance)"
+msgstr ""
+
+msgid "Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)"
+msgstr ""
+
+msgid "Split the room by a wall: drag across it where the wall goes"
+msgstr ""
+
+msgid "Take the room away (what is in it stays)"
+msgstr ""
+
+msgid "Draw a room by its corners: click each corner (walls go across or up and down), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
+msgstr ""
+
+msgid "Split a room in two: drag across it where the new wall goes"
+msgstr ""
+
+#, c-format
+msgid "Area %s m²"
+msgstr ""
+
+msgid "Another name…"
+msgstr ""
+
+msgid "Split by a wall"
+msgstr ""
+
+msgid "Join with another room…"
+msgstr ""
+
+msgid "Dining room"
+msgstr ""
+
+msgid "Children's room"
+msgstr ""
+
+msgid "Study"
+msgstr ""
+
+msgid "Utility room"
+msgstr ""
+
+msgid "Storeroom"
+msgstr ""
+
+msgid "Garage"
+msgstr ""
+
+msgid "Staircase"
+msgstr ""
+
+msgid "Corridor"
+msgstr ""
+
+#, c-format
+msgid "%d place where rooms overlap: drag them apart"
+msgid_plural "%d places where rooms overlap: drag them apart"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""

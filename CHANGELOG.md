@@ -111,6 +111,17 @@ What changed in each LadderLab version. Version numbers follow the rules in
   dimensions up and down are written across like all other text
 - Luminaires are a plain cross on the floor plan; wall luminaires (a cross with a line on its
   wall's side, 2.00 m over the floor) are a new part in the palette, put onto a wall
+- Floor plan rooms: drawn by dragging or by clicking two corners, the size typed in mm
+  (width, Tab, depth, Enter); drawn by their corners for any shape with walls across or up
+  and down (a wall's length typed); split in two by a wall dragged across; a ready room
+  follows the mouse and goes where clicked. A room just drawn offers the usual names (a
+  bathroom's environment and illuminance follow); the room picked is edited in a panel
+  beside the plan (name, size, area, number, environment, illuminance), right-clicked for
+  its menu (rename, duplicate, split, join, delete), duplicated with Ctrl+D and moved with
+  the arrow keys. The wall or room under the mouse lights up with the cursor of what a
+  drag does; resizing shows the size and area and a guide where a wall lines up with
+  another room's; overlapping rooms are hatched with a warning. The plan's tools have
+  larger icons drawn after what they do
 - Floor plan: your own symbols (Symbols in the plan's bar): draw them from lines, rectangles,
   ellipses, arcs, curves and text on a grid of centimetres, give each a name and a category
   of your own, put them on a wall or anywhere; the palette offers them under their
