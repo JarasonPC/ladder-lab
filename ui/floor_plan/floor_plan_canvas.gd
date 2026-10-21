@@ -95,6 +95,17 @@ const SCALE_ROOM: float = 7.5
 const SCALE_BAR: int = 5
 const NAME_SIZE: int = 14
 const TEXT_SIZE: int = 11
+
+
+## Text size [param size] as the plan has its texts: larger or smaller by
+## its text size.
+func _sized(size: int) -> int:
+	return maxi(roundi(size * (plan().text_scale if plan() != null else 1.0)), 4)
+
+
+## How large the symbols are drawn (1 as usual).
+func _symbols() -> float:
+	return plan().symbol_scale if plan() != null else 1.0
 ## The room legend of a residential installation beside the plan: its
 ## columns' widths and the height of a row (m).
 const ROOM_COLUMNS: PackedFloat32Array = [0.9, 2.6, 3.3, 1.8]
@@ -216,7 +227,12 @@ func _legend_grid(width: float) -> Vector2i:
 ## its title, its rows, the note on the heights; at least the scale's and
 ## the north arrow's.
 func _legend_height(width: float) -> float:
-	return maxf(0.5 + _legend_grid(width).y * 0.55 + 0.8, LEGEND_HEIGHT)
+	return maxf(0.5 + _legend_grid(width).y * _legend_row() + 0.8, LEGEND_HEIGHT)
+
+
+## The legend's rows apart (m): more for larger symbols or texts.
+func _legend_row() -> float:
+	return 0.55 * maxf(1.0, maxf(_symbols(), plan().text_scale))
 
 
 ## Where the room legend of a residential installation is (m): right of the rooms.
@@ -288,7 +304,7 @@ func symbol_center(designation: String) -> Vector2:
 	if not plan().facing.has(designation):
 		return at
 	var into: Vector2 = FloorPlan.FACING[plan().facing[designation]]
-	return at + _face(designation) + into * WALL_SYMBOL_OFFSET
+	return at + _face(designation) + into * WALL_SYMBOL_OFFSET * _symbols()
 
 
 ## From the line of its wall to the wall's face, for a part on a wall
@@ -303,7 +319,7 @@ func _face(designation: String) -> Vector2:
 ## The part under screen point [param point], "" for none.
 func part_at(point: Vector2) -> String:
 	var m: Vector2 = to_plan(point)
-	var best: float = PART_GRAB
+	var best: float = PART_GRAB * maxf(_symbols(), 1.0)
 	var found: String = ""
 	for designation: String in plan().parts:
 		var d: float = symbol_center(designation).distance_to(m)
@@ -475,9 +491,9 @@ func _note_box(note: FloorPlan.Note, font: Font) -> Rect2:
 	var lines: PackedStringArray = note.text.split("\n")
 	var width: float = 0.0
 	for line: String in lines:
-		width = maxf(width, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x)
+		width = maxf(width, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x)
 	var start: Vector2 = to_screen(note.label)
-	return Rect2(start - Vector2(0, font.get_ascent(TEXT_SIZE)), Vector2(maxf(width, 20.0), lines.size() * (TEXT_SIZE + 3)))
+	return Rect2(start - Vector2(0, font.get_ascent(_sized(TEXT_SIZE))), Vector2(maxf(width, 20.0), lines.size() * (_sized(TEXT_SIZE) + 3)))
 
 
 ## The fixture under screen point [param point], -1 for none.
@@ -513,14 +529,14 @@ func _mark_origin(index: int) -> Vector2:
 		return at
 	var into: Vector2 = FloorPlan.FACING[facing]
 	var face: Vector2 = into * plan().inner_wall * 0.5 if plan().inner_wall_at(at, into) else Vector2.ZERO
-	return at + face + into * WALL_SYMBOL_OFFSET - Vector2.DOWN * WALL_SYMBOL_OFFSET
+	return at + face + (into - Vector2.DOWN) * WALL_SYMBOL_OFFSET * _symbols()
 
 
 ## What mark [param index]'s symbol covers (m).
 func _mark_box(index: int) -> Rect2:
 	var def: CustomSymbol = document.symbol(plan().marks[index].symbol)
 	var box: Rect2 = def.bounds() if def != null else Rect2(-0.15, -0.15, 0.3, 0.3)
-	return Rect2(box.position + _mark_origin(index), box.size)
+	return Rect2(box.position * _symbols() + _mark_origin(index), box.size * _symbols())
 
 
 ## The saved dimension under screen point [param point], -1 for none.
@@ -618,14 +634,14 @@ func _label_at(index: int) -> Vector2:
 	var by: Vector2 = room.label_offset
 	if _dragging and _press.get("kind", "") == "label" and _press.get("index", -1) == index:
 		by += FloorPlan.snap(to_plan(_mouse) - to_plan(_press_at))
-	return to_screen(corner + by) + Vector2(wall + 6.0, wall + 10.0 + font.get_ascent(NAME_SIZE))
+	return to_screen(corner + by) + Vector2(wall + 6.0, wall + 10.0 + font.get_ascent(_sized(NAME_SIZE)))
 
 
 ## The room whose label is under screen point [param point], -1 for none.
 func label_at(point: Vector2) -> int:
 	for i: int in range(plan().rooms.size() - 1, -1, -1):
 		var start: Vector2 = _label_at(i)
-		if Rect2(start - Vector2(2, NAME_SIZE + 6), Vector2(72, NAME_SIZE + TEXT_SIZE + 14)).has_point(point):
+		if Rect2(start - Vector2(2, _sized(NAME_SIZE) + 6), Vector2(72, _sized(NAME_SIZE) + _sized(TEXT_SIZE) + 14)).has_point(point):
 			return i
 	return -1
 
@@ -1196,10 +1212,10 @@ func _draw_wall_distance(font: Font) -> void:
 		draw_circle(to_screen(point), 4.0, color)
 		var text: String = _typed + " mm  ↵"
 		var at: Vector2 = to_screen(point) + Vector2(12, -14)
-		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
-		draw_rect(Rect2(at + Vector2(-4, -TEXT_SIZE - 2), Vector2(width + 8, TEXT_SIZE + 8)), SchematicTheme.BACKGROUND)
-		draw_rect(Rect2(at + Vector2(-4, -TEXT_SIZE - 2), Vector2(width + 8, TEXT_SIZE + 8)), color, false, 1.0)
-		draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
+		draw_rect(Rect2(at + Vector2(-4, -_sized(TEXT_SIZE) - 2), Vector2(width + 8, _sized(TEXT_SIZE) + 8)), SchematicTheme.BACKGROUND)
+		draw_rect(Rect2(at + Vector2(-4, -_sized(TEXT_SIZE) - 2), Vector2(width + 8, _sized(TEXT_SIZE) + 8)), color, false, 1.0)
+		draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 
 
 ## A click while simulating: a switch's rocker is switched.
@@ -1363,11 +1379,11 @@ func _draw() -> void:
 		var corner: Vector2 = _label_at(i)
 		var chosen_label: bool = selected.get("kind", "") == "label" and selected.get("index", -1) == i
 		if installation():
-			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE + 6, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.75))
+			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE) + 6, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.75))
 		else:
-			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.55))
+			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.55))
 		var area: String = "%s m²" % String.num(room.area(), 1)
-		draw_string(font, corner + Vector2(0, NAME_SIZE + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, Color(SchematicTheme.LINE, 0.45))
+		draw_string(font, corner + Vector2(0, _sized(NAME_SIZE) + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(SchematicTheme.LINE, 0.45))
 	for i: int in plan().fixtures.size():
 		var fixture: FloorPlan.Fixture = plan().fixtures[i]
 		var chosen_fixture: bool = selected.get("kind", "") == "fixture" and selected.get("index", -1) == i
@@ -1380,7 +1396,7 @@ func _draw() -> void:
 		var def: CustomSymbol = document.symbol(plan().marks[i].symbol)
 		if def != null:
 			var chosen_mark: bool = selected.get("kind", "") == "mark" and selected.get("index", -1) == i
-			def.draw(self, to_screen(_mark_origin(i)), s, SchematicTheme.SELECTED if chosen_mark else SchematicTheme.LINE, line_width, font)
+			def.draw(self, to_screen(_mark_origin(i)), s * _symbols(), SchematicTheme.SELECTED if chosen_mark else SchematicTheme.LINE, line_width, font)
 	if editing and tool == Tool.PLACE and placing_template.has("symbol"):
 		# The user's symbol where it would go.
 		var ghost_def: CustomSymbol = template_symbol(document, placing_template)
@@ -1389,8 +1405,8 @@ func _draw() -> void:
 			if not _template_on_ceiling(placing_template):
 				var near: Dictionary = plan().wall_near(to_plan(_mouse))
 				if not near.is_empty():
-					ghost_at = Vector2(near["at"]) + FloorPlan.FACING[int(near["facing"])] * WALL_SYMBOL_OFFSET - Vector2.DOWN * WALL_SYMBOL_OFFSET
-			ghost_def.draw(self, to_screen(ghost_at), s, Color(SchematicTheme.SELECTED, 0.6), line_width, font)
+					ghost_at = Vector2(near["at"]) + (FloorPlan.FACING[int(near["facing"])] - Vector2.DOWN) * WALL_SYMBOL_OFFSET * _symbols()
+			ghost_def.draw(self, to_screen(ghost_at), s * _symbols(), Color(SchematicTheme.SELECTED, 0.6), line_width, font)
 	if installation():
 		if layer != "power":
 			_draw_links(font)
@@ -1409,13 +1425,13 @@ func _draw() -> void:
 		var drawn: Rect2 = _drawn_room()
 		draw_rect(Rect2(to_screen(drawn.position), drawn.size * s), SchematicTheme.SELECTED, false, wall)
 		var dims: String = "%s × %s m" % [String.num(drawn.size.x, 2), String.num(drawn.size.y, 2)]
-		draw_string(font, to_screen(drawn.end) + Vector2(6, 0), dims, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+		draw_string(font, to_screen(drawn.end) + Vector2(6, 0), dims, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
 	if editing and tool == Tool.PLACE and not placing.is_empty():
 		var m: Vector2 = to_plan(_mouse)
 		var wall_point: Dictionary = {} if on_ceiling(document.circuit.get_component(placing)) else plan().wall_near(m)
 		var at: Vector2 = wall_point.get("at", FloorPlan.snap(m))
 		draw_circle(to_screen(at), 4.0, SchematicTheme.SELECTED)
-		draw_string(font, to_screen(at) + Vector2(8, -6), ("-" if placing != FloorPlan.UNIT else "") + placing, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
+		draw_string(font, to_screen(at) + Vector2(8, -6), ("-" if placing != FloorPlan.UNIT else "") + placing, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.DESIGNATION)
 	if editing and tool == Tool.PLACE and not placing_template.is_empty():
 		var m: Vector2 = to_plan(_mouse)
 		var wall_point: Dictionary = {} if _template_on_ceiling(placing_template) else plan().wall_near(m)
@@ -1440,7 +1456,7 @@ func _draw() -> void:
 		_draw_legend(s, font)
 	if plan().rooms.is_empty() and editing:
 		var hint: String = tr("Draw a room: pick Room and drag, or add one of the ready rooms.")
-		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, Color(SchematicTheme.LINE, 0.6))
+		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), Color(SchematicTheme.LINE, 0.6))
 
 
 ## Whether part [param designation] is drawn on the layer shown
@@ -1531,42 +1547,44 @@ func _draw_legend(s: float, font: Font) -> void:
 	var rows_in_column: int = _legend_grid(area.size.x).y
 	var top: Vector2 = to_screen(Vector2(area.position.x + 0.4, area.end.y - band + 0.5))
 	var color: Color = SchematicTheme.LINE
-	draw_string(font, top, tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, color)
+	draw_string(font, top, tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), color)
 	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
+	# The symbols as large as on the plan.
+	var ss: float = s * _symbols()
 	for i: int in rows.size():
 		var column: int = i / rows_in_column
-		var at: Vector2 = top + Vector2(column * LEGEND_COLUMN * s, (0.45 + (i % rows_in_column) * 0.55) * s)
-		var symbol: Vector2 = at + Vector2(0.3 * s, -0.08 * s)
+		var at: Vector2 = top + Vector2(column * LEGEND_COLUMN * s, (0.45 + (i % rows_in_column) * _legend_row()) * s)
+		var symbol: Vector2 = at + Vector2(0.3 * ss, -0.08 * s)
 		var sample: CircuitComponent = rows[i]["sample"]
 		if rows[i].has("symbol"):
-			(rows[i]["symbol"] as CustomSymbol).draw_fitted(self, Rect2(symbol - Vector2(0.3, 0.24) * s, Vector2(0.6, 0.44) * s), s, color, width, font)
+			(rows[i]["symbol"] as CustomSymbol).draw_fitted(self, Rect2(symbol - Vector2(0.3, 0.24) * ss, Vector2(0.6, 0.44) * ss), ss, color, width, font)
 		match str(rows[i]["key"]).left(1) if not rows[i].has("symbol") else "":
 			"0":
-				PlanSymbols.draw_switch(self, sample as LightSwitch, symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width)
+				PlanSymbols.draw_switch(self, sample as LightSwitch, symbol + Vector2(0, -0.1 * ss), Vector2.DOWN, ss, color, width)
 			"1":
-				PlanSymbols.draw_socket(self, sample as SocketOutlet, symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s, color, width, false)
+				PlanSymbols.draw_socket(self, sample as SocketOutlet, symbol + Vector2(0, -0.1 * ss), Vector2.DOWN, ss, color, width, false)
 			"2":
-				PlanSymbols.draw_luminaire(self, symbol, s, color, width, false)
+				PlanSymbols.draw_luminaire(self, symbol, ss, color, width, false)
 			"3":
-				PlanSymbols.draw_luminaire(self, symbol + Vector2(0, -0.15 * s), s, color, width, false, Vector2.DOWN)
+				PlanSymbols.draw_luminaire(self, symbol + Vector2(0, -0.15 * ss), ss, color, width, false, Vector2.DOWN)
 			"4":
-				PlanSymbols.draw_appliance(self, sample as Appliance, symbol + Vector2(0, -0.25 * s), Vector2.DOWN, s * 0.7, color, width, false)
+				PlanSymbols.draw_appliance(self, sample as Appliance, symbol + Vector2(0, -0.25 * ss), Vector2.DOWN, ss * 0.7, color, width, false)
 			"6":
-				PlanSymbols.draw_unit(self, symbol + Vector2(0, -0.1 * s), Vector2.DOWN, s * 0.8, color, width)
+				PlanSymbols.draw_unit(self, symbol + Vector2(0, -0.1 * ss), Vector2.DOWN, ss * 0.8, color, width)
 			"7":
 				draw_dashed_line(symbol - Vector2(0.25 * s, 0), symbol + Vector2(0.25 * s, 0), SchematicTheme.DESIGNATION, 1.4, 6.0)
 				for k: int in 3:
 					var p: Vector2 = symbol + Vector2((k - 1) * 4.0, 0)
 					draw_line(p + Vector2(-3, 5), p + Vector2(3, -5), SchematicTheme.DESIGNATION, 1.2, true)
 		var text: String = str(rows[i]["title"]) + ("  –  " + str(rows[i]["height"]) if not str(rows[i]["height"]).is_empty() else "")
-		draw_string(font, at + Vector2(0.75 * s, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+		draw_string(font, at + Vector2(0.45 * s + 0.3 * ss, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
 		if int(rows[i]["count"]) > 0:
 			var count: String = "%d×" % int(rows[i]["count"])
-			var count_width: float = font.get_string_size(count, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
-			draw_string(font, at + Vector2((LEGEND_COLUMN - 0.6) * s - count_width, 0), count, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+			var count_width: float = font.get_string_size(count, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
+			draw_string(font, at + Vector2((LEGEND_COLUMN - 0.6) * s - count_width, 0), count, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
 	_draw_scale_and_north(s, font, area)
 	var note: String = tr("Heights are to the middle of the box; a height other than these is written beside the part (h).")
-	draw_string(font, top + Vector2(0, (0.45 + rows_in_column * 0.55) * s), note, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+	draw_string(font, top + Vector2(0, (0.45 + rows_in_column * _legend_row()) * s), note, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
 
 
 ## At the right of the legend band of the sheet [param area]: the north
@@ -1586,14 +1604,14 @@ func _draw_scale_and_north(s: float, font: Font, area: Rect2) -> void:
 	draw_polyline(PackedVector2Array([tip, back + side, c - up * r * 0.6, back - side, tip]), color, 1.2, true)
 	# The first letter of north in the language (N, S for sever).
 	var north_text: String = tr("N (north)").left(1)
-	var nw: float = font.get_string_size(north_text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE).x
-	draw_string(font, tip + up * 12.0 + Vector2(-nw * 0.5, NAME_SIZE * 0.4), north_text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, color)
+	var nw: float = font.get_string_size(north_text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE)).x
+	draw_string(font, tip + up * 12.0 + Vector2(-nw * 0.5, _sized(NAME_SIZE) * 0.4), north_text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), color)
 	if print_scale <= 0:
 		return
 	# The scale and a bar of [constant SCALE_BAR] metres, true to the plan,
 	# every other one filled.
 	var bar_top: Vector2 = to_screen(Vector2(left, top + 1.3))
-	draw_string(font, to_screen(Vector2(left, top + 0.6)), tr("Scale 1:%d") % print_scale, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, color)
+	draw_string(font, to_screen(Vector2(left, top + 0.6)), tr("Scale 1:%d") % print_scale, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), color)
 	for k: int in SCALE_BAR:
 		var cell: Rect2 = Rect2(bar_top + Vector2(k * s, 0), Vector2(s, 0.12 * s))
 		if k % 2 == 0:
@@ -1601,9 +1619,9 @@ func _draw_scale_and_north(s: float, font: Font, area: Rect2) -> void:
 		draw_rect(cell, color, false, 1.0)
 	for k: int in SCALE_BAR + 1:
 		var label: String = str(k)
-		var lw: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
-		draw_string(font, bar_top + Vector2(k * s - lw * 0.5, 0.12 * s + TEXT_SIZE + 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
-	draw_string(font, bar_top + Vector2(SCALE_BAR * s + 8.0, 0.12 * s), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+		var lw: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
+		draw_string(font, bar_top + Vector2(k * s - lw * 0.5, 0.12 * s + _sized(TEXT_SIZE) + 2.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
+	draw_string(font, bar_top + Vector2(SCALE_BAR * s + 8.0, 0.12 * s), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 
 
 static func _num(metres: float) -> String:
@@ -1786,14 +1804,14 @@ func _draw_dimensions(index: int, s: float, font: Font) -> void:
 			draw_line(end - tick, end + tick, color, 1.6, true)
 		var length: float = points[k].distance_to(points[(k + 1) % points.size()])
 		var text: String = SingleLineCanvas._decimal(String.num(length, 2).pad_decimals(2)) + " m"
-		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
 		var mid: Vector2 = (sa + sb) * 0.5 - toward * 4.0
 		if absf(dir.y) < 0.5:
 			# Over a dimension above its wall, under one below it.
-			draw_string(font, mid + Vector2(-width * 0.5, TEXT_SIZE if toward.y < 0.0 else 0.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+			draw_string(font, mid + Vector2(-width * 0.5, _sized(TEXT_SIZE) if toward.y < 0.0 else 0.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 		else:
 			# Across, beside a dimension up and down, on its side away from the wall.
-			draw_string(font, mid + Vector2(-width - 2.0 if toward.x > 0.0 else 2.0, TEXT_SIZE * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+			draw_string(font, mid + Vector2(-width - 2.0 if toward.x > 0.0 else 2.0, _sized(TEXT_SIZE) * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 
 
 ## The underlay image of a file (null when it cannot be read), kept once read.
@@ -1856,7 +1874,7 @@ func _draw_notes(font: Font) -> void:
 		shown.text = note.text
 		shown.label = label
 		var box: Rect2 = _note_box(shown, font)
-		var under: float = box.position.y + TEXT_SIZE + 4.0
+		var under: float = box.position.y + _sized(TEXT_SIZE) + 4.0
 		# The leader to the nearer end of the first line's underline.
 		var near_end: Vector2 = Vector2(box.position.x if to_screen(at).x <= box.get_center().x else box.end.x, under)
 		draw_circle(to_screen(at), 2.6, color)
@@ -1864,7 +1882,7 @@ func _draw_notes(font: Font) -> void:
 		draw_line(Vector2(box.position.x, under), Vector2(box.end.x, under), color, 1.0, true)
 		var lines: PackedStringArray = note.text.split("\n")
 		for k: int in lines.size():
-			draw_string(font, to_screen(label) + Vector2(0, k * (TEXT_SIZE + 3)), lines[k], HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+			draw_string(font, to_screen(label) + Vector2(0, k * (_sized(TEXT_SIZE) + 3)), lines[k], HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 
 
 ## The saved dimensions: a line with a slanted tick and an extension line
@@ -1894,14 +1912,14 @@ func _draw_saved_dimensions(font: Font) -> void:
 ## [param a] to [param b] (screen), on its side [param away] from the wall.
 func _draw_length(font: Font, a: Vector2, b: Vector2, away: Vector2, length: float, color: Color) -> void:
 	var text: String = SingleLineCanvas._decimal(String.num(length, 2).pad_decimals(2))
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
 	var mid: Vector2 = (a + b) * 0.5 + away * 3.0
 	var dir: Vector2 = (b - a).normalized()
 	if absf(dir.y) < 0.5:
-		draw_string(font, mid + Vector2(-width * 0.5, 0.0 if away.y < 0.0 else TEXT_SIZE), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+		draw_string(font, mid + Vector2(-width * 0.5, 0.0 if away.y < 0.0 else _sized(TEXT_SIZE)), text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 	else:
 		# Across, beside a dimension up and down, on its side away from the wall.
-		draw_string(font, mid + Vector2(-width - 2.0 if away.x < 0.0 else 2.0, TEXT_SIZE * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+		draw_string(font, mid + Vector2(-width - 2.0 if away.x < 0.0 else 2.0, _sized(TEXT_SIZE) * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 
 
 ## What the measure (or the dimension being dragged) spans: a dashed line
@@ -1917,9 +1935,9 @@ func _draw_measure(font: Font) -> void:
 	var d: Vector2 = (b - a).abs()
 	var text: String = "%s m   (↔ %s  ↕ %s)" % [_metres_text(a.distance_to(b)), _metres_text(d.x), _metres_text(d.y)]
 	var at: Vector2 = (sa + sb) * 0.5 + Vector2(10, -10)
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
-	draw_rect(Rect2(at + Vector2(-4, -TEXT_SIZE - 2), Vector2(width + 8, TEXT_SIZE + 8)), SchematicTheme.BACKGROUND)
-	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.SELECTED)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
+	draw_rect(Rect2(at + Vector2(-4, -_sized(TEXT_SIZE) - 2), Vector2(width + 8, _sized(TEXT_SIZE) + 8)), SchematicTheme.BACKGROUND)
+	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.SELECTED)
 
 
 static func _metres_text(metres: float) -> String:
@@ -1981,7 +1999,7 @@ func _draw_room_legend(s: float, font: Font) -> void:
 	var rect: Rect2 = _room_legend_rect()
 	var top_left: Vector2 = to_screen(rect.position)
 	var color: Color = SchematicTheme.LINE
-	draw_string(font, top_left + Vector2(0, -0.2 * s), tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE + 2, color)
+	draw_string(font, top_left + Vector2(0, -0.2 * s), tr("Legend"), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE) + 2, color)
 	var heads: PackedStringArray = PackedStringArray([tr("Number"), tr("Purpose of the room"), tr("Environment (ČSN 33 2000-5-51)"), tr("Illuminance (lx)")])
 	var rows: int = plan().rooms.size() + 1
 	draw_rect(Rect2(top_left, Vector2(rect.size.x, rows * ROOM_ROW) * s), color, false, 1.0)
@@ -1989,7 +2007,7 @@ func _draw_room_legend(s: float, font: Font) -> void:
 		var y: float = top_left.y + row * ROOM_ROW * s
 		draw_line(Vector2(top_left.x, y), Vector2(top_left.x + rect.size.x * s, y), color, 1.0)
 	var x: float = top_left.x
-	var text_size: int = maxi(roundi(TEXT_SIZE * zoom), 6)
+	var text_size: int = maxi(roundi(_sized(TEXT_SIZE) * zoom), 6)
 	for column: int in ROOM_COLUMNS.size():
 		if column > 0:
 			draw_line(Vector2(x, top_left.y), Vector2(x, top_left.y + rows * ROOM_ROW * s), color, 1.0)
@@ -2035,7 +2053,7 @@ func _draw_cables(s: float, font: Font) -> void:
 			var p: Vector2 = mid + dir * (k - (mini(cores, 5) - 1) * 0.5) * 4.0
 			draw_line(p - tick, p + tick, color, 1.2, true)
 		if cores > 5:
-			draw_string(font, mid + dir.rotated(PI / 2.0) * 12.0, str(cores), HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
+			draw_string(font, mid + dir.rotated(PI / 2.0) * 12.0, str(cores), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 
 
 ## Where a cable to [param designation] ends: its symbol (m).
@@ -2051,7 +2069,9 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 	# outlet turned to face into the room from its wall.
 	var middle: Vector2 = _shown_at(designation) + symbol_center(designation) - plan().parts[designation]
 	var upright: Vector2 = Vector2.DOWN if into != Vector2.ZERO else Vector2.ZERO
-	var at: Vector2 = to_screen(middle - upright * WALL_SYMBOL_OFFSET)
+	var at: Vector2 = to_screen(middle - upright * WALL_SYMBOL_OFFSET * _symbols())
+	# The symbol as large as the plan has its symbols.
+	s *= _symbols()
 	var chosen: bool = selected.get("kind", "") == "part" and selected.get("designation", "") == designation
 	var color: Color = SchematicTheme.SELECTED if chosen else SchematicTheme.LINE
 	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
@@ -2097,9 +2117,9 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 	# The designation beside the symbol, away from its wall.
 	var center: Vector2 = to_screen(middle)
 	var text_at: Vector2 = _label_spot(designation, center, into, label, height_text, s, font)
-	draw_string(font, text_at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.DESIGNATION)
+	draw_string(font, text_at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.DESIGNATION)
 	if not height_text.is_empty():
-		draw_string(font, text_at + Vector2(0, TEXT_SIZE), height_text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE - 1, SchematicTheme.TEXT)
+		draw_string(font, text_at + Vector2(0, _sized(TEXT_SIZE)), height_text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE) - 1, SchematicTheme.TEXT)
 
 
 ## Screen boxes of the symbols and the designations drawn so far.
@@ -2113,10 +2133,10 @@ func _symbol_box(designation: String, s: float) -> Rect2:
 	var def: CustomSymbol = document.symbol((c as Appliance).symbol) if c is Appliance else null
 	if def != null:
 		# The user's symbol: what it covers, from its origin.
-		var origin: Vector2 = center - (Vector2(0, WALL_SYMBOL_OFFSET * s) if plan().facing.has(designation) else Vector2.ZERO)
+		var origin: Vector2 = center - (Vector2(0, WALL_SYMBOL_OFFSET * _symbols() * s) if plan().facing.has(designation) else Vector2.ZERO)
 		var box: Rect2 = def.bounds()
-		return Rect2(origin + box.position * s, box.size * s)
-	var half: float = 0.2 * s
+		return Rect2(origin + box.position * s * _symbols(), box.size * s * _symbols())
+	var half: float = 0.2 * s * _symbols()
 	return Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0)
 
 
@@ -2126,11 +2146,11 @@ func _symbol_box(designation: String, s: float) -> Rect2:
 ## above, the first clear of the other symbols and designations, a step
 ## further out when none is. Takes the box it gets.
 func _label_spot(designation: String, center: Vector2, into: Vector2, label: String, height_text: String, s: float, font: Font) -> Vector2:
-	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+	var width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
 	if not height_text.is_empty():
-		width = maxf(width, font.get_string_size(height_text, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE - 1).x)
-	var height: float = TEXT_SIZE * (2.0 if not height_text.is_empty() else 1.0)
-	var ascent: float = font.get_ascent(TEXT_SIZE)
+		width = maxf(width, font.get_string_size(height_text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE) - 1).x)
+	var height: float = _sized(TEXT_SIZE) * (2.0 if not height_text.is_empty() else 1.0)
+	var ascent: float = font.get_ascent(_sized(TEXT_SIZE))
 	var sides: Array[Vector2] = []
 	if into != Vector2.ZERO:
 		sides.append(into)
@@ -2140,7 +2160,7 @@ func _label_spot(designation: String, center: Vector2, into: Vector2, label: Str
 	var own: Rect2 = _symbol_box(designation, s)
 	var first: Vector2 = Vector2.INF
 	for step: int in 3:
-		var gap: float = 0.22 * s + 2.0 + step * TEXT_SIZE
+		var gap: float = 0.22 * s + 2.0 + step * _sized(TEXT_SIZE)
 		for side: Vector2 in sides:
 			# The box's top left, its near edge [gap] from the centre.
 			var corner: Vector2 = center + Vector2(gap, -2.0 - ascent)

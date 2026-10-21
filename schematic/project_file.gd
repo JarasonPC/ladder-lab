@@ -117,7 +117,8 @@ const FORMAT: String = "ladder-lab"
 ## ("underlay": path, at, scale, shown); the supply's loop impedance in the
 ## single-line diagram ("ze"; missing: 0.4 Ω); where north is on a plan
 ## ("north", degrees; missing: up), where its legend of rooms was moved
-## ("legend"; missing: right of the plan) and the title block's "stage".
+## ("legend"; missing: right of the plan), how large its symbols and texts
+## are ("sizes"; missing: as usual) and the title block's "stage".
 ## 45: the user's own floor plan symbols ("symbols": id, name, category,
 ## wall, electrical, power, two_phases and shapes, each a kind with its
 ## points, filled, text and size), put on a plan as marks ("marks": symbol,
