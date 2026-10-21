@@ -444,9 +444,23 @@ Architecture and conventions of the code base. Read this before changing the cod
   never on a sheet (FloorPlanCanvas._draw_underlay, underlay_texture caches the image);
   Tool.SCALE takes two points, scale_requested -> the scale dialog (FloorPlanView.scale_underlay
   keeps the first point), Tool.UNDERLAY drags it; the Underlay menu loads, shows, removes.
-  Sheets: FloorPlanCanvas.layer ("" all, "lighting", "power": layer_shows; the building, the
-  unit and the notes always) for SheetRenderer.split_plan (ExportPreview "split_plan", off at
-  first: OFF_AT_FIRST), two sheets a floor; the legend lists what is on the sheet with its
+  Layers: the user's own, shared by the floors (SchematicDocument.plan_layers of
+  FloorPlan.Layer: name, shown; saved "plan_layers"; add_plan_layer, rename_plan_layer and
+  remove_plan_layer, names unique, MAX_LAYER_NAME, what was on a layer taken away stays on
+  none); parts (FloorPlan.part_layers by designation, saved "part_layers", never the unit),
+  notes, dimensions, fixtures and marks ("layer") are on one or on none ("");
+  SchematicDocument.layer_shown: on none or a layer there is no more, shown. On a hidden one
+  they are neither drawn nor picked (FloorPlanCanvas.layer_shows, shows; a link or cable
+  only with both its parts shown, _link_shown), nor counted in the legend; the building, the
+  unit and the room legend always. New ones go on FloorPlanCanvas.active_layer (new_layer:
+  "" while the schematic has no such layer; a view setting, not saved); a right click on one
+  (_layered_at) -> layer_menu_requested -> FloorPlanView's layer picker (set_item_layer, or a
+  new layer it goes on). FloorPlanView's Layers menu (editing only; its text the active
+  layer): a tick per layer shows or hides it (hiding drops the selection and, if it is the
+  active one, the active layer), the layer new things go on (choosing a hidden one shows it),
+  New, Rename and Remove the active one, Show all; every change one undoable edit.
+  Sheets: a floor plan sheet a floor with the layers shown (the copy exported keeps
+  plan_layers); the legend lists what is on the sheet with its
   count (legend_rows: switches by number, sockets single and double, ceiling and wall
   luminaires, appliances by kind, the unit, the cable), in the columns its width takes
   (_legend_grid, _legend_height); a floor plan sheet is at the largest of PLAN_SCALES its

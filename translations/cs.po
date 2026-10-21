@@ -5502,6 +5502,45 @@ msgstr "Podlaží: každé má svůj plán a výkres"
 msgid "Name of the floor"
 msgstr "Název podlaží"
 
+msgid "Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts, notes, dimensions and furniture go on; a right click on something puts it on another"
+msgstr "Vrstvy: zobrazit nebo skrýt, co je na každé z nich (na obrazovce i na exportovaných výkresech), a zvolit tu, na kterou jdou nové prvky, poznámky, kóty a nábytek; kliknutím pravým tlačítkem se něco přesune na jinou"
+
+msgid "Shown"
+msgstr "Zobrazené"
+
+msgid "New things go on"
+msgstr "Nové věci jdou na"
+
+msgid "No layer"
+msgstr "Žádná vrstva"
+
+msgid "New layer…"
+msgstr "Nová vrstva…"
+
+#, c-format
+msgid "Rename the layer %s…"
+msgstr "Přejmenovat vrstvu %s…"
+
+#, c-format
+msgid "Remove the layer %s (what is on it stays, on no layer)"
+msgstr "Odstranit vrstvu %s (co je na ní, zůstane, bez vrstvy)"
+
+msgid "Show all layers"
+msgstr "Zobrazit všechny vrstvy"
+
+msgid "Rename the layer"
+msgstr "Přejmenovat vrstvu"
+
+msgid "New layer"
+msgstr "Nová vrstva"
+
+msgid "Layer"
+msgstr "Vrstva"
+
+#, c-format
+msgid "%s (hidden)"
+msgstr "%s (skrytá)"
+
 msgid "Add a floor above"
 msgstr "Přidat podlaží nad"
 
@@ -5558,8 +5597,8 @@ msgstr "Impedance smyčky přívodu Ze"
 msgid "The function, times and control input of each time relay, with the timing diagram of its function"
 msgstr "Funkce, časy a řídicí vstup každého časového relé s časovým diagramem jeho funkce"
 
-msgid "Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)"
-msgstr "Každé podlaží na dvou výkresech: osvětlení (spínače, svítidla a jejich vedení) a zásuvky (zásuvky a spotřebiče)"
+msgid "Each floor on a sheet of its own, with the layers shown on its plan"
+msgstr "Každé podlaží na samostatném výkresu, s vrstvami zobrazenými v jeho plánu"
 
 msgid "On the floor plan"
 msgstr "Na půdorysu"
@@ -5591,12 +5630,6 @@ msgstr "Stupeň"
 
 msgid "Scale · Format"
 msgstr "Měřítko · Formát"
-
-msgid "lighting"
-msgstr "osvětlení"
-
-msgid "sockets and appliances"
-msgstr "zásuvky a spotřebiče"
 
 #, c-format
 msgid "Switch %s"
@@ -5639,9 +5672,6 @@ msgstr "Množství"
 
 msgid "Stage (DUR, DSP, DPS …)"
 msgstr "Stupeň (DUR, DSP, DPS …)"
-
-msgid "Lighting and sockets apart"
-msgstr "Osvětlení a zásuvky zvlášť"
 
 msgid "Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn"
 msgstr "Nastavení plánu: tloušťka obvodových zdí a příček, kde je sever, jak velké se kreslí značky a texty"

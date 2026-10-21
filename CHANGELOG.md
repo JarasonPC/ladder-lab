@@ -12,10 +12,19 @@ What changed in each LadderLab version. Version numbers follow the rules in
   or KT becomes a contact
 - A device takes any number of blocks: a second NC block named SQ1 takes the next free numbers
   (21-22) instead of being refused
+- Floor plan: layers of your own (Layers in the plan's bar): make and name them, choose the
+  one new parts, notes, dimensions and furniture go on, and show or hide each; a right click
+  on a part, note, dimension or piece of furniture puts it on another layer. Rooms, walls,
+  doors, windows and the consumer unit are always shown
 
 ### Panels
 - The N and PE distribution blocks in a switchboard can be picked and moved along a rail or to
   another rail; they stay where they were put
+
+### Files and export
+- The floor plan sheets of a PDF export leave out the layers hidden on the plan, in place of
+  the fixed choice of lighting and sockets on separate sheets: hide a layer to print a plan
+  without it
 
 ### Fixed
 - Wires of a moved part no longer step out of a terminal and back; they take a corner instead

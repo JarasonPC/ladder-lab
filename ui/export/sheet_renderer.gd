@@ -39,8 +39,6 @@ var switchboards: bool = false
 ## The time relays: function, times and control input of each.
 var timers: bool = false
 var workspace: bool = false
-## A house's floor plans on two sheets a floor: lighting, sockets and appliances.
-var split_plan: bool = false
 var parts_list: bool = false
 ## Scales a floor plan is printed at, the largest first.
 const PLAN_SCALES: Array[int] = [50, 100, 200, 500]
@@ -73,7 +71,7 @@ static func end_white_paper() -> void:
 
 
 ## What [param doc] has sheets of: {"stations", "switchboards" (one with
-## something in it), "workspace" (places or parts), "split_plan", "plc_programs",
+## something in it), "workspace" (places or parts), "plc_programs",
 ## "timers" (time relays)}.
 static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 	var fitted: bool = false
@@ -83,7 +81,6 @@ static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 		"stations": not doc.control_boxes.is_empty(),
 		"switchboards": fitted,
 		"workspace": _floors_drawn(doc).size() > 0 if doc.residential else not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()),
-		"split_plan": _floors_drawn(doc).size() > 0 and doc.residential,
 		"plc_programs": not _programs(doc).is_empty(),
 		"timers": not TimersSheet.entries(doc).is_empty(),
 	}
@@ -152,14 +149,11 @@ func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary
 		for relays: Array in TimersSheet.split(TimersSheet.entries(doc)):
 			result.append({"kind": "timers", "relays": relays})
 	if workspace and available(doc)["workspace"]:
-		# A house installation's floor plans in place of the workspace, a sheet a floor.
+		# A house installation's floor plans in place of the workspace, a sheet
+		# a floor with the layers shown.
 		if doc.residential:
 			for f: int in _floors_drawn(doc):
-				if split_plan:
-					result.append({"kind": "floor_plan", "floor": f, "layer": "lighting"})
-					result.append({"kind": "floor_plan", "floor": f, "layer": "power"})
-				else:
-					result.append({"kind": "floor_plan", "floor": f})
+				result.append({"kind": "floor_plan", "floor": f})
 		else:
 			result.append({"kind": "workspace"})
 	if parts_list:
@@ -322,16 +316,11 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			var plan: FloorPlanCanvas = FloorPlanCanvas.new()
 			plan.document = copy
 			plan.legend = true
-			plan.layer = spec.get("layer", "")
 			var area: Rect2 = plan.paper_area()
 			plan.offset = -area.position * FloorPlanCanvas.PX
 			plan.size = area.size * FloorPlanCanvas.PX
 			content.add_child(plan)
 			frame.page_title = tr("Floor plan") if copy.floors.size() == 1 else tr("Floor plan %s") % copy.floor_plan.floor_name()
-			if plan.layer == "lighting":
-				frame.page_title += " – " + tr("lighting")
-			elif plan.layer == "power":
-				frame.page_title += " – " + tr("sockets and appliances")
 			extent = Rect2(Vector2.ZERO, plan.size / G)
 		"parts":
 			var table: PartsSheet = PartsSheet.new()

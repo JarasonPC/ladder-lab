@@ -5487,6 +5487,45 @@ msgstr ""
 msgid "Name of the floor"
 msgstr ""
 
+msgid "Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts, notes, dimensions and furniture go on; a right click on something puts it on another"
+msgstr ""
+
+msgid "Shown"
+msgstr ""
+
+msgid "New things go on"
+msgstr ""
+
+msgid "No layer"
+msgstr ""
+
+msgid "New layer…"
+msgstr ""
+
+#, c-format
+msgid "Rename the layer %s…"
+msgstr ""
+
+#, c-format
+msgid "Remove the layer %s (what is on it stays, on no layer)"
+msgstr ""
+
+msgid "Show all layers"
+msgstr ""
+
+msgid "Rename the layer"
+msgstr ""
+
+msgid "New layer"
+msgstr ""
+
+msgid "Layer"
+msgstr ""
+
+#, c-format
+msgid "%s (hidden)"
+msgstr ""
+
 msgid "Add a floor above"
 msgstr ""
 
@@ -5543,7 +5582,7 @@ msgstr ""
 msgid "The function, times and control input of each time relay, with the timing diagram of its function"
 msgstr ""
 
-msgid "Each floor on two sheets: the lighting plan (switches, luminaires and their lines) and the socket plan (sockets and appliances)"
+msgid "Each floor on a sheet of its own, with the layers shown on its plan"
 msgstr ""
 
 msgid "On the floor plan"
@@ -5575,12 +5614,6 @@ msgid "Stage"
 msgstr ""
 
 msgid "Scale · Format"
-msgstr ""
-
-msgid "lighting"
-msgstr ""
-
-msgid "sockets and appliances"
 msgstr ""
 
 #, c-format
@@ -5623,9 +5656,6 @@ msgid "Quantity"
 msgstr ""
 
 msgid "Stage (DUR, DSP, DPS …)"
-msgstr ""
-
-msgid "Lighting and sockets apart"
 msgstr ""
 
 msgid "Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn"

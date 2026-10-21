@@ -73,6 +73,11 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		result["floor"] = doc.floor
 	elif not doc.floor_plan.is_empty():
 		result["floor_plan"] = doc.floor_plan.to_data()
+	if not doc.plan_layers.is_empty():
+		var layer_list: Array = []
+		for layer: FloorPlan.Layer in doc.plan_layers:
+			layer_list.append({"name": layer.name, "shown": layer.shown})
+		result["plan_layers"] = layer_list
 	var symbol_list: Array = []
 	for id: String in doc.used_symbols():
 		symbol_list.append(doc.symbols[id].to_data())
@@ -211,6 +216,11 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 		doc.floor = clampi(int(shown), 0, floors.size() - 1) if (shown is int or shown is float) else 0
 	else:
 		doc.floor_plan = FloorPlan.from_data(d.get("floor_plan", {}))
+	var layer_list: Variant = d.get("plan_layers", [])
+	if layer_list is Array:
+		for ld: Variant in layer_list:
+			if ld is Dictionary and ld.get("name", null) is String and doc.add_plan_layer(ld["name"]):
+				doc.plan_layers[-1].shown = ld.get("shown", true) != false
 	var symbol_list: Variant = d.get("symbols", [])
 	if symbol_list is Array:
 		for raw: Variant in symbol_list:
