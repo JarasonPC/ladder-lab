@@ -105,6 +105,7 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"plan_note": '<circle cx="5" cy="19" r="1.5"/><path d="M6 18 12 9h9"/><path d="M12 5h9"/>',
 	"plan_underlay": '<rect x="3" y="5" width="18" height="14" stroke-dasharray="2 2"/><path d="M7 15l3-4 3 3 2-2 3 3"/>',
 	"plan_floors": '<path d="M12 3 3 8l9 5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/>',
+	"plan_layers": '<path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
 	"walls": '<path d="M3 6h11M18 6h3M3 12h4M11 12h10M3 18h13M20 18h1"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
 	"house": '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v12h14V9"/><path d="M10 21v-6h4v6"/>',
 	"join": '<path d="M3 4h10v7h8v9H3z"/><path d="M13 12v7" stroke-dasharray="2 2"/><path d="M9 15h8M14 12l3 3-3 3"/>',

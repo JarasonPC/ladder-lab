@@ -49,6 +49,58 @@ var floor_plan: FloorPlan:
 		floor = 0
 
 
+## The layers of the floor plans, in the order made (see [FloorPlan.Layer]).
+var plan_layers: Array[FloorPlan.Layer] = []
+
+
+## Plan layer [param layer_name], null for none.
+func plan_layer(layer_name: String) -> FloorPlan.Layer:
+	for layer: FloorPlan.Layer in plan_layers:
+		if layer.name == layer_name:
+			return layer
+	return null
+
+
+## Whether what is on layer [param layer_name] is drawn: on none ("") or
+## on a layer there is no more, always.
+func layer_shown(layer_name: String) -> bool:
+	var layer: FloorPlan.Layer = plan_layer(layer_name)
+	return layer == null or layer.shown
+
+
+## Adds a plan layer named [param layer_name] (trimmed); false when the name
+## is empty or taken.
+func add_plan_layer(layer_name: String) -> bool:
+	var trimmed: String = layer_name.strip_edges().left(FloorPlan.MAX_LAYER_NAME)
+	if trimmed.is_empty() or plan_layer(trimmed) != null:
+		return false
+	plan_layers.append(FloorPlan.Layer.new(trimmed))
+	return true
+
+
+## Renames plan layer [param old_name] [param new_name] (trimmed) and what is
+## on it on every floor along; false when the new name is empty or taken.
+func rename_plan_layer(old_name: String, new_name: String) -> bool:
+	var trimmed: String = new_name.strip_edges().left(FloorPlan.MAX_LAYER_NAME)
+	var layer: FloorPlan.Layer = plan_layer(old_name)
+	if layer == null or trimmed.is_empty() or plan_layer(trimmed) != null:
+		return false
+	layer.name = trimmed
+	for plan: FloorPlan in floors:
+		plan.rename_layer(old_name, trimmed)
+	return true
+
+
+## Takes plan layer [param layer_name] away; what was on it stays, on no layer.
+func remove_plan_layer(layer_name: String) -> void:
+	var layer: FloorPlan.Layer = plan_layer(layer_name)
+	if layer == null:
+		return
+	plan_layers.erase(layer)
+	for plan: FloorPlan in floors:
+		plan.rename_layer(layer_name, "")
+
+
 ## The floor part [param designation] is placed on, -1 for none.
 func floor_of(designation: String) -> int:
 	for i: int in floors.size():

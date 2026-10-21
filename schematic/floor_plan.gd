@@ -94,6 +94,8 @@ const LUX: Dictionary[String, String] = {"Living room": "150, 300/500", "Bedroom
 
 ## Shortest wall of a room that is not a rectangle (m).
 const MIN_WALL: float = 0.2
+## A layer's name is at most this long.
+const MAX_LAYER_NAME: int = 40
 
 
 ## A room: its name and its inside (m), the outline of its walls, every one
@@ -251,6 +253,8 @@ class Dimension:
 	var a: Vector2 = Vector2.ZERO
 	var b: Vector2 = Vector2.ZERO
 	var offset: float = DIMENSION_OFFSET
+	## The layer it is on ([member SchematicDocument.plan_layers]; "" for none).
+	var layer: String = ""
 
 
 ## A note printed with the plan: its text (lines split by line breaks), the
@@ -259,6 +263,7 @@ class Note:
 	var text: String = ""
 	var at: Vector2 = Vector2.ZERO
 	var label: Vector2 = Vector2.ZERO
+	var layer: String = ""
 
 
 ## A piece of furniture or a fixture (one of [constant FIXTURES]): the
@@ -268,6 +273,7 @@ class Fixture:
 	var kind: String = "table"
 	var rect: Rect2 = Rect2()
 	var facing: int = 1
+	var layer: String = ""
 
 	## Its width along its back and its depth (m).
 	func extent() -> Vector2:
@@ -285,6 +291,20 @@ class Mark:
 	var symbol: String = ""
 	var at: Vector2 = Vector2.ZERO
 	var facing: int = -1
+	var layer: String = ""
+
+
+## A layer of the floor plans of a schematic (its name), drawn or hidden on
+## the screen and on the sheets. Parts, notes, dimensions, furniture and
+## marks may be on one; the building, the consumer unit and what is on no
+## layer are always drawn.
+class Layer:
+	var name: String = ""
+	var shown: bool = true
+
+	func _init(p_name: String = "", p_shown: bool = true) -> void:
+		name = p_name
+		shown = p_shown
 
 
 ## Which floor it is: 0 the ground floor (1.NP), 1 the one over it (2.NP),
@@ -321,6 +341,8 @@ var parts: Dictionary[String, Vector2] = {}
 ## Which way each part on a wall faces into its room (index into
 ## [constant FACING]); parts in no entry (luminaires) are on the ceiling.
 var facing: Dictionary[String, int] = {}
+## The layer each part is on (by designation); parts in no entry are on none.
+var part_layers: Dictionary[String, String] = {}
 ## The lighting drawn on the plan of a residential installation.
 var links: Array[Link] = []
 
@@ -1183,6 +1205,7 @@ func row_points(index: int, k: int, count: int, start: float = 0.0, spacing: flo
 func remove(designation: String) -> void:
 	parts.erase(designation)
 	facing.erase(designation)
+	part_layers.erase(designation)
 	for i: int in range(links.size() - 1, -1, -1):
 		if links[i].a == designation or links[i].b == designation:
 			links.remove_at(i)
@@ -1194,6 +1217,8 @@ func rename(old_designation: String, new_designation: String) -> void:
 		parts[new_designation] = parts[old_designation]
 		if facing.has(old_designation):
 			facing[new_designation] = facing[old_designation]
+		if part_layers.has(old_designation):
+			part_layers[new_designation] = part_layers[old_designation]
 	for link: Link in links:
 		if link.a == old_designation:
 			link.a = new_designation
@@ -1201,6 +1226,69 @@ func rename(old_designation: String, new_designation: String) -> void:
 			link.b = new_designation
 	parts.erase(old_designation)
 	facing.erase(old_designation)
+	part_layers.erase(old_designation)
+
+
+## The layer part [param designation] is on ("" for none).
+func layer_of(designation: String) -> String:
+	return part_layers.get(designation, "")
+
+
+## Puts part [param designation] on layer [param layer_name] ("" none).
+func set_part_layer(designation: String, layer_name: String) -> void:
+	if layer_name.is_empty():
+		part_layers.erase(designation)
+	elif parts.has(designation) and designation != UNIT:
+		part_layers[designation] = layer_name
+
+
+## The note, dimension, fixture or mark [param index] by [param kind] ("note",
+## "dimension", "fixture", "mark"); null for none.
+func layered_item(kind: String, index: int) -> Object:
+	var list: Array = {"note": notes, "dimension": dimensions, "fixture": fixtures, "mark": marks}.get(kind, [])
+	return list[index] if index >= 0 and index < list.size() else null
+
+
+## The layer of what selection [param kind] names ("" for none): part
+## [param designation], or the note, dimension, fixture or mark [param index].
+func item_layer(kind: String, index: int, designation: String) -> String:
+	if kind == "part":
+		return layer_of(designation)
+	var item: Object = layered_item(kind, index)
+	return str(item.get("layer")) if item != null else ""
+
+
+## Puts what selection [param kind] names on layer [param layer_name] (""
+## none): part [param designation], or the note, dimension, fixture or mark
+## [param index].
+func set_item_layer(kind: String, index: int, designation: String, layer_name: String) -> void:
+	if kind == "part":
+		set_part_layer(designation, layer_name)
+		return
+	var item: Object = layered_item(kind, index)
+	if item != null:
+		item.set("layer", layer_name)
+
+
+## The notes, dimensions, fixtures and marks (each with its layer).
+func layered() -> Array[Object]:
+	var result: Array[Object] = []
+	result.append_array(notes)
+	result.append_array(dimensions)
+	result.append_array(fixtures)
+	result.append_array(marks)
+	return result
+
+
+## Layer [param old_name] is called [param new_name] ("": it is gone, what
+## was on it is on none).
+func rename_layer(old_name: String, new_name: String) -> void:
+	for item: Object in layered():
+		if item.get("layer") == old_name:
+			item.set("layer", new_name)
+	for designation: String in part_layers.keys():
+		if part_layers[designation] == old_name:
+			set_part_layer(designation, new_name)
 
 
 ## Drops what is kept of parts [param circuit] no longer has.
@@ -1329,6 +1417,8 @@ func to_data() -> Dictionary:
 			entry.append(facing[designation])
 		placed[designation] = entry
 	var result: Dictionary = {"rooms": room_list, "doors": door_list, "parts": placed}
+	if not part_layers.is_empty():
+		result["part_layers"] = part_layers.duplicate()
 	if level != 0:
 		result["level"] = level
 	if not is_zero_approx(north):
@@ -1356,12 +1446,12 @@ func to_data() -> Dictionary:
 	if not notes.is_empty():
 		var note_list: Array = []
 		for note: Note in notes:
-			note_list.append({"text": note.text, "at": [note.at.x, note.at.y], "label": [note.label.x, note.label.y]})
+			note_list.append(_with_layer({"text": note.text, "at": [note.at.x, note.at.y], "label": [note.label.x, note.label.y]}, note.layer))
 		result["notes"] = note_list
 	if not fixtures.is_empty():
 		var fixture_list: Array = []
 		for fixture: Fixture in fixtures:
-			fixture_list.append({"kind": fixture.kind, "rect": [fixture.rect.position.x, fixture.rect.position.y, fixture.rect.size.x, fixture.rect.size.y], "facing": fixture.facing})
+			fixture_list.append(_with_layer({"kind": fixture.kind, "rect": [fixture.rect.position.x, fixture.rect.position.y, fixture.rect.size.x, fixture.rect.size.y], "facing": fixture.facing}, fixture.layer))
 		result["fixtures"] = fixture_list
 	if not marks.is_empty():
 		var mark_list: Array = []
@@ -1369,15 +1459,15 @@ func to_data() -> Dictionary:
 			var md: Dictionary = {"symbol": mark.symbol, "at": [mark.at.x, mark.at.y]}
 			if mark.facing >= 0:
 				md["facing"] = mark.facing
-			mark_list.append(md)
+			mark_list.append(_with_layer(md, mark.layer))
 		result["marks"] = mark_list
 	if not dimensions.is_empty():
 		var dimension_list: Array = []
 		for dim: Dimension in dimensions:
 			if dim.room >= 0:
-				dimension_list.append({"room": dim.room, "wall": dim.wall, "offset": dim.offset})
+				dimension_list.append(_with_layer({"room": dim.room, "wall": dim.wall, "offset": dim.offset}, dim.layer))
 			else:
-				dimension_list.append({"a": [dim.a.x, dim.a.y], "b": [dim.b.x, dim.b.y], "offset": dim.offset})
+				dimension_list.append(_with_layer({"a": [dim.a.x, dim.a.y], "b": [dim.b.x, dim.b.y], "offset": dim.offset}, dim.layer))
 		result["dimensions"] = dimension_list
 	if not links.is_empty():
 		var link_list: Array = []
@@ -1385,6 +1475,18 @@ func to_data() -> Dictionary:
 			link_list.append([link.a, link.a_port, link.b, link.b_port])
 		result["links"] = link_list
 	return result
+
+
+## [param data] with "layer" [param layer_name] when it is on one.
+static func _with_layer(data: Dictionary, layer_name: String) -> Dictionary:
+	if not layer_name.is_empty():
+		data["layer"] = layer_name
+	return data
+
+
+## The layer name read from [param data] ("" for none or a damaged one).
+static func _layer_in(data: Dictionary) -> String:
+	return (data["layer"] as String).strip_edges().left(MAX_LAYER_NAME) if data.get("layer", null) is String else ""
 
 
 ## Reads a plan; damaged rooms, doors and parts are left out.
@@ -1461,6 +1563,7 @@ static func from_data(raw: Variant) -> FloorPlan:
 				note.text = (nd["text"] as String).left(500)
 				note.at = Vector2(float(nd["at"][0]), float(nd["at"][1]))
 				note.label = Vector2(float(nd["label"][0]), float(nd["label"][1]))
+				note.layer = _layer_in(nd)
 				plan.notes.append(note)
 	var fixture_list: Variant = d.get("fixtures", [])
 	if fixture_list is Array:
@@ -1472,6 +1575,7 @@ static func from_data(raw: Variant) -> FloorPlan:
 				fixture.rect = Rect2(float(fr[0]), float(fr[1]), clampf(float(fr[2]), 0.1, 10.0), clampf(float(fr[3]), 0.1, 10.0))
 				var face: Variant = fd.get("facing", 1)
 				fixture.facing = clampi(int(face), 0, 3) if (face is int or face is float) else 1
+				fixture.layer = _layer_in(fd)
 				plan.fixtures.append(fixture)
 	var mark_list: Variant = d.get("marks", [])
 	if mark_list is Array:
@@ -1482,6 +1586,7 @@ static func from_data(raw: Variant) -> FloorPlan:
 				mark.at = Vector2(float(md["at"][0]), float(md["at"][1]))
 				var face: Variant = md.get("facing", -1)
 				mark.facing = clampi(int(face), -1, 3) if (face is int or face is float) else -1
+				mark.layer = _layer_in(md)
 				plan.marks.append(mark)
 	var dimension_list: Variant = d.get("dimensions", [])
 	if dimension_list is Array:
@@ -1490,6 +1595,7 @@ static func from_data(raw: Variant) -> FloorPlan:
 				continue
 			var dim: Dimension = Dimension.new()
 			dim.offset = _length(dd.get("offset", DIMENSION_OFFSET), DIMENSION_OFFSET, -20.0, 20.0)
+			dim.layer = _layer_in(dd)
 			var room: Variant = dd.get("room", -1)
 			var wall: Variant = dd.get("wall", 0)
 			if (room is int or room is float) and (wall is int or wall is float) and int(room) >= 0 and int(room) < plan.rooms.size() and int(wall) >= 0 and int(wall) < plan.rooms[int(room)].points.size():
@@ -1509,6 +1615,11 @@ static func from_data(raw: Variant) -> FloorPlan:
 				plan.parts[designation] = Vector2(float(entry[0]), float(entry[1]))
 				if (entry as Array).size() > 2 and (entry[2] is int or entry[2] is float) and int(entry[2]) >= 0 and int(entry[2]) < 4:
 					plan.facing[designation] = int(entry[2])
+	var layer_list: Variant = d.get("part_layers", {})
+	if layer_list is Dictionary:
+		for designation: Variant in layer_list:
+			if designation is String:
+				plan.set_part_layer(designation, _layer_in({"layer": layer_list[designation]}))
 	var link_list: Variant = d.get("links", [])
 	if link_list is Array:
 		for ld: Variant in link_list:

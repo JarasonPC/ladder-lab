@@ -138,7 +138,7 @@ var _sheet_renderer: SheetRenderer
 ## Shows the sheets before they are exported; what it shows is saved.
 var _export_preview: ExportPreview
 ## What a PDF export holds (see [method ExportPreview.contents]), remembered.
-var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "plc_programs": true, "timers": true, "workspace": true, "split_plan": false, "parts_list": true}
+var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "plc_programs": true, "timers": true, "workspace": true, "parts_list": true}
 var _export_pdf: bool = false
 ## Largest paper of the exported sheets (user settings, "export"/"largest_paper").
 var _export_paper: String = SheetLayout.DEFAULT_LARGEST
@@ -2287,7 +2287,6 @@ func _prepare_export(contents: Dictionary) -> void:
 	_sheet_renderer.plc_programs = contents.get("plc_programs", false)
 	_sheet_renderer.timers = contents.get("timers", false)
 	_sheet_renderer.workspace = contents.get("workspace", false)
-	_sheet_renderer.split_plan = contents.get("split_plan", false)
 	_sheet_renderer.parts_list = contents.get("parts_list", false)
 	_sheet_renderer.wire_numbers = _wire_numbers
 	_sheet_renderer.path_numbers = _path_numbers
@@ -2633,7 +2632,7 @@ func _load_settings() -> void:
 		_keys_rolled = bool(config.get_value("view", "keys_rolled", false))
 		_control_rolled = bool(config.get_value("view", "control_panel_rolled", false))
 		for key: String in ExportPreview.CONTENTS:
-			_export_contents[key] = bool(config.get_value("export", key, not ExportPreview.OFF_AT_FIRST.has(key)))
+			_export_contents[key] = bool(config.get_value("export", key, true))
 		var paper: String = str(config.get_value("export", "largest_paper", SheetLayout.DEFAULT_LARGEST))
 		_export_paper = paper if SheetLayout.paper_index(paper) >= 0 else SheetLayout.DEFAULT_LARGEST
 		WorkspaceCables.naming = WorkspaceCables.Naming.HARMONISED if config.get_value("view", "cable_types", "czech") == "harmonised" else WorkspaceCables.Naming.CZECH

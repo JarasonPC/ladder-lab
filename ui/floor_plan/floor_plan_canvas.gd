@@ -38,6 +38,11 @@ extends Control
 ## The user's own symbols ([CustomSymbol]) come from the palette too: a
 ## drawing-only one as a mark ([FloorPlan.Mark]), an electrical one as an
 ## appliance drawn with it.
+##
+## Layers ([member SchematicDocument.plan_layers]): parts, notes, dimensions,
+## fixtures and marks on a hidden one are neither drawn nor picked (nor the
+## lines of a hidden part); new ones go on [member active_layer]; a right
+## click on one asks for the layer it goes on.
 
 ## Changes the plan: [param change] is called with the document.
 signal edit_requested(change: Callable)
@@ -46,6 +51,9 @@ signal room_drawn(index: int)
 ## The menu of room [param index] should open at screen point [param at]
 ## (a right click on it).
 signal room_menu_requested(index: int, at: Vector2)
+## The layer menu of what is selected (a part, note, dimension, fixture or
+## mark right-clicked) should open at screen point [param at].
+signal layer_menu_requested(at: Vector2)
 ## Rocker [param rocker] of light switch [param designation] was clicked.
 signal switch_toggled(designation: String, rocker: int)
 ## Room [param index] should be renamed.
@@ -154,10 +162,8 @@ var offset: Vector2 = Vector2(60.0, 60.0)
 ## Drawn for a sheet: the legend of the symbols and the standard heights
 ## under the plan (see [method paper_area]).
 var legend: bool = false
-## What of the installation is drawn: "" all of it, "lighting" the switches,
-## luminaires and their lines, "power" the sockets and appliances (the
-## building, the consumer unit and the notes always).
-var layer: String = ""
+## The layer new parts, notes, dimensions, fixtures and marks go on ("" none).
+var active_layer: String = ""
 ## On a sheet: the scale it is printed at (50 for 1:50), 0 for none; its
 ## scale bar and the north arrow are drawn by the legend.
 var print_scale: int = 0
@@ -235,10 +241,13 @@ func paper_area() -> Rect2:
 		# The room legend beside the plan.
 		area = area.merge(_room_legend_rect().grow(0.4))
 	for i: int in plan().dimensions.size():
+		if not shows(plan().dimensions[i]):
+			continue
 		var line: PackedVector2Array = _dimension_geometry(i)["line"]
 		area = area.expand(line[0]).expand(line[1])
 	for note: FloorPlan.Note in plan().notes:
-		area = area.expand(note.at).expand(note.label + Vector2(note.text.length() * 0.12, 0.3))
+		if shows(note):
+			area = area.expand(note.at).expand(note.label + Vector2(note.text.length() * 0.12, 0.3))
 	# Under it the legend in as many columns as its width takes, the scale
 	# and the north arrow right of them.
 	var width: float = maxf(area.size.x, LEGEND_COLUMN + SCALE_ROOM + 0.8)
@@ -352,6 +361,8 @@ func part_at(point: Vector2) -> String:
 	var best: float = PART_GRAB * maxf(_symbols(), 1.0)
 	var found: String = ""
 	for designation: String in plan().parts:
+		if not layer_shows(designation):
+			continue
 		var d: float = symbol_center(designation).distance_to(m)
 		if d < best:
 			best = d
@@ -412,7 +423,8 @@ func _feature_point(m: Vector2) -> Vector2:
 	for room: FloorPlan.Room in plan().rooms:
 		points.append_array(Array(room.points))
 	for designation: String in plan().parts:
-		points.append(plan().parts[designation])
+		if layer_shows(designation):
+			points.append(plan().parts[designation])
 	for opening: FloorPlan.Opening in plan().openings():
 		points.append_array(Array(opening.ends()))
 	for p: Vector2 in points:
@@ -509,6 +521,8 @@ func note_at(point: Vector2) -> Dictionary:
 	var font: Font = get_theme_default_font()
 	for i: int in range(plan().notes.size() - 1, -1, -1):
 		var note: FloorPlan.Note = plan().notes[i]
+		if not shows(note):
+			continue
 		if to_screen(note.at).distance_to(point) < 7.0:
 			return {"index": i, "end": "anchor"}
 		if _note_box(note, font).grow(3.0).has_point(point):
@@ -530,7 +544,7 @@ func _note_box(note: FloorPlan.Note, font: Font) -> Rect2:
 func fixture_at(point: Vector2) -> int:
 	var m: Vector2 = to_plan(point)
 	for i: int in range(plan().fixtures.size() - 1, -1, -1):
-		if plan().fixtures[i].rect.has_point(m):
+		if shows(plan().fixtures[i]) and plan().fixtures[i].rect.has_point(m):
 			return i
 	return -1
 
@@ -539,7 +553,7 @@ func fixture_at(point: Vector2) -> int:
 func mark_at(point: Vector2) -> int:
 	var m: Vector2 = to_plan(point)
 	for i: int in range(plan().marks.size() - 1, -1, -1):
-		if _mark_box(i).grow(0.05).has_point(m):
+		if shows(plan().marks[i]) and _mark_box(i).grow(0.05).has_point(m):
 			return i
 	return -1
 
@@ -572,6 +586,8 @@ func _mark_box(index: int) -> Rect2:
 ## The saved dimension under screen point [param point], -1 for none.
 func saved_dimension_at(point: Vector2) -> int:
 	for i: int in plan().dimensions.size():
+		if not shows(plan().dimensions[i]):
+			continue
 		var line: PackedVector2Array = _dimension_geometry(i)["line"]
 		if Geometry2D.get_closest_point_to_segment(point, to_screen(line[0]), to_screen(line[1])).distance_to(point) < LINK_GRAB:
 			return i
@@ -583,6 +599,8 @@ func link_at(point: Vector2) -> int:
 	if not installation():
 		return -1
 	for i: int in plan().links.size():
+		if not _link_shown(plan().links[i]):
+			continue
 		var path: PackedVector2Array = _link_path(plan().links[i])
 		for k: int in path.size() - 1:
 			if Geometry2D.get_closest_point_to_segment(point, path[k], path[k + 1]).distance_to(point) < LINK_GRAB:
@@ -761,7 +779,14 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					queue_redraw()
 					return
 				if clicked and tool == Tool.SELECT and editing:
-					# A right click on a room: its menu.
+					# A right click on a part, mark, dimension, note or fixture:
+					# the layer it is on; on a room: its menu.
+					var item: Dictionary = _layered_at(mb.position)
+					if not item.is_empty():
+						selected = item
+						layer_menu_requested.emit(mb.position)
+						queue_redraw()
+						return
 					var room: int = plan().room_at(to_plan(mb.position))
 					if room >= 0:
 						selected = {"kind": "room", "index": room}
@@ -842,6 +867,27 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_release(press, mb.position)
 				_dragging = false
 				queue_redraw()
+
+
+## The part (not the consumer unit), mark, dimension, note or fixture under
+## screen point [param point] as a selection, {} for none.
+func _layered_at(point: Vector2) -> Dictionary:
+	var part: String = part_at(point)
+	if not part.is_empty() and part != FloorPlan.UNIT:
+		return {"kind": "part", "designation": part}
+	var mark: int = mark_at(point)
+	if mark >= 0:
+		return {"kind": "mark", "index": mark}
+	var saved: int = saved_dimension_at(point)
+	if saved >= 0:
+		return {"kind": "dimension", "index": saved}
+	var note: Dictionary = note_at(point)
+	if not note.is_empty():
+		return {"kind": "note", "index": note["index"]}
+	var fixture: int = fixture_at(point)
+	if fixture >= 0:
+		return {"kind": "fixture", "index": fixture}
+	return {}
 
 
 ## What a press at [param point] takes hold of.
@@ -1046,16 +1092,20 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				for dim: FloorPlan.Dimension in plan().dimensions:
 					if dim.room == edge.x and dim.wall == edge.y:
 						return
+				var layer: String = new_layer()
 				edit_requested.emit(func(doc: SchematicDocument) -> void:
 					var dim: FloorPlan.Dimension = FloorPlan.Dimension.new()
 					dim.room = edge.x
 					dim.wall = edge.y
+					dim.layer = layer
 					doc.floor_plan.dimensions.append(dim))
 			else:
+				var layer: String = new_layer()
 				edit_requested.emit(func(doc: SchematicDocument) -> void:
 					var dim: FloorPlan.Dimension = FloorPlan.Dimension.new()
 					dim.a = from
 					dim.b = to
+					dim.layer = layer
 					doc.floor_plan.dimensions.append(dim))
 		"dimension":
 			if _dragging:
@@ -1141,9 +1191,13 @@ func _release(press: Dictionary, point: Vector2) -> void:
 ## palette on [member circuit], or [member placing]; with [param exact] at
 ## that very point on its wall.
 func _put_part(m: Vector2, exact: bool) -> void:
+	var layer: String = new_layer()
 	if placing_template.get("type", "") == "fixture":
 		var kind: String = placing_template.get("kind", "table")
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.fixtures.append(doc.floor_plan.fixture_at_point(kind, m)))
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			var fixture: FloorPlan.Fixture = doc.floor_plan.fixture_at_point(kind, m)
+			fixture.layer = layer
+			doc.floor_plan.fixtures.append(fixture))
 		return
 	if placing_template.get("type", "") == "custom_symbol":
 		var def: CustomSymbol = template_symbol(document, placing_template)
@@ -1151,12 +1205,14 @@ func _put_part(m: Vector2, exact: bool) -> void:
 			return
 		edit_requested.emit(func(doc: SchematicDocument) -> void:
 			doc.use_symbol(def)
-			doc.floor_plan.marks.append(doc.floor_plan.mark_at_point(def.id, m, def.wall)))
+			var mark: FloorPlan.Mark = doc.floor_plan.mark_at_point(def.id, m, def.wall)
+			mark.layer = layer
+			doc.floor_plan.marks.append(mark))
 		return
 	if not placing_template.is_empty():
 		var template: Dictionary = placing_template.duplicate()
 		var feeder: String = circuit
-		edit_requested.emit(func(doc: SchematicDocument) -> void: add_part(doc, template, feeder, m, exact))
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_part_layer(add_part(doc, template, feeder, m, exact), layer))
 		return
 	var designation: String = placing
 	if designation.is_empty():
@@ -1169,6 +1225,7 @@ func _put_part(m: Vector2, exact: bool) -> void:
 			doc.floor_plan.place_on_wall(designation, m)
 		else:
 			doc.floor_plan.place(designation, m, ceiling)
+		doc.floor_plan.set_part_layer(designation, layer)
 		if designation == FloorPlan.UNIT:
 			doc.ensure_consumer_unit())
 	placed.emit()
@@ -1891,6 +1948,8 @@ func _draw() -> void:
 		draw_string(font, corner + Vector2(0, _sized(NAME_SIZE) + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(SchematicTheme.LINE, 0.45))
 	for i: int in plan().fixtures.size():
 		var fixture: FloorPlan.Fixture = plan().fixtures[i]
+		if not shows(fixture):
+			continue
 		var chosen_fixture: bool = selected.get("kind", "") == "fixture" and selected.get("index", -1) == i
 		_draw_fixture(fixture, _shown_fixture_rect(i), SchematicTheme.SELECTED if chosen_fixture else Color(SchematicTheme.LINE, 0.4))
 	if editing and tool == Tool.PLACE and placing_template.get("type", "") == "fixture":
@@ -1899,7 +1958,7 @@ func _draw() -> void:
 	var line_width: float = clampf(1.6 * zoom, 1.0, 2.5)
 	for i: int in plan().marks.size():
 		var def: CustomSymbol = document.symbol(plan().marks[i].symbol)
-		if def != null:
+		if def != null and shows(plan().marks[i]):
 			var chosen_mark: bool = selected.get("kind", "") == "mark" and selected.get("index", -1) == i
 			def.draw(self, to_screen(_mark_origin(i)), s * _symbols(), SchematicTheme.SELECTED if chosen_mark else SchematicTheme.LINE, line_width, font, chosen_mark)
 	if editing and tool == Tool.PLACE and placing_template.has("symbol"):
@@ -1913,8 +1972,7 @@ func _draw() -> void:
 					ghost_at = Vector2(near["at"]) + (FloorPlan.FACING[int(near["facing"])] - Vector2.DOWN) * WALL_SYMBOL_OFFSET * _symbols()
 			ghost_def.draw(self, to_screen(ghost_at), s * _symbols(), Color(SchematicTheme.SELECTED, 0.6), line_width, font, true)
 	if installation():
-		if layer != "power":
-			_draw_links(font)
+		_draw_links(font)
 	else:
 		_draw_cables(s, font)
 	# Each part's designation where it is clear of the other symbols and
@@ -1963,18 +2021,30 @@ func _draw() -> void:
 		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), Color(SchematicTheme.LINE, 0.6))
 
 
-## Whether part [param designation] is drawn on the layer shown
-## ([member layer]).
+## Whether part [param designation] is drawn: on no layer or on one shown
+## (the consumer unit always).
 func layer_shows(designation: String) -> bool:
-	if layer.is_empty() or designation == FloorPlan.UNIT:
-		return true
-	var c: CircuitComponent = document.circuit.get_component(designation)
-	if layer == "lighting":
-		return c is LightSwitch or c is Luminaire
-	return c is SocketOutlet or c is Appliance
+	return document.layer_shown(plan().layer_of(designation))
 
 
-## The rows of the legend: a symbol used on the plan shown (on its layer),
+## Whether [param item] (a note, dimension, fixture or mark) is drawn: on
+## no layer or on one shown.
+func shows(item: Object) -> bool:
+	return document.layer_shown(str(item.get("layer")))
+
+
+## Whether link [param link] is drawn: both its parts are.
+func _link_shown(link: FloorPlan.Link) -> bool:
+	return layer_shows(link.a) and layer_shows(link.b)
+
+
+## The layer something new goes on: [member active_layer] while the schematic
+## has it, else none.
+func new_layer() -> String:
+	return active_layer if document != null and document.plan_layer(active_layer) != null else ""
+
+
+## The rows of the legend: a symbol used on the plan shown (on a layer drawn),
 ## each {"key", "sample" (a part drawn so; null for the unit and the cable),
 ## "symbol" (the user's own symbol it is drawn with, if it is),
 ## "title", "height" (its standard height as written, "" for none), "count"},
@@ -2022,15 +2092,19 @@ func legend_rows() -> Array[Dictionary]:
 			rows[key] = row
 	for mark: FloorPlan.Mark in plan().marks:
 		var def: CustomSymbol = document.symbol(mark.symbol)
-		if def == null:
+		if def == null or not shows(mark):
 			continue
 		var key: String = "5" + mark.symbol
 		if rows.has(key):
 			rows[key]["count"] += 1
 		else:
 			rows[key] = {"key": key, "sample": null, "symbol": def, "title": def.name, "height": "", "count": 1}
-	var cabled: bool = not plan().links.is_empty() if installation() else not plan().cables(document.circuit).is_empty()
-	if layer != "power" and cabled:
+	var cabled: bool = false
+	if installation():
+		cabled = plan().links.any(_link_shown)
+	else:
+		cabled = plan().cables(document.circuit).any(func(cable: Dictionary) -> bool: return layer_shows(cable["a"]) and layer_shows(cable["b"]))
+	if cabled:
 		rows["7"] = {"key": "7", "sample": null, "title": tr("Cable, a tick per core"), "height": "", "count": 0}
 	var keys: Array = rows.keys()
 	keys.sort()
@@ -2365,6 +2439,8 @@ func _shown_fixture_rect(index: int) -> Rect2:
 func _draw_notes(font: Font) -> void:
 	for i: int in plan().notes.size():
 		var note: FloorPlan.Note = plan().notes[i]
+		if not shows(note):
+			continue
 		var at: Vector2 = note.at
 		var label: Vector2 = note.label
 		if _dragging and _press.get("kind", "") == "note" and _press.get("index", -1) == i:
@@ -2394,6 +2470,8 @@ func _draw_notes(font: Font) -> void:
 ## hover colour).
 func _draw_saved_dimensions(font: Font) -> void:
 	for i: int in plan().dimensions.size():
+		if not shows(plan().dimensions[i]):
+			continue
 		var g: Dictionary = _dimension_geometry(i)
 		var color: Color = SchematicTheme.SELECTED if selected.get("kind", "") == "dimension" and selected.get("index", -1) == i else SchematicTheme.TEXT
 		var line: PackedVector2Array = g["line"]
@@ -2454,7 +2532,7 @@ func _draw_links(font: Font) -> void:
 	var nets: Dictionary[String, int] = _nets()
 	for i: int in plan().links.size():
 		var link: FloorPlan.Link = plan().links[i]
-		if not (plan().parts.has(link.a) and plan().parts.has(link.b)):
+		if not (plan().parts.has(link.a) and plan().parts.has(link.b)) or not _link_shown(link):
 			continue
 		var chosen: bool = selected.get("kind", "") == "link" and selected.get("index", -1) == i
 		var color: Color = SchematicTheme.SELECTED if chosen else SchematicTheme.LINE
@@ -2540,6 +2618,8 @@ func _draw_room_legend(s: float, font: Font) -> void:
 func _draw_cables(s: float, font: Font) -> void:
 	var color: Color = SchematicTheme.DESIGNATION
 	for cable: Dictionary in plan().cables(document.circuit):
+		if not (layer_shows(cable["a"]) and layer_shows(cable["b"])):
+			continue
 		var a: Vector2 = to_screen(_cable_end(cable["a"]))
 		var b: Vector2 = to_screen(_cable_end(cable["b"]))
 		var corner: Vector2 = Vector2(b.x, a.y)

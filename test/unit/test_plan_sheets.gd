@@ -1,6 +1,6 @@
 extends GutTest
 ## The sheets of a house installation's floor plan: the legend of the
-## symbols used with their counts, the lighting and socket plans apart,
+## symbols used with their counts, what is on a hidden layer left out,
 ## printed at a true scale with the Czech title block, and the bill of
 ## materials with the boxes and cable metres.
 
@@ -46,13 +46,21 @@ func test_legend_of_what_is_on_the_sheet() -> void:
 		counts.append(row["count"])
 	assert_eq(titles.size(), 7, "switch, socket, double socket, luminaire, wall luminaire, unit, cable")
 	assert_eq(counts, [1, 2, 1, 2, 1, 1, 0])
-	# The lighting plan: no sockets.
-	canvas.layer = "lighting"
+	# The sockets on a layer hidden: the lighting plan.
+	doc.add_plan_layer("Sockets")
+	for designation: String in ["XD1", "XD2", "XD3"]:
+		doc.floor_plan.set_part_layer(designation, "Sockets")
+	doc.plan_layer("Sockets").shown = false
 	assert_false(canvas.layer_shows("XD1"))
 	assert_true(canvas.layer_shows("SF1"))
 	assert_true(canvas.layer_shows(FloorPlan.UNIT))
 	assert_eq(canvas.legend_rows().size(), 5)
-	canvas.layer = "power"
+	# The lighting on another one hidden: the socket plan, no cable.
+	doc.plan_layer("Sockets").shown = true
+	doc.add_plan_layer("Lighting")
+	for designation: String in ["SF1", "EA1", "EA2", "EA3"]:
+		doc.floor_plan.set_part_layer(designation, "Lighting")
+	doc.plan_layer("Lighting").shown = false
 	assert_eq(canvas.legend_rows().size(), 3, "the sockets and the unit")
 
 
@@ -63,11 +71,9 @@ func test_sheets_apart_at_a_true_scale() -> void:
 	add_child(renderer)
 	renderer.schematic = false
 	renderer.workspace = true
-	renderer.split_plan = true
-	var layers: PackedStringArray = PackedStringArray()
-	for spec: Dictionary in renderer.sheets(doc, PackedInt32Array([0])):
-		layers.append(spec.get("layer", ""))
-	assert_eq(layers, PackedStringArray(["lighting", "power"]))
+	var specs: Array[Dictionary] = renderer.sheets(doc, PackedInt32Array([0]))
+	assert_eq(specs.size(), 1, "a sheet a floor")
+	assert_eq(specs[0], {"kind": "floor_plan", "floor": 0})
 	var sheet: Dictionary = renderer._sheet(DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc)), {"kind": "floor_plan", "floor": 0}, 0, 1)
 	var frame: SheetFrame = sheet["frame"]
 	assert_eq(frame.scale_text, "1:50", "a small house at 1:50")

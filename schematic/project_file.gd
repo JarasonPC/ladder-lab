@@ -133,7 +133,10 @@ const FORMAT: String = "ladder-lab"
 ## 48: N and PE distribution blocks put on a rail by hand ("kind": "bus",
 ## "designation" "N" or "PE" among a rail's items; missing: after the strip
 ## the incoming conductor lands on).
-const VERSION: int = 48
+## 49: layers of the floor plans ("plan_layers": name, shown) and the layer
+## of what is on one: a plan's "part_layers" (designation: layer), a note's,
+## dimension's, fixture's or mark's "layer" (missing: on none).
+const VERSION: int = 49
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

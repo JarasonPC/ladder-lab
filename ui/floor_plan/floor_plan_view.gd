@@ -9,7 +9,9 @@ extends VBoxContainer
 ## selected wall (Array), notes with leaders written (Note), furniture put
 ## in from the palette (a double click sets its size, R turns it), the
 ## architect's drawing put under the plan, scaled and moved (Underlay),
-## floors added and chosen (the tabs over the plan), and a part chosen in the list is put where the plan is
+## layers made, shown or hidden and the one new things go on chosen
+## (Layers; a right click on a part, note, dimension, piece of furniture or
+## mark puts it on another), floors added and chosen (the tabs over the plan), and a part chosen in the list is put where the plan is
 ## clicked next. A residential installation also draws its lighting (Wire),
 ## takes new parts from the palette ([method begin_place_template]) onto
 ## the circuit chosen beside the plan (where a selected part's circuit is
@@ -52,6 +54,14 @@ var _dimension_button: Button
 var _note_button: Button
 var _underlay_menu: MenuButton
 var _underlay_file: FileDialog
+var _layers_menu: MenuButton
+## The layers to put the selection on (a right click on it).
+var _layer_picker: PopupMenu
+var _layer_dialog: ConfirmationDialog
+var _layer_name: LineEdit
+## What the layer dialog names: "new" a new layer (then the active one),
+## "move" a new one the selection goes on, "rename" the active one.
+var _layer_asked: String = ""
 var _scale_dialog: ConfirmationDialog
 var _scale_field: SpinBox
 ## The two points of the underlay whose distance is asked (m).
@@ -215,6 +225,13 @@ func _ready() -> void:
 	_underlay_menu.get_popup().id_pressed.connect(_on_underlay_menu)
 	_underlay_menu.about_to_popup.connect(_fill_underlay_menu)
 	_bar.add_child(_underlay_menu)
+	_layers_menu = MenuButton.new()
+	_layers_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_layers_menu.theme_type_variation = "ToolButton"
+	_layers_menu.icon = AppTheme.icon("plan_layers", ICON_SIZE)
+	_layers_menu.get_popup().id_pressed.connect(_on_layers_menu)
+	_layers_menu.about_to_popup.connect(_fill_layers_menu)
+	_bar.add_child(_layers_menu)
 	_walls_button = Button.new()
 	_walls_button.theme_type_variation = "ToolButton"
 	_walls_button.focus_mode = Control.FOCUS_NONE
@@ -335,6 +352,20 @@ func _ready() -> void:
 	add_child(_room_menu)
 	canvas.room_drawn.connect(_pick_room_name)
 	canvas.room_menu_requested.connect(_open_room_menu)
+	_layer_picker = PopupMenu.new()
+	_layer_picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_layer_picker.id_pressed.connect(_on_layer_picked)
+	add_child(_layer_picker)
+	canvas.layer_menu_requested.connect(_open_layer_picker)
+	_layer_dialog = ConfirmationDialog.new()
+	_layer_name = LineEdit.new()
+	_layer_name.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_layer_name.custom_minimum_size.x = 220.0
+	_layer_name.max_length = FloorPlan.MAX_LAYER_NAME
+	_layer_dialog.add_child(_layer_name)
+	_layer_dialog.register_text_enter(_layer_name)
+	_layer_dialog.confirmed.connect(_apply_layer_name)
+	add_child(_layer_dialog)
 	_length_dialog = ConfirmationDialog.new()
 	var length_row: HBoxContainer = HBoxContainer.new()
 	_length_label = Label.new()
@@ -598,8 +629,13 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _layers_menu, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
+	# The layer new things go on, while the schematic has it (an undo may
+	# have taken it away).
+	if _document.plan_layer(canvas.active_layer) == null:
+		canvas.active_layer = ""
+	_layers_menu.text = canvas.active_layer
 	_update_array_button()
 	_fill_floor_tabs()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
@@ -641,6 +677,9 @@ func retranslate() -> void:
 	_floor_dialog.title = tr("Name of the floor")
 	_floor_dialog.ok_button_text = tr("OK")
 	_floor_dialog.cancel_button_text = tr("Cancel")
+	_layers_menu.tooltip_text = tr("Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts, notes, dimensions and furniture go on; a right click on something puts it on another")
+	_layer_dialog.ok_button_text = tr("OK")
+	_layer_dialog.cancel_button_text = tr("Cancel")
 	_note_button.tooltip_text = tr("Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away")
 	_note_dialog.title = tr("Note")
 	_note_dialog.ok_button_text = tr("OK")
@@ -949,11 +988,13 @@ func _apply_note() -> void:
 			return
 		var anchor: Vector2 = canvas.pending_note[0]
 		var label: Vector2 = canvas.pending_note[1]
+		var layer: String = canvas.new_layer()
 		edit_requested.emit(func(doc: SchematicDocument) -> void:
 			var note: FloorPlan.Note = FloorPlan.Note.new()
 			note.text = text
 			note.at = anchor
 			note.label = label
+			note.layer = layer
 			doc.floor_plan.notes.append(note))
 		return
 	if index >= _document.floor_plan.notes.size():
@@ -1091,6 +1132,129 @@ func _on_underlay_menu(id: int) -> void:
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.underlay = "")
 
 
+func _fill_layers_menu() -> void:
+	var popup: PopupMenu = _layers_menu.get_popup()
+	popup.clear()
+	var layers: Array[FloorPlan.Layer] = _document.plan_layers
+	if not layers.is_empty():
+		popup.add_separator(tr("Shown"))
+		for i: int in layers.size():
+			popup.add_check_item(layers[i].name, 100 + i)
+			popup.set_item_checked(popup.item_count - 1, layers[i].shown)
+		popup.add_separator(tr("New things go on"))
+		popup.add_radio_check_item(tr("No layer"), 200)
+		popup.set_item_checked(popup.item_count - 1, canvas.active_layer.is_empty())
+		for i: int in layers.size():
+			popup.add_radio_check_item(layers[i].name, 201 + i)
+			popup.set_item_checked(popup.item_count - 1, layers[i].name == canvas.active_layer)
+		popup.add_separator()
+	popup.add_item(tr("New layer…"), 0)
+	if not canvas.active_layer.is_empty():
+		popup.add_item(tr("Rename the layer %s…") % canvas.active_layer, 1)
+		popup.add_item(tr("Remove the layer %s (what is on it stays, on no layer)") % canvas.active_layer, 2)
+	if layers.any(func(layer: FloorPlan.Layer) -> bool: return not layer.shown):
+		popup.add_item(tr("Show all layers"), 3)
+
+
+func _on_layers_menu(id: int) -> void:
+	var active: String = canvas.active_layer
+	var count: int = _document.plan_layers.size()
+	if id >= 100 and id < 100 + count:
+		# Hidden, what is on it is neither drawn nor picked: nor the
+		# selection, nor the layer new things go on.
+		var toggled: String = _document.plan_layers[id - 100].name
+		var shown: bool = not _document.plan_layers[id - 100].shown
+		if not shown:
+			canvas.selected = {}
+			if toggled == active:
+				canvas.active_layer = ""
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.plan_layer(toggled).shown = shown)
+		return
+	if id >= 200 and id <= 200 + count:
+		# New things go on it, shown so they are seen.
+		var chosen: String = _document.plan_layers[id - 201].name if id > 200 else ""
+		canvas.active_layer = chosen
+		if _document.layer_shown(chosen):
+			refresh()
+		else:
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.plan_layer(chosen).shown = true)
+		return
+	match id:
+		0:
+			_ask_layer_name("new")
+		1:
+			_ask_layer_name("rename")
+		2:
+			canvas.active_layer = ""
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_plan_layer(active))
+		3:
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				for layer: FloorPlan.Layer in doc.plan_layers:
+					layer.shown = true)
+
+
+## Asks the name of a layer: [param asked] "new", "move" (a new one the
+## selection goes on) or "rename" (the active one).
+func _ask_layer_name(asked: String) -> void:
+	_layer_asked = asked
+	_layer_dialog.title = tr("Rename the layer") if asked == "rename" else tr("New layer")
+	_layer_name.text = canvas.active_layer if asked == "rename" else ""
+	_layer_dialog.reset_size()
+	_layer_dialog.popup_centered()
+	_layer_name.select_all()
+	_layer_name.grab_focus()
+
+
+## The name typed: a new layer (the active one, or the selection's), or
+## the active one renamed; an empty name or one taken changes nothing.
+func _apply_layer_name() -> void:
+	var layer_name: String = _layer_name.text.strip_edges().left(FloorPlan.MAX_LAYER_NAME)
+	if layer_name.is_empty() or _document.plan_layer(layer_name) != null:
+		return
+	match _layer_asked:
+		"rename":
+			var old_name: String = canvas.active_layer
+			canvas.active_layer = layer_name
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.rename_plan_layer(old_name, layer_name))
+		"move":
+			var item: Dictionary = canvas.selected
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				doc.add_plan_layer(layer_name)
+				doc.floor_plan.set_item_layer(str(item.get("kind", "")), int(item.get("index", -1)), str(item.get("designation", "")), layer_name))
+		_:
+			canvas.active_layer = layer_name
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_plan_layer(layer_name))
+
+
+## The layers the selection (right-clicked) can go on, its own ticked.
+func _open_layer_picker(_at: Vector2) -> void:
+	var item: Dictionary = canvas.selected
+	var current: String = _document.floor_plan.item_layer(str(item.get("kind", "")), int(item.get("index", -1)), str(item.get("designation", "")))
+	_layer_picker.clear()
+	_layer_picker.add_separator(tr("Layer"))
+	_layer_picker.add_radio_check_item(tr("No layer"), 0)
+	_layer_picker.set_item_checked(_layer_picker.item_count - 1, current.is_empty())
+	for i: int in _document.plan_layers.size():
+		var layer: FloorPlan.Layer = _document.plan_layers[i]
+		_layer_picker.add_radio_check_item(layer.name if layer.shown else tr("%s (hidden)") % layer.name, 1 + i)
+		_layer_picker.set_item_checked(_layer_picker.item_count - 1, layer.name == current)
+	_layer_picker.add_separator()
+	_layer_picker.add_item(tr("New layer…"), 1000)
+	AppTheme.popup_at_mouse(_layer_picker)
+
+
+func _on_layer_picked(id: int) -> void:
+	if id == 1000:
+		_ask_layer_name("move")
+		return
+	var layer_name: String = _document.plan_layers[id - 1].name if id > 0 and id <= _document.plan_layers.size() else ""
+	var item: Dictionary = canvas.selected
+	if not _document.layer_shown(layer_name):
+		# Gone from sight with its layer.
+		canvas.selected = {}
+	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_item_layer(str(item.get("kind", "")), int(item.get("index", -1)), str(item.get("designation", "")), layer_name))
+
+
 func _deselect_tools() -> void:
 	for button: Button in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
@@ -1219,9 +1383,10 @@ func _apply_array() -> void:
 		var spacing: float = _array_spacing.value / 1000.0
 		points = plan.row_points(index, k, int(_array_count.value), _array_start.value / 1000.0 if spacing > 0.0 else 0.0, spacing)
 		face = maxi(FloorPlan.FACING.find(plan.rooms[index].inward(k)), 0)
+	var layer: String = canvas.new_layer()
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
 		for p: Vector2 in points:
-			FloorPlanCanvas.add_part(doc, template, feeder, p, face >= 0, face))
+			doc.floor_plan.set_part_layer(FloorPlanCanvas.add_part(doc, template, feeder, p, face >= 0, face), layer))
 
 
 ## Asks the thickness of the outside walls and of those between rooms.
