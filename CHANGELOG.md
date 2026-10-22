@@ -10,6 +10,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the
   page at full size, with its frame and title block, so you can see how much fits on it as
   the export prints it; marked when the drawing does not fit
+- The check names a terminal in a switchboard that would take more wires than it holds (a net
+  leading out to several parts without a terminal strip), and a strip terminal labelled the
+  same on two wires that are not connected (the switchboard would join them)
 
 ### Fixed
 - Switchboard: a net leading to a button, lamp or motor without a terminal strip is wired out

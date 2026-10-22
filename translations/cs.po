@@ -28,6 +28,14 @@ msgstr "Cívka %s nemá žádné kontakty."
 msgid "Terminal %s is not connected."
 msgstr "Svorka %s není připojena."
 
+#, c-format
+msgid "Terminal %s is on wires that are not connected: in the switchboard it joins them."
+msgstr "Svorka %s je na vodičích, které spolu nejsou spojené: v rozvaděči je spojí."
+
+#, c-format
+msgid "Terminal %s in switchboard %s takes %d wires, more than it holds: put a strip terminal on its net."
+msgstr "Svorka %s v rozvaděči %s má víc vodičů (%d), než pojme: dejte na její síť řadovou svorku."
+
 msgid "The circuit has no L supply."
 msgstr "Obvod nemá přívod L."
 
