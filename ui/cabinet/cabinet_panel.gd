@@ -345,7 +345,9 @@ func _rebuild() -> void:
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
 		if _mounting():
 			_note.text = tr("Mount the parts with the tools on the right (a click on a part picks it), then wire them: click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
-	_wire_bar.visible = wiring
+		if _document.training.locked():
+			_note.text = tr("The switchboard is wired. Run it in Simulate to look for the faults.")
+	_wire_bar.visible = wiring and not _document.training.locked()
 	if wiring:
 		_wire_bar.refresh(_document)
 	_view.document = _document

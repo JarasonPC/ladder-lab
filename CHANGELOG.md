@@ -31,6 +31,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   voltage (the supply seen through the loads, as a real meter does, across an open contact
   too) or, with the power off, the resistance (a coil's, 0 Ω through a closed contact, OL
   where nothing conducts)
+- Fault-finding tasks: File > Save as fault-finding task… hides faults the teacher chooses
+  (or picks at random) in the wiring: a broken wire, a contact that does not close or stays
+  closed, a broken coil. The student gets the switchboard and stations wired, runs them,
+  measures with the multimeter and reports each fault; the panel says how many are found and,
+  where the teacher lets it, which reports are right
 
 ### Schematic editor
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the

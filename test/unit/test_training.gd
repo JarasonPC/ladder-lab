@@ -494,3 +494,38 @@ func _l1(doc: SchematicDocument) -> PowerSupply:
 		if c is PowerSupply and (c as PowerSupply).conductor == PowerSupply.Conductor.L:
 			return c as PowerSupply
 	return null
+
+
+func test_hidden_faults_run_and_are_found() -> void:
+	var doc: SchematicDocument = _solved(ExampleCircuits.build(0))
+	assert_eq(_runs(doc), Vector2i(1, 1))
+	var holding: Dictionary = {}
+	for choice: Dictionary in TrainingFaults.choices(doc, "open"):
+		if choice["id"] == "KM1:13-14":
+			holding = choice
+	assert_false(holding.is_empty(), "the holding contact can be made faulty")
+	doc.training.faults = [holding]
+	assert_true(doc.training.locked())
+	assert_eq(_runs(doc), Vector2i(1, 0), "a holding contact that does not close: no holding")
+	# A broken wire to the coil: drawn, joins nothing.
+	var to_coil: Dictionary = {}
+	for choice: Dictionary in TrainingFaults.choices(doc, "wire"):
+		if choice["a"] == "t:KM1:A1" or choice["b"] == "t:KM1:A1":
+			to_coil = choice
+	assert_false(to_coil.is_empty())
+	doc.training.faults = [to_coil]
+	assert_eq(_runs(doc), Vector2i(0, 0), "a broken wire to the coil")
+	var copy: SchematicDocument = ExamplePower.on(TrainingSim.build(doc))
+	var sim: Simulator = Simulator.new(copy.circuit)
+	(copy.circuit.get_operator("SB1") as PushButton).press()
+	sim.step()
+	var keys: Dictionary[String, String] = copy.training.probe_keys
+	var reading: Dictionary = Multimeter.volts(sim, keys[to_coil["place"] + "|" + to_coil["a"]], keys[to_coil["place"] + "|" + to_coil["b"]])
+	assert_almost_eq(reading["volts"], 230.0, 1.0, "the supply across the break")
+	doc.training.faults = [holding, to_coil]
+	var loaded: SchematicDocument = ProjectFile.from_dict(JSON.parse_string(JSON.stringify(ProjectFile.to_dict(doc))))["document"]
+	assert_eq(loaded.training.faults.size(), 2, "kept with the task")
+	loaded.training.reports.append({"kind": "wire", "place": to_coil["place"], "a": to_coil["b"], "b": to_coil["a"]})
+	loaded.training.reports.append({"kind": "welded", "id": "KM1:13-14"})
+	assert_eq(TrainingFaults.found(loaded.training), 1, "the wire named either way round; the contact's fault wrong")
+	assert_false(TrainingFaults.right(loaded.training, loaded.training.reports[1]))

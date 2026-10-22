@@ -8,7 +8,7 @@ extends Node
 enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
-enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE, EXPORT_CSV, SAVE_PLAN }
+enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE, EXPORT_CSV, SAVE_PLAN, SAVE_FAULTS }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, DUCT_COVERS, PAPER_NONE, PAPER_PORTRAIT, SCALE = 20, PAPER = 40 }
 enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, LANGUAGE = 10 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF, EXPORT_CSV, SAVE_PLAN }
@@ -228,6 +228,10 @@ var _plan_errors: CheckBox
 var _plan_numbers: CheckBox
 var _plan_function: CheckBox
 var _plan_mount: CheckBox
+## Saving a fault-finding task (see [TrainingFaults]), and whether the plan
+## saved next is one.
+var _fault_dialog: FaultDialog
+var _plan_faults: bool = false
 ## What the lesson points at on the drawing, and in the window.
 var _lesson_marks: LessonMarks
 var _lesson_rings: TutorialRings
@@ -730,6 +734,7 @@ func _build_ui() -> void:
 	_training_bar.hide()
 	_training_panel.check_requested.connect(_check_training)
 	_training_panel.reading = _meter_reading
+	_training_panel.report_requested.connect(_report_fault)
 	_training_panel.problem_selected.connect(_show_training_problem)
 	_control_panel = ControlPanelView.new()
 	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
@@ -886,8 +891,15 @@ func _build_dialogs() -> void:
 	plan_box.add_child(_plan_function)
 	_plan_mount = CheckBox.new()
 	plan_box.add_child(_plan_mount)
-	_plan_dialog.confirmed.connect(func() -> void: _show_file_dialog(DialogPurpose.SAVE_PLAN))
+	_plan_dialog.confirmed.connect(func() -> void:
+		_plan_faults = false
+		_show_file_dialog(DialogPurpose.SAVE_PLAN))
 	add_child(_plan_dialog)
+	_fault_dialog = FaultDialog.new()
+	_fault_dialog.confirmed.connect(func() -> void:
+		_plan_faults = true
+		_show_file_dialog(DialogPurpose.SAVE_PLAN))
+	add_child(_fault_dialog)
 	_recovery_dialog = ConfirmationDialog.new()
 	_recovery_discard_button = _recovery_dialog.add_button("", true, "discard")
 	# A copy offered after another was restored replaces that one: ask first.
@@ -1089,6 +1101,7 @@ func _retranslate_dialogs() -> void:
 	_recovery_dialog.cancel_button_text = tr("Later")
 	_recovery_discard_button.text = tr("Discard")
 	_plan_dialog.title = tr("Save as training plan")
+	_fault_dialog.retranslate()
 	_plan_dialog.ok_button_text = tr("Save…")
 	_plan_dialog.cancel_button_text = tr("Cancel")
 	_plan_errors.text = tr("List the mistakes when the student checks the wiring")
@@ -1124,6 +1137,9 @@ func _rebuild_file_menu() -> void:
 	popup.add_item(tr("Save as…"), FileMenuId.SAVE_AS, KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_S)
 	popup.add_item(tr("Save as training plan…"), FileMenuId.SAVE_PLAN)
 	popup.set_item_tooltip(popup.item_count - 1, tr("A wiring exercise for students: the schematic, the switchboards and the stations without their wires, to be wired and checked"))
+	popup.set_item_disabled(popup.item_count - 1, _training() or edit_doc == null or edit_doc.environment != SchematicDocument.Kind.INDUSTRIAL or edit_doc.switchboards.is_empty())
+	popup.add_item(tr("Save as fault-finding task…"), FileMenuId.SAVE_FAULTS)
+	popup.set_item_tooltip(popup.item_count - 1, tr("A fault-finding exercise: the switchboards and stations wired by the schematic with faults hidden in them, to be found by simulating and measuring"))
 	popup.set_item_disabled(popup.item_count - 1, _training() or edit_doc == null or edit_doc.environment != SchematicDocument.Kind.INDUSTRIAL or edit_doc.switchboards.is_empty())
 	popup.add_item(tr("Export page as PNG…"), FileMenuId.EXPORT_PNG)
 	popup.add_item(tr("Export as PDF…"), FileMenuId.EXPORT_PDF)
@@ -1693,6 +1709,10 @@ func _start_simulation() -> void:
 	_keys_down.clear()
 	# Cleared before loading: loading runs the first step, which logs too.
 	_timing_panel.event_log.clear()
+	if _training() and edit_doc.training.locked() and edit_doc.training.started == 0:
+		# A fault-finding task: the search starts with the first run.
+		edit_doc.training.started = int(Time.get_unix_time_from_system())
+		_training_panel.show_plan(edit_doc)
 	# A training plan runs as the student wired it (see TrainingSim).
 	view.load_document(TrainingSim.build(edit_doc) if _training() else DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
@@ -1783,6 +1803,7 @@ func _on_document_replaced(doc: SchematicDocument) -> void:
 		# An undo or redo keeps the checks made and when the work began.
 		doc.training.history = edit_doc.training.history
 		doc.training.started = edit_doc.training.started
+		doc.training.reports = edit_doc.training.reports
 	_show_document(doc, false)
 	_on_training_edited()
 
@@ -1791,7 +1812,7 @@ func _on_document_replaced(doc: SchematicDocument) -> void:
 func _on_training_edited() -> void:
 	if not _training():
 		return
-	if edit_doc.training.started == 0 and edit_doc.training.wire_count() > 0:
+	if edit_doc.training.started == 0 and edit_doc.training.wire_count() > 0 and not edit_doc.training.locked():
 		edit_doc.training.started = int(Time.get_unix_time_from_system())
 	TrainingPick.marked = PackedStringArray()
 	_training_panel.show_plan(edit_doc)
@@ -2140,6 +2161,8 @@ func _on_file_menu(id: int) -> void:
 			_save_as()
 		FileMenuId.SAVE_PLAN:
 			_plan_dialog.popup_centered()
+		FileMenuId.SAVE_FAULTS:
+			_fault_dialog.open(edit_doc)
 		FileMenuId.EXPORT_PNG:
 			_open_export_preview(false)
 		FileMenuId.EXPORT_PDF:
@@ -2238,7 +2261,7 @@ func _show_file_dialog(purpose: DialogPurpose) -> void:
 			_file_dialog.current_file = (_file_path.get_file() if not _file_path.is_empty() else tr("schematic") + "." + extension)
 		DialogPurpose.SAVE_PLAN:
 			_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-			_file_dialog.title = tr("Save as training plan")
+			_file_dialog.title = tr("Save as fault-finding task") if _plan_faults else tr("Save as training plan")
 			_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [TrainingPlan.EXTENSION, tr("LadderLab training plan")]])
 			_file_dialog.current_file = (_file_path.get_file().get_basename() if not _file_path.is_empty() else tr("schematic")) + "." + TrainingPlan.EXTENSION
 		DialogPurpose.EXPORT_PNG, DialogPurpose.EXPORT_PDF:
@@ -2315,6 +2338,10 @@ func _training() -> bool:
 ## wires, the mistakes listed when the check box of the plan dialog is
 ## ticked); the schematic stays as it is.
 func _save_plan(path: String) -> void:
+	if _plan_faults:
+		if ProjectFile.save(_fault_dialog.task(), path) != OK:
+			_show_error(tr("Could not save %s.") % path.get_file())
+		return
 	var plan: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc))
 	plan.training = TrainingPlan.new()
 	plan.training.show_errors = _plan_errors.button_pressed
@@ -2342,6 +2369,17 @@ func _check_training() -> void:
 	TrainingPick.marked = marked
 	_training_panel.show_result(result)
 	_workspace.refresh()
+
+
+## The student reports [param report] (a fault, see [TrainingFaults]): kept
+## with the task (no undo step), the panel shows whether it is right.
+func _report_fault(report: Dictionary) -> void:
+	if not _training():
+		return
+	report["at"] = int(Time.get_unix_time_from_system())
+	edit_doc.training.reports.append(report)
+	_mark_dirty()
+	_training_panel.show_plan(edit_doc)
 
 
 ## What the multimeter of a training plan reads between its probes while

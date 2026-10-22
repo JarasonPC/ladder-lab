@@ -6405,3 +6405,81 @@ msgstr "Střídavé i stejnosměrné, podle toho, co najde"
 
 msgid "click a terminal"
 msgstr "klikněte na svorku"
+
+msgid "Contact does not close"
+msgstr "Kontakt nespíná"
+
+msgid "Contact stays closed"
+msgstr "Kontakt zůstává sepnutý"
+
+msgid "Coil broken"
+msgstr "Přerušená cívka"
+
+msgid "The switchboard is wired. Run it in Simulate to look for the faults."
+msgstr "Rozvaděč je zapojený. Spusťte simulaci a hledejte závady."
+
+msgid "Training: fault finding"
+msgstr "Výuka: hledání závad"
+
+msgid "The switchboard and the stations are wired by the schematic, but faults are hidden in them. Run it in Simulate, see what does not work, measure with the multimeter and report each fault you find."
+msgstr "Rozvaděč a skříňky jsou zapojené podle schématu, ale jsou v nich skryté závady. Spusťte simulaci, zjistěte, co nefunguje, měřte multimetrem a každou nalezenou závadu nahlaste."
+
+msgid "All the faults are found."
+msgstr "Všechny závady jsou nalezeny."
+
+#, c-format
+msgid "%d of %d faults found."
+msgstr "Nalezeno %d z %d závad."
+
+msgid "Faults reported"
+msgstr "Nahlášené závady"
+
+msgid "Report a fault"
+msgstr "Nahlásit závadu"
+
+msgid "Report the fault"
+msgstr "Nahlásit"
+
+msgid "Save as fault-finding task"
+msgstr "Uložit jako úlohu hledání závad"
+
+msgid "Save as fault-finding task…"
+msgstr "Uložit jako úlohu hledání závad…"
+
+msgid "A fault-finding exercise: the switchboards and stations wired by the schematic with faults hidden in them, to be found by simulating and measuring"
+msgstr "Úloha hledání závad: rozvaděče a skříňky zapojené podle schématu se skrytými závadami, které žák najde simulací a měřením"
+
+msgid "Faults hidden in the wiring"
+msgstr "Závady skryté v zapojení"
+
+msgid "Add"
+msgstr "Přidat"
+
+msgid "Add a fault at random"
+msgstr "Přidat náhodnou závadu"
+
+msgid "Tell the student which reports are right"
+msgstr "Říct žákovi, která hlášení jsou správná"
+
+msgid "Unticked, the student only learns when every fault is found"
+msgstr "Nezaškrtnuté: žák se dozví jen to, že našel všechny závady"
+
+msgid "Take this fault away"
+msgstr "Odebrat tuto závadu"
+
+msgid "No faults yet: add at least one."
+msgstr "Zatím žádné závady: přidejte alespoň jednu."
+
+#, c-format
+msgid "%d fault hidden."
+msgid_plural "%d faults hidden."
+msgstr[0] "Skrytá závada: %d."
+msgstr[1] "Skryté závady: %d."
+msgstr[2] "Skrytých závad: %d."
+
+#, c-format
+msgid "%d minute from the first run to the last report"
+msgid_plural "%d minutes from the first run to the last report"
+msgstr[0] "%d minuta od prvního spuštění po poslední hlášení"
+msgstr[1] "%d minuty od prvního spuštění po poslední hlášení"
+msgstr[2] "%d minut od prvního spuštění po poslední hlášení"

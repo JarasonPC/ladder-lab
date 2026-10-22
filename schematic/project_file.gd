@@ -142,7 +142,9 @@ const FORMAT: String = "ladder-lab"
 ## 51: a training plan's "check_function", "history" of the checks and
 ## "started", and "mount_parts" with the "layout" of the parts by place
 ## (missing: the parts mounted, the wiring compared).
-const VERSION: int = 51
+## 52: a training plan's hidden "faults" and the student's "reports" of them
+## (missing: a wiring exercise).
+const VERSION: int = 52
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network
