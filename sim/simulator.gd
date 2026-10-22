@@ -290,6 +290,37 @@ func get_net_of(terminal_key: String) -> int:
 	return _net_of_key.get(terminal_key, -1)
 
 
+## The circuit as a multimeter sees it (see [Multimeter]): "group" (the
+## group of each net: nets joined by wires and closed switching paths share
+## one), "bits" (group -> the supply bits reaching it) and "loads"
+## ([group, group, ohms] for each load and motor winding; a broken coil or
+## a burnt-out part none).
+func meter_network() -> Dictionary:
+	_ensure_built()
+	var uf: UnionFind = _union_closed()
+	var masks: Dictionary[int, int] = _root_masks(uf)
+	var group: PackedInt32Array = PackedInt32Array()
+	group.resize(_net_count)
+	for n: int in _net_count:
+		group[n] = uf.find(n)
+	var loads: Array[Vector3] = []
+	for i: int in _loads.size():
+		var ohms: float = Multimeter.ohms_of(_loads[i])
+		if ohms < INF:
+			loads.append(Vector3(group[_load_nets[2 * i]], group[_load_nets[2 * i + 1]], ohms))
+	for m: int in _motors.size():
+		var windings: int = _motors[m].winding_terminal_count()
+		var net: Callable = func(t: int) -> int: return group[_motor_nets[m * MOTOR_TERMINALS + t]]
+		if _motors[m].kind == ThreePhaseMotor.Kind.STAR_DELTA:
+			for t: int in 3:
+				loads.append(Vector3(net.call(t), net.call(t + 3), Multimeter.WINDING_OHMS))
+		else:
+			for start: int in range(0, windings - 2, 3):
+				for t: int in 3:
+					loads.append(Vector3(net.call(start + t), net.call(start + (t + 1) % 3), Multimeter.WINDING_OHMS))
+	return {"group": group, "bits": masks, "loads": loads}
+
+
 func _ensure_built() -> void:
 	if _built_version != circuit.topology_version:
 		_build()

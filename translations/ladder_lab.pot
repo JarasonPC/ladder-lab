@@ -6362,3 +6362,24 @@ msgid "%d part to mount"
 msgid_plural "%d parts to mount"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "Multimeter"
+msgstr ""
+
+msgid "While it is on, a click on a terminal puts a probe on it (red, then black) instead of operating the part"
+msgstr ""
+
+msgid "Resistance Ω"
+msgstr ""
+
+msgid "Voltage V"
+msgstr ""
+
+msgid "Switch the supply off first: with voltage there the meter shows —"
+msgstr ""
+
+msgid "AC or DC, as it finds"
+msgstr ""
+
+msgid "click a terminal"
+msgstr ""

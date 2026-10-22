@@ -474,3 +474,23 @@ func test_parts_mounted_with_the_panels_tools() -> void:
 	edits[1].call(doc)
 	assert_eq(doc.training.unmounted(doc, place).size(), to_mount - 1)
 	assert_eq(doc.control_boxes[0].items[0].to_data(), doc.training.layout[place][0], "as the plan has it")
+
+
+func test_multimeter_on_the_student_wiring() -> void:
+	var doc: SchematicDocument = _solved(ExampleCircuits.build(0))
+	var copy: SchematicDocument = ExamplePower.on(TrainingSim.build(doc))
+	var sim: Simulator = Simulator.new(copy.circuit)
+	sim.step()
+	var keys: Dictionary[String, String] = copy.training.probe_keys
+	for id: String in ["+RA1|t:KM1:A1", "+RA1|t:KM1:A2", "+RA1|p:" + CabinetDevices.supply_key(_l1(doc)), "+ST1|t:SB1:13", "+ST1|t:SB1:14"]:
+		assert_false(keys.get(id, "").is_empty(), id)
+	var l1: String = keys["+RA1|p:" + CabinetDevices.supply_key(_l1(doc))]
+	assert_almost_eq(Multimeter.volts(sim, keys["+ST1|t:SB1:13"], keys["+ST1|t:SB1:14"])["volts"], 230.0, 1.0, "across the open start button")
+	assert_almost_eq(Multimeter.volts(sim, l1, keys["+RA1|t:KM1:A2"])["volts"], 230.0, 1.0)
+
+
+func _l1(doc: SchematicDocument) -> PowerSupply:
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is PowerSupply and (c as PowerSupply).conductor == PowerSupply.Conductor.L:
+			return c as PowerSupply
+	return null

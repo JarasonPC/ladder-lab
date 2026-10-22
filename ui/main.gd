@@ -729,6 +729,7 @@ func _build_ui() -> void:
 	_training_bar = _side_panel(middle, _training_panel, "training", true)
 	_training_bar.hide()
 	_training_panel.check_requested.connect(_check_training)
+	_training_panel.reading = _meter_reading
 	_training_panel.problem_selected.connect(_show_training_problem)
 	_control_panel = ControlPanelView.new()
 	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
@@ -1525,6 +1526,7 @@ func _update_mode_ui() -> void:
 	_palette_bar.visible = editing and (schematic or plan_parts) and not training
 	_lesson_bar.visible = schematic and _lesson_run != null
 	_training_bar.visible = training
+	_training_panel.simulating = training and not editing
 	_schematic_button.disabled = training and not editing
 	_schematic_button.tooltip_text = tr("While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown") if training and not editing else ""
 	_update_side_bar()
@@ -1737,6 +1739,7 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 	# Check results of another schematic (an undo keeps them, re-checked).
 	_check_panel.hide()
 	TrainingPick.marked = PackedStringArray()
+	TrainingPick.clear_probes()
 	if doc.training != null:
 		# A training plan is wired in Edit mode.
 		_switch_mode(Mode.EDIT)
@@ -2339,6 +2342,21 @@ func _check_training() -> void:
 	TrainingPick.marked = marked
 	_training_panel.show_result(result)
 	_workspace.refresh()
+
+
+## What the multimeter of a training plan reads between its probes while
+## the plan runs ("" while a probe is not on a terminal).
+func _meter_reading() -> String:
+	if not _training() or mode != Mode.SIMULATE or view.simulator == null or view.document.training == null:
+		return ""
+	var keys: Dictionary[String, String] = view.document.training.probe_keys
+	if TrainingPick.probes[0].is_empty() or TrainingPick.probes[1].is_empty():
+		return ""
+	var a: String = keys.get(TrainingPick.probes[0], "")
+	var b: String = keys.get(TrainingPick.probes[1], "")
+	if TrainingPick.ohms:
+		return Multimeter.text(Multimeter.ohms(view.simulator, a, b))
+	return Multimeter.text(Multimeter.volts(view.simulator, a, b))
 
 
 ## Opens the place of the first of [param ports] ("place|port") of a

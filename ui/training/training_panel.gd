@@ -3,7 +3,8 @@ extends PanelContainer
 ## A training plan being wired (see [TrainingPlan]), beside the schematic and
 ## the workspace: what to do, how many wires are laid, and Check wiring,
 ## which says whether the wiring is right and, where the plan lets it, lists
-## the mistakes (a click on one opens its place).
+## the mistakes (a click on one opens its place). While it runs in Simulate,
+## a multimeter measures between two terminals (see [Multimeter]).
 
 ## Check wiring was clicked.
 signal check_requested
@@ -23,6 +24,20 @@ var _history: Array[Dictionary] = []
 var _started: int = 0
 ## The student mounts the parts first (see [member TrainingPlan.mount_parts]).
 var _mount: bool = false
+## The plan runs in Simulate: the multimeter is offered.
+var simulating: bool = false:
+	set(value):
+		if value != simulating:
+			simulating = value
+			rebuild()
+## What the multimeter shows: called with no arguments, returns the reading
+## as shown ("" while a probe is not on a terminal).
+var reading: Callable
+var _display: Label
+var _probe_text: Label
+var _since_read: float = 0.0
+## Readings a second.
+const READ_RATE: float = 8.0
 
 
 func _ready() -> void:
@@ -51,6 +66,84 @@ func show_plan(doc: SchematicDocument) -> void:
 	rebuild()
 
 
+## The multimeter: measuring on or off, volts or ohms, where the probes
+## are and what it reads.
+func _meter() -> void:
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "FunctionCard"
+	_box.add_child(card)
+	var fields: VBoxContainer = VBoxContainer.new()
+	fields.add_theme_constant_override("separation", 6)
+	card.add_child(fields)
+	var on: Button = Button.new()
+	on.toggle_mode = true
+	on.focus_mode = Control.FOCUS_NONE
+	on.icon = AppTheme.icon("meter")
+	on.text = tr("Multimeter")
+	on.tooltip_text = tr("While it is on, a click on a terminal puts a probe on it (red, then black) instead of operating the part")
+	on.button_pressed = TrainingPick.probing
+	on.toggled.connect(func(pressed: bool) -> void:
+		TrainingPick.probing = pressed
+		rebuild())
+	fields.add_child(on)
+	if not TrainingPick.probing:
+		return
+	var modes: HBoxContainer = HBoxContainer.new()
+	modes.add_theme_constant_override("separation", 2)
+	fields.add_child(modes)
+	var group: ButtonGroup = ButtonGroup.new()
+	for ohms: bool in [false, true]:
+		var mode: Button = Button.new()
+		mode.theme_type_variation = "SegmentButton"
+		mode.toggle_mode = true
+		mode.button_group = group
+		mode.focus_mode = Control.FOCUS_NONE
+		mode.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mode.text = tr("Resistance Ω") if ohms else tr("Voltage V")
+		mode.tooltip_text = tr("Switch the supply off first: with voltage there the meter shows —") if ohms else tr("AC or DC, as it finds")
+		mode.button_pressed = TrainingPick.ohms == ohms
+		mode.pressed.connect(func() -> void: TrainingPick.ohms = ohms)
+		modes.add_child(mode)
+	_display = Label.new()
+	_display.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_display.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_display.add_theme_font_size_override("font_size", 30)
+	_display.add_theme_font_override("font", AppTheme.bold_font())
+	fields.add_child(_display)
+	_probe_text = Label.new()
+	_probe_text.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_probe_text.theme_type_variation = "MutedLabel"
+	_probe_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fields.add_child(_probe_text)
+	_read()
+
+
+func _process(delta: float) -> void:
+	if _display == null or not is_instance_valid(_display) or not is_visible_in_tree():
+		return
+	_since_read += delta
+	if _since_read >= 1.0 / READ_RATE:
+		_read()
+
+
+## Shows what the meter reads and where its probes are.
+func _read() -> void:
+	_since_read = 0.0
+	if _display == null or not is_instance_valid(_display):
+		return
+	var shown: String = reading.call() if reading.is_valid() else ""
+	_display.text = shown if not shown.is_empty() else "- - -"
+	var lines: PackedStringArray = PackedStringArray()
+	var names: PackedStringArray = [tr("Red"), tr("Black")]
+	for i: int in 2:
+		var id: String = TrainingPick.probes[i]
+		var where: String = tr("click a terminal")
+		if not id.is_empty():
+			where = id.get_slice("|", 0) + " " + TrainingPick.port_text(id.substr(id.find("|") + 1))
+		lines.append("%s: %s" % [names[i], where])
+	_probe_text.text = "\n".join(lines)
+
+
 ## Shows [param result] of [method TrainingCheck.run].
 func show_result(result: Dictionary) -> void:
 	_last = result
@@ -69,6 +162,8 @@ func rebuild() -> void:
 	for child: Node in _box.get_children():
 		_box.remove_child(child)
 		child.queue_free()
+	_display = null
+	_probe_text = null
 	var title: Label = Label.new()
 	title.theme_type_variation = "TitleLabel"
 	title.text = tr("Training: wiring")
@@ -98,6 +193,8 @@ func rebuild() -> void:
 			lines.append(tr_n("%d minute from the first wire to the last check", "%d minutes from the first wire to the last check", minutes) % minutes)
 		record.text = "\n".join(lines)
 		_box.add_child(record)
+	if simulating:
+		_meter()
 	var check: Button = Button.new()
 	check.theme_type_variation = "PrimaryButton"
 	check.text = tr("Check wiring")
