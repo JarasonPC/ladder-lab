@@ -725,7 +725,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   under its contactor where the contactor is; "+ST1" a button, switch or lamp on a station, also
   a lamp inside a button; "-M1" a part in the field; contacts go with their device); the nets
   are those of WorkspaceCables.nets (supply points of one conductor are one net, + points only
-  of one voltage, CabinetDevices.supply_nets by_voltage; StationInside.build wires by them too),
+  of one voltage, CabinetDevices.supply_nets / supply_key; StationInside.build and build_door
+  wire by them too),
   a net on a supply point with no switchboard among its places lands on that supply point in
   the first switchboard (the supply comes in there: a potentiometer's 10 V reference); a net
   reaching two or more places gets a core between them: from the switchboard with a strip
@@ -737,7 +738,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   switchboard lands each, joined there by a plug-in bridge or wires). The cores between two places are one cable (key "+RA1|+ST1", its ends in
   workspace order: switchboards, stations, parts in circuit order), each core with what it lands
   on at both ends
-  (at a switchboard its strip terminals alone when it has some) and its wire number, the PE core
+  (at a switchboard its strip terminals alone when it has some), its wire number and "hub" (the
+  switchboard it runs out from, where a supply comes in), the PE core
   last. A cable's type (WorkspaceCables.type_text) follows its use (WorkspaceCables.use, "use"
   in the cable: a motor at an end MOTOR, else a sensor SENSOR, else a limit switch FIELD;
   between switchboards and stations FEEDER with power cores, else CONTROL) from
@@ -898,7 +900,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   terminals in the order set in the sidebar (SchematicDocument.strip_orders, saved; arrows move
   the picked terminals along the strip), else by label with those of one net side by side
   from where the first of them is (CabinetDevices._grouped; supply points of one conductor are
-  one net in the switchboard, CabinetDevices.supply_nets, for the bridges too); neighbouring
+  one net in the switchboard, + of one voltage only, CabinetDevices.supply_nets, for the bridges
+  too; a 10 V reference is never wired or bridged to the 24 V +); neighbouring
   terminals of one net are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
   desc "bridges"; grey, blue on N; one point for the wiring tree; in the parts list). A strip
   terminal takes one wire in each entry; one that still has to join a second wire (where the
@@ -908,7 +911,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   their own, wire "pins" -1; CabinetWiring.twins, drawn over them by
   CabinetParts.twin_ferrule: one pin, the collar round both, coloured as a single one). Where
   more than CabinetLayout.BUS_LOADS (1) load takes N or PE in a switchboard (strip terminals on
-  the net but the incoming one, devices' terminals on it; not N wired to the supply point of
+  the net but the incoming one, devices' terminals on it, an overload relay's under its
+  contactor too, and on a net without a strip terminal there each place its parts outside are
+  in, as the cores out to them land on the block; not N wired to the supply point of
   another conductor), it gets an N or PE distribution block
   by itself (CabinetLayout.bus_blocks, N first: a place of kind BUS_BLOCK, index AUTO_N or
   AUTO_PE with its "slot", not a rail item, desc "neutral", "nets", "connections", right after
@@ -927,7 +932,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   device terminal's clamp and one in a strip terminal's entry (CabinetWiring.CLAMP_WIRES: looped from terminal to terminal where it would
   branch; a clamp keeps room for a wire on to another switchboard; where that tree would need a
   strip terminal to take a second wire, the device terminals are joined first and the strip
-  terminals at the ends, CabinetWiring._grow, if that needs fewer; a core of the incoming
+  terminals at the ends, CabinetWiring._grow, if that needs fewer; a join leaving the tree no
+  room for the rest only where nothing else is, and where nothing has room a clamp takes one
+  more rather than a terminal being left unwired; a core of the incoming
   cable starts at the cable), every wire straight from its terminal
   towards the duct over or under its rail, past its sleeve, then one bend slanting into a slot
   between the fingers (CabinetWiring._slants: wires whose slants lie side by side bend at one
@@ -978,17 +985,23 @@ Architecture and conventions of the code base. Read this before changing the cod
   way allow) so their sleeves sit side by side, a sleeve that would still cover another moves
   on along its wire by its length (one above the other, by turns along a strip); the supply comes in
   from outside: one cable per source (AC, DC) through a gland in the top of the enclosure, one
-  core per supply conductor (L1 L2 L3 N PE, + -) straight down into the top duct to the first
-  terminal it feeds, or onto the field side (bottom entry) of the strip terminal on a supply
-  point's lead. Strip terminals leading to parts outside (CabinetDevices.is_outside:
+  core per supply conductor (L1 L2 L3 N PE, + of each voltage, -) straight down into the top
+  duct to the first terminal it feeds, or onto the field side (bottom entry) of the strip
+  terminal on a supply point's lead; a supply another switchboard sends on (the hub of its
+  workspace core, CabinetWiring._arriving) comes in in the cable between the two instead. Strip terminals leading to parts outside (CabinetDevices.is_outside:
   buttons, switches, lamps, motors; field_devices finds the parts: the one whose lead the
   terminal is on, then every other on its net, field_device the first; a terminal on a wire
   between two parts in different places sends a core in each of their cables, both in its
   field side in one twin ferrule) send field wires out of their bottom entries to
   the bottom duct and out through a gland in the bottom of the enclosure, one cable for each
   cable of the workspace from this switchboard, with a core for each net as on the workspace
-  (the first of its terminals; the others joined inside; a net going on to another switchboard
-  leaves the same way in the cable between the two, on both boards; the plate is wide enough for
+  (the first of its terminals; the others joined inside; every other core of the workspace's
+  cables lands where the cable says, CabinetWiring._outgoing: a net going on to another
+  switchboard on the field side of its strip terminal there, on both boards, a net without a
+  strip terminal here straight on its first terminal with room, a free connection of its
+  distribution block first, so is one to a part on the switchboard's own door (a core of the
+  harness, CabinetWiring.door_harness) or without a place; a strip terminal's field side takes
+  two cores at most, in a twin ferrule, the supply's incoming one counted; the plate is wide enough for
   a slot of the bottom duct to each cable, CabinetWiring.bottom_slots, glands side by side
   narrower where they would meet) (its name "W2" on the gland, all the buttons and
   lamps of a station in one; CabinetWiring.build(doc, layout, k, board)), one per part for parts

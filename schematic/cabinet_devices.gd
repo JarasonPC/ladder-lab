@@ -427,19 +427,15 @@ static func nets(circuit: Circuit) -> Dictionary[String, int]:
 
 ## [param net] (see [method nets]) with the nets of the supply points of one
 ## conductor (several of PE on the drawing) as one, as the switchboard wires
-## them (one core of the incoming cable feeds them all). [param by_voltage]
-## keeps + points of different voltages apart (a 10 V reference is not the
-## 24 V +), as the cables to stations run them.
-static func supply_nets(circuit: Circuit, net: Dictionary[String, int], by_voltage: bool = false) -> Dictionary[String, int]:
+## them (one core of the incoming cable feeds them all); + points of
+## different voltages stay apart (a 10 V reference is not the 24 V +).
+static func supply_nets(circuit: Circuit, net: Dictionary[String, int]) -> Dictionary[String, int]:
 	var first: Dictionary[String, int] = {}
 	var into: Dictionary[int, int] = {}
 	for c: CircuitComponent in circuit.get_components():
 		if c is PowerSupply:
-			var supply: PowerSupply = c as PowerSupply
 			var n: int = net.get(c.get_terminal_keys()[0], -1)
-			var which: String = str(supply.conductor)
-			if by_voltage and supply.conductor == PowerSupply.Conductor.DC_PLUS:
-				which += "@" + str(supply.voltage)
+			var which: String = supply_key(c as PowerSupply)
 			if not first.has(which):
 				first[which] = n
 			elif first[which] != n:
@@ -454,6 +450,14 @@ static func supply_nets(circuit: Circuit, net: Dictionary[String, int], by_volta
 			n = into[n]
 		result[key] = n
 	return result
+
+
+## What makes supply points one source conductor: their conductor, and
+## for a + its voltage.
+static func supply_key(supply: PowerSupply) -> String:
+	if supply.conductor == PowerSupply.Conductor.DC_PLUS:
+		return "%d@%s" % [supply.conductor, supply.voltage]
+	return str(supply.conductor)
 
 
 ## Net number (see [method nets]) -> [enum Conductor] of every net. Nets

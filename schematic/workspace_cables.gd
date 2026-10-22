@@ -84,7 +84,8 @@ static var naming: Naming = Naming.CZECH
 ## the other end where a net has two or more of them, see [method _split]):
 ## [{"net", "conductor" ([enum CabinetDevices.Conductor]), "a", "b" (what the
 ## core lands on at each end, e.g. "X2:3", "SB1:13"), "number" (wire number,
-## may be empty)}], the PE core last, "use" ([enum Use], see [method use]),
+## may be empty), "hub" (the switchboard the net runs out from to the other
+## places, where a supply comes in; "" for none)}], the PE core last, "use" ([enum Use], see [method use]),
 ## "section" (mm², see [method section], or the one set by hand), "auto_section"
 ## (the one by [method section]), "type" (a type name set by hand, "" for
 ## the one by its use), "length" (metres set by hand, 0 for none; see
@@ -194,7 +195,7 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 			if not found.has(key):
 				found[key] = {"key": key, "name": "", "a": a, "b": b, "cores": []}
 			for core: Array in _split(ends[n][a], ends[n][b], strip_keys):
-				found[key]["cores"].append({"net": n, "conductor": conductor.get(n, CabinetDevices.Conductor.CONTROL), "a": _labels(core[0]), "b": _labels(core[1]), "number": numbers.get(n, "")})
+				found[key]["cores"].append({"net": n, "conductor": conductor.get(n, CabinetDevices.Conductor.CONTROL), "a": _labels(core[0]), "b": _labels(core[1]), "number": numbers.get(n, ""), "hub": hub})
 	var result: Array[Dictionary] = []
 	for key: String in found:
 		var cable: Dictionary = found[key]
@@ -218,7 +219,7 @@ static func cables(doc: SchematicDocument) -> Array[Dictionary]:
 ## The nets as the cables run them ([method CabinetDevices.nets]): the supply
 ## points of one conductor are one net (of one voltage for +), fed by one core.
 static func nets(circuit: Circuit) -> Dictionary[String, int]:
-	return CabinetDevices.supply_nets(circuit, CabinetDevices.nets(circuit), true)
+	return CabinetDevices.supply_nets(circuit, CabinetDevices.nets(circuit))
 
 
 ## Type of a cable as written on it, by its use ([constant TYPES]) as
