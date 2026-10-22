@@ -197,6 +197,9 @@ var cable_settings: Dictionary[String, Dictionary] = {}
 ## -> terminal labels from left to right. Terminals not listed follow in the
 ## order of their labels (see [method CabinetDevices.strips]).
 var strip_orders: Dictionary[String, PackedStringArray] = {}
+## A wiring exercise made of this schematic (opened in training mode, see
+## [TrainingPlan]), null for an ordinary schematic.
+var training: TrainingPlan = null
 ## Titles of the pages, e.g. "Power section" (shown translated, like
 ## [member title]); "" for an untitled page.
 var pages: PackedStringArray = PackedStringArray([""])

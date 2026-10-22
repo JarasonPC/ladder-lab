@@ -154,6 +154,11 @@ func _ready() -> void:
 		_view.update_minimum_size()
 		_view.queue_redraw())
 	_view.operate_requested.connect(func(designation: String) -> void: operate_requested.emit(designation))
+	# Wiring a training plan: the student's wires, one undoable edit each.
+	_view.wire_drawn.connect(func(place: String, a: String, b: String) -> void:
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.add_wire(place, a, b)))
+	_view.wire_removed.connect(func(place: String, index: int) -> void:
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.remove_wire(place, index)))
 	_view.place_clicked.connect(func(rail: int, index: int) -> void:
 		if Vector2i(rail, index) != _selected:
 			_picked.clear()
@@ -312,11 +317,15 @@ func _rebuild() -> void:
 	var rails: Array[CabinetRail] = _document.switchboards[b].rails
 	if _selected.x >= rails.size() or (_selected.x >= 0 and _selected.y >= rails[_selected.x].items.size()):
 		_selected = Vector2i(-1, -1)
-	_note.visible = rails.is_empty()
+	var training: bool = _document.training != null
+	_note.visible = rails.is_empty() or training
 	_note.text = tr("No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it.") if _editing else tr("No DIN rails yet. Make them in Edit mode.")
+	if training:
+		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
 	_view.document = _document
 	_view.board = b
-	_view.simulating = not _editing
+	_view.wiring_mode = training
+	_view.simulating = not _editing and not training
 	_view.selected = _selected
 	_fill_zoom_row()
 	_view.refresh()

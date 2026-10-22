@@ -71,6 +71,16 @@ var wires: Array[Dictionary] = []
 ## (a potentiometer's lug)}.
 var terminals: Dictionary[String, Dictionary] = {}
 
+## The ports of a training plan laid out by [method build_given] (see
+## [TrainingCheck]): port -> where it is (mm; a terminal's screw, a core's
+## end at its gland).
+var ports: Dictionary[String, Vector2] = {}
+## Index in the pairs given to [method build_given] of each of [member wires].
+var pairs: Array[int] = []
+
+# The door harness's cores (see [method build_door_given]); each port's link end.
+var _harness: Array[Dictionary] = []
+var _port_ends: Dictionary[String, Variant] = {}
 # Tops of the channels, x of the first lane down the side.
 var _channels: PackedFloat32Array = PackedFloat32Array()
 var _side_x: float = 0.0
@@ -154,6 +164,133 @@ static func build_door(doc: SchematicDocument, board: int, enclosure: Vector2, a
 	inside._lay_out_door(box, enclosure, rows, lanes, across)
 	inside._route(links, net, conductor, marks)
 	return inside
+
+
+## The inside of station [param box_index] of [param doc] with the student's
+## wires of a training plan ([param given]: two ports of [TrainingCheck]
+## each) in place of its own, laid the same way; sets [member ports] and
+## [member pairs]. Pairs naming a port it has not are left out.
+static func build_given(doc: SchematicDocument, box_index: int, given: Array[PackedStringArray]) -> StationInside:
+	var inside: StationInside = StationInside.new()
+	if doc == null or box_index < 0 or box_index >= doc.control_boxes.size():
+		return inside
+	var box: ControlBox = doc.control_boxes[box_index]
+	inside._place_items(doc, box)
+	var rows: int = maxi(ceili(box.items.size() / float(box.columns)), 1)
+	var links: Array[Dictionary] = inside._given_links(doc, box, given, rows)
+	var lanes: PackedInt32Array = PackedInt32Array()
+	lanes.resize(rows + 1)
+	var side: int = 0
+	for link: Dictionary in links:
+		for end: String in (["a"] if link["a_channel"] == link["b_channel"] else ["a", "b"]):
+			var channel: int = link[end + "_channel"]
+			link[end + "_lane"] = lanes[channel]
+			lanes[channel] += 1
+		if link["a_channel"] == link["b_channel"]:
+			link["b_lane"] = link["a_lane"]
+		else:
+			link["side_lane"] = side
+			side += 1
+	inside._lay_out(box, rows, lanes, side)
+	inside._finish_given(doc, links)
+	return inside
+
+
+## The back of the door of switchboard [param board] (see [method build_door])
+## with the student's wires [param given] in place of its own, as
+## [method build_given].
+static func build_door_given(doc: SchematicDocument, board: int, enclosure: Vector2, across: float, given: Array[PackedStringArray]) -> StationInside:
+	var inside: StationInside = StationInside.new()
+	inside.door = true
+	if doc == null or board < 0 or board >= doc.switchboards.size():
+		return inside
+	var box: ControlBox = doc.switchboards[board].door
+	inside._place_items(doc, box)
+	var rows: int = maxi(ceili(box.items.size() / float(box.columns)), 1)
+	inside._harness = CabinetWiring.door_harness(doc, board)
+	var links: Array[Dictionary] = inside._given_links(doc, box, given, rows)
+	var lanes: PackedInt32Array = PackedInt32Array()
+	lanes.resize(rows + 1)
+	var side: int = 0
+	for link: Dictionary in links:
+		if link["external"]:
+			link["a_channel"] = link["b_channel"]
+			link["side_lane"] = side
+			side += 1
+		for end: String in (["a"] if link["a_channel"] == link["b_channel"] else ["a", "b"]):
+			var channel: int = link[end + "_channel"]
+			link[end + "_lane"] = lanes[channel]
+			lanes[channel] += 1
+		if link["a_channel"] == link["b_channel"]:
+			link["b_lane"] = link["a_lane"]
+		elif not link.has("side_lane"):
+			link["side_lane"] = side
+			side += 1
+	inside._lay_out_door(box, enclosure, rows, lanes, across)
+	inside._finish_given(doc, links)
+	return inside
+
+
+## Links of the student's wires [param given] (see [method _links]): the
+## terminals of the items, the cores of the cables ending here (of the door
+## harness on a door) at their glands.
+func _given_links(doc: SchematicDocument, box: ControlBox, given: Array[PackedStringArray], rows: int) -> Array[Dictionary]:
+	var ws: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
+	for entry: Dictionary in items:
+		var row: int = int(entry["item"] / box.columns)
+		for block: Dictionary in entry["blocks"]:
+			for t: Dictionary in block["terminals"]:
+				terminals[t["key"]] = {"row": row, "top": t["top"]}
+	# Port -> link end, and its net.
+	var ends: Dictionary[String, Variant] = {}
+	var nets: Dictionary[String, int] = {}
+	for key: String in terminals:
+		ends["t:" + key] = key
+		nets["t:" + key] = ws.get(key, -1)
+	if door:
+		glands.append({"cable": CabinetWiring.DOOR, "cores": _harness.size()})
+		for i: int in _harness.size():
+			ends["c:%s:%d" % [CabinetWiring.DOOR, i]] = {"gland": 0, "core": i}
+			nets["c:%s:%d" % [CabinetWiring.DOOR, i]] = _harness[i]["net"]
+	else:
+		var here: String = "+" + box.name
+		for cable: Dictionary in WorkspaceCables.cables(doc):
+			if cable["a"] != here and cable["b"] != here:
+				continue
+			for i: int in cable["cores"].size():
+				ends["c:%s:%d" % [cable["name"], i]] = {"gland": glands.size(), "core": i}
+				nets["c:%s:%d" % [cable["name"], i]] = cable["cores"][i]["net"]
+			glands.append({"cable": cable["name"], "cores": cable["cores"].size()})
+	var links: Array[Dictionary] = []
+	for p: int in given.size():
+		var pair: PackedStringArray = given[p]
+		if not ends.has(pair[0]) or not ends.has(pair[1]):
+			continue
+		var a: Variant = ends[pair[0]]
+		var b: Variant = ends[pair[1]]
+		if b is Dictionary and not (a is Dictionary):
+			var swap: Variant = a
+			a = b
+			b = swap
+		var core_channel: int = rows if door else 0
+		links.append({"net": nets[pair[0]], "a": a, "b": b, "a_channel": core_channel if a is Dictionary else _channel(a), "b_channel": core_channel if b is Dictionary else _channel(b), "external": a is Dictionary, "pair": p})
+	for port: String in ends:
+		_port_ends[port] = ends[port]
+	return links
+
+
+## Routes the student's [param links] and sets [member ports] and [member pairs].
+func _finish_given(doc: SchematicDocument, links: Array[Dictionary]) -> void:
+	var ws: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
+	_route(links, ws, CabinetDevices.conductors(doc.circuit, ws), CabinetWiring.wire_marks(doc, ws))
+	for link: Dictionary in links:
+		pairs.append(link["pair"])
+	for port: String in _port_ends:
+		var end: Variant = _port_ends[port]
+		if end is Dictionary:
+			ports[port] = _end(end)
+		elif terminals[end].has("at"):
+			ports[port] = terminals[end]["at"]
 
 
 ## Devices of each item and their blocks, laid out round the middle of the

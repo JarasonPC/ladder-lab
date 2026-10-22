@@ -6149,3 +6149,87 @@ msgid_plural "%d places where rooms overlap: drag them apart"
 msgstr[0] "%d místo, kde se místnosti překrývají: odtáhněte je od sebe"
 msgstr[1] "%d místa, kde se místnosti překrývají: odtáhněte je od sebe"
 msgstr[2] "%d míst, kde se místnosti překrývají: odtáhněte je od sebe"
+
+msgid "(field side)"
+msgstr "(strana pole)"
+
+msgid "supply"
+msgstr "přívod"
+
+msgid "door harness"
+msgstr "svazek do dveří"
+
+#, c-format
+msgid "Wrong wire: %s – %s, which are not connected in the schematic."
+msgstr "Špatný vodič: %s – %s, ve schématu spolu nejsou spojené."
+
+#, c-format
+msgid "Too many wires in %s: %d, it takes %d."
+msgstr "Příliš mnoho vodičů v %s: %d, pojme %d."
+
+#, c-format
+msgid "%s is not joined to %s."
+msgstr "%s není spojeno s %s."
+
+#, c-format
+msgid "Wire %s: %s is not joined to %s."
+msgstr "Vodič %s: %s není spojeno s %s."
+
+msgid "Training: wiring"
+msgstr "Výuka: zapojování"
+
+msgid "Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring."
+msgstr "Zapojte rozvaděč, zadní stranu jeho dveří a ovládací stanice podle schématu. Otevřete je na pracovní ploše; kabely mezi nimi jsou položené, zapojte jejich žíly. Pak zapojení zkontrolujte."
+
+msgid "Check wiring"
+msgstr "Zkontrolovat zapojení"
+
+msgid "The wiring is right."
+msgstr "Zapojení je správně."
+
+msgid "Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away."
+msgstr "Klikněte na svorku nebo žílu kabelu, pak tam, kam vodič vede. Klikněte na vodič a stiskněte Delete, chcete-li ho odebrat."
+
+msgid "Save as training plan…"
+msgstr "Uložit jako výukový plán…"
+
+msgid "A wiring exercise for students: the schematic, the switchboards and the stations without their wires, to be wired and checked"
+msgstr "Úloha zapojování pro žáky: schéma, rozvaděče a stanice bez vodičů, k zapojení a kontrole"
+
+msgid "LadderLab schematic or training plan"
+msgstr "Schéma LadderLab nebo výukový plán"
+
+msgid "Save training plan"
+msgstr "Uložit výukový plán"
+
+msgid "LadderLab training plan"
+msgstr "Výukový plán LadderLab"
+
+msgid "Save as training plan"
+msgstr "Uložit jako výukový plán"
+
+msgid "A training plan is wired and checked, not simulated"
+msgstr "Výukový plán se zapojuje a kontroluje, nesimuluje"
+
+msgid "Save…"
+msgstr "Uložit…"
+
+msgid "List the mistakes when the student checks the wiring"
+msgstr "Při kontrole žákovi vypsat chyby"
+
+msgid "Unticked, the check only says whether the wiring is right"
+msgstr "Nezaškrtnuté: kontrola řekne jen, zda je zapojení správně"
+
+#, c-format
+msgid "%d wire laid"
+msgid_plural "%d wires laid"
+msgstr[0] "%d vodič zapojen"
+msgstr[1] "%d vodiče zapojeny"
+msgstr[2] "%d vodičů zapojeno"
+
+#, c-format
+msgid "Not right yet: %d mistake."
+msgid_plural "Not right yet: %d mistakes."
+msgstr[0] "Zatím není správně: %d chyba."
+msgstr[1] "Zatím není správně: %d chyby."
+msgstr[2] "Zatím není správně: %d chyb."

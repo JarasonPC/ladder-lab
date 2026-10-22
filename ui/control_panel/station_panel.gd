@@ -103,6 +103,11 @@ func _ready() -> void:
 	_inside.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_inside.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_child(_inside)
+	# Wiring a training plan: the student's wires, one undoable edit each.
+	_inside.wire_drawn.connect(func(place: String, a: String, b: String) -> void:
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.add_wire(place, a, b)))
+	_inside.wire_removed.connect(func(place: String, index: int) -> void:
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.remove_wire(place, index)))
 	var center: CenterContainer = CenterContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -141,6 +146,10 @@ func _ready() -> void:
 ## Shows station [member station_name] of [param doc]; [param editing]
 ## offers the editing tools, otherwise it operates the simulation of [param doc].
 func set_document(doc: SchematicDocument, editing: bool) -> void:
+	var training: bool = doc != null and doc.training != null
+	if training and not _inside.wiring_mode:
+		# A training plan is wired inside.
+		inside_shown = true
 	_document = doc
 	_editing = editing
 	if not editing:
@@ -235,9 +244,11 @@ func _rebuild() -> void:
 	_inside_button.tooltip_text = tr("With the cover off: the contact blocks and the wires to them")
 	_scroll.visible = not inside_shown
 	_inside.visible = inside_shown
+	var training: bool = _document != null and _document.training != null
 	_inside.document = _document
 	_inside.box_index = b
-	_inside.simulating = not _editing
+	_inside.wiring_mode = training
+	_inside.simulating = not _editing and not training
 	_inside.refresh()
 	_view.document = _document
 	_view.box_index = b
@@ -259,6 +270,9 @@ func _rebuild() -> void:
 	_view.queue_redraw()
 	_note.visible = box.items.is_empty()
 	_note.text = tr("No push buttons, switches or lamps on this station yet.") if _editing else tr("No push buttons, switches or lamps on this station yet. Add them in Edit mode.")
+	if training and inside_shown and not box.items.is_empty():
+		_note.visible = true
+		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
 	if not _editing:
 		return
 	var tools: ControlItemTools = _item_tools

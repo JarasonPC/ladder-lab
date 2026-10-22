@@ -128,6 +128,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		for strip: String in doc.strip_orders:
 			orders[strip] = Array(doc.strip_orders[strip])
 		result["strip_order"] = orders
+	if doc.training != null:
+		result["training"] = doc.training.to_data()
 	return result
 
 
@@ -298,6 +300,8 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 					if label is String:
 						order.append(label)
 				doc.strip_orders[strip] = order
+	if d.has("training"):
+		doc.training = TrainingPlan.from_data(d["training"])
 	return doc
 
 

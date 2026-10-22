@@ -808,6 +808,9 @@ func _keep_dialog_off_ruler() -> void:
 ## Applies [param change] (called with the document) to the pages (add,
 ## rename, move, delete) as one undoable edit.
 func edit_pages(change: Callable) -> void:
+	if document().training != null:
+		# A training plan's pages are the plan's.
+		return
 	_cancel_tool()
 	_record()
 	change.call(document())

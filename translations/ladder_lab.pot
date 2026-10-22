@@ -6133,3 +6133,85 @@ msgid_plural "%d places where rooms overlap: drag them apart"
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
+
+msgid "(field side)"
+msgstr ""
+
+msgid "supply"
+msgstr ""
+
+msgid "door harness"
+msgstr ""
+
+#, c-format
+msgid "Wrong wire: %s – %s, which are not connected in the schematic."
+msgstr ""
+
+#, c-format
+msgid "Too many wires in %s: %d, it takes %d."
+msgstr ""
+
+#, c-format
+msgid "%s is not joined to %s."
+msgstr ""
+
+#, c-format
+msgid "Wire %s: %s is not joined to %s."
+msgstr ""
+
+msgid "Training: wiring"
+msgstr ""
+
+msgid "Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring."
+msgstr ""
+
+msgid "Check wiring"
+msgstr ""
+
+msgid "The wiring is right."
+msgstr ""
+
+msgid "Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away."
+msgstr ""
+
+msgid "Save as training plan…"
+msgstr ""
+
+msgid "A wiring exercise for students: the schematic, the switchboards and the stations without their wires, to be wired and checked"
+msgstr ""
+
+msgid "LadderLab schematic or training plan"
+msgstr ""
+
+msgid "Save training plan"
+msgstr ""
+
+msgid "LadderLab training plan"
+msgstr ""
+
+msgid "Save as training plan"
+msgstr ""
+
+msgid "A training plan is wired and checked, not simulated"
+msgstr ""
+
+msgid "Save…"
+msgstr ""
+
+msgid "List the mistakes when the student checks the wiring"
+msgstr ""
+
+msgid "Unticked, the check only says whether the wiring is right"
+msgstr ""
+
+#, c-format
+msgid "%d wire laid"
+msgid_plural "%d wires laid"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "Not right yet: %d mistake."
+msgid_plural "Not right yet: %d mistakes."
+msgstr[0] ""
+msgstr[1] ""
