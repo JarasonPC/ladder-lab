@@ -7,7 +7,15 @@ extends Control
 ## numbers, a potentiometer's round body with its lugs and fastons, each
 ## device's designation on a label, the cable glands in the top
 ## and the wires. While simulating the terminals are ringed in the colour of
-## the voltage that reaches them and the lamp blocks light.
+## the voltage that reaches them and the lamp blocks light. Wiring a training
+## plan ([member wiring_mode]) it shows the student's wires and lays and
+## picks them as [CabinetView] does.
+
+## Wiring a training plan: a wire was drawn from port [param a] to [param b]
+## of [param place] ("+ST1"), or the wire of pair [param index] there picked
+## and deleted.
+signal wire_drawn(place: String, a: String, b: String)
+signal wire_removed(place: String, index: int)
 
 var document: SchematicDocument
 ## Index of the station drawn in [member SchematicDocument.control_boxes].
@@ -37,10 +45,25 @@ const FASTON_SLEEVE := Color("c8393b")
 const NUMBER_PX: float = 7.0
 
 var _inside: StationInside
+## Wiring a training plan (see [CabinetView.wiring_mode]).
+var wiring_mode: bool = false:
+	set(value):
+		wiring_mode = value
+		focus_mode = Control.FOCUS_CLICK if value else Control.FOCUS_NONE
+		mouse_filter = Control.MOUSE_FILTER_STOP if value else Control.MOUSE_FILTER_PASS
+		_start = ""
+		_picked_wire = -1
+# Wiring: the port under the mouse and the one a wire starts at, the wire
+# picked (its pair), where the mouse is (pixels).
+var _hover: String = ""
+var _start: String = ""
+var _picked_wire: int = -1
+var _mouse: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_PASS
+	if not wiring_mode:
+		mouse_filter = Control.MOUSE_FILTER_PASS
 
 
 func _get_minimum_size() -> Vector2:
@@ -49,8 +72,77 @@ func _get_minimum_size() -> Vector2:
 
 ## Lays the inside out again (after edits or a new document).
 func refresh() -> void:
-	_inside = StationInside.build(document, box_index)
+	if wiring_mode and document != null and document.training != null:
+		_inside = StationInside.build_given(document, box_index, document.training.wires_of(training_place()))
+	else:
+		_inside = StationInside.build(document, box_index)
 	queue_redraw()
+
+
+## The station's place in a training plan ("+ST1").
+func training_place() -> String:
+	if document == null or box_index < 0 or box_index >= document.control_boxes.size():
+		return ""
+	return "+" + document.control_boxes[box_index].name
+
+
+## Pixels a mm and where the inside's corner is drawn.
+func _origin() -> Vector2:
+	return ((size - _inside.size * _k()) * 0.5).floor() + Vector2(0.0, 2.0 * _k())
+
+
+func _gui_input(event: InputEvent) -> void:
+	if not wiring_mode or _inside == null:
+		return
+	var k: float = _k()
+	if event is InputEventMouseMotion:
+		_mouse = (event as InputEventMouseMotion).position
+		var hit: String = TrainingPick.port_at(_inside.ports, (_mouse - _origin()) / k, k)
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not hit.is_empty() else Control.CURSOR_ARROW
+		if hit != _hover or not _start.is_empty():
+			_hover = hit
+			queue_redraw()
+		return
+	if event is InputEventKey and (event as InputEventKey).pressed:
+		match (event as InputEventKey).keycode:
+			KEY_DELETE, KEY_BACKSPACE:
+				if _picked_wire >= 0:
+					var index: int = _picked_wire
+					_picked_wire = -1
+					wire_removed.emit(training_place(), index)
+					accept_event()
+			KEY_ESCAPE:
+				_start = ""
+				_picked_wire = -1
+				queue_redraw()
+				accept_event()
+		return
+	if not (event is InputEventMouseButton) or not (event as InputEventMouseButton).pressed or (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
+		return
+	grab_focus()
+	var at: Vector2 = ((event as InputEventMouseButton).position - _origin()) / k
+	var hit: String = TrainingPick.port_at(_inside.ports, at, k)
+	if not hit.is_empty():
+		_picked_wire = -1
+		if not _start.is_empty() and _start != hit:
+			var from: String = _start
+			_start = ""
+			wire_drawn.emit(training_place(), from, hit)
+		else:
+			_start = "" if _start == hit else hit
+	else:
+		_start = ""
+		var w: int = TrainingPick.wire_at(_inside.wires, at, k)
+		_picked_wire = _inside.pairs[w] if w >= 0 and w < _inside.pairs.size() else -1
+	queue_redraw()
+	accept_event()
+
+
+func _get_tooltip(at_position: Vector2) -> String:
+	if not wiring_mode or _inside == null:
+		return ""
+	var hit: String = TrainingPick.port_at(_inside.ports, (at_position - _origin()) / _k(), _k())
+	return TrainingPick.port_text(hit) if not hit.is_empty() else ""
 
 
 func _notification(what: int) -> void:
@@ -80,6 +172,9 @@ func _draw() -> void:
 		var g: Rect2 = gland["rect"]
 		CabinetParts.cable_gland(p, g)
 		CabinetParts.label(p, Vector2(g.get_center().x, g.position.y - 3.0), str(gland["cable"]), maxf(g.size.x, 10.0))
+	if wiring_mode:
+		var state: Dictionary = {"hover": _hover, "start": _start, "mouse": _mouse, "selected": _inside.pairs.find(_picked_wire) if _picked_wire >= 0 else -1, "problems": TrainingPick.marked_in(training_place())}
+		TrainingPick.draw(self, origin, k, _inside.ports, _inside.wires, state)
 
 
 ## The devices and wires of [param inside] (also the back of a switchboard's

@@ -136,7 +136,9 @@ const FORMAT: String = "ladder-lab"
 ## 49: layers of the floor plans ("plan_layers": name, shown) and the layer
 ## of what is on one: a plan's "part_layers" (designation: layer), a note's,
 ## dimension's, fixture's or mark's "layer" (missing: on none).
-const VERSION: int = 49
+## 50: training plans ("training": "show_errors" and the student's "wires"
+## by place, each two ports; missing: an ordinary schematic).
+const VERSION: int = 50
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

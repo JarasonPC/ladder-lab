@@ -125,6 +125,11 @@ var twins: Array[Dictionary] = []
 ## (a net leading out to several parts with no strip terminal on it):
 ## {"key" (terminal key in the circuit), "wires"}.
 var crowded: Array[Dictionary] = []
+## The ports of a training plan (see [TrainingCheck]) laid out by
+## [method build_given]: port -> where it is (mm; a terminal's screw).
+var ports: Dictionary[String, Vector2] = {}
+## Index in the pairs given to [method build_given] of each of [member wires].
+var pairs: Array[int] = []
 # Wires come out from behind each overload relay (by its position) so far.
 var _behind_taken: Dictionary[Vector2, int] = {}
 
@@ -226,6 +231,135 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 		edge["mark"] = marks.get(edge["net"], "")
 	wiring._route(edges)
 	wiring._glands()
+	return wiring
+
+
+## The student's wires of a training plan ([param pairs]: two ports of
+## [TrainingCheck] each) in switchboard [param board] of [param doc], laid on
+## [param layout] (wired by [method build], whose glands it keeps) the way
+## [method build] lays its own: each from terminal to terminal through the
+## ducts, a core from its gland. Sets [member ports] (where each port is)
+## and [member pairs] (the pair of each wire). Pairs naming a port the
+## switchboard has not are left out.
+static func build_given(doc: SchematicDocument, layout: CabinetLayout, k: float, board: int, given: Array[PackedStringArray]) -> CabinetWiring:
+	var wiring: CabinetWiring = CabinetWiring.new()
+	for duct: Dictionary in layout.ducts:
+		if duct["vertical"]:
+			wiring._sides.append(duct["rect"])
+		else:
+			wiring._across.append(duct["rect"])
+	if wiring._sides.size() < 2 or wiring._across.is_empty() or board < 0 or board >= doc.switchboards.size():
+		return wiring
+	wiring._circuit = doc.circuit
+	wiring._bottom = layout.size.y - CabinetLayout.FRAME
+	wiring._right = layout.size.x - CabinetLayout.FRAME
+	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var ws: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
+	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, ws)
+	var marks: Dictionary[int, String] = wire_marks(doc, ws)
+	# Port -> its points (a distribution block has one a connection), and
+	# the net of each.
+	var points: Dictionary[String, Array] = {}
+	var nets: Dictionary[String, int] = {}
+	for point: Dictionary in wiring._terminals(layout, k, net):
+		var port: String = point.get("port", "")
+		if port.is_empty():
+			continue
+		if not points.has(port):
+			points[port] = []
+		points[port].append(point)
+		nets[port] = ws.get(point["key"], -1)
+		wiring.ports[port] = point.get("screw", point["at"])
+	var id: int = 3000000
+	for label: String in wiring._strip_spots:
+		var spot: Dictionary = (wiring._strip_spots[label][0] as Dictionary).duplicate()
+		spot["id"] = id
+		id += 1
+		points["f:" + label] = [spot]
+		nets["f:" + label] = ws.get(spot["key"], -1)
+		wiring.ports["f:" + label] = spot["at"]
+	for port: String in points:
+		if port.begins_with("b:"):
+			# Clicked anywhere on the block.
+			var at: Vector2 = Vector2.ZERO
+			for point: Dictionary in points[port]:
+				at += point["at"] / points[port].size()
+			wiring.ports[port] = at + Vector2(CabinetParts.BUS_COVER_X * 2.0, 0.0)
+	# The cores where they come in: under their glands (the door harness's
+	# in its fitting), the supply's in the top.
+	var glands: Dictionary[String, Rect2] = {}
+	for gland: Dictionary in (layout.wiring.glands if layout.wiring != null else [] as Array[Dictionary]):
+		glands[gland["cable"]] = gland["rect"]
+	var here: String = "+" + doc.switchboards[board].name
+	var bottom: int = wiring._across.size() - 1
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		if cable["a"] != here and cable["b"] != here:
+			continue
+		var count: int = cable["cores"].size()
+		var r: Rect2 = glands.get(cable["name"], Rect2(wiring._across[bottom].position.x, wiring._bottom, 12.0, 1.0))
+		for i: int in count:
+			var x: float = r.position.x + 2.0 + (r.size.x - 4.0) * (i + 0.5) / count
+			var port: String = "c:%s:%d" % [cable["name"], i]
+			points[port] = [{"key": cable["name"], "at": Vector2(x, wiring._bottom), "duct": bottom, "up": true, "external": true, "cable": cable["name"]}]
+			nets[port] = cable["cores"][i]["net"]
+			wiring.ports[port] = Vector2(x, wiring._bottom - 1.0)
+	var harness: Array[Dictionary] = door_harness(doc, board)
+	var fitting: Rect2 = glands.get(DOOR, Rect2(wiring._right - 1.0, wiring._bottom - 40.0, CabinetLayout.FRAME + 1.0, 20.0))
+	for i: int in harness.size():
+		var port: String = "c:%s:%d" % [DOOR, i]
+		var y: float = fitting.position.y + 2.0 + (fitting.size.y - 4.0) * (i + 0.5) / harness.size()
+		var duct: Rect2 = wiring._across[bottom]
+		points[port] = [{"key": DOOR, "at": Vector2(duct.end.x - CabinetParts.duct_slot(0) - i * LANE, wiring._bottom), "duct": bottom, "up": true, "external": true, "cable": DOOR}]
+		nets[port] = harness[i]["net"]
+		wiring.ports[port] = Vector2(wiring._right - 1.0, y)
+	var supplies: Array = []
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is PowerSupply and not supplies.any(func(s: PowerSupply) -> bool: return CabinetDevices.supply_key(s) == CabinetDevices.supply_key(c as PowerSupply)):
+			supplies.append(c)
+	var x0: float = wiring._across[0].position.x + CabinetParts.duct_slot(0)
+	for k_supply: int in supplies.size():
+		var supply: PowerSupply = supplies[k_supply]
+		var dc: bool = CORE_ORDER.find(supply.conductor) >= CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS)
+		var r: Rect2 = glands.get("DC" if dc else "AC", Rect2(x0, 0.0, 12.0, CabinetLayout.FRAME))
+		var x: float = r.position.x + 2.0 + CORE * (CORE_ORDER.find(supply.conductor) - (CORE_ORDER.find(PowerSupply.Conductor.DC_PLUS) if dc else 0) + 0.5)
+		var port: String = "p:" + CabinetDevices.supply_key(supply)
+		points[port] = [{"key": supply.get_terminal_keys()[0], "at": Vector2(x, CabinetLayout.FRAME), "duct": 0, "up": false, "external": true, "cable": "DC" if dc else "AC"}]
+		nets[port] = ws.get(supply.get_terminal_keys()[0], -1)
+		wiring.ports[port] = Vector2(x, CabinetLayout.FRAME + 1.0)
+	for port: String in points:
+		for point: Dictionary in points[port]:
+			if not point.has("id"):
+				point["id"] = id
+				id += 1
+	# The wires, a core starting at its gland; a distribution block gives
+	# each wire a connection of its own.
+	var edges: Array[Dictionary] = []
+	var taken: Dictionary[String, int] = {}
+	var uses: Dictionary[String, int] = {}
+	for p: int in given.size():
+		var pair: PackedStringArray = given[p]
+		if not points.has(pair[0]) or not points.has(pair[1]):
+			continue
+		var ends: Array[Dictionary] = []
+		for port: String in pair:
+			var list: Array = points[port]
+			var n: int = taken.get(port, 0) if port.begins_with("b:") else 0
+			taken[port] = n + 1
+			uses[port] = uses.get(port, 0) + 1
+			ends.append(list[mini(n, list.size() - 1)])
+		if ends[1].get("external", false) and not ends[0].get("external", false):
+			ends.reverse()
+		var n_net: int = nets[pair[0]]
+		var c: CabinetDevices.Conductor = conductor.get(n_net, CabinetDevices.Conductor.CONTROL)
+		edges.append({"net": n_net, "conductor": c, "a": ends[0], "b": ends[1], "width": width_of(c), "mark": marks.get(n_net, "")})
+		wiring.pairs.append(p)
+	# Two wires in a strip terminal's entry go in one twin ferrule.
+	for port: String in uses:
+		if uses[port] == 2 and (port.begins_with("s:") or port.begins_with("f:")):
+			points[port][0]["twin"] = true
+	wiring._route(edges)
+	if layout.wiring != null:
+		wiring.glands = layout.wiring.glands
 	return wiring
 
 
@@ -752,8 +886,8 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 						if net.has(key) and not nets.has(net[key]):
 							nets[net[key]] = true
 							# One wire into each block of a strip terminal.
-							result.append({"key": key, "at": at, "duct": rail, "up": true, "bridge": p * 1000 + run, "room": 1, "strip": true})
 							var label: String = "%s:%s" % [place["designation"], terminals[i]["label"]]
+							result.append({"key": key, "at": at, "duct": rail, "up": true, "bridge": p * 1000 + run, "room": 1, "strip": true, "port": "s:" + label})
 							if not _strip_spots.has(label):
 								_strip_spots[label] = []
 							_strip_spots[label].append({"key": key, "at": below, "duct": rail + 1, "up": false, "kind": terminals[i]["kind"]})
@@ -782,7 +916,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 				for i: int in place["desc"]["connections"]:
 					var at: Vector2 = origin + CabinetParts.bus_entry(i)
 					var up: bool = at.y < centre
-					block.append({"key": place["desc"]["key"], "at": at, "duct": rail if up else rail + 1, "up": up, "bridge": p * 1000, "room": 1, "block": true, "clamp": true})
+					block.append({"key": place["desc"]["key"], "at": at, "duct": rail if up else rail + 1, "up": up, "bridge": p * 1000, "room": 1, "block": true, "clamp": true, "port": "b:" + str(place["designation"])})
 				for point: Dictionary in block:
 					var rank: int = 0
 					for other: Dictionary in block:
@@ -794,9 +928,9 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 				var beside: Rect2 = Rect2()
 				if place.has("under_rect"):
 					beside = (place["rect"] as Rect2).merge(place["under_rect"])
-				_add_device(result, net, place["kind"], place["desc"], origin, rail, centre, beside, place.get("channel", 0.0), place.get("under_rect", Rect2()))
+				_add_device(result, net, place["kind"], place["desc"], place["designation"], origin, rail, centre, beside, place.get("channel", 0.0), place.get("under_rect", Rect2()))
 				if place.has("under_origin"):
-					_add_device(result, net, CabinetDevices.Kind.OVERLOAD, place["under_desc"], place["under_origin"], rail, centre)
+					_add_device(result, net, CabinetDevices.Kind.OVERLOAD, place["under_desc"], place["under_designation"], place["under_origin"], rail, centre)
 	for i: int in result.size():
 		result[i]["id"] = i
 	for i: int in _field.size():
@@ -811,7 +945,7 @@ func _terminals(layout: CabinetLayout, k: float, net: Dictionary[String, int]) -
 ## Terminals of a device at [param origin] on rail [param rail]; wires from
 ## its bottom terminals go round [param beside] when it has an area, in
 ## [param channel] on both sides.
-func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, origin: Vector2, rail: int, centre: float, beside: Rect2 = Rect2(), channel: float = 0.0, relay: Rect2 = Rect2()) -> void:
+func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: int, desc: Dictionary, designation: String, origin: Vector2, rail: int, centre: float, beside: Rect2 = Rect2(), channel: float = 0.0, relay: Rect2 = Rect2()) -> void:
 	var terminals: Dictionary = desc.get("terminals", {})
 	var points: Dictionary = CabinetParts.terminal_points(kind, desc)
 	# The terminals of the auxiliary contact blocks on a contactor's sides.
@@ -836,10 +970,10 @@ func _add_device(result: Array[Dictionary], net: Dictionary[String, int], kind: 
 			# them, each a lane lower than the one before), and on down beside it.
 			var y: float = _behind_height(relay)
 			result.append({"key": terminals[name], "at": Vector2(relay.position.x, y), "duct": rail + 1, "up": false, "behind": true,
-					"beside": beside, "channel": channel, "out": [y] as Array[float], "side": false})
+					"beside": beside, "channel": channel, "out": [y] as Array[float], "side": false, "port": "t:%s:%s" % [designation, name], "screw": origin + Vector2(p.x, p.y)})
 			continue
 		var at: Vector2 = origin + Vector2(p.x, p.y + (-p.z if up else p.z) if is_nan(entry) else entry)
-		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up, "clamp": true}
+		var point: Dictionary = {"key": terminals[name], "at": at, "duct": rail if up else rail + 1, "up": up, "clamp": true, "port": "t:%s:%s" % [designation, name], "screw": origin + Vector2(p.x, p.y)}
 		if not up and beside.has_area():
 			var out: Array[float] = []
 			for y: float in CabinetParts.CONTACTOR_OUT_Y:

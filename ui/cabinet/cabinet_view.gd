@@ -20,6 +20,11 @@ extends Control
 signal operate_requested(designation: String)
 ## A place was clicked while editing (-1, -1: beside the places).
 signal place_clicked(rail: int, index: int)
+## Wiring a training plan ([member wiring_mode]): a wire was drawn from port
+## [param a] to [param b] of [param place] ("+RA1", the back of its door
+## "+RA1/door"), or the wire of pair [param index] there picked and deleted.
+signal wire_drawn(place: String, a: String, b: String)
+signal wire_removed(place: String, index: int)
 ## The drawing was zoomed.
 signal zoom_changed
 
@@ -56,6 +61,17 @@ var door_open: bool = false:
 		_painted.clear()
 		update_minimum_size()
 		queue_redraw()
+
+## Wiring a training plan (see [TrainingPlan]): the student's wires drawn in
+## place of the switchboard's own, a click on a terminal starts a wire and
+## a click on another lays it, a click on a wire picks it (Delete takes it
+## away, Esc lets go); the ports ringed (see [TrainingPick]).
+var wiring_mode: bool = false:
+	set(value):
+		wiring_mode = value
+		focus_mode = Control.FOCUS_CLICK if value else Control.FOCUS_NONE
+		_start = {}
+		_picked_wire = {}
 
 ## The wire ducts are drawn with their covers on, hiding the wires in them
 ## (View > Wire duct covers, saved in the settings); never on export (see
@@ -118,6 +134,13 @@ var _painted_k: float = 0.0
 var _painted_origin: Vector2 = Vector2.ZERO
 ## Runs while the zoom is changing (see [constant ZOOM_SETTLE]).
 var _settle: Timer
+## Wiring a training plan: the port under the mouse and the one a wire
+## starts at ({"place", "port"}), the wire picked ({"place", "index"}: its
+## pair), where the mouse is (pixels).
+var _hover: Dictionary = {}
+var _start: Dictionary = {}
+var _picked_wire: Dictionary = {}
+var _mouse: Vector2 = Vector2.ZERO
 
 
 ## A part of the drawing painted on its own by [member paint] (called with
@@ -303,6 +326,9 @@ func _gui_input(event: InputEvent) -> void:
 		_scroll_by(-(event as InputEventMouseMotion).relative)
 		accept_event()
 		return
+	if wiring_mode and not simulating:
+		_wiring_input(event)
+		return
 	if event is InputEventMouseMotion:
 		var under: Array = []
 		var index: int = _place_at((event as InputEventMouseMotion).position, under)
@@ -330,6 +356,111 @@ func _gui_input(event: InputEvent) -> void:
 	accept_event()
 
 
+## Laying and picking the student's wires (see [member wiring_mode]).
+func _wiring_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_mouse = (event as InputEventMouseMotion).position
+		var hit: Dictionary = _port_under(_mouse)
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not hit.is_empty() else Control.CURSOR_ARROW
+		if hit != _hover or not _start.is_empty():
+			_hover = hit
+			queue_redraw()
+		return
+	if event is InputEventKey and (event as InputEventKey).pressed:
+		match (event as InputEventKey).keycode:
+			KEY_DELETE, KEY_BACKSPACE:
+				if not _picked_wire.is_empty():
+					var picked: Dictionary = _picked_wire
+					_picked_wire = {}
+					wire_removed.emit(picked["place"], picked["index"])
+					accept_event()
+			KEY_ESCAPE:
+				if not _start.is_empty() or not _picked_wire.is_empty():
+					_start = {}
+					_picked_wire = {}
+					queue_redraw()
+					accept_event()
+		return
+	if not (event is InputEventMouseButton) or not (event as InputEventMouseButton).pressed or (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
+		return
+	grab_focus()
+	var at: Vector2 = (event as InputEventMouseButton).position
+	var hit: Dictionary = _port_under(at)
+	if not hit.is_empty():
+		_picked_wire = {}
+		if not _start.is_empty() and _start["place"] == hit["place"] and _start["port"] != hit["port"]:
+			var from: Dictionary = _start
+			_start = {}
+			wire_drawn.emit(hit["place"], from["port"], hit["port"])
+		elif _start == hit:
+			_start = {}
+		else:
+			_start = hit
+		queue_redraw()
+		accept_event()
+		return
+	_start = {}
+	_picked_wire = _wire_under(at)
+	queue_redraw()
+	accept_event()
+
+
+## The switchboard's place in a training plan ("+RA1") and its door's.
+func training_place(on_door: bool = false) -> String:
+	if document == null or board < 0 or board >= document.switchboards.size():
+		return ""
+	return "+" + document.switchboards[board].name + ("/door" if on_door else "")
+
+
+## Where the open door's back is drawn from (mm from the plate's corner).
+func _door_at() -> Vector2:
+	return Vector2(_layout.size.x + DOOR_GAP, 0.0) if _layout != null else Vector2.ZERO
+
+
+## The port at [param position_px] ({"place", "port"}), {} for none.
+func _port_under(position_px: Vector2) -> Dictionary:
+	if _wiring == null or _painted_k <= 0.0:
+		return {}
+	var at: Vector2 = (position_px - _painted_origin) / _painted_k
+	var port: String = TrainingPick.port_at(_wiring.ports, at, _painted_k)
+	if not port.is_empty():
+		return {"place": training_place(), "port": port}
+	if door_open and _door != null:
+		port = TrainingPick.port_at(_door.ports, at - _door_at(), _painted_k)
+		if not port.is_empty():
+			return {"place": training_place(true), "port": port}
+	return {}
+
+
+## The student's wire at [param position_px] ({"place", "index"}: its pair), {} for none.
+func _wire_under(position_px: Vector2) -> Dictionary:
+	if _wiring == null or _painted_k <= 0.0:
+		return {}
+	var at: Vector2 = (position_px - _painted_origin) / _painted_k
+	var w: int = TrainingPick.wire_at(_wiring.wires, at, _painted_k)
+	if w >= 0 and w < _wiring.pairs.size():
+		return {"place": training_place(), "index": _wiring.pairs[w]}
+	if door_open and _door != null:
+		w = TrainingPick.wire_at(_door.wires, at - _door_at(), _painted_k)
+		if w >= 0 and w < _door.pairs.size():
+			return {"place": training_place(true), "index": _door.pairs[w]}
+	return {}
+
+
+## What the marks of the wiring show in [param place] (see [method TrainingPick.draw]).
+func _marks_of(place: String, pairs: Array[int]) -> Dictionary:
+	var state: Dictionary = {"selected": -1}
+	if _hover.get("place", "") == place:
+		state["hover"] = _hover["port"]
+	if _start.get("place", "") == place:
+		state["start"] = _start["port"]
+		state["mouse"] = _mouse
+	if _picked_wire.get("place", "") == place:
+		state["selected"] = pairs.find(_picked_wire["index"])
+	state["problems"] = TrainingPick.marked_in(place)
+	return state
+
+
 ## True for a place picked by a click in Edit mode: a rail item, or a
 ## distribution block the switchboard put by itself (to be moved).
 static func _selectable(place: Dictionary) -> bool:
@@ -347,6 +478,10 @@ func place_of(rail: int, index: int) -> Dictionary:
 
 
 func _get_tooltip(at_position: Vector2) -> String:
+	if wiring_mode:
+		var hit: Dictionary = _port_under(at_position)
+		if not hit.is_empty():
+			return TrainingPick.port_text(hit["port"])
 	var under: Array = []
 	var index: int = _place_at(at_position, under)
 	if index < 0:
@@ -407,7 +542,10 @@ func _draw() -> void:
 	if not is_equal_approx(height, _extent().y):
 		update_minimum_size.call_deferred()
 	if _wiring == null or not is_equal_approx(_wiring_k, k):
-		_wiring = _layout.wiring if _layout.wiring != null else CabinetWiring.build(document, _layout, k, board)
+		if wiring_mode and document.training != null:
+			_wiring = CabinetWiring.build_given(document, _layout, k, board, document.training.wires_of(training_place()))
+		else:
+			_wiring = _layout.wiring if _layout.wiring != null else CabinetWiring.build(document, _layout, k, board)
 		_wiring_k = k
 	_layers.scale = Vector2.ONE
 	_layers.position = Vector2.ZERO
@@ -434,7 +572,10 @@ func _draw() -> void:
 		for gland: Dictionary in _wiring.glands:
 			if gland.get("door", false):
 				across = (gland["rect"] as Rect2).get_center().y
-		_door = StationInside.build_door(document, board, _layout.size, across)
+		if wiring_mode and document.training != null:
+			_door = StationInside.build_door_given(document, board, _layout.size, across, document.training.wires_of(training_place(true)))
+		else:
+			_door = StationInside.build_door(document, board, _layout.size, across)
 	_repaint(_door_layer, [at, _door.get_instance_id() if door_open else 0, _door_reach()])
 	var mark: Rect2 = Rect2()
 	if not simulating:
@@ -443,7 +584,13 @@ func _draw() -> void:
 				mark = place["rect"]
 				if place.has("under_rect"):
 					mark = mark.merge(place["under_rect"])
-	_repaint(_mark, [at, mark])
+	var marks: Array = []
+	if wiring_mode:
+		var door_pairs: Array[int] = []
+		if door_open and _door != null:
+			door_pairs = _door.pairs
+		marks = [_marks_of(training_place(), _wiring.pairs), _marks_of(training_place(true), door_pairs)]
+	_repaint(_mark, [at, mark, marks])
 
 
 ## Paints [param layer] again when [param state] (what it shows) differs
@@ -600,11 +747,18 @@ func _paint_door(canvas: CanvasItem) -> void:
 	CabinetParts.door_fitting(q, entry)
 
 
-## The outline of the place selected for editing.
+## The outline of the place selected for editing; wiring a training plan,
+## the ports and the wire being drawn or picked (see [TrainingPick]).
 func _paint_mark(canvas: CanvasItem) -> void:
 	var mark: Rect2 = _painted[_mark][1]
 	if mark.has_area():
 		canvas.draw_rect(Rect2(_painted_origin + mark.position * _painted_k, mark.size * _painted_k).grow(3.0), AppTheme.accent, false, 2.0)
+	var marks: Array = _painted[_mark][2]
+	if marks.is_empty() or _wiring == null:
+		return
+	TrainingPick.draw(canvas, _painted_origin, _painted_k, _wiring.ports, _wiring.wires, marks[0])
+	if door_open and _door != null:
+		TrainingPick.draw(canvas, _painted_origin + _door_at() * _painted_k, _painted_k, _door.ports, _door.wires, marks[1])
 
 
 func _draw_place(p: CabinetPainter, place: Dictionary) -> void:

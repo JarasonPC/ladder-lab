@@ -1044,6 +1044,42 @@ Architecture and conventions of the code base. Read this before changing the cod
   tools/screenshot_workspace.gd screenshots the app's workspace, a switchboard and a station
   (xvfb) for visual review; tools/screenshot_readme.gd takes the screenshots in README.md
   (docs/screenshots/, kept out of the project by a .gdignore): retake them when the look changes
+- Training plans (wiring exercises): File > Save as training plan… (main.gd _save_plan, the
+  plan dialog's tick "List the mistakes…") writes a copy of an industrial schematic with
+  switchboards as a .ladplan (TrainingPlan.EXTENSION; the .ladder format, the document's
+  "training": TrainingPlan in schematic/: show_errors and the student's wires by place, each two
+  ports; ProjectFile version 50). Opened, it is wired, never edited (main.gd _training: editor
+  inactive, no palette, edit tools, page edits (SchematicEditor.edit_pages refuses them),
+  exports or Simulate; the workspace and places get editing false; saved as .ladplan again).
+  Places: each switchboard "+RA1", the back of its door "+RA1/door", each station "+ST1";
+  ports (TrainingCheck in ui/training/, no nodes): "t:KM1:13" a device's terminal with a screw
+  (its name on the device, "13#2" the second place of a changeover's common; Ethernet ports
+  left out), on a door or in a station "t:" and the terminal key; "s:X2:4" a strip terminal's
+  top, "f:X2:4" its field side; "b:N" / "b:PE" a distribution block; "c:W2:0" a core of a
+  workspace cable (index in its cores), "c:@door:0" of the door harness, "p:" and
+  CabinetDevices.supply_key a core of the incoming supply cable (where the supply comes in,
+  CabinetWiring._arriving). TrainingCheck.ports gives each its net (WorkspaceCables.nets) and how
+  many wires it takes (DEVICE_WIRES, STRIP_WIRES (a twin ferrule), CORE_WIRES, a block its
+  connections); joins what is made already (a strip terminal's top and field side, bridged
+  terminals, both ends of a core, at a part in the field the terminals its core lands on); run
+  finds every wire between two nets ("wrong"), a port with more wires than it takes
+  ("crowded") and each net in pieces ("missing", the pieces named shortly, _names); solution
+  makes a right wiring (tests). The student's wires are laid as the program lays its own:
+  CabinetWiring.build_given (ports from the "port" of each point of _terminals, field sides
+  from _strip_spots, cores at their glands, a block giving each wire a connection; "ports"
+  where each is, "pairs" each wire's pair) and StationInside.build_given / build_door_given
+  (_given_links, _finish_given). CabinetView.wiring_mode and StationInsideView.wiring_mode (set
+  by CabinetPanel and StationPanel for a document with training; the station opens on its
+  inside): a click on a port (TrainingPick.port_at) starts a wire, one on another port of
+  the same place lays it (wire_drawn), a click on a wire picks it (wire_at), Delete takes it
+  away (wire_removed), Esc lets go; both an undoable edit of doc.training through the panels'
+  edit_requested. TrainingPick.draw rings every port, the one under the mouse and the start,
+  a wire on its way dashed, the picked wire, the core numbers (core_label) and the ports of
+  TrainingPick.marked (the last check's mistakes, when the plan lists them) in the fault
+  colour; port_text in the tooltip. TrainingPanel (SideBar "training" on the right while a
+  plan is open): what to do, the wires laid, Check wiring (main.gd _check_training) and the
+  result (right, or the number of mistakes and, where the plan lets it, each mistake: a click
+  opens its place, the door opened for one on its back); an edit drops the result and the marks
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
@@ -1404,6 +1440,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   ControlPanelView (all of them beside the schematic while simulating), TravelView (a
   mechanical link there); `ui/side_tab.gd` SideTab
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
+- `ui/training/` TrainingCheck, TrainingPick (no nodes), TrainingPanel (training plans)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP

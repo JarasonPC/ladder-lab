@@ -8,10 +8,10 @@ extends Node
 enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
-enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE, EXPORT_CSV }
+enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE, EXPORT_CSV, SAVE_PLAN }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, DUCT_COVERS, PAPER_NONE, PAPER_PORTRAIT, SCALE = 20, PAPER = 40 }
 enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, LANGUAGE = 10 }
-enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF, EXPORT_CSV }
+enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF, EXPORT_CSV, SAVE_PLAN }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS, TOUR }
 ## Titles offered for a new page (English source text: saved like that and
@@ -219,6 +219,12 @@ var _control_bar: SideBar
 var _control_tab: SideTab
 ## The control panel shows only its tab (remembered).
 var _control_rolled: bool = false
+## A training plan being wired (see [TrainingPlan]): its panel, and the
+## dialog asking how a plan is made.
+var _training_panel: TrainingPanel
+var _training_bar: SideBar
+var _plan_dialog: ConfirmationDialog
+var _plan_errors: CheckBox
 ## What the lesson points at on the drawing, and in the window.
 var _lesson_marks: LessonMarks
 var _lesson_rings: TutorialRings
@@ -282,6 +288,7 @@ func _ready() -> void:
 	editor.selection_changed.connect(_on_selection_changed)
 	editor.hint_changed.connect(_on_editor_hint)
 	editor.edited.connect(_mark_dirty)
+	editor.edited.connect(_on_training_edited)
 	_properties.changed.connect(_on_properties_changed)
 	_properties.rotate_requested.connect(func() -> void: editor.rotate_selection())
 	_properties.mirror_requested.connect(func() -> void: editor.mirror_selection())
@@ -533,6 +540,7 @@ func _build_ui() -> void:
 	_recent_menu.index_pressed.connect(_on_recent_pressed)
 	_file_menu.get_popup().add_child(_recent_menu)
 	_file_menu.get_popup().id_pressed.connect(_on_file_menu)
+	_file_menu.about_to_popup.connect(_rebuild_file_menu)
 	_view_menu = _menu(bar)
 	_view_menu.get_popup().id_pressed.connect(_on_view_menu)
 	_view_menu.about_to_popup.connect(_rebuild_view_menu)
@@ -714,6 +722,11 @@ func _build_ui() -> void:
 	_lesson_panel.restart_requested.connect(func() -> void: start_lesson(_lesson_index))
 	_lesson_panel.check_requested.connect(_check_lesson)
 	_lesson_panel.marks_changed.connect(_refresh_lesson_marks)
+	_training_panel = TrainingPanel.new()
+	_training_bar = _side_panel(middle, _training_panel, "training", true)
+	_training_bar.hide()
+	_training_panel.check_requested.connect(_check_training)
+	_training_panel.problem_selected.connect(_show_training_problem)
 	_control_panel = ControlPanelView.new()
 	_control_bar = _side_panel(middle, _control_panel, "control_panel", true)
 	_control_panel.roll_requested.connect(func() -> void: _set_control_rolled(true))
@@ -857,6 +870,12 @@ func _build_dialogs() -> void:
 	add_child(_export_preview)
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
+	_plan_dialog = ConfirmationDialog.new()
+	_plan_errors = CheckBox.new()
+	_plan_errors.button_pressed = true
+	_plan_dialog.add_child(_plan_errors)
+	_plan_dialog.confirmed.connect(func() -> void: _show_file_dialog(DialogPurpose.SAVE_PLAN))
+	add_child(_plan_dialog)
 	_recovery_dialog = ConfirmationDialog.new()
 	_recovery_discard_button = _recovery_dialog.add_button("", true, "discard")
 	# A copy offered after another was restored replaces that one: ask first.
@@ -1014,8 +1033,9 @@ func _retranslate() -> void:
 	_refresh_pages()
 	_palette.retranslate()
 	_update_environment()
-	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar, _control_bar]:
+	for bar: SideBar in [_palette_bar, _side_bar, _tree_bar, _lesson_bar, _training_bar, _control_bar]:
 		bar.retranslate()
+	_training_panel.rebuild()
 	_control_panel.retranslate()
 	_control_tab.title = tr("Control panel")
 	_control_tab.tooltip_text = tr("Control panel: the control stations and switchboard doors, to operate the circuit beside the schematic")
@@ -1056,6 +1076,11 @@ func _retranslate_dialogs() -> void:
 	_recovery_dialog.ok_button_text = tr("Restore")
 	_recovery_dialog.cancel_button_text = tr("Later")
 	_recovery_discard_button.text = tr("Discard")
+	_plan_dialog.title = tr("Save as training plan")
+	_plan_dialog.ok_button_text = tr("Save…")
+	_plan_dialog.cancel_button_text = tr("Cancel")
+	_plan_errors.text = tr("List the mistakes when the student checks the wiring")
+	_plan_errors.tooltip_text = tr("Unticked, the check only says whether the wiring is right")
 	_rename_dialog.title = tr("Rename page")
 	_rename_dialog.ok_button_text = tr("Rename")
 	_rename_dialog.cancel_button_text = tr("Cancel")
@@ -1079,12 +1104,18 @@ func _rebuild_file_menu() -> void:
 	popup.add_separator()
 	popup.add_item(tr("Save"), FileMenuId.SAVE, KEY_MASK_CTRL | KEY_S)
 	popup.add_item(tr("Save as…"), FileMenuId.SAVE_AS, KEY_MASK_CTRL | KEY_MASK_SHIFT | KEY_S)
+	popup.add_item(tr("Save as training plan…"), FileMenuId.SAVE_PLAN)
+	popup.set_item_tooltip(popup.item_count - 1, tr("A wiring exercise for students: the schematic, the switchboards and the stations without their wires, to be wired and checked"))
+	popup.set_item_disabled(popup.item_count - 1, _training() or edit_doc == null or edit_doc.environment != SchematicDocument.Kind.INDUSTRIAL or edit_doc.switchboards.is_empty())
 	popup.add_item(tr("Export page as PNG…"), FileMenuId.EXPORT_PNG)
 	popup.add_item(tr("Export as PDF…"), FileMenuId.EXPORT_PDF)
 	popup.add_item(tr("Export parts list as CSV…"), FileMenuId.EXPORT_CSV)
 	popup.set_item_tooltip(popup.item_count - 1, tr("The parts list (and a house's boxes and cable metres) for a spreadsheet"))
 	popup.add_item(tr("Title block…"), FileMenuId.TITLE_BLOCK)
 	popup.set_item_tooltip(popup.item_count - 1, tr("Texts of the title block on exported sheets: drawn by, checked by, company, ..."))
+	# A training plan's sheets would show the wiring the student is to make.
+	for id: int in [FileMenuId.EXPORT_PNG, FileMenuId.EXPORT_PDF, FileMenuId.EXPORT_CSV, FileMenuId.TITLE_BLOCK]:
+		popup.set_item_disabled(popup.get_item_index(id), _training())
 	if FileAssociation.available():
 		popup.add_separator()
 		popup.add_check_item(tr("Open .ladder files with LadderLab"), FileMenuId.ASSOCIATE)
@@ -1378,7 +1409,7 @@ func _side_panel(parent: Control, content: Control, key: String, grip_left: bool
 ## Width of side panel [param key] until one is chosen.
 static func _bar_width(key: String) -> float:
 	match key:
-		"lesson":
+		"lesson", "training":
 			return LESSON_WIDTH
 		"control_panel":
 			return CONTROL_PANEL_WIDTH
@@ -1403,7 +1434,7 @@ func _set_control_rolled(rolled: bool) -> void:
 ## The properties (and check results) beside the schematic: only in Edit
 ## mode while something is selected or the check results are shown.
 func _update_side_bar() -> void:
-	_side_bar.visible = area == Area.SCHEMATIC and mode == Mode.EDIT and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible)
+	_side_bar.visible = area == Area.SCHEMATIC and mode == Mode.EDIT and not _training() and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible)
 
 
 ## Shows the simulation as currents ([param on]) or as voltages.
@@ -1457,13 +1488,14 @@ func _update_mode_ui() -> void:
 	var single_line: bool = schematic and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
 	view.visible = schematic and not single_line
 	_single_line.visible = single_line
-	editor.active = editing and schematic and not single_line
+	var training: bool = _training()
+	editor.active = editing and schematic and not single_line and not training
 	_page_bar.visible = schematic and not single_line
 	var residential: bool = edit_doc != null and edit_doc.residential
 	_workspace.visible = not schematic and not residential
 	_floor_plan.visible = not schematic and residential
 	_tree_bar.visible = not schematic and not residential
-	_edit_tools.visible = editing and schematic
+	_edit_tools.visible = editing and schematic and not training
 	for tool: Control in [_rotate_button, _mirror_button, _flip_button, _number_button, _check_button]:
 		tool.visible = not single_line
 	_numbers_toggle.visible = schematic and not single_line
@@ -1472,8 +1504,11 @@ func _update_mode_ui() -> void:
 	# A residential installation's floor plan takes its parts from the palette too.
 	var plan_parts: bool = not schematic and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
 	_palette.plan = plan_parts
-	_palette_bar.visible = editing and (schematic or plan_parts)
+	_palette_bar.visible = editing and (schematic or plan_parts) and not training
 	_lesson_bar.visible = schematic and _lesson_run != null
+	_training_bar.visible = training
+	_simulate_button.disabled = training
+	_simulate_button.tooltip_text = tr("A training plan is wired and checked, not simulated") if training else ""
 	_update_side_bar()
 	_update_control_panel()
 	_sim_tools.visible = not editing
@@ -1525,6 +1560,11 @@ func _update_title() -> void:
 # --- Documents and modes ----------------------------------------------------------
 
 func _set_mode(new_mode: Mode) -> void:
+	if new_mode == Mode.SIMULATE and _training():
+		# A training plan is checked, not simulated (yet).
+		_simulate_button.set_pressed_no_signal(false)
+		_edit_button.set_pressed_no_signal(true)
+		return
 	if new_mode == mode:
 		return
 	mode = new_mode
@@ -1595,7 +1635,9 @@ func _show_in_schematic(designation: String) -> void:
 ## The schematic or simulation shown was (re)loaded: the workspace and its
 ## windows follow it.
 func _on_view_loaded() -> void:
-	_workspace.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
+	# A training plan is wired, never edited.
+	var editing: bool = mode == Mode.EDIT and not _training()
+	_workspace.set_document(view.document, editing, _workspace_fit)
 	_workspace.show_travels(view.travel_positions())
 	_floor_plan.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
 	_single_line.set_document(view.document, mode == Mode.EDIT, _workspace_fit)
@@ -1605,7 +1647,7 @@ func _on_view_loaded() -> void:
 	_control_panel.set_document(view.document, travels)
 	_workspace_fit = false
 	for window: PlaceWindow in _place_windows():
-		window.set_document(view.document, mode == Mode.EDIT)
+		window.set_document(view.document, editing)
 
 
 ## Fits the view once the panels have their new sizes (after this frame).
@@ -1671,11 +1713,18 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 	editor.leave_page()
 	# Check results of another schematic (an undo keeps them, re-checked).
 	_check_panel.hide()
+	TrainingPick.marked = PackedStringArray()
+	if doc.training != null:
+		# A training plan is wired in Edit mode.
+		_switch_mode(Mode.EDIT)
 	_show_document(doc, true)
+	_training_panel.show_plan(doc)
+	_training_panel.clear_result()
 	_file_path = path
 	_dirty = false
 	RecoveryFile.remove()
 	_update_title()
+	_update_mode_ui()
 
 
 ## An empty schematic of one page, as the program starts.
@@ -1705,6 +1754,16 @@ func _new_document(environment: int = SchematicDocument.Kind.INDUSTRIAL) -> void
 
 func _on_document_replaced(doc: SchematicDocument) -> void:
 	_show_document(doc, false)
+	_on_training_edited()
+
+
+## The student's wires changed: counted again, the last check dropped.
+func _on_training_edited() -> void:
+	if not _training():
+		return
+	TrainingPick.marked = PackedStringArray()
+	_training_panel.show_plan(edit_doc)
+	_training_panel.clear_result()
 
 
 func _mark_dirty() -> void:
@@ -2047,6 +2106,8 @@ func _on_file_menu(id: int) -> void:
 			_save()
 		FileMenuId.SAVE_AS:
 			_save_as()
+		FileMenuId.SAVE_PLAN:
+			_plan_dialog.popup_centered()
 		FileMenuId.EXPORT_PNG:
 			_open_export_preview(false)
 		FileMenuId.EXPORT_PDF:
@@ -2136,12 +2197,18 @@ func _show_file_dialog(purpose: DialogPurpose) -> void:
 		DialogPurpose.OPEN:
 			_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 			_file_dialog.title = tr("Open schematic")
-			_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [ProjectFile.EXTENSION, tr("LadderLab schematic")]])
+			_file_dialog.filters = PackedStringArray(["*.%s, *.%s ; %s" % [ProjectFile.EXTENSION, TrainingPlan.EXTENSION, tr("LadderLab schematic or training plan")]])
 		DialogPurpose.SAVE:
+			var extension: String = _file_extension()
 			_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-			_file_dialog.title = tr("Save schematic")
-			_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [ProjectFile.EXTENSION, tr("LadderLab schematic")]])
-			_file_dialog.current_file = (_file_path.get_file() if not _file_path.is_empty() else tr("schematic") + "." + ProjectFile.EXTENSION)
+			_file_dialog.title = tr("Save training plan") if _training() else tr("Save schematic")
+			_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [extension, tr("LadderLab training plan") if _training() else tr("LadderLab schematic")]])
+			_file_dialog.current_file = (_file_path.get_file() if not _file_path.is_empty() else tr("schematic") + "." + extension)
+		DialogPurpose.SAVE_PLAN:
+			_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+			_file_dialog.title = tr("Save as training plan")
+			_file_dialog.filters = PackedStringArray(["*.%s ; %s" % [TrainingPlan.EXTENSION, tr("LadderLab training plan")]])
+			_file_dialog.current_file = (_file_path.get_file().get_basename() if not _file_path.is_empty() else tr("schematic")) + "." + TrainingPlan.EXTENSION
 		DialogPurpose.EXPORT_PNG, DialogPurpose.EXPORT_PDF:
 			var pdf: bool = purpose == DialogPurpose.EXPORT_PDF
 			_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -2164,8 +2231,8 @@ func _on_file_selected(path: String) -> void:
 		DialogPurpose.OPEN:
 			open_file(path)
 		DialogPurpose.SAVE:
-			if path.get_extension().to_lower() != ProjectFile.EXTENSION:
-				path += "." + ProjectFile.EXTENSION
+			if path.get_extension().to_lower() != _file_extension():
+				path += "." + _file_extension()
 			if save_file(path) and _after_save.is_valid():
 				var then: Callable = _after_save
 				_after_save = Callable()
@@ -2182,6 +2249,10 @@ func _on_file_selected(path: String) -> void:
 			if path.get_extension().to_lower() != "csv":
 				path += ".csv"
 			_save_csv(path)
+		DialogPurpose.SAVE_PLAN:
+			if path.get_extension().to_lower() != TrainingPlan.EXTENSION:
+				path += "." + TrainingPlan.EXTENSION
+			_save_plan(path)
 
 
 ## Saves to the current file, or asks for one. [param then] runs after a
@@ -2196,6 +2267,57 @@ func _save(then: Callable = Callable()) -> void:
 func _save_as(then: Callable = Callable()) -> void:
 	_after_save = then
 	_show_file_dialog(DialogPurpose.SAVE)
+
+
+## Extension the edited schematic is saved with: a training plan's own.
+func _file_extension() -> String:
+	return TrainingPlan.EXTENSION if _training() else ProjectFile.EXTENSION
+
+
+## Whether the schematic shown is a training plan being wired.
+func _training() -> bool:
+	return edit_doc != null and edit_doc.training != null
+
+
+## Writes the edited schematic to [param path] as a training plan (without
+## wires, the mistakes listed when the check box of the plan dialog is
+## ticked); the schematic stays as it is.
+func _save_plan(path: String) -> void:
+	var plan: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc))
+	plan.training = TrainingPlan.new()
+	plan.training.show_errors = _plan_errors.button_pressed
+	if ProjectFile.save(plan, path) != OK:
+		_show_error(tr("Could not save %s.") % path.get_file())
+
+
+## Checks the student's wiring and shows the result, ringing the ports of
+## the mistakes where the plan lists them.
+func _check_training() -> void:
+	if not _training():
+		return
+	var result: Dictionary = TrainingCheck.run(edit_doc)
+	var marked: PackedStringArray = PackedStringArray()
+	if edit_doc.training.show_errors:
+		for problem: Dictionary in result["problems"]:
+			marked.append_array(problem["ports"])
+	TrainingPick.marked = marked
+	_training_panel.show_result(result)
+	_workspace.refresh()
+
+
+## Opens the place of the first of [param ports] ("place|port") of a
+## mistake: its switchboard (the door opened for a port on its back) or station.
+func _show_training_problem(ports: PackedStringArray) -> void:
+	if ports.is_empty():
+		return
+	var place: String = ports[0].get_slice("|", 0)
+	var name: String = place.trim_prefix("+").get_slice("/", 0)
+	var board: bool = edit_doc.switchboards.any(func(b: Switchboard) -> bool: return b.name == name)
+	_set_area(Area.WORKSPACE)
+	_workspace.open(Workspace.Place.SWITCHBOARD if board else Workspace.Place.STATION, name)
+	var panel: Control = _workspace.get("_panel")
+	if board and panel is CabinetPanel and place.ends_with("/door"):
+		(panel as CabinetPanel).door_open = true
 
 
 ## Writes the edited schematic to [param path]. Returns true on success.
@@ -2391,7 +2513,7 @@ func _refresh_pages() -> void:
 		_page_tabs.set_tab_title(i, title)
 	_page_tabs.current_tab = doc.page
 	_page_tabs.drag_to_rearrange_enabled = mode == Mode.EDIT
-	_page_add.visible = mode == Mode.EDIT
+	_page_add.visible = mode == Mode.EDIT and not _training()
 	_updating_pages = false
 	_fit_page_tabs()
 
@@ -2522,7 +2644,7 @@ func open_place_window(kind: Workspace.Place, place_name: String) -> PlaceWindow
 	window.operate_requested.connect(view.operate_device)
 	window.key_bind_requested.connect(_ask_key)
 	add_child(window)
-	window.set_document(view.document, mode == Mode.EDIT)
+	window.set_document(view.document, mode == Mode.EDIT and not _training())
 	return window
 
 
