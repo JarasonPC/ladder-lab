@@ -68,6 +68,8 @@ var _inside_button: Button
 var _door_button: Button
 var _open_button: Button
 var _door: DoorView
+## The colour and number of the wire laid or picked (wiring a training plan).
+var _wire_bar: TrainingWireBar
 ## Item of the door selected for editing, -1 for none.
 var _door_selected: int = -1
 var _door_tools: ControlItemTools = ControlItemTools.new()
@@ -119,6 +121,10 @@ func _ready() -> void:
 	_note.theme_type_variation = "MutedLabel"
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(_note)
+	_wire_bar = TrainingWireBar.new()
+	_wire_bar.visible = false
+	_wire_bar.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
+	left.add_child(_wire_bar)
 	var down: ScrollContainer = ScrollContainer.new()
 	down.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	down.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -156,7 +162,10 @@ func _ready() -> void:
 	_view.operate_requested.connect(func(designation: String) -> void: operate_requested.emit(designation))
 	# Wiring a training plan: the student's wires, one undoable edit each.
 	_view.wire_drawn.connect(func(place: String, a: String, b: String) -> void:
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.add_wire(place, a, b)))
+		var colour: String = TrainingWireBar.colour
+		var number: String = TrainingWireBar.number
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.add_wire(place, a, b, colour, number)))
+	_view.wire_picked.connect(func(place: String, index: int) -> void: _wire_bar.show_wire(_document, place, index))
 	_view.wire_removed.connect(func(place: String, index: int) -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.remove_wire(place, index)))
 	_view.place_clicked.connect(func(rail: int, index: int) -> void:
@@ -304,6 +313,7 @@ func _rebuild() -> void:
 		_view.door_open = door_open
 	_down.visible = not door_shown
 	_door.visible = door_shown
+	_wire_bar.visible = false
 	_zoom_row.visible = not door_shown
 	if b < 0:
 		_note.visible = false
@@ -324,6 +334,9 @@ func _rebuild() -> void:
 	_note.text = tr("No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it.") if _editing else tr("No DIN rails yet. Make them in Edit mode.")
 	if wiring:
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
+	_wire_bar.visible = wiring
+	if wiring:
+		_wire_bar.refresh(_document)
 	_view.document = _document
 	_view.board = b
 	_view.wiring_mode = training

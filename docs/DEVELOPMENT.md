@@ -1080,6 +1080,17 @@ Architecture and conventions of the code base. Read this before changing the cod
   plan is open): what to do, the wires laid, Check wiring (main.gd _check_training) and the
   result (right, or the number of mistakes and, where the plan lets it, each mistake: a click
   opens its place, the door opened for one on its back); an edit drops the result and the marks.
+  Each student's wire is [port, port, colour, number] (TrainingPlan.COLOURS: CONTROL red,
+  NEUTRAL light blue, POWER grey, PE green-yellow; the number on its sleeves, "" none;
+  set_look): drawn in that colour with that number (CabinetWiring.build_given,
+  StationInside._given_links; a wire landing a cable's core in its core's colour), never in
+  its net's, so the drawing gives nothing away. TrainingWireBar (in CabinetPanel and
+  StationPanel while wiring; the views' wire_picked): with no wire picked the colour and number
+  the next wires get (static, shared), with one picked its own, changed as an edit (a core's
+  colour fixed). TrainingCheck.run also finds a wire not of its net's conductor's colour
+  (colour_of; "colour") and one numbered other than its net (CabinetWiring.wire_marks), or
+  numbered where the schematic gives none, or not at all where the plan wants numbers
+  (TrainingPlan.numbers_required, the plan dialog's second tick; "number").
   Simulate runs the plan as the student wired it (main.gd _start_simulation, _set_mode: on the
   workspace, the Schematic button disabled while it runs, the control panel beside it):
   TrainingSim.build (ui/training/, no nodes) copies the schematic with TrainingPlan.drawn the
@@ -1454,7 +1465,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   ControlPanelView (all of them beside the schematic while simulating), TravelView (a
   mechanical link there); `ui/side_tab.gd` SideTab
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
-- `ui/training/` TrainingCheck, TrainingPick, TrainingSim (no nodes), TrainingPanel (training plans)
+- `ui/training/` TrainingCheck, TrainingPick, TrainingSim (no nodes), TrainingPanel, TrainingWireBar (training plans)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP

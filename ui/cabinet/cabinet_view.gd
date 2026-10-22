@@ -25,6 +25,8 @@ signal place_clicked(rail: int, index: int)
 ## "+RA1/door"), or the wire of pair [param index] there picked and deleted.
 signal wire_drawn(place: String, a: String, b: String)
 signal wire_removed(place: String, index: int)
+## The wire of pair [param index] of [param place] was picked (-1: none).
+signal wire_picked(place: String, index: int)
 ## The drawing was zoomed.
 signal zoom_changed
 
@@ -68,6 +70,8 @@ var door_open: bool = false:
 ## away, Esc lets go); the ports ringed (see [TrainingPick]).
 var wiring_mode: bool = false:
 	set(value):
+		if value == wiring_mode:
+			return
 		wiring_mode = value
 		focus_mode = Control.FOCUS_CLICK if value else Control.FOCUS_NONE
 		_start = {}
@@ -371,13 +375,13 @@ func _wiring_input(event: InputEvent) -> void:
 			KEY_DELETE, KEY_BACKSPACE:
 				if not _picked_wire.is_empty():
 					var picked: Dictionary = _picked_wire
-					_picked_wire = {}
+					_pick({})
 					wire_removed.emit(picked["place"], picked["index"])
 					accept_event()
 			KEY_ESCAPE:
 				if not _start.is_empty() or not _picked_wire.is_empty():
 					_start = {}
-					_picked_wire = {}
+					_pick({})
 					queue_redraw()
 					accept_event()
 		return
@@ -387,7 +391,7 @@ func _wiring_input(event: InputEvent) -> void:
 	var at: Vector2 = (event as InputEventMouseButton).position
 	var hit: Dictionary = _port_under(at)
 	if not hit.is_empty():
-		_picked_wire = {}
+		_pick({})
 		if not _start.is_empty() and _start["place"] == hit["place"] and _start["port"] != hit["port"]:
 			var from: Dictionary = _start
 			_start = {}
@@ -400,9 +404,17 @@ func _wiring_input(event: InputEvent) -> void:
 		accept_event()
 		return
 	_start = {}
-	_picked_wire = _wire_under(at)
+	_pick(_wire_under(at))
 	queue_redraw()
 	accept_event()
+
+
+## Picks the wire [param picked] ({"place", "index"}, {} for none).
+func _pick(picked: Dictionary) -> void:
+	if picked == _picked_wire:
+		return
+	_picked_wire = picked
+	wire_picked.emit(picked.get("place", ""), picked.get("index", -1))
 
 
 ## The switchboard's place in a training plan ("+RA1") and its door's.

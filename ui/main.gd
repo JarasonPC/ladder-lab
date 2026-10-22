@@ -225,6 +225,7 @@ var _training_panel: TrainingPanel
 var _training_bar: SideBar
 var _plan_dialog: ConfirmationDialog
 var _plan_errors: CheckBox
+var _plan_numbers: CheckBox
 ## What the lesson points at on the drawing, and in the window.
 var _lesson_marks: LessonMarks
 var _lesson_rings: TutorialRings
@@ -871,9 +872,13 @@ func _build_dialogs() -> void:
 	_error_dialog = AcceptDialog.new()
 	add_child(_error_dialog)
 	_plan_dialog = ConfirmationDialog.new()
+	var plan_box: VBoxContainer = VBoxContainer.new()
+	_plan_dialog.add_child(plan_box)
 	_plan_errors = CheckBox.new()
 	_plan_errors.button_pressed = true
-	_plan_dialog.add_child(_plan_errors)
+	plan_box.add_child(_plan_errors)
+	_plan_numbers = CheckBox.new()
+	plan_box.add_child(_plan_numbers)
 	_plan_dialog.confirmed.connect(func() -> void: _show_file_dialog(DialogPurpose.SAVE_PLAN))
 	add_child(_plan_dialog)
 	_recovery_dialog = ConfirmationDialog.new()
@@ -1081,6 +1086,8 @@ func _retranslate_dialogs() -> void:
 	_plan_dialog.cancel_button_text = tr("Cancel")
 	_plan_errors.text = tr("List the mistakes when the student checks the wiring")
 	_plan_errors.tooltip_text = tr("Unticked, the check only says whether the wiring is right")
+	_plan_numbers.text = tr("Every wire must carry its wire number")
+	_plan_numbers.tooltip_text = tr("Unticked, a number written on a wire is checked, but a wire may go without one")
 	_rename_dialog.title = tr("Rename page")
 	_rename_dialog.ok_button_text = tr("Rename")
 	_rename_dialog.cancel_button_text = tr("Cancel")
@@ -2292,6 +2299,7 @@ func _save_plan(path: String) -> void:
 	var plan: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc))
 	plan.training = TrainingPlan.new()
 	plan.training.show_errors = _plan_errors.button_pressed
+	plan.training.numbers_required = _plan_numbers.button_pressed
 	if ProjectFile.save(plan, path) != OK:
 		_show_error(tr("Could not save %s.") % path.get_file())
 

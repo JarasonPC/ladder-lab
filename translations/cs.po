@@ -6236,3 +6236,44 @@ msgstr[2] "Zatím není správně: %d chyb."
 
 msgid "While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown"
 msgstr "Když výukový plán běží podle žákova zapojení, neběží to, co ukazuje schéma: schéma se ukáže zpět v režimu Úpravy"
+
+msgid "red"
+msgstr "červený"
+
+msgid "light blue"
+msgstr "světle modrý"
+
+msgid "green-yellow"
+msgstr "zelenožlutý"
+
+#, c-format
+msgid "Wire %s – %s should be %s, not %s."
+msgstr "Vodič %s – %s má být %s, ne %s."
+
+#, c-format
+msgid "Wire %s – %s carries no number, the schematic says %s."
+msgstr "Vodič %s – %s nemá číslo, schéma uvádí %s."
+
+#, c-format
+msgid "Wire %s – %s is numbered %s, the schematic says %s."
+msgstr "Vodič %s – %s má číslo %s, schéma uvádí %s."
+
+#, c-format
+msgid "Wire %s – %s is numbered %s, the schematic gives it no number."
+msgstr "Vodič %s – %s má číslo %s, ale schéma mu číslo nedává."
+
+msgid "Next wire:"
+msgstr "Další vodič:"
+
+#, c-format
+msgid "Wire %s – %s:"
+msgstr "Vodič %s – %s:"
+
+msgid "Every wire must carry its wire number"
+msgstr "Každý vodič musí nést své číslo"
+
+msgid "Unticked, a number written on a wire is checked, but a wire may go without one"
+msgstr "Nezaškrtnuté: napsané číslo se kontroluje, ale vodič může být bez čísla"
+
+msgid "grey"
+msgstr "šedý"

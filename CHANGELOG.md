@@ -15,6 +15,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   lists the missing and wrong wires and the terminals with too many wires
 - A training plan runs in Simulate as the student wired it: switch on the breakers in the
   switchboard and press the buttons on the stations to see whether it works
+- Wiring a training plan, the student chooses each wire's colour and writes its number on
+  its sleeves (the drawing no longer colours and numbers the wires by themselves); the check
+  finds wires of the wrong colour and wrong numbers, and missing ones where the plan wants
+  every wire numbered
 
 ### Schematic editor
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the

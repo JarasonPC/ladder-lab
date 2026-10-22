@@ -24,6 +24,8 @@ extends RefCounted
 const DEVICE_WIRES: int = 2
 const STRIP_WIRES: int = 2
 const CORE_WIRES: int = 1
+## English names of the colours of [constant TrainingPlan.COLOURS].
+const COLOUR_NAMES: PackedStringArray = ["red", "light blue", "grey", "green-yellow"]
 ## Ports named in a problem at most, then "…".
 const NAMES: int = 2
 
@@ -138,7 +140,9 @@ static func joins(doc: SchematicDocument, all: Dictionary[String, Dictionary]) -
 
 
 ## Checks the student's wires of [param doc]'s training plan: {"ok",
-## "problems": [{"kind" ("missing", "wrong", "crowded"), "text" (English,
+## "problems": [{"kind" ("missing", "wrong", "crowded", "colour": a wire not
+## of its conductor's colour, "number": a wire numbered other than its
+## net, or not at all where the plan wants numbers), "text" (English,
 ## %s for the args), "args", "ports" (the "place|port" ids)}], "wires" (how
 ## many)}.
 static func run(doc: SchematicDocument) -> Dictionary:
@@ -146,6 +150,7 @@ static func run(doc: SchematicDocument) -> Dictionary:
 	var all: Dictionary[String, Dictionary] = ports(doc)
 	var ws: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
 	var marks: Dictionary[int, String] = CabinetWiring.wire_marks(doc, ws)
+	var conductors: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, ws)
 	var problems: Array[Dictionary] = []
 	# Nodes: the ports, then the terminals of parts in the field.
 	var index: Dictionary[String, int] = {}
@@ -174,9 +179,24 @@ static func run(doc: SchematicDocument) -> Dictionary:
 			count += 1
 			uses[a] = uses.get(a, 0) + 1
 			uses[b] = uses.get(b, 0) + 1
-			if all[a]["net"] != all[b]["net"]:
-				problems.append({"kind": "wrong", "text": "Wrong wire: %s – %s, which are not connected in the schematic.", "args": [all[a]["name"], all[b]["name"]], "ports": PackedStringArray([a, b])})
 			groups.union(index[a], index[b])
+			var n: int = all[a]["net"]
+			if all[b]["net"] != n:
+				problems.append({"kind": "wrong", "text": "Wrong wire: %s – %s, which are not connected in the schematic.", "args": [all[a]["name"], all[b]["name"]], "ports": PackedStringArray([a, b])})
+				continue
+			# Its colour (a cable's core has its own) and the number on its sleeves.
+			var colour: String = colour_of(conductors.get(n, CabinetDevices.Conductor.CONTROL))
+			if not all[a]["core"] and not all[b]["core"] and wire.size() > 2 and wire[2] != colour:
+				problems.append({"kind": "colour", "text": "Wire %s – %s should be %s, not %s.", "args": [all[a]["name"], all[b]["name"], TranslationServer.translate(COLOUR_NAMES[TrainingPlan.COLOURS.find(colour)]), TranslationServer.translate(COLOUR_NAMES[maxi(TrainingPlan.COLOURS.find(wire[2]), 0)])], "ports": PackedStringArray([a, b])})
+			var number: String = wire[3] if wire.size() > 3 else ""
+			var mark: String = marks.get(n, "")
+			if mark.is_empty() and not number.is_empty():
+				problems.append({"kind": "number", "text": "Wire %s – %s is numbered %s, the schematic gives it no number.", "args": [all[a]["name"], all[b]["name"], number], "ports": PackedStringArray([a, b])})
+			elif not mark.is_empty() and number != mark and (plan.numbers_required or not number.is_empty()):
+				if number.is_empty():
+					problems.append({"kind": "number", "text": "Wire %s – %s carries no number, the schematic says %s.", "args": [all[a]["name"], all[b]["name"], mark], "ports": PackedStringArray([a, b])})
+				else:
+					problems.append({"kind": "number", "text": "Wire %s – %s is numbered %s, the schematic says %s.", "args": [all[a]["name"], all[b]["name"], number, mark], "ports": PackedStringArray([a, b])})
 	for id: String in uses:
 		if uses[id] > all[id]["holds"]:
 			problems.append({"kind": "crowded", "text": "Too many wires in %s: %d, it takes %d.", "args": [all[id]["name"], uses[id], all[id]["holds"]], "ports": PackedStringArray([id])})
@@ -215,6 +235,9 @@ static func run(doc: SchematicDocument) -> Dictionary:
 ## (each net's ports in a place chained, the cores landed on what has room).
 static func solution(doc: SchematicDocument) -> Dictionary[String, Array]:
 	var all: Dictionary[String, Dictionary] = ports(doc)
+	var ws: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
+	var conductors: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, ws)
+	var marks: Dictionary[int, String] = CabinetWiring.wire_marks(doc, ws)
 	# Ports joined already within one place (a strip terminal's top and
 	# field side, bridged terminals) are one: only the first is chained.
 	var index: Dictionary[String, int] = {}
@@ -246,7 +269,7 @@ static func solution(doc: SchematicDocument) -> Dictionary[String, Array]:
 					seen[root] = true
 					heads.append(id)
 			for k: int in range(1, heads.size()):
-				wires.append(_pair(all, heads[k - 1], heads[k]))
+				wires.append(_pair(all, heads[k - 1], heads[k], conductors, marks))
 				used[heads[k - 1]] = used.get(heads[k - 1], 0) + 1
 				used[heads[k]] = used.get(heads[k], 0) + 1
 			for id: String in ids:
@@ -260,7 +283,7 @@ static func solution(doc: SchematicDocument) -> Dictionary[String, Array]:
 				if target.is_empty():
 					continue
 				used[target] = used.get(target, 0) + 1
-				wires.append(_pair(all, id, target))
+				wires.append(_pair(all, id, target, conductors, marks))
 		result[place] = wires
 	return result
 
@@ -272,8 +295,30 @@ static func supply_name(supply: PowerSupply) -> String:
 	return supply.conductor_name()
 
 
-static func _pair(all: Dictionary[String, Dictionary], a: String, b: String) -> PackedStringArray:
-	return PackedStringArray([all[a]["id"], all[b]["id"]])
+## The colour (of [constant TrainingPlan.COLOURS]) a wire of conductor
+## [param c] ([enum CabinetDevices.Conductor]) has.
+static func colour_of(c: CabinetDevices.Conductor) -> String:
+	match c:
+		CabinetDevices.Conductor.NEUTRAL:
+			return "NEUTRAL"
+		CabinetDevices.Conductor.POWER:
+			return "POWER"
+		CabinetDevices.Conductor.PE:
+			return "PE"
+	return "CONTROL"
+
+
+## The [enum CabinetDevices.Conductor] a wire of [param colour] (of
+## [constant TrainingPlan.COLOURS]) is drawn as.
+static func conductor_of(colour: String) -> CabinetDevices.Conductor:
+	return [CabinetDevices.Conductor.CONTROL, CabinetDevices.Conductor.NEUTRAL, CabinetDevices.Conductor.POWER, CabinetDevices.Conductor.PE][maxi(TrainingPlan.COLOURS.find(colour), 0)]
+
+
+## A right wire between ports [param a] and [param b]: its conductor's
+## colour and its net's number ([param doc]'s).
+static func _pair(all: Dictionary[String, Dictionary], a: String, b: String, conductors: Dictionary[int, CabinetDevices.Conductor], marks: Dictionary[int, String]) -> PackedStringArray:
+	var n: int = all[a]["net"]
+	return PackedStringArray([all[a]["id"], all[b]["id"], colour_of(conductors.get(n, CabinetDevices.Conductor.CONTROL)), marks.get(n, "")])
 
 
 static func _add(result: Dictionary[String, Dictionary], place: String, id: String, net: int, holds: int, name: String, core: bool = false) -> void:
