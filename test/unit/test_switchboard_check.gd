@@ -380,3 +380,38 @@ func test_parts_outside_without_terminals_are_wired_out() -> void:
 				door.set_strip_terminal(c.id, i, "")
 	assert_false(CabinetWiring.door_harness(door, 0).is_empty(), "the door's parts take cores of the harness straight from the devices")
 	assert_eq(_all(door, "door"), PackedStringArray())
+
+
+func test_check_names_terminals_taking_more_wires_than_they_hold() -> void:
+	for i: int in ExampleCircuits.count():
+		assert_eq(CabinetWiring.check(ExampleCircuits.build(i)), [] as Array[Dictionary], "example %d" % i)
+	# The PLC lesson has no terminal strip: the - net reaches the lamp and
+	# the potentiometer outside from the PLC's M terminals alone.
+	var doc: SchematicDocument = Lessons.by_id("plc_pot").solution.call()
+	doc.add_switchboard()
+	doc.fill_cabinet(0)
+	var issues: Array[Dictionary] = CabinetWiring.check(doc)
+	assert_eq(issues.size(), 1)
+	if issues.size() == 1:
+		assert_eq(issues[0]["args"], ["A1:M", "+RA1", 3])
+		assert_eq(issues[0]["ids"].size(), 1, "the PLC is selected")
+	# Two parts without a place on one net taken out of a switchboard.
+	var bare: SchematicDocument = _bare(1, 1)
+	assert_false(CabinetWiring.check(bare).is_empty())
+
+
+func test_check_finds_a_strip_terminal_labelled_twice_on_two_nets() -> void:
+	var doc: SchematicDocument = ExampleCircuits.build(0)
+	var check: Callable = func() -> Array:
+		return CircuitCheck.run(doc).filter(func(issue: Dictionary) -> bool: return str(issue["text"]).begins_with("Terminal %s is on wires"))
+	assert_eq(check.call(), [], "every terminal on one net")
+	var lamp: CircuitComponent = null
+	for c: CircuitComponent in doc.circuit.get_components():
+		if c is Lamp:
+			lamp = c
+	doc.set_strip_terminal(lamp.id, 0, "X2:1")
+	var found: Array = check.call()
+	assert_eq(found.size(), 1)
+	if found.size() == 1:
+		assert_eq(found[0]["args"], ["X2-1"])
+		assert_true((found[0]["ids"] as PackedStringArray).has(lamp.id))

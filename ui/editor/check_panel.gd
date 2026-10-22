@@ -1,6 +1,7 @@
 class_name CheckPanel
 extends PanelContainer
-## Shows the result of [CircuitCheck]. Clicking an issue asks the editor to
+## Shows the result of [CircuitCheck] and of the switchboards' wiring
+## ([method CabinetWiring.check]). Clicking an issue asks the editor to
 ## select the components involved.
 
 signal issue_selected(ids: PackedStringArray)
@@ -42,6 +43,7 @@ func _ready() -> void:
 ## Runs the check on [param doc] and shows the result.
 func run(doc: SchematicDocument) -> void:
 	_issues = CircuitCheck.run(doc)
+	_issues.append_array(CabinetWiring.check(doc))
 	for child: Node in _list.get_children():
 		child.free()
 	if _issues.is_empty():

@@ -1010,7 +1010,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   strip terminal here straight on its first terminal with room, a free connection of its
   distribution block first, so is one to a part on the switchboard's own door (a core of the
   harness, CabinetWiring.door_harness) or without a place; a strip terminal's field side takes
-  two cores at most, in a twin ferrule, the supply's incoming one counted; the plate is wide enough for
+  two cores at most, in a twin ferrule, the supply's incoming one counted; a terminal that still
+  takes more wires than it holds, where nothing else can (a net out to several parts with no
+  strip terminal on it), is in CabinetWiring.crowded and the Check names it,
+  CabinetWiring.check after CircuitCheck in CheckPanel; CircuitCheck._strip_issues names a strip
+  terminal labelled alike on nets not connected, which the switchboard would join; the plate is wide enough for
   a slot of the bottom duct to each cable, CabinetWiring.bottom_slots, glands side by side
   narrower where they would meet) (its name "W2" on the gland, all the buttons and
   lamps of a station in one; CabinetWiring.build(doc, layout, k, board)), one per part for parts

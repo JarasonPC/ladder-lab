@@ -121,6 +121,10 @@ var _screws: Array[Vector3] = []
 ## (see [method _tree]) {"at" (mm, the entry), "up" (the wires come from
 ## above), "width" (of each wire)}.
 var twins: Array[Dictionary] = []
+## Terminals that take more wires than they hold, where nothing else can
+## (a net leading out to several parts with no strip terminal on it):
+## {"key" (terminal key in the circuit), "wires"}.
+var crowded: Array[Dictionary] = []
 # Wires come out from behind each overload relay (by its position) so far.
 var _behind_taken: Dictionary[Vector2, int] = {}
 
@@ -223,6 +227,21 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 	wiring._route(edges)
 	wiring._glands()
 	return wiring
+
+
+## What [CheckPanel] shows besides [method CircuitCheck.run]: a terminal in a
+## switchboard taking more wires than it holds (see [member crowded]). Issues
+## as those of [CircuitCheck].
+static func check(doc: SchematicDocument) -> Array[Dictionary]:
+	var issues: Array[Dictionary] = []
+	for b: int in doc.switchboards.size():
+		var layout: CabinetLayout = CabinetLayout.build(doc, 2.0, b)
+		if layout.wiring == null:
+			continue
+		for terminal: Dictionary in layout.wiring.crowded:
+			var owner: CircuitComponent = doc.circuit.get_terminal_owner(terminal["key"])
+			issues.append({"text": "Terminal %s in switchboard %s takes %d wires, more than it holds: put a strip terminal on its net.", "args": [terminal["key"], "+" + doc.switchboards[b].name, terminal["wires"]], "ids": PackedStringArray([owner.id] if owner != null else [])})
+	return issues
 
 
 ## Thickness of a wire or cable of [param c] ([enum CabinetDevices.Conductor]).
@@ -1007,6 +1026,7 @@ func _route(edges: Array[Dictionary]) -> void:
 			var point: Dictionary = edges[e][side]
 			shared[point["id"]] = shared.get(point["id"], 0) + 1
 			ends.append({"edge": e, "side": side, "point": point, "width": edges[e]["width"], "sleeve": CabinetParts.marker_length(edges[e]["mark"]) if not str(edges[e]["mark"]).is_empty() else 0.0})
+	_crowded(edges, shared)
 	var used: Dictionary[int, int] = {}
 	for end: Dictionary in ends:
 		var id: int = end["point"]["id"]
@@ -1129,6 +1149,24 @@ func _route(edges: Array[Dictionary]) -> void:
 		var first: float = points[0].distance_to(points[1]) if door_lane.has(e) and points.size() > 1 else _reach(route["a"])
 		reaches.append(Vector2(first, _reach(route["b"])))
 	_markers(reaches)
+
+
+## Sets [member crowded] from [param edges] and [param shared] (point id ->
+## wires): more than CLAMP_WIRES in a device terminal's clamp, more than one
+## in a strip terminal's entry or a distribution block's connection (two in
+## a twin ferrule).
+func _crowded(edges: Array[Dictionary], shared: Dictionary[int, int]) -> void:
+	var seen: Dictionary[int, bool] = {}
+	for edge: Dictionary in edges:
+		for side: String in ["a", "b"]:
+			var point: Dictionary = edge[side]
+			if seen.has(point["id"]) or point.get("external", false):
+				continue
+			seen[point["id"]] = true
+			var single: bool = point.has("strip") or point.get("block", false) or not point.has("clamp") and not point.get("behind", false) and not point.has("beside")
+			var holds: int = (2 if point.get("twin", false) else 1) if single else CLAMP_WIRES
+			if shared[point["id"]] > holds:
+				crowded.append({"key": point["key"], "wires": shared[point["id"]]})
 
 
 ## Spreads the wires of a terminal that has [param shared] (terminal id ->

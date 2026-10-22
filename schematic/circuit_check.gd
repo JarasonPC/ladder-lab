@@ -92,6 +92,30 @@ static func run(doc: SchematicDocument) -> Array[Dictionary]:
 	if dc.size() == 1:
 		issues.append(_issue("The circuit has no - supply." if dc.has(PowerSupply.Conductor.DC_PLUS) else "The circuit has no + supply.", [], []))
 	issues.append_array(_network_issues(circuit))
+	issues.append_array(_strip_issues(doc))
+	return issues
+
+
+## Strip terminals labelled alike on wires that are not connected: the
+## switchboard makes one terminal of them, joining the wires.
+static func _strip_issues(doc: SchematicDocument) -> Array[Dictionary]:
+	var issues: Array[Dictionary] = []
+	var strips: Dictionary = CabinetDevices.strips(doc)
+	if strips.is_empty():
+		return issues
+	var net: Dictionary[String, int] = CabinetDevices.supply_nets(doc.circuit, CabinetDevices.nets(doc.circuit))
+	for strip: String in strips:
+		for terminal: Dictionary in strips[strip]:
+			var nets: Dictionary[int, bool] = {}
+			var ids: Array = []
+			for key: String in terminal["keys"]:
+				if net.has(key):
+					nets[net[key]] = true
+				var owner: CircuitComponent = doc.circuit.get_terminal_owner(key)
+				if owner != null and not ids.has(owner.id):
+					ids.append(owner.id)
+			if nets.size() > 1:
+				issues.append(_issue("Terminal %s is on wires that are not connected: in the switchboard it joins them.", [CabinetDevices.terminal_text("%s:%s" % [strip, terminal["label"]])], ids))
 	return issues
 
 
