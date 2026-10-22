@@ -207,3 +207,72 @@ func test_wires_laid_by_clicking_in_the_switchboard() -> void:
 	delete.pressed = true
 	view.call("_gui_input", delete)
 	assert_eq(removed, [["+RA1", 0]])
+
+
+## The self-holding example as the student wired it ([param wires] a
+## training plan's), simulated: whether KM1 holds after start was pressed
+## and let go, and whether it pulled in while pressed.
+func _runs(doc: SchematicDocument) -> Vector2i:
+	var sim: SchematicDocument = ExamplePower.on(TrainingSim.build(doc))
+	var simulator: Simulator = Simulator.new(sim.circuit)
+	simulator.step()
+	var start: PushButton = sim.circuit.get_operator("SB1") as PushButton
+	start.press()
+	simulator.step()
+	var pulled: bool = sim.circuit.get_coil("KM1").energized
+	start.release()
+	simulator.step()
+	return Vector2i(int(pulled), int(sim.circuit.get_coil("KM1").energized))
+
+
+const ExamplePower = preload("res://test/unit/example_power.gd")
+
+
+func test_simulated_as_the_student_wired_it() -> void:
+	var doc: SchematicDocument = _solved(ExampleCircuits.build(0))
+	var wires: int = doc.circuit.get_wires().size()
+	assert_eq(_runs(doc), Vector2i(1, 1), "wired right: starts and holds")
+	assert_eq(doc.circuit.get_wires().size(), wires, "the plan itself stays as drawn")
+	assert_eq(_runs(_plan(ExampleCircuits.build(0))), Vector2i(0, 0), "nothing wired: nothing works")
+	# The holding contact's wire left out: KM1 runs while start is held only.
+	var holding: SchematicDocument = _solved(ExampleCircuits.build(0))
+	var list: Array[PackedStringArray] = holding.training.wires_of("+RA1")
+	for i: int in range(list.size() - 1, -1, -1):
+		if list[i].has("t:KM1:14") and (list[i][0].begins_with("s:") or list[i][1].begins_with("s:") or list[i][0] == "t:KM1:A1" or list[i][1] == "t:KM1:A1"):
+			holding.training.remove_wire("+RA1", i)
+	assert_false(TrainingCheck.run(holding)["ok"])
+	var result: Vector2i = _runs(holding)
+	assert_eq(result.y, 0, "does not hold")
+
+
+## Energized coils, lit lamps and motors with power of [param circuit] (designations).
+func _state(circuit: Circuit) -> PackedStringArray:
+	var on: PackedStringArray = PackedStringArray()
+	for c: CircuitComponent in circuit.get_components():
+		if (c is Coil and (c as Coil).energized) or (c is Lamp and (c as Lamp).energized) or (c is ThreePhaseMotor and (c as ThreePhaseMotor).ac_powered):
+			on.append(c.designation)
+	return on
+
+
+func test_wired_right_it_works_as_the_schematic() -> void:
+	for i: int in ExampleCircuits.count():
+		var drawn: SchematicDocument = ExamplePower.on(ExampleCircuits.build(i))
+		var wired: SchematicDocument = ExamplePower.on(TrainingSim.build(_solved(ExampleCircuits.build(i))))
+		var a: Simulator = Simulator.new(drawn.circuit)
+		var b: Simulator = Simulator.new(wired.circuit)
+		a.step()
+		b.step()
+		assert_eq(_state(wired.circuit), _state(drawn.circuit), "example %d at rest" % i)
+		for c: CircuitComponent in drawn.circuit.get_components():
+			if not (c is PushButton) or drawn.circuit.get_operator(c.designation) != c:
+				continue
+			(c as PushButton).press()
+			(wired.circuit.get_operator(c.designation) as PushButton).press()
+			a.step()
+			b.step()
+			assert_eq(_state(wired.circuit), _state(drawn.circuit), "example %d, %s pressed" % [i, c.designation])
+			(c as PushButton).release()
+			(wired.circuit.get_operator(c.designation) as PushButton).release()
+			a.step()
+			b.step()
+			assert_eq(_state(wired.circuit), _state(drawn.circuit), "example %d, %s let go" % [i, c.designation])

@@ -64,7 +64,7 @@ func rebuild() -> void:
 	_box.add_child(title)
 	var text: Label = Label.new()
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.text = tr("Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring.")
+	text.text = tr("Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring, or try it in Simulate: it runs as you wired it.")
 	_box.add_child(text)
 	_count = Label.new()
 	_count.theme_type_variation = "MutedLabel"

@@ -6162,7 +6162,7 @@ msgstr ""
 msgid "Training: wiring"
 msgstr ""
 
-msgid "Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring."
+msgid "Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring, or try it in Simulate: it runs as you wired it."
 msgstr ""
 
 msgid "Check wiring"
@@ -6215,3 +6215,6 @@ msgid "Not right yet: %d mistake."
 msgid_plural "Not right yet: %d mistakes."
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown"
+msgstr ""

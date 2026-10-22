@@ -171,6 +171,7 @@ static func build_door(doc: SchematicDocument, board: int, enclosure: Vector2, a
 ## each) in place of its own, laid the same way; sets [member ports] and
 ## [member pairs]. Pairs naming a port it has not are left out.
 static func build_given(doc: SchematicDocument, box_index: int, given: Array[PackedStringArray]) -> StationInside:
+	doc = TrainingPlan.drawn_of(doc)
 	var inside: StationInside = StationInside.new()
 	if doc == null or box_index < 0 or box_index >= doc.control_boxes.size():
 		return inside
@@ -200,6 +201,7 @@ static func build_given(doc: SchematicDocument, box_index: int, given: Array[Pac
 ## with the student's wires [param given] in place of its own, as
 ## [method build_given].
 static func build_door_given(doc: SchematicDocument, board: int, enclosure: Vector2, across: float, given: Array[PackedStringArray]) -> StationInside:
+	doc = TrainingPlan.drawn_of(doc)
 	var inside: StationInside = StationInside.new()
 	inside.door = true
 	if doc == null or board < 0 or board >= doc.switchboards.size():

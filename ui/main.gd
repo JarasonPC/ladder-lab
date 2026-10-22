@@ -1419,7 +1419,8 @@ static func _bar_width(key: String) -> float:
 ## The control panel beside the schematic of an industrial control circuit
 ## while simulating, or the tab it is rolled in to.
 func _update_control_panel() -> void:
-	var shown: bool = area == Area.SCHEMATIC and mode == Mode.SIMULATE and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.INDUSTRIAL
+	# A training plan runs on the workspace, the control panel beside it.
+	var shown: bool = (area == Area.SCHEMATIC or _training()) and mode == Mode.SIMULATE and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.INDUSTRIAL
 	_control_bar.visible = shown and not _control_rolled
 	_control_tab.visible = shown and _control_rolled
 
@@ -1507,8 +1508,8 @@ func _update_mode_ui() -> void:
 	_palette_bar.visible = editing and (schematic or plan_parts) and not training
 	_lesson_bar.visible = schematic and _lesson_run != null
 	_training_bar.visible = training
-	_simulate_button.disabled = training
-	_simulate_button.tooltip_text = tr("A training plan is wired and checked, not simulated") if training else ""
+	_schematic_button.disabled = training and not editing
+	_schematic_button.tooltip_text = tr("While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown") if training and not editing else ""
 	_update_side_bar()
 	_update_control_panel()
 	_sim_tools.visible = not editing
@@ -1560,13 +1561,12 @@ func _update_title() -> void:
 # --- Documents and modes ----------------------------------------------------------
 
 func _set_mode(new_mode: Mode) -> void:
-	if new_mode == Mode.SIMULATE and _training():
-		# A training plan is checked, not simulated (yet).
-		_simulate_button.set_pressed_no_signal(false)
-		_edit_button.set_pressed_no_signal(true)
-		return
 	if new_mode == mode:
 		return
+	if new_mode == Mode.SIMULATE and _training():
+		# A training plan runs as the student wired it: shown on the
+		# workspace (the schematic is the plan, not what runs).
+		_set_area(Area.WORKSPACE)
 	mode = new_mode
 	if mode == Mode.SIMULATE:
 		# Leaving Edit mode first finishes a marking being typed, in the
@@ -1607,6 +1607,11 @@ func _ask_key(designation: String) -> void:
 
 ## Shows the schematic or the workspace; the simulation runs on in both.
 func _set_area(new_area: Area) -> void:
+	if new_area == Area.SCHEMATIC and mode == Mode.SIMULATE and _training():
+		# What runs is the student's wiring, which the schematic does not show.
+		_schematic_button.set_pressed_no_signal(false)
+		_workspace_button.set_pressed_no_signal(true)
+		return
 	if new_area == area:
 		return
 	area = new_area
@@ -1669,7 +1674,8 @@ func _start_simulation() -> void:
 	_keys_down.clear()
 	# Cleared before loading: loading runs the first step, which logs too.
 	_timing_panel.event_log.clear()
-	view.load_document(DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
+	# A training plan runs as the student wired it (see TrainingSim).
+	view.load_document(TrainingSim.build(edit_doc) if _training() else DocumentSerializer.from_dict(DocumentSerializer.to_dict(edit_doc)), true)
 	view.running = true
 	_timing_panel.chart.set_document(view.document, view.trace)
 	_key_strip.document = view.document

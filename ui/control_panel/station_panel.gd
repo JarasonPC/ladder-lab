@@ -146,7 +146,7 @@ func _ready() -> void:
 ## Shows station [member station_name] of [param doc]; [param editing]
 ## offers the editing tools, otherwise it operates the simulation of [param doc].
 func set_document(doc: SchematicDocument, editing: bool) -> void:
-	var training: bool = doc != null and doc.training != null
+	var training: bool = doc != null and doc.training != null and doc.training.drawn == null
 	if training and not _inside.wiring_mode:
 		# A training plan is wired inside.
 		inside_shown = true
@@ -245,10 +245,11 @@ func _rebuild() -> void:
 	_scroll.visible = not inside_shown
 	_inside.visible = inside_shown
 	var training: bool = _document != null and _document.training != null
+	var wiring: bool = training and _document.training.drawn == null
 	_inside.document = _document
 	_inside.box_index = b
 	_inside.wiring_mode = training
-	_inside.simulating = not _editing and not training
+	_inside.simulating = not _editing and not wiring
 	_inside.refresh()
 	_view.document = _document
 	_view.box_index = b
@@ -270,7 +271,7 @@ func _rebuild() -> void:
 	_view.queue_redraw()
 	_note.visible = box.items.is_empty()
 	_note.text = tr("No push buttons, switches or lamps on this station yet.") if _editing else tr("No push buttons, switches or lamps on this station yet. Add them in Edit mode.")
-	if training and inside_shown and not box.items.is_empty():
+	if wiring and inside_shown and not box.items.is_empty():
 		_note.visible = true
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
 	if not _editing:

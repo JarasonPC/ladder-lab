@@ -13,6 +13,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   clicking terminal after terminal (the cables between the places are laid, their cores are
   landed by the student); Check wiring says whether it is right and, if the plan allows it,
   lists the missing and wrong wires and the terminals with too many wires
+- A training plan runs in Simulate as the student wired it: switch on the breakers in the
+  switchboard and press the buttons on the stations to see whether it works
 
 ### Schematic editor
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the
