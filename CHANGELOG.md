@@ -6,6 +6,17 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Fixed
+- Switchboard: a net leading to a button, lamp or motor without a terminal strip is wired out
+  of the switchboard (straight from the device's terminal), also to parts on its door and to
+  parts not on any station, instead of being left without a wire
+- Switchboard: a net going on to another switchboard leaves from the strip terminal the cable
+  lands on, and a supply sent on from another switchboard comes in through the cable between
+  the two instead of a supply cable of its own
+- Switchboard: a 10 V reference and the 24 V + are no longer wired or bridged together
+- Switchboard: an N or PE distribution block has a connection for every wire, also the overload
+  contact's under a contactor, so no wire is left out
+
 ## 0.8.0 – 2026-10-21
 
 ### Schematic editor

@@ -112,7 +112,9 @@ static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLa
 ## ([param strips] as [method CabinetDevices.strips], [param net] its nets),
 ## N first, then PE: for each of N (the nets of the N supply) and PE taken by
 ## more than BUS_LOADS loads there (strip terminals on it but the one the
-## incoming conductor lands on, devices' terminals on it), one with the
+## incoming conductor lands on, devices' terminals on it, those of an
+## overload relay under its contactor too, and on a net without a strip
+## terminal here the cores out to its parts outside), one with the
 ## smallest of [constant CabinetParts.BUS_SIZES] connections taking them and
 ## the incoming wire: {"connections", "neutral" (an N block), "after" (the
 ## strip the incoming conductor lands on, "" for none), "key" (a terminal
@@ -138,12 +140,22 @@ static func bus_blocks(doc: SchematicDocument, board: int, strips: Dictionary, n
 	for n: int in conductor:
 		if conductor[n] == CabinetDevices.Conductor.PE:
 			earth[n] = true
+	# Overload relays are wired under their contactor, where that is in a
+	# switchboard (as [method _build] lays them out).
+	var under: Dictionary[String, String] = CabinetDevices.overloads_under_contactors(doc.circuit)
+	var fitted: Dictionary[String, bool] = {}
+	for contactor: String in under:
+		if doc.cabinet_has(CabinetItem.Kind.DEVICE, contactor):
+			fitted[under[contactor]] = true
 	for which: int in 2:
 		var nets: Dictionary[int, bool] = neutral if which == 0 else earth
 		var on: Callable = func(key: String) -> bool: return net.has(key) and nets.has(net[key])
 		var loads: int = 0
 		var after: String = ""
 		var key: String = ""
+		# Nets with a strip terminal here, nets on devices here.
+		var stripped: Dictionary[int, bool] = {}
+		var inside: Dictionary[int, bool] = {}
 		for rail: CabinetRail in doc.switchboards[board].rails:
 			for item: CabinetItem in rail.items:
 				if item.kind == CabinetItem.Kind.BUS:
@@ -155,21 +167,40 @@ static func bus_blocks(doc: SchematicDocument, board: int, strips: Dictionary, n
 						for k: String in t["keys"]:
 							if on.call(k):
 								hit = k
+								stripped[net[k]] = true
 								if doc.circuit.get_terminal_owner(k) is PowerSupply:
 									supply = k
-						if not supply.is_empty():
-							if after.is_empty():
-								after = item.designation
-								key = supply
+						if not supply.is_empty() and after.is_empty():
+							after = item.designation
+							key = supply
 						elif not hit.is_empty():
+							# A load, or another supply point's strip terminal wired inside.
 							loads += 1
 							key = hit if key.is_empty() else key
 					continue
-				var terminals: Dictionary = CabinetDevices.describe(doc, item.designation).get("terminals", {})
-				for name: String in terminals:
-					if on.call(terminals[name]):
+				if fitted.has(item.designation):
+					continue
+				var described: Dictionary = CabinetDevices.describe(doc, item.designation)
+				var keys: Array = (described.get("terminals", {}) as Dictionary).values()
+				if not str(described.get("overload", "")).is_empty():
+					keys.append_array((CabinetDevices.describe(doc, described["overload"]).get("terminals", {}) as Dictionary).values())
+				for terminal: String in keys:
+					if on.call(terminal):
 						loads += 1
-						key = terminals[name] if key.is_empty() else key
+						inside[net[terminal]] = true
+						key = terminal if key.is_empty() else key
+		# A net without a strip terminal here takes a core straight out to
+		# each place its parts outside are in (see CabinetWiring), a load too.
+		for n: int in inside:
+			if stripped.has(n):
+				continue
+			var places: Dictionary[String, bool] = {}
+			for c: CircuitComponent in doc.circuit.get_components():
+				if CabinetDevices.is_outside(doc.circuit, c) and Array(c.get_terminal_keys()).any(func(k: String) -> bool: return net.get(k, -1) == n):
+					var station: int = Workspace.station_of(doc, c.designation)
+					var door: int = Workspace.door_of(doc, c.designation)
+					places["+%d" % station if station >= 0 else ("door %d" % door if door >= 0 else "-" + c.designation)] = true
+			loads += places.size()
 		if loads <= BUS_LOADS:
 			continue
 		var connections: int = loads + 1

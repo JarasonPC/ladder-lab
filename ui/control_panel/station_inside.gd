@@ -125,7 +125,7 @@ static func build_door(doc: SchematicDocument, board: int, enclosure: Vector2, a
 		return inside
 	var box: ControlBox = doc.switchboards[board].door
 	inside._place_items(doc, box)
-	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
+	var net: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
 	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, net)
 	var marks: Dictionary[int, String] = CabinetWiring.wire_marks(doc, net)
 	var rows: int = maxi(ceili(box.items.size() / float(box.columns)), 1)
