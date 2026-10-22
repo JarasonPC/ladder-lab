@@ -228,6 +228,16 @@ static func run(doc: SchematicDocument) -> Dictionary:
 				problems.append({"kind": "missing", "text": "%s is not joined to %s.", "args": [", ".join(names), ", ".join(_names(parts[0], all))], "ports": ids})
 			else:
 				problems.append({"kind": "missing", "text": "Wire %s: %s is not joined to %s.", "args": [mark, ", ".join(names), ", ".join(_names(parts[0], all))], "ports": ids})
+	if plan.check_function:
+		# Any wiring that works: what it joins is not compared, how it works is.
+		var kept: Array[Dictionary] = []
+		for problem: Dictionary in problems:
+			if problem["kind"] != "missing" and problem["kind"] != "wrong":
+				kept.append(problem)
+		problems = kept
+		var difference: Dictionary = TrainingFunction.run(doc)
+		if not difference.is_empty():
+			problems.append(difference)
 	return {"ok": problems.is_empty(), "problems": problems, "wires": count}
 
 

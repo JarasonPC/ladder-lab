@@ -1104,7 +1104,17 @@ Architecture and conventions of the code base. Read this before changing the cod
   are laid out from the drawn plan (WorkspaceCables.cables, CabinetLayout.build,
   CabinetWiring.build_given, StationInside.build_given / build_door_given take
   TrainingPlan.drawn_of), the devices' state described from the copy; the panels show the
-  student's wires (wiring_mode) and operate the simulation (no wiring while it runs)
+  student's wires (wiring_mode) and operate the simulation (no wiring while it runs).
+  TrainingPlan.check_function (the plan dialog's third tick): the check tests the function
+  instead of the joins, any wiring that works is right; TrainingCheck.run drops "missing" and
+  "wrong" and adds the first difference of TrainingFunction.run (ui/training/, no nodes;
+  "function"): the schematic and TrainingSim.build's copy simulated side by side, breakers and
+  fuses switched on, then each push button pressed and let go and each switch turned, twice
+  over, comparing after each step and again after SETTLE_TIME what pulls in, lights, works,
+  runs and trips. Each check is kept in TrainingPlan.history ({"at", "ok", "mistakes"}; no
+  undo step, carried over an undo by main.gd _on_document_replaced) and TrainingPlan.started
+  is set by the first wire; TrainingPanel shows the checks made, the last one and the minutes
+  from the first wire to the last check
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
@@ -1465,7 +1475,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   ControlPanelView (all of them beside the schematic while simulating), TravelView (a
   mechanical link there); `ui/side_tab.gd` SideTab
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
-- `ui/training/` TrainingCheck, TrainingPick, TrainingSim (no nodes), TrainingPanel, TrainingWireBar (training plans)
+- `ui/training/` TrainingCheck, TrainingFunction, TrainingPick, TrainingSim (no nodes), TrainingPanel, TrainingWireBar (training plans)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP

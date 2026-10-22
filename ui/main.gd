@@ -226,6 +226,7 @@ var _training_bar: SideBar
 var _plan_dialog: ConfirmationDialog
 var _plan_errors: CheckBox
 var _plan_numbers: CheckBox
+var _plan_function: CheckBox
 ## What the lesson points at on the drawing, and in the window.
 var _lesson_marks: LessonMarks
 var _lesson_rings: TutorialRings
@@ -879,6 +880,8 @@ func _build_dialogs() -> void:
 	plan_box.add_child(_plan_errors)
 	_plan_numbers = CheckBox.new()
 	plan_box.add_child(_plan_numbers)
+	_plan_function = CheckBox.new()
+	plan_box.add_child(_plan_function)
 	_plan_dialog.confirmed.connect(func() -> void: _show_file_dialog(DialogPurpose.SAVE_PLAN))
 	add_child(_plan_dialog)
 	_recovery_dialog = ConfirmationDialog.new()
@@ -1088,6 +1091,8 @@ func _retranslate_dialogs() -> void:
 	_plan_errors.tooltip_text = tr("Unticked, the check only says whether the wiring is right")
 	_plan_numbers.text = tr("Every wire must carry its wire number")
 	_plan_numbers.tooltip_text = tr("Unticked, a number written on a wire is checked, but a wire may go without one")
+	_plan_function.text = tr("Check that it works as the schematic does (any wiring that works is right)")
+	_plan_function.tooltip_text = tr("Unticked, the wiring must join what the schematic joins")
 	_rename_dialog.title = tr("Rename page")
 	_rename_dialog.ok_button_text = tr("Rename")
 	_rename_dialog.cancel_button_text = tr("Cancel")
@@ -1766,6 +1771,10 @@ func _new_document(environment: int = SchematicDocument.Kind.INDUSTRIAL) -> void
 
 
 func _on_document_replaced(doc: SchematicDocument) -> void:
+	if doc.training != null and _training():
+		# An undo or redo keeps the checks made and when the work began.
+		doc.training.history = edit_doc.training.history
+		doc.training.started = edit_doc.training.started
 	_show_document(doc, false)
 	_on_training_edited()
 
@@ -1774,6 +1783,8 @@ func _on_document_replaced(doc: SchematicDocument) -> void:
 func _on_training_edited() -> void:
 	if not _training():
 		return
+	if edit_doc.training.started == 0 and edit_doc.training.wire_count() > 0:
+		edit_doc.training.started = int(Time.get_unix_time_from_system())
 	TrainingPick.marked = PackedStringArray()
 	_training_panel.show_plan(edit_doc)
 	_training_panel.clear_result()
@@ -2300,6 +2311,7 @@ func _save_plan(path: String) -> void:
 	plan.training = TrainingPlan.new()
 	plan.training.show_errors = _plan_errors.button_pressed
 	plan.training.numbers_required = _plan_numbers.button_pressed
+	plan.training.check_function = _plan_function.button_pressed
 	if ProjectFile.save(plan, path) != OK:
 		_show_error(tr("Could not save %s.") % path.get_file())
 
@@ -2310,6 +2322,9 @@ func _check_training() -> void:
 	if not _training():
 		return
 	var result: Dictionary = TrainingCheck.run(edit_doc)
+	# Kept for the teacher (no undo step: an undo keeps the checks made).
+	edit_doc.training.history.append({"at": int(Time.get_unix_time_from_system()), "ok": result["ok"], "mistakes": result["problems"].size()})
+	_mark_dirty()
 	var marked: PackedStringArray = PackedStringArray()
 	if edit_doc.training.show_errors:
 		for problem: Dictionary in result["problems"]:

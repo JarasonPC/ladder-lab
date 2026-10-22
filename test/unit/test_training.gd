@@ -302,3 +302,38 @@ func test_colour_and_number_checked() -> void:
 	var loaded: SchematicDocument = ProjectFile.from_dict(JSON.parse_string(JSON.stringify(ProjectFile.to_dict(doc))))["document"]
 	assert_true(loaded.training.numbers_required)
 	assert_eq(loaded.training.wires_of(place)[index], PackedStringArray([wire[0], wire[1], "CONTROL", "999"]))
+
+
+func test_function_check_accepts_any_wiring_that_works() -> void:
+	var doc: SchematicDocument = _solved(ExampleCircuits.build(0))
+	doc.training.check_function = true
+	assert_true(TrainingCheck.run(doc)["ok"], "wired as the schematic: works")
+	# The holding contact left out: it no longer holds.
+	var list: Array[PackedStringArray] = doc.training.wires_of("+RA1")
+	for i: int in range(list.size() - 1, -1, -1):
+		if list[i][0] == "t:KM1:14" or list[i][1] == "t:KM1:14":
+			doc.training.remove_wire("+RA1", i)
+	var result: Dictionary = TrainingCheck.run(doc)
+	assert_false(result["ok"])
+	var kinds: Array = result["problems"].map(func(p: Dictionary) -> String: return p["kind"])
+	assert_eq(kinds, ["function"], "\n".join(_texts(result)))
+	# Nothing wired: the first difference already when switching on (nothing works either way)
+	# or when start is pressed.
+	var empty: SchematicDocument = _plan(ExampleCircuits.build(0))
+	empty.training.check_function = true
+	assert_false(TrainingCheck.run(empty)["ok"])
+	for i: int in ExampleCircuits.count():
+		var solved: SchematicDocument = _solved(ExampleCircuits.build(i))
+		solved.training.check_function = true
+		assert_true(TrainingCheck.run(solved)["ok"], "example %d: %s" % [i, "\n".join(_texts(TrainingCheck.run(solved)))])
+
+
+func test_checks_and_start_kept_with_the_plan() -> void:
+	var doc: SchematicDocument = _plan(ExampleCircuits.build(0))
+	doc.training.check_function = true
+	doc.training.started = 1700000000
+	doc.training.history.append({"at": 1700000600, "ok": false, "mistakes": 3})
+	var loaded: SchematicDocument = ProjectFile.from_dict(JSON.parse_string(JSON.stringify(ProjectFile.to_dict(doc))))["document"]
+	assert_true(loaded.training.check_function)
+	assert_eq(loaded.training.started, 1700000000)
+	assert_eq(loaded.training.history, [{"at": 1700000600, "ok": false, "mistakes": 3}] as Array[Dictionary])

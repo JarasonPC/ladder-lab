@@ -18,6 +18,9 @@ var _result: VBoxContainer
 var _last: Dictionary = {}
 var _show_errors: bool = true
 var _wires: int = 0
+## The checks made and when the first wire was laid (see [TrainingPlan]).
+var _history: Array[Dictionary] = []
+var _started: int = 0
 
 
 func _ready() -> void:
@@ -37,6 +40,11 @@ func _ready() -> void:
 func show_plan(doc: SchematicDocument) -> void:
 	_show_errors = doc == null or doc.training == null or doc.training.show_errors
 	_wires = doc.training.wire_count() if doc != null and doc.training != null else 0
+	_history = []
+	_started = 0
+	if doc != null and doc.training != null:
+		_history = doc.training.history
+		_started = doc.training.started
 	rebuild()
 
 
@@ -71,6 +79,20 @@ func rebuild() -> void:
 	_count.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_count.text = tr_n("%d wire laid", "%d wires laid", _wires) % _wires
 	_box.add_child(_count)
+	if not _history.is_empty():
+		# For the teacher: how many checks, how the last one went, how long.
+		var record: Label = Label.new()
+		record.theme_type_variation = "MutedLabel"
+		record.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		record.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var last: Dictionary = _history[_history.size() - 1]
+		var lines: PackedStringArray = [tr_n("Checked %d time", "Checked %d times", _history.size()) % _history.size()]
+		lines.append(tr("last: right") if last["ok"] else tr_n("last: %d mistake", "last: %d mistakes", last["mistakes"]) % last["mistakes"])
+		if _started > 0:
+			var minutes: int = maxi(roundi((last["at"] - _started) / 60.0), 0)
+			lines.append(tr_n("%d minute from the first wire to the last check", "%d minutes from the first wire to the last check", minutes) % minutes)
+		record.text = "\n".join(lines)
+		_box.add_child(record)
 	var check: Button = Button.new()
 	check.theme_type_variation = "PrimaryButton"
 	check.text = tr("Check wiring")

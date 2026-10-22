@@ -6259,3 +6259,68 @@ msgstr ""
 
 msgid "grey"
 msgstr ""
+
+msgid "Check that it works as the schematic does (any wiring that works is right)"
+msgstr ""
+
+msgid "Unticked, the wiring must join what the schematic joins"
+msgstr ""
+
+#, c-format
+msgid "After %s, %s does not %s as the schematic does."
+msgstr ""
+
+#, c-format
+msgid "After %s, %s does %s, which the schematic does not."
+msgstr ""
+
+msgid "switching on the breakers"
+msgstr ""
+
+#, c-format
+msgid "pressing -%s"
+msgstr ""
+
+#, c-format
+msgid "letting go of -%s"
+msgstr ""
+
+#, c-format
+msgid "turning -%s"
+msgstr ""
+
+msgid "pull in"
+msgstr ""
+
+msgid "light"
+msgstr ""
+
+msgid "work"
+msgstr ""
+
+msgid "run"
+msgstr ""
+
+msgid "trip"
+msgstr ""
+
+msgid "last: right"
+msgstr ""
+
+#, c-format
+msgid "Checked %d time"
+msgid_plural "Checked %d times"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "last: %d mistake"
+msgid_plural "last: %d mistakes"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "%d minute from the first wire to the last check"
+msgid_plural "%d minutes from the first wire to the last check"
+msgstr[0] ""
+msgstr[1] ""
