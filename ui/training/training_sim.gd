@@ -105,6 +105,10 @@ static func build(doc: SchematicDocument) -> SchematicDocument:
 		var keys: PackedStringArray = keys_of[root]
 		for k: int in range(1, keys.size()):
 			copy.connect_terminals(keys[0], keys[k])
+	# Where a multimeter's probe on each port touches the copy.
+	for id: String in all:
+		var root: int = groups.find(nodes[id])
+		copy.training.probe_keys[id] = keys_of[root][0] if keys_of.has(root) else ""
 	return copy
 
 

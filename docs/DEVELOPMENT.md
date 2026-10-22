@@ -1129,7 +1129,22 @@ Architecture and conventions of the code base. Read this before changing the cod
   split, no Fill), rails are added and taken away, items in a row set; a click on a part beside
   the ports and wires picks it (CabinetView._wiring_input, place_clicked). Taking a part or a
   rail away takes the student's wires to it (TrainingCheck.drop_loose_wires). TrainingCheck.run
-  lists each part not mounted ("mount", ports [place + "|"]: opens the place's front)
+  lists each part not mounted ("mount", ports [place + "|"]: opens the place's front).
+  Multimeter (sim/, no nodes): Multimeter.volts / ohms between two terminal keys of a
+  Simulator's circuit, from Simulator.meter_network (groups of nets joined by wires and closed
+  switching paths, the supply bits on each, the loads between them as resistances,
+  Multimeter.ohms_of: COIL_OHMS, LAMP_OHMS, ELECTRONICS_OHMS, LOAD_OHMS, WINDING_OHMS; a broken
+  coil or burnt-out part none): a nodal solution with the supplies as phasors (L1-L3 230 V
+  120° apart, N, PE and - at 0, DC + at its voltage) and the meter's METER_OHMS between the
+  probes, so a supply is seen through the loads (across an open contact before a coil: 230 V);
+  mains against a DC pole reads 0 (separate circuits); ohms through the loads and closed paths,
+  -1 with LIVE_VOLTS or more between the probes, INF open ("OL", Multimeter.text). While a
+  training plan runs, TrainingPanel's Multimeter (TrainingPick.probing, ohms) puts the probes
+  (TrainingPick.probes "place|port", put_probe: red, then black) by a click on a port in
+  CabinetView / StationInsideView (_probe_input; drawn by TrainingPick.draw "probes") instead
+  of operating the part; TrainingSim.build gives each port its terminal key in the copy
+  (TrainingPlan.probe_keys, never saved) and main.gd _meter_reading reads them, READ_RATE
+  times a second
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
@@ -1342,7 +1357,7 @@ Architecture and conventions of the code base. Read this before changing the cod
 ## Layout
 
 - `sim/` solver (Circuit, Simulator, StepResult, UnionFind, Armature, TraceRecorder, Phasor,
-  MotorModel, CurrentFlow, TripCurve, components/) - no nodes
+  MotorModel, CurrentFlow, TripCurve, Multimeter, components/) - no nodes
 - Currents: AC as phasors in a Vector2 (Phasor; potentials in phase voltages, L1 = 1∠0°, N = 0,
   DC + = 1). Loads draw Load.rated_draw() at 230 V (x √3 between two phases); three-phase motors
   what MotorModel gives; CurrentFlow spreads it (supply nets held fixed, other nets joined by

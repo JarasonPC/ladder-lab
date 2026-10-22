@@ -334,6 +334,9 @@ func _gui_input(event: InputEvent) -> void:
 	if wiring_mode and not simulating:
 		_wiring_input(event)
 		return
+	if wiring_mode and simulating and TrainingPick.probing:
+		_probe_input(event)
+		return
 	if event is InputEventMouseMotion:
 		var under: Array = []
 		var index: int = _place_at((event as InputEventMouseMotion).position, under)
@@ -418,6 +421,25 @@ func _wiring_input(event: InputEvent) -> void:
 	accept_event()
 
 
+## Measuring with the multimeter while a training plan runs: a click on a
+## port puts the next probe on it (see [TrainingPick]).
+func _probe_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		var hit: Dictionary = _port_under((event as InputEventMouseMotion).position)
+		mouse_default_cursor_shape = Control.CURSOR_CROSS if not hit.is_empty() else Control.CURSOR_ARROW
+		if hit != _hover:
+			_hover = hit
+			queue_redraw()
+		return
+	if not (event is InputEventMouseButton) or not (event as InputEventMouseButton).pressed or (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
+		return
+	var hit: Dictionary = _port_under((event as InputEventMouseButton).position)
+	if not hit.is_empty():
+		TrainingPick.put_probe(hit["place"] + "|" + hit["port"])
+		queue_redraw()
+		accept_event()
+
+
 ## Picks the wire [param picked] ({"place", "index"}, {} for none).
 func _pick(picked: Dictionary) -> void:
 	if picked == _picked_wire:
@@ -479,6 +501,9 @@ func _marks_of(place: String, pairs: Array[int]) -> Dictionary:
 	if _picked_wire.get("place", "") == place:
 		state["selected"] = pairs.find(_picked_wire["index"])
 	state["problems"] = TrainingPick.marked_in(place)
+	if simulating:
+		state["problems"] = PackedStringArray()
+		state["probes"] = TrainingPick.probes_in(place)
 	return state
 
 
@@ -499,7 +524,7 @@ func place_of(rail: int, index: int) -> Dictionary:
 
 
 func _get_tooltip(at_position: Vector2) -> String:
-	if wiring_mode and not simulating:
+	if wiring_mode and (not simulating or TrainingPick.probing):
 		var hit: Dictionary = _port_under(at_position)
 		if not hit.is_empty():
 			return TrainingPick.port_text(hit["port"])
@@ -606,7 +631,7 @@ func _draw() -> void:
 				if place.has("under_rect"):
 					mark = mark.merge(place["under_rect"])
 	var marks: Array = []
-	if wiring_mode and not simulating:
+	if wiring_mode and (not simulating or TrainingPick.probing):
 		var door_pairs: Array[int] = []
 		if door_open and _door != null:
 			door_pairs = _door.pairs

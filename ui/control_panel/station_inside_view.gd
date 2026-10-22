@@ -96,7 +96,11 @@ func _origin() -> Vector2:
 
 
 func _gui_input(event: InputEvent) -> void:
-	if not wiring_mode or simulating or _inside == null:
+	if not wiring_mode or _inside == null:
+		return
+	if simulating:
+		if TrainingPick.probing:
+			_probe_input(event)
 		return
 	var k: float = _k()
 	if event is InputEventMouseMotion:
@@ -142,6 +146,26 @@ func _gui_input(event: InputEvent) -> void:
 	accept_event()
 
 
+## Measuring with the multimeter while a training plan runs: a click on a
+## port puts the next probe on it (see [TrainingPick]).
+func _probe_input(event: InputEvent) -> void:
+	var k: float = _k()
+	if event is InputEventMouseMotion:
+		var hover: String = TrainingPick.port_at(_inside.ports, ((event as InputEventMouseMotion).position - _origin()) / k, k)
+		mouse_default_cursor_shape = Control.CURSOR_CROSS if not hover.is_empty() else Control.CURSOR_ARROW
+		if hover != _hover:
+			_hover = hover
+			queue_redraw()
+		return
+	if not (event is InputEventMouseButton) or not (event as InputEventMouseButton).pressed or (event as InputEventMouseButton).button_index != MOUSE_BUTTON_LEFT:
+		return
+	var hit: String = TrainingPick.port_at(_inside.ports, ((event as InputEventMouseButton).position - _origin()) / k, k)
+	if not hit.is_empty():
+		TrainingPick.put_probe(training_place() + "|" + hit)
+		queue_redraw()
+		accept_event()
+
+
 ## Picks the wire of pair [param index] (-1 for none).
 func _pick(index: int) -> void:
 	if index == _picked_wire:
@@ -151,7 +175,7 @@ func _pick(index: int) -> void:
 
 
 func _get_tooltip(at_position: Vector2) -> String:
-	if not wiring_mode or simulating or _inside == null:
+	if not wiring_mode or (simulating and not TrainingPick.probing) or _inside == null:
 		return ""
 	var hit: String = TrainingPick.port_at(_inside.ports, (at_position - _origin()) / _k(), _k())
 	return TrainingPick.port_text(hit) if not hit.is_empty() else ""
@@ -187,6 +211,8 @@ func _draw() -> void:
 	if wiring_mode and not simulating:
 		var state: Dictionary = {"hover": _hover, "start": _start, "mouse": _mouse, "selected": _inside.pairs.find(_picked_wire) if _picked_wire >= 0 else -1, "problems": TrainingPick.marked_in(training_place())}
 		TrainingPick.draw(self, origin, k, _inside.ports, _inside.wires, state)
+	elif wiring_mode and TrainingPick.probing:
+		TrainingPick.draw(self, origin, k, _inside.ports, _inside.wires, {"hover": _hover, "probes": TrainingPick.probes_in(training_place())})
 
 
 ## The devices and wires of [param inside] (also the back of a switchboard's

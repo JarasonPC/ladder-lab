@@ -26,6 +26,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A training plan can leave the mounting to the student: the switchboards, doors and stations
   start empty, the student puts the parts each place lists on its rails or panel and arranges
   them, then wires them; the check names the parts not mounted yet
+- A multimeter while a training plan runs in Simulate: put its red and black probes on any
+  two terminals in the switchboard, on the back of its door or in a station and read the
+  voltage (the supply seen through the loads, as a real meter does, across an open contact
+  too) or, with the power off, the resistance (a coil's, 0 Ω through a closed contact, OL
+  where nothing conducts)
 
 ### Schematic editor
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the

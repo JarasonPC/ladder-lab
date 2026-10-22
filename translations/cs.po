@@ -6384,3 +6384,24 @@ msgid_plural "%d parts to mount"
 msgstr[0] "%d přístroj k osazení"
 msgstr[1] "%d přístroje k osazení"
 msgstr[2] "%d přístrojů k osazení"
+
+msgid "Multimeter"
+msgstr "Multimetr"
+
+msgid "While it is on, a click on a terminal puts a probe on it (red, then black) instead of operating the part"
+msgstr "Když je zapnutý, kliknutí na svorku na ni přiloží hrot (červený, pak černý) místo ovládání přístroje"
+
+msgid "Resistance Ω"
+msgstr "Odpor Ω"
+
+msgid "Voltage V"
+msgstr "Napětí V"
+
+msgid "Switch the supply off first: with voltage there the meter shows —"
+msgstr "Nejdřív vypněte napájení: je-li tam napětí, měřák ukáže —"
+
+msgid "AC or DC, as it finds"
+msgstr "Střídavé i stejnosměrné, podle toho, co najde"
+
+msgid "click a terminal"
+msgstr "klikněte na svorku"

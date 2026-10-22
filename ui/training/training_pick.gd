@@ -12,6 +12,16 @@ extends RefCounted
 ## Ports the last check found wrong ("place|port", see [TrainingCheck]),
 ## ringed in every view of the training plan until the next check.
 static var marked: PackedStringArray = PackedStringArray()
+## The multimeter is in use while simulating: a click on a port puts a
+## probe on it (see [Multimeter]); [member ohms] measures resistance.
+static var probing: bool = false
+static var ohms: bool = false
+## Where the probes are ("place|port", "" for none): the red one, the black one.
+static var probes: PackedStringArray = PackedStringArray(["", ""])
+## The probe the next click puts down (0 red, 1 black).
+static var next_probe: int = 0
+## Colours of the probes' tips.
+const PROBE_COLORS: Array[Color] = [Color(0.86, 0.13, 0.13), Color(0.08, 0.08, 0.08)]
 
 ## How far from a port (mm, and at least pixels) a click takes it.
 const REACH_MM: float = 2.6
@@ -53,7 +63,8 @@ static func wire_at(wires: Array[Dictionary], at: Vector2, k: float) -> int:
 
 ## Draws the marks on [param canvas]: [param state] {"hover", "start" (ports),
 ## "selected" (wire index, -1 none), "problems" (ports), "mouse" (pixels,
-## where a wire being drawn reaches)}.
+## where a wire being drawn reaches), "probes" (the ports of the red and the
+## black probe)}.
 static func draw(canvas: CanvasItem, origin: Vector2, k: float, ports: Dictionary[String, Vector2], wires: Array[Dictionary], state: Dictionary) -> void:
 	var px: Callable = func(mm: Vector2) -> Vector2: return origin + mm * k
 	var accent: Color = AppTheme.accent
@@ -87,6 +98,36 @@ static func draw(canvas: CanvasItem, origin: Vector2, k: float, ports: Dictionar
 	var start: String = state.get("start", "")
 	if ports.has(start) and state.has("mouse"):
 		canvas.draw_dashed_line(px.call(ports[start]), state["mouse"], accent, 2.0, 6.0)
+	# The multimeter's probes: a red and a black tip with a white rim.
+	var tips: PackedStringArray = state.get("probes", PackedStringArray())
+	for i: int in tips.size():
+		if ports.has(tips[i]):
+			var at: Vector2 = px.call(ports[tips[i]])
+			var r: float = maxf(1.4 * k, 5.0)
+			canvas.draw_circle(at, r + 1.5, Color.WHITE)
+			canvas.draw_circle(at, r, PROBE_COLORS[i])
+
+
+## Puts the next probe on port [param id] ("place|port"), the other one next.
+static func put_probe(id: String) -> void:
+	probes[next_probe] = id
+	next_probe = 1 - next_probe
+
+
+## Takes both probes off.
+static func clear_probes() -> void:
+	probes = PackedStringArray(["", ""])
+	next_probe = 0
+
+
+## The ports of [member probes] in [param place]: [red, black], "" for one
+## elsewhere or not put down.
+static func probes_in(place: String) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray(["", ""])
+	for i: int in 2:
+		if probes[i].begins_with(place + "|"):
+			result[i] = probes[i].substr(place.length() + 1)
+	return result
 
 
 ## The ports of [member marked] in [param place].

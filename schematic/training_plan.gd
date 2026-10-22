@@ -45,6 +45,10 @@ var wires: Dictionary[String, Array] = {}
 ## (see [TrainingSim]): the schematic as drawn, which the switchboards,
 ## stations and cables are laid out from (never saved).
 var drawn: SchematicDocument = null
+## In the copy simulated (see [member drawn]): the terminal key a
+## multimeter's probe on each port ("place|port") touches, "" for none
+## (never saved).
+var probe_keys: Dictionary[String, String] = {}
 ## A copy with the parts mounted as [member layout] has them (see
 ## [method cabled_of]; never saved).
 var _planned: SchematicDocument = null
