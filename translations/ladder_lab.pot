@@ -6218,3 +6218,44 @@ msgstr[1] ""
 
 msgid "While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown"
 msgstr ""
+
+msgid "red"
+msgstr ""
+
+msgid "light blue"
+msgstr ""
+
+msgid "green-yellow"
+msgstr ""
+
+#, c-format
+msgid "Wire %s – %s should be %s, not %s."
+msgstr ""
+
+#, c-format
+msgid "Wire %s – %s carries no number, the schematic says %s."
+msgstr ""
+
+#, c-format
+msgid "Wire %s – %s is numbered %s, the schematic says %s."
+msgstr ""
+
+#, c-format
+msgid "Wire %s – %s is numbered %s, the schematic gives it no number."
+msgstr ""
+
+msgid "Next wire:"
+msgstr ""
+
+#, c-format
+msgid "Wire %s – %s:"
+msgstr ""
+
+msgid "Every wire must carry its wire number"
+msgstr ""
+
+msgid "Unticked, a number written on a wire is checked, but a wire may go without one"
+msgstr ""
+
+msgid "grey"
+msgstr ""

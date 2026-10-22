@@ -16,6 +16,8 @@ extends Control
 ## and deleted.
 signal wire_drawn(place: String, a: String, b: String)
 signal wire_removed(place: String, index: int)
+## The wire of pair [param index] of [param place] was picked (-1: none).
+signal wire_picked(place: String, index: int)
 
 var document: SchematicDocument
 ## Index of the station drawn in [member SchematicDocument.control_boxes].
@@ -48,6 +50,8 @@ var _inside: StationInside
 ## Wiring a training plan (see [CabinetView.wiring_mode]).
 var wiring_mode: bool = false:
 	set(value):
+		if value == wiring_mode:
+			return
 		wiring_mode = value
 		focus_mode = Control.FOCUS_CLICK if value else Control.FOCUS_NONE
 		mouse_filter = Control.MOUSE_FILTER_STOP if value else Control.MOUSE_FILTER_PASS
@@ -108,12 +112,12 @@ func _gui_input(event: InputEvent) -> void:
 			KEY_DELETE, KEY_BACKSPACE:
 				if _picked_wire >= 0:
 					var index: int = _picked_wire
-					_picked_wire = -1
+					_pick(-1)
 					wire_removed.emit(training_place(), index)
 					accept_event()
 			KEY_ESCAPE:
 				_start = ""
-				_picked_wire = -1
+				_pick(-1)
 				queue_redraw()
 				accept_event()
 		return
@@ -123,7 +127,7 @@ func _gui_input(event: InputEvent) -> void:
 	var at: Vector2 = ((event as InputEventMouseButton).position - _origin()) / k
 	var hit: String = TrainingPick.port_at(_inside.ports, at, k)
 	if not hit.is_empty():
-		_picked_wire = -1
+		_pick(-1)
 		if not _start.is_empty() and _start != hit:
 			var from: String = _start
 			_start = ""
@@ -133,9 +137,17 @@ func _gui_input(event: InputEvent) -> void:
 	else:
 		_start = ""
 		var w: int = TrainingPick.wire_at(_inside.wires, at, k)
-		_picked_wire = _inside.pairs[w] if w >= 0 and w < _inside.pairs.size() else -1
+		_pick(_inside.pairs[w] if w >= 0 and w < _inside.pairs.size() else -1)
 	queue_redraw()
 	accept_event()
+
+
+## Picks the wire of pair [param index] (-1 for none).
+func _pick(index: int) -> void:
+	if index == _picked_wire:
+		return
+	_picked_wire = index
+	wire_picked.emit(training_place(), index)
 
 
 func _get_tooltip(at_position: Vector2) -> String:

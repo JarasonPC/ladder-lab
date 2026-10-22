@@ -59,6 +59,8 @@ var _front_button: Button
 var _inside_button: Button
 var _scroll: ScrollContainer
 var _inside: StationInsideView
+## The colour and number of the wire laid or picked (wiring a training plan).
+var _wire_bar: TrainingWireBar
 
 
 func _ready() -> void:
@@ -105,7 +107,15 @@ func _ready() -> void:
 	left.add_child(_inside)
 	# Wiring a training plan: the student's wires, one undoable edit each.
 	_inside.wire_drawn.connect(func(place: String, a: String, b: String) -> void:
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.add_wire(place, a, b)))
+		var colour: String = TrainingWireBar.colour
+		var number: String = TrainingWireBar.number
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.add_wire(place, a, b, colour, number)))
+	_inside.wire_picked.connect(func(place: String, index: int) -> void: _wire_bar.show_wire(_document, place, index))
+	_wire_bar = TrainingWireBar.new()
+	_wire_bar.visible = false
+	_wire_bar.edit_requested.connect(func(change: Callable) -> void: edit_requested.emit(change))
+	left.add_child(_wire_bar)
+	left.move_child(_wire_bar, _note.get_index() + 1)
 	_inside.wire_removed.connect(func(place: String, index: int) -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.remove_wire(place, index)))
 	var center: CenterContainer = CenterContainer.new()
@@ -271,6 +281,9 @@ func _rebuild() -> void:
 	_view.queue_redraw()
 	_note.visible = box.items.is_empty()
 	_note.text = tr("No push buttons, switches or lamps on this station yet.") if _editing else tr("No push buttons, switches or lamps on this station yet. Add them in Edit mode.")
+	_wire_bar.visible = wiring and inside_shown and not box.items.is_empty()
+	if _wire_bar.visible:
+		_wire_bar.refresh(_document)
 	if wiring and inside_shown and not box.items.is_empty():
 		_note.visible = true
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")

@@ -275,7 +275,13 @@ func _given_links(doc: SchematicDocument, box: ControlBox, given: Array[PackedSt
 			a = b
 			b = swap
 		var core_channel: int = rows if door else 0
-		links.append({"net": nets[pair[0]], "a": a, "b": b, "a_channel": core_channel if a is Dictionary else _channel(a), "b_channel": core_channel if b is Dictionary else _channel(b), "external": a is Dictionary, "pair": p})
+		var link: Dictionary = {"net": nets[pair[0]], "a": a, "b": b, "a_channel": core_channel if a is Dictionary else _channel(a), "b_channel": core_channel if b is Dictionary else _channel(b), "external": a is Dictionary, "pair": p}
+		# The colour the student chose (a cable's core its own), the number
+		# written on its sleeves.
+		if pair.size() > 2 and not (a is Dictionary) and not (b is Dictionary):
+			link["conductor"] = TrainingCheck.conductor_of(pair[2])
+		link["mark"] = pair[3] if pair.size() > 3 else ""
+		links.append(link)
 	for port: String in ends:
 		_port_ends[port] = ends[port]
 	return links
@@ -618,9 +624,9 @@ func _route(links: Array[Dictionary], net: Dictionary[String, int], conductor: D
 			points.append(Vector2(b.x, yb))
 		points.append(b)
 		var n: int = link["net"]
-		var c: CabinetDevices.Conductor = conductor.get(n, CabinetDevices.Conductor.CONTROL)
+		var c: CabinetDevices.Conductor = link.get("conductor", conductor.get(n, CabinetDevices.Conductor.CONTROL))
 		var markers: Array[PackedVector2Array] = []
-		var mark: String = marks.get(n, "")
+		var mark: String = link.get("mark", marks.get(n, ""))
 		if not mark.is_empty():
 			var length: float = maxf(mark.length() * CabinetParts.MARKER_CHAR + CabinetParts.MARKER_ENDS, CabinetParts.MARKER_MIN)
 			for end: int in 2:

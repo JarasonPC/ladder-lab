@@ -136,8 +136,9 @@ const FORMAT: String = "ladder-lab"
 ## 49: layers of the floor plans ("plan_layers": name, shown) and the layer
 ## of what is on one: a plan's "part_layers" (designation: layer), a note's,
 ## dimension's, fixture's or mark's "layer" (missing: on none).
-## 50: training plans ("training": "show_errors" and the student's "wires"
-## by place, each two ports; missing: an ordinary schematic).
+## 50: training plans ("training": "show_errors", "numbers_required" and the
+## student's "wires" by place, each two ports, a colour and a number;
+## missing: an ordinary schematic).
 const VERSION: int = 50
 
 

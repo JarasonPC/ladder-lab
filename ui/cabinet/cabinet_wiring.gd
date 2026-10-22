@@ -257,7 +257,6 @@ static func build_given(doc: SchematicDocument, layout: CabinetLayout, k: float,
 	var net: Dictionary[String, int] = CabinetDevices.nets(doc.circuit)
 	var ws: Dictionary[String, int] = WorkspaceCables.nets(doc.circuit)
 	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, ws)
-	var marks: Dictionary[int, String] = wire_marks(doc, ws)
 	# Port -> its points (a distribution block has one a connection), and
 	# the net of each.
 	var points: Dictionary[String, Array] = {}
@@ -342,7 +341,7 @@ static func build_given(doc: SchematicDocument, layout: CabinetLayout, k: float,
 		if not points.has(pair[0]) or not points.has(pair[1]):
 			continue
 		var ends: Array[Dictionary] = []
-		for port: String in pair:
+		for port: String in [pair[0], pair[1]]:
 			var list: Array = points[port]
 			var n: int = taken.get(port, 0) if port.begins_with("b:") else 0
 			taken[port] = n + 1
@@ -351,8 +350,12 @@ static func build_given(doc: SchematicDocument, layout: CabinetLayout, k: float,
 		if ends[1].get("external", false) and not ends[0].get("external", false):
 			ends.reverse()
 		var n_net: int = nets[pair[0]]
+		# The colour the student chose (a cable's core its own) and the
+		# number written on its sleeves.
 		var c: CabinetDevices.Conductor = conductor.get(n_net, CabinetDevices.Conductor.CONTROL)
-		edges.append({"net": n_net, "conductor": c, "a": ends[0], "b": ends[1], "width": width_of(c), "mark": marks.get(n_net, "")})
+		if pair.size() > 2 and not ends[0].get("external", false) and not ends[1].get("external", false):
+			c = TrainingCheck.conductor_of(pair[2])
+		edges.append({"net": n_net, "conductor": c, "a": ends[0], "b": ends[1], "width": width_of(c), "mark": pair[3] if pair.size() > 3 else ""})
 		wiring.pairs.append(p)
 	# Two wires in a strip terminal's entry go in one twin ferrule.
 	for port: String in uses:

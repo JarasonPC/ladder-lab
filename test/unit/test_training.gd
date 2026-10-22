@@ -14,7 +14,7 @@ func _solved(doc: SchematicDocument) -> SchematicDocument:
 	var wires: Dictionary[String, Array] = TrainingCheck.solution(doc)
 	for place: String in wires:
 		for wire: PackedStringArray in wires[place]:
-			doc.training.add_wire(place, wire[0], wire[1])
+			doc.training.add_wire(place, wire[0], wire[1], wire[2], wire[3])
 	return doc
 
 
@@ -34,7 +34,7 @@ func test_plan_saved_with_the_schematic() -> void:
 	var loaded: SchematicDocument = ProjectFile.from_dict(JSON.parse_string(JSON.stringify(ProjectFile.to_dict(doc))))["document"]
 	assert_not_null(loaded.training)
 	assert_false(loaded.training.show_errors)
-	assert_eq(loaded.training.wires_of("+RA1"), [PackedStringArray(["t:KM1:13", "s:X2:3"])] as Array[PackedStringArray])
+	assert_eq(loaded.training.wires_of("+RA1"), [PackedStringArray(["t:KM1:13", "s:X2:3", "CONTROL", ""])] as Array[PackedStringArray])
 	var plain: SchematicDocument = ProjectFile.from_dict(ProjectFile.to_dict(ExampleCircuits.build(0)))["document"]
 	assert_null(plain.training, "an ordinary schematic")
 
@@ -81,7 +81,7 @@ func test_mistakes_are_found() -> void:
 	assert_false(result["ok"])
 	assert_eq(result["problems"].size(), 1, "\n".join(_texts(result)))
 	assert_eq(result["problems"][0]["kind"], "missing")
-	doc.training.add_wire(place, taken[0], taken[1])
+	doc.training.add_wire(place, taken[0], taken[1], taken[2], taken[3])
 	assert_true(TrainingCheck.run(doc)["ok"])
 	# A wire between two nets.
 	doc.training.add_wire(place, "t:KM1:A1", "t:KM1:A2")
@@ -93,7 +93,7 @@ func test_mistakes_are_found() -> void:
 	doc = _solved(ExampleCircuits.build(0))
 	var crowded: String = ""
 	for wire: PackedStringArray in doc.training.wires_of(place):
-		for port: String in wire:
+		for port: String in [wire[0], wire[1]]:
 			if port.begins_with("t:KM1:"):
 				crowded = port
 	doc.training.add_wire(place, crowded, "t:KM1:A1")
@@ -276,3 +276,29 @@ func test_wired_right_it_works_as_the_schematic() -> void:
 			a.step()
 			b.step()
 			assert_eq(_state(wired.circuit), _state(drawn.circuit), "example %d, %s let go" % [i, c.designation])
+
+
+func test_colour_and_number_checked() -> void:
+	var doc: SchematicDocument = _solved(ExampleCircuits.build(0))
+	var place: String = "+RA1"
+	# A wire between two terminals (not landing a core), N or the control phase.
+	var index: int = -1
+	var list: Array[PackedStringArray] = doc.training.wires_of(place)
+	for i: int in list.size():
+		if list[i][0].begins_with("t:") and list[i][1].begins_with("t:") and list[i][2] == "CONTROL":
+			index = i
+	assert_true(index >= 0)
+	var wire: PackedStringArray = list[index]
+	doc.training.set_look(place, index, "PE", wire[3])
+	var result: Dictionary = TrainingCheck.run(doc)
+	assert_eq(result["problems"].map(func(p: Dictionary) -> String: return p["kind"]), ["colour"], "\n".join(_texts(result)))
+	doc.training.set_look(place, index, "CONTROL", "")
+	assert_true(TrainingCheck.run(doc)["ok"] or wire[3].is_empty(), "no number: right unless the plan wants numbers")
+	doc.training.numbers_required = true
+	if not wire[3].is_empty():
+		assert_eq(TrainingCheck.run(doc)["problems"].map(func(p: Dictionary) -> String: return p["kind"]), ["number"])
+	doc.training.set_look(place, index, "CONTROL", "999")
+	assert_true(TrainingCheck.run(doc)["problems"].any(func(p: Dictionary) -> bool: return p["kind"] == "number"), "a wrong number")
+	var loaded: SchematicDocument = ProjectFile.from_dict(JSON.parse_string(JSON.stringify(ProjectFile.to_dict(doc))))["document"]
+	assert_true(loaded.training.numbers_required)
+	assert_eq(loaded.training.wires_of(place)[index], PackedStringArray([wire[0], wire[1], "CONTROL", "999"]))
