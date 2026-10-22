@@ -6,6 +6,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the
+  page at full size, with its frame and title block, so you can see how much fits on it as
+  the export prints it; marked when the drawing does not fit
+
 ### Fixed
 - Switchboard: a net leading to a button, lamp or motor without a terminal strip is wired out
   of the switchboard (straight from the device's terminal), also to parts on its door and to

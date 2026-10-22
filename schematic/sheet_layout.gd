@@ -77,6 +77,23 @@ static func at_scale(layout: SheetLayout, drawing: Rect2, cell_mm: float) -> She
 	return _make(drawing, layout.paper_name, layout.portrait, layout.paper_mm, cell_mm)
 
 
+## Paper [param name] ([param upright]: portrait) at full size, its room
+## for the drawing starting at grid cell [param at] (the paper size guide
+## drawn while editing, see [PaperGuide]).
+static func at_corner(name: String, upright: bool, at: Vector2) -> SheetLayout:
+	var size: Vector2 = PAPERS[maxi(paper_index(name), 0)]["size"]
+	if upright:
+		size = Vector2(size.y, size.x)
+	return _make(Rect2(at, _room(size) / CELL_MM), PAPERS[maxi(paper_index(name), 0)]["name"], upright, size, CELL_MM)
+
+
+## The room for the drawing, in grid cells: inside the frame and the
+## padding, above the title block.
+func room() -> Rect2:
+	var pad: float = PADDING_MM / cell_mm
+	return Rect2(frame.position + Vector2(pad, pad), Vector2(frame.size.x - 2.0 * pad, title_block.position.y - frame.position.y - 2.0 * pad))
+
+
 ## Index of paper [param name] in [constant PAPERS], -1 for none.
 static func paper_index(name: String) -> int:
 	for i: int in PAPERS.size():

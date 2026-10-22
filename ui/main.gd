@@ -9,7 +9,7 @@ enum Mode { EDIT, SIMULATE }
 ## What the window shows: the schematic or the workspace.
 enum Area { SCHEMATIC, WORKSPACE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE, EXPORT_CSV }
-enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, DUCT_COVERS, SCALE = 20 }
+enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, DUCT_COVERS, PAPER_NONE, PAPER_PORTRAIT, SCALE = 20, PAPER = 40 }
 enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, LANGUAGE = 10 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF, EXPORT_CSV }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
@@ -179,6 +179,10 @@ var _edit_grid: bool = false
 var _wire_numbers: bool = true
 ## Current path numbers shown (above the columns or left of the rows).
 var _path_numbers: bool = true
+## Paper size guide over the schematic: "A4" to "A0", "" for none, and
+## whether upright (see [PaperGuide]).
+var _paper_guide: String = ""
+var _paper_portrait: bool = false
 ## The palette shows a grid of symbols instead of the list.
 var _palette_grid: bool = false
 ## Simulation shown as currents (current view) instead of voltages.
@@ -1118,6 +1122,17 @@ func _rebuild_view_menu() -> void:
 	popup.add_check_item(tr("Wire duct covers"), ViewMenuId.DUCT_COVERS)
 	popup.set_item_checked(popup.item_count - 1, CabinetView.duct_covers)
 	popup.set_item_tooltip(popup.item_count - 1, tr("Draw the wire ducts in the switchboards with their covers on, hiding the wires in them (the export shows them open)"))
+	popup.add_separator(tr("Paper size guide"))
+	popup.add_radio_check_item(tr("No paper"), ViewMenuId.PAPER_NONE)
+	popup.set_item_checked(popup.item_count - 1, _paper_guide.is_empty())
+	for i: int in range(SheetLayout.paper_index(SheetLayout.SMALLEST), SheetLayout.PAPERS.size()):
+		var paper: String = SheetLayout.PAPERS[i]["name"]
+		popup.add_radio_check_item(paper, ViewMenuId.PAPER + i)
+		popup.set_item_checked(popup.item_count - 1, _paper_guide == paper)
+		popup.set_item_tooltip(popup.item_count - 1, tr("Show how much of the page fits on %s at full size, as the export prints it") % paper)
+	popup.add_check_item(tr("Portrait"), ViewMenuId.PAPER_PORTRAIT)
+	popup.set_item_checked(popup.item_count - 1, _paper_portrait)
+	popup.set_item_disabled(popup.item_count - 1, _paper_guide.is_empty())
 	popup.add_separator(tr("Simulation"))
 	popup.add_radio_check_item(tr("Voltage view"), ViewMenuId.VOLTAGE_VIEW)
 	popup.set_item_checked(popup.item_count - 1, not _current_view)
@@ -1158,6 +1173,12 @@ func _on_view_menu(id: int) -> void:
 		_white_paper = not _white_paper
 		_apply_theme()
 		_save_settings()
+	elif id == ViewMenuId.PAPER_NONE:
+		_set_paper_guide("", _paper_portrait)
+	elif id == ViewMenuId.PAPER_PORTRAIT:
+		_set_paper_guide(_paper_guide, not _paper_portrait)
+	elif id >= ViewMenuId.PAPER:
+		_set_paper_guide(SheetLayout.PAPERS[id - ViewMenuId.PAPER]["name"], _paper_portrait)
 	elif id >= ViewMenuId.SCALE:
 		_ui_scale = UI_SCALES[id - ViewMenuId.SCALE]
 		_apply_ui_scale()
@@ -1412,12 +1433,24 @@ func _set_path_numbers(on: bool) -> void:
 	_save_settings()
 
 
+## Shows the paper size guide for [param paper] ("" for none), upright
+## with [param portrait], in the main view and the page windows.
+func _set_paper_guide(paper: String, portrait: bool) -> void:
+	_paper_guide = paper
+	_paper_portrait = portrait
+	view.set_paper_guide(paper, portrait)
+	for window: PageWindow in _page_windows():
+		window.view.set_paper_guide(paper, portrait)
+	_save_settings()
+
+
 func _update_mode_ui() -> void:
 	var editing: bool = mode == Mode.EDIT
 	var schematic: bool = area == Area.SCHEMATIC
 	view.set_grid_visible(editing and _edit_grid)
 	view.set_wire_numbers_visible(_wire_numbers)
 	view.set_path_numbers_visible(_path_numbers)
+	view.set_paper_guide(_paper_guide, _paper_portrait)
 	view.set_current_view(_current_view)
 	_view_select.select(1 if _current_view else 0)
 	# A residential installation shows its single-line diagram in place of the schematic.
@@ -2465,6 +2498,7 @@ func open_page_window(index: int) -> PageWindow:
 	add_child(window)
 	window.view.set_wire_numbers_visible(_wire_numbers)
 	window.view.set_path_numbers_visible(_path_numbers)
+	window.view.set_paper_guide(_paper_guide, _paper_portrait)
 	window.view.set_current_view(_current_view)
 	window.view.clamp_tool = _clamp_toggle.button_pressed
 	return window
@@ -2642,6 +2676,9 @@ func _load_settings() -> void:
 		CabinetView.duct_covers = bool(config.get_value("view", "duct_covers", false))
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
+		var guide: String = str(config.get_value("view", "paper_guide", ""))
+		_paper_guide = guide if SheetLayout.paper_index(guide) >= 0 else ""
+		_paper_portrait = bool(config.get_value("view", "paper_guide_portrait", false))
 		_palette_grid = bool(config.get_value("view", "palette_grid", false))
 		_current_view = bool(config.get_value("view", "current_view", false))
 		editor.wire_all_poles = bool(config.get_value("editor", "wire_all_poles", false))
@@ -2683,6 +2720,8 @@ func _save_settings() -> void:
 	config.set_value("view", "duct_covers", CabinetView.duct_covers)
 	config.set_value("view", "wire_numbers", _wire_numbers)
 	config.set_value("view", "path_numbers", _path_numbers)
+	config.set_value("view", "paper_guide", _paper_guide)
+	config.set_value("view", "paper_guide_portrait", _paper_portrait)
 	config.set_value("view", "palette_grid", _palette_grid)
 	config.set_value("view", "current_view", _current_view)
 	config.set_value("editor", "wire_all_poles", editor.wire_all_poles)
