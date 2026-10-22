@@ -148,6 +148,62 @@ func item_editor(i: int) -> void:
 			changed["lamp"] = lamps[k]
 			apply.call(changed))
 
+	_item_actions(fields, i)
+
+
+## Wiring a training plan whose student mounts the parts (see
+## [member TrainingPlan.mount_parts]): a choice of the parts the plan has
+## on the panel, [param place] in the plan, not on it yet; each comes as
+## the plan has it (its colour, plate text and lamp inside).
+func add_mount_choice(place: String) -> void:
+	var b: int = panel
+	var left: Array[Dictionary] = document.training.unmounted(document, place)
+	var count: Label = Label.new()
+	count.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	count.theme_type_variation = "MutedLabel"
+	count.text = tr_n("%d part to mount", "%d parts to mount", left.size()) % left.size() if not left.is_empty() else tr("Every part is mounted.")
+	list.add_child(count)
+	var add: OptionButton = make_option(list)
+	add.fit_to_longest_item = false
+	add.add_icon_item(AppTheme.icon("plus"), tr("Add…"))
+	for data: Dictionary in left:
+		var item: ControlBoxItem = ControlBoxItem.from_data(data)
+		add.add_item(tr(StationPanel.item_title(document, item)) + " -" + item.designation)
+	add.select(0)
+	add.disabled = left.is_empty()
+	add.tooltip_text = tr("Put a part on it")
+	add.item_selected.connect(func(k: int) -> void:
+		if k == 0:
+			return
+		var data: Dictionary = left[k - 1]
+		var kind: int = maxi(ControlBoxItem.KINDS.find(str(data["kind"])), 0)
+		select.call(document.control_panels()[b].items.size())
+		edit.call(func(doc: SchematicDocument) -> void:
+			doc.add_control_item(b, kind as ControlBoxItem.Kind)
+			doc.set_control_item(b, doc.control_panels()[b].items.size() - 1, data)))
+
+
+## Item [param i] picked while the student mounts the parts: what it is,
+## moved back or on, taken off.
+func mount_editor(i: int) -> void:
+	var item: ControlBoxItem = document.control_panels()[panel].items[i]
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "FunctionCard"
+	list.add_child(card)
+	var fields: VBoxContainer = VBoxContainer.new()
+	fields.add_theme_constant_override("separation", 4)
+	card.add_child(fields)
+	var heading: Label = Label.new()
+	heading.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	heading.text = tr(StationPanel.item_title(document, item)) + (" -" + item.designation if not item.designation.is_empty() else "")
+	fields.add_child(heading)
+	_item_actions(fields, i)
+
+
+## Moving item [param i] back or on, and taking it away (with the student's
+## wires to it, wiring a training plan).
+func _item_actions(fields: VBoxContainer, i: int) -> void:
+	var b: int = panel
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 2)
 	fields.add_child(actions)
@@ -167,7 +223,9 @@ func item_editor(i: int) -> void:
 	remove.pressed.connect(func() -> void:
 		commit_pending()
 		select.call(-1)
-		edit.call(func(doc: SchematicDocument) -> void: doc.remove_control_item(b, i)))
+		edit.call(func(doc: SchematicDocument) -> void:
+			doc.remove_control_item(b, i)
+			TrainingCheck.drop_loose_wires(doc)))
 	actions.add_child(remove)
 
 

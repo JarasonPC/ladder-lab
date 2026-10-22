@@ -8,7 +8,9 @@ extends HBoxContainer
 ## button). Every change is emitted as one undoable edit of the document (see
 ## [method SchematicEditor.edit_workspace]). Front | Inside at the top shows
 ## the station with its cover off instead ([StationInsideView]): the contact
-## blocks behind the buttons and switches and the wires to them.
+## blocks behind the buttons and switches and the wires to them. Wiring a
+## training plan whose student mounts the parts, the tools put the plan's
+## parts on the station and arrange them (see [member TrainingPlan.mount_parts]).
 
 ## A push button was pressed (true) or let go (false) on the station.
 signal button_held(designation: String, pressed: bool)
@@ -158,13 +160,18 @@ func _ready() -> void:
 func set_document(doc: SchematicDocument, editing: bool) -> void:
 	var training: bool = doc != null and doc.training != null and doc.training.drawn == null
 	if training and not _inside.wiring_mode:
-		# A training plan is wired inside.
-		inside_shown = true
+		# A training plan is wired inside (its parts mounted on the front first).
+		inside_shown = not doc.training.mount_parts
 	_document = doc
 	_editing = editing
-	if not editing:
+	if not editing and not _mounting():
 		_selected_item = -1
 	_rebuild()
+
+
+## Whether a training plan is wired here whose student mounts the parts.
+func _mounting() -> bool:
+	return _document != null and _document.training != null and _document.training.drawn == null and _document.training.mount_parts
 
 
 ## Voltage reach of the last simulation step (terminal key -> reach code),
@@ -247,7 +254,7 @@ func _rebuild() -> void:
 		_list.remove_child(child)
 		child.queue_free()
 	var b: int = _box()
-	_tools.visible = _editing and b >= 0
+	_tools.visible = (_editing or _mounting()) and b >= 0
 	_front_button.text = tr("Front")
 	_front_button.tooltip_text = tr("The push buttons, switches and lamps as they are operated")
 	_inside_button.text = tr("Inside")
@@ -263,7 +270,7 @@ func _rebuild() -> void:
 	_inside.refresh()
 	_view.document = _document
 	_view.box_index = b
-	_view.simulating = not _editing
+	_view.simulating = not _editing and not _mounting()
 	if b < 0:
 		_note.visible = false
 		_view.update_minimum_size()
@@ -281,15 +288,29 @@ func _rebuild() -> void:
 	_view.queue_redraw()
 	_note.visible = box.items.is_empty()
 	_note.text = tr("No push buttons, switches or lamps on this station yet.") if _editing else tr("No push buttons, switches or lamps on this station yet. Add them in Edit mode.")
+	if _mounting():
+		_note.text = tr("Put the parts on the station with the tools on the right.")
 	_wire_bar.visible = wiring and inside_shown and not box.items.is_empty()
 	if _wire_bar.visible:
 		_wire_bar.refresh(_document)
 	if wiring and inside_shown and not box.items.is_empty():
 		_note.visible = true
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
-	if not _editing:
-		return
 	var tools: ControlItemTools = _item_tools
+	if not _editing:
+		if _mounting():
+			tools.make_caption(_list, tr("Items in a row"))
+			var row_choice: OptionButton = tools.make_option(_list)
+			for n: int in range(1, ControlBox.MAX_COLUMNS + 1):
+				row_choice.add_icon_item(AppTheme.icon("columns"), str(n))
+			row_choice.select(box.columns - 1)
+			row_choice.item_selected.connect(func(k: int) -> void:
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_control_box(b, box.title, k + 1)))
+			tools.add_mount_choice("+" + box.name)
+			if _selected_item >= 0:
+				_list.add_child(HSeparator.new())
+				tools.mount_editor(_selected_item)
+		return
 	tools.make_caption(_list, tr("Text on the station"))
 	_list.add_child(tools.make_text_field(box.title, tr("Text on the station"), func(text: String) -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_control_box(b, text, box.columns))))

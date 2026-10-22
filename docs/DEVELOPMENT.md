@@ -1048,7 +1048,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   plan dialog's tick "List the mistakes…") writes a copy of an industrial schematic with
   switchboards as a .ladplan (TrainingPlan.EXTENSION; the .ladder format, the document's
   "training": TrainingPlan in schematic/: show_errors and the student's wires by place, each two
-  ports; ProjectFile version 50). Opened, it is wired, never edited (main.gd _training: editor
+  ports; ProjectFile version 50, 51 with check_function, history, started, mount_parts and layout). Opened, it is wired, never edited (main.gd _training: editor
   inactive, no palette, edit tools, page edits (SchematicEditor.edit_pages refuses them),
   exports or Simulate; the workspace and places get editing false; saved as .ladplan again).
   Places: each switchboard "+RA1", the back of its door "+RA1/door", each station "+ST1";
@@ -1114,7 +1114,22 @@ Architecture and conventions of the code base. Read this before changing the cod
   runs and trips. Each check is kept in TrainingPlan.history ({"at", "ok", "mistakes"}; no
   undo step, carried over an undo by main.gd _on_document_replaced) and TrainingPlan.started
   is set by the first wire; TrainingPanel shows the checks made, the last one and the minutes
-  from the first wire to the last check
+  from the first wire to the last check.
+  TrainingPlan.mount_parts (the plan dialog's fourth tick, TrainingPlan.take_parts): the plan
+  is saved with its rails (kept, empty), doors and stations emptied and TrainingPlan.layout
+  noting the teacher's parts by place (CabinetItem / ControlBoxItem data, distribution blocks
+  left out); the cables of the workspace and the door harnesses are laid from
+  TrainingPlan.cabled_of (a copy with every part mounted as layout has it, cached, never saved;
+  WorkspaceCables.cables, CabinetWiring.door_harness), so they stay as they are while the
+  student mounts. CabinetPanel and StationPanel (_mounting: a plan wired whose student
+  mounts) show their tools then: the rails' Add… (CabinetPanel._unplaced) and the door's and
+  station's (ControlItemTools.add_mount_choice) offer only what layout has there and is not
+  mounted (TrainingPlan.unmounted; a panel item comes with the teacher's colour, plate text and
+  lamp), the part picked moves and is taken off (ControlItemTools.mount_editor; no strip
+  split, no Fill), rails are added and taken away, items in a row set; a click on a part beside
+  the ports and wires picks it (CabinetView._wiring_input, place_clicked). Taking a part or a
+  rail away takes the student's wires to it (TrainingCheck.drop_loose_wires). TrainingCheck.run
+  lists each part not mounted ("mount", ports [place + "|"]: opens the place's front)
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each

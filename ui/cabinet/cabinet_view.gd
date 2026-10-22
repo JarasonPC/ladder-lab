@@ -18,7 +18,8 @@ extends Control
 ## A device was clicked while simulating ([param designation] of the
 ## breaker, fuse or overload relay).
 signal operate_requested(designation: String)
-## A place was clicked while editing (-1, -1: beside the places).
+## A place was clicked while editing, or beside the ports and wires while
+## wiring (-1, -1: beside the places).
 signal place_clicked(rail: int, index: int)
 ## Wiring a training plan ([member wiring_mode]): a wire was drawn from port
 ## [param a] to [param b] of [param place] ("+RA1", the back of its door
@@ -405,6 +406,14 @@ func _wiring_input(event: InputEvent) -> void:
 		return
 	_start = {}
 	_pick(_wire_under(at))
+	if _picked_wire.is_empty():
+		# Neither a port nor a wire: the place there is picked (the student
+		# mounting the parts moves it).
+		var index: int = _place_at(at, [])
+		if index >= 0 and _layout.places[index]["index"] >= 0:
+			place_clicked.emit(_layout.places[index]["rail"], _layout.places[index]["index"])
+		else:
+			place_clicked.emit(-1, -1)
 	queue_redraw()
 	accept_event()
 

@@ -337,3 +337,140 @@ func test_checks_and_start_kept_with_the_plan() -> void:
 	assert_true(loaded.training.check_function)
 	assert_eq(loaded.training.started, 1700000000)
 	assert_eq(loaded.training.history, [{"at": 1700000600, "ok": false, "mistakes": 3}] as Array[Dictionary])
+
+
+## The cables of [param doc]: "name a b cores" each.
+func _cable_list(doc: SchematicDocument) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for cable: Dictionary in WorkspaceCables.cables(doc):
+		result.append("%s %s %s %d" % [cable["name"], cable["a"], cable["b"], cable["cores"].size()])
+	return result
+
+
+## Mounts the parts of [param doc]'s plan as the student would, each place's
+## in the other order (a switchboard's on its first rail).
+func _mount(doc: SchematicDocument) -> void:
+	for b: int in doc.switchboards.size():
+		var here: String = "+" + doc.switchboards[b].name
+		var items: Array = doc.training.layout.get(here, []).duplicate()
+		items.reverse()
+		for data: Dictionary in items:
+			var item: CabinetItem = CabinetItem.from_data(data)
+			assert_not_null(doc.add_cabinet_item(b, 0, item.kind, item.designation), item.designation)
+		_mount_panel(doc, doc.door_panel(b), here + "/door")
+	for k: int in doc.control_boxes.size():
+		_mount_panel(doc, k, "+" + doc.control_boxes[k].name)
+
+
+func _mount_panel(doc: SchematicDocument, panel: int, place: String) -> void:
+	var items: Array = doc.training.layout.get(place, []).duplicate()
+	items.reverse()
+	for data: Dictionary in items:
+		doc.add_control_item(panel, ControlBoxItem.KINDS.find(data["kind"]) as ControlBoxItem.Kind)
+		assert_true(doc.set_control_item(panel, doc.control_panels()[panel].items.size() - 1, data))
+
+
+func test_student_mounts_the_parts() -> void:
+	for i: int in ExampleCircuits.count():
+		var drawn: SchematicDocument = ExampleCircuits.build(i)
+		var doc: SchematicDocument = _plan(ExampleCircuits.build(i))
+		doc.training.take_parts(doc)
+		doc = ProjectFile.from_dict(JSON.parse_string(JSON.stringify(ProjectFile.to_dict(doc))))["document"]
+		assert_true(doc.training.mount_parts, "kept with the plan")
+		var parts: int = 0
+		for place: String in doc.training.layout:
+			parts += doc.training.layout[place].size()
+		assert_true(parts > 0)
+		for board: Switchboard in doc.switchboards:
+			assert_false(board.rails.is_empty(), "the rails stay")
+			for rail: CabinetRail in board.rails:
+				assert_true(rail.items.is_empty(), "taken off the rails")
+			assert_true(board.door.items.is_empty())
+		for box: ControlBox in doc.control_boxes:
+			assert_true(box.items.is_empty(), "taken off the stations")
+		assert_eq(_cable_list(doc), _cable_list(drawn), "the cables laid as the plan has them")
+		var mounts: int = 0
+		for problem: Dictionary in TrainingCheck.run(doc)["problems"]:
+			if problem["kind"] == "mount":
+				mounts += 1
+		assert_eq(mounts, parts, "every part still to mount")
+		_mount(doc)
+		assert_eq(_cable_list(doc), _cable_list(drawn))
+		var wires: Dictionary[String, Array] = TrainingCheck.solution(doc)
+		for place: String in wires:
+			for wire: PackedStringArray in wires[place]:
+				doc.training.add_wire(place, wire[0], wire[1], wire[2], wire[3])
+		var result: Dictionary = TrainingCheck.run(doc)
+		assert_true(result["ok"], "example %d mounted in another order and wired: %s" % [i, "; ".join(_texts(result))])
+
+
+func test_wires_go_with_a_part_taken_off() -> void:
+	var doc: SchematicDocument = _plan(ExampleCircuits.build(0))
+	doc.training.take_parts(doc)
+	_mount(doc)
+	var wires: Dictionary[String, Array] = TrainingCheck.solution(doc)
+	for place: String in wires:
+		for wire: PackedStringArray in wires[place]:
+			doc.training.add_wire(place, wire[0], wire[1], wire[2], wire[3])
+	var before: int = doc.training.wire_count()
+	var rail: CabinetRail = doc.switchboards[0].rails[0]
+	var at: int = -1
+	for k: int in rail.items.size():
+		if rail.items[k].designation == "KM1":
+			at = k
+	assert_true(at >= 0)
+	doc.remove_cabinet_item(0, 0, at)
+	TrainingCheck.drop_loose_wires(doc)
+	assert_true(doc.training.wire_count() < before, "the wires to -KM1 are gone")
+	for wire: PackedStringArray in doc.training.wires_of("+RA1"):
+		assert_false(wire[0].begins_with("t:KM1:") or wire[1].begins_with("t:KM1:"), " – ".join(wire))
+	assert_true(_texts(TrainingCheck.run(doc)).has("-KM1 is not mounted yet (+RA1)."))
+
+
+## The OptionButtons in [param node] whose first item is "Add…".
+func _add_choices(node: Node) -> Array[OptionButton]:
+	var result: Array[OptionButton] = []
+	for child: Node in node.find_children("*", "OptionButton", true, false):
+		var option: OptionButton = child as OptionButton
+		if option.item_count > 1 and option.get_item_text(0) == "Add…":
+			result.append(option)
+	return result
+
+
+func test_parts_mounted_with_the_panels_tools() -> void:
+	var doc: SchematicDocument = _plan(ExampleCircuits.build(0))
+	doc.training.take_parts(doc)
+	var edits: Array[Callable] = []
+	var board: CabinetPanel = CabinetPanel.new()
+	board.board_name = doc.switchboards[0].name
+	board.size = Vector2(1200, 900)
+	add_child_autofree(board)
+	board.edit_requested.connect(func(change: Callable) -> void: edits.append(change))
+	board.set_document(doc, false)
+	await wait_process_frames(2)
+	var choices: Array[OptionButton] = _add_choices(board)
+	assert_eq(choices.size(), doc.switchboards[0].rails.size(), "an Add… on each rail")
+	var left: int = doc.training.unmounted(doc, "+RA1").size()
+	assert_eq(choices[0].item_count, left + 1)
+	choices[0].item_selected.emit(1)
+	assert_eq(edits.size(), 1)
+	edits[0].call(doc)
+	board.refresh()
+	await wait_process_frames(2)
+	assert_eq(doc.training.unmounted(doc, "+RA1").size(), left - 1, "one part mounted")
+	var station: StationPanel = StationPanel.new()
+	station.station_name = doc.control_boxes[0].name
+	station.size = Vector2(1200, 900)
+	add_child_autofree(station)
+	station.edit_requested.connect(func(change: Callable) -> void: edits.append(change))
+	station.set_document(doc, false)
+	await wait_process_frames(2)
+	assert_false(station.inside_shown, "the front, where the parts are mounted")
+	var on_station: Array[OptionButton] = _add_choices(station)
+	assert_eq(on_station.size(), 1)
+	var place: String = "+" + doc.control_boxes[0].name
+	var to_mount: int = doc.training.unmounted(doc, place).size()
+	on_station[0].item_selected.emit(1)
+	edits[1].call(doc)
+	assert_eq(doc.training.unmounted(doc, place).size(), to_mount - 1)
+	assert_eq(doc.control_boxes[0].items[0].to_data(), doc.training.layout[place][0], "as the plan has it")

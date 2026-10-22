@@ -140,7 +140,8 @@ static func joins(doc: SchematicDocument, all: Dictionary[String, Dictionary]) -
 
 
 ## Checks the student's wires of [param doc]'s training plan: {"ok",
-## "problems": [{"kind" ("missing", "wrong", "crowded", "colour": a wire not
+## "problems": [{"kind" ("mount": a part not mounted yet where the student
+## mounts them, "missing", "wrong", "crowded", "colour": a wire not
 ## of its conductor's colour, "number": a wire numbered other than its
 ## net, or not at all where the plan wants numbers), "text" (English,
 ## %s for the args), "args", "ports" (the "place|port" ids)}], "wires" (how
@@ -152,6 +153,9 @@ static func run(doc: SchematicDocument) -> Dictionary:
 	var marks: Dictionary[int, String] = CabinetWiring.wire_marks(doc, ws)
 	var conductors: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(doc.circuit, ws)
 	var problems: Array[Dictionary] = []
+	for place: String in (plan.layout.keys() if plan.mount_parts else []):
+		for data: Dictionary in plan.unmounted(doc, place):
+			problems.append({"kind": "mount", "text": "-%s is not mounted yet (%s).", "args": [data["designation"], place_text(place)], "ports": PackedStringArray([place + "|"])})
 	# Nodes: the ports, then the terminals of parts in the field.
 	var index: Dictionary[String, int] = {}
 	var nets: Array[int] = []
@@ -239,6 +243,26 @@ static func run(doc: SchematicDocument) -> Dictionary:
 		if not difference.is_empty():
 			problems.append(difference)
 	return {"ok": problems.is_empty(), "problems": problems, "wires": count}
+
+
+## A place of a training plan as shown: "+RA1", "+RA1, door", "+ST1".
+static func place_text(place: String) -> String:
+	if place.ends_with("/door"):
+		return TranslationServer.translate("%s, door") % place.trim_suffix("/door")
+	return place
+
+
+## Takes away the student's wires of [param doc] that go to a port the
+## plan has no more (a part taken off its rail or panel).
+static func drop_loose_wires(doc: SchematicDocument) -> void:
+	if doc.training == null:
+		return
+	var all: Dictionary[String, Dictionary] = ports(doc)
+	for place: String in doc.training.wires.keys():
+		var list: Array[PackedStringArray] = doc.training.wires_of(place)
+		for i: int in range(list.size() - 1, -1, -1):
+			if not all.has(place + "|" + list[i][0]) or not all.has(place + "|" + list[i][1]):
+				doc.training.remove_wire(place, i)
 
 
 ## Wires that make [param doc]'s plan right: place -> [[port, port], ...]
