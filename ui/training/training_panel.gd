@@ -21,6 +21,8 @@ var _wires: int = 0
 ## The checks made and when the first wire was laid (see [TrainingPlan]).
 var _history: Array[Dictionary] = []
 var _started: int = 0
+## The student mounts the parts first (see [member TrainingPlan.mount_parts]).
+var _mount: bool = false
 
 
 func _ready() -> void:
@@ -42,6 +44,7 @@ func show_plan(doc: SchematicDocument) -> void:
 	_wires = doc.training.wire_count() if doc != null and doc.training != null else 0
 	_history = []
 	_started = 0
+	_mount = doc != null and doc.training != null and doc.training.mount_parts
 	if doc != null and doc.training != null:
 		_history = doc.training.history
 		_started = doc.training.started
@@ -73,6 +76,8 @@ func rebuild() -> void:
 	var text: Label = Label.new()
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.text = tr("Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring, or try it in Simulate: it runs as you wired it.")
+	if _mount:
+		text.text = tr("Mount the parts in the switchboard, on its door and on the control stations (the tools beside each list what belongs there), then wire them by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the work, or try it in Simulate: it runs as you wired it.")
 	_box.add_child(text)
 	_count = Label.new()
 	_count.theme_type_variation = "MutedLabel"

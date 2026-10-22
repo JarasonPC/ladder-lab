@@ -139,7 +139,10 @@ const FORMAT: String = "ladder-lab"
 ## 50: training plans ("training": "show_errors", "numbers_required" and the
 ## student's "wires" by place, each two ports, a colour and a number;
 ## missing: an ordinary schematic).
-const VERSION: int = 50
+## 51: a training plan's "check_function", "history" of the checks and
+## "started", and "mount_parts" with the "layout" of the parts by place
+## (missing: the parts mounted, the wiring compared).
+const VERSION: int = 51
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

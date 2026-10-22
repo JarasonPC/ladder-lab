@@ -23,6 +23,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   schematic does (after switching on the breakers and operating every button and switch) is
   right. The plan keeps each check made and when the first wire was laid; the training panel
   shows how many checks, how the last went and how long it took
+- A training plan can leave the mounting to the student: the switchboards, doors and stations
+  start empty, the student puts the parts each place lists on its rails or panel and arranges
+  them, then wires them; the check names the parts not mounted yet
 
 ### Schematic editor
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the

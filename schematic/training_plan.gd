@@ -28,6 +28,14 @@ var check_function: bool = false
 var history: Array[Dictionary] = []
 ## When the first wire was laid (Unix time, 0 before).
 var started: int = 0
+## The student mounts the parts: the plan's rails, doors and stations start
+## empty and [member layout] says what goes in each place.
+var mount_parts: bool = false
+## Where the teacher mounted the parts (with [member mount_parts]): place
+## ("+RA1", "+RA1/door", "+ST1") -> its items in order, as saved by
+## [method CabinetItem.to_data] (a switchboard's rails, the distribution
+## blocks left out) or [method ControlBoxItem.to_data] (a door, a station).
+var layout: Dictionary[String, Array] = {}
 ## The student's wires: place ("+RA1", "+RA1/door", "+ST1") -> wires, each
 ## PackedStringArray([port, port, colour (of COLOURS; a core's own when
 ## landing a cable's core), number on its sleeves ("" none)]) (see
@@ -37,12 +45,121 @@ var wires: Dictionary[String, Array] = {}
 ## (see [TrainingSim]): the schematic as drawn, which the switchboards,
 ## stations and cables are laid out from (never saved).
 var drawn: SchematicDocument = null
+## A copy with the parts mounted as [member layout] has them (see
+## [method cabled_of]; never saved).
+var _planned: SchematicDocument = null
 
 
 ## The schematic [param doc]'s places are laid out from: the one drawn when
 ## [param doc] is a copy simulated with the student's wires, else [param doc].
 static func drawn_of(doc: SchematicDocument) -> SchematicDocument:
 	return doc.training.drawn if doc != null and doc.training != null and doc.training.drawn != null else doc
+
+
+## The schematic the cables of the workspace and the door harnesses are laid
+## from: [method drawn_of] [param doc], or, where the student mounts the
+## parts, a copy with them mounted where the plan has them: the cables are
+## laid before, and stay as they are while the parts are mounted.
+static func cabled_of(doc: SchematicDocument) -> SchematicDocument:
+	doc = drawn_of(doc)
+	if doc == null or doc.training == null or not doc.training.mount_parts:
+		return doc
+	if doc.training._planned == null:
+		var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+		copy.training = null
+		doc.training._mount_all(copy)
+		doc.training._planned = copy
+	return doc.training._planned
+
+
+## Notes in [member layout] where the parts of [param doc] are mounted and
+## takes them off its rails, doors and stations (the rails stay, empty),
+## for the student to mount.
+func take_parts(doc: SchematicDocument) -> void:
+	mount_parts = true
+	layout = {}
+	for board: Switchboard in doc.switchboards:
+		var here: String = "+" + board.name
+		layout[here] = []
+		for rail: CabinetRail in board.rails:
+			for item: CabinetItem in rail.items:
+				if item.kind != CabinetItem.Kind.BUS:
+					layout[here].append(item.to_data())
+			rail.items.clear()
+		layout[here + "/door"] = _panel_data(board.door)
+		board.door.items.clear()
+	for box: ControlBox in doc.control_boxes:
+		layout["+" + box.name] = _panel_data(box)
+		box.items.clear()
+
+
+## The items of [member layout] for [param place] not mounted there in
+## [param doc] yet.
+func unmounted(doc: SchematicDocument, place: String) -> Array[Dictionary]:
+	var here: Dictionary[String, bool] = {}
+	for data: Dictionary in mounted(doc, place):
+		here[_item_key(data)] = true
+	var result: Array[Dictionary] = []
+	for data: Dictionary in layout.get(place, []):
+		if not here.has(_item_key(data)):
+			result.append(data)
+	return result
+
+
+## The items mounted in [param place] of [param doc] (as in [member layout]).
+static func mounted(doc: SchematicDocument, place: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var name: String = place.trim_prefix("+").get_slice("/", 0)
+	for board: Switchboard in doc.switchboards:
+		if board.name != name:
+			continue
+		if place.ends_with("/door"):
+			return _panel_data(board.door)
+		for rail: CabinetRail in board.rails:
+			for item: CabinetItem in rail.items:
+				if item.kind != CabinetItem.Kind.BUS:
+					result.append(item.to_data())
+		return result
+	for box: ControlBox in doc.control_boxes:
+		if box.name == name:
+			return _panel_data(box)
+	return result
+
+
+## The items of [param box] with a device, as saved.
+static func _panel_data(box: ControlBox) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for item: ControlBoxItem in box.items:
+		if not item.designation.is_empty():
+			result.append(item.to_data())
+	return result
+
+
+static func _item_key(data: Dictionary) -> String:
+	return str(data.get("kind", "")) + "|" + str(data.get("designation", ""))
+
+
+## Mounts every part of [member layout] in [param doc] (a switchboard's on
+## one rail: only where they are counts for the cables).
+func _mount_all(doc: SchematicDocument) -> void:
+	for board: Switchboard in doc.switchboards:
+		var rail: CabinetRail = CabinetRail.new()
+		for data: Variant in layout.get("+" + board.name, []):
+			var item: CabinetItem = CabinetItem.from_data(data)
+			if item != null:
+				rail.items.append(item)
+		board.rails = [rail]
+		_fill_panel(board.door, layout.get("+" + board.name + "/door", []))
+	for box: ControlBox in doc.control_boxes:
+		_fill_panel(box, layout.get("+" + box.name, []))
+
+
+static func _fill_panel(box: ControlBox, list: Array) -> void:
+	box.items.clear()
+	for data: Variant in list:
+		var item: ControlBoxItem = ControlBoxItem.from_data(data)
+		if item != null:
+			box.items.append(item)
 
 
 ## Adds a wire between ports [param a] and [param b] of [param place] of
@@ -106,7 +223,11 @@ func to_data() -> Dictionary:
 		for wire: PackedStringArray in wires[place]:
 			list.append(Array(wire))
 		places[place] = list
-	return {"show_errors": show_errors, "numbers_required": numbers_required, "check_function": check_function, "history": history.duplicate(true), "started": started, "wires": places}
+	var d: Dictionary = {"show_errors": show_errors, "numbers_required": numbers_required, "check_function": check_function, "history": history.duplicate(true), "started": started, "wires": places}
+	if mount_parts:
+		d["mount_parts"] = true
+		d["layout"] = layout.duplicate(true)
+	return d
 
 
 ## A plan from saved data (values of the wrong type are left out).
@@ -128,6 +249,17 @@ static func from_data(data: Variant) -> TrainingPlan:
 			var mistakes: Variant = (check as Dictionary).get("mistakes", 0)
 			if at is float or at is int:
 				plan.history.append({"at": int(at), "ok": (check as Dictionary).get("ok", false) == true, "mistakes": int(mistakes) if mistakes is float or mistakes is int else 0})
+	plan.mount_parts = (data as Dictionary).get("mount_parts", false) == true
+	var mounts: Variant = (data as Dictionary).get("layout", {})
+	if mounts is Dictionary:
+		for place: Variant in mounts:
+			if not (place is String) or not (mounts[place] is Array):
+				continue
+			var list: Array = []
+			for item: Variant in mounts[place]:
+				if item is Dictionary and (item as Dictionary).get("designation", null) is String:
+					list.append(item)
+			plan.layout[place] = list
 	var places: Variant = (data as Dictionary).get("wires", {})
 	if places is Dictionary:
 		for place: Variant in places:

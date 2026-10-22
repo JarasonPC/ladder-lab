@@ -227,6 +227,7 @@ var _plan_dialog: ConfirmationDialog
 var _plan_errors: CheckBox
 var _plan_numbers: CheckBox
 var _plan_function: CheckBox
+var _plan_mount: CheckBox
 ## What the lesson points at on the drawing, and in the window.
 var _lesson_marks: LessonMarks
 var _lesson_rings: TutorialRings
@@ -882,6 +883,8 @@ func _build_dialogs() -> void:
 	plan_box.add_child(_plan_numbers)
 	_plan_function = CheckBox.new()
 	plan_box.add_child(_plan_function)
+	_plan_mount = CheckBox.new()
+	plan_box.add_child(_plan_mount)
 	_plan_dialog.confirmed.connect(func() -> void: _show_file_dialog(DialogPurpose.SAVE_PLAN))
 	add_child(_plan_dialog)
 	_recovery_dialog = ConfirmationDialog.new()
@@ -1093,6 +1096,8 @@ func _retranslate_dialogs() -> void:
 	_plan_numbers.tooltip_text = tr("Unticked, a number written on a wire is checked, but a wire may go without one")
 	_plan_function.text = tr("Check that it works as the schematic does (any wiring that works is right)")
 	_plan_function.tooltip_text = tr("Unticked, the wiring must join what the schematic joins")
+	_plan_mount.text = tr("The student mounts the parts in the switchboards and on the stations")
+	_plan_mount.tooltip_text = tr("Ticked, the rails, doors and stations start empty: the student mounts the parts each of them lists and arranges them. Unticked, they are mounted as you made them")
 	_rename_dialog.title = tr("Rename page")
 	_rename_dialog.ok_button_text = tr("Rename")
 	_rename_dialog.cancel_button_text = tr("Cancel")
@@ -2312,6 +2317,8 @@ func _save_plan(path: String) -> void:
 	plan.training.show_errors = _plan_errors.button_pressed
 	plan.training.numbers_required = _plan_numbers.button_pressed
 	plan.training.check_function = _plan_function.button_pressed
+	if _plan_mount.button_pressed:
+		plan.training.take_parts(plan)
 	if ProjectFile.save(plan, path) != OK:
 		_show_error(tr("Could not save %s.") % path.get_file())
 
@@ -2345,8 +2352,18 @@ func _show_training_problem(ports: PackedStringArray) -> void:
 	_set_area(Area.WORKSPACE)
 	_workspace.open(Workspace.Place.SWITCHBOARD if board else Workspace.Place.STATION, name)
 	var panel: Control = _workspace.get("_panel")
+	# A part to mount (no port): its place's front, where it is mounted.
+	var mount: bool = ports[0].get_slice("|", 1).is_empty()
 	if board and panel is CabinetPanel and place.ends_with("/door"):
-		(panel as CabinetPanel).door_open = true
+		if mount:
+			(panel as CabinetPanel).door_shown = true
+		else:
+			(panel as CabinetPanel).door_open = true
+	elif board and panel is CabinetPanel and mount:
+		(panel as CabinetPanel).door_shown = false
+		(panel as CabinetPanel).door_open = false
+	elif panel is StationPanel and mount:
+		(panel as StationPanel).inside_shown = false
 
 
 ## Writes the edited schematic to [param path]. Returns true on success.

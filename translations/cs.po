@@ -6345,3 +6345,42 @@ msgid_plural "%d minutes from the first wire to the last check"
 msgstr[0] "%d minuta od prvního vodiče po poslední kontrolu"
 msgstr[1] "%d minuty od prvního vodiče po poslední kontrolu"
 msgstr[2] "%d minut od prvního vodiče po poslední kontrolu"
+
+msgid "The student mounts the parts in the switchboards and on the stations"
+msgstr "Žák sám osazuje rozvaděče a ovládací skříňky"
+
+msgid "Ticked, the rails, doors and stations start empty: the student mounts the parts each of them lists and arranges them. Unticked, they are mounted as you made them"
+msgstr "Zaškrtnuté: lišty, dveře a skříňky jsou na začátku prázdné, žák do nich osadí přístroje, které každé místo nabízí, a rozmístí je. Nezaškrtnuté: jsou osazené tak, jak jste je udělali"
+
+#, c-format
+msgid "-%s is not mounted yet (%s)."
+msgstr "-%s ještě není osazen (%s)."
+
+#, c-format
+msgid "%s, door"
+msgstr "%s, dveře"
+
+msgid "Mount the parts with the tools on the right (a click on a part picks it), then wire them: click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away."
+msgstr "Osaďte přístroje nástroji vpravo (kliknutím přístroj vyberete), pak je zapojte: klikněte na svorku nebo žílu kabelu, pak tam, kam vodič vede. Vodič odstraníte kliknutím na něj a klávesou Delete."
+
+msgid "Every part is mounted."
+msgstr "Vše je osazeno."
+
+msgid "Put the parts on the door with the tools on the right."
+msgstr "Osaďte dveře nástroji vpravo."
+
+msgid "Put the parts on the station with the tools on the right."
+msgstr "Osaďte skříňku nástroji vpravo."
+
+msgid "Put a part on it"
+msgstr "Osadit přístroj"
+
+msgid "Mount the parts in the switchboard, on its door and on the control stations (the tools beside each list what belongs there), then wire them by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the work, or try it in Simulate: it runs as you wired it."
+msgstr "Osaďte rozvaděč, jeho dveře a ovládací skříňky (nástroje u každého místa nabízejí, co tam patří) a pak je zapojte podle schématu. Otevřete je na pracovní ploše; kabely mezi nimi jsou položené, připojte jejich žíly. Pak práci zkontrolujte, nebo ji vyzkoušejte v simulaci: běží tak, jak jste ji zapojili."
+
+#, c-format
+msgid "%d part to mount"
+msgid_plural "%d parts to mount"
+msgstr[0] "%d přístroj k osazení"
+msgstr[1] "%d přístroje k osazení"
+msgstr[2] "%d přístrojů k osazení"

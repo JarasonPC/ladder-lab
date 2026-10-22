@@ -558,6 +558,8 @@ static func bottom_slots(doc: SchematicDocument, board: int, strips: Dictionary)
 ## terminal's key in the circuit, else the device's), "label" ("" for a
 ## device's)}].
 static func door_harness(doc: SchematicDocument, board: int) -> Array[Dictionary]:
+	# A training plan: the harness laid by the plan.
+	doc = TrainingPlan.cabled_of(doc)
 	var result: Array[Dictionary] = []
 	if board < 0 or board >= doc.switchboards.size():
 		return result

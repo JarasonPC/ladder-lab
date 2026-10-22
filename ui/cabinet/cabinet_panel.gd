@@ -12,7 +12,9 @@ extends HBoxContainer
 ## and lamps like a control station, edited and operated the same way; Door
 ## open shows the switchboard with the door opened beside it, the back of the
 ## door with its contact blocks and wires and the door harness running from
-## the switchboard to it ([member CabinetView.door_open]).
+## the switchboard to it ([member CabinetView.door_open]). Wiring a training
+## plan whose student mounts the parts, the tools put the plan's parts on the
+## rails and the door and arrange them (see [member TrainingPlan.mount_parts]).
 
 ## A breaker, fuse holder or overload relay was clicked while simulating.
 signal operate_requested(designation: String)
@@ -169,6 +171,8 @@ func _ready() -> void:
 	_view.wire_removed.connect(func(place: String, index: int) -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.training.remove_wire(place, index)))
 	_view.place_clicked.connect(func(rail: int, index: int) -> void:
+		if not _editing and not _mounting():
+			return
 		if Vector2i(rail, index) != _selected:
 			_picked.clear()
 		_selected = Vector2i(rail, index)
@@ -193,10 +197,15 @@ func _ready() -> void:
 func set_document(doc: SchematicDocument, editing: bool) -> void:
 	_document = doc
 	_editing = editing
-	if not editing:
+	if not editing and not _mounting():
 		_selected = Vector2i(-1, -1)
 		_door_selected = -1
 	_rebuild()
+
+
+## Whether a training plan is wired here whose student mounts the parts.
+func _mounting() -> bool:
+	return _document != null and _document.training != null and _document.training.drawn == null and _document.training.mount_parts
 
 
 ## Shows the document again after it was edited.
@@ -302,7 +311,7 @@ func _rebuild() -> void:
 		_list.remove_child(child)
 		child.queue_free()
 	var b: int = _board()
-	_tools.visible = _editing and b >= 0
+	_tools.visible = (_editing or _mounting()) and b >= 0
 	_inside_button.text = tr("Inside")
 	_inside_button.tooltip_text = tr("The DIN rails with the devices and their wiring")
 	_door_button.text = tr("Door")
@@ -334,6 +343,8 @@ func _rebuild() -> void:
 	_note.text = tr("No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it.") if _editing else tr("No DIN rails yet. Make them in Edit mode.")
 	if wiring:
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
+		if _mounting():
+			_note.text = tr("Mount the parts with the tools on the right (a click on a part picks it), then wire them: click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
 	_wire_bar.visible = wiring
 	if wiring:
 		_wire_bar.refresh(_document)
@@ -345,6 +356,8 @@ func _rebuild() -> void:
 	_fill_zoom_row()
 	_view.refresh()
 	if not _editing:
+		if _mounting():
+			_mount_tools(b)
 		return
 	if _selected.y < 0 and _selected.x >= 0 and _view.place_of(_selected.x, _selected.y).is_empty():
 		# The distribution block picked is not there any more.
@@ -372,6 +385,43 @@ func _rebuild() -> void:
 	_list.add_child(fill)
 
 
+## The student mounting the parts of a training plan in switchboard
+## [param b]: what is left to mount, the part picked, the rails.
+func _mount_tools(b: int) -> void:
+	var left: int = _unplaced(b).size()
+	var count: Label = Label.new()
+	count.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	count.theme_type_variation = "MutedLabel"
+	count.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	count.text = tr_n("%d part to mount", "%d parts to mount", left) % left if left > 0 else tr("Every part is mounted.")
+	_list.add_child(count)
+	if _selected.x >= 0 and _selected.y >= 0:
+		_place_editor(b, _selected.x, _selected.y)
+	for r: int in _document.switchboards[b].rails.size():
+		_rail_row(b, r)
+	_list.add_child(HSeparator.new())
+	var add_rail: Button = _button(tr("Add rail"), "plus")
+	add_rail.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	add_rail.tooltip_text = tr("Add an empty DIN rail at the bottom")
+	add_rail.pressed.connect(func() -> void:
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_rail(b)))
+	_list.add_child(add_rail)
+
+
+## What can be put on the rails of switchboard [param b]: what has no place
+## in a switchboard yet, or, while the student mounts the parts of a
+## training plan, what the plan has there and is not mounted yet.
+func _unplaced(b: int) -> Array[CabinetItem]:
+	if not _mounting():
+		return _document.cabinet_unplaced()
+	var result: Array[CabinetItem] = []
+	for data: Dictionary in _document.training.unmounted(_document, "+" + _document.switchboards[b].name):
+		var item: CabinetItem = CabinetItem.from_data(data)
+		if item != null and not _document.cabinet_has(item.kind, item.designation):
+			result.append(item)
+	return result
+
+
 ## The door of switchboard [param b] and, while editing, its tools: items
 ## in a row, buttons adding items, the selected item's fields.
 func _rebuild_door(b: int) -> void:
@@ -385,14 +435,16 @@ func _rebuild_door(b: int) -> void:
 	_door.document = _document
 	_door.box_index = panel
 	_door.board = b
-	_door.simulating = not _editing
+	_door.simulating = not _editing and not _mounting()
 	_door.selected = _door_selected
 	if _view.plate_size().x > 0.0:
 		_door.enclosure = _view.plate_size()
 	_door.queue_redraw()
 	_note.visible = door.items.is_empty()
 	_note.text = tr("No push buttons, switches or lamps on this door yet.") if _editing else tr("No push buttons, switches or lamps on this door yet. Add them in Edit mode.")
-	if not _editing:
+	if not _editing and _mounting():
+		_note.text = tr("Put the parts on the door with the tools on the right.")
+	if not _editing and not _mounting():
 		return
 	var tools: ControlItemTools = _door_tools
 	tools.document = _document
@@ -406,6 +458,12 @@ func _rebuild_door(b: int) -> void:
 	columns.select(door.columns - 1)
 	columns.item_selected.connect(func(k: int) -> void:
 		door_edit_requested.emit(func(doc: SchematicDocument) -> void: doc.set_control_box(panel, "", k + 1)))
+	if not _editing:
+		tools.add_mount_choice("+" + _document.switchboards[b].name + "/door")
+		if _door_selected >= 0:
+			_list.add_child(HSeparator.new())
+			tools.mount_editor(_door_selected)
+		return
 	tools.add_buttons()
 	tools.add_all_button(tr("Put every push button, switch and signal lamp that is not on a station or a door yet on this door"))
 	if _door_selected >= 0:
@@ -451,7 +509,7 @@ func _rail_row(b: int, r: int) -> void:
 	add.focus_mode = Control.FOCUS_NONE
 	add.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add.fit_to_longest_item = false
-	var unplaced: Array[CabinetItem] = _document.cabinet_unplaced()
+	var unplaced: Array[CabinetItem] = _unplaced(b)
 	add.add_icon_item(AppTheme.icon("plus"), tr("Add…"))
 	for item: CabinetItem in unplaced:
 		add.add_item(_item_title(item))
@@ -474,7 +532,10 @@ func _rail_row(b: int, r: int) -> void:
 	var remove: Button = _tool("delete", tr("Delete the rail"))
 	remove.pressed.connect(func() -> void:
 		_selected = Vector2i(-1, -1)
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_rail(b, r)))
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			doc.remove_cabinet_rail(b, r)
+			# The student's wires to the parts taken off go with them.
+			TrainingCheck.drop_loose_wires(doc)))
 	row.add_child(remove)
 	_list.add_child(row)
 
@@ -520,9 +581,11 @@ func _place_editor(b: int, r: int, i: int) -> void:
 	var remove: Button = _button(tr("Remove"), "delete")
 	remove.pressed.connect(func() -> void:
 		_selected = Vector2i(-1, -1)
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_cabinet_item(b, r, i)))
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			doc.remove_cabinet_item(b, r, i)
+			TrainingCheck.drop_loose_wires(doc)))
 	actions.add_child(remove)
-	if item.kind == CabinetItem.Kind.STRIP:
+	if item.kind == CabinetItem.Kind.STRIP and not _mounting():
 		_strip_split(fields, item.designation)
 
 

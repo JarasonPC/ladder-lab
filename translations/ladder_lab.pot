@@ -6324,3 +6324,41 @@ msgid "%d minute from the first wire to the last check"
 msgid_plural "%d minutes from the first wire to the last check"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "The student mounts the parts in the switchboards and on the stations"
+msgstr ""
+
+msgid "Ticked, the rails, doors and stations start empty: the student mounts the parts each of them lists and arranges them. Unticked, they are mounted as you made them"
+msgstr ""
+
+#, c-format
+msgid "-%s is not mounted yet (%s)."
+msgstr ""
+
+#, c-format
+msgid "%s, door"
+msgstr ""
+
+msgid "Mount the parts with the tools on the right (a click on a part picks it), then wire them: click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away."
+msgstr ""
+
+msgid "Every part is mounted."
+msgstr ""
+
+msgid "Put the parts on the door with the tools on the right."
+msgstr ""
+
+msgid "Put the parts on the station with the tools on the right."
+msgstr ""
+
+msgid "Put a part on it"
+msgstr ""
+
+msgid "Mount the parts in the switchboard, on its door and on the control stations (the tools beside each list what belongs there), then wire them by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the work, or try it in Simulate: it runs as you wired it."
+msgstr ""
+
+#, c-format
+msgid "%d part to mount"
+msgid_plural "%d parts to mount"
+msgstr[0] ""
+msgstr[1] ""
