@@ -6277,3 +6277,71 @@ msgstr "Nezaškrtnuté: napsané číslo se kontroluje, ale vodič může být b
 
 msgid "grey"
 msgstr "šedý"
+
+msgid "Check that it works as the schematic does (any wiring that works is right)"
+msgstr "Kontrolovat, zda funguje jako schéma (správně je každé fungující zapojení)"
+
+msgid "Unticked, the wiring must join what the schematic joins"
+msgstr "Nezaškrtnuté: zapojení musí spojit to, co spojuje schéma"
+
+#, c-format
+msgid "After %s, %s does not %s as the schematic does."
+msgstr "Po akci „%s“: %s má %s, ale nestane se to."
+
+#, c-format
+msgid "After %s, %s does %s, which the schematic does not."
+msgstr "Po akci „%s“: %s nemá %s, ale stane se to."
+
+msgid "switching on the breakers"
+msgstr "zapnutí jističů"
+
+#, c-format
+msgid "pressing -%s"
+msgstr "stisk -%s"
+
+#, c-format
+msgid "letting go of -%s"
+msgstr "uvolnění -%s"
+
+#, c-format
+msgid "turning -%s"
+msgstr "otočení -%s"
+
+msgid "pull in"
+msgstr "přitáhnout"
+
+msgid "light"
+msgstr "svítit"
+
+msgid "work"
+msgstr "pracovat"
+
+msgid "run"
+msgstr "běžet"
+
+msgid "trip"
+msgstr "vybavit"
+
+msgid "last: right"
+msgstr "naposledy: správně"
+
+#, c-format
+msgid "Checked %d time"
+msgid_plural "Checked %d times"
+msgstr[0] "Kontrolováno %dkrát"
+msgstr[1] "Kontrolováno %dkrát"
+msgstr[2] "Kontrolováno %dkrát"
+
+#, c-format
+msgid "last: %d mistake"
+msgid_plural "last: %d mistakes"
+msgstr[0] "naposledy: %d chyba"
+msgstr[1] "naposledy: %d chyby"
+msgstr[2] "naposledy: %d chyb"
+
+#, c-format
+msgid "%d minute from the first wire to the last check"
+msgid_plural "%d minutes from the first wire to the last check"
+msgstr[0] "%d minuta od prvního vodiče po poslední kontrolu"
+msgstr[1] "%d minuty od prvního vodiče po poslední kontrolu"
+msgstr[2] "%d minut od prvního vodiče po poslední kontrolu"

@@ -19,6 +19,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
   its sleeves (the drawing no longer colours and numbers the wires by themselves); the check
   finds wires of the wrong colour and wrong numbers, and missing ones where the plan wants
   every wire numbered
+- A training plan can check the function instead of the wires: any wiring that works as the
+  schematic does (after switching on the breakers and operating every button and switch) is
+  right. The plan keeps each check made and when the first wire was laid; the training panel
+  shows how many checks, how the last went and how long it took
 
 ### Schematic editor
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the

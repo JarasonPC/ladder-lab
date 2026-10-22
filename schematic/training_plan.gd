@@ -20,6 +20,14 @@ var show_errors: bool = true
 ## The check wants every wire to carry its wire number on its sleeves (a
 ## number written is checked anyway).
 var numbers_required: bool = false
+## The check tests the function: the wiring is right when it works as the
+## schematic does (see [TrainingFunction]), however it is wired; else when
+## it joins what the schematic joins.
+var check_function: bool = false
+## Each check made: {"at" (Unix time), "ok", "mistakes"} (for the teacher).
+var history: Array[Dictionary] = []
+## When the first wire was laid (Unix time, 0 before).
+var started: int = 0
 ## The student's wires: place ("+RA1", "+RA1/door", "+ST1") -> wires, each
 ## PackedStringArray([port, port, colour (of COLOURS; a core's own when
 ## landing a cable's core), number on its sleeves ("" none)]) (see
@@ -98,7 +106,7 @@ func to_data() -> Dictionary:
 		for wire: PackedStringArray in wires[place]:
 			list.append(Array(wire))
 		places[place] = list
-	return {"show_errors": show_errors, "numbers_required": numbers_required, "wires": places}
+	return {"show_errors": show_errors, "numbers_required": numbers_required, "check_function": check_function, "history": history.duplicate(true), "started": started, "wires": places}
 
 
 ## A plan from saved data (values of the wrong type are left out).
@@ -108,6 +116,18 @@ static func from_data(data: Variant) -> TrainingPlan:
 		return plan
 	plan.show_errors = (data as Dictionary).get("show_errors", true) != false
 	plan.numbers_required = (data as Dictionary).get("numbers_required", false) == true
+	plan.check_function = (data as Dictionary).get("check_function", false) == true
+	var started_at: Variant = (data as Dictionary).get("started", 0)
+	plan.started = int(started_at) if started_at is float or started_at is int else 0
+	var checks: Variant = (data as Dictionary).get("history", [])
+	if checks is Array:
+		for check: Variant in checks:
+			if not (check is Dictionary):
+				continue
+			var at: Variant = (check as Dictionary).get("at", null)
+			var mistakes: Variant = (check as Dictionary).get("mistakes", 0)
+			if at is float or at is int:
+				plan.history.append({"at": int(at), "ok": (check as Dictionary).get("ok", false) == true, "mistakes": int(mistakes) if mistakes is float or mistakes is int else 0})
 	var places: Variant = (data as Dictionary).get("wires", {})
 	if places is Dictionary:
 		for place: Variant in places:
