@@ -47,6 +47,10 @@ var sim_time: float:
 		return simulator.time if simulator != null else 0.0
 
 var _wire_layer: WireLayer
+## The paper size guide (see [method set_paper_guide]).
+var _paper_guide: PaperGuide
+var _paper: String = ""
+var _paper_portrait: bool = false
 var _grid_visible: bool = false
 var _numbers_visible: bool = true
 var _path_numbers_visible: bool = true
@@ -129,6 +133,13 @@ func rebuild() -> void:
 			(symbol as PageConnectorSymbol).reference = document.connector_reference(c.id)
 		add_child(symbol)
 		_symbols[c.id] = symbol
+	# Behind the drawing, but drawn after it, as it measures what was drawn.
+	_paper_guide = PaperGuide.new()
+	_paper_guide.paper = _paper
+	_paper_guide.portrait = _paper_portrait
+	_paper_guide.extent = drawn_extent
+	_paper_guide.z_index = -1
+	add_child(_paper_guide)
 	_find_nearby_terminals()
 	_update_visuals()
 	rebuilt.emit()
@@ -221,6 +232,17 @@ func set_current_view(on: bool) -> void:
 	if _wire_layer != null:
 		_wire_layer.current_view = on
 		_update_visuals()
+
+
+## Shows the paper size guide for paper [param paper] ("A4" to "A0", ""
+## for none), [param portrait] upright (see [PaperGuide]).
+func set_paper_guide(paper: String, portrait: bool) -> void:
+	_paper = paper
+	_paper_portrait = portrait
+	if _paper_guide != null:
+		_paper_guide.paper = paper
+		_paper_guide.portrait = portrait
+		_paper_guide.queue_redraw()
 
 
 ## Shows or hides the dot grid behind the drawing.
@@ -336,6 +358,8 @@ func _update_visuals() -> void:
 				symbol.live[k] = SchematicSymbol.REACH_NONE
 		symbol.warning = blink_on and last_result.oscillating_tags.has(symbol.component.designation) and not (symbol.component is PowerSupply)
 		symbol.queue_redraw()
+	if _paper_guide != null and not _paper.is_empty():
+		_paper_guide.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:

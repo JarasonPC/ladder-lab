@@ -630,6 +630,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   time they open (main.gd _rebuild_view_menu / _rebuild_settings_menu)
 - Current path numbers (the number alone, no box; above the columns, left of the rows) can be turned off in View >
   Current path numbers (saved; page windows and export follow it)
+- Paper size guide (View > Paper size guide: none or A4-A0, Portrait; user settings
+  "view"/"paper_guide", "paper_guide_portrait"; main.gd _set_paper_guide, page windows follow
+  it, never on exported sheets): SchematicView.set_paper_guide puts a PaperGuide (ui/, z_index
+  -1, made last in rebuild and redrawn after _update_visuals, as it measures what was drawn)
+  behind the page: the chosen paper at full size (SheetLayout.at_corner: CELL_MM a cell, its
+  room, SheetLayout.room, starting at the top left of SchematicView.drawn_extent grown by 0.5 as
+  the export measures it) with its edge, frame, title block (the paper's name in it) and the
+  room dashed, in SchematicTheme.PAPER_GUIDE; "A4, landscape" over it, and where the drawing
+  does not fit the room in SchematicTheme.WARNING and "the drawing does not fit at full size"
 - Export: File > Export page as PNG / Export as PDF first show the sheets in a preview
   (ExportPreview: page by page, paper and scale, wire numbers on/off, on by default); saving
   writes what the preview shows. A PDF holds what is ticked in the preview (ExportPreview.contents,

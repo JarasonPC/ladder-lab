@@ -688,6 +688,30 @@ msgstr ""
 msgid "Draw the wire ducts in the switchboards with their covers on, hiding the wires in them (the export shows them open)"
 msgstr ""
 
+msgid "Paper size guide"
+msgstr ""
+
+msgid "No paper"
+msgstr ""
+
+#, c-format
+msgid "Show how much of the page fits on %s at full size, as the export prints it"
+msgstr ""
+
+msgid "Portrait"
+msgstr ""
+
+#, c-format
+msgid "%s, portrait"
+msgstr ""
+
+#, c-format
+msgid "%s, landscape"
+msgstr ""
+
+msgid "the drawing does not fit at full size"
+msgstr ""
+
 msgid "Wiring"
 msgstr ""
 

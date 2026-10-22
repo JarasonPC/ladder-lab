@@ -58,6 +58,8 @@ static var TILE_FIELD: Color
 static var GROUP_FILL: Color
 static var GROUP_EDGE: Color
 static var SELECTED: Color
+## The paper size guide while editing (see [PaperGuide]).
+static var PAPER_GUIDE: Color
 
 const LINE_WIDTH: float = 2.0
 const LIVE_WIDTH: float = 2.6
@@ -106,6 +108,7 @@ static func use(dark_paper: bool) -> void:
 		GROUP_FILL = Color(0.18, 0.43, 0.93, 0.08)
 		GROUP_EDGE = Color(0.18, 0.43, 0.93, 0.35)
 		SELECTED = Color("2f6fec")
+		PAPER_GUIDE = Color("8798b4")
 	else:
 		BACKGROUND = Color("15181d")
 		GRID_DOT = Color("2a2f38")
@@ -137,6 +140,7 @@ static func use(dark_paper: bool) -> void:
 		GROUP_FILL = Color(0.3, 0.55, 1.0, 0.1)
 		GROUP_EDGE = Color(0.3, 0.55, 1.0, 0.4)
 		SELECTED = Color("4c8dff")
+		PAPER_GUIDE = Color("5f7395")
 
 
 ## A current as written on the drawing: "35 mA", "4.62 A", "48.1 A", "160 A".
