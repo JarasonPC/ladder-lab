@@ -36,6 +36,11 @@ var mount_parts: bool = false
 ## [method CabinetItem.to_data] (a switchboard's rails, the distribution
 ## blocks left out) or [method ControlBoxItem.to_data] (a door, a station).
 var layout: Dictionary[String, Array] = {}
+## A fault-finding task: the faults hidden in the wiring given (see
+## [TrainingFaults]); the student's wires are then the plan's, never changed.
+var faults: Array[Dictionary] = []
+## The faults the student reported (as [member faults]) with "at" (Unix time).
+var reports: Array[Dictionary] = []
 ## The student's wires: place ("+RA1", "+RA1/door", "+ST1") -> wires, each
 ## PackedStringArray([port, port, colour (of COLOURS; a core's own when
 ## landing a cable's core), number on its sleeves ("" none)]) (see
@@ -231,7 +236,15 @@ func to_data() -> Dictionary:
 	if mount_parts:
 		d["mount_parts"] = true
 		d["layout"] = layout.duplicate(true)
+	if not faults.is_empty():
+		d["faults"] = faults.duplicate(true)
+		d["reports"] = reports.duplicate(true)
 	return d
+
+
+## A fault-finding task: the wiring is given and stays as it is.
+func locked() -> bool:
+	return not faults.is_empty()
 
 
 ## A plan from saved data (values of the wrong type are left out).
@@ -253,6 +266,13 @@ static func from_data(data: Variant) -> TrainingPlan:
 			var mistakes: Variant = (check as Dictionary).get("mistakes", 0)
 			if at is float or at is int:
 				plan.history.append({"at": int(at), "ok": (check as Dictionary).get("ok", false) == true, "mistakes": int(mistakes) if mistakes is float or mistakes is int else 0})
+	for key: String in ["faults", "reports"]:
+		var list: Variant = (data as Dictionary).get(key, [])
+		if not (list is Array):
+			continue
+		for fault: Variant in list:
+			if fault is Dictionary and (fault as Dictionary).get("kind", null) is String:
+				(plan.faults if key == "faults" else plan.reports).append(fault)
 	plan.mount_parts = (data as Dictionary).get("mount_parts", false) == true
 	var mounts: Variant = (data as Dictionary).get("layout", {})
 	if mounts is Dictionary:

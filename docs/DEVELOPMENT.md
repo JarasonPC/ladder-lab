@@ -1048,7 +1048,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   plan dialog's tick "List the mistakes…") writes a copy of an industrial schematic with
   switchboards as a .ladplan (TrainingPlan.EXTENSION; the .ladder format, the document's
   "training": TrainingPlan in schematic/: show_errors and the student's wires by place, each two
-  ports; ProjectFile version 50, 51 with check_function, history, started, mount_parts and layout). Opened, it is wired, never edited (main.gd _training: editor
+  ports; ProjectFile version 50, 51 with check_function, history, started, mount_parts and layout, 52 with faults and reports). Opened, it is wired, never edited (main.gd _training: editor
   inactive, no palette, edit tools, page edits (SchematicEditor.edit_pages refuses them),
   exports or Simulate; the workspace and places get editing false; saved as .ladplan again).
   Places: each switchboard "+RA1", the back of its door "+RA1/door", each station "+ST1";
@@ -1144,7 +1144,20 @@ Architecture and conventions of the code base. Read this before changing the cod
   CabinetView / StationInsideView (_probe_input; drawn by TrainingPick.draw "probes") instead
   of operating the part; TrainingSim.build gives each port its terminal key in the copy
   (TrainingPlan.probe_keys, never saved) and main.gd _meter_reading reads them, READ_RATE
-  times a second
+  times a second.
+  Fault-finding tasks: File > Save as fault-finding task… (FaultDialog in ui/training/: the
+  faults chosen by kind and place or at random, one a part, "Tell the student which reports
+  are right" as TrainingPlan.show_errors) saves a training plan wired by
+  TrainingCheck.solution with TrainingPlan.faults (TrainingFaults, no nodes: "wire" a broken
+  wire by its place and ports, "open" / "welded" a contact by its id, "coil" a broken coil;
+  TrainingFaults.choices, text, same). TrainingPlan.locked: the wiring stays as given (no
+  wires laid or taken away, no wire bar; CabinetView / StationInsideView pick wires only).
+  TrainingSim.build leaves a broken wire out (TrainingFaults.broken) and gives the parts their
+  faults (TrainingFaults.apply). TrainingPanel shows the task, the multimeter while it runs
+  and a report form (kind, a wire's place, the fault; report_requested → main.gd
+  _report_fault: TrainingPlan.reports with "at", no undo step, carried over an undo), the
+  faults found (TrainingFaults.found / right) and the minutes from the first run
+  (TrainingPlan.started, set by _start_simulation) to the last report
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
@@ -1505,7 +1518,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   ControlPanelView (all of them beside the schematic while simulating), TravelView (a
   mechanical link there); `ui/side_tab.gd` SideTab
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
-- `ui/training/` TrainingCheck, TrainingFunction, TrainingPick, TrainingSim (no nodes), TrainingPanel, TrainingWireBar (training plans)
+- `ui/training/` TrainingCheck, TrainingFaults, TrainingFunction, TrainingPick, TrainingSim (no nodes), TrainingPanel, TrainingWireBar, FaultDialog (training plans)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP

@@ -290,10 +290,10 @@ func _rebuild() -> void:
 	_note.text = tr("No push buttons, switches or lamps on this station yet.") if _editing else tr("No push buttons, switches or lamps on this station yet. Add them in Edit mode.")
 	if _mounting():
 		_note.text = tr("Put the parts on the station with the tools on the right.")
-	_wire_bar.visible = wiring and inside_shown and not box.items.is_empty()
+	_wire_bar.visible = wiring and inside_shown and not box.items.is_empty() and not _document.training.locked()
 	if _wire_bar.visible:
 		_wire_bar.refresh(_document)
-	if wiring and inside_shown and not box.items.is_empty():
+	if wiring and inside_shown and not box.items.is_empty() and not _document.training.locked():
 		_note.visible = true
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
 	var tools: ControlItemTools = _item_tools

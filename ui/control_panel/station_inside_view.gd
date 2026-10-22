@@ -114,7 +114,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventKey and (event as InputEventKey).pressed:
 		match (event as InputEventKey).keycode:
 			KEY_DELETE, KEY_BACKSPACE:
-				if _picked_wire >= 0:
+				if _picked_wire >= 0 and not document.training.locked():
 					var index: int = _picked_wire
 					_pick(-1)
 					wire_removed.emit(training_place(), index)
@@ -129,7 +129,8 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	grab_focus()
 	var at: Vector2 = ((event as InputEventMouseButton).position - _origin()) / k
-	var hit: String = TrainingPick.port_at(_inside.ports, at, k)
+	# A fault-finding task's wiring is given: wires are picked, not laid.
+	var hit: String = TrainingPick.port_at(_inside.ports, at, k) if not document.training.locked() else ""
 	if not hit.is_empty():
 		_pick(-1)
 		if not _start.is_empty() and _start != hit:

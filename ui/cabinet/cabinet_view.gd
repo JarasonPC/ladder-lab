@@ -377,7 +377,7 @@ func _wiring_input(event: InputEvent) -> void:
 	if event is InputEventKey and (event as InputEventKey).pressed:
 		match (event as InputEventKey).keycode:
 			KEY_DELETE, KEY_BACKSPACE:
-				if not _picked_wire.is_empty():
+				if not _picked_wire.is_empty() and not document.training.locked():
 					var picked: Dictionary = _picked_wire
 					_pick({})
 					wire_removed.emit(picked["place"], picked["index"])
@@ -393,7 +393,8 @@ func _wiring_input(event: InputEvent) -> void:
 		return
 	grab_focus()
 	var at: Vector2 = (event as InputEventMouseButton).position
-	var hit: Dictionary = _port_under(at)
+	# A fault-finding task's wiring is given: wires are picked, not laid.
+	var hit: Dictionary = _port_under(at) if not document.training.locked() else {}
 	if not hit.is_empty():
 		_pick({})
 		if not _start.is_empty() and _start["place"] == hit["place"] and _start["port"] != hit["port"]:

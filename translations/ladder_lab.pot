@@ -6383,3 +6383,79 @@ msgstr ""
 
 msgid "click a terminal"
 msgstr ""
+
+msgid "Contact does not close"
+msgstr ""
+
+msgid "Contact stays closed"
+msgstr ""
+
+msgid "Coil broken"
+msgstr ""
+
+msgid "The switchboard is wired. Run it in Simulate to look for the faults."
+msgstr ""
+
+msgid "Training: fault finding"
+msgstr ""
+
+msgid "The switchboard and the stations are wired by the schematic, but faults are hidden in them. Run it in Simulate, see what does not work, measure with the multimeter and report each fault you find."
+msgstr ""
+
+msgid "All the faults are found."
+msgstr ""
+
+#, c-format
+msgid "%d of %d faults found."
+msgstr ""
+
+msgid "Faults reported"
+msgstr ""
+
+msgid "Report a fault"
+msgstr ""
+
+msgid "Report the fault"
+msgstr ""
+
+msgid "Save as fault-finding task"
+msgstr ""
+
+msgid "Save as fault-finding task…"
+msgstr ""
+
+msgid "A fault-finding exercise: the switchboards and stations wired by the schematic with faults hidden in them, to be found by simulating and measuring"
+msgstr ""
+
+msgid "Faults hidden in the wiring"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Add a fault at random"
+msgstr ""
+
+msgid "Tell the student which reports are right"
+msgstr ""
+
+msgid "Unticked, the student only learns when every fault is found"
+msgstr ""
+
+msgid "Take this fault away"
+msgstr ""
+
+msgid "No faults yet: add at least one."
+msgstr ""
+
+#, c-format
+msgid "%d fault hidden."
+msgid_plural "%d faults hidden."
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format
+msgid "%d minute from the first run to the last report"
+msgid_plural "%d minutes from the first run to the last report"
+msgstr[0] ""
+msgstr[1] ""
