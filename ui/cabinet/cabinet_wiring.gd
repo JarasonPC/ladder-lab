@@ -242,6 +242,7 @@ static func build(doc: SchematicDocument, layout: CabinetLayout, k: float, board
 ## and [member pairs] (the pair of each wire). Pairs naming a port the
 ## switchboard has not are left out.
 static func build_given(doc: SchematicDocument, layout: CabinetLayout, k: float, board: int, given: Array[PackedStringArray]) -> CabinetWiring:
+	doc = TrainingPlan.drawn_of(doc)
 	var wiring: CabinetWiring = CabinetWiring.new()
 	for duct: Dictionary in layout.ducts:
 		if duct["vertical"]:

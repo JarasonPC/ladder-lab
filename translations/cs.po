@@ -6178,8 +6178,8 @@ msgstr "Vodič %s: %s není spojeno s %s."
 msgid "Training: wiring"
 msgstr "Výuka: zapojování"
 
-msgid "Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring."
-msgstr "Zapojte rozvaděč, zadní stranu jeho dveří a ovládací stanice podle schématu. Otevřete je na pracovní ploše; kabely mezi nimi jsou položené, zapojte jejich žíly. Pak zapojení zkontrolujte."
+msgid "Wire the switchboard, the back of its door and the control stations by the schematic. Open them on the workspace; the cables between them are laid, land their cores. Then check the wiring, or try it in Simulate: it runs as you wired it."
+msgstr "Zapojte rozvaděč, zadní stranu jeho dveří a ovládací stanice podle schématu. Otevřete je na pracovní ploše; kabely mezi nimi jsou položené, zapojte jejich žíly. Pak zapojení zkontrolujte, nebo ho vyzkoušejte v Simulaci: poběží tak, jak jste ho zapojili."
 
 msgid "Check wiring"
 msgstr "Zkontrolovat zapojení"
@@ -6233,3 +6233,6 @@ msgid_plural "Not right yet: %d mistakes."
 msgstr[0] "Zatím není správně: %d chyba."
 msgstr[1] "Zatím není správně: %d chyby."
 msgstr[2] "Zatím není správně: %d chyb."
+
+msgid "While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown"
+msgstr "Když výukový plán běží podle žákova zapojení, neběží to, co ukazuje schéma: schéma se ukáže zpět v režimu Úpravy"

@@ -91,6 +91,8 @@ static var naming: Naming = Naming.CZECH
 ## the one by its use), "length" (metres set by hand, 0 for none; see
 ## [member SchematicDocument.cable_settings])}.
 static func cables(doc: SchematicDocument) -> Array[Dictionary]:
+	# A training plan simulated as wired: the cables laid by the plan.
+	doc = TrainingPlan.drawn_of(doc)
 	var circuit: Circuit = doc.circuit
 	var net: Dictionary[String, int] = nets(circuit)
 	var conductor: Dictionary[int, CabinetDevices.Conductor] = CabinetDevices.conductors(circuit, net)

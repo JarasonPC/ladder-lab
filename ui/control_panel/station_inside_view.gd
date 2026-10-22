@@ -92,7 +92,7 @@ func _origin() -> Vector2:
 
 
 func _gui_input(event: InputEvent) -> void:
-	if not wiring_mode or _inside == null:
+	if not wiring_mode or simulating or _inside == null:
 		return
 	var k: float = _k()
 	if event is InputEventMouseMotion:
@@ -139,7 +139,7 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _get_tooltip(at_position: Vector2) -> String:
-	if not wiring_mode or _inside == null:
+	if not wiring_mode or simulating or _inside == null:
 		return ""
 	var hit: String = TrainingPick.port_at(_inside.ports, (at_position - _origin()) / _k(), _k())
 	return TrainingPick.port_text(hit) if not hit.is_empty() else ""
@@ -172,7 +172,7 @@ func _draw() -> void:
 		var g: Rect2 = gland["rect"]
 		CabinetParts.cable_gland(p, g)
 		CabinetParts.label(p, Vector2(g.get_center().x, g.position.y - 3.0), str(gland["cable"]), maxf(g.size.x, 10.0))
-	if wiring_mode:
+	if wiring_mode and not simulating:
 		var state: Dictionary = {"hover": _hover, "start": _start, "mouse": _mouse, "selected": _inside.pairs.find(_picked_wire) if _picked_wire >= 0 else -1, "problems": TrainingPick.marked_in(training_place())}
 		TrainingPick.draw(self, origin, k, _inside.ports, _inside.wires, state)
 

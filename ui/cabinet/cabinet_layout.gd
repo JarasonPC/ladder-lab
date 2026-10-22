@@ -82,6 +82,9 @@ var places: Array[Dictionary] = []
 ## wide as they are drawn. Each duct is as wide as the wires running through
 ## it need (see [method duct_size], [member CabinetWiring.lanes]).
 static func build(doc: SchematicDocument, k: float, board: int = 0) -> CabinetLayout:
+	# A training plan simulated as wired is laid out as drawn (the devices'
+	# state is described again from the simulation, see describe_again).
+	doc = TrainingPlan.drawn_of(doc)
 	# Laid out with ducts of the first size, wired, then again with each duct
 	# as wide as the wires running through it need, until they all fit (the
 	# wires take other ways as the ducts grow; a duct never gets narrower,

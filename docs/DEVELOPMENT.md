@@ -1079,7 +1079,21 @@ Architecture and conventions of the code base. Read this before changing the cod
   colour; port_text in the tooltip. TrainingPanel (SideBar "training" on the right while a
   plan is open): what to do, the wires laid, Check wiring (main.gd _check_training) and the
   result (right, or the number of mistakes and, where the plan lets it, each mistake: a click
-  opens its place, the door opened for one on its back); an edit drops the result and the marks
+  opens its place, the door opened for one on its back); an edit drops the result and the marks.
+  Simulate runs the plan as the student wired it (main.gd _start_simulation, _set_mode: on the
+  workspace, the Schematic button disabled while it runs, the control panel beside it):
+  TrainingSim.build (ui/training/, no nodes) copies the schematic with TrainingPlan.drawn the
+  plan (never saved; TrainingPlan.drawn_of), drops the schematic's wires of every net a port
+  reaches and joins instead what the student's wires, TrainingCheck.joins, each port's
+  terminal key ("t:" a device's terminal by its name, "p:" the first supply point of its
+  source conductor, "s:" / "f:" the strip terminal's TerminalBlock, else an "XS1" terminal
+  added to the copy: a strip terminal on a part's lead is joined to the part only by its
+  core) and an overload relay's heaters in its contactor's outputs join, as wires between
+  their keys; nets no port reaches (Ethernet, parts with no place) keep theirs. The places
+  are laid out from the drawn plan (WorkspaceCables.cables, CabinetLayout.build,
+  CabinetWiring.build_given, StationInside.build_given / build_door_given take
+  TrainingPlan.drawn_of), the devices' state described from the copy; the panels show the
+  student's wires (wiring_mode) and operate the simulation (no wiring while it runs)
 - PLC (Plc, "A1", modelled on the small Siemens logic modules with relay outputs, never with
   maker names or type designations on the drawing): a Load on L1-N with inputs I1-I8 (on with
   voltage against its N, like a time relay's S) and relay outputs Q1-Q4, two terminals each
@@ -1440,7 +1454,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   ControlPanelView (all of them beside the schematic while simulating), TravelView (a
   mechanical link there); `ui/side_tab.gd` SideTab
 - `ui/cabinet/` CabinetPanel (one opened switchboard), CabinetView, CabinetLayout, CabinetWiring, CabinetParts, CabinetPainter
-- `ui/training/` TrainingCheck, TrainingPick (no nodes), TrainingPanel (training plans)
+- `ui/training/` TrainingCheck, TrainingPick, TrainingSim (no nodes), TrainingPanel (training plans)
 - `ui/editor/` SchematicEditor (tools, selection, undo), Palette, PropertiesPanel;
   edits go through SchematicDocument methods, which are tested without nodes
 - Dragging (parts, wire segments, numbers, markings) starts only after the mouse moved CLICK_SLOP

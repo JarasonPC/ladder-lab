@@ -478,7 +478,7 @@ func place_of(rail: int, index: int) -> Dictionary:
 
 
 func _get_tooltip(at_position: Vector2) -> String:
-	if wiring_mode:
+	if wiring_mode and not simulating:
 		var hit: Dictionary = _port_under(at_position)
 		if not hit.is_empty():
 			return TrainingPick.port_text(hit["port"])
@@ -585,7 +585,7 @@ func _draw() -> void:
 				if place.has("under_rect"):
 					mark = mark.merge(place["under_rect"])
 	var marks: Array = []
-	if wiring_mode:
+	if wiring_mode and not simulating:
 		var door_pairs: Array[int] = []
 		if door_open and _door != null:
 			door_pairs = _door.pairs

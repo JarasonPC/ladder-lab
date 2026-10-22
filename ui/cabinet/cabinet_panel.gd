@@ -317,15 +317,17 @@ func _rebuild() -> void:
 	var rails: Array[CabinetRail] = _document.switchboards[b].rails
 	if _selected.x >= rails.size() or (_selected.x >= 0 and _selected.y >= rails[_selected.x].items.size()):
 		_selected = Vector2i(-1, -1)
+	# A training plan is wired here, and runs as wired (a simulated copy).
 	var training: bool = _document.training != null
-	_note.visible = rails.is_empty() or training
+	var wiring: bool = training and _document.training.drawn == null
+	_note.visible = rails.is_empty() or wiring
 	_note.text = tr("No DIN rails yet. Fill the switchboard from the schematic, or add a rail and put devices on it.") if _editing else tr("No DIN rails yet. Make them in Edit mode.")
-	if training:
+	if wiring:
 		_note.text = tr("Click a terminal or a cable's core, then where the wire goes. Click a wire and press Delete to take it away.")
 	_view.document = _document
 	_view.board = b
 	_view.wiring_mode = training
-	_view.simulating = not _editing and not training
+	_view.simulating = not _editing and not wiring
 	_view.selected = _selected
 	_fill_zoom_row()
 	_view.refresh()

@@ -15,6 +15,16 @@ var show_errors: bool = true
 ## The student's wires: place ("+RA1", "+RA1/door", "+ST1") -> wires, each
 ## PackedStringArray([port, port]) (see [TrainingCheck] for the ports).
 var wires: Dictionary[String, Array] = {}
+## A copy simulated with the student's wires in place of the schematic's
+## (see [TrainingSim]): the schematic as drawn, which the switchboards,
+## stations and cables are laid out from (never saved).
+var drawn: SchematicDocument = null
+
+
+## The schematic [param doc]'s places are laid out from: the one drawn when
+## [param doc] is a copy simulated with the student's wires, else [param doc].
+static func drawn_of(doc: SchematicDocument) -> SchematicDocument:
+	return doc.training.drawn if doc != null and doc.training != null and doc.training.drawn != null else doc
 
 
 ## Adds a wire between ports [param a] and [param b] of [param place];
