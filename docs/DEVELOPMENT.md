@@ -794,6 +794,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   time they open (main.gd _rebuild_view_menu / _rebuild_settings_menu)
 - Current path numbers (the number alone, no box; above the columns, left of the rows) can be turned off in View >
   Current path numbers (saved; page windows and export follow it)
+- Direction of the current paths (toolbar, Vertical / Horizontal; SchematicDocument.horizontal):
+  choosing the other one turns the whole drawing (SchematicDocument.transpose), unless the parts
+  lie that way already (drawn_horizontal: most parts of two or more terminals turned a quarter
+  or not; a drawing made under the wrong choice), then only the numbering changes (main.gd
+  _on_layout_selected)
 - Paper size guide (View > Paper size guide: none or A4-A0, Portrait; user settings
   "view"/"paper_guide", "paper_guide_portrait"; main.gd _set_paper_guide, page windows follow
   it, never on exported sheets): SchematicView.set_paper_guide puts a PaperGuide (ui/, z_index
@@ -1716,7 +1721,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   for the next time); while asked, the editor draws a ruler beside them (beyond their
   markings, a tick and number at every cell, the cells each part will take marked) and keeps
   the dialog off it. Branch dots
-  join wires of one net only
+  join wires of one net only. A wire ended on a wire (SchematicEditor._finish_wire) adds no
+  junction: it runs on along that wire to the end nearer along it, a part's terminal before a
+  junction (SchematicDocument.branch_end), so it joins a terminal and branches off with a dot
+  where it was drawn to
 - Terminals are taken by the mouse (SchematicDocument.terminal_at) anywhere in their cell while
   a wire is drawn (SchematicEditor.WIRE_PICK, half a cell), within START_PICK to start one
   with the select tool, never less than PICK_PIXELS on screen (_pick_radius); the terminal
@@ -1758,8 +1766,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   a part replaced by its edited copy (properties, Change type: SchematicDocument.replace_component)
   keeps its wires, strip terminals and terminal markings by standard terminal name, by position
   where no name matches (a PLC's only by name)
-- Wire branches are `Junction` components, drawn only as the branch dot where three or more wire
-  directions meet (no mark of their own); simulation runs on a serialized copy of the edited document
+- Wire branches from older drawings are `Junction` components (none are made any more), drawn
+  only as the branch dot where three or more wire directions meet (no mark of their own); simulation runs on a serialized copy of the edited document
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION
   on format changes and keep older versions loading; values of the wrong type load as defaults
   (DocumentSerializer helpers); ProjectFile.save and RecoveryFile.write go through

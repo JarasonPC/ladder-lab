@@ -1858,6 +1858,15 @@ func _on_layout_selected(index: int) -> void:
 	if edit_doc.horizontal == (index == 1):
 		return
 	editor.history.record(DocumentSerializer.to_dict(edit_doc))
+	if edit_doc.drawn_horizontal() == (index == 1):
+		# Drawn that way already, under the other numbering by mistake: only
+		# the current paths are numbered the other way.
+		edit_doc.horizontal = index == 1
+		view.document.horizontal = edit_doc.horizontal
+		view.refresh_layout()
+		editor.queue_redraw()
+		_mark_dirty()
+		return
 	edit_doc.transpose()
 	if view.document != edit_doc:
 		view.document.transpose()

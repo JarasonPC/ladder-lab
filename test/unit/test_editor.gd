@@ -59,15 +59,18 @@ func test_place_wire_and_simulate() -> void:
 	assert_true((doc.circuit.get_component("H1") as Lamp).energized)
 
 
-func test_wire_ending_on_wire_adds_junction() -> void:
+func test_wire_ending_on_wire_joins_a_terminal() -> void:
 	_place({"type": "lamp"}, Vector2i(5, 4))
 	_place({"type": "lamp"}, Vector2i(9, 4))
 	_wire([Vector2(2, 1), Vector2(5, 1), Vector2(5, 4)])
 	_wire([Vector2(9, 4), Vector2(9, 1), Vector2(3.9, 1.1)])
 	var doc: SchematicDocument = editor.document()
-	assert_not_null(doc.circuit.get_component("J1"))
-	assert_eq(doc.get_placement("J1").cell, Vector2i(4, 1))
-	assert_eq(doc.circuit.wires_of(doc.circuit.get_component("J1")).size(), 3)
+	for c: CircuitComponent in doc.circuit.get_components():
+		assert_false(c is Junction, "no junction is added")
+	var w: int = doc.wire_between("H2:X1", "L")
+	assert_true(w >= 0, "runs on along the wire to the nearer terminal")
+	assert_eq(doc.wire_points(w), [Vector2i(9, 4), Vector2i(9, 1), Vector2i(2, 1)] as Array[Vector2i])
+	assert_true(doc.junction_cells().has(Vector2i(5, 1)), "a dot where it branches off")
 
 
 func test_contact_takes_coil_designation_and_next_number() -> void:

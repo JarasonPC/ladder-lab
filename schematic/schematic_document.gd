@@ -681,6 +681,22 @@ func transpose() -> void:
 	horizontal = not horizontal
 
 
+## True when most parts of two or more terminals lie across (turned a
+## quarter), as on a drawing of horizontal current paths, whatever
+## [member horizontal] says; false when most stand upright or there are none.
+func drawn_horizontal() -> bool:
+	var across: int = 0
+	var upright: int = 0
+	for c: CircuitComponent in circuit.get_components():
+		if c.get_terminal_keys().size() < 2:
+			continue
+		if _placements[c.id].rotation % 2 == 1:
+			across += 1
+		else:
+			upright += 1
+	return across > upright
+
+
 # --- Pages -------------------------------------------------------------------
 
 ## Page a component is drawn on.
@@ -1627,6 +1643,45 @@ static func _terminal_cells(c: CircuitComponent, p: Placement) -> Array[Vector2i
 	for name: String in c.get_terminal_names():
 		cells.append(p.cell + SymbolGeometry.transform_cell(local[name], p))
 	return cells
+
+
+## Where a wire drawn onto wire [param index] at [param cell] is joined: the
+## end of that wire nearer along it (a part's terminal before a junction),
+## with the cells from [param cell] along the wire to it, so the new wire
+## branches off where it was drawn to: {"key": String, "cells":
+## Array[Vector2i]}. Empty when the cell is not on the wire.
+func branch_end(index: int, cell: Vector2i) -> Dictionary:
+	var points: Array[Vector2i] = wire_points(index)
+	var wire: PackedStringArray = circuit.get_wires()[index]
+	var last: int = points.size() - 1
+	if cell == points[0]:
+		return {"key": wire[0], "cells": [cell] as Array[Vector2i]}
+	if cell == points[last]:
+		return {"key": wire[1], "cells": [cell] as Array[Vector2i]}
+	for s: int in range(1, points.size()):
+		if not _on_segment(cell, points[s - 1], points[s]):
+			continue
+		var back: Array[Vector2i] = [cell]
+		for i: int in range(s - 1, -1, -1):
+			back.append(points[i])
+		var ahead: Array[Vector2i] = [cell]
+		ahead.append_array(points.slice(s))
+		var back_part: bool = not (circuit.get_terminal_owner(wire[0]) is Junction)
+		var ahead_part: bool = not (circuit.get_terminal_owner(wire[1]) is Junction)
+		var take_back: bool = _cells_length(back) <= _cells_length(ahead)
+		if back_part != ahead_part:
+			take_back = back_part
+		if take_back:
+			return {"key": wire[0], "cells": back}
+		return {"key": wire[1], "cells": ahead}
+	return {}
+
+
+static func _cells_length(cells: Array[Vector2i]) -> int:
+	var length: int = 0
+	for i: int in range(1, cells.size()):
+		length += absi(cells[i].x - cells[i - 1].x) + absi(cells[i].y - cells[i - 1].y)
+	return length
 
 
 ## Inserts a [Junction] at [param cell] on wire [param index], splitting the

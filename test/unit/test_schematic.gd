@@ -34,6 +34,16 @@ func test_transpose_makes_horizontal_paths() -> void:
 	assert_eq(doc.terminal_cell("SB1:14"), Vector2i(16, 20))
 
 
+func test_drawn_horizontal_follows_parts_not_numbering() -> void:
+	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(0))
+	assert_false(doc.drawn_horizontal())
+	doc.transpose()
+	assert_true(doc.drawn_horizontal())
+	doc.horizontal = false
+	assert_true(doc.drawn_horizontal(), "numbered vertically, still drawn horizontally")
+	assert_false(SchematicDocument.new().drawn_horizontal())
+
+
 func test_transpose_takes_dragged_markings_along() -> void:
 	var doc: SchematicDocument = ExamplePower.on(ExampleCircuits.build(0))
 	doc.set_label_offset("SB1:13-14", "designation", Vector2(1.0, 0.5))

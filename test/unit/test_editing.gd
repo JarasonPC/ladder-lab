@@ -159,6 +159,34 @@ func test_split_at_wire_end_returns_terminal() -> void:
 	assert_eq(doc.split_wire(0, Vector2i(9, 9)), "")
 
 
+func test_branch_end_runs_on_to_nearer_terminal() -> void:
+	var doc: SchematicDocument = _lamp_doc()
+	var branch: Dictionary = doc.branch_end(0, Vector2i(3, 1))
+	assert_eq(branch["key"], "L")
+	assert_eq(branch["cells"], [Vector2i(3, 1), Vector2i(2, 1)] as Array[Vector2i])
+	assert_eq(doc.branch_end(0, Vector2i(2, 1))["key"], "L", "at an end: that end")
+	assert_true(doc.branch_end(0, Vector2i(9, 9)).is_empty())
+	# A wire drawn there joins L and branches off with a dot, no junction.
+	doc.add(Lamp.new("H2"), Vector2i(8, 3))
+	var corners: Array[Vector2i] = [Vector2i(8, 0), Vector2i(3, 0)]
+	corners.append_array(branch["cells"].slice(0, branch["cells"].size() - 1))
+	doc.connect_terminals("H2:X1", branch["key"], corners)
+	_assert_routes_valid(doc)
+	assert_true(doc.junction_cells().has(Vector2i(3, 1)))
+	for c: CircuitComponent in doc.circuit.get_components():
+		assert_false(c is Junction)
+
+
+func test_branch_end_prefers_part_terminal() -> void:
+	var doc: SchematicDocument = SchematicDocument.new()
+	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
+	doc.add(Junction.new("J1"), Vector2i(10, 1))
+	doc.connect_terminals("L", "J1")
+	var branch: Dictionary = doc.branch_end(0, Vector2i(8, 1))
+	assert_eq(branch["key"], "L", "the part's terminal, though the junction is nearer")
+	assert_eq(branch["cells"], [Vector2i(8, 1), Vector2i(2, 1)] as Array[Vector2i])
+
+
 func test_cleanup_merges_junction_with_two_wires() -> void:
 	var doc: SchematicDocument = _lamp_doc()
 	doc.split_wire(0, Vector2i(4, 1))
