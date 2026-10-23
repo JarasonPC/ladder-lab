@@ -433,8 +433,21 @@ Architecture and conventions of the code base. Read this before changing the cod
   or up and down; is_square: every wall so; is_rectangle: four such): drawn by the outline
   tool with Shift (FloorPlanCanvas._angled, ANGLE_STEP 15°), by turning a wall in the wall
   dialog (set_wall_angle about its start, refused when the outline would cross itself,
-  _simple), or with walls drawn on their own; set_edge leaves a slanting wall be, set_corner
-  and the canvas's corner handle put a slanting wall's corner where it goes (with_corner);
+  _simple), or with walls drawn on their own; set_edge leaves a slanting wall be (move_wall
+  moves it keeping its direction, with the walls of other rooms on its line, the walls beside
+  each sliding along their lines; the canvas drags a slanting wall so, _slant_shift).
+  set_corner(index, k, at, free) moves the corner with the same corner of every room sharing
+  it (corners_at); where the walls round them go straight through it (_shared_wall: a wall
+  of another room on its line along it does not count) or it is on another room's wall,
+  corner_line, it slides along that wall only (_on_line, MIN_WALL from its ends). Walls
+  across or up and down stay so (set_edge on each wall meeting there, so a wall between two
+  rooms moves as a whole) unless free (Shift while dragging) or one slants: then the corners
+  move together (_move_corners: refused where a room would cross itself, turn round or have
+  a wall shorter than MIN_WALL; what is on the walls keeps its share of the way along them);
+  set_wall_angle and set_wall_length (of a slanting wall) move the end corner so too. The
+  canvas previews a corner or wall drag on a copy of the rooms (rooms_copy, _room_preview:
+  every room it moves shown moved) and, while a corner slides along a wall, its distances
+  to the wall's ends (_draw_corner_slide);
   outline_room, from_data, join_rooms (_merged: Geometry2D.merge_polygons) and split_room
   take slanting walls as they are (_clockwise, _without_straight_on); wall_near gives a
   part on one the way of FACING nearest into the room and "straight" false, and doors and
@@ -451,8 +464,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   a rectangle's top and left, every wall of another outline; _dimension_line outside it),
   double-clicked or Enter on a selected wall: length_requested -> FloorPlanView's length
   dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.
-  Doors: hinge_end, opens_back, double (two leaves of half the width from both ends); a
-  double click: door_requested -> FloorPlanView's door dialog; F / Shift+F on a selected door.
+  Doors: kind (FloorPlan.DoorKind, saved "kind" by DOOR_KINDS when not swing: hinged, swinging
+  both ways, sliding along the wall, sliding into it (pocket), folding, a sectional garage
+  door; each drawn in _draw_door), hinge_end (for sliding and folding ones the end it goes
+  to), opens_back, double (two leaves of half the width from both ends), DOOR_MIN_WIDTH ..
+  DOOR_MAX_WIDTH; with Tool.DOOR or Tool.WINDOW the one a click puts in is drawn where it
+  would go, a door of FloorPlanCanvas.door_kind (the kind last set in the door dialog;
+  _new_door, a garage GARAGE_WIDTH wide); a door is taken by its leaf and swing too
+  (_door_swing_box, a few pixels to spare); selected, besides its end handles it has one at
+  the end of its leaf (door_corner) that turns it when dragged to another corner (_door_turn:
+  hinged at the end, opening to the side of the wall nearer the mouse; the corners it can go
+  to ringed meanwhile); a double click: door_requested -> FloorPlanView's door dialog (its
+  kind, width in cm); F / Shift+F on a selected door.
   Windows (FloorPlan.WindowOpening: width, sill, height; saved "windows"), doors and windows
   both FloorPlan.Opening (at, width, vertical, ends; openings() moves them with rooms and
   walls), Tool.WINDOW, a double click: window_requested -> the window dialog. Walls have a
@@ -471,7 +494,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   room's face runs straight through without a step. FloorPlanCanvas._draw_building fills each
   room grown by its walls' thickness (FloorPlan.grown, mitred) in wall_color, the floors over
   it, then the pieces between rooms, run on past their ends by their thickness but never over
-  a floor (Geometry2D.clip_polygons); an opening cuts its band (_band from wall_piece_at, _cut);
+  a floor (Geometry2D.clip_polygons), save the floor of either of its rooms that has a
+  corner of more than a right angle at that end (FloorPlan.obtuse_corner: a slanting wall
+  meeting the wall across, whose band would otherwise stop short of it); an opening cuts its band (_band from wall_piece_at, _cut);
   a part on a wall between rooms is drawn at its face (_face, wall_face); bounds and the
   dimensions (_dimension_gap) are past the outside walls.
   Walls drawn on their own (FloorPlan.walls of FloorPlan.Wall: a, b, thickness, 0 the plan's
@@ -489,9 +514,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   free walls close round a space through it (_loop_through: the shortest way back along them),
   makes those walls a room, its outline their lines grown inwards by half their thickness,
   each wall its thickness (room_drawn asks its name); selected (free_wall_at), dragged, its
-  ends dragged by handles (move_wall_end, closing them too), deleted, a double click asks its
-  length, direction and thickness (free_wall_requested, the wall dialog); drawn square at
-  their ends over the building (_draw_free_walls); in bounds.
+  ends dragged by handles (move_wall_end, closing them too; _wall_end_target snaps onto room
+  walls as drawing does, with the distances to their ends), deleted, a double click asks its
+  length, direction and thickness (free_wall_requested, the wall dialog); drawn over the
+  building (_draw_free_walls) as FloorPlan.free_wall_outlines gives them: an end shared with
+  one other free wall mitred with it, an end on another free wall's line or a room's wall
+  cut along it (in the middle of a room wall's band; _free_wall_end, _cut_along), any other
+  end square half its thickness past it; in bounds.
   Staircases (Room.stairs, stairs_reverse; saved "stairs": "up" or "reverse"; the room panel's
   ticks): FloorPlan.stair_lines gives the treads TREAD apart and the walking line, straight
   along a rectangle's longer side, in an L (_l_corner) a flight in each arm turning in the
@@ -553,8 +582,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   FloorPlan.Layer: name, shown; saved "plan_layers"; add_plan_layer, rename_plan_layer and
   remove_plan_layer, names unique, MAX_LAYER_NAME, what was on a layer taken away stays on
   none); parts (FloorPlan.part_layers by designation, saved "part_layers", never the unit),
-  notes, dimensions, fixtures and marks ("layer") are on one or on none ("");
-  SchematicDocument.layer_shown: on none or a layer there is no more, shown. On a hidden one
+  fixtures and marks ("layer") are on one or on none (""); dimensions and notes are always
+  on the program's own layer FloorPlan.ANNOTATIONS ("Dimensions and notes": not among
+  plan_layers, never renamed nor taken away, no layer of its name made, nothing else put on
+  it, set_item_layer leaves them, no right-click layer menu for them; their "layer" not
+  saved; shown by SchematicDocument.annotations_shown, saved "annotations_hidden", the
+  Layers menu's first tick, Show all too); SchematicDocument.layer_shown: on none or a layer
+  there is no more, shown. On a hidden one
   they are neither drawn nor picked (FloorPlanCanvas.layer_shows, shows; a link or cable
   only with both its parts shown, _link_shown), nor counted in the legend; the building, the
   unit and the room legend always. New ones go on FloorPlanCanvas.active_layer (new_layer:
