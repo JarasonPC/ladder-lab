@@ -536,7 +536,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   Dimensions printed with the plan (FloorPlan.Dimension, saved "dimensions"): a chain along
   wall "wall" of room "room" (dimension_stops: its corners, the parts on it, the ends of its
   openings) or, room -1, between "a" and "b"; "offset" from the wall (past the outside wall)
-  or to the left of a-b. remove_room and join_rooms drop a room's chains and renumber the rest.
+  or to the left of a-b. remove_room and join_rooms drop a room's chains and renumber the rest;
+  remove_room takes the doors and windows in its walls away too.
   Tool.DIMENSION: a click on a wall adds its chain, a drag a free one (both ends caught by
   _feature_point: corners, parts, opening ends); a dimension dragged sets its offset
   (_dimension_geometry, saved_dimension_at); Tool.MEASURE shows the distance dragged
@@ -572,7 +573,20 @@ Architecture and conventions of the code base. Read this before changing the cod
   lighting graph takes every floor's links; saved "floors" and "floor" with more than one,
   else "floor_plan". FloorPlanView: the floors as tabs over the plan (show_floor, floor_changed
   -> main.gd sets both copies of the document) and a menu to add one above or a basement,
-  rename or remove the one shown; the export makes a floor plan sheet a floor with something
+  rename or remove the one shown; while editing, the floor below (for the lowest the one
+  above; FloorPlanCanvas.reference_floor) is drawn under the one shown in dash-dot lines:
+  its building's outline inside and out of its outside walls (building_outlines: the rooms
+  merged) and its staircases, its name by them (_draw_reference), never where the floor
+  shown has a wall already (_off_walls: outside its rooms grown by their walls, or inside
+  a room itself; the name only while something shows); their corners are caught
+  by the wall, room and outline tools (_reference_corners in _wall_snap, _room_point).
+  Staircase lighting over floors: the light switches and luminaires of the floors above
+  and below that are in a staircase (of either floor) are shown faint in it with their
+  floor (stair_ghosts, _draw_stair_ghosts) and Tool.WIRE draws links to or from them
+  (ghost_at; the link kept on the floor it is drawn on); a floor draws its own links and
+  the other floors' links from one of its parts to one shown so (_link_end); a part taken
+  off the plan takes its links on every floor (FloorPlan.unlink); SingleLine.lighting_graph
+  takes every floor's links, so a staircase switch on each floor wires as one; the export makes a floor plan sheet a floor with something
   on it ("floor" in its spec). Underlay (FloorPlan.underlay: an image file, underlay_at,
   underlay_scale m a pixel, underlay_shown; saved "underlay"): drawn at 35 % under the plan,
   never on a sheet (FloorPlanCanvas._draw_underlay, underlay_texture caches the image);
@@ -625,6 +639,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   settings dialog sets every floor alike): FloorPlanCanvas._symbols scales the parts' symbols,
   their offset from the wall, their hold and the legend's symbols; _sized every text of the
   plan; the legend's rows (_legend_row) open up for either.
+  A room drawn or put (Tool.ROOM, OUTLINE, PLACE_ROOM: FloorPlan.put_room) into or over
+  other rooms takes what it covers from them (_outside_of: the pieces left, cut across
+  through it up and down where it lies wholly inside one; the larger keeps the room, the
+  others are rooms of its name, a room wholly covered goes), so rooms never overlap.
   Making and changing rooms: Tool.ROOM by a drag or two clicks (_room_from), the width and
   depth typed (_room_typed, _room_field: digits, Tab, Enter, Esc; _drawn_room takes them the
   way the mouse is); Tool.OUTLINE by its corners (_corners, _next_corner: with Shift slanting by ANGLE_STEP, else across or up and

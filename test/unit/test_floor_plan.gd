@@ -764,3 +764,69 @@ func test_door_kinds_turned_by_their_corner() -> void:
 	canvas._dragging = false
 	assert_true(door.hinge_end, "hinged at its other end")
 	assert_true(door.opens_back, "opening to the other side")
+
+
+func test_staircase_lighting_across_floors_and_the_floor_below() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	for designation: String in ["SF1", "SF2"]:
+		var sw: LightSwitch = LightSwitch.new(designation)
+		sw.circuit = "6"
+		doc.add(sw, Vector2i(0, 10 if designation == "SF1" else 14))
+	doc.add(Luminaire.new("EA1"), Vector2i(0, 18))
+	var stairs: FloorPlan.Room = FloorPlan.Room.new("Staircase", Rect2(4, 5.5, 1.2, 3.5))
+	stairs.stairs = true
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(0, 5.5, 4, 3.5)))
+	doc.floor_plan.rooms.append(stairs)
+	doc.floor_plan.place("SF1", Vector2(4.05, 8.6), false)
+	doc.floor = doc.add_floor()
+	var upper_stairs: FloorPlan.Room = FloorPlan.Room.new("Staircase", Rect2(4, 5.5, 1.2, 3.5))
+	upper_stairs.stairs = true
+	doc.floor_plan.rooms.append(upper_stairs)
+	doc.floor_plan.place("SF2", Vector2(5.15, 6.0), false)
+	doc.floor_plan.place("EA1", Vector2(4.6, 7.2), true)
+	var canvas: FloorPlanCanvas = FloorPlanCanvas.new()
+	canvas.document = doc
+	canvas.editing = true
+	canvas.size = Vector2(1000, 700)
+	canvas.edit_requested.connect(func(change: Callable) -> void: change.call(doc))
+	add_child_autofree(canvas)
+	# Upstairs: the switch at the foot of the stairs shown in the staircase.
+	var ghosts: Dictionary = canvas.stair_ghosts()
+	assert_true(ghosts.has("SF1"), "the switch downstairs, in the staircase")
+	assert_false(ghosts["SF1"]["up"])
+	var ghost: Vector2 = canvas.to_screen(ghosts["SF1"]["at"])
+	assert_eq(canvas.ghost_at(ghost), "SF1")
+	# The lighting drawn from the switch upstairs to it, and to the light.
+	canvas.tool = FloorPlanCanvas.Tool.WIRE
+	for target: Vector2 in [ghost, canvas.to_screen(canvas.symbol_center("EA1"))]:
+		canvas._press_at = canvas.to_screen(canvas.symbol_center("SF2"))
+		var press: Dictionary = canvas._pressed(canvas._press_at)
+		assert_eq(press.get("kind", ""), "new_link")
+		canvas._release(press, target)
+	assert_eq(doc.floor_plan.links.size(), 2)
+	var graph: Dictionary[String, PackedStringArray] = SingleLine.lighting_graph(doc)
+	assert_true(graph.has("SF1#0") and graph.has("EA1"), "a staircase over two floors")
+	canvas.queue_redraw()
+	await get_tree().process_frame
+	# The floor below drawn under this one, its corners caught.
+	assert_eq(canvas.reference_floor(), 0)
+	assert_eq(canvas._room_point(Vector2(0.05, 5.45)), Vector2(0, 5.5), "onto the corner of the floor below")
+	var below: PackedVector2Array = FloorPlanCanvas.building_outlines(doc.floors[0])[0]
+	below.append(below[0])
+	assert_false(canvas._off_walls(below).is_empty(), "shown while nothing is drawn over it")
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(0, 5.5, 4, 3.5)))
+	assert_true(canvas._off_walls(below).is_empty(), "hidden under the walls drawn over it")
+	doc.floor_plan.rooms.remove_at(doc.floor_plan.rooms.size() - 1)
+	# Downstairs: the link drawn upstairs shows to the switch and light upstairs.
+	doc.floor = 0
+	assert_true(canvas.stair_ghosts().has("SF2"))
+	assert_true(canvas.stair_ghosts().has("EA1"))
+	assert_eq(canvas.reference_floor(), 1, "the lowest floor drawn over the one above")
+	canvas.queue_redraw()
+	await get_tree().process_frame
+	# The switch downstairs taken off the plan: its link upstairs goes too.
+	canvas.tool = FloorPlanCanvas.Tool.SELECT
+	canvas.selected = {"kind": "part", "designation": "SF1"}
+	canvas.delete_selected()
+	assert_eq(doc.floors[1].links.size(), 1, "only the light's link stays")

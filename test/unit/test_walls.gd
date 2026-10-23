@@ -332,3 +332,39 @@ func test_walls_between_rooms_stay_straight_unless_free() -> void:
 	var end: Vector2 = plan.rooms[0].points[(k + 1) % plan.rooms[0].points.size()]
 	assert_true(plan.set_wall_angle(0, k, FloorPlan.wall_angle(PackedVector2Array([top, end])), top.distance_to(end) - 0.5))
 	assert_eq(plan.corners_at(plan.rooms[0].points[(k + 1) % plan.rooms[0].points.size()]).size(), 2)
+
+
+func test_rooms_put_into_rooms() -> void:
+	var plan: FloorPlan = _plan()
+	plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 6, 5)))
+	plan.doors.append(FloorPlan.Door.new(Vector2(6, 2), true))
+	plan.windows.append(FloorPlan.WindowOpening.new(Vector2(3, 0), false))
+	# Into a corner: the room it is put in gives it up, an L.
+	assert_eq(plan.put_room(FloorPlan.Room.new("Bathroom", Rect2(0, 0, 2, 2))), 1)
+	assert_eq(plan.rooms[0].points.size(), 6, "the living room an L")
+	assert_almost_eq(_area(plan), 30.0, 1e-3, "nothing overlapping, nothing lost")
+	assert_eq(plan.overlaps().size(), 0)
+	# Across it: two pieces, the larger keeps its place.
+	assert_eq(plan.put_room(FloorPlan.Room.new("Hall", Rect2(3, 0, 1, 5))), 3)
+	assert_eq(plan.rooms.size(), 4)
+	assert_eq(plan.rooms[2].name, "Living room", "the piece cut off named alike")
+	assert_almost_eq(_area(plan), 30.0, 1e-3)
+	assert_eq(plan.overlaps().size(), 0)
+	# Wholly inside one: it is cut across through it.
+	var big: FloorPlan = _plan()
+	big.rooms.append(FloorPlan.Room.new("Room", Rect2(0, 0, 8, 6)))
+	big.put_room(FloorPlan.Room.new("Closet", Rect2(3, 2, 2, 2)))
+	assert_eq(big.rooms.size(), 3, "two pieces round it")
+	assert_almost_eq(_area(big), 48.0, 1e-3)
+	assert_eq(big.overlaps().size(), 0)
+	# Over a room wholly: that one goes.
+	big.put_room(FloorPlan.Room.new("Store", Rect2(2.5, 1.5, 3, 3)))
+	assert_false(big.rooms.any(func(r: FloorPlan.Room) -> bool: return r.name == "Closet"))
+	assert_eq(big.overlaps().size(), 0)
+	# Taken away: the doors and windows in its walls with it.
+	var index: int = plan.room_at(Vector2(5, 3))
+	plan.remove_room(index)
+	assert_eq(plan.doors.size(), 0, "its door")
+	var top: int = plan.windows.size()
+	plan.remove_room(plan.room_at(Vector2(3.5, 2)))
+	assert_eq(plan.windows.size(), top - 1, "its window")

@@ -6564,3 +6564,6 @@ msgstr ""
 
 msgid "Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts and furniture go on (dimensions and notes always go on their own); a right click on something puts it on another"
 msgstr ""
+
+msgid "Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it)."
+msgstr ""
