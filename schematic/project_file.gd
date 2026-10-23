@@ -264,4 +264,6 @@ static func from_dict(data: Dictionary) -> Dictionary:
 	var doc: SchematicDocument = DocumentSerializer.from_dict(document_data)
 	if doc == null:
 		return {"error": "%s is damaged and cannot be opened."}
+	# Branches of older drawings were junctions; wires join terminals now.
+	doc.remove_junctions()
 	return {"document": doc}
