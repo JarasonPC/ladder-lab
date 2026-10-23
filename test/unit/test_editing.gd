@@ -187,6 +187,26 @@ func test_branch_end_prefers_part_terminal() -> void:
 	assert_eq(branch["cells"], [Vector2i(8, 1), Vector2i(2, 1)] as Array[Vector2i])
 
 
+func test_older_junctions_become_wires_to_terminals_on_opening() -> void:
+	var doc: SchematicDocument = _lamp_doc()
+	doc.split_wire(0, Vector2i(4, 1))
+	doc.add(Lamp.new("H2"), Vector2i(8, 3))
+	doc.connect_terminals("J1", "H2:X1", [Vector2i(4, 0), Vector2i(8, 0)] as Array[Vector2i])
+	# A junction left with two wires, as older drawings have them.
+	var points: Array[Vector2i] = doc.wire_points(doc.wire_between("S1:14", "H1:X1"))
+	assert_eq(doc.split_wire(doc.wire_between("S1:14", "H1:X1"), points[0] + (points[1] - points[0]).sign()), "J2")
+	var opened: SchematicDocument = ProjectFile.from_dict(ProjectFile.to_dict(doc))["document"]
+	for c: CircuitComponent in opened.circuit.get_components():
+		assert_false(c is Junction)
+	assert_eq(opened.get_wire_count(), 4)
+	_assert_routes_valid(opened)
+	var sim: Simulator = Simulator.new(opened.circuit)
+	assert_eq(sim.get_net_of("H2:X1"), sim.get_net_of("L"))
+	assert_eq(sim.get_net_of("S1:13"), sim.get_net_of("L"))
+	assert_eq(sim.get_net_of("S1:14"), sim.get_net_of("H1:X1"))
+	assert_true(opened.junction_cells().has(Vector2i(4, 1)), "the dot stays where the junction was")
+
+
 func test_cleanup_merges_junction_with_two_wires() -> void:
 	var doc: SchematicDocument = _lamp_doc()
 	doc.split_wire(0, Vector2i(4, 1))

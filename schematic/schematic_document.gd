@@ -1743,6 +1743,61 @@ func cleanup_junctions() -> void:
 			break
 
 
+## Replaces the junctions of drawings made before wires were joined terminal
+## to terminal: the wires of each one are joined to the end nearest along
+## them (a part's terminal before a junction), each running its old way to
+## the junction and on along the wire to that end, so the drawing looks the
+## same, the branch dot drawn where the junction was.
+func remove_junctions() -> void:
+	var left: bool = true
+	while left:
+		left = false
+		for c: CircuitComponent in circuit.get_components():
+			if c is Junction:
+				_dissolve_junction(c)
+				left = true
+				break
+
+
+func _dissolve_junction(junction: CircuitComponent) -> void:
+	var ends: PackedStringArray = PackedStringArray()
+	# Cells from the junction out to each end.
+	var paths: Array[Array] = []
+	var number: String = ""
+	for w: int in circuit.wires_of(junction):
+		var pair: PackedStringArray = circuit.get_wires()[w]
+		var points: Array[Vector2i] = wire_points(w)
+		if pair[1] == junction.designation:
+			points.reverse()
+		ends.append(pair[1] if pair[0] == junction.designation else pair[0])
+		paths.append(points)
+		if number.is_empty():
+			number = _routes[w].number
+	var anchor: int = -1
+	for i: int in ends.size():
+		if anchor < 0:
+			anchor = i
+			continue
+		var part: bool = not (circuit.get_terminal_owner(ends[i]) is Junction)
+		var anchor_part: bool = not (circuit.get_terminal_owner(ends[anchor]) is Junction)
+		if part != anchor_part:
+			if part:
+				anchor = i
+		elif _cells_length(paths[i]) < _cells_length(paths[anchor]):
+			anchor = i
+	remove_component(junction.id)
+	for i: int in ends.size():
+		if i == anchor or ends[i] == ends[anchor] or wire_between(ends[i], ends[anchor]) >= 0:
+			continue
+		var route: Array[Vector2i] = []
+		route.assign(paths[i])
+		route.reverse()
+		route.append_array(paths[anchor].slice(1))
+		var clean: Array[Vector2i] = orthogonalize(route)
+		connect_terminals(ends[i], ends[anchor], clean.slice(1, clean.size() - 1))
+		_routes[get_wire_count() - 1].number = number
+
+
 ## Re-routes a wire so all segments are horizontal or vertical. Each end that
 ## belongs to a symbol first leaves one cell straight out along the symbol
 ## axis. If that route would cross a symbol (e.g. after turning a symbol by
