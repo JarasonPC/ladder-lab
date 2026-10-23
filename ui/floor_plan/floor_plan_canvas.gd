@@ -709,7 +709,7 @@ func link_at(point: Vector2) -> int:
 	if not installation():
 		return -1
 	for i: int in plan().links.size():
-		if not _link_shown(plan().links[i]):
+		if not _link_shown(plan().links[i]) or is_nan(_link_end(plan().links[i].a).x) or is_nan(_link_end(plan().links[i].b).x):
 			continue
 		var path: PackedVector2Array = _link_path(plan().links[i])
 		for k: int in path.size() - 1:
@@ -720,9 +720,194 @@ func link_at(point: Vector2) -> int:
 
 ## The way link [param link] is drawn along the walls (screen points).
 func _link_path(link: FloorPlan.Link) -> PackedVector2Array:
-	var a: Vector2 = to_screen(_cable_end(link.a))
-	var b: Vector2 = to_screen(_cable_end(link.b))
+	var a: Vector2 = to_screen(_link_end(link.a))
+	var b: Vector2 = to_screen(_link_end(link.b))
 	return PackedVector2Array([a, Vector2(b.x, a.y), b])
+
+
+## Where a link to [param designation] ends (m): its symbol, or the part of
+## the floor above or below shown in a staircase; NAN for neither.
+func _link_end(designation: String) -> Vector2:
+	if plan().parts.has(designation):
+		return _cable_end(designation)
+	var ghosts: Dictionary = stair_ghosts()
+	return Vector2(ghosts[designation]["at"]) if ghosts.has(designation) else Vector2(NAN, NAN)
+
+
+## The light switches and luminaires of the floors above and below this one
+## that are in a staircase (of either floor), shown in it so the lighting
+## can be drawn to them: designation -> {"at" (m, where its symbol is),
+## "floor" (its index), "up" (above this one)}.
+func stair_ghosts() -> Dictionary:
+	var result: Dictionary = {}
+	if document == null or not installation() or document.floors.size() < 2:
+		return result
+	var here: int = document.floor
+	var stairs: Array[PackedVector2Array] = []
+	for room: FloorPlan.Room in plan().rooms:
+		if room.stairs:
+			stairs.append(room.points)
+	for other: int in [here - 1, here + 1]:
+		if other < 0 or other >= document.floors.size():
+			continue
+		var there: FloorPlan = document.floors[other]
+		var their_stairs: Array[PackedVector2Array] = stairs.duplicate()
+		for room: FloorPlan.Room in there.rooms:
+			if room.stairs:
+				their_stairs.append(room.points)
+		for designation: String in there.parts:
+			var c: CircuitComponent = document.circuit.get_component(designation) if designation != FloorPlan.UNIT else null
+			if not (c is LightSwitch or c is Luminaire) or plan().parts.has(designation):
+				continue
+			var at: Vector2 = there.parts[designation]
+			var inside: bool = false
+			for shape: PackedVector2Array in their_stairs:
+				if Geometry2D.is_point_in_polygon(at, shape) or FloorPlan.wall_through(shape, at) >= 0:
+					inside = true
+			if not inside:
+				continue
+			if there.facing.has(designation):
+				at += FloorPlan.FACING[there.facing[designation]] * WALL_SYMBOL_OFFSET * _symbols()
+			result[designation] = {"at": at, "floor": other, "up": other > here}
+	return result
+
+
+## The part of the floor above or below shown in a staircase under screen
+## point [param point], "" for none.
+func ghost_at(point: Vector2) -> String:
+	var m: Vector2 = to_plan(point)
+	var ghosts: Dictionary = stair_ghosts()
+	var best: String = ""
+	var reach: float = maxf(0.25 * _symbols(), EDGE_GRAB / (PX * zoom))
+	for designation: String in ghosts:
+		var d: float = Vector2(ghosts[designation]["at"]).distance_to(m)
+		if d < reach:
+			reach = d
+			best = designation
+	return best
+
+
+## The floor drawn under the one shown while editing (to draw this one over
+## it): the one below, for the lowest the one above; -1 for none.
+func reference_floor() -> int:
+	if document == null or not editing or document.floors.size() < 2:
+		return -1
+	return document.floor - 1 if document.floor > 0 else 1
+
+
+## The outlines of the building of plan [param there]: its rooms put
+## together (m; one per part of the building apart, no courtyards).
+static func building_outlines(there: FloorPlan) -> Array[PackedVector2Array]:
+	var merged: Array[PackedVector2Array] = []
+	for room: FloorPlan.Room in there.rooms:
+		var current: PackedVector2Array = room.points
+		var rest: Array[PackedVector2Array] = []
+		for shape: PackedVector2Array in merged:
+			var union: Array[PackedVector2Array] = Geometry2D.merge_polygons(current, shape)
+			var outer: Array[PackedVector2Array] = []
+			for piece: PackedVector2Array in union:
+				if not Geometry2D.is_polygon_clockwise(piece) or union.size() == 1:
+					outer.append(piece)
+			if outer.size() == 1:
+				current = outer[0]
+			else:
+				rest.append(shape)
+		rest.append(current)
+		merged = rest
+	return merged
+
+
+## The corners of the floor drawn under this one (see
+## [method reference_floor]): of its building's outlines inside and out of
+## its outside walls and of its staircases (m).
+func _reference_corners() -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	var index: int = reference_floor()
+	if index < 0:
+		return result
+	var there: FloorPlan = document.floors[index]
+	for outline: PackedVector2Array in building_outlines(there):
+		result.append_array(outline)
+		for grown: PackedVector2Array in Geometry2D.offset_polygon(outline, there.outer_wall, Geometry2D.JOIN_MITER):
+			result.append_array(grown)
+	for room: FloorPlan.Room in there.rooms:
+		if room.stairs:
+			result.append_array(room.points)
+	return result
+
+
+## The floor under this one (see [method reference_floor]) as dash-dot lines:
+## its outside walls and its staircases, its name by them; never where this
+## floor has a wall already (it is drawn there).
+func _draw_reference(font: Font) -> void:
+	var index: int = reference_floor()
+	if index < 0:
+		return
+	var there: FloorPlan = document.floors[index]
+	var color: Color = Color(SchematicTheme.LINE, 0.5)
+	var lines: Array[PackedVector2Array] = []
+	var top_left: Vector2 = Vector2(INF, INF)
+	for outline: PackedVector2Array in building_outlines(there):
+		lines.append(outline)
+		lines.append_array(Geometry2D.offset_polygon(outline, there.outer_wall, Geometry2D.JOIN_MITER))
+		for p: Vector2 in outline:
+			top_left = Vector2(minf(top_left.x, p.x), minf(top_left.y, p.y))
+	for room: FloorPlan.Room in there.rooms:
+		if room.stairs:
+			lines.append(room.points)
+	var shown: bool = false
+	for line: PackedVector2Array in lines:
+		var closed: PackedVector2Array = line.duplicate()
+		closed.append(line[0])
+		for piece: PackedVector2Array in _off_walls(closed):
+			CustomSymbol.stroke_line(self, _screen_points(piece), color, 1.2, "dashdot")
+			shown = true
+	if shown and top_left.x < INF:
+		var at: Vector2 = to_screen(top_left - Vector2(0.0, there.outer_wall)) + Vector2(0, -6)
+		draw_string(font, at, "%s %s" % ["↓" if index < document.floor else "↑", there.floor_name()], HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
+
+
+## The stretches of polyline [param line] (m) not on a wall of this floor:
+## not within the band its rooms' walls take (a little to spare).
+func _off_walls(line: PackedVector2Array) -> Array[PackedVector2Array]:
+	var visible: Array[PackedVector2Array] = [line]
+	for room: FloorPlan.Room in plan().rooms:
+		var offsets: PackedFloat32Array = PackedFloat32Array()
+		for k: int in room.points.size():
+			var own: float = room.wall_thickness(k)
+			offsets.append(own if own > 0.0 else plan().outer_wall)
+		var outer: Array[PackedVector2Array] = Geometry2D.offset_polygon(FloorPlan.grown(room.points, offsets), 0.03, Geometry2D.JOIN_MITER)
+		var inner: Array[PackedVector2Array] = Geometry2D.offset_polygon(room.points, -0.03, Geometry2D.JOIN_MITER)
+		if outer.is_empty():
+			continue
+		var next: Array[PackedVector2Array] = []
+		for piece: PackedVector2Array in visible:
+			next.append_array(Geometry2D.clip_polyline_with_polygon(piece, outer[0]))
+			# Inside the room itself it shows again.
+			for inside: PackedVector2Array in Geometry2D.intersect_polyline_with_polygon(piece, outer[0]):
+				for floor_shape: PackedVector2Array in inner:
+					next.append_array(Geometry2D.intersect_polyline_with_polygon(inside, floor_shape))
+		visible = next
+	return visible
+
+
+## The parts of the floors above and below in a staircase, faint, each with
+## its floor and the way to it.
+func _draw_stair_ghosts(font: Font, s: float) -> void:
+	var ghosts: Dictionary = stair_ghosts()
+	var color: Color = Color(SchematicTheme.LINE, 0.45)
+	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
+	for designation: String in ghosts:
+		var ghost: Dictionary = ghosts[designation]
+		var at: Vector2 = to_screen(ghost["at"])
+		var c: CircuitComponent = document.circuit.get_component(designation)
+		if c is LightSwitch:
+			PlanSymbols.draw_switch(self, c as LightSwitch, at, Vector2.DOWN, s * _symbols(), color, width)
+		else:
+			PlanSymbols.draw_luminaire(self, at, s * _symbols(), color, width, false, Vector2.ZERO)
+		var floor_name: String = document.floors[int(ghost["floor"])].floor_name()
+		var text: String = "-%s %s %s" % [designation, "↑" if ghost["up"] else "↓", floor_name]
+		draw_string(font, at + Vector2(10, 14), text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(SchematicTheme.DESIGNATION, 0.6))
 
 
 ## The rocker or output of switch [param designation] a point on its
@@ -732,7 +917,7 @@ func _port_at(designation: String, point: Vector2) -> int:
 	if sw == null or SingleLine.switch_ports(sw).size() < 2:
 		return 0
 	# Drawn upright: the left rocker is the first.
-	var center: Vector2 = to_screen(symbol_center(designation))
+	var center: Vector2 = to_screen(symbol_center(designation) if plan().parts.has(designation) else _link_end(designation))
 	return 0 if point.x < center.x else 1
 
 
@@ -1093,6 +1278,9 @@ func _pressed(point: Vector2) -> Dictionary:
 			return {"kind": "join", "index": plan().room_at(to_plan(point))}
 		Tool.WIRE:
 			var from: String = part_at(point)
+			if from.is_empty():
+				# A part of the floor above or below, in a staircase.
+				from = ghost_at(point)
 			var c: CircuitComponent = document.circuit.get_component(from) if not from.is_empty() else null
 			if c is LightSwitch or c is Luminaire:
 				return {"kind": "new_link", "designation": from, "port": _port_at(from, point)}
@@ -1183,9 +1371,9 @@ func _release(press: Dictionary, point: Vector2) -> void:
 		"place_room":
 			var ghost: FloorPlan.Room = _placed_room()
 			if ghost != null:
-				var new_index: int = plan().rooms.size()
-				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.rooms.append(ghost))
-				selected = {"kind": "room", "index": new_index}
+				var made: Array[int] = [-1]
+				edit_requested.emit(func(doc: SchematicDocument) -> void: made[0] = doc.floor_plan.put_room(ghost))
+				selected = {"kind": "room", "index": made[0]}
 		"new_door":
 			var wall: Dictionary = plan().wall_near(m, 0.3)
 			if not wall.is_empty() and wall["straight"]:
@@ -1310,6 +1498,8 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.windows.append(FloorPlan.WindowOpening.new(at, vertical)))
 		"new_link":
 			var to: String = part_at(point)
+			if to.is_empty():
+				to = ghost_at(point)
 			var c: CircuitComponent = document.circuit.get_component(to) if not to.is_empty() else null
 			var from: String = press["designation"]
 			if (c is LightSwitch or c is Luminaire) and to != from and (c is LightSwitch or document.circuit.get_component(from) is LightSwitch or c is Luminaire):
@@ -1628,7 +1818,11 @@ func delete_selected() -> void:
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.marks.remove_at(mark))
 		"part":
 			var designation: String = selected["designation"]
-			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.remove(designation))
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				doc.floor_plan.remove(designation)
+				# Its lighting drawn from the floors above and below goes too.
+				for other: FloorPlan in doc.floors:
+					other.unlink(designation))
 		"link":
 			var link: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void:
@@ -1779,9 +1973,14 @@ func _drawing_rect() -> bool:
 	return tool == Tool.ROOM and (not is_nan(_room_from.x) or (_press.get("kind", "") == "new_room" and _dragging))
 
 
-## Plan point [param m] where a room's corner goes: on the grid, onto the
-## walls near.
+## Plan point [param m] where a room's corner goes: onto a corner of the
+## floor below near, else on the grid, onto the walls near.
 func _room_point(m: Vector2) -> Vector2:
+	# Onto a corner of the floor below, drawn under this one.
+	var reach: float = FEATURE_GRAB / (PX * zoom)
+	for p: Vector2 in _reference_corners():
+		if p.distance_to(m) < reach:
+			return p
 	var at: Vector2 = FloorPlan.snap(m)
 	return Vector2(_snap_edge(at.x, false, -1), _snap_edge(at.y, true, -1))
 
@@ -1798,8 +1997,10 @@ func _add_rect_room(rect: Rect2) -> void:
 
 
 func _add_room(room: FloorPlan.Room) -> void:
-	var index: int = plan().rooms.size()
-	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.rooms.append(room))
+	# Put into or over other rooms, they give up what it covers.
+	var made: Array[int] = [-1]
+	edit_requested.emit(func(doc: SchematicDocument) -> void: made[0] = doc.floor_plan.put_room(room))
+	var index: int = made[0]
 	selected = {"kind": "room", "index": index}
 	room_drawn.emit(index)
 
@@ -1877,8 +2078,8 @@ func _next_wall_point() -> Vector2:
 	return best
 
 
-## A free wall's end or a room's corner within reach of plan point
-## [param m], NAN for none.
+## A free wall's end, a room's corner or a corner of the floor below within
+## reach of plan point [param m], NAN for none.
 func _wall_snap(m: Vector2) -> Vector2:
 	var reach: float = FEATURE_GRAB / (PX * zoom)
 	var best: Vector2 = Vector2(NAN, NAN)
@@ -1892,6 +2093,11 @@ func _wall_snap(m: Vector2) -> Vector2:
 			if p.distance_to(m) < reach:
 				reach = p.distance_to(m)
 				best = p
+	# The corners of the floor below, drawn under this one.
+	for p: Vector2 in _reference_corners():
+		if p.distance_to(m) < reach:
+			reach = p.distance_to(m)
+			best = p
 	return best
 
 
@@ -2361,6 +2567,7 @@ func _draw() -> void:
 	var wall: float = maxf(WALL * s, 2.0)
 	_draw_building(shapes, rooms, s)
 	_draw_free_walls()
+	_draw_reference(font)
 	for i: int in shapes.size():
 		if plan().rooms[i].stairs:
 			_draw_stairs(shapes[i], plan().rooms[i].stairs_reverse)
@@ -2445,7 +2652,7 @@ func _draw() -> void:
 		var wall_point: Dictionary = {} if _template_on_ceiling(placing_template) else plan().wall_near(m)
 		draw_circle(to_screen(wall_point.get("at", FloorPlan.snap(m))), 4.0, SchematicTheme.SELECTED)
 	if editing and tool == Tool.WIRE and _press.get("kind", "") == "new_link":
-		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.SELECTED, 1.6, 5.0)
+		draw_dashed_line(to_screen(_link_end(_press["designation"])), _mouse, SchematicTheme.SELECTED, 1.6, 5.0)
 	_draw_saved_dimensions(font)
 	_draw_wall_distance(font)
 	_draw_corner_slide(font)
@@ -2480,6 +2687,8 @@ func _draw() -> void:
 		_draw_legend(s, font)
 	if plan().rooms.is_empty() and editing:
 		var hint: String = tr("Draw a room: pick Room and drag, or add one of the ready rooms.")
+		if reference_floor() >= 0:
+			hint = tr("Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it).")
 		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), Color(SchematicTheme.LINE, 0.6))
 
 
@@ -3114,11 +3323,21 @@ static func _metres_text(metres: float) -> String:
 ## a tick per core it carries (the nets its two ends share).
 func _draw_links(font: Font) -> void:
 	var nets: Dictionary[String, int] = _nets()
-	for i: int in plan().links.size():
-		var link: FloorPlan.Link = plan().links[i]
-		if not (plan().parts.has(link.a) and plan().parts.has(link.b)) or not _link_shown(link):
+	_draw_stair_ghosts(font, PX * zoom)
+	# This floor's links, then those of the floors above and below to a part
+	# of this one (through a staircase).
+	var links: Array[FloorPlan.Link] = plan().links.duplicate()
+	for other: FloorPlan in document.floors:
+		if other == plan():
 			continue
-		var chosen: bool = selected.get("kind", "") == "link" and selected.get("index", -1) == i
+		for link: FloorPlan.Link in other.links:
+			if plan().parts.has(link.a) != plan().parts.has(link.b):
+				links.append(link)
+	for i: int in links.size():
+		var link: FloorPlan.Link = links[i]
+		if is_nan(_link_end(link.a).x) or is_nan(_link_end(link.b).x) or not _link_shown(link):
+			continue
+		var chosen: bool = i < plan().links.size() and selected.get("kind", "") == "link" and selected.get("index", -1) == i
 		var color: Color = SchematicTheme.SELECTED if chosen else SchematicTheme.LINE
 		var path: PackedVector2Array = _link_path(link)
 		draw_polyline(path, color, clampf(1.3 * zoom, 1.0, 2.2), true)

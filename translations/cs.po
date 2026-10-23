@@ -6589,3 +6589,6 @@ msgstr "Na této vrstvě jsou všechny kóty a poznámky; nelze ji přejmenovat 
 
 msgid "Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts and furniture go on (dimensions and notes always go on their own); a right click on something puts it on another"
 msgstr "Vrstvy: zobrazit nebo skrýt, co je na každé z nich (na obrazovce i na exportovaných výkresech), a zvolit tu, na kterou jdou nové prvky a nábytek (kóty a poznámky jdou vždy na svou vlastní); kliknutím pravým tlačítkem se něco přesune na jinou"
+
+msgid "Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it)."
+msgstr "Nakreslete toto podlaží nad tím pod ním (čerchovaně): jeho rohy se přichytávají (po rozích domu, pak zdmi napříč)."

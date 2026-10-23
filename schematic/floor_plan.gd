@@ -823,10 +823,90 @@ func dimension_stops(dim: Dimension) -> PackedFloat32Array:
 	return result
 
 
-## Takes room [param index] away, with the dimensions along its walls.
+## Takes room [param index] away, with the dimensions along its walls and
+## the doors and windows in them.
 func remove_room(index: int) -> void:
+	var outline: PackedVector2Array = rooms[index].points
+	for list: Array in [doors, windows]:
+		for j: int in range(list.size() - 1, -1, -1):
+			if wall_through(outline, (list[j] as Opening).at) >= 0:
+				list.remove_at(j)
 	rooms.remove_at(index)
 	_forget_room(index, -1)
+
+
+## Adds room [param room] where it is put: a room it is put into or over
+## gives up what it covers, so that they share walls and never overlap.
+## A room it cuts in two becomes two (the larger keeps all it had, the
+## other its name); one it lies wholly inside is cut across through it, up
+## and down, into two so; one it covers wholly goes. Returns the new room's
+## index.
+func put_room(room: Room) -> int:
+	var gone: Array[int] = []
+	var more: Array[Room] = []
+	for i: int in rooms.size():
+		var other: Room = rooms[i]
+		if not other.rect.intersects(room.rect):
+			continue
+		var covered: float = 0.0
+		for piece: PackedVector2Array in Geometry2D.intersect_polygons(other.points, room.points):
+			covered += polygon_area(piece)
+		if covered < 0.01:
+			continue
+		var rest: Array[PackedVector2Array] = _outside_of(other.points, room.points)
+		if rest.is_empty():
+			gone.append(i)
+			continue
+		rest.sort_custom(func(a: PackedVector2Array, b: PackedVector2Array) -> bool: return polygon_area(a) > polygon_area(b))
+		var kept: Room = Room.new()
+		kept.points = rest[0]
+		_carry_wall_looks(other, kept)
+		other.points = kept.points
+		other.thickness = kept.thickness
+		other.align = kept.align
+		other.label_offset = Vector2.ZERO
+		for d: int in range(dimensions.size() - 1, -1, -1):
+			if dimensions[d].room == i:
+				dimensions.remove_at(d)
+		for k: int in range(1, rest.size()):
+			var piece_room: Room = Room.new(other.name)
+			piece_room.points = rest[k]
+			_carry_wall_looks(other, piece_room)
+			more.append(piece_room)
+	for k: int in range(gone.size() - 1, -1, -1):
+		rooms.remove_at(gone[k])
+		_forget_room(gone[k], -1)
+	rooms.append_array(more)
+	rooms.append(room)
+	return rooms.size() - 1
+
+
+## What of outline [param a] lies outside outline [param b]: its pieces,
+## clockwise, none smaller than half [constant MIN_ROOM] squared; where
+## [param b] lies wholly inside [param a], cut across through it up and
+## down first (an outline has no hole).
+static func _outside_of(a: PackedVector2Array, b: PackedVector2Array) -> Array[PackedVector2Array]:
+	var clipped: Array[PackedVector2Array] = Geometry2D.clip_polygons(a, b)
+	var holes: bool = clipped.size() > 1 and clipped.any(func(p: PackedVector2Array) -> bool: return Geometry2D.is_polygon_clockwise(p))
+	if holes:
+		var box: Rect2 = Rect2(b[0], Vector2.ZERO)
+		for p: Vector2 in b:
+			box = box.expand(p)
+		var x: float = box.get_center().x
+		var far: float = 1000.0
+		clipped = []
+		for half: PackedVector2Array in [PackedVector2Array([Vector2(-far, -far), Vector2(x, -far), Vector2(x, far), Vector2(-far, far)]), PackedVector2Array([Vector2(x, -far), Vector2(far, -far), Vector2(far, far), Vector2(x, far)])]:
+			for side: PackedVector2Array in Geometry2D.intersect_polygons(a, half):
+				clipped.append_array(Geometry2D.clip_polygons(side, b))
+	var result: Array[PackedVector2Array] = []
+	for piece: PackedVector2Array in clipped:
+		var snapped_piece: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in piece:
+			snapped_piece.append(p.snappedf(0.001))
+		var outline: PackedVector2Array = _clockwise(_without_straight_on(_without_repeats(snapped_piece)))
+		if outline.size() >= 3 and polygon_area(outline) >= MIN_ROOM * MIN_ROOM * 0.5:
+			result.append(outline)
+	return result
 
 
 ## Dimensions along the walls of room [param gone] are dropped (and of
@@ -2249,6 +2329,12 @@ func remove(designation: String) -> void:
 	facing.erase(designation)
 	offsets.erase(designation)
 	part_layers.erase(designation)
+	unlink(designation)
+
+
+## Takes the links of part [param designation] away (one on another floor
+## may be linked to it through a staircase).
+func unlink(designation: String) -> void:
 	for i: int in range(links.size() - 1, -1, -1):
 		if links[i].a == designation or links[i].b == designation:
 			links.remove_at(i)

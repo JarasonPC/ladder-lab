@@ -7,6 +7,15 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- Houses of more floors: while editing, the floor below is drawn dash-dot under the one shown
+  (its outside walls and staircase; hidden where this floor has its walls already), and its
+  corners are caught, so the next floor is drawn right over it
+- Staircase lighting over floors: in a staircase, the switches and lights of the floor above
+  and below are shown, and the lighting can be drawn to them, so a staircase switch on each
+  floor switches the same light
+- A room drawn or put into another room takes that part of it (they share walls and never
+  overlap); a room cut in two becomes two rooms
+- Taking a room away takes the doors and windows in its walls with it
 - Dimensions and notes are always on their own layer, "Dimensions and notes", shown or hidden
   in the Layers menu; it cannot be renamed or removed and nothing else goes on it
 - More kinds of doors: swinging both ways, sliding along the wall, sliding into the wall
