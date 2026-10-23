@@ -1246,7 +1246,11 @@ func _on_floor_menu(id: int) -> void:
 	match id:
 		0, 1:
 			var below: bool = id == 1
-			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor = doc.add_floor(below))
+			# Drawn over the floor next to it: its outline and staircases.
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				var next: FloorPlan = doc.floors[0] if below else doc.floors[doc.floors.size() - 1]
+				doc.floor = doc.add_floor(below)
+				doc.floor_plan.start_over(next))
 			show_floor(0 if below else _document.floors.size() - 1)
 		2:
 			_floor_name.text = _document.floor_plan.floor_name()

@@ -798,28 +798,6 @@ func reference_floor() -> int:
 	return document.floor - 1 if document.floor > 0 else 1
 
 
-## The outlines of the building of plan [param there]: its rooms put
-## together (m; one per part of the building apart, no courtyards).
-static func building_outlines(there: FloorPlan) -> Array[PackedVector2Array]:
-	var merged: Array[PackedVector2Array] = []
-	for room: FloorPlan.Room in there.rooms:
-		var current: PackedVector2Array = room.points
-		var rest: Array[PackedVector2Array] = []
-		for shape: PackedVector2Array in merged:
-			var union: Array[PackedVector2Array] = Geometry2D.merge_polygons(current, shape)
-			var outer: Array[PackedVector2Array] = []
-			for piece: PackedVector2Array in union:
-				if not Geometry2D.is_polygon_clockwise(piece) or union.size() == 1:
-					outer.append(piece)
-			if outer.size() == 1:
-				current = outer[0]
-			else:
-				rest.append(shape)
-		rest.append(current)
-		merged = rest
-	return merged
-
-
 ## The corners of the floor drawn under this one (see
 ## [method reference_floor]): of its building's outlines inside and out of
 ## its outside walls and of its staircases (m).
@@ -829,7 +807,7 @@ func _reference_corners() -> PackedVector2Array:
 	if index < 0:
 		return result
 	var there: FloorPlan = document.floors[index]
-	for outline: PackedVector2Array in building_outlines(there):
+	for outline: PackedVector2Array in there.building_outlines():
 		result.append_array(outline)
 		for grown: PackedVector2Array in Geometry2D.offset_polygon(outline, there.outer_wall, Geometry2D.JOIN_MITER):
 			result.append_array(grown)
@@ -850,7 +828,7 @@ func _draw_reference(font: Font) -> void:
 	var color: Color = Color(SchematicTheme.LINE, 0.5)
 	var lines: Array[PackedVector2Array] = []
 	var top_left: Vector2 = Vector2(INF, INF)
-	for outline: PackedVector2Array in building_outlines(there):
+	for outline: PackedVector2Array in there.building_outlines():
 		lines.append(outline)
 		lines.append_array(Geometry2D.offset_polygon(outline, there.outer_wall, Geometry2D.JOIN_MITER))
 		for p: Vector2 in outline:

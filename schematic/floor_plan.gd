@@ -890,6 +890,53 @@ func zone_of(point: Vector2, height: float) -> int:
 	return found
 
 
+## The outlines of the building: its rooms put together (m, clockwise;
+## one per part of the building apart, no courtyards).
+func building_outlines() -> Array[PackedVector2Array]:
+	var merged: Array[PackedVector2Array] = []
+	for room: Room in rooms:
+		var current: PackedVector2Array = room.points
+		var rest: Array[PackedVector2Array] = []
+		for shape: PackedVector2Array in merged:
+			var union: Array[PackedVector2Array] = Geometry2D.merge_polygons(current, shape)
+			var outer: Array[PackedVector2Array] = []
+			for piece: PackedVector2Array in union:
+				if not Geometry2D.is_polygon_clockwise(piece) or union.size() == 1:
+					outer.append(piece)
+			if outer.size() == 1:
+				current = outer[0]
+			else:
+				rest.append(shape)
+		rest.append(current)
+		merged = rest
+	var result: Array[PackedVector2Array] = []
+	for shape: PackedVector2Array in merged:
+		var snapped_shape: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in shape:
+			snapped_shape.append(p.snappedf(0.001))
+		result.append(_clockwise(_without_straight_on(_without_repeats(snapped_shape))))
+	return result
+
+
+## A new floor drawn over [param below] (or under it): a room of each of
+## its building's outlines, its staircases cut out of them in their places,
+## its walls as thick.
+func start_over(below: FloorPlan) -> void:
+	outer_wall = below.outer_wall
+	inner_wall = below.inner_wall
+	for outline: PackedVector2Array in below.building_outlines():
+		var room: Room = Room.new("Room")
+		room.points = outline
+		rooms.append(room)
+	for room: Room in below.rooms:
+		if room.stairs:
+			var stairs: Room = Room.new(room.name)
+			stairs.points = room.points.duplicate()
+			stairs.stairs = true
+			stairs.stairs_reverse = room.stairs_reverse
+			put_room(stairs)
+
+
 ## The room on the other side of wall [param k] of room [param index] (a
 ## wall of it on the same line along a stretch of it), -1 for none.
 func room_behind(index: int, k: int) -> int:

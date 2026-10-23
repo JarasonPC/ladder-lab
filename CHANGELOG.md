@@ -7,6 +7,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- A floor added above (or a basement below) starts with the outline of the house and its
+  staircase from the floor next to it
 - The bathroom zones (ČSN 33 2000-7-701) are drawn round baths and shower trays on the plan
 - Check on the floor plan: circuits not protected yet, socket circuits and bathrooms without
   a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a

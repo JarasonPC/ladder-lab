@@ -600,11 +600,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   unplaced_parts (none on any floor); _forget_device and renames go through every floor, the
   lighting graph takes every floor's links; saved "floors" and "floor" with more than one,
   else "floor_plan". FloorPlanView: the floors as tabs over the plan (show_floor, floor_changed
-  -> main.gd sets both copies of the document) and a menu to add one above or a basement,
-  rename or remove the one shown; while editing, the floor below (for the lowest the one
+  -> main.gd sets both copies of the document) and a menu to add one above or a basement
+  (drawn over the floor next to it: FloorPlan.start_over, a room of each of its building's
+  outlines, building_outlines, its staircases put in their places), rename or remove the
+  one shown; while editing, the floor below (for the lowest the one
   above; FloorPlanCanvas.reference_floor) is drawn under the one shown in dash-dot lines:
-  its building's outline inside and out of its outside walls (building_outlines: the rooms
-  merged) and its staircases, its name by them (_draw_reference), never where the floor
+  its building's outline inside and out of its outside walls (FloorPlan.building_outlines:
+  the rooms merged) and its staircases, its name by them (_draw_reference), never where the floor
   shown has a wall already (_off_walls: outside its rooms grown by their walls, or inside
   a room itself; the name only while something shows); their corners are caught
   by the wall, room and outline tools (_reference_corners in _wall_snap, _room_point).
