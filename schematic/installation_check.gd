@@ -70,7 +70,7 @@ static func _rcd_enough(c: CircuitComponent) -> bool:
 ## bathroom's environment).
 static func _in_bathroom(doc: SchematicDocument, designation: String) -> bool:
 	var at: Vector2i = SingleLine._room_of(doc, designation)
-	return at.x >= 0 and doc.floors[at.x].room_environment(at.y) == FloorPlan.ENVIRONMENTS[1]
+	return at.x >= 0 and doc.floors[at.x].is_bathroom(at.y)
 
 
 static func _issue(text: String, args: Array, ids: Array) -> Dictionary:

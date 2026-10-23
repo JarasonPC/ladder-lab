@@ -154,6 +154,13 @@ var _length_wall: Vector2i = Vector2i(-1, -1)
 var _free_wall: int = -1
 var _number_field: LineEdit
 var _environment_field: OptionButton
+## The table of the external influences, opened by the List button beside
+## the environment.
+var _influences_button: Button
+var _influences_dialog: InfluencesDialog
+## The room's environment when it is none of [constant FloorPlan.ENVIRONMENTS]
+## (influences ticked in the table), offered after them.
+var _own_environment: String = ""
 var _lux_field: LineEdit
 ## A staircase, and its way up turned round.
 var _stairs_field: CheckBox
@@ -856,6 +863,8 @@ func retranslate() -> void:
 	var labels: Array[String] = [tr("Number"), tr("Environment (ČSN 33 2000-5-51)"), tr("Illuminance (lx)")]
 	for k: int in labels.size():
 		(_room_fields.get_child(2 * k) as Label).text = labels[k]
+	_influences_button.text = tr("List")
+	_influences_button.tooltip_text = tr("The external influences of ČSN 33 2000-5-51 as a table: tick those of the room")
 	_presets.text = tr("Add room")
 	var popup: PopupMenu = _presets.get_popup()
 	popup.clear()
@@ -1689,10 +1698,26 @@ func _build_room_panel() -> void:
 	_number_field = LineEdit.new()
 	_environment_field = OptionButton.new()
 	_environment_field.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	for environment: String in FloorPlan.ENVIRONMENTS:
-		_environment_field.add_item(environment)
+	_environment_field.fit_to_longest_item = false
+	_environment_field.clip_text = true
+	_environment_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_offer_environments("")
+	# Beside it the List button: the table of every influence to tick.
+	var environment_row: HBoxContainer = HBoxContainer.new()
+	environment_row.add_theme_constant_override("separation", 4)
+	environment_row.add_child(_environment_field)
+	_influences_button = Button.new()
+	_influences_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_influences_button.icon = AppTheme.icon("list", 16)
+	_influences_button.pressed.connect(func() -> void: _influences_dialog.open(_chosen_environment()))
+	environment_row.add_child(_influences_button)
+	_influences_dialog = InfluencesDialog.new()
+	_influences_dialog.chosen.connect(func(codes: PackedStringArray) -> void:
+		_show_environment(FloorPlan.with_influences(_chosen_environment(), codes))
+		_apply_rename())
+	add_child(_influences_dialog)
 	_lux_field = LineEdit.new()
-	for field: Control in [_number_field, _environment_field, _lux_field]:
+	for field: Control in [_number_field, environment_row, _lux_field]:
 		var label: Label = Label.new()
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		_room_fields.add_child(label)
@@ -1707,8 +1732,8 @@ func _build_room_panel() -> void:
 	_environment_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_environment_note.custom_minimum_size.x = 180.0
 	_room_box.add_child(_environment_note)
-	_environment_field.item_selected.connect(func(index: int) -> void:
-		_environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[index])
+	_environment_field.item_selected.connect(func(_index: int) -> void:
+		_environment_note.text = FloorPlan.environment_note(_chosen_environment())
 		_apply_rename())
 	# A staircase: its stairs drawn in it.
 	_stairs_field = CheckBox.new()
@@ -1928,8 +1953,7 @@ func _fill_room() -> void:
 	if changed_room or not _number_field.has_focus():
 		_number_field.text = room.number
 	_number_field.placeholder_text = plan.room_number(index)
-	_environment_field.select(maxi(FloorPlan.ENVIRONMENTS.find(plan.room_environment(index)), 0))
-	_environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[_environment_field.selected])
+	_show_environment(plan.room_environment(index))
 	if changed_room or not _lux_field.has_focus():
 		_lux_field.text = room.lux
 	_lux_field.placeholder_text = plan.room_lux(index)
@@ -1961,7 +1985,7 @@ func _apply_rename() -> void:
 	# The name as it was (perhaps shown translated) is kept as it is.
 	var room_name: String = room.name if typed.is_empty() or typed == tr(room.name) else typed
 	var number: String = _number_field.text.strip_edges()
-	var environment: String = FloorPlan.ENVIRONMENTS[maxi(_environment_field.selected, 0)]
+	var environment: String = _chosen_environment()
 	var lux: String = _lux_field.text.strip_edges()
 	var details: bool = canvas.installation()
 	var size: Vector2 = Vector2(_width_field.value, _height_field.value)
@@ -1988,6 +2012,33 @@ func _apply_rename() -> void:
 			if environment != doc.floor_plan.room_environment(index):
 				edited.environment = environment)
 	_fill_room()
+
+
+## The environments offered: [constant FloorPlan.ENVIRONMENTS], then
+## [param own] when it is none of them.
+func _offer_environments(own: String) -> void:
+	_own_environment = "" if FloorPlan.ENVIRONMENTS.has(own) else own
+	_environment_field.clear()
+	for environment: String in FloorPlan.ENVIRONMENTS:
+		_environment_field.add_item(environment)
+	if not _own_environment.is_empty():
+		_environment_field.add_item(_own_environment)
+		_environment_field.set_item_tooltip(FloorPlan.ENVIRONMENTS.size(), _own_environment)
+
+
+## [param environment] picked in the room panel, with what it means under it.
+func _show_environment(environment: String) -> void:
+	_offer_environments(environment)
+	var index: int = FloorPlan.ENVIRONMENTS.find(environment)
+	_environment_field.select(index if index >= 0 else FloorPlan.ENVIRONMENTS.size())
+	_environment_field.tooltip_text = environment
+	_environment_note.text = FloorPlan.environment_note(environment)
+
+
+## The environment picked in the room panel.
+func _chosen_environment() -> String:
+	var index: int = maxi(_environment_field.selected, 0)
+	return FloorPlan.ENVIRONMENTS[index] if index < FloorPlan.ENVIRONMENTS.size() else _own_environment
 
 
 ## The usual names of rooms (English source text), each once.

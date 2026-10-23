@@ -6631,3 +6631,535 @@ msgstr "dolů"
 
 msgid "Draw the house: with Room by its corners click the corners of the house, then split it into rooms with Walls drawn across it; or drag a Room, or add a ready one."
 msgstr "Nakreslete dům: nástrojem Místnost po rozích klikněte na rohy domu, pak ho rozdělte na místnosti Zdmi nakreslenými napříč; nebo táhněte Místnost, nebo přidejte připravenou."
+
+msgid "External influences (ČSN 33 2000-5-51)"
+msgstr "Vnější vlivy (ČSN 33 2000-5-51)"
+
+msgid "Tick the influences of the room, at most one class of each; with none ticked the room is normal (N)."
+msgstr "Zaškrtněte vnější vlivy místnosti, z každého nejvýše jednu třídu; bez zaškrtnutého je místnost normální (N)."
+
+msgid "Meaning"
+msgstr "Význam"
+
+msgid "List"
+msgstr "Seznam"
+
+msgid "The external influences of ČSN 33 2000-5-51 as a table: tick those of the room"
+msgstr "Vnější vlivy podle ČSN 33 2000-5-51 v tabulce: zaškrtněte ty, které v místnosti působí"
+
+msgid "Environment"
+msgstr "Prostředí"
+
+msgid "Ambient temperature"
+msgstr "Teplota okolí"
+
+msgid "Temperature and relative humidity"
+msgstr "Vlhkost a teplota"
+
+msgid "Altitude"
+msgstr "Nadmořská výška"
+
+msgid "Presence of water"
+msgstr "Voda"
+
+msgid "Presence of foreign solid bodies"
+msgstr "Cizí tělesa"
+
+msgid "Presence of corrosive or polluting substances"
+msgstr "Korozivní působení"
+
+msgid "Impact"
+msgstr "Ráz"
+
+msgid "Vibration"
+msgstr "Vibrace"
+
+msgid "Other mechanical stresses"
+msgstr "Ostatní mechanická namáhání"
+
+msgid "Presence of flora or mould growth"
+msgstr "Rostlinstvo"
+
+msgid "Presence of fauna"
+msgstr "Živočichové"
+
+msgid "Electromagnetic, electrostatic or ionising influences"
+msgstr "Elektromagnetická, elektrostatická nebo ionizující působení"
+
+msgid "Harmonics, interharmonics"
+msgstr "Harmonické frekvence, meziharmonické frekvence"
+
+msgid "Signalling voltages"
+msgstr "Signální napětí"
+
+msgid "Voltage amplitude variations"
+msgstr "Změny amplitudy napětí"
+
+msgid "Voltage unbalance"
+msgstr "Neustálené napětí"
+
+msgid "Power frequency variations"
+msgstr "Změny kmitočtu"
+
+msgid "Induced low-frequency voltages"
+msgstr "Indukované napětí nízkého kmitočtu"
+
+msgid "Direct current in a.c. networks"
+msgstr "Stejnosměrný proud v obvodech střídavého proudu"
+
+msgid "Radiated magnetic fields"
+msgstr "Vyzařovaná magnetická pole"
+
+msgid "Electric fields"
+msgstr "Elektrická pole"
+
+msgid "Induced oscillatory voltages or currents"
+msgstr "Indukované oscilující napětí nebo proudy"
+
+msgid "Conducted unidirectional transients of the nanosecond time scale"
+msgstr "Přechodové jevy jednosměrně šířené vedením s délkou trvání v nanosekundách"
+
+msgid "Conducted unidirectional transients of the microsecond to millisecond time scale"
+msgstr "Přechodové jevy jednosměrně šířené vedením s délkou trvání v milisekundách nebo mikrosekundách"
+
+msgid "Conducted oscillatory transients"
+msgstr "Oscilační přechodové jevy šířené vedením"
+
+msgid "Radiated high-frequency phenomena"
+msgstr "Jevy vyzařované s vysokým kmitočtem"
+
+msgid "Electrostatic discharges"
+msgstr "Elektrostatické výboje"
+
+msgid "Ionisation"
+msgstr "Ionizace"
+
+msgid "Solar radiation"
+msgstr "Sluneční záření"
+
+msgid "Seismic effects"
+msgstr "Seizmické působení"
+
+msgid "Lightning"
+msgstr "Blesky"
+
+msgid "Movement of air"
+msgstr "Pohyb vzduchu"
+
+msgid "Wind"
+msgstr "Vítr"
+
+msgid "Utilisation"
+msgstr "Využití"
+
+msgid "Capability of persons"
+msgstr "Schopnosti osob"
+
+msgid "Electrical resistance of the human body"
+msgstr "Elektrický odpor lidského těla"
+
+msgid "Contact of persons with earth potential"
+msgstr "Dotyk osob se zemním potenciálem"
+
+msgid "Conditions of evacuation in an emergency"
+msgstr "Podmínky pro únik v případě nebezpečí"
+
+msgid "Nature of processed or stored materials"
+msgstr "Povaha zpracovávaných nebo skladovaných materiálů"
+
+msgid "Construction of buildings"
+msgstr "Budovy"
+
+msgid "Construction materials"
+msgstr "Konstrukční materiály"
+
+msgid "Building design"
+msgstr "Stavební konstrukce"
+
+msgctxt "AD"
+msgid "negligible"
+msgstr "zanedbatelná"
+
+msgctxt "AD"
+msgid "free-falling drops"
+msgstr "volně padající kapky"
+
+msgctxt "AD"
+msgid "sprays"
+msgstr "vodní tříšť"
+
+msgctxt "AD"
+msgid "splashes"
+msgstr "stříkající voda"
+
+msgctxt "AD"
+msgid "jets"
+msgstr "tryskající voda"
+
+msgctxt "AD"
+msgid "waves"
+msgstr "vlny"
+
+msgctxt "AD"
+msgid "immersion"
+msgstr "mělké ponoření"
+
+msgctxt "AD"
+msgid "submersion"
+msgstr "hluboké ponoření"
+
+msgctxt "AE"
+msgid "negligible"
+msgstr "zanedbatelná"
+
+msgctxt "AE"
+msgid "small objects"
+msgstr "malé předměty"
+
+msgctxt "AE"
+msgid "very small objects"
+msgstr "velmi malé předměty"
+
+msgctxt "AE"
+msgid "light dust"
+msgstr "lehká prašnost"
+
+msgctxt "AE"
+msgid "moderate dust"
+msgstr "mírná prašnost"
+
+msgctxt "AE"
+msgid "heavy dust"
+msgstr "silná prašnost"
+
+msgctxt "AF"
+msgid "negligible"
+msgstr "zanedbatelné"
+
+msgctxt "AF"
+msgid "atmospheric"
+msgstr "atmosférické"
+
+msgctxt "AF"
+msgid "intermittent"
+msgstr "občasné"
+
+msgctxt "AF"
+msgid "continuous"
+msgstr "trvalé"
+
+msgctxt "AG"
+msgid "low severity"
+msgstr "nízká závažnost"
+
+msgctxt "AG"
+msgid "medium severity"
+msgstr "střední závažnost"
+
+msgctxt "AG"
+msgid "high severity"
+msgstr "silná závažnost"
+
+msgctxt "AH"
+msgid "low severity"
+msgstr "nízká závažnost"
+
+msgctxt "AH"
+msgid "medium severity"
+msgstr "střední závažnost"
+
+msgctxt "AH"
+msgid "high severity"
+msgstr "silná závažnost"
+
+msgctxt "AK"
+msgid "no hazard"
+msgstr "bez nebezpečí"
+
+msgctxt "AK"
+msgid "hazard"
+msgstr "nebezpečné"
+
+msgctxt "AL"
+msgid "no hazard"
+msgstr "bez nebezpečí"
+
+msgctxt "AL"
+msgid "hazard"
+msgstr "nebezpečné"
+
+msgctxt "AM-1"
+msgid "controlled level"
+msgstr "kontrolovaná úroveň"
+
+msgctxt "AM-1"
+msgid "normal level"
+msgstr "normální úroveň"
+
+msgctxt "AM-1"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-2"
+msgid "controlled level"
+msgstr "kontrolovaná úroveň"
+
+msgctxt "AM-2"
+msgid "normal level"
+msgstr "normální úroveň"
+
+msgctxt "AM-2"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-3"
+msgid "controlled level"
+msgstr "kontrolovaná úroveň"
+
+msgctxt "AM-3"
+msgid "normal level"
+msgstr "normální úroveň"
+
+msgctxt "AM-8"
+msgid "medium level"
+msgstr "střední úroveň"
+
+msgctxt "AM-8"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-9"
+msgid "negligible level"
+msgstr "zanedbatelná úroveň"
+
+msgctxt "AM-9"
+msgid "medium level"
+msgstr "střední úroveň"
+
+msgctxt "AM-9"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-9"
+msgid "very high level"
+msgstr "velmi vysoká úroveň"
+
+msgctxt "AM-22"
+msgid "negligible level"
+msgstr "zanedbatelná úroveň"
+
+msgctxt "AM-22"
+msgid "medium level"
+msgstr "střední úroveň"
+
+msgctxt "AM-22"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-22"
+msgid "very high level"
+msgstr "velmi vysoká úroveň"
+
+msgctxt "AM-23"
+msgid "controlled level"
+msgstr "kontrolovaná úroveň"
+
+msgctxt "AM-23"
+msgid "medium level"
+msgstr "střední úroveň"
+
+msgctxt "AM-23"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-24"
+msgid "medium level"
+msgstr "střední úroveň"
+
+msgctxt "AM-24"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-25"
+msgid "negligible level"
+msgstr "zanedbatelná úroveň"
+
+msgctxt "AM-25"
+msgid "medium level"
+msgstr "střední úroveň"
+
+msgctxt "AM-25"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-31"
+msgid "low level"
+msgstr "nízká úroveň"
+
+msgctxt "AM-31"
+msgid "medium level"
+msgstr "střední úroveň"
+
+msgctxt "AM-31"
+msgid "high level"
+msgstr "vysoká úroveň"
+
+msgctxt "AM-31"
+msgid "very high level"
+msgstr "velmi vysoká úroveň"
+
+msgctxt "AN"
+msgid "low"
+msgstr "zanedbatelné"
+
+msgctxt "AN"
+msgid "medium"
+msgstr "střední"
+
+msgctxt "AN"
+msgid "high"
+msgstr "silné"
+
+msgctxt "AP"
+msgid "negligible"
+msgstr "normální"
+
+msgctxt "AP"
+msgid "low severity"
+msgstr "nízké"
+
+msgctxt "AP"
+msgid "medium severity"
+msgstr "střední"
+
+msgctxt "AP"
+msgid "high severity"
+msgstr "silné"
+
+msgctxt "AQ"
+msgid "negligible"
+msgstr "zanedbatelná"
+
+msgctxt "AQ"
+msgid "indirect exposure"
+msgstr "nepřímé ohrožení"
+
+msgctxt "AQ"
+msgid "direct exposure"
+msgstr "přímé ohrožení"
+
+msgctxt "AR"
+msgid "low"
+msgstr "pomalý"
+
+msgctxt "AR"
+msgid "medium"
+msgstr "střední"
+
+msgctxt "AR"
+msgid "high"
+msgstr "silný"
+
+msgctxt "AS"
+msgid "low"
+msgstr "malý"
+
+msgctxt "AS"
+msgid "medium"
+msgstr "střední"
+
+msgctxt "AS"
+msgid "high"
+msgstr "velký"
+
+msgctxt "BA"
+msgid "ordinary"
+msgstr "laici"
+
+msgctxt "BA"
+msgid "children"
+msgstr "děti"
+
+msgctxt "BA"
+msgid "handicapped"
+msgstr "osoby se zdravotním postižením"
+
+msgctxt "BA"
+msgid "instructed"
+msgstr "osoby poučené"
+
+msgctxt "BA"
+msgid "skilled"
+msgstr "osoby znalé"
+
+msgctxt "BC"
+msgid "none"
+msgstr "žádný"
+
+msgctxt "BC"
+msgid "exceptional"
+msgstr "výjimečný"
+
+msgctxt "BC"
+msgid "frequent"
+msgstr "častý"
+
+msgctxt "BC"
+msgid "continuous"
+msgstr "trvalý"
+
+msgctxt "BD"
+msgid "low density of persons, easy exit"
+msgstr "malý počet osob, snadný odchod"
+
+msgctxt "BD"
+msgid "low density of persons, difficult exit"
+msgstr "malý počet osob, obtížný odchod"
+
+msgctxt "BD"
+msgid "high density of persons, easy exit"
+msgstr "vysoký počet osob, snadný odchod"
+
+msgctxt "BD"
+msgid "high density of persons, difficult exit"
+msgstr "vysoký počet osob, obtížný odchod"
+
+msgctxt "BE"
+msgid "no significant risks"
+msgstr "bez významného nebezpečí"
+
+msgctxt "BE"
+msgid "fire risks"
+msgstr "nebezpečí požáru"
+
+msgctxt "BE"
+msgid "explosion risks"
+msgstr "nebezpečí výbuchu"
+
+msgctxt "BE"
+msgid "contamination risks"
+msgstr "nebezpečí kontaminace"
+
+msgctxt "CA"
+msgid "non-combustible"
+msgstr "nehořlavé"
+
+msgctxt "CA"
+msgid "combustible"
+msgstr "hořlavé"
+
+msgctxt "CB"
+msgid "negligible risks"
+msgstr "zanedbatelné nebezpečí"
+
+msgctxt "CB"
+msgid "propagation of fire"
+msgstr "nebezpečí šíření požáru"
+
+msgctxt "CB"
+msgid "movement"
+msgstr "nebezpečí posunu"
+
+msgctxt "CB"
+msgid "flexible or unstable"
+msgstr "pružné nebo nestabilní"

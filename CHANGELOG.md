@@ -7,6 +7,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- A room's environment can be any combination of the external influences of ČSN 33 2000-5-51:
+  the List button beside the environment field shows them all in a table (code and meaning,
+  grouped as in the standard's Annex A) to tick those of the room, one class of each; the
+  room's own combination is offered in the field after the usual ones and explained under
+  the legend of the rooms. A bathroom stays a bathroom with influences added
 - The floor plan's tools are grouped (selecting, building, electrics, dimensions and notes,
   underlay and view), and an empty plan says how to draw a house: its outline by its corners,
   then walls across it
