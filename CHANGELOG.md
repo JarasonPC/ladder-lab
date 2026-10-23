@@ -57,6 +57,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Switchboard: a 10 V reference and the 24 V + are no longer wired or bridged together
 - Switchboard: an N or PE distribution block has a connection for every wire, also the overload
   contact's under a contactor, so no wire is left out
+- Wiring a training plan, a wire lands on an N or PE distribution block wherever the block is
+  clicked, not only in its middle
 
 ## 0.8.0 – 2026-10-21
 
