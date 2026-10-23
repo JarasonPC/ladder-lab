@@ -77,7 +77,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   vertical wire level with the mark (the outer side for two terminals side by side), over the
   mark along a horizontal wire, or on one line past the mark beside the wire where three or
   more terminals stand in a row across their wires (motors, poles of a breaker; along a
-  horizontal wire also two), on one line over the mark for supply points; a strip
+  horizontal wire also two), on one line over the mark for supply points (along a
+  horizontal wire; one beside another part's terminal, L1 L2 L3 two cells apart, on one
+  line past the mark, SchematicSymbol._nearby_in_row); never on a mark, its own included; a strip
   terminal's number keeps off its mark; Delete on the
   selected mark
   removes it, a right click on a lead adds or removes one); a palette terminal takes
@@ -912,7 +914,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   one net in the switchboard, + of one voltage only, CabinetDevices.supply_nets, for the bridges
   too; a 10 V reference is never wired or bridged to the 24 V +); neighbouring
   terminals of one net are joined by a plug-in bridge instead of a wire (CabinetWiring.strip_bridges, the strip's
-  desc "bridges"; grey, blue on N; one point for the wiring tree; in the parts list). A strip
+  desc "bridges"; grey, blue on N; one point for the wiring tree; in the parts list; PE
+  terminals are joined through the rail they clamp onto, no bridge drawn or listed,
+  CabinetWiring.bridge_shown). A strip
   terminal takes one wire in each entry; one that still has to join a second wire (where the
   wiring, the grouping and the distribution blocks leave no other way, e.g. an order set by
   hand) takes both in one twin ferrule (CabinetWiring._tree marks the point "twin"; its two
@@ -1014,7 +1018,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   takes more wires than it holds, where nothing else can (a net out to several parts with no
   strip terminal on it), is in CabinetWiring.crowded and the Check names it,
   CabinetWiring.check after CircuitCheck in CheckPanel; CircuitCheck._strip_issues names a strip
-  terminal labelled alike on nets not connected, which the switchboard would join; the plate is wide enough for
+  terminal labelled alike on nets not connected, which the switchboard would join, and
+  CircuitCheck._supply_terminal_issues a supply conductor coming in on more than one strip
+  terminal (one is enough, every supply point of it labelled alike); the plate is wide enough for
   a slot of the bottom duct to each cable, CabinetWiring.bottom_slots, glands side by side
   narrower where they would meet) (its name "W2" on the gland, all the buttons and
   lamps of a station in one; CabinetWiring.build(doc, layout, k, board)), one per part for parts

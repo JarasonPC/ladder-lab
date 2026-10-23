@@ -599,6 +599,47 @@ func test_neighbouring_strip_terminals_of_one_net_are_bridged() -> void:
 	assert_true(names.has("Plug-in bridge"))
 
 
+func test_pe_terminals_side_by_side_are_joined_through_the_rail() -> void:
+	# The motor's PE (X1-4) and the incoming PE (X1-12) side by side on X1:
+	# joined (no wire between them), but with no plug-in bridge drawn or
+	# listed: PE terminals clamp onto the rail.
+	var doc: SchematicDocument = SchematicDocument.new("pe")
+	var conductors: Array = [PowerSupply.Conductor.L, PowerSupply.Conductor.L2, PowerSupply.Conductor.L3]
+	doc.add(MotorBreaker.new("FA1"), Vector2i(4, 4))
+	for i: int in 3:
+		var supply: PowerSupply = doc.add(PowerSupply.new(["L1", "L2", "L3"][i], conductors[i]), Vector2i(4 + 2 * i, 0)) as PowerSupply
+		doc.set_strip_terminal(supply.id, 0, str(11 + i))
+		doc.connect_terminals(supply.designation, "FA1:%d" % (2 * i + 1))
+	var pe: PowerSupply = doc.add(PowerSupply.new("PE", PowerSupply.Conductor.PE), Vector2i(12, 0)) as PowerSupply
+	doc.set_strip_terminal(pe.id, 0, "14")
+	var motor: ThreePhaseMotor = doc.add(ThreePhaseMotor.new("M1"), Vector2i(4, 12)) as ThreePhaseMotor
+	for i: int in 3:
+		doc.connect_terminals("FA1:%d" % (2 * i + 2), "M1:" + ["U1", "V1", "W1"][i])
+	for t: int in 4:
+		doc.set_strip_terminal(motor.id, t, str(t + 1))
+	doc.connect_terminals("M1:PE", "PE")
+	doc.add_switchboard(Vector2.ZERO)
+	doc.fill_cabinet(0)
+	var layout: CabinetLayout = CabinetLayout.build(doc, 2.0)
+	var pe_pair: int = -1
+	for place: Dictionary in layout.places:
+		if place["kind"] != CabinetLayout.STRIP:
+			continue
+		var terminals: Array = place["desc"]["terminals"]
+		var bridges: Array = place["desc"]["bridges"]
+		for i: int in bridges.size():
+			if terminals[i]["label"] == "4" and terminals[i + 1]["label"] == "14":
+				pe_pair = i
+				assert_true(bridges[i], "joined")
+				assert_false(CabinetWiring.bridge_shown(terminals, i), "no bridge on PE terminals")
+				for wire: Dictionary in layout.wiring.wires:
+					var ends: Array = [wire["from"], wire["to"]]
+					assert_false(ends.has("M1:PE") and ends.has("PE"), "no wire between them")
+	assert_true(pe_pair >= 0, "the two PE terminals side by side")
+	for row: Dictionary in PartsList.new().rows(doc):
+		assert_ne(row.get("name", ""), "Plug-in bridge", "no bridge in the parts list")
+
+
 func test_no_terminal_takes_more_than_two_wires() -> void:
 	# Nets are looped from terminal to terminal where they would branch;
 	# terminals joined by a plug-in bridge take no wire between them.

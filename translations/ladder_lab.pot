@@ -30,6 +30,10 @@ msgid "Terminal %s is on wires that are not connected: in the switchboard it joi
 msgstr ""
 
 #, c-format
+msgid "Supply %s comes in on terminals %s: one terminal for each conductor of the supply is enough, all its supply points can be labelled with it."
+msgstr ""
+
+#, c-format
 msgid "Terminal %s in switchboard %s takes %d wires, more than it holds: put a strip terminal on its net."
 msgstr ""
 

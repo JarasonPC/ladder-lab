@@ -224,13 +224,15 @@ func _strip(strip: String, strips: Dictionary) -> Dictionary:
 
 
 ## The plug-in bridges of strip [param strip] (see
-## [method CabinetWiring.strip_bridges]): one row for each number of poles.
+## [method CabinetWiring.strip_bridges], none on PE terminals): one row for
+## each number of poles.
 func _bridges(strip: String, strips: Dictionary, net: Dictionary[String, int], apart: Dictionary[int, bool]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var joined: Array[bool] = CabinetWiring.strip_bridges(strips.get(strip, []), net, apart)
+	var terminals: Array = strips.get(strip, [])
+	var joined: Array[bool] = CabinetWiring.strip_bridges(terminals, net, apart)
 	var poles: int = 1
 	for i: int in joined.size() + 1:
-		if i < joined.size() and joined[i]:
+		if i < joined.size() and joined[i] and CabinetWiring.bridge_shown(terminals, i):
 			poles += 1
 			continue
 		if poles > 1:

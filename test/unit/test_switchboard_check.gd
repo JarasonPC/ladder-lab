@@ -415,3 +415,19 @@ func test_check_finds_a_strip_terminal_labelled_twice_on_two_nets() -> void:
 	if found.size() == 1:
 		assert_eq(found[0]["args"], ["X2-1"])
 		assert_true((found[0]["ids"] as PackedStringArray).has(lamp.id))
+
+
+func test_check_finds_a_supply_coming_in_on_two_terminals() -> void:
+	# L1 of the power circuit and of the control circuit on X1-L1 both: one
+	# terminal; the control circuit's L1 on a terminal of its own: two.
+	var doc: SchematicDocument = ExampleCircuits.build(7)
+	var check: Callable = func() -> Array:
+		return CircuitCheck.run(doc).filter(func(issue: Dictionary) -> bool: return str(issue["text"]).begins_with("Supply %s comes in"))
+	assert_eq(check.call(), [], "each conductor on one terminal")
+	var control: CircuitComponent = doc.circuit.get_component("L1.2")
+	doc.set_strip_terminal(control.id, 0, "X1:20")
+	var found: Array = check.call()
+	assert_eq(found.size(), 1)
+	if found.size() == 1:
+		assert_eq(found[0]["args"], ["L1", "X1-L1, X1-20"])
+		assert_true((found[0]["ids"] as PackedStringArray).has(control.id))
