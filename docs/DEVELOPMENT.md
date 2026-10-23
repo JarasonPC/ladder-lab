@@ -1073,7 +1073,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   inside): a click on a port (TrainingPick.port_at) starts a wire, one on another port of
   the same place lays it (wire_drawn), a click on a wire picks it (wire_at), Delete takes it
   away (wire_removed), Esc lets go; both an undoable edit of doc.training through the panels'
-  edit_requested. TrainingPick.draw rings every port, the one under the mouse and the start,
+  edit_requested. TrainingPick.draw rings every port (filled where a student's wire lands,
+  TrainingPick.wired; not while simulating), the one under the mouse and the start,
   a wire on its way dashed, the picked wire, the core numbers (core_label) and the ports of
   TrainingPick.marked (the last check's mistakes, when the plan lists them) in the fault
   colour; port_text in the tooltip. TrainingPanel (SideBar "training" on the right while a

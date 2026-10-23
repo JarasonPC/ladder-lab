@@ -3,9 +3,10 @@ extends RefCounted
 ## Picking and marking for wiring a training plan (see [TrainingPlan]) in a
 ## switchboard, on the back of its door or in a control station: the port
 ## under the mouse, the wire under it, and the marks drawn over the drawing
-## (every port a small ring, the one under the mouse and the one a wire
-## starts at larger, a wire on its way to the mouse dashed, the wire picked
-## in the accent colour, the ports a check found wrong in the fault colour).
+## (every port a small ring, filled once a wire lands on it, the one under
+## the mouse and the one a wire starts at larger, a wire on its way to the
+## mouse dashed, the wire picked in the accent colour, the ports a check
+## found wrong in the fault colour).
 ## Positions in mm of the drawing; drawn at [param k] pixels a mm from
 ## [param origin]. No nodes.
 
@@ -62,7 +63,8 @@ static func wire_at(wires: Array[Dictionary], at: Vector2, k: float) -> int:
 
 
 ## Draws the marks on [param canvas]: [param state] {"hover", "start" (ports),
-## "selected" (wire index, -1 none), "problems" (ports), "mouse" (pixels,
+## "selected" (wire index, -1 none), "problems", "wired" (ports, see
+## [method wired]), "mouse" (pixels,
 ## where a wire being drawn reaches), "probes" (the ports of the red and the
 ## black probe)}.
 static func draw(canvas: CanvasItem, origin: Vector2, k: float, ports: Dictionary[String, Vector2], wires: Array[Dictionary], state: Dictionary) -> void:
@@ -77,6 +79,9 @@ static func draw(canvas: CanvasItem, origin: Vector2, k: float, ports: Dictionar
 	var ring: float = maxf(RING * k, 2.5)
 	for port: String in ports:
 		canvas.draw_arc(px.call(ports[port]), ring, 0.0, TAU, 12, Color(accent, 0.55), 1.0, true)
+	for port: String in state.get("wired", PackedStringArray()):
+		if ports.has(port):
+			canvas.draw_circle(px.call(ports[port]), ring, Color(accent, 0.8), true, -1.0, true)
 	for port: String in state.get("problems", PackedStringArray()):
 		if ports.has(port):
 			canvas.draw_arc(px.call(ports[port]), maxf(RING_MARKED * k, 6.0), 0.0, TAU, 20, SchematicTheme.FAULT, 2.0, true)
@@ -106,6 +111,17 @@ static func draw(canvas: CanvasItem, origin: Vector2, k: float, ports: Dictionar
 			var r: float = maxf(1.4 * k, 5.0)
 			canvas.draw_circle(at, r + 1.5, Color.WHITE)
 			canvas.draw_circle(at, r, PROBE_COLORS[i])
+
+
+## The ports a wire of [param wires] (the student's wires of a place, see
+## [method TrainingPlan.wires_of]) lands on.
+static func wired(wires: Array[PackedStringArray]) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for wire: PackedStringArray in wires:
+		for port: String in wire.slice(0, 2):
+			if not result.has(port):
+				result.append(port)
+	return result
 
 
 ## Puts the next probe on port [param id] ("place|port"), the other one next.

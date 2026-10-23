@@ -529,3 +529,9 @@ func test_hidden_faults_run_and_are_found() -> void:
 	loaded.training.reports.append({"kind": "welded", "id": "KM1:13-14"})
 	assert_eq(TrainingFaults.found(loaded.training), 1, "the wire named either way round; the contact's fault wrong")
 	assert_false(TrainingFaults.right(loaded.training, loaded.training.reports[1]))
+
+
+func test_wired_ports_are_marked() -> void:
+	var wires: Array[PackedStringArray] = [PackedStringArray(["t:KM1:A1", "s:X1:1", "CONTROL", ""]), PackedStringArray(["s:X1:1", "p:2", "NEUTRAL", ""])]
+	assert_eq(TrainingPick.wired(wires), PackedStringArray(["t:KM1:A1", "s:X1:1", "p:2"]), "each port a wire lands on, once")
+	assert_eq(TrainingPick.wired([] as Array[PackedStringArray]), PackedStringArray())
