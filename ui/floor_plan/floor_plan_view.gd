@@ -298,6 +298,10 @@ func _ready() -> void:
 	_side.add_child(_circuit_title)
 	_circuit = OptionButton.new()
 	_circuit.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	# A long circuit name is cut, never widening the panel over the plan.
+	_circuit.fit_to_longest_item = false
+	_circuit.clip_text = true
+	_circuit.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_circuit.item_selected.connect(_on_circuit_chosen)
 	_side.add_child(_circuit)
 	_list_title = Label.new()

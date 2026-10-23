@@ -129,6 +129,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   the language is chosen)
 
 ### Fixed
+- A long circuit name no longer widens the floor plan's side panel over the plan
 - No more steps in the floor plan where a wall between two rooms meets a wall going on
   outside: the wall between them lies out of the way of the room whose wall goes on, so its
   face runs straight through
