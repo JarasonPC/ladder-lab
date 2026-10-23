@@ -7,6 +7,27 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- The floor plan's tools are grouped (selecting, building, electrics, dimensions and notes,
+  underlay and view), and an empty plan says how to draw a house: its outline by its corners,
+  then walls across it
+- Staircases are drawn as plans show them: going up to the floor above, the flight is cut
+  halfway with a break line and marked "up"; arriving from below, marked "down"
+- A room's number or name goes where it covers no door, window, part or designation
+- While a wall or corner is dragged, the doors, windows and parts on the walls it moves are
+  shown moving along
+- A floor added above (or a basement below) starts with the outline of the house and its
+  staircase from the floor next to it
+- The bathroom zones (ČSN 33 2000-7-701) are drawn round baths and shower trays on the plan
+- Check on the floor plan: circuits not protected yet, socket circuits and bathrooms without
+  a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a
+  bathroom's zones; a click on a problem selects the part
+- New parts on the floor plan go on circuits by their kind (the new default in the circuit
+  picker): lights and light switches on the lighting circuit, sockets on a socket circuit of
+  their room (up to 8 sockets), large appliances on circuits of their own
+- A wall is selected on its own by clicking it (anywhere on it as drawn); Ctrl+click selects
+  more. Delete takes them away: the rooms on both sides of a wall between rooms become one,
+  an outside wall leaves the room open (put back by a tick in the panel). The panel sets the
+  selected walls' own thickness
 - Rooms drawn, put, moved or resized near a room beside them snap wall to wall when the gap
   would be narrower than two outside walls, so every wall between rooms has its set
   thickness (no more walls as thick as a gap left by chance); a wall two rooms share can be

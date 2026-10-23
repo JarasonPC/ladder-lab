@@ -168,8 +168,9 @@ var placing: String = ""
 ## A palette template a click with Tool.PLACE makes a new part of ({} for none).
 var placing_template: Dictionary = {}
 ## The circuit (its number, 0 for none) new parts go on in a residential
-## installation; made, waiting for its protection, when none has it yet.
-var circuit: int = 0
+## installation; made, waiting for its protection, when none has it yet;
+## [constant SingleLine.BY_KIND]: by the kind of each part.
+var circuit: int = SingleLine.BY_KIND
 var zoom: float = 1.0
 ## Screen position of the plan's origin.
 var offset: Vector2 = Vector2(60.0, 60.0)
@@ -510,7 +511,9 @@ func handles() -> Array[Dictionary]:
 			if index >= 0 and index < plan().rooms.size():
 				var points: PackedVector2Array = _shown_points(index)
 				for k: int in points.size():
-					list.append({"kind": "corner", "index": index, "which": k, "at": points[k]})
+					# A wall selected: the corners at its ends.
+					if selected["kind"] == "room" or k == int(selected.get("side", -1)) or k == (int(selected.get("side", -1)) + 1) % points.size():
+						list.append({"kind": "corner", "index": index, "which": k, "at": points[k]})
 		"free_wall":
 			if index >= 0 and index < plan().walls.size():
 				var ends: PackedVector2Array = _shown_free_wall(index)
@@ -586,8 +589,9 @@ func _shown_opening(kind: String, index: int) -> FloorPlan.Opening:
 			return original
 		shown.at = wall["at"]
 		shown.vertical = int(wall["facing"]) % 2 == 0
-	elif pressed == "edge":
-		shown.at += _edge_drag_shift(original.at, original.vertical)
+	elif pressed in ["edge", "corner"]:
+		var moved: Vector2 = _wall_drag_shift(original.at, true)
+		shown.at += moved
 	else:
 		var by: Vector2 = _room_drag_shift(original.at)
 		if by == Vector2.ZERO:
@@ -607,22 +611,32 @@ func _room_drag_shift(point: Vector2) -> Vector2:
 	return _shown_points(index)[0] - plan().rooms[index].points[0]
 
 
-## How far something on the wall being dragged at [param point] moves with
-## it ([param vertical]: an opening running up and down; zero when it is
-## not on that wall).
-func _edge_drag_shift(point: Vector2, vertical: bool) -> Vector2:
-	if not _dragging or _press.get("kind", "") != "edge":
+## How far something on a wall at [param point] moves while a wall or a
+## corner is dragged: along with the wall it is on, keeping its share of the
+## way along it (see [method _room_preview]); a door or window
+## ([param opening]) only while that wall stays straight the same way.
+func _wall_drag_shift(point: Vector2, opening: bool = false) -> Vector2:
+	var preview: FloorPlan = _room_preview()
+	if preview == null:
 		return Vector2.ZERO
-	var index: int = _press["index"]
-	var k: int = _press["side"]
-	var before: PackedVector2Array = plan().rooms[index].wall(k)
-	var wall_vertical: bool = is_equal_approx(before[0].x, before[1].x)
-	if wall_vertical != vertical:
-		return Vector2.ZERO
-	if Geometry2D.get_closest_point_to_segment(point, before[0], before[1]).distance_to(point) > 0.01:
-		return Vector2.ZERO
-	var after: PackedVector2Array = _shown_points(index)
-	return after[k] - before[0]
+	for i: int in plan().rooms.size():
+		var before: PackedVector2Array = plan().rooms[i].points
+		if i >= preview.rooms.size() or preview.rooms[i].points.size() != before.size():
+			continue
+		for k: int in before.size():
+			var a: Vector2 = before[k]
+			var b: Vector2 = before[(k + 1) % before.size()]
+			if Geometry2D.get_closest_point_to_segment(point, a, b).distance_to(point) > 0.01:
+				continue
+			var after: PackedVector2Array = preview.rooms[i].wall(k)
+			if after[0] == a and after[1] == b:
+				continue
+			if opening and not (FloorPlan.is_straight(after) and is_equal_approx(a.x, b.x) == is_equal_approx(after[0].x, after[1].x)):
+				return Vector2.ZERO
+			var length: float = a.distance_to(b)
+			var t: float = a.distance_to(point) / length if length > 0.001 else 0.0
+			return after[0].lerp(after[1], t) - point
+	return Vector2.ZERO
 
 
 ## The note under screen point [param point]: {"index", "end": "anchor"
@@ -795,28 +809,6 @@ func reference_floor() -> int:
 	return document.floor - 1 if document.floor > 0 else 1
 
 
-## The outlines of the building of plan [param there]: its rooms put
-## together (m; one per part of the building apart, no courtyards).
-static func building_outlines(there: FloorPlan) -> Array[PackedVector2Array]:
-	var merged: Array[PackedVector2Array] = []
-	for room: FloorPlan.Room in there.rooms:
-		var current: PackedVector2Array = room.points
-		var rest: Array[PackedVector2Array] = []
-		for shape: PackedVector2Array in merged:
-			var union: Array[PackedVector2Array] = Geometry2D.merge_polygons(current, shape)
-			var outer: Array[PackedVector2Array] = []
-			for piece: PackedVector2Array in union:
-				if not Geometry2D.is_polygon_clockwise(piece) or union.size() == 1:
-					outer.append(piece)
-			if outer.size() == 1:
-				current = outer[0]
-			else:
-				rest.append(shape)
-		rest.append(current)
-		merged = rest
-	return merged
-
-
 ## The corners of the floor drawn under this one (see
 ## [method reference_floor]): of its building's outlines inside and out of
 ## its outside walls and of its staircases (m).
@@ -826,7 +818,7 @@ func _reference_corners() -> PackedVector2Array:
 	if index < 0:
 		return result
 	var there: FloorPlan = document.floors[index]
-	for outline: PackedVector2Array in building_outlines(there):
+	for outline: PackedVector2Array in there.building_outlines():
 		result.append_array(outline)
 		for grown: PackedVector2Array in Geometry2D.offset_polygon(outline, there.outer_wall, Geometry2D.JOIN_MITER):
 			result.append_array(grown)
@@ -847,7 +839,7 @@ func _draw_reference(font: Font) -> void:
 	var color: Color = Color(SchematicTheme.LINE, 0.5)
 	var lines: Array[PackedVector2Array] = []
 	var top_left: Vector2 = Vector2(INF, INF)
-	for outline: PackedVector2Array in building_outlines(there):
+	for outline: PackedVector2Array in there.building_outlines():
 		lines.append(outline)
 		lines.append_array(Geometry2D.offset_polygon(outline, there.outer_wall, Geometry2D.JOIN_MITER))
 		for p: Vector2 in outline:
@@ -889,6 +881,26 @@ func _off_walls(line: PackedVector2Array) -> Array[PackedVector2Array]:
 					next.append_array(Geometry2D.intersect_polyline_with_polygon(inside, floor_shape))
 		visible = next
 	return visible
+
+
+## The zones of the bathrooms round baths and shower trays (ČSN 33
+## 2000-7-701): zone 1 over each tinted, zone 2 dashed round it, each
+## numbered.
+func _draw_bath_zones(font: Font) -> void:
+	var color: Color = Color(0.25, 0.55, 0.95)
+	for zone: Dictionary in plan().bath_zones():
+		var points: PackedVector2Array = _screen_points(zone["points"])
+		var box: Rect2 = Rect2(points[0], Vector2.ZERO)
+		for p: Vector2 in points:
+			box = box.expand(p)
+		if int(zone["zone"]) == 1:
+			draw_colored_polygon(points, Color(color, 0.12))
+			draw_string(font, box.position + Vector2(4, _sized(TEXT_SIZE) + 2), "1", HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(color, 0.9))
+		else:
+			var closed: PackedVector2Array = points.duplicate()
+			closed.append(points[0])
+			CustomSymbol.stroke_line(self, closed, Color(color, 0.7), 1.0, "dash")
+			draw_string(font, box.position + Vector2(4, _sized(TEXT_SIZE) + 2), "2", HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(color, 0.9))
 
 
 ## The parts of the floors above and below in a staircase, faint, each with
@@ -1003,6 +1015,21 @@ static func _door_turn(door: FloorPlan.Door, m: Vector2) -> Vector2i:
 func edge_at(point: Vector2) -> Vector2i:
 	var m: Vector2 = to_plan(point)
 	var grab: float = EDGE_GRAB / (PX * zoom)
+	# Anywhere on a wall's band, as it is drawn.
+	for piece: Dictionary in plan().wall_pieces():
+		var a: Vector2 = piece["a"]
+		var b: Vector2 = piece["b"]
+		var length: float = a.distance_to(b)
+		if length < 0.001:
+			continue
+		var along: float = (m - a).dot((b - a) / length)
+		var across: float = (m - a).dot(Vector2(piece["out"]))
+		if along >= 0.0 and along <= length and across >= float(piece["from"]) - grab and across <= float(piece["to"]) + grab:
+			var room: int = piece["room"]
+			# Of a wall between two rooms, the one the point is nearer to.
+			if int(piece["other"]) >= 0 and int(piece["other_wall"]) >= 0 and across > (float(piece["from"]) + float(piece["to"])) * 0.5:
+				return Vector2i(piece["other"], piece["other_wall"])
+			return Vector2i(room, piece["wall"])
 	var inside: int = plan().room_at(m)
 	var order: Array[int] = []
 	if inside >= 0:
@@ -1021,6 +1048,42 @@ func edge_at(point: Vector2) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+## The walls selected (Vector2i(room, wall)): the one clicked and those
+## added with Ctrl+click; none unless walls are selected.
+func selected_walls() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if selected.get("kind", "") != "edge":
+		return result
+	var first: Vector2i = Vector2i(selected.get("index", -1), selected.get("side", -1))
+	for wall_at: Vector2i in [first] + Array(selected.get("more", [])):
+		if wall_at.x >= 0 and wall_at.x < plan().rooms.size() and wall_at.y >= 0 and wall_at.y < plan().rooms[wall_at.x].points.size() and not result.has(wall_at):
+			result.append(wall_at)
+	return result
+
+
+## Wall [param wall_at] added to the walls selected, or taken off them.
+func _toggle_wall(wall_at: Vector2i) -> void:
+	var walls: Array[Vector2i] = selected_walls()
+	if walls.has(wall_at):
+		walls.erase(wall_at)
+	else:
+		walls.append(wall_at)
+	if walls.is_empty():
+		selected = {}
+		return
+	selected = {"kind": "edge", "index": walls[0].x, "side": walls[0].y, "more": walls.slice(1)}
+
+
+## The wall of a room of [param target] (Vector2i(room, wall)) through
+## plan point [param point], (-1, -1) for none.
+static func wall_through(target: FloorPlan, point: Vector2) -> Vector2i:
+	for i: int in target.rooms.size():
+		var k: int = FloorPlan.wall_through(target.rooms[i].points, point)
+		if k >= 0:
+			return Vector2i(i, k)
+	return Vector2i(-1, -1)
+
+
 ## Where the label of room [param index] (its name or number, its area)
 ## starts on the screen: the baseline of its first line.
 func _label_at(index: int) -> Vector2:
@@ -1031,9 +1094,65 @@ func _label_at(index: int) -> Vector2:
 	var wall: float = maxf(WALL * PX * zoom, 2.0)
 	var font: Font = get_theme_default_font()
 	var by: Vector2 = room.label_offset
-	if _dragging and _press.get("kind", "") == "label" and _press.get("index", -1) == index:
+	var dragged: bool = _dragging and _press.get("kind", "") == "label" and _press.get("index", -1) == index
+	if dragged:
 		by += FloorPlan.snap(to_plan(_mouse) - to_plan(_press_at))
-	return to_screen(corner + by) + Vector2(wall + 6.0, wall + 10.0 + font.get_ascent(_sized(NAME_SIZE)))
+	var ascent: float = font.get_ascent(_sized(NAME_SIZE))
+	if by != Vector2.ZERO or dragged:
+		return to_screen(corner + by) + Vector2(wall + 6.0, wall + 10.0 + ascent)
+	# Where it was not dragged to: the first corner of the room (then its
+	# middle) where it covers no door, window or part.
+	var size: Vector2 = _label_size(index, font)
+	var box: Rect2 = Rect2(shown.points[0], Vector2.ZERO)
+	for p: Vector2 in shown.points:
+		box = box.expand(p)
+	var room_box: Rect2 = Rect2(to_screen(box.position), box.size * PX * zoom)
+	var inset: Vector2 = Vector2(wall + 6.0, wall + 10.0)
+	# Along its top, then its bottom, then its middle, from the left.
+	var spots: Array[Vector2] = [to_screen(corner) + inset]
+	var left: float = room_box.position.x + inset.x
+	var right: float = room_box.end.x - inset.x - size.x
+	for y: float in [room_box.position.y + inset.y, room_box.end.y - inset.y - size.y, room_box.get_center().y - size.y * 0.5]:
+		for k: int in 9:
+			spots.append(Vector2(lerpf(left, right, k / 8.0), y))
+	var taken: Array[Rect2] = _label_obstacles(box)
+	for spot: Vector2 in spots:
+		var label_box: Rect2 = Rect2(spot, size)
+		if not shown.contains(to_plan(spot), 0.0) or not shown.contains(to_plan(label_box.end), 0.0):
+			continue
+		if not taken.any(func(r: Rect2) -> bool: return r.intersects(label_box)):
+			return spot + Vector2(0.0, ascent)
+	return to_screen(corner) + inset + Vector2(0.0, ascent)
+
+
+## How large the label of room [param index] is on the screen (its name or
+## number over its area).
+func _label_size(index: int, font: Font) -> Vector2:
+	var title: String = plan().room_number(index) if installation() else tr(plan().rooms[index].name)
+	var title_size: int = _sized(NAME_SIZE) + (6 if installation() else 0)
+	var area: String = "%s m²" % String.num(plan().rooms[index].area(), 1)
+	var width: float = maxf(font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x, font.get_string_size(area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x)
+	return Vector2(width, title_size + _sized(TEXT_SIZE) + 4.0)
+
+
+## What a room's label in [param box] (m) should not cover, on the screen:
+## the doors with their swing, the windows there, and the parts' symbols
+## and designations (as drawn, [member _taken]).
+func _label_obstacles(box: Rect2) -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	var near: Rect2 = box.grow(1.0)
+	for door: FloorPlan.Door in plan().doors:
+		var swing: Rect2 = _door_swing_box(door)
+		if near.intersects(swing):
+			result.append(Rect2(to_screen(swing.position), swing.size * PX * zoom).grow(4.0))
+	for window: FloorPlan.WindowOpening in plan().windows:
+		if near.has_point(window.at):
+			var ends: PackedVector2Array = window.ends()
+			result.append(Rect2(to_screen(ends[0]), Vector2.ZERO).expand(to_screen(ends[1])).grow(10.0))
+	# The parts' symbols and designations as drawn last.
+	for taken: Rect2 in _taken:
+		result.append(taken.grow(3.0))
+	return result
 
 
 ## The room whose label is under screen point [param point], -1 for none.
@@ -1216,6 +1335,9 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_press = _pressed(mb.position)
 				if _press.get("handle", false) or _press["kind"] == "room_legend":
 					pass
+				elif _press["kind"] == "edge" and mb.is_command_or_control_pressed() and selected.get("kind", "") == "edge":
+					# Ctrl+click: one more wall selected (or one taken off).
+					_toggle_wall(Vector2i(_press["index"], _press["side"]))
 				elif _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label", "dimension", "note", "fixture", "mark", "free_wall"]:
 					selected = _press
 				elif tool == Tool.SELECT:
@@ -1635,12 +1757,14 @@ static func add_part(doc: SchematicDocument, template: Dictionary, feeder: int, 
 	var def: CustomSymbol = template_symbol(doc, template)
 	if def != null:
 		doc.use_symbol(def)
-	if feeder > 0:
-		doc.single_line.feed(part.designation, feeder)
 	if exact and not on_ceiling(part):
 		doc.floor_plan.place_on_wall(part.designation, at, face)
 	else:
 		doc.floor_plan.place(part.designation, at, on_ceiling(part))
+	if feeder == SingleLine.BY_KIND:
+		feeder = doc.single_line.circuit_by_kind(doc, part)
+	if feeder > 0:
+		doc.single_line.feed(part.designation, feeder)
 	# A socket behind a kitchen worktop goes over it.
 	if part is SocketOutlet and doc.floor_plan.over_worktop(doc.floor_plan.parts[part.designation]):
 		(part as SocketOutlet).height = FloorPlan.WORKTOP_SOCKET_HEIGHT
@@ -1795,9 +1919,22 @@ func _operate(point: Vector2) -> void:
 ## window, or a part off the plan.
 func delete_selected() -> void:
 	match selected.get("kind", ""):
-		"room", "edge":
+		"room":
 			var index: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.remove_room(index))
+		"edge":
+			# Each wall selected taken away: rooms on both sides joined, an
+			# outside wall left open. Found again by its middle, as joining
+			# renumbers the rooms.
+			var middles: Array[Vector2] = []
+			for wall_at: Vector2i in selected_walls():
+				var w: PackedVector2Array = plan().rooms[wall_at.x].wall(wall_at.y)
+				middles.append((w[0] + w[1]) * 0.5)
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				for middle: Vector2 in middles:
+					var found: Vector2i = FloorPlanCanvas.wall_through(doc.floor_plan, middle)
+					if found.x >= 0 and not doc.floor_plan.rooms[found.x].is_open(found.y):
+						doc.floor_plan.remove_room_wall(found.x, found.y))
 		"door":
 			var door: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.remove_at(door))
@@ -2588,11 +2725,20 @@ func _draw() -> void:
 	_draw_reference(font)
 	for i: int in shapes.size():
 		if plan().rooms[i].stairs:
-			_draw_stairs(shapes[i], plan().rooms[i].stairs_reverse)
+			_draw_stairs(shapes[i], plan().rooms[i].stairs_reverse, stairs_to(i, 1), stairs_to(i, -1), font)
 	for i: int in rooms.size():
-		var chosen: bool = selected.get("kind", "") in ["room", "edge"] and selected.get("index", -1) == i
+		var chosen: bool = selected.get("kind", "") == "room" and selected.get("index", -1) == i
 		if chosen or i == _join_first:
 			_draw_walls(rooms[i], SchematicTheme.SELECTED, 2.0)
+	# The walls selected, each alone (a wall taken away dashed).
+	for wall_at: Vector2i in selected_walls():
+		var w: PackedVector2Array = _shown_points(wall_at.x)
+		var a: Vector2 = to_screen(w[wall_at.y])
+		var b: Vector2 = to_screen(w[(wall_at.y + 1) % w.size()])
+		if plan().rooms[wall_at.x].is_open(wall_at.y):
+			draw_dashed_line(a, b, SchematicTheme.SELECTED, 3.0, 6.0, true)
+		else:
+			draw_line(a, b, SchematicTheme.SELECTED, 4.0, true)
 	for i: int in plan().doors.size():
 		_draw_door(_shown_opening("door", i), s, wall, selected.get("kind", "") == "door" and selected.get("index", -1) == i)
 	for i: int in plan().windows.size():
@@ -2606,25 +2752,14 @@ func _draw() -> void:
 				_draw_door(_new_door(near["at"], vertical), s, wall, true)
 			else:
 				_draw_window(FloorPlan.WindowOpening.new(near["at"], vertical), s, true)
-	for i: int in rooms.size():
-		# Name and area in the room's corner, clear of its ceiling light (or
-		# where it was dragged to); in a residential installation its number
-		# (the legend names it).
-		var room: FloorPlan.Room = plan().rooms[i]
-		var corner: Vector2 = _label_at(i)
-		var chosen_label: bool = selected.get("kind", "") == "label" and selected.get("index", -1) == i
-		if installation():
-			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE) + 6, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.75))
-		else:
-			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.55))
-		var area: String = "%s m²" % String.num(room.area(), 1)
-		draw_string(font, corner + Vector2(0, _sized(NAME_SIZE) + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(SchematicTheme.LINE, 0.45))
 	for i: int in plan().fixtures.size():
 		var fixture: FloorPlan.Fixture = plan().fixtures[i]
 		if not shows(fixture):
 			continue
 		var chosen_fixture: bool = selected.get("kind", "") == "fixture" and selected.get("index", -1) == i
 		_draw_fixture(fixture, _shown_fixture_rect(i), SchematicTheme.SELECTED if chosen_fixture else Color(SchematicTheme.LINE, 0.4))
+	if installation():
+		_draw_bath_zones(font)
 	if editing and tool == Tool.PLACE and placing_template.get("type", "") == "fixture":
 		var ghost: FloorPlan.Fixture = plan().fixture_at_point(str(placing_template.get("kind", "table")), to_plan(_mouse))
 		_draw_fixture(ghost, ghost.rect, SchematicTheme.SELECTED)
@@ -2657,6 +2792,19 @@ func _draw() -> void:
 	for designation: String in plan().parts:
 		if layer_shows(designation):
 			_draw_part(designation, s, font)
+	for i: int in rooms.size():
+		# Name and area in the room's corner, clear of its ceiling light (or
+		# where it was dragged to); in a residential installation its number
+		# (the legend names it).
+		var room: FloorPlan.Room = plan().rooms[i]
+		var corner: Vector2 = _label_at(i)
+		var chosen_label: bool = selected.get("kind", "") == "label" and selected.get("index", -1) == i
+		if installation():
+			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE) + 6, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.75))
+		else:
+			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.55))
+		var area: String = "%s m²" % String.num(room.area(), 1)
+		draw_string(font, corner + Vector2(0, _sized(NAME_SIZE) + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(SchematicTheme.LINE, 0.45))
 	if editing:
 		_draw_room_tools(s, font, wall)
 	if editing and tool == Tool.PLACE and not placing.is_empty():
@@ -2704,7 +2852,7 @@ func _draw() -> void:
 	if legend:
 		_draw_legend(s, font)
 	if plan().rooms.is_empty() and editing:
-		var hint: String = tr("Draw a room: pick Room and drag, or add one of the ready rooms.")
+		var hint: String = tr("Draw the house: with Room by its corners click the corners of the house, then split it into rooms with Walls drawn across it; or drag a Room, or add a ready one.")
 		if reference_floor() >= 0:
 			hint = tr("Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it).")
 		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), Color(SchematicTheme.LINE, 0.6))
@@ -2982,9 +3130,8 @@ func _shown_at(designation: String) -> Vector2:
 		return FloorPlan.snap(at + to_plan(_mouse) - to_plan(_press_at))
 	if _dragging and _press.get("kind", "") == "room":
 		return at + _room_drag_shift(at)
-	if _dragging and _press.get("kind", "") == "edge":
-		var w: PackedVector2Array = plan().rooms[_press["index"]].wall(_press["side"])
-		return at + _edge_drag_shift(at, is_equal_approx(w[0].x, w[1].x))
+	if _dragging and _press.get("kind", "") in ["edge", "corner"] and plan().facing.has(designation):
+		return at + _wall_drag_shift(at)
 	return at
 
 
@@ -3002,7 +3149,7 @@ func _draw_building(shapes: Array[PackedVector2Array], rooms: Array[PackedVector
 		var open: int = FloorPlan.stair_start_wall(shapes[i], plan().rooms[i].stairs_reverse) if plan().rooms[i].stairs else -1
 		for k: int in shapes[i].size():
 			var own: float = plan().rooms[i].wall_thickness(k)
-			offsets.append(0.0 if k == open else own if own > 0.0 else plan().outer_wall)
+			offsets.append(0.0 if k == open or plan().rooms[i].is_open(k) else own if own > 0.0 else plan().outer_wall)
 		draw_colored_polygon(_screen_points(FloorPlan.grown(shapes[i], offsets)), color)
 	for outline: PackedVector2Array in rooms:
 		draw_colored_polygon(outline, SchematicTheme.BACKGROUND)
@@ -3039,12 +3186,44 @@ func _draw_building(shapes: Array[PackedVector2Array], rooms: Array[PackedVector
 ## The stairs of a staircase of outline [param points] (see
 ## [method FloorPlan.stair_lines]): its treads, the walking line from a dot
 ## where it starts to an arrow where it goes up to.
-func _draw_stairs(points: PackedVector2Array, reverse: bool) -> void:
+## Whether staircase room [param index] goes on to a staircase on the floor
+## [param way] (1 above, -1 below): one there over it.
+func stairs_to(index: int, way: int) -> bool:
+	if document == null:
+		return false
+	var other: int = document.floor + way
+	if other < 0 or other >= document.floors.size():
+		return false
+	for room: FloorPlan.Room in document.floors[other].rooms:
+		if room.stairs:
+			for piece: PackedVector2Array in Geometry2D.intersect_polygons(room.points, plan().rooms[index].points):
+				if FloorPlan.polygon_area(piece) > 0.1:
+					return true
+	return false
+
+
+## The stairs of a staircase of outline [param points] (see
+## [method FloorPlan.stair_lines]): its treads, the walking line from a dot
+## where it starts to an arrow where it goes up to. Going [param up] to the
+## floor above, the flight is cut halfway up as the plan is (a break line
+## across it, the treads past it dashed) and its start says "up"; arriving
+## from the floor below ([param down]), its top end says "down".
+func _draw_stairs(points: PackedVector2Array, reverse: bool, up: bool = false, down: bool = false, font: Font = null) -> void:
 	var stairs: Dictionary = FloorPlan.stair_lines(points, reverse)
 	var color: Color = Color(SchematicTheme.LINE, 0.6)
+	var line: PackedVector2Array = stairs["walk"]
+	var total: float = 0.0
+	for k: int in range(1, line.size()):
+		total += line[k - 1].distance_to(line[k])
 	for tread: PackedVector2Array in stairs["treads"]:
-		draw_line(to_screen(tread[0]), to_screen(tread[tread.size() - 1]), color, 1.0, true)
-	var walk: PackedVector2Array = _screen_points(stairs["walk"])
+		var a: Vector2 = to_screen(tread[0])
+		var b: Vector2 = to_screen(tread[tread.size() - 1])
+		if up and line.size() > 1 and _along(line, (tread[0] + tread[tread.size() - 1]) * 0.5) > total * 0.5:
+			# Past the cut: above the plane the plan is cut at.
+			draw_dashed_line(a, b, Color(color, 0.45), 1.0, 4.0, true)
+		else:
+			draw_line(a, b, color, 1.0, true)
+	var walk: PackedVector2Array = _screen_points(line)
 	if walk.size() < 2:
 		return
 	draw_polyline(walk, SchematicTheme.LINE, 1.3, true)
@@ -3052,6 +3231,43 @@ func _draw_stairs(points: PackedVector2Array, reverse: bool) -> void:
 	var tip: Vector2 = walk[walk.size() - 1]
 	var back: Vector2 = (walk[walk.size() - 2] - tip).normalized() * 10.0
 	draw_colored_polygon(PackedVector2Array([tip, tip + back + back.orthogonal() * 0.4, tip + back - back.orthogonal() * 0.4]), SchematicTheme.LINE)
+	if up:
+		# The break line, slanting across the flight halfway up.
+		var middle: Vector2 = _at_along(line, total * 0.5)
+		var way: Vector2 = (_at_along(line, total * 0.5 + 0.05) - middle).normalized()
+		var across: Vector2 = way.orthogonal().rotated(deg_to_rad(20.0)) * 3.0
+		for piece: PackedVector2Array in Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([middle - across, middle + across]), points):
+			draw_line(to_screen(piece[0]), to_screen(piece[piece.size() - 1]), SchematicTheme.LINE, 1.3, true)
+	if font != null and up:
+		draw_string(font, walk[0] + Vector2(6, -6), tr("up"), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
+	if font != null and down:
+		draw_string(font, tip + Vector2(6, -6), tr("down"), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
+
+
+## How far along polyline [param line] (m) the point of it nearest to
+## [param p] is.
+static func _along(line: PackedVector2Array, p: Vector2) -> float:
+	var best: float = INF
+	var result: float = 0.0
+	var run: float = 0.0
+	for k: int in range(1, line.size()):
+		var q: Vector2 = Geometry2D.get_closest_point_to_segment(p, line[k - 1], line[k])
+		if q.distance_to(p) < best:
+			best = q.distance_to(p)
+			result = run + line[k - 1].distance_to(q)
+		run += line[k - 1].distance_to(line[k])
+	return result
+
+
+## The point [param distance] m along polyline [param line].
+static func _at_along(line: PackedVector2Array, distance: float) -> Vector2:
+	var left: float = distance
+	for k: int in range(1, line.size()):
+		var step: float = line[k - 1].distance_to(line[k])
+		if left <= step:
+			return line[k - 1].lerp(line[k], left / step if step > 0.0 else 0.0)
+		left -= step
+	return line[line.size() - 1]
 
 
 ## Across the wall [param opening] is in: from where to where its band

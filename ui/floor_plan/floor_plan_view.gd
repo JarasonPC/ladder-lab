@@ -47,6 +47,8 @@ var _document: SchematicDocument
 var _editing: bool = false
 var _fit_pending: bool = true
 var _bar: HBoxContainer
+## The lines between the groups of tools in [member _bar].
+var _tool_gaps: Array[VSeparator] = []
 var _select_button: Button
 var _room_button: Button
 var _outline_button: Button
@@ -132,10 +134,8 @@ var _door: int = -1
 var _circuit_title: Label
 var _circuit: OptionButton
 ## Circuits offered (their numbers), by item index of [member _circuit]
-## (the first: none, the last: a new one).
+## (for new parts first by kind, then none; the last: a new one).
 var _circuits: PackedInt32Array = PackedInt32Array()
-## The circuit for new parts was chosen (else the first is taken).
-var _circuit_picked: bool = false
 var _room_fields: GridContainer
 var _width_field: SpinBox
 var _height_field: SpinBox
@@ -167,6 +167,11 @@ var _side: VBoxContainer
 var _list_title: Label
 var _list: ItemList
 var _list_hint: Label
+## Runs the check of the installation; its problems in the side panel.
+var _check_button: Button
+var _check_box: VBoxContainer
+var _check_title: Label
+var _check_list: VBoxContainer
 ## Designations in the list, by item index.
 var _listed: PackedStringArray = PackedStringArray()
 ## The consumer unit opened in place of the plan, null while the plan shows.
@@ -177,6 +182,15 @@ var _body: HBoxContainer
 ## picked from the usual ones), size, area, number, environment and
 ## illuminance, changed as they are typed; Duplicate, Split, Delete.
 var _room_box: VBoxContainer
+## The walls selected: their own thickness, an outside wall taken away.
+var _wall_box: VBoxContainer
+var _wall_title: Label
+var _wall_thickness_label: Label
+var _wall_thickness: SpinBox
+var _wall_open: CheckBox
+var _wall_edit: Button
+var _wall_delete: Button
+var _filling_wall: bool = false
 var _room_title: Label
 var _rename_field: LineEdit
 var _name_menu: MenuButton
@@ -265,12 +279,39 @@ func _ready() -> void:
 	_symbols_button.icon = AppTheme.icon("symbols", ICON_SIZE)
 	_symbols_button.pressed.connect(func() -> void: _symbols_dialog.open())
 	_bar.add_child(_symbols_button)
+	_check_button = Button.new()
+	_check_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_check_button.theme_type_variation = "ToolButton"
+	_check_button.focus_mode = Control.FOCUS_NONE
+	_check_button.icon = AppTheme.icon("check", ICON_SIZE)
+	_check_button.pressed.connect(func() -> void:
+		_check_box.visible = true
+		_fill_check())
+	_bar.add_child(_check_button)
 	_delete_button = Button.new()
 	_delete_button.theme_type_variation = "ToolButton"
 	_delete_button.focus_mode = Control.FOCUS_NONE
 	_delete_button.icon = AppTheme.icon("delete", ICON_SIZE)
 	_delete_button.pressed.connect(func() -> void: canvas.delete_selected())
 	_bar.add_child(_delete_button)
+	# The tools in groups: selecting, building, the electrics, dimensions
+	# and notes, what is drawn under the plan and how it shows.
+	var groups: Array = [[_select_button, _delete_button],
+		[_outline_button, _wall_button, _room_button, _presets, _join_button, _door_button, _window_button],
+		[_wire_button, _array_button, _symbols_button, _check_button],
+		[_dimension_button, _measure_button, _note_button],
+		[_underlay_menu, _layers_menu, _walls_button]]
+	var at: int = _back_button.get_index() + 1
+	for g: int in groups.size():
+		if g > 0:
+			var gap: VSeparator = VSeparator.new()
+			_bar.add_child(gap)
+			_bar.move_child(gap, at)
+			_tool_gaps.append(gap)
+			at += 1
+		for control: Control in groups[g]:
+			_bar.move_child(control, at)
+			at += 1
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bar.add_child(spacer)
@@ -696,6 +737,9 @@ func refresh() -> void:
 	_update_array_button()
 	_fill_floor_tabs()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
+	_check_button.visible = _editing and plan_shown and canvas.installation()
+	for gap: VSeparator in _tool_gaps:
+		gap.visible = _editing and plan_shown
 	_symbols_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
 	_update_parts_side()
@@ -707,6 +751,8 @@ func refresh() -> void:
 		_list.add_item(_entry_text(designation))
 	_list_hint.text = tr("Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling.") if not _listed.is_empty() else tr("Every part is on the plan.")
 	_fill_room()
+	_fill_wall()
+	_fill_check()
 	canvas.queue_redraw()
 
 
@@ -822,6 +868,11 @@ func retranslate() -> void:
 	_fit_button.text = tr("Show all")
 	_list_title.text = tr("Not on the plan").to_upper()
 	_room_title.text = tr("Room").to_upper()
+	_wall_thickness_label.text = tr("Thickness (0: the plan's)")
+	_wall_open.text = tr("No wall (taken away)")
+	_check_button.tooltip_text = tr("Check the installation: circuits not protected, socket circuits and bathrooms without a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a bathroom's zones")
+	_wall_edit.tooltip_text = tr("Length and direction of the wall (Enter)")
+	_wall_delete.tooltip_text = tr("Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls")
 	_rename_field.placeholder_text = tr("Name of the room")
 	_name_menu.tooltip_text = tr("A usual name: a bathroom, a kitchen, ... (in a house installation it sets the environment and illuminance)")
 	_room_duplicate.tooltip_text = tr("Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)")
@@ -884,8 +935,14 @@ func _fill_circuits() -> void:
 	if part == FloorPlan.UNIT:
 		part = ""
 	_circuit_title.text = (tr("Circuit of -%s") % part if not part.is_empty() else tr("Circuit for new parts")).to_upper()
-	_circuits = PackedInt32Array([0])
+	_circuits = PackedInt32Array()
 	_circuit.clear()
+	if part.is_empty():
+		# The default: each part on a circuit by its kind.
+		_circuits.append(SingleLine.BY_KIND)
+		_circuit.add_item(tr("By kind (lighting, sockets, appliances)"))
+		_circuit.set_item_tooltip(0, tr("Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own") % SingleLine.SOCKETS_PER_CIRCUIT)
+	_circuits.append(0)
 	_circuit.add_item(tr("No circuit"))
 	var current: int = canvas.circuit
 	for f: SingleLine.Feeder in line.circuits():
@@ -899,9 +956,6 @@ func _fill_circuits() -> void:
 	if not part.is_empty():
 		var fed: SingleLine.Feeder = line.feeder_feeding(part)
 		current = fed.number if fed != null else 0
-	elif current == 0 and not _circuit_picked:
-		current = _circuits[1] if _circuits.size() > 2 else fresh
-		canvas.circuit = current
 	_circuit.select(maxi(_circuits.find(current), 0))
 
 
@@ -910,7 +964,6 @@ func _on_circuit_chosen(index: int) -> void:
 	var part: String = canvas.selected.get("designation", "") if canvas.selected.get("kind", "") == "part" else ""
 	if part.is_empty() or part == FloorPlan.UNIT:
 		canvas.circuit = number
-		_circuit_picked = true
 		_fill_circuits()
 		return
 	# The selected part moves to the circuit chosen.
@@ -1215,7 +1268,11 @@ func _on_floor_menu(id: int) -> void:
 	match id:
 		0, 1:
 			var below: bool = id == 1
-			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor = doc.add_floor(below))
+			# Drawn over the floor next to it: its outline and staircases.
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				var next: FloorPlan = doc.floors[0] if below else doc.floors[doc.floors.size() - 1]
+				doc.floor = doc.add_floor(below)
+				doc.floor_plan.start_over(next))
 			show_floor(0 if below else _document.floors.size() - 1)
 		2:
 			_floor_name.text = _document.floor_plan.floor_name()
@@ -1668,6 +1725,166 @@ func _build_room_panel() -> void:
 	_room_delete = _room_action(actions, "delete", func() -> void: canvas.delete_selected())
 	_room_box.add_child(HSeparator.new())
 	canvas.selection_changed.connect(_fill_room)
+	_build_wall_panel()
+	_build_check_panel()
+
+
+## The problems the check of the installation found, each a button that
+## selects the parts it is about.
+func _build_check_panel() -> void:
+	_check_box = VBoxContainer.new()
+	_check_box.add_theme_constant_override("separation", 4)
+	_check_box.visible = false
+	_side.add_child(_check_box)
+	_side.move_child(_check_box, 0)
+	var header: HBoxContainer = HBoxContainer.new()
+	_check_box.add_child(header)
+	_check_title = Label.new()
+	_check_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_check_title.theme_type_variation = "HeaderLabel"
+	_check_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_check_title)
+	var close: Button = Button.new()
+	close.theme_type_variation = "ToolButton"
+	close.focus_mode = Control.FOCUS_NONE
+	close.icon = AppTheme.icon("close", 14)
+	close.pressed.connect(func() -> void: _check_box.visible = false)
+	header.add_child(close)
+	_check_list = VBoxContainer.new()
+	_check_box.add_child(_check_list)
+	_check_box.add_child(HSeparator.new())
+
+
+## The check run again (while its results show).
+func _fill_check() -> void:
+	if _check_box == null or not _check_box.visible or _document == null:
+		return
+	# Freed once the click on one of them is over.
+	for child: Node in _check_list.get_children():
+		_check_list.remove_child(child)
+		child.queue_free()
+	var issues: Array[Dictionary] = InstallationCheck.run(_document)
+	_check_title.text = (tr("Check") if issues.is_empty() else tr_n("Check: %d problem", "Check: %d problems", issues.size()) % issues.size()).to_upper()
+	if issues.is_empty():
+		var fine: Label = Label.new()
+		fine.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		fine.theme_type_variation = "MutedLabel"
+		fine.text = tr("No problems found.")
+		_check_list.add_child(fine)
+	for issue: Dictionary in issues:
+		var row: Button = Button.new()
+		row.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		row.theme_type_variation = "ListButton"
+		row.focus_mode = Control.FOCUS_NONE
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.custom_minimum_size = Vector2(180, 0)
+		row.text = tr(issue["text"]) % issue["args"]
+		var ids: PackedStringArray = issue["ids"]
+		row.pressed.connect(func() -> void: _show_issue(ids))
+		_check_list.add_child(row)
+
+
+## The first part of a problem that is on a plan shown and selected.
+func _show_issue(ids: PackedStringArray) -> void:
+	for designation: String in ids:
+		var on: int = _document.floor_of(designation)
+		if on < 0:
+			continue
+		if on != _document.floor:
+			show_floor(on)
+		canvas.selected = {"kind": "part", "designation": designation}
+		canvas.queue_redraw()
+		return
+
+
+## The panel of the walls selected: their own thickness for all of them,
+## an outside wall taken away (open) or put back, the length and direction
+## of one, Delete.
+func _build_wall_panel() -> void:
+	_wall_box = VBoxContainer.new()
+	_wall_box.add_theme_constant_override("separation", 4)
+	_side.add_child(_wall_box)
+	_side.move_child(_wall_box, 1)
+	_wall_title = Label.new()
+	_wall_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_wall_title.theme_type_variation = "HeaderLabel"
+	_wall_box.add_child(_wall_title)
+	_wall_thickness_label = Label.new()
+	_wall_thickness_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_wall_box.add_child(_wall_thickness_label)
+	_wall_thickness = SpinBox.new()
+	_wall_thickness.min_value = 0.0
+	_wall_thickness.max_value = FloorPlan.MAX_WALL_THICKNESS
+	_wall_thickness.step = 0.01
+	_wall_thickness.suffix = "m"
+	_wall_thickness.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wall_thickness.value_changed.connect(_apply_wall_thickness)
+	_wall_box.add_child(_wall_thickness)
+	_wall_open = CheckBox.new()
+	_wall_open.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_wall_open.toggled.connect(_apply_wall_open)
+	_wall_box.add_child(_wall_open)
+	var actions: HBoxContainer = HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 4)
+	_wall_box.add_child(actions)
+	_wall_edit = _room_action(actions, "plan_dimension", func() -> void:
+		var walls: Array[Vector2i] = canvas.selected_walls()
+		if not walls.is_empty():
+			_ask_length(walls[0].x, walls[0].y))
+	_wall_delete = _room_action(actions, "delete", func() -> void: canvas.delete_selected())
+	_wall_box.add_child(HSeparator.new())
+	canvas.selection_changed.connect(_fill_wall)
+
+
+## The wall panel for the walls selected (hidden for none).
+func _fill_wall() -> void:
+	if _wall_box == null or _document == null:
+		return
+	var walls: Array[Vector2i] = canvas.selected_walls()
+	var shown: bool = _editing and _unit == null and not walls.is_empty()
+	_wall_box.visible = shown
+	if not shown:
+		return
+	var plan: FloorPlan = _document.floor_plan
+	_filling_wall = true
+	_wall_title.text = (tr("Wall") if walls.size() == 1 else tr("Walls (%d)") % walls.size()).to_upper()
+	var first: FloorPlan.Room = plan.rooms[walls[0].x]
+	_wall_thickness.set_value_no_signal(first.wall_thickness(walls[0].y))
+	_wall_thickness.get_line_edit().text = String.num(first.wall_thickness(walls[0].y), 2) + " m"
+	var outside: bool = true
+	var all_open: bool = true
+	for wall_at: Vector2i in walls:
+		if plan.room_behind(wall_at.x, wall_at.y) >= 0:
+			outside = false
+		if not plan.rooms[wall_at.x].is_open(wall_at.y):
+			all_open = false
+	_wall_thickness.get_line_edit().placeholder_text = String.num(plan.outer_wall if outside else plan.inner_wall, 2)
+	_wall_open.visible = outside
+	_wall_open.set_pressed_no_signal(all_open)
+	_wall_edit.visible = walls.size() == 1
+	_filling_wall = false
+
+
+## The thickness typed given to every wall selected (0: the plan's).
+func _apply_wall_thickness(value: float) -> void:
+	if _filling_wall:
+		return
+	var walls: Array[Vector2i] = canvas.selected_walls()
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		for wall_at: Vector2i in walls:
+			var room: FloorPlan.Room = doc.floor_plan.rooms[wall_at.x]
+			doc.floor_plan.set_wall_look(wall_at.x, wall_at.y, value, room.wall_align(wall_at.y)))
+
+
+## The outside walls selected taken away (open) or put back.
+func _apply_wall_open(on: bool) -> void:
+	if _filling_wall:
+		return
+	var walls: Array[Vector2i] = canvas.selected_walls()
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		for wall_at: Vector2i in walls:
+			doc.floor_plan.rooms[wall_at.x].set_open(wall_at.y, on))
 
 
 func _room_action(row: HBoxContainer, icon_name: String, action: Callable) -> Button:
@@ -1687,7 +1904,7 @@ func _fill_room() -> void:
 	if _room_box == null or _document == null:
 		return
 	var plan: FloorPlan = _document.floor_plan
-	var index: int = canvas.selected.get("index", -1) if canvas.selected.get("kind", "") in ["room", "edge"] else -1
+	var index: int = canvas.selected.get("index", -1) if canvas.selected.get("kind", "") == "room" else -1
 	var shown: bool = _editing and _unit == null and index >= 0 and index < plan.rooms.size()
 	_room_box.visible = shown
 	if not shown:

@@ -49,6 +49,15 @@ const LIGHTING_DROP: float = 3.0
 const OTHER_DROP: float = 5.0
 ## Loop impedance of the supply up to the consumer unit when none is set (Ω).
 const SUPPLY_IMPEDANCE: float = 0.4
+## The circuit number that means "by the kind of part" for new parts (see
+## [method circuit_by_kind]).
+const BY_KIND: int = -1
+## How many sockets (each gang counted) one socket circuit takes when parts
+## go on circuits by their kind.
+const SOCKETS_PER_CIRCUIT: int = 8
+## Appliances that get a circuit of their own when parts go on circuits by
+## their kind (the others plug into a socket circuit).
+const OWN_CIRCUIT: Array[int] = [Appliance.Kind.WATER_HEATER, Appliance.Kind.OVEN, Appliance.Kind.HOB, Appliance.Kind.WASHING_MACHINE, Appliance.Kind.DISHWASHER, Appliance.Kind.HEATER, Appliance.Kind.OUTLET]
 
 
 ## An outgoing circuit: its protective device and the parts it feeds.
@@ -397,6 +406,72 @@ func circuit_numbered(number: int) -> Feeder:
 		if f.number == number:
 			return f
 	return null
+
+
+## The circuit a new part [param part] (on a plan already) goes on by its
+## kind: a luminaire or light switch on the lighting circuit; an appliance
+## of [constant OWN_CIRCUIT] on one of its own; a socket or another
+## appliance on a socket circuit feeding its room with fewer than
+## [constant SOCKETS_PER_CIRCUIT] sockets. A circuit there is not yet: the
+## next number (made waiting by [method feed]).
+func circuit_by_kind(doc: SchematicDocument, part: CircuitComponent) -> int:
+	if part is Luminaire or part is LightSwitch:
+		# The lighting circuit.
+		for f: Feeder in circuits():
+			if _circuit_kind(doc, f) == "lighting":
+				return f.number
+		return next_number()
+	if part is Appliance and (part as Appliance).kind in OWN_CIRCUIT:
+		return next_number()
+	# A socket circuit of its room with room for it, else a new one.
+	var room: Vector2i = _room_of(doc, part.designation)
+	for f: Feeder in circuits():
+		if _circuit_kind(doc, f) != "sockets" or _socket_count(doc, f) >= SOCKETS_PER_CIRCUIT:
+			continue
+		for load: String in f.loads:
+			if load != part.designation and room.x >= 0 and _room_of(doc, load) == room:
+				return f.number
+	return next_number()
+
+
+## What circuit [param f] feeds: "lighting", "sockets" (and small
+## appliances), "appliance" or "" (nothing yet).
+func _circuit_kind(doc: SchematicDocument, f: Feeder) -> String:
+	for designation: String in f.loads:
+		var c: CircuitComponent = doc.circuit.get_component(designation)
+		if c is Luminaire or c is LightSwitch:
+			return "lighting"
+		if c is SocketOutlet or (c is Appliance and (c as Appliance).kind not in OWN_CIRCUIT):
+			return "sockets"
+		if c is Appliance:
+			return "appliance"
+	return ""
+
+
+## Sockets on circuit [param f], each gang counted, small appliances one each.
+func _socket_count(doc: SchematicDocument, f: Feeder) -> int:
+	var count: int = 0
+	for designation: String in f.loads:
+		var c: CircuitComponent = doc.circuit.get_component(designation)
+		if c is SocketOutlet:
+			count += (c as SocketOutlet).gangs
+		elif c is Appliance:
+			count += 1
+	return count
+
+
+## The floor and room part [param designation] is in (on a wall: the room
+## it faces into), (-1, -1) for none.
+static func _room_of(doc: SchematicDocument, designation: String) -> Vector2i:
+	var on: int = doc.floor_of(designation)
+	if on < 0:
+		return Vector2i(-1, -1)
+	var plan: FloorPlan = doc.floors[on]
+	var at: Vector2 = plan.parts[designation]
+	if plan.facing.has(designation):
+		at += FloorPlan.FACING[plan.facing[designation]] * 0.1
+	var room: int = plan.room_at(at)
+	return Vector2i(on, room) if room >= 0 else Vector2i(-1, -1)
 
 
 ## The smallest number no circuit has.

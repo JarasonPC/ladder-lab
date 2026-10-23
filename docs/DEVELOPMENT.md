@@ -403,7 +403,21 @@ Architecture and conventions of the code base. Read this before changing the cod
   circuit number FloorPlanCanvas.circuit by SingleLine.feed, again until a right click).
   Beside the plan a circuit picker (FloorPlanView._fill_circuits): the circuits by number,
   protected or waiting, and a new one; the circuit of the selected part, changed there, or
-  the one new parts go on (the first unless "No circuit" is picked). It and the list of the
+  the one new parts go on: by default by kind (SingleLine.BY_KIND, circuit_by_kind when the
+  part is made, FloorPlanCanvas.add_part: luminaires and light switches on the lighting
+  circuit, OWN_CIRCUIT appliances on new circuits of their own, sockets and other appliances
+  on a socket circuit feeding their room, _room_of, with fewer than SOCKETS_PER_CIRCUIT
+  sockets counted by gangs, else a new one), else the circuit picked or "No circuit".
+  Bathroom zones after ČSN 33 2000-7-701 (FloorPlan.bath_zones: zone 1 over each bath and
+  shower tray, zone 2 ZONE_TWO past it within its room; zone_of a point at a height, none
+  above ZONE_HEIGHT), drawn on an installation's plan (FloorPlanCanvas._draw_bath_zones).
+  The check of an installation (InstallationCheck, no nodes: circuits with parts waiting
+  for protection, more sockets than SingleLine.SOCKETS_PER_CIRCUIT on a circuit, a circuit
+  feeding sockets or a bathroom not behind a 30 mA RCD of its own or of a group it is in,
+  a socket outlet or light switch in zone 1 or 2) runs from the plan's Check button
+  (FloorPlanView._check_button), its problems listed at the top of the side panel
+  (_fill_check, run again with every refresh while shown; a click selects the first part
+  on a plan, its floor shown). It and the list of the
   parts not on the plan hide while rooms, walls, doors or windows are drawn (ROOM_TOOLS) or
   a room is picked (_parts_side, _update_parts_side on FloorPlanCanvas.tool_changed and
   selection_changed). Luminaires and switches
@@ -463,7 +477,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   the corners' grid inside either, their border traced into one loop; refused for pieces
   apart, touching at a corner or with a hole); preset_room ("l": an L cut out of a preset).
   FloorPlanCanvas: walls in wall_color (grey), corners filled (_draw_walls); edge_at gives
-  (room, wall); Tool.JOIN clicks two rooms; the selected room's dimensions (_dimension_walls:
+  (room, wall): anywhere on a wall's band as drawn (of a wall between two rooms, the room
+  the point is nearer to), else near its line. A wall clicked is selected alone ("edge":
+  drawn thick in the selection colour, the corners at its ends as handles, the wall panel
+  in place of the room panel: FloorPlanView._fill_wall), Ctrl+click adds or takes off more
+  ("more", selected_walls, _toggle_wall); the panel sets the own thickness of all of them
+  (set_wall_look), takes an outside wall away or puts it back (Room.open: its walls taken
+  away by index, saved "open"; not grown in _draw_building, no piece in wall_pieces) and
+  opens the wall dialog; Delete (FloorPlan.remove_room_wall, each wall found again by its
+  middle) joins the rooms on both sides of a wall between rooms (room_behind, join_rooms:
+  the room clicked keeps its name; every wall keeps its thickness, alignment and opening,
+  _carry_wall_looks, _with_corners_at keeping the ends of an open stretch as corners),
+  leaves an outside wall open, and takes the doors and windows in it away; Tool.JOIN clicks two rooms; the selected room's dimensions (_dimension_walls:
   a rectangle's top and left, every wall of another outline; _dimension_line outside it),
   double-clicked or Enter on a selected wall: length_requested -> FloorPlanView's length
   dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.
@@ -528,14 +553,23 @@ Architecture and conventions of the code base. Read this before changing the cod
   ticks): FloorPlan.stair_lines gives the treads TREAD apart and the walking line, straight
   along a rectangle's longer side, in an L (_l_corner) a flight in each arm turning in the
   square where they meet with winders from the inner corner, else straight cut to the outline;
-  FloorPlanCanvas._draw_stairs draws them, a dot where the line starts, an arrow up. Where
+  FloorPlanCanvas._draw_stairs draws them, a dot where the line starts, an arrow up; a
+  staircase going on to one over it on the floor above (stairs_to) is cut halfway up as the
+  plan is (a break line across the flight, the treads past it dashed; _along, _at_along)
+  and says "up" at its start, one arriving from a staircase on the floor below says "down"
+  at its top end. Where
   they start there is no wall (stair_start_wall: across the walking line's start, nearest
   it; open_wall): wall_pieces leaves it out, the room's own and one shared with the room it
   is entered from, and the room is not grown there.
   While a room is dragged the doors, windows, fixtures, notes and marks in it are drawn moved
-  along (_room_drag_shift), while a wall is dragged the doors, windows and parts on it
-  (_edge_drag_shift), and a door or window dragged is drawn on the wall it goes onto
-  (_shown_opening).
+  along (_room_drag_shift), while a wall or a corner is dragged the doors, windows and parts
+  on the walls it moves, each keeping its share of the way along its wall (_wall_drag_shift
+  from _room_preview; a door or window only while its wall stays straight the same way),
+  and a door or window dragged is drawn on the wall it goes onto (_shown_opening).
+  A room's label (_label_at) not dragged anywhere goes into the first spot along the top of
+  the room, then its bottom, then its middle, from its top left corner on, where it covers
+  no door with its swing, window, part's symbol or designation (_label_obstacles; the parts
+  drawn first, their boxes in _taken; _label_size), else into its top left corner.
   Dimensions printed with the plan (FloorPlan.Dimension, saved "dimensions"): a chain along
   wall "wall" of room "room" (dimension_stops: its corners, the parts on it, the ends of its
   openings) or, room -1, between "a" and "b"; "offset" from the wall (past the outside wall)
@@ -575,11 +609,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   unplaced_parts (none on any floor); _forget_device and renames go through every floor, the
   lighting graph takes every floor's links; saved "floors" and "floor" with more than one,
   else "floor_plan". FloorPlanView: the floors as tabs over the plan (show_floor, floor_changed
-  -> main.gd sets both copies of the document) and a menu to add one above or a basement,
-  rename or remove the one shown; while editing, the floor below (for the lowest the one
+  -> main.gd sets both copies of the document) and a menu to add one above or a basement
+  (drawn over the floor next to it: FloorPlan.start_over, a room of each of its building's
+  outlines, building_outlines, its staircases put in their places), rename or remove the
+  one shown; while editing, the floor below (for the lowest the one
   above; FloorPlanCanvas.reference_floor) is drawn under the one shown in dash-dot lines:
-  its building's outline inside and out of its outside walls (building_outlines: the rooms
-  merged) and its staircases, its name by them (_draw_reference), never where the floor
+  its building's outline inside and out of its outside walls (FloorPlan.building_outlines:
+  the rooms merged) and its staircases, its name by them (_draw_reference), never where the floor
   shown has a wall already (_off_walls: outside its rooms grown by their walls, or inside
   a room itself; the name only while something shows); their corners are caught
   by the wall, room and outline tools (_reference_corners in _wall_snap, _room_point).
@@ -611,7 +647,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   unit and the room legend always. New ones go on FloorPlanCanvas.active_layer (new_layer:
   "" while the schematic has no such layer; a view setting, not saved); a right click on one
   (_layered_at) -> layer_menu_requested -> FloorPlanView's layer picker (set_item_layer, or a
-  new layer it goes on). FloorPlanView's Layers menu (editing only; its text the active
+  new layer it goes on). The plan's tools are in groups (FloorPlanView: selecting;
+  building: outline, walls, rooms, ready rooms, joining, doors, windows; the electrics:
+  lighting, rows, symbols, check; dimensions, measuring, notes; the underlay, layers and
+  the plan settings), lines between them (_tool_gaps); an empty plan says how a house is
+  drawn (its outline by its corners, then walls across it). FloorPlanView's Layers menu
+  (editing only; its text the active
   layer): a tick per layer shows or hides it (hiding drops the selection and, if it is the
   active one, the active layer), the layer new things go on (choosing a hidden one shows it),
   New, Rename and Remove the active one, Show all; every change one undoable edit.
@@ -1649,7 +1690,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   coils switching round in a circle are frozen (reported as oscillating) while the others
   settle, and a short or too high a voltage between two coil switchings trips and burns nothing,
   only the settled state counts; S of a time relay is applied before its power
-- `schematic/` drawing data (SchematicDocument, Placement, WireRoute, WireRouter, SymbolGeometry,
+- `schematic/` drawing data (SchematicDocument, InstallationCheck, Placement, WireRoute, WireRouter, SymbolGeometry,
   CustomSymbol, SymbolLibrary, ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile; the workspace: Workspace,
   Switchboard, WorkspaceGroup, ControlBox) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so

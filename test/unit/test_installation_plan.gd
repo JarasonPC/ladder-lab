@@ -147,3 +147,71 @@ func test_rooms_and_links_saved_renamed_and_removed() -> void:
 	assert_eq(plan.links[0].a, "SF9", "the link follows a rename")
 	doc.remove_component(doc.circuit.get_component("EA1").id)
 	assert_true(plan.links.is_empty(), "gone with its luminaire")
+
+
+func test_parts_go_on_circuits_by_kind() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	doc.update_single_line()
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Kitchen", Rect2(0, 0, 4, 4)))
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Bedroom", Rect2(4, 0, 4, 4)))
+	var by_kind: int = SingleLine.BY_KIND
+	var put: Callable = func(template: Dictionary, at: Vector2) -> int:
+		var designation: String = FloorPlanCanvas.add_part(doc, template, by_kind, at)
+		var fed: SingleLine.Feeder = doc.single_line.feeder_feeding(designation)
+		return fed.number if fed != null else 0
+	var lighting: int = put.call({"type": "luminaire"}, Vector2(2, 2))
+	assert_eq(put.call({"type": "luminaire"}, Vector2(6, 2)), lighting, "every light on the lighting circuit")
+	assert_eq(put.call({"type": "light_switch", "circuit": "1"}, Vector2(0.05, 1)), lighting, "a switch with them")
+	var kitchen: int = put.call({"type": "socket", "gangs": 2}, Vector2(0.05, 3))
+	assert_ne(kitchen, lighting, "sockets on a circuit of their own")
+	assert_eq(put.call({"type": "socket", "gangs": 1}, Vector2(2, 3.95)), kitchen, "the kitchen's sockets together")
+	assert_eq(put.call({"type": "appliance", "kind": "fridge"}, Vector2(3.95, 3)), kitchen, "a fridge plugs in there")
+	var bedroom: int = put.call({"type": "socket", "gangs": 1}, Vector2(7.95, 2))
+	assert_ne(bedroom, kitchen, "another room, another socket circuit")
+	var oven: int = put.call({"type": "appliance", "kind": "oven"}, Vector2(1, 0.05))
+	assert_false(oven in [lighting, kitchen, bedroom], "an oven on a circuit of its own")
+	# Full: a socket circuit takes no more than SOCKETS_PER_CIRCUIT.
+	for k: int in 3:
+		put.call({"type": "socket", "gangs": 2}, Vector2(0.5 + k, 0.05))
+	assert_ne(put.call({"type": "socket", "gangs": 1}, Vector2(3.5, 0.05)), kitchen, "a full circuit takes no more")
+
+
+func test_installation_checked_with_the_bathroom_zones() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	doc.update_single_line()
+	var plan: FloorPlan = doc.floor_plan
+	plan.rooms.append(FloorPlan.Room.new("Bathroom", Rect2(0, 0, 3, 2.5)))
+	plan.rooms.append(FloorPlan.Room.new("Bedroom", Rect2(3, 0, 4, 4)))
+	var bath: FloorPlan.Fixture = plan.fixture_at_point("bath", Vector2(0.4, 1.0))
+	plan.fixtures.append(bath)
+	# Zone 1 over the bath, zone 2 0.6 m round it within the bathroom.
+	var zones: Array[Dictionary] = plan.bath_zones()
+	assert_eq(zones.size(), 2)
+	assert_eq(plan.zone_of(bath.rect.get_center(), 1.2), 1)
+	assert_eq(plan.zone_of(bath.rect.get_center(), 2.6), 0, "above 2.25 m none")
+	var beside: Vector2 = Vector2(bath.rect.end.x + 0.3, bath.rect.get_center().y)
+	assert_eq(plan.zone_of(beside, 1.2), 2)
+	assert_eq(plan.zone_of(Vector2(bath.rect.end.x + 0.9, bath.rect.get_center().y), 1.2), 0)
+	# Parts by kind: their circuits wait for protection.
+	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 1}, SingleLine.BY_KIND, Vector2(0.05, 2.2))
+	FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, SingleLine.BY_KIND, Vector2(6.95, 2))
+	var texts: PackedStringArray = PackedStringArray()
+	for issue: Dictionary in InstallationCheck.run(doc):
+		texts.append(issue["text"])
+	assert_true(texts.has("Circuit %d is not protected yet: put a breaker for it in the consumer unit."), "circuits waiting for a breaker")
+	assert_true(texts.has("-%s is in zone %d of the bathroom: no socket outlets or switches there."), "the socket by the bath")
+	var zone_issue: Dictionary = InstallationCheck.run(doc).filter(func(i: Dictionary) -> bool: return str(i["text"]).begins_with("-%s is in zone"))[0]
+	assert_eq(zone_issue["ids"], PackedStringArray([socket]))
+	# Protected by a breaker alone: a socket circuit needs a 30 mA RCD.
+	var line: SingleLine = doc.single_line
+	for f: SingleLine.Feeder in line.waiting.duplicate():
+		var breaker: CircuitBreaker = CircuitBreaker.new(SingleLineCanvas.new_designation(doc, {"type": "breaker"}))
+		assert_true(line.add(doc, breaker, line.columns.size(), "", "", f.number))
+	texts.clear()
+	for issue: Dictionary in InstallationCheck.run(doc):
+		texts.append(issue["text"])
+	assert_false(texts.has("Circuit %d is not protected yet: put a breaker for it in the consumer unit."))
+	assert_true(texts.has("Circuit %d (-%s) is not behind a 30 mA residual current device, which sockets and bathrooms need."))
+	assert_eq(InstallationCheck.run(SchematicDocument.new("control")).size(), 0, "only a house installation")

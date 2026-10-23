@@ -811,8 +811,10 @@ func test_staircase_lighting_across_floors_and_the_floor_below() -> void:
 	await get_tree().process_frame
 	# The floor below drawn under this one, its corners caught.
 	assert_eq(canvas.reference_floor(), 0)
-	assert_eq(canvas._room_point(Vector2(0.05, 5.45)), Vector2(0, 5.5), "onto the corner of the floor below")
-	var below: PackedVector2Array = FloorPlanCanvas.building_outlines(doc.floors[0])[0]
+	assert_true(canvas.stairs_to(0, -1), "upstairs: the stairs come up from below")
+	assert_false(canvas.stairs_to(0, 1), "and go no higher")
+	assert_true(canvas._room_point(Vector2(0.05, 5.45)).distance_to(Vector2(0, 5.5)) < 1e-4, "onto the corner of the floor below")
+	var below: PackedVector2Array = doc.floors[0].building_outlines()[0]
 	below.append(below[0])
 	assert_false(canvas._off_walls(below).is_empty(), "shown while nothing is drawn over it")
 	doc.floor_plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(0, 5.5, 4, 3.5)))
@@ -823,6 +825,7 @@ func test_staircase_lighting_across_floors_and_the_floor_below() -> void:
 	assert_true(canvas.stair_ghosts().has("SF2"))
 	assert_true(canvas.stair_ghosts().has("EA1"))
 	assert_eq(canvas.reference_floor(), 1, "the lowest floor drawn over the one above")
+	assert_true(canvas.stairs_to(1, 1), "downstairs: the stairs go up, cut halfway")
 	canvas.queue_redraw()
 	await get_tree().process_frame
 	# The switch downstairs taken off the plan: its link upstairs goes too.
@@ -830,3 +833,31 @@ func test_staircase_lighting_across_floors_and_the_floor_below() -> void:
 	canvas.selected = {"kind": "part", "designation": "SF1"}
 	canvas.delete_selected()
 	assert_eq(doc.floors[1].links.size(), 1, "only the light's link stays")
+
+
+func test_floor_added_over_the_one_below() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	var plan: FloorPlan = doc.floor_plan
+	plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 6, 5)))
+	plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(0, 5, 4, 3)))
+	var stairs: FloorPlan.Room = FloorPlan.Room.new("Staircase", Rect2(4, 5, 2, 3))
+	stairs.stairs = true
+	plan.rooms.append(stairs)
+	var view: FloorPlanView = autofree(FloorPlanView.new())
+	add_child(view)
+	view.set_document(doc, true)
+	view.edit_requested.connect(func(change: Callable) -> void:
+		change.call(doc)
+		view.refresh())
+	view._on_floor_menu(0)
+	assert_eq(doc.floors.size(), 2)
+	var upper: FloorPlan = doc.floors[1]
+	assert_eq(doc.floor_plan, upper, "the new floor shown")
+	assert_eq(upper.rooms.size(), 2, "the house's outline and its staircase")
+	var area: float = 0.0
+	for room: FloorPlan.Room in upper.rooms:
+		area += room.area()
+	assert_almost_eq(area, 6.0 * 8.0, 1e-3, "the whole house")
+	assert_true(upper.rooms.any(func(r: FloorPlan.Room) -> bool: return r.stairs and r.rect == Rect2(4, 5, 2, 3)), "the staircase in its place")
+	assert_eq(upper.overlaps().size(), 0)

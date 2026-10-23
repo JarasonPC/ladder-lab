@@ -5017,9 +5017,6 @@ msgstr "Kliknutím jej přepnete"
 msgid "Mounting height %s m"
 msgstr "Montážní výška %s m"
 
-msgid "Draw a room: pick Room and drag, or add one of the ready rooms."
-msgstr "Nakreslete místnost: zvolte Místnost a táhněte, nebo přidejte některou z připravených místností."
-
 msgid "Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling."
 msgstr "Vyberte přístroj a klikněte, kam patří: vypínače, zásuvky a spotřebiče jdou na nejbližší stěnu, svítidla na strop."
 
@@ -6592,3 +6589,45 @@ msgstr "Vrstvy: zobrazit nebo skrýt, co je na každé z nich (na obrazovce i na
 
 msgid "Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it)."
 msgstr "Nakreslete toto podlaží nad tím pod ním (čerchovaně): jeho rohy se přichytávají (po rozích domu, pak zdmi napříč)."
+
+msgid "Walls (%d)"
+msgstr "Zdi (%d)"
+
+msgid "No wall (taken away)"
+msgstr "Bez zdi (odebraná)"
+
+msgid "Length and direction of the wall (Enter)"
+msgstr "Délka a směr zdi (Enter)"
+
+msgid "Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls"
+msgstr "Odebrat zeď (Delete): místnosti po obou stranách se spojí v jednu, po obvodové zdi zůstane místnost otevřená; Ctrl+klik vybere další zdi"
+
+msgid "By kind (lighting, sockets, appliances)"
+msgstr "Podle druhu (osvětlení, zásuvky, spotřebiče)"
+
+msgid "Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own"
+msgstr "Svítidla a vypínače jdou na světelný obvod, zásuvky na zásuvkový obvod své místnosti (nejvýše %d zásuvek), velké spotřebiče na vlastní obvody"
+
+msgid "Circuit %d is not protected yet: put a breaker for it in the consumer unit."
+msgstr "Obvod %d ještě není jištěn: vložte pro něj jistič do rozvaděče."
+
+msgid "Circuit %d has %d sockets: no more than %d are advised on one circuit."
+msgstr "Obvod %d má %d zásuvek: na jeden obvod se doporučuje nejvýše %d."
+
+msgid "Circuit %d (-%s) is not behind a 30 mA residual current device, which sockets and bathrooms need."
+msgstr "Obvod %d (-%s) není za proudovým chráničem 30 mA, který zásuvky a koupelny potřebují."
+
+msgid "-%s is in zone %d of the bathroom: no socket outlets or switches there."
+msgstr "-%s je v zóně %d koupelny: zásuvky ani vypínače tam nepatří."
+
+msgid "Check the installation: circuits not protected, socket circuits and bathrooms without a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a bathroom's zones"
+msgstr "Zkontrolovat instalaci: nejištěné obvody, zásuvkové obvody a koupelny bez proudového chrániče 30 mA, příliš mnoho zásuvek na obvodu, vypínače a zásuvky v zónách koupelny"
+
+msgid "up"
+msgstr "nahoru"
+
+msgid "down"
+msgstr "dolů"
+
+msgid "Draw the house: with Room by its corners click the corners of the house, then split it into rooms with Walls drawn across it; or drag a Room, or add a ready one."
+msgstr "Nakreslete dům: nástrojem Místnost po rozích klikněte na rohy domu, pak ho rozdělte na místnosti Zdmi nakreslenými napříč; nebo táhněte Místnost, nebo přidejte připravenou."
