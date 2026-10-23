@@ -165,6 +165,11 @@ var _side: VBoxContainer
 var _list_title: Label
 var _list: ItemList
 var _list_hint: Label
+## Runs the check of the installation; its problems in the side panel.
+var _check_button: Button
+var _check_box: VBoxContainer
+var _check_title: Label
+var _check_list: VBoxContainer
 ## Designations in the list, by item index.
 var _listed: PackedStringArray = PackedStringArray()
 ## The consumer unit opened in place of the plan, null while the plan shows.
@@ -272,6 +277,15 @@ func _ready() -> void:
 	_symbols_button.icon = AppTheme.icon("symbols", ICON_SIZE)
 	_symbols_button.pressed.connect(func() -> void: _symbols_dialog.open())
 	_bar.add_child(_symbols_button)
+	_check_button = Button.new()
+	_check_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_check_button.theme_type_variation = "ToolButton"
+	_check_button.focus_mode = Control.FOCUS_NONE
+	_check_button.icon = AppTheme.icon("check", ICON_SIZE)
+	_check_button.pressed.connect(func() -> void:
+		_check_box.visible = true
+		_fill_check())
+	_bar.add_child(_check_button)
 	_delete_button = Button.new()
 	_delete_button.theme_type_variation = "ToolButton"
 	_delete_button.focus_mode = Control.FOCUS_NONE
@@ -703,6 +717,7 @@ func refresh() -> void:
 	_update_array_button()
 	_fill_floor_tabs()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
+	_check_button.visible = _editing and plan_shown and canvas.installation()
 	_symbols_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
 	_update_parts_side()
@@ -715,6 +730,7 @@ func refresh() -> void:
 	_list_hint.text = tr("Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling.") if not _listed.is_empty() else tr("Every part is on the plan.")
 	_fill_room()
 	_fill_wall()
+	_fill_check()
 	canvas.queue_redraw()
 
 
@@ -832,6 +848,7 @@ func retranslate() -> void:
 	_room_title.text = tr("Room").to_upper()
 	_wall_thickness_label.text = tr("Thickness (0: the plan's)")
 	_wall_open.text = tr("No wall (taken away)")
+	_check_button.tooltip_text = tr("Check the installation: circuits not protected, socket circuits and bathrooms without a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a bathroom's zones")
 	_wall_edit.tooltip_text = tr("Length and direction of the wall (Enter)")
 	_wall_delete.tooltip_text = tr("Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls")
 	_rename_field.placeholder_text = tr("Name of the room")
@@ -1683,6 +1700,76 @@ func _build_room_panel() -> void:
 	_room_box.add_child(HSeparator.new())
 	canvas.selection_changed.connect(_fill_room)
 	_build_wall_panel()
+	_build_check_panel()
+
+
+## The problems the check of the installation found, each a button that
+## selects the parts it is about.
+func _build_check_panel() -> void:
+	_check_box = VBoxContainer.new()
+	_check_box.add_theme_constant_override("separation", 4)
+	_check_box.visible = false
+	_side.add_child(_check_box)
+	_side.move_child(_check_box, 0)
+	var header: HBoxContainer = HBoxContainer.new()
+	_check_box.add_child(header)
+	_check_title = Label.new()
+	_check_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_check_title.theme_type_variation = "HeaderLabel"
+	_check_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_check_title)
+	var close: Button = Button.new()
+	close.theme_type_variation = "ToolButton"
+	close.focus_mode = Control.FOCUS_NONE
+	close.icon = AppTheme.icon("close", 14)
+	close.pressed.connect(func() -> void: _check_box.visible = false)
+	header.add_child(close)
+	_check_list = VBoxContainer.new()
+	_check_box.add_child(_check_list)
+	_check_box.add_child(HSeparator.new())
+
+
+## The check run again (while its results show).
+func _fill_check() -> void:
+	if _check_box == null or not _check_box.visible or _document == null:
+		return
+	# Freed once the click on one of them is over.
+	for child: Node in _check_list.get_children():
+		_check_list.remove_child(child)
+		child.queue_free()
+	var issues: Array[Dictionary] = InstallationCheck.run(_document)
+	_check_title.text = (tr("Check") if issues.is_empty() else tr_n("Check: %d problem", "Check: %d problems", issues.size()) % issues.size()).to_upper()
+	if issues.is_empty():
+		var fine: Label = Label.new()
+		fine.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		fine.theme_type_variation = "MutedLabel"
+		fine.text = tr("No problems found.")
+		_check_list.add_child(fine)
+	for issue: Dictionary in issues:
+		var row: Button = Button.new()
+		row.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		row.theme_type_variation = "ListButton"
+		row.focus_mode = Control.FOCUS_NONE
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.custom_minimum_size = Vector2(180, 0)
+		row.text = tr(issue["text"]) % issue["args"]
+		var ids: PackedStringArray = issue["ids"]
+		row.pressed.connect(func() -> void: _show_issue(ids))
+		_check_list.add_child(row)
+
+
+## The first part of a problem that is on a plan shown and selected.
+func _show_issue(ids: PackedStringArray) -> void:
+	for designation: String in ids:
+		var on: int = _document.floor_of(designation)
+		if on < 0:
+			continue
+		if on != _document.floor:
+			show_floor(on)
+		canvas.selected = {"kind": "part", "designation": designation}
+		canvas.queue_redraw()
+		return
 
 
 ## The panel of the walls selected: their own thickness for all of them,

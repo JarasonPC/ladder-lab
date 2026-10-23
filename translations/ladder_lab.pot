@@ -6585,3 +6585,18 @@ msgstr ""
 
 msgid "Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own"
 msgstr ""
+
+msgid "Circuit %d is not protected yet: put a breaker for it in the consumer unit."
+msgstr ""
+
+msgid "Circuit %d has %d sockets: no more than %d are advised on one circuit."
+msgstr ""
+
+msgid "Circuit %d (-%s) is not behind a 30 mA residual current device, which sockets and bathrooms need."
+msgstr ""
+
+msgid "-%s is in zone %d of the bathroom: no socket outlets or switches there."
+msgstr ""
+
+msgid "Check the installation: circuits not protected, socket circuits and bathrooms without a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a bathroom's zones"
+msgstr ""

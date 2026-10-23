@@ -19,6 +19,10 @@ const SNAP: float = 0.05
 const WALL_SNAP: float = 0.3
 ## A switch, socket or appliance dropped this close to a wall (m) goes onto it.
 const ON_WALL: float = 0.5
+## Height of zones 1 and 2 of a bathroom over the floor (m, ČSN 33 2000-7-701).
+const ZONE_HEIGHT: float = 2.25
+## How far zone 2 of a bathroom reaches past zone 1 (m).
+const ZONE_TWO: float = 0.6
 ## How far a wall part's symbol can be moved off its wall (m).
 const MAX_OFFSET: float = 1.5
 ## Smallest room side (m).
@@ -846,6 +850,44 @@ func remove_room(index: int) -> void:
 				list.remove_at(j)
 	rooms.remove_at(index)
 	_forget_room(index, -1)
+
+
+## The zones of the bathrooms after ČSN 33 2000-7-701 round each bath and
+## shower tray: {"zone": 1 (over it, its outline) or 2 (up to
+## [constant ZONE_TWO] past zone 1, within its room), "points"}.
+func bath_zones() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for fixture: Fixture in fixtures:
+		if fixture.kind not in ["bath", "shower"]:
+			continue
+		var r: Rect2 = fixture.rect
+		var one: PackedVector2Array = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+		result.append({"zone": 1, "points": one})
+		var room: int = room_at(r.get_center())
+		for grown: PackedVector2Array in Geometry2D.offset_polygon(one, ZONE_TWO, Geometry2D.JOIN_MITER):
+			var pieces: Array[PackedVector2Array] = [grown] if room < 0 else Geometry2D.intersect_polygons(grown, rooms[room].points)
+			for piece: PackedVector2Array in pieces:
+				if not Geometry2D.is_polygon_clockwise(piece) or pieces.size() == 1:
+					result.append({"zone": 2, "points": piece})
+	return result
+
+
+## The zone of a bathroom (1 or 2) plan point [param point] at
+## [param height] m over the floor is in, 0 for none (above
+## [constant ZONE_HEIGHT] none); a point on a zone's edge is in it.
+func zone_of(point: Vector2, height: float) -> int:
+	if height > ZONE_HEIGHT:
+		return 0
+	var found: int = 0
+	for zone: Dictionary in bath_zones():
+		var points: PackedVector2Array = zone["points"]
+		var inside: bool = Geometry2D.is_point_in_polygon(point, points)
+		for k: int in points.size():
+			if Geometry2D.get_closest_point_to_segment(point, points[k], points[(k + 1) % points.size()]).distance_to(point) < 0.02:
+				inside = true
+		if inside and (found == 0 or int(zone["zone"]) < found):
+			found = zone["zone"]
+	return found
 
 
 ## The room on the other side of wall [param k] of room [param index] (a

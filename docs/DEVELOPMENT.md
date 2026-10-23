@@ -407,7 +407,17 @@ Architecture and conventions of the code base. Read this before changing the cod
   part is made, FloorPlanCanvas.add_part: luminaires and light switches on the lighting
   circuit, OWN_CIRCUIT appliances on new circuits of their own, sockets and other appliances
   on a socket circuit feeding their room, _room_of, with fewer than SOCKETS_PER_CIRCUIT
-  sockets counted by gangs, else a new one), else the circuit picked or "No circuit". It and the list of the
+  sockets counted by gangs, else a new one), else the circuit picked or "No circuit".
+  Bathroom zones after ČSN 33 2000-7-701 (FloorPlan.bath_zones: zone 1 over each bath and
+  shower tray, zone 2 ZONE_TWO past it within its room; zone_of a point at a height, none
+  above ZONE_HEIGHT), drawn on an installation's plan (FloorPlanCanvas._draw_bath_zones).
+  The check of an installation (InstallationCheck, no nodes: circuits with parts waiting
+  for protection, more sockets than SingleLine.SOCKETS_PER_CIRCUIT on a circuit, a circuit
+  feeding sockets or a bathroom not behind a 30 mA RCD of its own or of a group it is in,
+  a socket outlet or light switch in zone 1 or 2) runs from the plan's Check button
+  (FloorPlanView._check_button), its problems listed at the top of the side panel
+  (_fill_check, run again with every refresh while shown; a click selects the first part
+  on a plan, its floor shown). It and the list of the
   parts not on the plan hide while rooms, walls, doors or windows are drawn (ROOM_TOOLS) or
   a room is picked (_parts_side, _update_parts_side on FloorPlanCanvas.tool_changed and
   selection_changed). Luminaires and switches
@@ -1659,7 +1669,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   coils switching round in a circle are frozen (reported as oscillating) while the others
   settle, and a short or too high a voltage between two coil switchings trips and burns nothing,
   only the settled state counts; S of a time relay is applied before its power
-- `schematic/` drawing data (SchematicDocument, Placement, WireRoute, WireRouter, SymbolGeometry,
+- `schematic/` drawing data (SchematicDocument, InstallationCheck, Placement, WireRoute, WireRouter, SymbolGeometry,
   CustomSymbol, SymbolLibrary, ExampleCircuits, SheetLayout, PdfWriter, ProjectFile, RecoveryFile; the workspace: Workspace,
   Switchboard, WorkspaceGroup, ControlBox) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so

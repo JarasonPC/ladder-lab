@@ -894,6 +894,26 @@ func _off_walls(line: PackedVector2Array) -> Array[PackedVector2Array]:
 	return visible
 
 
+## The zones of the bathrooms round baths and shower trays (ČSN 33
+## 2000-7-701): zone 1 over each tinted, zone 2 dashed round it, each
+## numbered.
+func _draw_bath_zones(font: Font) -> void:
+	var color: Color = Color(0.25, 0.55, 0.95)
+	for zone: Dictionary in plan().bath_zones():
+		var points: PackedVector2Array = _screen_points(zone["points"])
+		var box: Rect2 = Rect2(points[0], Vector2.ZERO)
+		for p: Vector2 in points:
+			box = box.expand(p)
+		if int(zone["zone"]) == 1:
+			draw_colored_polygon(points, Color(color, 0.12))
+			draw_string(font, box.position + Vector2(4, _sized(TEXT_SIZE) + 2), "1", HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(color, 0.9))
+		else:
+			var closed: PackedVector2Array = points.duplicate()
+			closed.append(points[0])
+			CustomSymbol.stroke_line(self, closed, Color(color, 0.7), 1.0, "dash")
+			draw_string(font, box.position + Vector2(4, _sized(TEXT_SIZE) + 2), "2", HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(color, 0.9))
+
+
 ## The parts of the floors above and below in a staircase, faint, each with
 ## its floor and the way to it.
 func _draw_stair_ghosts(font: Font, s: float) -> void:
@@ -2706,6 +2726,8 @@ func _draw() -> void:
 			continue
 		var chosen_fixture: bool = selected.get("kind", "") == "fixture" and selected.get("index", -1) == i
 		_draw_fixture(fixture, _shown_fixture_rect(i), SchematicTheme.SELECTED if chosen_fixture else Color(SchematicTheme.LINE, 0.4))
+	if installation():
+		_draw_bath_zones(font)
 	if editing and tool == Tool.PLACE and placing_template.get("type", "") == "fixture":
 		var ghost: FloorPlan.Fixture = plan().fixture_at_point(str(placing_template.get("kind", "table")), to_plan(_mouse))
 		_draw_fixture(ghost, ghost.rect, SchematicTheme.SELECTED)

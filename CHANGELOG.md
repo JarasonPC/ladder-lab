@@ -7,6 +7,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- The bathroom zones (ČSN 33 2000-7-701) are drawn round baths and shower trays on the plan
+- Check on the floor plan: circuits not protected yet, socket circuits and bathrooms without
+  a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a
+  bathroom's zones; a click on a problem selects the part
 - New parts on the floor plan go on circuits by their kind (the new default in the circuit
   picker): lights and light switches on the lighting circuit, sockets on a socket circuit of
   their room (up to 8 sockets), large appliances on circuits of their own

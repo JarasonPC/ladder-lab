@@ -6610,3 +6610,18 @@ msgstr "Podle druhu (osvětlení, zásuvky, spotřebiče)"
 
 msgid "Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own"
 msgstr "Svítidla a vypínače jdou na světelný obvod, zásuvky na zásuvkový obvod své místnosti (nejvýše %d zásuvek), velké spotřebiče na vlastní obvody"
+
+msgid "Circuit %d is not protected yet: put a breaker for it in the consumer unit."
+msgstr "Obvod %d ještě není jištěn: vložte pro něj jistič do rozvaděče."
+
+msgid "Circuit %d has %d sockets: no more than %d are advised on one circuit."
+msgstr "Obvod %d má %d zásuvek: na jeden obvod se doporučuje nejvýše %d."
+
+msgid "Circuit %d (-%s) is not behind a 30 mA residual current device, which sockets and bathrooms need."
+msgstr "Obvod %d (-%s) není za proudovým chráničem 30 mA, který zásuvky a koupelny potřebují."
+
+msgid "-%s is in zone %d of the bathroom: no socket outlets or switches there."
+msgstr "-%s je v zóně %d koupelny: zásuvky ani vypínače tam nepatří."
+
+msgid "Check the installation: circuits not protected, socket circuits and bathrooms without a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a bathroom's zones"
+msgstr "Zkontrolovat instalaci: nejištěné obvody, zásuvkové obvody a koupelny bez proudového chrániče 30 mA, příliš mnoho zásuvek na obvodu, vypínače a zásuvky v zónách koupelny"
