@@ -177,6 +177,15 @@ var _body: HBoxContainer
 ## picked from the usual ones), size, area, number, environment and
 ## illuminance, changed as they are typed; Duplicate, Split, Delete.
 var _room_box: VBoxContainer
+## The walls selected: their own thickness, an outside wall taken away.
+var _wall_box: VBoxContainer
+var _wall_title: Label
+var _wall_thickness_label: Label
+var _wall_thickness: SpinBox
+var _wall_open: CheckBox
+var _wall_edit: Button
+var _wall_delete: Button
+var _filling_wall: bool = false
 var _room_title: Label
 var _rename_field: LineEdit
 var _name_menu: MenuButton
@@ -707,6 +716,7 @@ func refresh() -> void:
 		_list.add_item(_entry_text(designation))
 	_list_hint.text = tr("Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling.") if not _listed.is_empty() else tr("Every part is on the plan.")
 	_fill_room()
+	_fill_wall()
 	canvas.queue_redraw()
 
 
@@ -822,6 +832,10 @@ func retranslate() -> void:
 	_fit_button.text = tr("Show all")
 	_list_title.text = tr("Not on the plan").to_upper()
 	_room_title.text = tr("Room").to_upper()
+	_wall_thickness_label.text = tr("Thickness (0: the plan's)")
+	_wall_open.text = tr("No wall (taken away)")
+	_wall_edit.tooltip_text = tr("Length and direction of the wall (Enter)")
+	_wall_delete.tooltip_text = tr("Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls")
 	_rename_field.placeholder_text = tr("Name of the room")
 	_name_menu.tooltip_text = tr("A usual name: a bathroom, a kitchen, ... (in a house installation it sets the environment and illuminance)")
 	_room_duplicate.tooltip_text = tr("Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)")
@@ -1668,6 +1682,96 @@ func _build_room_panel() -> void:
 	_room_delete = _room_action(actions, "delete", func() -> void: canvas.delete_selected())
 	_room_box.add_child(HSeparator.new())
 	canvas.selection_changed.connect(_fill_room)
+	_build_wall_panel()
+
+
+## The panel of the walls selected: their own thickness for all of them,
+## an outside wall taken away (open) or put back, the length and direction
+## of one, Delete.
+func _build_wall_panel() -> void:
+	_wall_box = VBoxContainer.new()
+	_wall_box.add_theme_constant_override("separation", 4)
+	_side.add_child(_wall_box)
+	_side.move_child(_wall_box, 1)
+	_wall_title = Label.new()
+	_wall_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_wall_title.theme_type_variation = "HeaderLabel"
+	_wall_box.add_child(_wall_title)
+	_wall_thickness_label = Label.new()
+	_wall_thickness_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_wall_box.add_child(_wall_thickness_label)
+	_wall_thickness = SpinBox.new()
+	_wall_thickness.min_value = 0.0
+	_wall_thickness.max_value = FloorPlan.MAX_WALL_THICKNESS
+	_wall_thickness.step = 0.01
+	_wall_thickness.suffix = "m"
+	_wall_thickness.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wall_thickness.value_changed.connect(_apply_wall_thickness)
+	_wall_box.add_child(_wall_thickness)
+	_wall_open = CheckBox.new()
+	_wall_open.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_wall_open.toggled.connect(_apply_wall_open)
+	_wall_box.add_child(_wall_open)
+	var actions: HBoxContainer = HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 4)
+	_wall_box.add_child(actions)
+	_wall_edit = _room_action(actions, "plan_dimension", func() -> void:
+		var walls: Array[Vector2i] = canvas.selected_walls()
+		if not walls.is_empty():
+			_ask_length(walls[0].x, walls[0].y))
+	_wall_delete = _room_action(actions, "delete", func() -> void: canvas.delete_selected())
+	_wall_box.add_child(HSeparator.new())
+	canvas.selection_changed.connect(_fill_wall)
+
+
+## The wall panel for the walls selected (hidden for none).
+func _fill_wall() -> void:
+	if _wall_box == null or _document == null:
+		return
+	var walls: Array[Vector2i] = canvas.selected_walls()
+	var shown: bool = _editing and _unit == null and not walls.is_empty()
+	_wall_box.visible = shown
+	if not shown:
+		return
+	var plan: FloorPlan = _document.floor_plan
+	_filling_wall = true
+	_wall_title.text = (tr("Wall") if walls.size() == 1 else tr("Walls (%d)") % walls.size()).to_upper()
+	var first: FloorPlan.Room = plan.rooms[walls[0].x]
+	_wall_thickness.set_value_no_signal(first.wall_thickness(walls[0].y))
+	_wall_thickness.get_line_edit().text = String.num(first.wall_thickness(walls[0].y), 2) + " m"
+	var outside: bool = true
+	var all_open: bool = true
+	for wall_at: Vector2i in walls:
+		if plan.room_behind(wall_at.x, wall_at.y) >= 0:
+			outside = false
+		if not plan.rooms[wall_at.x].is_open(wall_at.y):
+			all_open = false
+	_wall_thickness.get_line_edit().placeholder_text = String.num(plan.outer_wall if outside else plan.inner_wall, 2)
+	_wall_open.visible = outside
+	_wall_open.set_pressed_no_signal(all_open)
+	_wall_edit.visible = walls.size() == 1
+	_filling_wall = false
+
+
+## The thickness typed given to every wall selected (0: the plan's).
+func _apply_wall_thickness(value: float) -> void:
+	if _filling_wall:
+		return
+	var walls: Array[Vector2i] = canvas.selected_walls()
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		for wall_at: Vector2i in walls:
+			var room: FloorPlan.Room = doc.floor_plan.rooms[wall_at.x]
+			doc.floor_plan.set_wall_look(wall_at.x, wall_at.y, value, room.wall_align(wall_at.y)))
+
+
+## The outside walls selected taken away (open) or put back.
+func _apply_wall_open(on: bool) -> void:
+	if _filling_wall:
+		return
+	var walls: Array[Vector2i] = canvas.selected_walls()
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		for wall_at: Vector2i in walls:
+			doc.floor_plan.rooms[wall_at.x].set_open(wall_at.y, on))
 
 
 func _room_action(row: HBoxContainer, icon_name: String, action: Callable) -> Button:
@@ -1687,7 +1791,7 @@ func _fill_room() -> void:
 	if _room_box == null or _document == null:
 		return
 	var plan: FloorPlan = _document.floor_plan
-	var index: int = canvas.selected.get("index", -1) if canvas.selected.get("kind", "") in ["room", "edge"] else -1
+	var index: int = canvas.selected.get("index", -1) if canvas.selected.get("kind", "") == "room" else -1
 	var shown: bool = _editing and _unit == null and index >= 0 and index < plan.rooms.size()
 	_room_box.visible = shown
 	if not shown:

@@ -6567,3 +6567,15 @@ msgstr ""
 
 msgid "Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it)."
 msgstr ""
+
+msgid "Walls (%d)"
+msgstr ""
+
+msgid "No wall (taken away)"
+msgstr ""
+
+msgid "Length and direction of the wall (Enter)"
+msgstr ""
+
+msgid "Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls"
+msgstr ""

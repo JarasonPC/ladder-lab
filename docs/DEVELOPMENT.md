@@ -463,7 +463,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   the corners' grid inside either, their border traced into one loop; refused for pieces
   apart, touching at a corner or with a hole); preset_room ("l": an L cut out of a preset).
   FloorPlanCanvas: walls in wall_color (grey), corners filled (_draw_walls); edge_at gives
-  (room, wall); Tool.JOIN clicks two rooms; the selected room's dimensions (_dimension_walls:
+  (room, wall): anywhere on a wall's band as drawn (of a wall between two rooms, the room
+  the point is nearer to), else near its line. A wall clicked is selected alone ("edge":
+  drawn thick in the selection colour, the corners at its ends as handles, the wall panel
+  in place of the room panel: FloorPlanView._fill_wall), Ctrl+click adds or takes off more
+  ("more", selected_walls, _toggle_wall); the panel sets the own thickness of all of them
+  (set_wall_look), takes an outside wall away or puts it back (Room.open: its walls taken
+  away by index, saved "open"; not grown in _draw_building, no piece in wall_pieces) and
+  opens the wall dialog; Delete (FloorPlan.remove_room_wall, each wall found again by its
+  middle) joins the rooms on both sides of a wall between rooms (room_behind, join_rooms:
+  the room clicked keeps its name; every wall keeps its thickness, alignment and opening,
+  _carry_wall_looks, _with_corners_at keeping the ends of an open stretch as corners),
+  leaves an outside wall open, and takes the doors and windows in it away; Tool.JOIN clicks two rooms; the selected room's dimensions (_dimension_walls:
   a rectangle's top and left, every wall of another outline; _dimension_line outside it),
   double-clicked or Enter on a selected wall: length_requested -> FloorPlanView's length
   dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.

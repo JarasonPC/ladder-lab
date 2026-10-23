@@ -146,6 +146,19 @@ class Room:
 	## lies between two rooms ([enum FloorPlan.Align]), by wall index.
 	var thickness: PackedFloat32Array = PackedFloat32Array()
 	var align: PackedInt32Array = PackedInt32Array()
+	## Its walls taken away (by index): open there, no wall drawn.
+	var open: PackedInt32Array = PackedInt32Array()
+
+	## Whether wall [param k] was taken away (open, no wall there).
+	func is_open(k: int) -> bool:
+		return open.has(k)
+
+	## Takes wall [param k] away ([param value] true) or puts it back.
+	func set_open(k: int, value: bool) -> void:
+		if value and not open.has(k):
+			open.append(k)
+		elif not value and open.has(k):
+			open.remove_at(open.find(k))
 
 	## Wall [param k]'s own thickness, 0 for the plan's.
 	func wall_thickness(k: int) -> float:
@@ -835,6 +848,49 @@ func remove_room(index: int) -> void:
 	_forget_room(index, -1)
 
 
+## The room on the other side of wall [param k] of room [param index] (a
+## wall of it on the same line along a stretch of it), -1 for none.
+func room_behind(index: int, k: int) -> int:
+	var w: PackedVector2Array = rooms[index].wall(k)
+	var length: float = w[0].distance_to(w[1])
+	if length < 0.001:
+		return -1
+	var dir: Vector2 = (w[1] - w[0]) / length
+	for i: int in rooms.size():
+		if i == index:
+			continue
+		for j: int in rooms[i].points.size():
+			var o: PackedVector2Array = rooms[i].wall(j)
+			if absf((o[0] - w[0]).cross(dir)) > 0.002 or absf((o[1] - w[0]).cross(dir)) > 0.002:
+				continue
+			var t0: float = (o[0] - w[0]).dot(dir)
+			var t1: float = (o[1] - w[0]).dot(dir)
+			if minf(maxf(t0, t1), length) - maxf(minf(t0, t1), 0.0) > 0.01:
+				return i
+	return -1
+
+
+## Takes wall [param k] of room [param index] away, with the doors and
+## windows in it: a wall between it and another room joins the two (room
+## [param index] keeping its name, see [method join_rooms]); an outside
+## wall leaves the room open there (no wall drawn; [method Room.set_open]
+## puts it back). Returns whether anything changed.
+func remove_room_wall(index: int, k: int) -> bool:
+	var w: PackedVector2Array = rooms[index].wall(k)
+	var behind: int = room_behind(index, k)
+	if behind >= 0:
+		if not join_rooms(index, behind):
+			return false
+	else:
+		rooms[index].set_open(k, true)
+	for list: Array in [doors, windows]:
+		for j: int in range(list.size() - 1, -1, -1):
+			var at: Vector2 = (list[j] as Opening).at
+			if Geometry2D.get_closest_point_to_segment(at, w[0], w[1]).distance_to(at) < 0.02:
+				list.remove_at(j)
+	return true
+
+
 ## Adds room [param room] where it is put: a room it is put into or over
 ## gives up what it covers, so that they share walls and never overlap.
 ## A room it cuts in two becomes two (the larger keeps all it had, the
@@ -864,6 +920,7 @@ func put_room(room: Room) -> int:
 		other.points = kept.points
 		other.thickness = kept.thickness
 		other.align = kept.align
+		other.open = kept.open
 		other.label_offset = Vector2.ZERO
 		for d: int in range(dimensions.size() - 1, -1, -1):
 			if dimensions[d].room == i:
@@ -1056,9 +1113,9 @@ func wall_pieces(shown: Array[PackedVector2Array] = []) -> Array[Dictionary]:
 		var k: int = piece["wall"]
 		var room: Room = rooms[index]
 		var other: int = piece["other"]
-		if open[index] == k:
+		if open[index] == k or room.is_open(k):
 			continue
-		if other >= 0 and open[other] == _wall_through(shapes[other], (Vector2(piece["a"]) + Vector2(piece["b"])) * 0.5):
+		if other >= 0 and (open[other] == _wall_through(shapes[other], (Vector2(piece["a"]) + Vector2(piece["b"])) * 0.5) or rooms[other].is_open(_wall_through(shapes[other], (Vector2(piece["a"]) + Vector2(piece["b"])) * 0.5))):
 			continue
 		if other < 0:
 			var t: float = room.wall_thickness(k)
@@ -1821,10 +1878,40 @@ func join_rooms(a: int, b: int) -> bool:
 	var outline: PackedVector2Array = union_outline([rooms[a].points, rooms[b].points]) if rooms[a].is_square() and rooms[b].is_square() else _merged(rooms[a].points, rooms[b].points)
 	if outline.is_empty():
 		return false
+	# Each wall keeps the thickness, alignment and opening it had (a wall
+	# taken away keeps its ends as corners, so that only it stays open).
+	var gaps: Array[PackedVector2Array] = []
+	for room: Room in [rooms[a], rooms[b]]:
+		for k: int in room.open:
+			if k < room.points.size():
+				gaps.append(room.wall(k))
+	outline = _with_corners_at(outline, gaps)
+	var joined: Room = Room.new()
+	joined.points = outline
+	_carry_wall_looks(rooms[a], joined)
+	_carry_wall_looks(rooms[b], joined)
 	rooms[a].points = outline
+	rooms[a].thickness = joined.thickness
+	rooms[a].align = joined.align
+	rooms[a].open = joined.open
 	rooms.remove_at(b)
 	_forget_room(b, a)
 	return true
+
+
+## Outline [param points] with a corner where an end of one of
+## [param segments] lies along one of its walls (not at its ends).
+static func _with_corners_at(points: PackedVector2Array, segments: Array[PackedVector2Array]) -> PackedVector2Array:
+	var result: PackedVector2Array = points.duplicate()
+	for segment: PackedVector2Array in segments:
+		for p: Vector2 in segment:
+			for k: int in result.size():
+				var a: Vector2 = result[k]
+				var b: Vector2 = result[(k + 1) % result.size()]
+				if p.distance_to(a) > 0.01 and p.distance_to(b) > 0.01 and Geometry2D.get_closest_point_to_segment(p, a, b).distance_to(p) < 0.002:
+					result.insert(k + 1, p)
+					break
+	return result
 
 
 ## Room [param index] split in two by a wall along [param line]: its
@@ -1876,6 +1963,7 @@ func split_room(index: int, line: PackedVector2Array, new_name: String) -> int:
 	room.points = kept.points
 	room.thickness = kept.thickness
 	room.align = kept.align
+	room.open = kept.open
 	room.label_offset = Vector2.ZERO
 	rooms.append(other)
 	for d: int in range(dimensions.size() - 1, -1, -1):
@@ -1932,6 +2020,8 @@ static func _carry_wall_looks(room: Room, piece: Room) -> void:
 					piece.set_wall_thickness(k, room.wall_thickness(w))
 				if room.wall_align(w) != 0:
 					piece.set_wall_align(k, room.wall_align(w))
+				if room.is_open(w):
+					piece.set_open(k, true)
 				break
 
 
@@ -2567,6 +2657,8 @@ func to_data() -> Dictionary:
 			rd["thickness"] = thicknesses
 		if aligns.any(func(a: int) -> bool: return a != 0):
 			rd["align"] = aligns
+		if not room.open.is_empty():
+			rd["open"] = Array(room.open)
 		room_list.append(rd)
 	var door_list: Array = []
 	for door: Door in doors:
@@ -2719,6 +2811,11 @@ static func from_data(raw: Variant) -> FloorPlan:
 						var a: Variant = aligns[k]
 						if a is float or a is int:
 							room.set_wall_align(k, clampi(int(a), 0, Align.size() - 1))
+				var opened: Variant = rd.get("open", [])
+				if opened is Array:
+					for k: Variant in opened:
+						if (k is float or k is int) and int(k) >= 0 and int(k) < room.points.size():
+							room.set_open(int(k), true)
 				plan.rooms.append(room)
 	var door_list: Variant = d.get("doors", [])
 	if door_list is Array:

@@ -6592,3 +6592,15 @@ msgstr "Vrstvy: zobrazit nebo skrýt, co je na každé z nich (na obrazovce i na
 
 msgid "Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it)."
 msgstr "Nakreslete toto podlaží nad tím pod ním (čerchovaně): jeho rohy se přichytávají (po rozích domu, pak zdmi napříč)."
+
+msgid "Walls (%d)"
+msgstr "Zdi (%d)"
+
+msgid "No wall (taken away)"
+msgstr "Bez zdi (odebraná)"
+
+msgid "Length and direction of the wall (Enter)"
+msgstr "Délka a směr zdi (Enter)"
+
+msgid "Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls"
+msgstr "Odebrat zeď (Delete): místnosti po obou stranách se spojí v jednu, po obvodové zdi zůstane místnost otevřená; Ctrl+klik vybere další zdi"

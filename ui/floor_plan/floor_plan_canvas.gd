@@ -510,7 +510,9 @@ func handles() -> Array[Dictionary]:
 			if index >= 0 and index < plan().rooms.size():
 				var points: PackedVector2Array = _shown_points(index)
 				for k: int in points.size():
-					list.append({"kind": "corner", "index": index, "which": k, "at": points[k]})
+					# A wall selected: the corners at its ends.
+					if selected["kind"] == "room" or k == int(selected.get("side", -1)) or k == (int(selected.get("side", -1)) + 1) % points.size():
+						list.append({"kind": "corner", "index": index, "which": k, "at": points[k]})
 		"free_wall":
 			if index >= 0 and index < plan().walls.size():
 				var ends: PackedVector2Array = _shown_free_wall(index)
@@ -1003,6 +1005,21 @@ static func _door_turn(door: FloorPlan.Door, m: Vector2) -> Vector2i:
 func edge_at(point: Vector2) -> Vector2i:
 	var m: Vector2 = to_plan(point)
 	var grab: float = EDGE_GRAB / (PX * zoom)
+	# Anywhere on a wall's band, as it is drawn.
+	for piece: Dictionary in plan().wall_pieces():
+		var a: Vector2 = piece["a"]
+		var b: Vector2 = piece["b"]
+		var length: float = a.distance_to(b)
+		if length < 0.001:
+			continue
+		var along: float = (m - a).dot((b - a) / length)
+		var across: float = (m - a).dot(Vector2(piece["out"]))
+		if along >= 0.0 and along <= length and across >= float(piece["from"]) - grab and across <= float(piece["to"]) + grab:
+			var room: int = piece["room"]
+			# Of a wall between two rooms, the one the point is nearer to.
+			if int(piece["other"]) >= 0 and int(piece["other_wall"]) >= 0 and across > (float(piece["from"]) + float(piece["to"])) * 0.5:
+				return Vector2i(piece["other"], piece["other_wall"])
+			return Vector2i(room, piece["wall"])
 	var inside: int = plan().room_at(m)
 	var order: Array[int] = []
 	if inside >= 0:
@@ -1018,6 +1035,42 @@ func edge_at(point: Vector2) -> Vector2i:
 			var w: PackedVector2Array = room.wall(k)
 			if Geometry2D.get_closest_point_to_segment(m, w[0], w[1]).distance_to(m) <= grab:
 				return Vector2i(i, k)
+	return Vector2i(-1, -1)
+
+
+## The walls selected (Vector2i(room, wall)): the one clicked and those
+## added with Ctrl+click; none unless walls are selected.
+func selected_walls() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if selected.get("kind", "") != "edge":
+		return result
+	var first: Vector2i = Vector2i(selected.get("index", -1), selected.get("side", -1))
+	for wall_at: Vector2i in [first] + Array(selected.get("more", [])):
+		if wall_at.x >= 0 and wall_at.x < plan().rooms.size() and wall_at.y >= 0 and wall_at.y < plan().rooms[wall_at.x].points.size() and not result.has(wall_at):
+			result.append(wall_at)
+	return result
+
+
+## Wall [param wall_at] added to the walls selected, or taken off them.
+func _toggle_wall(wall_at: Vector2i) -> void:
+	var walls: Array[Vector2i] = selected_walls()
+	if walls.has(wall_at):
+		walls.erase(wall_at)
+	else:
+		walls.append(wall_at)
+	if walls.is_empty():
+		selected = {}
+		return
+	selected = {"kind": "edge", "index": walls[0].x, "side": walls[0].y, "more": walls.slice(1)}
+
+
+## The wall of a room of [param target] (Vector2i(room, wall)) through
+## plan point [param point], (-1, -1) for none.
+static func wall_through(target: FloorPlan, point: Vector2) -> Vector2i:
+	for i: int in target.rooms.size():
+		var k: int = FloorPlan.wall_through(target.rooms[i].points, point)
+		if k >= 0:
+			return Vector2i(i, k)
 	return Vector2i(-1, -1)
 
 
@@ -1216,6 +1269,9 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_press = _pressed(mb.position)
 				if _press.get("handle", false) or _press["kind"] == "room_legend":
 					pass
+				elif _press["kind"] == "edge" and mb.is_command_or_control_pressed() and selected.get("kind", "") == "edge":
+					# Ctrl+click: one more wall selected (or one taken off).
+					_toggle_wall(Vector2i(_press["index"], _press["side"]))
 				elif _press["kind"] in ["room", "door", "window", "part", "edge", "link", "label", "dimension", "note", "fixture", "mark", "free_wall"]:
 					selected = _press
 				elif tool == Tool.SELECT:
@@ -1795,9 +1851,22 @@ func _operate(point: Vector2) -> void:
 ## window, or a part off the plan.
 func delete_selected() -> void:
 	match selected.get("kind", ""):
-		"room", "edge":
+		"room":
 			var index: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.remove_room(index))
+		"edge":
+			# Each wall selected taken away: rooms on both sides joined, an
+			# outside wall left open. Found again by its middle, as joining
+			# renumbers the rooms.
+			var middles: Array[Vector2] = []
+			for wall_at: Vector2i in selected_walls():
+				var w: PackedVector2Array = plan().rooms[wall_at.x].wall(wall_at.y)
+				middles.append((w[0] + w[1]) * 0.5)
+			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				for middle: Vector2 in middles:
+					var found: Vector2i = FloorPlanCanvas.wall_through(doc.floor_plan, middle)
+					if found.x >= 0 and not doc.floor_plan.rooms[found.x].is_open(found.y):
+						doc.floor_plan.remove_room_wall(found.x, found.y))
 		"door":
 			var door: int = selected["index"]
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.remove_at(door))
@@ -2590,9 +2659,18 @@ func _draw() -> void:
 		if plan().rooms[i].stairs:
 			_draw_stairs(shapes[i], plan().rooms[i].stairs_reverse)
 	for i: int in rooms.size():
-		var chosen: bool = selected.get("kind", "") in ["room", "edge"] and selected.get("index", -1) == i
+		var chosen: bool = selected.get("kind", "") == "room" and selected.get("index", -1) == i
 		if chosen or i == _join_first:
 			_draw_walls(rooms[i], SchematicTheme.SELECTED, 2.0)
+	# The walls selected, each alone (a wall taken away dashed).
+	for wall_at: Vector2i in selected_walls():
+		var w: PackedVector2Array = _shown_points(wall_at.x)
+		var a: Vector2 = to_screen(w[wall_at.y])
+		var b: Vector2 = to_screen(w[(wall_at.y + 1) % w.size()])
+		if plan().rooms[wall_at.x].is_open(wall_at.y):
+			draw_dashed_line(a, b, SchematicTheme.SELECTED, 3.0, 6.0, true)
+		else:
+			draw_line(a, b, SchematicTheme.SELECTED, 4.0, true)
 	for i: int in plan().doors.size():
 		_draw_door(_shown_opening("door", i), s, wall, selected.get("kind", "") == "door" and selected.get("index", -1) == i)
 	for i: int in plan().windows.size():
@@ -3002,7 +3080,7 @@ func _draw_building(shapes: Array[PackedVector2Array], rooms: Array[PackedVector
 		var open: int = FloorPlan.stair_start_wall(shapes[i], plan().rooms[i].stairs_reverse) if plan().rooms[i].stairs else -1
 		for k: int in shapes[i].size():
 			var own: float = plan().rooms[i].wall_thickness(k)
-			offsets.append(0.0 if k == open else own if own > 0.0 else plan().outer_wall)
+			offsets.append(0.0 if k == open or plan().rooms[i].is_open(k) else own if own > 0.0 else plan().outer_wall)
 		draw_colored_polygon(_screen_points(FloorPlan.grown(shapes[i], offsets)), color)
 	for outline: PackedVector2Array in rooms:
 		draw_colored_polygon(outline, SchematicTheme.BACKGROUND)

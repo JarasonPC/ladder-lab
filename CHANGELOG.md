@@ -7,6 +7,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- A wall is selected on its own by clicking it (anywhere on it as drawn); Ctrl+click selects
+  more. Delete takes them away: the rooms on both sides of a wall between rooms become one,
+  an outside wall leaves the room open (put back by a tick in the panel). The panel sets the
+  selected walls' own thickness
 - Rooms drawn, put, moved or resized near a room beside them snap wall to wall when the gap
   would be narrower than two outside walls, so every wall between rooms has its set
   thickness (no more walls as thick as a gap left by chance); a wall two rooms share can be

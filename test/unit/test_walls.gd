@@ -368,3 +368,61 @@ func test_rooms_put_into_rooms() -> void:
 	var top: int = plan.windows.size()
 	plan.remove_room(plan.room_at(Vector2(3.5, 2)))
 	assert_eq(plan.windows.size(), top - 1, "its window")
+
+
+func test_walls_selected_and_taken_away() -> void:
+	var plan: FloorPlan = _plan()
+	plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 4, 4)))
+	plan.rooms.append(FloorPlan.Room.new("Kitchen", Rect2(4, 0, 3, 4)))
+	plan.doors.append(FloorPlan.Door.new(Vector2(4, 2), true))
+	# The wall between them taken away: one room, its door gone.
+	assert_eq(plan.room_behind(0, 1), 1)
+	assert_true(plan.remove_room_wall(0, 1))
+	assert_eq(plan.rooms.size(), 1)
+	assert_eq(plan.rooms[0].name, "Living room", "the room clicked keeps its name")
+	assert_eq(plan.rooms[0].rect, Rect2(0, 0, 7, 4))
+	assert_eq(plan.doors.size(), 0)
+	# An outside wall taken away: the room open there, no wall drawn.
+	assert_eq(plan.room_behind(0, 0), -1)
+	assert_true(plan.remove_room_wall(0, 0))
+	assert_true(plan.rooms[0].is_open(0))
+	for piece: Dictionary in plan.wall_pieces():
+		assert_false(int(piece["room"]) == 0 and int(piece["wall"]) == 0, "no piece of wall there")
+	var copy: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_true(copy.rooms[0].is_open(0), "saved")
+	plan.rooms[0].set_open(0, false)
+	assert_false(plan.rooms[0].is_open(0), "put back")
+
+
+func test_wall_clicked_selected_alone() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 4, 4)))
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Kitchen", Rect2(4, 0, 3, 4)))
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas.size = Vector2(1000, 700)
+	canvas.edit_requested.connect(func(change: Callable) -> void: change.call(doc))
+	# On the outside wall's band, outside the room: that wall.
+	assert_eq(canvas.edge_at(canvas.to_screen(Vector2(2, -doc.floor_plan.outer_wall * 0.5))), Vector2i(0, 0))
+	# On the wall between them, each half the room it is nearer to.
+	assert_eq(canvas.edge_at(canvas.to_screen(Vector2(3.97, 2))).x, 0)
+	assert_eq(canvas.edge_at(canvas.to_screen(Vector2(4.03, 2))).x, 1)
+	canvas.selected = {"kind": "edge", "index": 0, "side": 0}
+	assert_eq(canvas.selected_walls(), [Vector2i(0, 0)] as Array[Vector2i])
+	var corners: int = 0
+	for handle: Dictionary in canvas.handles():
+		if handle["kind"] == "corner":
+			corners += 1
+	assert_eq(corners, 2, "the corners at its ends, not the whole room's")
+	# Ctrl+click: more walls; again: one off.
+	canvas._toggle_wall(Vector2i(1, 0))
+	assert_eq(canvas.selected_walls().size(), 2)
+	canvas._toggle_wall(Vector2i(1, 0))
+	assert_eq(canvas.selected_walls().size(), 1)
+	canvas._toggle_wall(Vector2i(0, 1))
+	# Delete: the wall between them joins the rooms, the top wall stays open.
+	canvas.delete_selected()
+	assert_eq(doc.floor_plan.rooms.size(), 1)
+	assert_true(doc.floor_plan.rooms[0].is_open(FloorPlan.wall_through(doc.floor_plan.rooms[0].points, Vector2(2, 0))))
