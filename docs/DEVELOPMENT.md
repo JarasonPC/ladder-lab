@@ -1758,7 +1758,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   a part replaced by its edited copy (properties, Change type: SchematicDocument.replace_component)
   keeps its wires, strip terminals and terminal markings by standard terminal name, by position
   where no name matches (a PLC's only by name)
-- Wire branches are `Junction` components; simulation runs on a serialized copy of the edited document
+- Wire branches are `Junction` components, drawn only as the branch dot where three or more wire
+  directions meet (no mark of their own); simulation runs on a serialized copy of the edited document
 - Files: `.ladder` = JSON {format, version, document} via ProjectFile; bump ProjectFile.VERSION
   on format changes and keep older versions loading; values of the wrong type load as defaults
   (DocumentSerializer helpers); ProjectFile.save and RecoveryFile.write go through
