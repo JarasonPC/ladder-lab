@@ -179,6 +179,19 @@ func test_stairs() -> void:
 	var copy: FloorPlan = FloorPlan.from_data(plan.to_data())
 	assert_true(copy.rooms[0].stairs)
 	assert_true(copy.rooms[0].stairs_reverse)
+	# No wall where the stairs start: going up the other way, the bottom wall.
+	assert_eq(plan.open_wall(0), 2)
+	for piece: Dictionary in plan.wall_pieces():
+		assert_false(piece["room"] == 0 and piece["wall"] == 2, "the start left open")
+	# Entered from a hall below it: no wall between them there either.
+	plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(0, 4, 3, 2)))
+	for piece: Dictionary in plan.wall_pieces():
+		var a: Vector2 = piece["a"]
+		var b: Vector2 = piece["b"]
+		assert_false(is_equal_approx(a.y, 4.0) and is_equal_approx(b.y, 4.0) and a.x < 1.2 and b.x < 1.21, "open into the hall")
+	room.stairs_reverse = false
+	assert_eq(plan.open_wall(0), 0, "turned round: the top wall")
+	assert_eq(FloorPlan.stair_start_wall(l, false), 4, "an L: across the end of its arm")
 
 
 func test_doors_and_windows_dragged_along() -> void:

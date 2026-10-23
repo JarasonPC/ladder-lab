@@ -534,3 +534,27 @@ func test_poles_drawn_apart_and_parts_one_under_another() -> void:
 	var fa2: float = canvas._circuit_entry("FA2")["v"]
 	assert_eq(canvas.thing_at(canvas.at(canvas._part_u(0), fa2 + 15.0)).get("designation", ""), "XD1")
 	assert_eq(canvas.thing_at(canvas.at(canvas._part_u(1), fa2 + 15.0)).get("designation", ""), "XD2")
+
+
+func test_breaker_of_a_phase_and_n() -> void:
+	var doc: SchematicDocument = _house()
+	var line: SingleLine = doc.single_line
+	var template: Dictionary = Palette.INSTALLATION_ENTRIES[2]["template"]
+	assert_eq(template.get("n_pole"), true, "1+N in the palette")
+	assert_true(line.add(doc, _component(template, "FA4"), 3))
+	var breaker: MotorBreaker = doc.circuit.get_component("FA4") as MotorBreaker
+	assert_true(breaker.n_pole)
+	assert_true(SingleLine.has_n_pole(breaker))
+	assert_eq(line.phases_of(line.feeder_of("FA4"), doc.circuit).size(), 1, "one phase")
+	assert_eq(SingleLineCanvas.pole_count(breaker), 2)
+	assert_true(line.add(doc, _component({"type": "socket", "gangs": 1}, "XD4"), 0, "", "FA4"))
+	# The socket's N through the breaker's N pole.
+	var through: bool = false
+	for wire: PackedStringArray in doc.circuit.get_wires():
+		if (wire[0] == "FA4:4" and wire[1] == "XD4:N") or (wire[1] == "FA4:4" and wire[0] == "XD4:N"):
+			through = true
+	assert_true(through, "N through its second pole")
+	var canvas: SingleLineCanvas = autofree(SingleLineCanvas.new())
+	assert_eq(canvas.rating_of(breaker), "B16/1+N")
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_true((copy.circuit.get_component("FA4") as MotorBreaker).n_pole, "saved")

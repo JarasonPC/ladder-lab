@@ -15,6 +15,8 @@ var switched_on: bool = false
 var tripped: bool = false
 var rated_current: float = DEFAULT_RATED_CURRENT
 var characteristic: CircuitBreaker.Characteristic = CircuitBreaker.Characteristic.C
+## Two poles: a phase and N (1+N, as in a house), not two phases (design data).
+var n_pole: bool = false
 ## Heating up of the thermal release (simulation state).
 var heat: TripCurve = TripCurve.new(TripCurve.Kind.BREAKER_C, DEFAULT_RATED_CURRENT)
 

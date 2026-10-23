@@ -9,7 +9,8 @@ extends RefCounted
 ## lighting drawn on it ([member links]: which switch switches which
 ## luminaire), from which its single-line diagram wires them (see
 ## [method SingleLine.wire]), and its rooms a number, an environment and an
-## illuminance for the legend. No nodes.
+## illuminance for the legend; a staircase has its stairs drawn in it and
+## no wall where they start. No nodes.
 
 ## Lengths snap to this (m).
 const SNAP: float = 0.05
@@ -731,12 +732,20 @@ func wall_pieces(shown: Array[PackedVector2Array] = []) -> Array[Dictionary]:
 				if behind < 0:
 					var key: String = "%d|%d" % [index, k]
 					outside[key] = outside.get(key, 0.0) + cuts[i + 1] - cuts[i]
+	# Where a staircase starts there is no wall.
+	var open: PackedInt32Array = PackedInt32Array()
+	for index: int in rooms.size():
+		open.append(stair_start_wall(shapes[index], rooms[index].stairs_reverse) if rooms[index].stairs else -1)
 	var pieces: Array[Dictionary] = []
 	for piece: Dictionary in raw:
 		var index: int = piece["room"]
 		var k: int = piece["wall"]
 		var room: Room = rooms[index]
 		var other: int = piece["other"]
+		if open[index] == k:
+			continue
+		if other >= 0 and open[other] == _wall_through(shapes[other], (Vector2(piece["a"]) + Vector2(piece["b"])) * 0.5):
+			continue
 		if other < 0:
 			var t: float = room.wall_thickness(k)
 			piece["from"] = 0.0
@@ -1482,6 +1491,35 @@ static func stair_lines(points: PackedVector2Array, reverse: bool) -> Dictionary
 	if reverse:
 		walk.reverse()
 	return {"treads": treads, "walk": walk}
+
+
+## The wall of a staircase of outline [param points] its stairs start at
+## (the one across the walking line's start, nearest it; see
+## [method stair_lines]): left open, no wall there. -1 for none.
+static func stair_start_wall(points: PackedVector2Array, reverse: bool) -> int:
+	var walk: PackedVector2Array = stair_lines(points, reverse)["walk"]
+	if walk.size() < 2:
+		return -1
+	var start: Vector2 = walk[0]
+	var way: Vector2 = (walk[1] - walk[0]).normalized()
+	var best: int = -1
+	var nearest: float = INF
+	for k: int in points.size():
+		var a: Vector2 = points[k]
+		var b: Vector2 = points[(k + 1) % points.size()]
+		if absf((b - a).normalized().dot(way)) > 0.5:
+			continue
+		var d: float = Geometry2D.get_closest_point_to_segment(start, a, b).distance_to(start)
+		if d < nearest:
+			nearest = d
+			best = k
+	return best
+
+
+## The wall of room [param index] left open: where a staircase starts, -1 for none.
+func open_wall(index: int) -> int:
+	var room: Room = rooms[index]
+	return stair_start_wall(room.points, room.stairs_reverse) if room.stairs else -1
 
 
 ## The inner corner of an L-shaped outline [param points] (six corners,

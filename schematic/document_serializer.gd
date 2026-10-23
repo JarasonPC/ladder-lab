@@ -404,6 +404,8 @@ static func component_to_dict(c: CircuitComponent) -> Dictionary:
 	elif c is MotorBreaker:
 		d["type"] = "breaker"
 		d["poles"] = (c as MotorBreaker).poles
+		if (c as MotorBreaker).n_pole:
+			d["n_pole"] = true
 		d["rated_current"] = (c as MotorBreaker).rated_current
 		d["characteristic"] = TripCurve.LETTERS[(c as MotorBreaker).characteristic]
 	elif c is ThreePhaseMotor:
@@ -629,6 +631,7 @@ static func _component_from_dict(d: Dictionary) -> CircuitComponent:
 			if _poles(d, 1, 1) > 1:
 				var multi_breaker: MotorBreaker = MotorBreaker.new(designation)
 				multi_breaker.poles = _poles(d, 1, 1)
+				multi_breaker.n_pole = multi_breaker.poles == 2 and _bool(d, "n_pole", false)
 				multi_breaker.rated_current = _amperes(d, "rated_current", MotorBreaker.DEFAULT_RATED_CURRENT)
 				multi_breaker.characteristic = characteristic as CircuitBreaker.Characteristic
 				return multi_breaker

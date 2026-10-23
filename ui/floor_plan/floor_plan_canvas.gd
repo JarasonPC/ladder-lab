@@ -2527,9 +2527,11 @@ func _draw_building(shapes: Array[PackedVector2Array], rooms: Array[PackedVector
 	var pieces: Array[Dictionary] = plan().wall_pieces(shapes)
 	for i: int in shapes.size():
 		var offsets: PackedFloat32Array = PackedFloat32Array()
+		# A staircase's start is open.
+		var open: int = FloorPlan.stair_start_wall(shapes[i], plan().rooms[i].stairs_reverse) if plan().rooms[i].stairs else -1
 		for k: int in shapes[i].size():
 			var own: float = plan().rooms[i].wall_thickness(k)
-			offsets.append(own if own > 0.0 else plan().outer_wall)
+			offsets.append(0.0 if k == open else own if own > 0.0 else plan().outer_wall)
 		draw_colored_polygon(_screen_points(FloorPlan.grown(shapes[i], offsets)), color)
 	for outline: PackedVector2Array in rooms:
 		draw_colored_polygon(outline, SchematicTheme.BACKGROUND)

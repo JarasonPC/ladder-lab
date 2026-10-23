@@ -40,7 +40,15 @@ What changed in each LadderLab version. Version numbers follow the rules in
   become a room inside them. Their ends can be dragged, and a double click sets their length,
   direction and thickness
 - A room can be a staircase: its stairs are drawn straight in a rectangle and turning in an
-  L-shaped room, with the walking line and its arrow (the way up can be turned round)
+  L-shaped room, with the walking line and its arrow (the way up can be turned round); there
+  is no wall where they start
+- Circuit breakers 1+N (a phase and N) and 3+N in the consumer unit's palette; a two-pole
+  breaker can be set to 1+N in its properties. The diagram draws its N pole, the N of what it
+  feeds goes through it, and its marking says its poles (B16/1+N)
+- In the consumer unit's diagram the poles of a breaker in a group come together below its
+  symbol, not inside it; the poles of three-pole devices are further apart, and each busbar
+  starts where its conductor comes onto it, the circuits under a three-phase RCD to the right
+  of its poles, so every connection reads as it is
 - While a room is dragged its doors, windows, furniture, notes and symbols move along with
   it, a dragged wall takes its doors, windows and parts along, and a door or window being
   dragged is shown where it goes

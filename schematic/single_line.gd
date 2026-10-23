@@ -892,9 +892,11 @@ static func hidden_cell(doc: SchematicDocument) -> Vector2i:
 
 
 ## Whether [param c] switches N too: an RCD, RCBO or AFDD, a breaker of
-## four poles (three phases and N).
+## four poles (three phases and N) or of two set so (a phase and N, 1+N).
 static func has_n_pole(c: CircuitComponent) -> bool:
-	return c is ResidualCurrentDevice or c is ArcFaultDevice or (c is MotorBreaker and (c as MotorBreaker).poles == 4)
+	if c is ResidualCurrentDevice or c is ArcFaultDevice:
+		return true
+	return c is MotorBreaker and ((c as MotorBreaker).poles == 4 or ((c as MotorBreaker).poles == 2 and (c as MotorBreaker).n_pole))
 
 
 static func _poles(c: CircuitComponent) -> int:
@@ -903,7 +905,7 @@ static func _poles(c: CircuitComponent) -> int:
 	if c is ArcFaultDevice:
 		return 1
 	if c is MotorBreaker:
-		return mini((c as MotorBreaker).poles, 3)
+		return mini((c as MotorBreaker).poles - (1 if has_n_pole(c) else 0), 3)
 	return 1
 
 

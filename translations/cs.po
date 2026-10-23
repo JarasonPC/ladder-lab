@@ -6556,3 +6556,12 @@ msgstr "Stoupá opačně"
 
 msgid "Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn"
 msgstr "Kreslit samostatné zdi: klikněte, kde každá zeď začíná a končí (po 15°, se Shiftem v libovolném úhlu; nebo napište délku v mm a stiskněte Enter); zdi, které uzavřou prostor, se stanou místností. Pravé tlačítko nebo Esc kreslení zdí ukončí"
+
+msgid "Circuit breaker 1+N (L + N)"
+msgstr "Jistič 1+N (L + N)"
+
+msgid "Circuit breaker 3+N"
+msgstr "Jistič 3+N"
+
+msgid "A phase and N (1+N)"
+msgstr "Fáze a N (1+N)"

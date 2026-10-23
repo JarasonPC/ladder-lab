@@ -52,7 +52,7 @@ const ZOOM_STEP: float = 1.15
 const SPACING: float = 84.0
 ## Across, from one pole of a device to the next; between the conductors
 ## of the surge protective device.
-const POLE: float = 24.0
+const POLE: float = 32.0
 const SPD_POLE: float = 10.0
 ## Down, from one busbar of a group of three phases to the next.
 const SUB_GAP: float = 12.0
@@ -61,6 +61,8 @@ const SUB_GAP: float = 12.0
 const GROUP_GAP: float = 0.95 * SPACING
 const AFTER_GROUP: float = 0.6 * SPACING
 const BOX_GAP: float = SPACING
+## Gap after a circuit with its release box, for the next one's texts.
+const AFTER_BOX: float = 0.55 * SPACING
 ## Down the sheet (u): the busbars, then the parts of a circuit.
 const BUS_U: PackedFloat32Array = [0.0, 22.0, 44.0]
 const N_U: float = 66.0
@@ -273,6 +275,8 @@ func _layout_of(l: SingleLine, boxed: PackedStringArray = PackedStringArray()) -
 ## from row [param n_u]; returns where the next one would go.
 func _lay(list: Array[RefCounted], depth: int, parent: String, v: float, laid: Dictionary, boxed: PackedStringArray, n_u: float) -> float:
 	var after_group: bool = false
+	# The last circuit had its release box right of it.
+	var after_box: bool = false
 	for k: int in list.size():
 		var item: RefCounted = list[k]
 		if item is SingleLine.Group:
@@ -290,11 +294,15 @@ func _lay(list: Array[RefCounted], depth: int, parent: String, v: float, laid: D
 			else:
 				# Under its N bar (an RCD's, an AFDD's), else the N it has.
 				var n_under: float = _n_bar_u(depth) + 10.0 if SingleLine.has_n_pole(head) else n_u
-				v = _lay(g.items, depth + 1, g.device, v, laid, boxed, n_under)
+				# Under a device of three phases its circuits start right of its
+				# poles, so none hangs in line with a pole as if fed by it.
+				var start: float = v + head_width + POLE if SingleLine.phase_count(head) > 1 else v
+				v = _lay(g.items, depth + 1, g.device, start, laid, boxed, n_under)
 				entry["v1"] = maxf(_attach_end(laid, g.items), entry["v0"] + head_width)
 				v = maxf(v, float(entry["v0"]) + head_width + SPACING)
 			entry["end"] = maxf(v - SPACING, float(entry["v0"]))
 			after_group = true
+			after_box = false
 		else:
 			var designation: String = (item as SingleLine.Feeder).device
 			var device: CircuitComponent = _part(designation) if document != null else null
@@ -302,7 +310,10 @@ func _lay(list: Array[RefCounted], depth: int, parent: String, v: float, laid: D
 			# Room for the texts of an RCBO or AFDD (its box right of the one before).
 			if after_group or (is_boxed and (depth == 0 or k > 0)):
 				v += maxf(AFTER_GROUP if after_group else 0.0, BOX_GAP if is_boxed else 0.0)
+			elif after_box:
+				v += AFTER_BOX
 			after_group = false
+			after_box = is_boxed
 			# Its poles about its outlet.
 			var half: float = (pole_count(device) - 1) * POLE * 0.5 if device != null else 0.0
 			v += half
@@ -373,12 +384,16 @@ static func _breaker_u(depth: int) -> float:
 
 
 ## The rows of the cables and of what they feed: lower for groups in groups.
+## The cables' ledger: under the lowest breaker, with room for its poles to
+## come together over it (a breaker in a group is lower than one of its own).
 func _ledger_u() -> float:
-	return LEDGER_U + _depth * LEVEL
+	if _groups.is_empty():
+		return LEDGER_U
+	return maxf(LEDGER_U, _breaker_u(_depth + 1) + 60.0 + MERGE_U + 22.0)
 
 
 func _load_u() -> float:
-	return LOAD_U + _depth * LEVEL
+	return _ledger_u() + LOAD_U - LEDGER_U
 
 
 func _circuit_entry(designation: String) -> Dictionary:
@@ -566,7 +581,8 @@ static func _template_poles(template: Dictionary) -> int:
 		"rcd":
 			return 3 if int(template.get("poles", 2)) == 4 else 1
 		"breaker":
-			return mini(int(template.get("poles", 1)), 3)
+			var poles: int = int(template.get("poles", 1))
+			return mini(poles - (1 if poles == 4 or (poles == 2 and template.get("n_pole", false) == true) else 0), 3)
 	return 1
 
 
@@ -1079,14 +1095,14 @@ func _main_keys() -> PackedStringArray:
 
 func _draw_busbars() -> void:
 	var keys: PackedStringArray = _main_keys()
-	var v0: float = _main_v(0) - 14.0
 	var v1: float = _end_v - SPACING * 0.4
+	# Each from where its conductor comes onto it.
 	for k: int in 3:
 		var color: Color = _reach(keys[2 * k + 1])
-		_seg(BUS_U[k], v0, BUS_U[k], v1, color, 1.6)
+		_seg(BUS_U[k], _main_v(k), BUS_U[k], v1, color, 1.6)
 		_across(BUS_U[k], v1, [["L%d" % (k + 1), 12.0, SchematicTheme.TEXT]], false, 8.0)
 	var n_color: Color = _reach(keys[7])
-	_seg(N_U, v0, N_U, v1, n_color, 1.6)
+	_seg(N_U, _main_v(3), N_U, v1, n_color, 1.6)
 	_across(N_U, v1, [["N", 12.0, SchematicTheme.TEXT]], false, 8.0)
 
 
@@ -1275,7 +1291,9 @@ func rating_of(c: CircuitComponent) -> String:
 		var current: String = CircuitBreaker.rating_text(rcd.characteristic, rcd.rated_current) if rcd.overcurrent else Fuse.amperes_text(rcd.rated_current)
 		return tr("%s/%s A type %s") % [current, _decimal(String.num(rcd.residual_rating, 3)), rcd.type_text()]
 	if c is MotorBreaker:
-		return CircuitBreaker.rating_text((c as MotorBreaker).characteristic, (c as MotorBreaker).rated_current)
+		# With its poles: "B16/1+N", "C20/3".
+		var phases: int = SingleLine.phase_count(c)
+		return "%s/%d%s" % [CircuitBreaker.rating_text((c as MotorBreaker).characteristic, (c as MotorBreaker).rated_current), phases, "+N" if SingleLine.has_n_pole(c) else ""]
 	return ""
 
 
@@ -1327,7 +1345,7 @@ func _draw_group(g: Dictionary) -> void:
 		_across(label_u, pv, [["L%d" % ph, SMALL_SIZE, data_color()]], false, 3.0)
 		var row: float = _sub_bus_u(depth) + ((ph - 1) * SUB_GAP if phases > 1 else 0.0)
 		_seg(ru + 60.0, pv, row, pv, color_out)
-		_seg(row, v0, row, maxf(v1, pv), color_out, 1.6)
+		_seg(row, pv, row, maxf(v1, pv), color_out, 1.6)
 	if n_pole:
 		# The N from the busbar or the N bar over it, through its N pole onto its N bar.
 		var nv: float = poles[phases]

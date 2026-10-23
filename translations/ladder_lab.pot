@@ -6531,3 +6531,12 @@ msgstr ""
 
 msgid "Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn"
 msgstr ""
+
+msgid "Circuit breaker 1+N (L + N)"
+msgstr ""
+
+msgid "Circuit breaker 3+N"
+msgstr ""
+
+msgid "A phase and N (1+N)"
+msgstr ""
