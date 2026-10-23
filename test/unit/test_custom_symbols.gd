@@ -200,7 +200,7 @@ func test_schematic_keeps_the_symbols_it_uses() -> void:
 	doc.floor_plan.marks.append(doc.floor_plan.mark_at_point(tv.id, Vector2(1.0, 0.1), true))
 	var fan_template: Dictionary = Palette.symbol_entries()[1]["template"]
 	assert_eq(fan_template["symbol"], fan.id, "the fan comes after the TV socket: by category")
-	var designation: String = FloorPlanCanvas.add_part(doc, fan_template, "FA1", Vector2(2.0, 1.5))
+	var designation: String = FloorPlanCanvas.add_part(doc, fan_template, 1, Vector2(2.0, 1.5))
 	assert_eq(designation, "EB1")
 	assert_true(doc.symbols.has(fan.id), "taken into the schematic when put in")
 	assert_eq(doc.used_symbols(), PackedStringArray([tv.id, fan.id] if tv.id < fan.id else [fan.id, tv.id]), "not the one put on nothing")
@@ -237,7 +237,7 @@ func test_electrical_symbol_is_a_load_on_its_circuit() -> void:
 	canvas.size = Vector2(800, 600)
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
 	canvas.placing_template = Palette.symbol_entries()[0]["template"]
-	canvas.circuit = "FA1"
+	canvas.circuit = 1
 	assert_false(canvas._template_on_ceiling(canvas.placing_template), "on a wall")
 	var edits: Array[Callable] = []
 	canvas.edit_requested.connect(func(change: Callable) -> void: edits.append(change))
@@ -371,8 +371,8 @@ func test_designations_clear_their_symbols_at_any_size() -> void:
 	wide.wall = true
 	wide.shapes.append(_shape("rect", [Vector2(-0.5, 0.0), Vector2(0.5, 0.4)]))
 	_library.put(wide)
-	var pump: String = FloorPlanCanvas.add_part(doc, Palette.symbol_entries()[0]["template"], "FA1", Vector2(2.0, 0.1))
-	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 1}, "FA1", Vector2(5.5, 0.1))
+	var pump: String = FloorPlanCanvas.add_part(doc, Palette.symbol_entries()[0]["template"], 1, Vector2(2.0, 0.1))
+	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 1}, 1, Vector2(5.5, 0.1))
 	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
 	canvas.document = doc
 	canvas.size = Vector2(1200, 800)

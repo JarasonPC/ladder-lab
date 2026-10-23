@@ -456,7 +456,7 @@ func test_typed_distance_and_arrays() -> void:
 	assert_eq(plan.row_points(1, 0, 5, 0.5, 1.5), PackedVector2Array([Vector2(3.5, 0), Vector2(5, 0), Vector2(6.5, 0)]), "every 1.5 m from 0.5 m, as far as it goes")
 	doc.environment = SchematicDocument.Kind.RESIDENTIAL
 	doc.single_line.add(doc, _component_of({"type": "breaker"}, "FA9"), 0)
-	var made: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, "FA9", Vector2(4, 4), true, 3)
+	var made: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, doc.single_line.feeder_of("FA9").number, Vector2(4, 4), true, 3)
 	assert_false(made.is_empty())
 	assert_eq(plan.facing[made], 3, "facing up into the room")
 	assert_true(doc.single_line.feeder_of("FA9").loads.has(made), "on the circuit")
@@ -502,7 +502,7 @@ func test_notes_and_furniture() -> void:
 	assert_true(plan.over_worktop(Vector2(4.5, 0.0)))
 	assert_false(plan.over_worktop(Vector2(6.5, 0.0)), "past its end")
 	doc.single_line.add(doc, _component_of({"type": "breaker"}, "FA9"), 0)
-	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, "FA9", Vector2(4.5, 0.1))
+	var socket: String = FloorPlanCanvas.add_part(doc, {"type": "socket", "gangs": 2}, doc.single_line.feeder_of("FA9").number, Vector2(4.5, 0.1))
 	assert_almost_eq((doc.circuit.get_component(socket) as SocketOutlet).height, FloorPlan.WORKTOP_SOCKET_HEIGHT, 1e-6, "over the worktop at 1.10 m")
 	# Turned, resized, moved with its room, saved.
 	plan.turn_fixture(0)

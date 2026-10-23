@@ -144,7 +144,12 @@ const FORMAT: String = "ladder-lab"
 ## (missing: the parts mounted, the wiring compared).
 ## 52: a training plan's hidden "faults" and the student's "reports" of them
 ## (missing: a wiring exercise).
-const VERSION: int = 52
+## 53: numbered circuits of the single-line diagram ("number"; missing:
+## numbered in the order of the columns), circuits made on the floor plan
+## that nothing protects yet ("waiting"), a diagram without the main switch
+## ("main": false; missing: with it) and outlets for a later connection
+## (appliance "kind": "outlet").
+const VERSION: int = 53
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

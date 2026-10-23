@@ -5,14 +5,15 @@ extends RefCounted
 ## metre, the part at [param at], facing [param facing] into its room (a
 ## unit vector away from its wall; Vector2.ZERO on the ceiling). No nodes.
 ##
-## Switch: a small circle with a line per contact into the room, ticks at
-## its end (one a pole: 1, 2, 3, 4 ticks for switch 1, 2, 3, 03); a two-way
+## Switch: a small circle with a line per contact slanting up to the right
+## as in the legends of ČSN EN 60617-11 (drawn upright), ticks at its end (one a pole: 1, 2, 3, 4 ticks for switch 1, 2, 3, 03); a two-way
 ## rocker has a second line the other way (6; two ticks each for 6/2, a dot
 ## in the circle for 4 with its off position), two rockers two lines fanned
 ## out (5); the intermediate switch's lines cross (7). Socket: a stem from the
 ## wall to the back of a half circle open to the room; a double socket a
 ## second half circle on the same stem, just inside the first. Luminaire: a circle with a
-## cross. Appliance: a square with its sign on a stem from the wall.
+## cross. Appliance: a square with its sign on a stem from the wall; an
+## outlet for a later connection (vývod) the stem going on to an arrow.
 ## Consumer unit: a box on the wall with a second one inside it.
 
 ## Sizes in metres.
@@ -41,7 +42,9 @@ static func draw_switch(item: CanvasItem, sw: LightSwitch, at: Vector2, facing: 
 	# The circle a little off the wall, the lines slanting into the room.
 	var c: Vector2 = at + into * SWITCH_RADIUS * s
 	item.draw_arc(c, SWITCH_RADIUS * s, 0.0, TAU, 20, color, width, true)
-	var main: Vector2 = into.rotated(-PI / 4.0)
+	# Up, as the legends draw it: a quarter turn back from into the room.
+	var up: Vector2 = into.rotated(-PI / 2.0)
+	var main: Vector2 = up.rotated(-PI / 4.0)
 	match sw.circuit:
 		"2":
 			_line(item, c, main, 2, s, color, width)
@@ -49,7 +52,7 @@ static func draw_switch(item: CanvasItem, sw: LightSwitch, at: Vector2, facing: 
 			_line(item, c, main, 3, s, color, width)
 		"5":
 			_line(item, c, main, 1, s, color, width)
-			_line(item, c, into.rotated(PI / 12.0), 1, s, color, width)
+			_line(item, c, up.rotated(PI / 12.0), 1, s, color, width)
 		"6":
 			_line(item, c, main, 1, s, color, width)
 			_line(item, c, -main, 1, s, color, width)
@@ -66,8 +69,8 @@ static func draw_switch(item: CanvasItem, sw: LightSwitch, at: Vector2, facing: 
 		"5B":
 			_line(item, c, main, 1, s, color, width)
 			_line(item, c, -main, 1, s, color, width)
-			_line(item, c, into.rotated(PI / 12.0), 1, s, color, width)
-			_line(item, c, -into.rotated(PI / 12.0), 1, s, color, width)
+			_line(item, c, up.rotated(PI / 12.0), 1, s, color, width)
+			_line(item, c, -up.rotated(PI / 12.0), 1, s, color, width)
 		"7":
 			_line(item, c, main, 1, s, color, width)
 			_line(item, c, -main, 1, s, color, width)
@@ -134,6 +137,13 @@ static func draw_luminaire(item: CanvasItem, at: Vector2, s: float, color: Color
 static func draw_appliance(item: CanvasItem, appliance: Appliance, at: Vector2, facing: Vector2, s: float, color: Color, width: float, working: bool) -> void:
 	var into: Vector2 = facing if facing != Vector2.ZERO else Vector2.DOWN
 	var half: float = APPLIANCE * 0.5 * s
+	if appliance.kind == Appliance.Kind.OUTLET:
+		# The stem on to an arrow: the cable goes on from here.
+		var tip: Vector2 = at + into * APPLIANCE * s
+		item.draw_line(at, tip, color, width, true)
+		var side: Vector2 = into.orthogonal() * half * 0.5
+		item.draw_colored_polygon(PackedVector2Array([tip, tip - into * half * 0.7 + side, tip - into * half * 0.7 - side]), GLOW if working else color)
+		return
 	var c: Vector2 = at + into * (0.08 * s + half)
 	item.draw_line(at, c - into * half, color, width, true)
 	var box: Rect2 = Rect2(c - Vector2(half, half), Vector2(half, half) * 2.0)

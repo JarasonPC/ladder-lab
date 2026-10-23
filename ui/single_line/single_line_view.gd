@@ -3,9 +3,11 @@ extends VBoxContainer
 ## The single-line diagram of a residential installation's consumer unit
 ## (the Schematic area of a residential schematic): a bar with Delete and
 ## Fit over the [SingleLineCanvas] and, in Edit mode, a panel beside it with
-## what the diagram keeps of the selected circuit (its phase, where it goes,
-## the room, its cable, ripple control) or, with nothing selected, of the
-## supply (its cable, the SPD). Every change is emitted as one undoable edit
+## what the diagram keeps of the selected circuit (the circuit its device
+## protects, chosen from those waiting for protection, its phase, where it
+## goes, the room, its cable, ripple control) or, with nothing selected, of
+## the supply (its cable, the SPD) and the circuits made on the floor plan
+## that nothing protects yet. Every change is emitted as one undoable edit
 ## of the document.
 
 ## A change of the diagram: [param change] is called with the document.
@@ -29,6 +31,14 @@ var _delete_button: Button
 var _fit_button: Button
 var _side: PanelContainer
 var _title: Label
+## The circuit the selected device protects: its own, a waiting one, or a new one.
+var _number_label: Label
+var _number: OptionButton
+## Circuit numbers offered, by item index of [member _number] (0: a new one).
+var _numbers: PackedInt32Array = PackedInt32Array()
+## The circuits waiting for their protection.
+var _waiting_label: Label
+var _waiting: Label
 var _phase_label: Label
 var _phase: OptionButton
 var _destination_label: Label
@@ -107,6 +117,17 @@ func _ready() -> void:
 	fields.add_theme_constant_override("separation", 6)
 	_side.add_child(fields)
 	_title = _label(fields, "HeaderLabel")
+	_number_label = _label(fields)
+	_number = OptionButton.new()
+	_number.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_number.item_selected.connect(func(index: int) -> void:
+		var f: SingleLine.Feeder = _feeder()
+		if f == null or index >= _numbers.size():
+			return
+		var device: String = f.device
+		var number: int = _numbers[index]
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.assign(doc, device, number)))
+	fields.add_child(_number)
 	_phase_label = _label(fields)
 	_phase = OptionButton.new()
 	_phase.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -150,6 +171,10 @@ func _ready() -> void:
 		if _document != null and not is_equal_approx(value, _document.single_line.supply_impedance):
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.supply_impedance = value))
 	fields.add_child(_ze)
+	_waiting_label = _label(fields, "HeaderLabel")
+	_waiting = _label(fields)
+	_waiting.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_waiting.custom_minimum_size.x = 200.0
 	_checks = _label(fields)
 	_checks.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_checks.custom_minimum_size.x = 200.0
@@ -279,9 +304,30 @@ func _fill() -> void:
 		_checks.add_theme_color_override("font_color", SchematicTheme.WARNING if check["bad"] else SchematicTheme.TEXT)
 	_phase_label.visible = feeder_shown or group != null
 	_phase.visible = _phase_label.visible
+	_number_label.visible = feeder_shown
+	_number.visible = feeder_shown
+	var waiting: Array[SingleLine.Feeder] = line.waiting.duplicate()
+	waiting.sort_custom(func(a: SingleLine.Feeder, b: SingleLine.Feeder) -> bool: return a.number < b.number)
+	_waiting_label.visible = not feeder_shown and group == null
+	_waiting.visible = _waiting_label.visible
+	var listed: PackedStringArray = PackedStringArray()
+	for w: SingleLine.Feeder in waiting:
+		listed.append(SingleLineView.circuit_text(w, _document))
+	_waiting.text = "\n".join(listed) if not listed.is_empty() else tr("None: every circuit of the floor plan is protected.")
 	_shown = f.device if feeder_shown else group.device if group != null else ""
 	if feeder_shown:
-		_title.text = tr("Circuit %s") % ("-" + f.device)
+		_title.text = tr("Circuit %d (%s)") % [f.number, "-" + f.device]
+		_numbers = PackedInt32Array([f.number])
+		_number.clear()
+		_number.add_item(SingleLineView.circuit_text(f, _document))
+		for w: SingleLine.Feeder in waiting:
+			_numbers.append(w.number)
+			_number.add_item(SingleLineView.circuit_text(w, _document))
+		if not f.loads.is_empty():
+			_numbers.append(0)
+			_number.add_item(tr("A new circuit (spare), this one waiting"))
+		_number.select(0)
+		_number.disabled = _numbers.size() < 2
 		_destination.text = f.destination
 		_destination.placeholder_text = tr("Where it goes, e.g. Kitchen sockets")
 		_cable.text = f.cable
@@ -317,7 +363,31 @@ func _fill() -> void:
 		_spd.set_pressed_no_signal(line.spd)
 	_warning.visible = feeder_shown and line.lacks_rcd(f, _document.circuit)
 	_warning.text = tr(SingleLineCanvas.NO_RCD_TEXT)
-	_hint.text = tr("Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together.")
+	_hint.text = tr("Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. A breaker, RCBO or AFDD put in protects the first circuit of the floor plan waiting for one; choose another in its Circuit. Its poles, characteristic and rating are set in its properties. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together.")
+
+
+## Circuit [param f] as listed: its number, where it goes (else the kind
+## of its first part, "Spare") and how many parts it feeds.
+static func circuit_text(f: SingleLine.Feeder, doc: SchematicDocument) -> String:
+	var where: String = f.destination
+	var parts: int = 0
+	for designation: String in f.loads:
+		var c: CircuitComponent = doc.circuit.get_component(designation)
+		if c == null or c is LightSwitch:
+			continue
+		parts += 1
+		if where.is_empty():
+			if c is SocketOutlet:
+				where = TranslationServer.translate("Sockets")
+			elif c is Luminaire:
+				where = TranslationServer.translate("Lighting")
+			elif c is Appliance:
+				where = ApplianceSymbol.title_of(c as Appliance)
+	if where.is_empty():
+		where = TranslationServer.translate("Spare")
+	if parts == 0:
+		return "%d  %s" % [f.number, where]
+	return "%d  %s (%s)" % [f.number, where, TranslationServer.translate_plural("%d part", "%d parts", parts) % parts]
 
 
 ## What the plan says of circuit [param f] of [param line]: {"text": its
@@ -344,6 +414,8 @@ func retranslate() -> void:
 	_delete_button.tooltip_text = tr("Delete the selected breaker, RCD or part (Delete)")
 	_fit_button.text = tr("Show all")
 	_phase_label.text = tr("Phase")
+	_number_label.text = tr("Circuit")
+	_waiting_label.text = tr("Circuits waiting for protection").to_upper()
 	_destination_label.text = tr("Destination")
 	_room_label.text = tr("Room on the floor plan")
 	_cable_label.text = tr("Cable")

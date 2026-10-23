@@ -6,6 +6,38 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ## Unreleased
 
+### Schematic editor
+- Circuits are numbered and made on the floor plan: pick a circuit (or a new one) for the
+  sockets, luminaires and appliances you put on the plan, before anything protects it; the
+  plan writes the circuit's number beside each part. In the consumer unit a breaker, RCBO or
+  AFDD put in protects the first circuit waiting for one, and its Circuit field lists the
+  waiting circuits to choose another; the panel lists the circuits still waiting. Taking a
+  breaker away leaves its circuit's parts on the plan, waiting again
+- The main switch QB1 is a part like the others: select it and press Delete (the supply
+  then goes straight onto the busbars), or put it back from the palette
+- One circuit breaker and one RCD in the consumer unit's palette: poles (1-4; four poles are
+  three phases and N), characteristic and rating are set in its properties once placed
+- The single-line diagram draws every conductor on its own: the main switch's four poles,
+  each pole of a breaker or RCD (joined by a dashed link) with an N pole where the device has
+  one, a busbar a phase under a three-phase RCD; the poles come together into one line at
+  the circuit's outlet
+- Every part a circuit feeds is drawn on its own under its circuit, with its designation,
+  and can be selected and edited (no more one symbol with "2×"); they are drawn with the
+  floor plan's symbols, as are the palette's tiles, and a luminaire looks alike on a wall or
+  the ceiling there
+- An outlet for a later connection (vývod), e.g. for a workshop or a summerhouse, on the
+  plan and in the consumer unit
+- Light switch symbols on the plan and in the palette are turned as in the ČSN legends: their
+  lines slant up to the right
+- View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the
+  page at full size, with its frame and title block, so you can see how much fits on it as
+  the export prints it; marked when the drawing does not fit
+- The check names a terminal in a switchboard that would take more wires than it holds (a net
+  leading out to several parts without a terminal strip), and a strip terminal labelled the
+  same on two wires that are not connected (the switchboard would join them)
+- The check names a supply conductor coming in on more than one strip terminal (L1 on X1-11
+  and on X1-13): one terminal per conductor is enough, every supply point of it can carry it
+
 ### Panels
 - Training plans for wiring: File > Save as training plan… turns a schematic with its
   switchboards and control stations into a .ladplan exercise. Opened, the student sees the
@@ -39,16 +71,6 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Wiring a training plan, the terminals that already have a wire are marked with a filled
   dot, so it is easy to see what is wired and what is left
 
-### Schematic editor
-- View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the
-  page at full size, with its frame and title block, so you can see how much fits on it as
-  the export prints it; marked when the drawing does not fit
-- The check names a terminal in a switchboard that would take more wires than it holds (a net
-  leading out to several parts without a terminal strip), and a strip terminal labelled the
-  same on two wires that are not connected (the switchboard would join them)
-- The check names a supply conductor coming in on more than one strip terminal (L1 on X1-11
-  and on X1-13): one terminal per conductor is enough, every supply point of it can carry it
-
 ### Fixed
 - Switchboard: a net leading to a button, lamp or motor without a terminal strip is wired out
   of the switchboard (straight from the device's terminal), also to parts on its door and to
@@ -65,6 +87,7 @@ What changed in each LadderLab version. Version numbers follow the rules in
   they are joined through the rail they clamp onto
 - Strip terminals on supply points L1 L2 L3 side by side are labelled on one line under the
   mark ("X1-14", not "X1" over "14"), and a strip label is never written over its own mark
+
 
 ## 0.8.0 – 2026-10-21
 

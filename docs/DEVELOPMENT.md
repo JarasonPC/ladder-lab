@@ -163,7 +163,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   _new_document(environment): L and N supply points, PE too for a prototype, a residential
   installation its supply and main switch from update_single_line) and shown by a muted
   label in the toolbar (main.gd _update_environment). The palette follows it
-  (Palette.environment: ENTRIES, RESIDENTIAL_ENTRIES or INSTALLATION_ENTRIES;
+  (Palette.environment: ENTRIES, RESIDENTIAL_ENTRIES or INSTALLATION_ENTRIES: the main
+  switch, one breaker and one RCD whose poles are set in the properties, one luminaire;
   Palette.all_entries all, each title once, for the datasheets and Change type). A house
   installation of either kind has its floor plan in place of the Workspace. Its parts: light switches (LightSwitch "SF1",
   numbered (řazení) and their terminals marked as ČSN EN 60669-1 does, the incoming
@@ -217,7 +218,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   menu of appliances, luminaires and sockets) flows through them: _find_arc_paths solves the
   flow of the arcing loads' draws alone first. Appliances (Appliance "EB1", a fridge "EC1": a
   Load of Kind water heater, oven, hob, microwave, washing machine, dishwasher, heater,
-  fridge, kettle with DEFAULT_POWER, on 230 V L-N or "two_phases" 400 V L1-L2 (the hob),
+  fridge, kettle or an outlet for a later connection (vývod, "XD", drawn as a stem on to an
+  arrow) with DEFAULT_POWER, on 230 V L-N or "two_phases" 400 V L1-L2 (the hob),
   rated_draw P / 230 or P / (400 √3), PE the frame): its one switching path L-PE is its
   insulation fault (frame_fault, simulation state; the simulator takes a Load with paths as
   a load too): with PE wired a short to PE, without it the frame is live ("Frame live!"
@@ -244,7 +246,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   prune on load). Cables (FloorPlan.cables) are worked out from the wiring: per net the
   shortest tree (Manhattan) over the places on it; nets between two places are the cores of
   one cable, drawn dashed in an L with a tick per core (a number past five). PlanSymbols
-  draws the ČSN EN 60617-11 symbols: a switch's circle with lines and ticks per its number,
+  draws the ČSN EN 60617-11 symbols: a switch's circle with lines and ticks per its number
+  (slanting up to the right as the legends draw them, a quarter turn back from the room),
   a socket's stem from the wall to the back of a half circle open to the room (a second
   half circle on the same stem for a double), the
   luminaire's cross (a wall luminaire, Luminaire.wall, saved "wall", WALL_HEIGHT 2.0 m, put
@@ -275,24 +278,36 @@ Architecture and conventions of the code base. Read this before changing the cod
   breaker, a three-pole one, an RCBO or an AFDD; its phase 1-3, three poles always L1 L2 L3;
   the parts it feeds, sockets, luminaires, appliances; destination text, room on the floor
   plan, cable, "" for one by the rating: 3 or 5 cores of 1.5 mm² to 10 A, 2.5 to 16 A, 4 to 25
-  A, 6 beyond; ripple control) and groups (SingleLine.Group: a device and its items, the
+  A, 6 beyond; ripple control; its number, Feeder.number, the cable's -WD number too) and groups (SingleLine.Group: a device and its items, the
   circuits and groups under it, nested to any depth: an RCD without overcurrent release
   heads one even empty (heads_group), any other protective device once something is put
   under it (open_group turns a circuit feeding nothing into one, can_hold; prune turns an
   emptied one back); under a device of one phase only one-phase devices, on its phase
-  (fits_poles, _single_phase); saved in "feeders" with each entry's "kind"). items() walks
+  (fits_poles, _single_phase); saved in "feeders" with each entry's "kind"). Circuits are
+  made on the floor plan before anything protects them: SingleLine.waiting (Feeders with no
+  device, saved "waiting"; feed(part, number) puts a part on circuit number, made waiting when
+  none has it; prune drops a waiting one feeding nothing; circuits() all by number,
+  circuit_numbered, next_number the smallest free, _number_all numbers those without on
+  load); add with a number gives a new breaker, RCBO or AFDD that waiting circuit (the canvas
+  passes first_waiting), else a new one; assign(doc, device, number) gives a device another
+  waiting circuit (its own waits when it feeds something; 0 a new spare one); remove of a
+  circuit's device leaves it waiting when it feeds something (the canvas's Delete takes its
+  parts on no floor plan along). A breaker of four poles is three phases and N (has_n_pole;
+  _poles at most 3). items() walks
   them all, a group before what is under it; item_of, group_holding, list_holding,
   depth_of, is_under, column_of (the top column); residual_protection and lacks_rcd: a
   circuit feeding something without an RCD of 30 mA or less over it (its RCBO or a group's
   RCD), which ČSN 33 2000-4-41 asks for wherever an ordinary person can reach. The parts are components of the circuit (placed on
   the never shown page 0, hidden_cell); SingleLine.wire makes every wire of the document
   from the diagram (none is drawn by hand): supply points L1 L2 L3 N PE through the main
-  switch QB1 (CamSwitch 0-I, 4 poles) onto the busbars, a group's RCD from them and its
+  switch QB1 (CamSwitch 0-I, 4 poles; while SingleLine.main_switch, saved "main": false
+  without it: removed like any part, put back from the palette, is_main) onto the busbars,
+  else straight onto them, a group's RCD from them and its
   circuits from its outputs and N' (_wire_list, a head without N pole passing the N on), each
   circuit's device (an RCBO's or AFDD's own N pole) and,
   switched by a contact of the ripple control contactor QA1 (LatchingSwitch blocks, one per
   circuit of its own with hdo; switched_by_hdo), the parts it feeds: phase conductors on the
-  outputs in pole order, N, PE. It makes the supply points, QB1 and the QA1 contacts and
+  outputs in pole order, N, PE; waiting circuits are not wired. It makes the supply points, QB1 and the QA1 contacts and
   prunes what the circuit no longer has; SchematicDocument.update_single_line runs it after
   every edit (SchematicEditor._changed, edit_workspace) and on load. add (a device at an
   index of the columns or, with into, of a device's group; a part onto a circuit; new phases
@@ -309,20 +324,29 @@ Architecture and conventions of the code base. Read this before changing the cod
   (230 V / Zs at least TripCurve.MAGNETIC × In); SingleLineView.checks words them for the
   circuit's panel (red when out of bounds), the canvas writes the length and ΔU along the cable.
   SingleLineCanvas (ui/single_line/, _draw only, zoom and pan as the floor plan) draws it in
-  local coordinates u down a circuit, v across (at, local): busbars L1 L2 L3 N across with
-  their names, the supply with its cable, QB1 (a blade with a circle), the SPD to earth
-  (-FC1), the PE (green-yellow) and N bars over the busbars, the earth electrode; each
-  circuit from a dot on its busbar with its phases written beside it, the breaker as on the
+  local coordinates u down a circuit, v across (at, local), every conductor a device switches
+  on its own (POLE apart; pole_count: phases and an N pole; the poles of one device joined by a
+  dashed link, _link): busbars L1 L2 L3 N across with
+  their names, the supply with its cable as four conductors, QB1 (a blade with a circle each,
+  _main_v), the SPD to earth on each (-FC1), the PE (green-yellow) and N bars over the busbars, the earth electrode; each
+  circuit (entry "v" its outlet, its poles about it, _circuit_poles) a pole from a dot on the
+  busbar of its phase (_row_u; "L1".. "N" beside each pole), an N pole from the N busbar or
+  its group's N bar ("n_u"), the poles running down to MERGE_U over the ledger and together
+  into one line at JOIN_U, the breaker as on the
   schematic (BreakerSymbol's geometry: cross, thermal and magnetic releases turning with the
   blade), an RCBO's IΔ box and ring or an AFDD's arc box and red "AFDD" caption, each with the
   device's dashed outline and test button, designation and rating before it (B16, an RCD
   "40/0,03 A typ A", an RCBO B16 over "0,03 A typ A"), the QA1 contact with "HDO", the cable
-  number -WDn on a ledger, the cable along the line, the symbol of its first part (socket arc,
-  crossed lamp, hatched water heater, hob, fridge, washer, microwave, oven, heater; "2×" for
-  more), the destination (or the part's kind, "Spare") and "→ room" (a link to the floor plan:
-  room_requested); a group: its head from its busbar (an RCD: both poles, the ring, the IΔ
-  box, outline and test button; a breaker, RCBO or AFDD as on a circuit, with its N pole if
-  it has one), with an N pole its N bar Nn, and its own busbar with what is under it; a
+  number -WDn on a ledger, the cable along the line, every part it feeds but light switches
+  (_parts_of) one under another LOAD_STEP apart (_part_u) with its designation, each picked on
+  its own (thing_at "load"), drawn by draw_load as the floor plan draws it (PlanSymbols facing
+  right from the line, LOAD_SCALE pixels a metre; a luminaire alike on a wall or the ceiling,
+  an appliance with the user's symbol in its box; PlanGlyph.single_line draws the palette's
+  tiles so), the destination (or the first part's kind, "Spare") and "→ room" (a link to the floor plan:
+  room_requested); a group: its head's poles from its busbars (_group_poles from "v0"; an RCD:
+  plain blades, the ring, the IΔ box, outline and test button; a breaker, RCBO or AFDD as on
+  a circuit, with its N pole if it has one), with an N pole its N bar Nn, and its own busbars
+  (one a phase under a head of three, SUB_GAP apart) with what is under it; a
   group under a group LEVEL lower (_rcd_u, _n_bar_u, _sub_bus_u, _breaker_u by depth; the
   ledger and loads lower by the deepest group, _ledger_u, _load_u; _lay keeps each group's
   "n_u", where the N of what is under it comes from). A circuit lacking a 30 mA RCD has a
@@ -344,17 +368,20 @@ Architecture and conventions of the code base. Read this before changing the cod
   switch (operate_requested), test buttons trip (SchematicView.press_test). SingleLineView: a
   bar (Delete, Show all), the canvas and in Edit mode a panel for the selected circuit (phase,
   destination, room from the floor plan's rooms, cable, ripple control), group (phase) or
-  supply (cable, SPD); main.gd shows it in place of the schematic (_single_line_shown: page
+  supply (cable, SPD) with the circuits waiting for protection (SingleLineView.circuit_text);
+  a circuit's Circuit field assigns it another waiting circuit; main.gd shows it in place of the schematic (_single_line_shown: page
   bar, rotate, mirror, flip, numbering and Check hidden) and sends it the palette's templates.
   Export: the schematic pages of a residential installation are one "single_line" sheet
   (SingleLineCanvas.extent, sheet set)
 - Floor plan of a residential installation (FloorPlanCanvas.installation): the parts its
   circuits feed are put on the plan from the palette (Palette.plan: PLAN_ENTRIES, the light
   switches and the parts; main.gd routes the template to FloorPlanView.begin_place_template;
-  placing_template made with SingleLineCanvas.new_designation on the hidden page and added
-  to circuit FloorPlanCanvas.circuit, again until a right click). Beside the plan a circuit
-  picker (FloorPlanView._fill_circuits): the circuit of the selected part, changed there, or
-  the one new parts go on (the first unless "No circuit" is picked). Light switches are parts
+  placing_template made with SingleLineCanvas.new_designation on the hidden page and put on
+  circuit number FloorPlanCanvas.circuit by SingleLine.feed, again until a right click).
+  Beside the plan a circuit picker (FloorPlanView._fill_circuits): the circuits by number,
+  protected or waiting, and a new one; the circuit of the selected part, changed there, or
+  the one new parts go on (the first unless "No circuit" is picked). Luminaires and switches
+  have their circuit's number after their designation ("-EA1 /3"). Light switches are parts
   a circuit feeds too (SingleLine.is_load; end_part, end_count leave them out at the circuit's
   end on the diagram). Tool.WIRE draws the lighting (FloorPlan.links, FloorPlan.Link: two parts
   and the port at each, the rocker or output of a switch with two, 4 / 5 / 5B, by the side
@@ -369,7 +396,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   intermediates between) from the phase on the first's common through the travellers to the
   last's (the end the luminaires are drawn to) crossed, so that all at rest the light is off,
   the luminaires on the last's common (_wire_chain); the phase from the circuit of the first
-  switch that has one. Sockets and appliances carry their tag (SingleLine.tag: "Z" cable
+  switch that has one. Sockets and appliances carry their tag (SingleLine.tag: "Z" circuit
   number "." place among the circuit's sockets and appliances) in place of the designation.
   Rooms: number (FloorPlan.room_number: set, else 101 on), environment after ČSN 33
   2000-5-51 (room_environment: set, else N, a Bathroom ČSN 33 2000-7-701; ENVIRONMENTS

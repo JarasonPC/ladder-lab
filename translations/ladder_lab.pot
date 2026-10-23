@@ -5276,12 +5276,6 @@ msgstr ""
 msgid "Residual current device (RCD)"
 msgstr ""
 
-msgid "Circuit breaker, three poles"
-msgstr ""
-
-msgid "Residual current device, four poles"
-msgstr ""
-
 msgid "RCD with overcurrent release (RCBO)"
 msgstr ""
 
@@ -5394,7 +5388,7 @@ msgstr ""
 msgid "Drag to move its circuit (the ones selected along); Shift+click selects more; Delete takes them away"
 msgstr ""
 
-msgid "Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together."
+msgid "Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. A breaker, RCBO or AFDD put in protects the first circuit of the floor plan waiting for one; choose another in its Circuit. Its poles, characteristic and rating are set in its properties. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together."
 msgstr ""
 
 msgid "No RCD of 30 mA or less protects this circuit. ČSN 33 2000-4-41 asks for one on every circuit an ordinary person (laik) can reach: sockets, lighting and what is fed in a home."
@@ -6463,3 +6457,45 @@ msgid "%d minute from the first run to the last report"
 msgid_plural "%d minutes from the first run to the last report"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "not protected yet"
+msgstr ""
+
+#, c-format
+msgid "%d  (new)"
+msgstr ""
+
+#, c-format
+msgid "New circuit %d"
+msgstr ""
+
+msgid "Main switch: Delete takes it away (the supply then goes straight onto the busbars)"
+msgstr ""
+
+msgid "None: every circuit of the floor plan is protected."
+msgstr ""
+
+#, c-format
+msgid "Circuit %d (%s)"
+msgstr ""
+
+msgid "A new circuit (spare), this one waiting"
+msgstr ""
+
+#, c-format
+msgid "%d part"
+msgid_plural "%d parts"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Circuit"
+msgstr ""
+
+msgid "Circuits waiting for protection"
+msgstr ""
+
+msgid "Outlet for a later connection"
+msgstr ""
+
+msgid "Outlet for a later connection (workshop, summerhouse)"
+msgstr ""

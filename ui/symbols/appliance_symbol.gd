@@ -38,6 +38,10 @@ static func draw_sign(symbol: SchematicSymbol, kind: Appliance.Kind, c: Vector2,
 			for k: int in 3:
 				var d: Vector2 = Vector2.from_angle(k * PI / 3.0) * 8.0
 				symbol.aa_line(c - d, c + d, color, w)
+		Appliance.Kind.OUTLET:
+			# An outlet: an arrow out to what comes later.
+			symbol.aa_line(c + Vector2(-8, 0), c + Vector2(8, 0), color, w)
+			symbol.aa_polyline(PackedVector2Array([c + Vector2(3, -5), c + Vector2(8, 0), c + Vector2(3, 5)]), color, w)
 		_:
 			# A heating element: a resistor's zigzag.
 			var zig: PackedVector2Array = PackedVector2Array([c + Vector2(-9, 0)])
@@ -103,4 +107,6 @@ static func kind_title(kind: int) -> String:
 			return TranslationServer.translate("Fridge")
 		Appliance.Kind.KETTLE:
 			return TranslationServer.translate("Kettle")
+		Appliance.Kind.OUTLET:
+			return TranslationServer.translate("Outlet for a later connection")
 	return TranslationServer.translate("Water heater")

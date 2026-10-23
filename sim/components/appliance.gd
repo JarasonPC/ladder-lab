@@ -2,18 +2,19 @@ class_name Appliance
 extends Load
 ## Appliance of a house installation (spotřebič, designation "EB1", a
 ## fridge "EC1"): a water heater, oven, hob, microwave, washing machine,
-## dishwasher, heater, fridge or kettle of a rated power, on 230 V (L, N) or
+## dishwasher, heater, fridge or kettle of a rated power, or an outlet (vývod)
+## feeding something to be connected later (a workshop, a summerhouse), on 230 V (L, N) or
 ## on 400 V between two phases (L1, L2), its metal frame on PE (ignored by the
 ## solver but for a fault). An insulation fault ([member frame_fault],
 ## simulation state) joins its phase to the frame: with the frame on PE that
 ## is a short to PE, without it the frame is live.
 
-enum Kind { WATER_HEATER, OVEN, HOB, MICROWAVE, WASHING_MACHINE, DISHWASHER, HEATER, FRIDGE, KETTLE }
+enum Kind { WATER_HEATER, OVEN, HOB, MICROWAVE, WASHING_MACHINE, DISHWASHER, HEATER, FRIDGE, KETTLE, OUTLET }
 
 ## Kinds as saved, in [enum Kind] order.
-const KIND_NAMES: PackedStringArray = ["water_heater", "oven", "hob", "microwave", "washing_machine", "dishwasher", "heater", "fridge", "kettle"]
+const KIND_NAMES: PackedStringArray = ["water_heater", "oven", "hob", "microwave", "washing_machine", "dishwasher", "heater", "fridge", "kettle", "outlet"]
 ## Rated power of each kind when none is set (W), in [enum Kind] order.
-const DEFAULT_POWER: PackedFloat32Array = [2000.0, 3500.0, 6400.0, 1200.0, 2200.0, 2000.0, 2000.0, 150.0, 2000.0]
+const DEFAULT_POWER: PackedFloat32Array = [2000.0, 3500.0, 6400.0, 1200.0, 2200.0, 2000.0, 2000.0, 150.0, 2000.0, 3000.0]
 ## Kinds connected between two phases (400 V) when none is set.
 const DEFAULT_400: Array[Kind] = [Kind.HOB]
 ## Least and most rated power (W).
@@ -67,7 +68,9 @@ func is_path_closed(_path: int) -> bool:
 	return frame_fault
 
 
-## Designation letters of [param p_kind]: EC for cooling, EB for the others
-## (ČSN EN 81346-2).
+## Designation letters of [param p_kind]: EC for cooling, XD for an outlet
+## (a power connection), EB for the others (ČSN EN 81346-2).
 static func letters(p_kind: Kind) -> String:
+	if p_kind == Kind.OUTLET:
+		return "XD"
 	return "EC" if p_kind == Kind.FRIDGE else "EB"
