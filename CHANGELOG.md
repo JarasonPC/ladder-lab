@@ -46,6 +46,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - The check names a terminal in a switchboard that would take more wires than it holds (a net
   leading out to several parts without a terminal strip), and a strip terminal labelled the
   same on two wires that are not connected (the switchboard would join them)
+- The check names a supply conductor coming in on more than one strip terminal (L1 on X1-11
+  and on X1-13): one terminal per conductor is enough, every supply point of it can carry it
 
 ### Fixed
 - Switchboard: a net leading to a button, lamp or motor without a terminal strip is wired out
@@ -57,6 +59,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - Switchboard: a 10 V reference and the 24 V + are no longer wired or bridged together
 - Switchboard: an N or PE distribution block has a connection for every wire, also the overload
   contact's under a contactor, so no wire is left out
+- Switchboard: PE terminals side by side have no plug-in bridge (drawn or in the parts list),
+  they are joined through the rail they clamp onto
+- Strip terminals on supply points L1 L2 L3 side by side are labelled on one line under the
+  mark ("X1-14", not "X1" over "14"), and a strip label is never written over its own mark
 
 ## 0.8.0 – 2026-10-21
 

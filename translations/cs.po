@@ -33,6 +33,10 @@ msgid "Terminal %s is on wires that are not connected: in the switchboard it joi
 msgstr "Svorka %s je na vodičích, které spolu nejsou spojené: v rozvaděči je spojí."
 
 #, c-format
+msgid "Supply %s comes in on terminals %s: one terminal for each conductor of the supply is enough, all its supply points can be labelled with it."
+msgstr "Přívod %s přichází na svorky %s: pro každý vodič přívodu stačí jedna svorka, mohou ji nést všechny jeho napájecí body."
+
+#, c-format
 msgid "Terminal %s in switchboard %s takes %d wires, more than it holds: put a strip terminal on its net."
 msgstr "Svorka %s v rozvaděči %s má víc vodičů (%d), než pojme: dejte na její síť řadovou svorku."
 

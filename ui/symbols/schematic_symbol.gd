@@ -380,7 +380,7 @@ func _draw_strip_labels() -> void:
 				break
 		if not _strip_label_fits(chosen, i, placed):
 			for choice: Array in choices:
-				if not _hits_marks(choice, i, cells, names, t):
+				if not _hits_marks(choice, cells, names, t):
 					chosen = choice
 					break
 		placed[i] = chosen
@@ -391,10 +391,11 @@ func _draw_strip_labels() -> void:
 
 
 ## Styles the strip labels of [param terminals] are tried in: a supply
-## point's on one line over the mark (close to the wire and clear of the
-## wire it is joined to); where three or more terminals stand in a row
-## across their wires close together (a motor, the poles of a breaker) on
-## one line past the mark, as there is no room beside it; else beside the
+## point's on one line over the mark along a horizontal wire (close to the
+## wire and clear of the wire it is joined to); where three or more
+## terminals stand in a row across their wires close together (a motor, the
+## poles of a breaker), or a supply point beside another part's terminal
+## (L1 L2 L3), on one line past the mark, as there is no room beside it; else beside the
 ## mark (along a horizontal wire over it), then past it along a horizontal
 ## wire. Where one line does not fit (terminals close together), a size
 ## smaller, then the strip over the number.
@@ -411,6 +412,10 @@ func _strip_styles(terminals: Array[int]) -> Array[int]:
 		crowded = crowded or (_crowded(i, at, outward) and (absf(outward.x) > 0.5 or _in_row(i, at, outward) >= 2))
 	if names.size() == 1 and horizontal:
 		return [OVER_MARK, PAST_MARK, STACKED, SMALL, TWO_LINES]
+	if names.size() == 1 and _nearby_in_row(t * (Vector2(cells[names[0]]) * G), -lead_vector(0)):
+		# A supply point beside others (L1 L2 L3 two cells apart): no room
+		# for a line beside the mark.
+		return [PAST_MARK, STACKED, SMALL, TWO_LINES]
 	if crowded:
 		return [PAST_MARK, STACKED, SMALL, TWO_LINES]
 	if horizontal:
@@ -437,7 +442,7 @@ func _strip_choices(index: int, styles: Array[int]) -> Array[Array]:
 ## [param placed] (terminal index -> lines) before they are written.
 func _strip_label_fits(lines: Array, index: int, placed: Dictionary[int, Array]) -> bool:
 	var cells: Dictionary[String, Vector2i] = SymbolGeometry.local_terminals(component)
-	if _hits_markings(lines) or _hits_marks(lines, index, cells, component.get_terminal_names(), SymbolGeometry.draw_transform(placement)):
+	if _hits_markings(lines) or _hits_marks(lines, cells, component.get_terminal_names(), SymbolGeometry.draw_transform(placement)):
 		return false
 	for k: int in placed:
 		for other: Array in placed[k]:
@@ -543,6 +548,17 @@ func _crowded(index: int, at: Vector2, outward: Vector2) -> bool:
 	return false
 
 
+## True when a terminal of a part nearby ([member nearby_terminals]) is in
+## line with the terminal at [param at] across its wire, two cells away at
+## most.
+func _nearby_in_row(at: Vector2, outward: Vector2) -> bool:
+	for point: Vector2 in nearby_terminals:
+		var other: Vector2 = point - at
+		if absf(other.dot(outward)) < 1.0 and other.length() < 2.5 * G:
+			return true
+	return false
+
+
 ## Number of the other terminals of the symbol in line with terminal
 ## [param index] at [param at] across its wire.
 func _in_row(index: int, at: Vector2, outward: Vector2) -> int:
@@ -556,16 +572,15 @@ func _in_row(index: int, at: Vector2, outward: Vector2) -> int:
 	return count
 
 
-## True when one of the [param lines] of the strip label of terminal
-## [param index] runs onto the strip mark or square of another terminal of
-## the symbol ([param cells], [param names] and [param t] as in [method
-## _draw_strip_labels]) or onto a terminal of a part nearby
+## True when one of the [param lines] of a strip label runs onto the strip
+## mark or square of a terminal of the symbol, its own included
+## ([param cells], [param names] and [param t] as in [method
+## _draw_strip_labels]), or onto a terminal of a part nearby
 ## ([member nearby_terminals], e.g. the next supply point of L1 L2 L3).
-func _hits_marks(lines: Array, index: int, cells: Dictionary[String, Vector2i], names: PackedStringArray, t: Transform2D) -> bool:
+func _hits_marks(lines: Array, cells: Dictionary[String, Vector2i], names: PackedStringArray, t: Transform2D) -> bool:
 	var points: PackedVector2Array = nearby_terminals.duplicate()
 	for k: int in names.size():
-		if k != index:
-			points.append(t * (Vector2(cells[names[k]]) * G))
+		points.append(t * (Vector2(cells[names[k]]) * G))
 	for point: Vector2 in points:
 		# The circle with its slash.
 		var mark: Rect2 = Rect2(point - Vector2(7.5, 7.5), Vector2(15.0, 15.0))

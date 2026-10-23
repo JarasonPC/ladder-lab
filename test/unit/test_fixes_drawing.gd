@@ -119,6 +119,35 @@ func test_strip_labels_of_one_symbol_written_alike() -> void:
 		_assert_texts_apart(symbol, what)
 
 
+func test_supply_points_in_a_row_label_their_strip_terminals_on_one_line() -> void:
+	# L1 L2 L3 two cells apart, as the view tells them (nearby_terminals):
+	# L2 has no room for a line beside its mark, so each label is written on
+	# one line past the mark, clear of the marks beside it.
+	var symbols: Array[SchematicSymbol] = []
+	var x: int = 0
+	for conductor: String in ["L", "L2", "L3"]:
+		var symbol: SchematicSymbol = _symbol({"type": "supply", "conductor": conductor, "designation": conductor}, 0, false, {0: "X1:%d" % (13 + x / 2)})
+		var at: Vector2 = _mark(symbol, 0).get_center()
+		var near: PackedVector2Array = PackedVector2Array()
+		for dx: int in [-4, -2, 2, 4]:
+			if x + dx >= 0 and x + dx <= 4:
+				near.append(at + Vector2(dx * G, 0.0))
+		symbol.nearby_terminals = near
+		symbols.append(symbol)
+		x += 2
+	await wait_process_frames(2)
+	for symbol: SchematicSymbol in symbols:
+		var lines: Array[Rect2] = []
+		for m: Array in symbol.marking_rects:
+			if m[0] == "strip":
+				lines.append(m[2])
+		assert_eq(lines.size(), 1, symbol.component.designation + ": the label on one line")
+		for line: Rect2 in lines:
+			for near: Vector2 in symbol.nearby_terminals:
+				assert_false(_glyphs(line).intersects(Rect2(near - Vector2(7.5, 7.5), Vector2(15, 15))), "%s: the label off the mark at %s" % [symbol.component.designation, near])
+		_assert_texts_apart(symbol, symbol.component.designation)
+
+
 ## Segments of a 3~ motor's PE lead, node coordinates.
 func _pe_lead(symbol: SchematicSymbol) -> PackedVector2Array:
 	var frame: Vector2 = ThreePhaseMotorSymbol.CENTER + Vector2.from_angle(PI * 0.88) * ThreePhaseMotorSymbol.RADIUS

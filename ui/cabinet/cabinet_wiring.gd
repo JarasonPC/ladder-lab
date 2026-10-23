@@ -1113,9 +1113,10 @@ func _grow(points: Array, single: bool, strips_last: bool) -> Dictionary:
 
 
 ## Which neighbouring terminals of a strip ([param terminals] as in
-## [method CabinetDevices.strips]) a plug-in bridge joins: element i is true
-## when terminal i and the next are on the same net of [param net] (not one
-## of [param apart]: N or PE where a distribution block takes each).
+## [method CabinetDevices.strips]) are joined: element i is true when
+## terminal i and the next are on the same net of [param net] (not one of
+## [param apart]: N or PE where a distribution block takes each). A plug-in
+## bridge joins them, unless they are PE terminals ([method bridge_shown]).
 static func strip_bridges(terminals: Array, net: Dictionary[String, int], apart: Dictionary[int, bool] = {}) -> Array[bool]:
 	var result: Array[bool] = []
 	var nets: Array[int] = []
@@ -1129,6 +1130,13 @@ static func strip_bridges(terminals: Array, net: Dictionary[String, int], apart:
 	for i: int in maxi(terminals.size() - 1, 0):
 		result.append(nets[i] >= 0 and nets[i] == nets[i + 1] and not apart.has(nets[i]))
 	return result
+
+
+## Whether terminals [param i] and i + 1 of [param terminals] (joined, see
+## [method strip_bridges]) take a plug-in bridge: PE terminals are joined
+## through the rail they clamp onto, so they have none to draw or list.
+static func bridge_shown(terminals: Array, i: int) -> bool:
+	return (terminals[i] as Dictionary).get("kind", "") != "PE"
 
 
 ## Whether points [param a] and [param b] (of [method _terminals]) are tops

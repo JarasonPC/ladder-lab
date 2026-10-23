@@ -116,6 +116,35 @@ static func _strip_issues(doc: SchematicDocument) -> Array[Dictionary]:
 					ids.append(owner.id)
 			if nets.size() > 1:
 				issues.append(_issue("Terminal %s is on wires that are not connected: in the switchboard it joins them.", [CabinetDevices.terminal_text("%s:%s" % [strip, terminal["label"]])], ids))
+	issues.append_array(_supply_terminal_issues(doc))
+	return issues
+
+
+## Supply conductors coming in on more than one strip terminal (L1 on X1-11
+## and X1-13): the supply cable brings one core per conductor, so one
+## terminal is enough (every supply point of the conductor labelled with
+## it); the switchboard only bridges the others to it.
+static func _supply_terminal_issues(doc: SchematicDocument) -> Array[Dictionary]:
+	var issues: Array[Dictionary] = []
+	# Supply key -> [name, terminal labels, ids of its supply points].
+	var found: Dictionary[String, Array] = {}
+	for c: CircuitComponent in doc.circuit.get_components():
+		var placement: Placement = doc.get_placement(c.id)
+		if not (c is PowerSupply) or placement == null or not placement.strips.has(0):
+			continue
+		var key: String = CabinetDevices.supply_key(c as PowerSupply)
+		if not found.has(key):
+			found[key] = [(c as PowerSupply).conductor_name(), PackedStringArray(), []]
+		var label: String = CabinetDevices.terminal_text(placement.strips[0])
+		var labels: PackedStringArray = found[key][1]
+		if not labels.has(label):
+			labels.append(label)
+			found[key][1] = labels
+		(found[key][2] as Array).append(c.id)
+	for key: String in found:
+		var labels: PackedStringArray = found[key][1]
+		if labels.size() > 1:
+			issues.append(_issue("Supply %s comes in on terminals %s: one terminal for each conductor of the supply is enough, all its supply points can be labelled with it.", [found[key][0], ", ".join(labels)], found[key][2]))
 	return issues
 
 

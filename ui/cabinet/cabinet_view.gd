@@ -829,7 +829,7 @@ func _draw_place(p: CabinetPainter, place: Dictionary) -> void:
 			var bridges: Array = desc.get("bridges", [])
 			for i: int in desc["terminals"].size():
 				var t: Dictionary = desc["terminals"][i]
-				items.append({"label": t["label"], "kind": t["kind"], "reach": _first_reach(t["keys"]), "bridge": i < bridges.size() and bridges[i]})
+				items.append({"label": t["label"], "kind": t["kind"], "reach": _first_reach(t["keys"]), "bridge": i < bridges.size() and bridges[i] and CabinetWiring.bridge_shown(desc["terminals"], i)})
 			CabinetParts.terminal_strip(q, place["designation"], items)
 		_:
 			CabinetParts.missing(q, place["size"], "-" + str(place["designation"]))
