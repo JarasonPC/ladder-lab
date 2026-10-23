@@ -76,9 +76,12 @@ func test_rooms_by_their_corners() -> void:
 	# A corner on a straight run is left out.
 	var plain: FloorPlan.Room = FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(2, 0), Vector2(4, 0), Vector2(4, 3), Vector2(0, 3)]), "R")
 	assert_true(plain.is_rectangle())
-	assert_null(FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(4, 1), Vector2(4, 3), Vector2(0, 3)]), "slanted"), "only walls across or up and down")
+	var slanted: FloorPlan.Room = FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(4, 1), Vector2(4, 3), Vector2(0, 3)]), "slanted")
+	assert_not_null(slanted, "a slanting wall")
+	assert_almost_eq(slanted.area(), 10.0, 0.001)
 	assert_null(FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(4, 0), Vector2(4, 0.5), Vector2(0, 0.5)]), "thin"), "too narrow")
-	assert_null(FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(4, 0), Vector2(4, 3)]), "three"))
+	assert_not_null(FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(4, 0), Vector2(4, 3)]), "three"), "three corners, one wall slanting")
+	assert_null(FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(4, 3), Vector2(4, 0), Vector2(0, 3)]), "crossed"), "crossing itself")
 
 
 func test_overlaps_and_duplicates() -> void:

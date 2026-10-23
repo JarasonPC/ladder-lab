@@ -389,12 +389,17 @@ func test_windows_and_wall_thickness() -> void:
 	assert_almost_eq(again.outer_wall, 0.45, 1e-6)
 	assert_almost_eq(again.inner_wall, FloorPlan.INNER_WALL, 1e-6)
 	assert_false(FloorPlan.from_data({"rooms": []}).to_data().has("walls"), "the usual walls are not written")
-	# A socket on the wall between rooms is drawn at the wall's face.
+	# A socket on the wall between rooms is drawn at the wall's face: the
+	# wall lies in the hall, out of the way of the room, whose wall goes on
+	# outside below the hall.
 	plan.move_room(1, Vector2(3.0, 0.0))
 	plan.place("XD1", Vector2(3.0, 1.0), false)
 	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
 	canvas.document = doc
-	assert_almost_eq(canvas._face("XD1").length(), FloorPlan.INNER_WALL * 0.5, 1e-6)
+	var into: Vector2 = FloorPlan.FACING[plan.facing["XD1"]]
+	var piece: Dictionary = plan.wall_piece_at(Vector2(3.0, 1.0))
+	assert_almost_eq(float(piece["to"]) - float(piece["from"]), FloorPlan.INNER_WALL, 1e-6)
+	assert_almost_eq(canvas._face("XD1").length(), 0.0 if into == Vector2.RIGHT else FloorPlan.INNER_WALL, 1e-6)
 
 
 func test_dimension_chains_and_free_dimensions() -> void:

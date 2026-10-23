@@ -29,6 +29,21 @@ What changed in each LadderLab version. Version numbers follow the rules in
   plan and in the consumer unit
 - Light switch symbols on the plan and in the palette are turned as in the ČSN legends: their
   lines slant up to the right
+- Floor plan walls: each wall can have its own thickness and, between two rooms, be put on
+  the middle of the line or into either room (select a wall and press Enter, or double-click
+  its dimension); the wall dialog also sets its direction, which makes it slant. The plan settings can
+  make their wall thicknesses the ones every new plan starts with
+- Slanting walls: draw a room by its corners with Shift (by 15°), or turn a wall in its dialog;
+  parts go onto slanting walls too
+- Draw walls on their own with the new wall tool (by 15°, with Shift at any angle, or a length
+  typed), showing their length and direction as you draw; when they close round a space they
+  become a room inside them. Their ends can be dragged, and a double click sets their length,
+  direction and thickness
+- A room can be a staircase: its stairs are drawn straight in a rectangle and turning in an
+  L-shaped room, with the walking line and its arrow (the way up can be turned round)
+- While a room is dragged its doors, windows, furniture, notes and symbols move along with
+  it, a dragged wall takes its doors, windows and parts along, and a door or window being
+  dragged is shown where it goes
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the
   page at full size, with its frame and title block, so you can see how much fits on it as
   the export prints it; marked when the drawing does not fit
@@ -72,6 +87,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   dot, so it is easy to see what is wired and what is left
 
 ### Fixed
+- No more steps in the floor plan where a wall between two rooms meets a wall going on
+  outside: the wall between them lies out of the way of the room whose wall goes on, so its
+  face runs straight through
 - Switchboard: a net leading to a button, lamp or motor without a terminal strip is wired out
   of the switchboard (straight from the device's terminal), also to parts on its door and to
   parts not on any station, instead of being left without a wire

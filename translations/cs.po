@@ -5328,9 +5328,6 @@ msgstr "Šířka"
 msgid "Height"
 msgstr "Výška"
 
-msgid "Wall length"
-msgstr "Délka zdi"
-
 #, c-format
 msgid "Width of %s"
 msgstr "Šířka – %s"
@@ -6098,8 +6095,8 @@ msgstr "Rozdělit místnost příčkou: táhněte přes ni tam, kde má příčk
 msgid "Take the room away (what is in it stays)"
 msgstr "Odstranit místnost (co v ní je, zůstane)"
 
-msgid "Draw a room by its corners: click each corner (walls go across or up and down), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
-msgstr "Kreslit místnost po rozích: klikněte na každý roh (stěny vedou vodorovně nebo svisle), nebo napište délku stěny v mm a stiskněte Enter; klik na první roh, dvojklik, Enter nebo pravé tlačítko ji uzavře"
+msgid "Draw a room by its corners: click each corner (walls go across or up and down, with Shift slanting by 15°), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
+msgstr "Kreslit místnost po rozích: klikněte na každý roh (stěny vedou vodorovně nebo svisle, se Shiftem šikmo po 15°), nebo napište délku stěny v mm a stiskněte Enter; klik na první roh, dvojklik, Enter nebo pravé tlačítko ji uzavře"
 
 msgid "Split a room in two: drag across it where the new wall goes"
 msgstr "Rozdělit místnost na dvě: táhněte přes ni tam, kde má být nová příčka"
@@ -6486,10 +6483,6 @@ msgid "not protected yet"
 msgstr "zatím nejištěn"
 
 #, c-format
-msgid "%d  (new)"
-msgstr "%d  (nový)"
-
-#, c-format
 msgid "New circuit %d"
 msgstr "Nový obvod %d"
 
@@ -6524,3 +6517,42 @@ msgstr "Vývod"
 
 msgid "Outlet for a later connection (workshop, summerhouse)"
 msgstr "Vývod pro pozdější připojení (dílna, altán)"
+
+msgid "Start new plans with these walls"
+msgstr "Nové půdorysy začínat s těmito zdmi"
+
+msgid "Wall"
+msgstr "Zeď"
+
+msgid "Direction"
+msgstr "Směr"
+
+msgid "Thickness (0: the plan's)"
+msgstr "Tloušťka (0: dle půdorysu)"
+
+msgid "Lies"
+msgstr "Leží"
+
+msgid "Degrees anticlockwise from the right; another one turns the wall about its start, making it slant"
+msgstr "Stupně proti směru hodinových ručiček od vodorovné doprava; jiná hodnota zeď natočí kolem jejího začátku, takže bude šikmá"
+
+msgid "As suits (out of the way of a wall going on outside)"
+msgstr "Podle potřeby (mimo místnost, jejíž zeď pokračuje ven)"
+
+msgid "On the middle of the line"
+msgstr "Na střed čáry"
+
+msgid "Into this room"
+msgstr "Do této místnosti"
+
+msgid "Into the other room"
+msgstr "Do vedlejší místnosti"
+
+msgid "Draws the stairs in the room: straight in a rectangle, turning in an L-shaped room"
+msgstr "Nakreslí v místnosti schodiště: přímé v obdélníku, zalomené v místnosti do L"
+
+msgid "Up the other way"
+msgstr "Stoupá opačně"
+
+msgid "Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn"
+msgstr "Kreslit samostatné zdi: klikněte, kde každá zeď začíná a končí (po 15°, se Shiftem v libovolném úhlu; nebo napište délku v mm a stiskněte Enter); zdi, které uzavřou prostor, se stanou místností. Pravé tlačítko nebo Esc kreslení zdí ukončí"
