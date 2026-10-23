@@ -7138,3 +7138,141 @@ msgstr ""
 msgctxt "CB"
 msgid "flexible or unstable"
 msgstr ""
+
+msgid "At the top %s °C: warmer than %s °C. Make the enclosure larger, give it ventilation openings or lose less power inside."
+msgstr ""
+
+msgid "At the top %s °C: within %s °C."
+msgstr ""
+
+msgid "Back to the estimates"
+msgstr ""
+
+msgid "Enclosure"
+msgstr ""
+
+msgid "Estimate: type the maker's figure"
+msgstr ""
+
+msgid "Estimates (breakers and RCDs the most ČSN EN 60898-1 allows); type the maker's figure over them. Wires and terminals from the wiring laid out, at the rated current of the breaker or fuse on their net."
+msgstr ""
+
+msgid "Further losses"
+msgstr ""
+
+msgid "Give the enclosure's size (nothing is on the rails yet to size it by)."
+msgstr ""
+
+msgid "Horizontal partitions"
+msgstr ""
+
+msgid "How the enclosure is installed (fig. 1 of the method): which of its surfaces give off heat"
+msgstr ""
+
+msgid "Inlet openings"
+msgstr ""
+
+msgid "Installation and air"
+msgstr ""
+
+msgid "Loss (W)"
+msgstr ""
+
+msgid "Losses of what is not drawn: lighting, fans, heaters, transformers …"
+msgstr ""
+
+msgid "Most allowed inside"
+msgstr ""
+
+msgid "Outlet openings"
+msgstr ""
+
+msgid "Power lost at the rated currents"
+msgstr ""
+
+msgid "Rail %d: %s °C"
+msgstr ""
+
+msgid "Reckoned in %d sections %s m wide (the warmest shown)."
+msgstr ""
+
+msgid "Result"
+msgstr ""
+
+msgid "Size from the mounting plate"
+msgstr ""
+
+msgid "Strip terminals (%d)"
+msgstr ""
+
+msgid "Temperature rise of +%s"
+msgstr ""
+
+msgid "Temperature rise: at the top about %s °C (%s °C around, at most %s °C), %s W lost inside"
+msgstr ""
+
+msgid "Temperature rise…"
+msgstr ""
+
+msgid "The enclosure round the mounting plate as laid out, rounded up to 50 mm"
+msgstr ""
+
+msgid "The warmest the air round the devices may get: see their makers' data (55 °C is common; breakers are rated at 30 °C and carry less above it)"
+msgstr ""
+
+msgid "Total P"
+msgstr ""
+
+msgid "Ventilation openings"
+msgstr ""
+
+msgid "Wires (%d, %s m)"
+msgstr ""
+
+msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): fill in the enclosure, how it is installed and the devices' losses"
+msgstr ""
+
+msgid "Separate enclosure, free on all sides"
+msgstr ""
+
+msgid "Separate enclosure for wall mounting"
+msgstr ""
+
+msgid "Separate enclosure with a side against a wall"
+msgstr ""
+
+msgid "Separate enclosure in a corner"
+msgstr ""
+
+msgid "Free-standing enclosure in a row"
+msgstr ""
+
+msgid "Enclosure in a row for wall mounting"
+msgstr ""
+
+msgid "Enclosure in a row for wall mounting, its top covered"
+msgstr ""
+
+msgid "%s = %s is beyond fig. %d (%s to %s): its edge is taken."
+msgstr ""
+
+msgid "More than %d horizontal partitions: the method does not cover them (reckoned with %d)."
+msgstr ""
+
+msgid "The method has no chart for ventilation openings with Ae up to 1.25 m²: reckoned as closed, on the safe side."
+msgstr ""
+
+msgid "The outlet openings (%s cm²) should be at least 1.1 times the inlet ones (%s cm²)."
+msgstr ""
+
+msgid "Top"
+msgstr ""
+
+msgid "Left side"
+msgstr ""
+
+msgid "Right side"
+msgstr ""
+
+msgid "Back wall"
+msgstr ""

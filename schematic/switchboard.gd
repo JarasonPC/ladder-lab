@@ -3,7 +3,8 @@ extends RefCounted
 ## A switchboard (rozvaděč, location "+RA1") of the workspace: its DIN rails
 ## ([CabinetRail]) with the devices and terminal strips of the circuit, top to
 ## bottom, the push buttons, switches and signal lamps on its door, and where
-## it sits on the workspace. Design data only.
+## it sits on the workspace, and what its temperature rise calculation is
+## given ([HeatRise]). Design data only.
 
 ## Items in a row on a new door.
 const DOOR_COLUMNS: int = 3
@@ -19,6 +20,10 @@ var rails: Array[CabinetRail] = []
 var door: ControlBox = ControlBox.new("", DOOR_COLUMNS)
 ## Top-left corner of its tile on the workspace.
 var position: Vector2 = Vector2.ZERO
+## What its temperature rise calculation is given beyond the drawing (see
+## [method HeatRise.settings]): only what differs from
+## [constant HeatRise.DEFAULTS].
+var heat: Dictionary = {}
 
 
 func _init(p_name: String = "", p_position: Vector2 = Vector2.ZERO) -> void:
@@ -35,6 +40,8 @@ func to_data() -> Dictionary:
 		d["title"] = title
 	if not door.items.is_empty() or door.columns != DOOR_COLUMNS:
 		d["door"] = {"columns": door.columns, "items": door.to_data()["items"]}
+	if not heat.is_empty():
+		d["heat"] = heat.duplicate(true)
 	return d
 
 
@@ -59,4 +66,5 @@ static func from_data(data: Variant) -> Switchboard:
 		if door != null:
 			board.door = door
 	board.door.name = ""
+	board.heat = HeatRise.changed(HeatRise.settings(d.get("heat", {})))
 	return board
