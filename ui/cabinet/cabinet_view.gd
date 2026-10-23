@@ -466,7 +466,7 @@ func _port_under(position_px: Vector2) -> Dictionary:
 	if _wiring == null or _painted_k <= 0.0:
 		return {}
 	var at: Vector2 = (position_px - _painted_origin) / _painted_k
-	var port: String = TrainingPick.port_at(_wiring.ports, at, _painted_k)
+	var port: String = TrainingPick.port_at(_wiring.ports, at, _painted_k, _wiring.areas)
 	if not port.is_empty():
 		return {"place": training_place(), "port": port}
 	if door_open and _door != null:

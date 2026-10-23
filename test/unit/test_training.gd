@@ -535,3 +535,12 @@ func test_wired_ports_are_marked() -> void:
 	var wires: Array[PackedStringArray] = [PackedStringArray(["t:KM1:A1", "s:X1:1", "CONTROL", ""]), PackedStringArray(["s:X1:1", "p:2", "NEUTRAL", ""])]
 	assert_eq(TrainingPick.wired(wires), PackedStringArray(["t:KM1:A1", "s:X1:1", "p:2"]), "each port a wire lands on, once")
 	assert_eq(TrainingPick.wired([] as Array[PackedStringArray]), PackedStringArray())
+
+
+func test_a_distribution_block_is_clicked_anywhere_on_it() -> void:
+	var ports: Dictionary[String, Vector2] = {"b:N": Vector2(20, 30), "t:KM1:A1": Vector2(10, 5)}
+	var areas: Dictionary[String, Rect2] = {"b:N": Rect2(15, 5, 12, 50)}
+	assert_eq(TrainingPick.port_at(ports, Vector2(20, 50), 2.0, areas), "b:N", "near the end of the block")
+	assert_eq(TrainingPick.port_at(ports, Vector2(20, 50), 2.0), "", "only its middle without the area")
+	assert_eq(TrainingPick.port_at(ports, Vector2(11, 6), 2.0, areas), "t:KM1:A1", "a terminal near it first")
+	assert_eq(TrainingPick.port_at(ports, Vector2(40, 50), 2.0, areas), "")

@@ -33,8 +33,9 @@ const RING_MARKED: float = 2.4
 
 
 ## The port of [param ports] (port -> mm) nearest [param at] (mm) within
-## reach, "" for none.
-static func port_at(ports: Dictionary[String, Vector2], at: Vector2, k: float) -> String:
+## reach, else the one of [param areas] (port -> where a click anywhere takes
+## it, mm) [param at] is in; "" for none.
+static func port_at(ports: Dictionary[String, Vector2], at: Vector2, k: float, areas: Dictionary[String, Rect2] = {}) -> String:
 	var reach: float = maxf(REACH_MM, REACH_PX / maxf(k, 0.01))
 	var best: String = ""
 	var nearest: float = reach
@@ -43,6 +44,10 @@ static func port_at(ports: Dictionary[String, Vector2], at: Vector2, k: float) -
 		if d <= nearest:
 			nearest = d
 			best = port
+	if best.is_empty():
+		for port: String in areas:
+			if areas[port].has_point(at):
+				return port
 	return best
 
 

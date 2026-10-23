@@ -128,6 +128,8 @@ var crowded: Array[Dictionary] = []
 ## The ports of a training plan (see [TrainingCheck]) laid out by
 ## [method build_given]: port -> where it is (mm; a terminal's screw).
 var ports: Dictionary[String, Vector2] = {}
+## Ports taken by a click anywhere on them (mm; a distribution block).
+var areas: Dictionary[String, Rect2] = {}
 ## Index in the pairs given to [method build_given] of each of [member wires].
 var pairs: Array[int] = []
 # Wires come out from behind each overload relay (by its position) so far.
@@ -280,11 +282,15 @@ static func build_given(doc: SchematicDocument, layout: CabinetLayout, k: float,
 		wiring.ports["f:" + label] = spot["at"]
 	for port: String in points:
 		if port.begins_with("b:"):
-			# Clicked anywhere on the block.
 			var at: Vector2 = Vector2.ZERO
 			for point: Dictionary in points[port]:
 				at += point["at"] / points[port].size()
 			wiring.ports[port] = at + Vector2(CabinetParts.BUS_COVER_X * 2.0, 0.0)
+	# A distribution block is clicked anywhere on it.
+	for place: Dictionary in layout.places:
+		var port: String = "b:" + str(place["designation"])
+		if place["kind"] == CabinetLayout.BUS_BLOCK and wiring.ports.has(port):
+			wiring.areas[port] = Rect2(place["origin"], place["size"])
 	# The cores where they come in: under their glands (the door harness's
 	# in its fitting), the supply's in the top.
 	var glands: Dictionary[String, Rect2] = {}

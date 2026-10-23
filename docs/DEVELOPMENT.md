@@ -1055,7 +1055,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   ports (TrainingCheck in ui/training/, no nodes): "t:KM1:13" a device's terminal with a screw
   (its name on the device, "13#2" the second place of a changeover's common; Ethernet ports
   left out), on a door or in a station "t:" and the terminal key; "s:X2:4" a strip terminal's
-  top, "f:X2:4" its field side; "b:N" / "b:PE" a distribution block; "c:W2:0" a core of a
+  top, "f:X2:4" its field side; "b:N" / "b:PE" a distribution block (taken by a click anywhere on it, CabinetWiring.areas); "c:W2:0" a core of a
   workspace cable (index in its cores), "c:@door:0" of the door harness, "p:" and
   CabinetDevices.supply_key a core of the incoming supply cable (where the supply comes in,
   CabinetWiring._arriving). TrainingCheck.ports gives each its net (WorkspaceCables.nets) and how
