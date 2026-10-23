@@ -377,3 +377,23 @@ func test_what_the_mouse_is_over_lights_up() -> void:
 	doc.floor_plan.rooms.append(FloorPlan.Room.new("Room", Rect2(4.0, 0.0, 3.0, 2.0)))
 	canvas._mouse = canvas.to_screen(Vector2(3.0, 2.12))
 	assert_true(canvas._corner_target(0).is_equal_approx(Vector2(3.0, 2.0)), "onto the other room's wall")
+
+
+func test_rooms_beside_each_other_put_wall_to_wall() -> void:
+	var doc: SchematicDocument = _house()
+	doc.floor_plan.outer_wall = 0.3
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 4, 4)))
+	# A gap less than two outside walls would be a wall of no set thickness.
+	assert_almost_eq(doc.floor_plan.gap_reach(), 0.61, 1e-6)
+	assert_almost_eq(doc.floor_plan.snap_room(Rect2(4.45, 0, 3, 4)).position.x, 4.0, 1e-4, "put wall to wall")
+	assert_almost_eq(doc.floor_plan.snap_room(Rect2(4.7, 0, 3, 4)).position.x, 4.7, 1e-4, "further: its own outside walls")
+	assert_almost_eq(doc.floor_plan.snap_room(Rect2(4.45, 5, 3, 4)).position.x, 4.45, 1e-4, "not beside it: only to the grid")
+	var canvas: FloorPlanCanvas = _canvas(doc)
+	assert_almost_eq(canvas._snap_corners(Rect2(4.4, 0.5, 3, 3)).position.x, 4.0, 1e-4, "a room drawn beside it too")
+	assert_almost_eq(canvas._snap_corners(Rect2(4.4, 6, 3, 3)).position.x, 4.4, 1e-4)
+	# A wall two rooms share dragged a little: not pulled back by the other's.
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Kitchen", Rect2(4, 0, 3, 4)))
+	canvas._press = {"kind": "edge", "index": 0, "side": 1}
+	canvas._mouse = canvas.to_screen(Vector2(4.4, 2.0))
+	assert_almost_eq(canvas._edge_target(0, 1), 4.4, 1e-4)
+	canvas._press = {}

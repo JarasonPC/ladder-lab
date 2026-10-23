@@ -1520,26 +1520,41 @@ static func snap(v: Vector2) -> Vector2:
 
 ## [param rect] snapped: its corner to [constant SNAP], and its edges onto
 ## the edges of the other rooms (not room [param skip]) within
-## [constant WALL_SNAP], keeping its size.
+## [constant WALL_SNAP], keeping its size; onto an edge of a room beside it
+## (along a stretch of it) within [method gap_reach], so that no gap is
+## left between them for a wall of no set thickness.
 func snap_room(rect: Rect2, skip: int = -1) -> Rect2:
 	var at: Vector2 = snap(rect.position)
 	var best: Vector2 = Vector2(WALL_SNAP, WALL_SNAP)
 	var shift: Vector2 = Vector2.ZERO
+	var reach: float = gap_reach()
 	for i: int in rooms.size():
 		if i == skip:
 			continue
 		var other: Rect2 = rooms[i].rect
+		var beside_x: bool = minf(at.y + rect.size.y, other.end.y) - maxf(at.y, other.position.y) > 0.01
+		var beside_y: bool = minf(at.x + rect.size.x, other.end.x) - maxf(at.x, other.position.x) > 0.01
 		for mine: float in [at.x, at.x + rect.size.x]:
 			for theirs: float in [other.position.x, other.end.x]:
-				if absf(theirs - mine) < best.x:
-					best.x = absf(theirs - mine)
+				var near: float = absf(theirs - mine) - (reach - WALL_SNAP if beside_x else 0.0)
+				if near < best.x:
+					best.x = near
 					shift.x = theirs - mine
 		for mine: float in [at.y, at.y + rect.size.y]:
 			for theirs: float in [other.position.y, other.end.y]:
-				if absf(theirs - mine) < best.y:
-					best.y = absf(theirs - mine)
+				var near: float = absf(theirs - mine) - (reach - WALL_SNAP if beside_y else 0.0)
+				if near < best.y:
+					best.y = near
 					shift.y = theirs - mine
 	return Rect2(at + shift, rect.size)
+
+
+## How near the walls of two rooms beside each other snap together (m):
+## nearer than their two outside walls, the gap between them would be drawn
+## as a wall of no set thickness, so they are put wall to wall instead
+## (the wall between rooms drawn there).
+func gap_reach() -> float:
+	return maxf(WALL_SNAP, 2.0 * outer_wall + 0.01)
 
 
 ## A room of preset [param index] (see [constant PRESETS]) with its corner at
