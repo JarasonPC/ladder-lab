@@ -6604,3 +6604,9 @@ msgstr "Délka a směr zdi (Enter)"
 
 msgid "Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls"
 msgstr "Odebrat zeď (Delete): místnosti po obou stranách se spojí v jednu, po obvodové zdi zůstane místnost otevřená; Ctrl+klik vybere další zdi"
+
+msgid "By kind (lighting, sockets, appliances)"
+msgstr "Podle druhu (osvětlení, zásuvky, spotřebiče)"
+
+msgid "Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own"
+msgstr "Svítidla a vypínače jdou na světelný obvod, zásuvky na zásuvkový obvod své místnosti (nejvýše %d zásuvek), velké spotřebiče na vlastní obvody"

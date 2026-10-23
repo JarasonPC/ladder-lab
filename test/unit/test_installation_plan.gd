@@ -147,3 +147,31 @@ func test_rooms_and_links_saved_renamed_and_removed() -> void:
 	assert_eq(plan.links[0].a, "SF9", "the link follows a rename")
 	doc.remove_component(doc.circuit.get_component("EA1").id)
 	assert_true(plan.links.is_empty(), "gone with its luminaire")
+
+
+func test_parts_go_on_circuits_by_kind() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	doc.update_single_line()
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Kitchen", Rect2(0, 0, 4, 4)))
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Bedroom", Rect2(4, 0, 4, 4)))
+	var by_kind: int = SingleLine.BY_KIND
+	var put: Callable = func(template: Dictionary, at: Vector2) -> int:
+		var designation: String = FloorPlanCanvas.add_part(doc, template, by_kind, at)
+		var fed: SingleLine.Feeder = doc.single_line.feeder_feeding(designation)
+		return fed.number if fed != null else 0
+	var lighting: int = put.call({"type": "luminaire"}, Vector2(2, 2))
+	assert_eq(put.call({"type": "luminaire"}, Vector2(6, 2)), lighting, "every light on the lighting circuit")
+	assert_eq(put.call({"type": "light_switch", "circuit": "1"}, Vector2(0.05, 1)), lighting, "a switch with them")
+	var kitchen: int = put.call({"type": "socket", "gangs": 2}, Vector2(0.05, 3))
+	assert_ne(kitchen, lighting, "sockets on a circuit of their own")
+	assert_eq(put.call({"type": "socket", "gangs": 1}, Vector2(2, 3.95)), kitchen, "the kitchen's sockets together")
+	assert_eq(put.call({"type": "appliance", "kind": "fridge"}, Vector2(3.95, 3)), kitchen, "a fridge plugs in there")
+	var bedroom: int = put.call({"type": "socket", "gangs": 1}, Vector2(7.95, 2))
+	assert_ne(bedroom, kitchen, "another room, another socket circuit")
+	var oven: int = put.call({"type": "appliance", "kind": "oven"}, Vector2(1, 0.05))
+	assert_false(oven in [lighting, kitchen, bedroom], "an oven on a circuit of its own")
+	# Full: a socket circuit takes no more than SOCKETS_PER_CIRCUIT.
+	for k: int in 3:
+		put.call({"type": "socket", "gangs": 2}, Vector2(0.5 + k, 0.05))
+	assert_ne(put.call({"type": "socket", "gangs": 1}, Vector2(3.5, 0.05)), kitchen, "a full circuit takes no more")

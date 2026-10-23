@@ -6579,3 +6579,9 @@ msgstr ""
 
 msgid "Take the wall away (Delete): the rooms on both sides become one, an outside wall leaves the room open; Ctrl+click selects more walls"
 msgstr ""
+
+msgid "By kind (lighting, sockets, appliances)"
+msgstr ""
+
+msgid "Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own"
+msgstr ""

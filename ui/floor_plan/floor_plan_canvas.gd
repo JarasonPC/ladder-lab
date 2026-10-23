@@ -168,8 +168,9 @@ var placing: String = ""
 ## A palette template a click with Tool.PLACE makes a new part of ({} for none).
 var placing_template: Dictionary = {}
 ## The circuit (its number, 0 for none) new parts go on in a residential
-## installation; made, waiting for its protection, when none has it yet.
-var circuit: int = 0
+## installation; made, waiting for its protection, when none has it yet;
+## [constant SingleLine.BY_KIND]: by the kind of each part.
+var circuit: int = SingleLine.BY_KIND
 var zoom: float = 1.0
 ## Screen position of the plan's origin.
 var offset: Vector2 = Vector2(60.0, 60.0)
@@ -1691,12 +1692,14 @@ static func add_part(doc: SchematicDocument, template: Dictionary, feeder: int, 
 	var def: CustomSymbol = template_symbol(doc, template)
 	if def != null:
 		doc.use_symbol(def)
-	if feeder > 0:
-		doc.single_line.feed(part.designation, feeder)
 	if exact and not on_ceiling(part):
 		doc.floor_plan.place_on_wall(part.designation, at, face)
 	else:
 		doc.floor_plan.place(part.designation, at, on_ceiling(part))
+	if feeder == SingleLine.BY_KIND:
+		feeder = doc.single_line.circuit_by_kind(doc, part)
+	if feeder > 0:
+		doc.single_line.feed(part.designation, feeder)
 	# A socket behind a kitchen worktop goes over it.
 	if part is SocketOutlet and doc.floor_plan.over_worktop(doc.floor_plan.parts[part.designation]):
 		(part as SocketOutlet).height = FloorPlan.WORKTOP_SOCKET_HEIGHT

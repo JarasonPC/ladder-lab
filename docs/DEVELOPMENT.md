@@ -403,7 +403,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   circuit number FloorPlanCanvas.circuit by SingleLine.feed, again until a right click).
   Beside the plan a circuit picker (FloorPlanView._fill_circuits): the circuits by number,
   protected or waiting, and a new one; the circuit of the selected part, changed there, or
-  the one new parts go on (the first unless "No circuit" is picked). It and the list of the
+  the one new parts go on: by default by kind (SingleLine.BY_KIND, circuit_by_kind when the
+  part is made, FloorPlanCanvas.add_part: luminaires and light switches on the lighting
+  circuit, OWN_CIRCUIT appliances on new circuits of their own, sockets and other appliances
+  on a socket circuit feeding their room, _room_of, with fewer than SOCKETS_PER_CIRCUIT
+  sockets counted by gangs, else a new one), else the circuit picked or "No circuit". It and the list of the
   parts not on the plan hide while rooms, walls, doors or windows are drawn (ROOM_TOOLS) or
   a room is picked (_parts_side, _update_parts_side on FloorPlanCanvas.tool_changed and
   selection_changed). Luminaires and switches

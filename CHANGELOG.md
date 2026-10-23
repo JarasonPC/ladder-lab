@@ -7,6 +7,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- New parts on the floor plan go on circuits by their kind (the new default in the circuit
+  picker): lights and light switches on the lighting circuit, sockets on a socket circuit of
+  their room (up to 8 sockets), large appliances on circuits of their own
 - A wall is selected on its own by clicking it (anywhere on it as drawn); Ctrl+click selects
   more. Delete takes them away: the rooms on both sides of a wall between rooms become one,
   an outside wall leaves the room open (put back by a tick in the panel). The panel sets the

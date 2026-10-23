@@ -132,10 +132,8 @@ var _door: int = -1
 var _circuit_title: Label
 var _circuit: OptionButton
 ## Circuits offered (their numbers), by item index of [member _circuit]
-## (the first: none, the last: a new one).
+## (for new parts first by kind, then none; the last: a new one).
 var _circuits: PackedInt32Array = PackedInt32Array()
-## The circuit for new parts was chosen (else the first is taken).
-var _circuit_picked: bool = false
 var _room_fields: GridContainer
 var _width_field: SpinBox
 var _height_field: SpinBox
@@ -898,8 +896,14 @@ func _fill_circuits() -> void:
 	if part == FloorPlan.UNIT:
 		part = ""
 	_circuit_title.text = (tr("Circuit of -%s") % part if not part.is_empty() else tr("Circuit for new parts")).to_upper()
-	_circuits = PackedInt32Array([0])
+	_circuits = PackedInt32Array()
 	_circuit.clear()
+	if part.is_empty():
+		# The default: each part on a circuit by its kind.
+		_circuits.append(SingleLine.BY_KIND)
+		_circuit.add_item(tr("By kind (lighting, sockets, appliances)"))
+		_circuit.set_item_tooltip(0, tr("Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own") % SingleLine.SOCKETS_PER_CIRCUIT)
+	_circuits.append(0)
 	_circuit.add_item(tr("No circuit"))
 	var current: int = canvas.circuit
 	for f: SingleLine.Feeder in line.circuits():
@@ -913,9 +917,6 @@ func _fill_circuits() -> void:
 	if not part.is_empty():
 		var fed: SingleLine.Feeder = line.feeder_feeding(part)
 		current = fed.number if fed != null else 0
-	elif current == 0 and not _circuit_picked:
-		current = _circuits[1] if _circuits.size() > 2 else fresh
-		canvas.circuit = current
 	_circuit.select(maxi(_circuits.find(current), 0))
 
 
@@ -924,7 +925,6 @@ func _on_circuit_chosen(index: int) -> void:
 	var part: String = canvas.selected.get("designation", "") if canvas.selected.get("kind", "") == "part" else ""
 	if part.is_empty() or part == FloorPlan.UNIT:
 		canvas.circuit = number
-		_circuit_picked = true
 		_fill_circuits()
 		return
 	# The selected part moves to the circuit chosen.
