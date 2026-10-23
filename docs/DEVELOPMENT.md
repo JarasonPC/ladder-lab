@@ -253,7 +253,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   the nearest wall within ON_WALL, facing into the room (FloorPlan.place, wall_near,
   "facing" index into FACING); dragged to move, Delete takes a room, door or part away
   (the part back into the list); renamed or deleted parts follow (rename, _forget_device,
-  prune on load). Cables (FloorPlan.cables) are worked out from the wiring: per net the
+  prune on load). A part on a wall can have its symbol moved off the wall into the room,
+  clear of it (FloorPlan.offsets, set_offset: to the cm, up to MAX_OFFSET, a fourth number in
+  its "parts" entry; kept when it moves along a wall, dropped on the ceiling): selected, it
+  has a handle OFFSET_HANDLE past its symbol's middle (FloorPlanCanvas "part_offset",
+  _offset, _dragged_offset: the drag into the room); symbol_center takes it in, a thin line
+  runs from the wall to the symbol moved off it. Cables (FloorPlan.cables) are worked out from the wiring: per net the
   shortest tree (Manhattan) over the places on it; nets between two places are the cores of
   one cable, drawn dashed in an L with a tick per core (a number past five). PlanSymbols
   draws the ČSN EN 60617-11 symbols: a switch's circle with lines and ticks per its number
@@ -511,7 +516,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   puts it that far from the nearest corner or end of a door or window on its wall
   (FloorPlanCanvas._takes_distance, _type_distance, Enter; FloorPlan.wall_reference,
   at_distance, place_on_wall: exactly there, not on the grid); the distance shows as a
-  dimension while placing or selected (_draw_wall_distance). Array (FloorPlanView): over a
+  dimension while placing or selected (_draw_wall_distance, _draw_wall_dimension). A point
+  of the wall or outline tool snapped onto a room's wall (not at its end) shows dimensions
+  from it to both ends of that wall, in the room the walls come from
+  (_draw_snap_dimensions). Array (FloorPlanView): over a
   selected room luminaires in rows × columns (FloorPlan.grid_points: the middles of the cells
   of the rectangle round it, those inside), along a selected wall sockets or wall luminaires
   evenly or from its left or top end every so far (row_points), each made by

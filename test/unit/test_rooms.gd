@@ -224,6 +224,12 @@ func test_rooms_split_and_placed() -> void:
 	assert_eq(canvas._corners, PackedVector2Array([Vector2(2.5, 0)]), "onto the wall, on the grid")
 	_click(canvas, Vector2(2.52, 2.0))
 	assert_eq(canvas._corners.size(), 2, "inside the room it waits")
+	# Snapped onto a wall: dimensions to both its ends are drawn (in a frame).
+	add_child(canvas)
+	canvas._mouse = canvas.to_screen(Vector2(2.53, 3.95))
+	canvas.queue_redraw()
+	await get_tree().process_frame
+	remove_child(canvas)
 	assert_eq(canvas._split_room, 0)
 	assert_eq(doc.floor_plan.walls.size(), 0, "no wall on its own")
 	canvas._mouse = canvas.to_screen(Vector2(2.53, 3.95))
