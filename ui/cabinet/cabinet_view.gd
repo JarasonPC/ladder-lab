@@ -502,8 +502,10 @@ func _marks_of(place: String, pairs: Array[int]) -> Dictionary:
 	if _picked_wire.get("place", "") == place:
 		state["selected"] = pairs.find(_picked_wire["index"])
 	state["problems"] = TrainingPick.marked_in(place)
+	state["wired"] = TrainingPick.wired(document.training.wires_of(place))
 	if simulating:
 		state["problems"] = PackedStringArray()
+		state["wired"] = PackedStringArray()
 		state["probes"] = TrainingPick.probes_in(place)
 	return state
 

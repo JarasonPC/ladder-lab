@@ -36,6 +36,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   closed, a broken coil. The student gets the switchboard and stations wired, runs them,
   measures with the multimeter and reports each fault; the panel says how many are found and,
   where the teacher lets it, which reports are right
+- Wiring a training plan, the terminals that already have a wire are marked with a filled
+  dot, so it is easy to see what is wired and what is left
 
 ### Schematic editor
 - View > Paper size guide: the sheet of an A4 to A0 paper (landscape or portrait) drawn over the

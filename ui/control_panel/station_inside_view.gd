@@ -210,7 +210,7 @@ func _draw() -> void:
 		CabinetParts.cable_gland(p, g)
 		CabinetParts.label(p, Vector2(g.get_center().x, g.position.y - 3.0), str(gland["cable"]), maxf(g.size.x, 10.0))
 	if wiring_mode and not simulating:
-		var state: Dictionary = {"hover": _hover, "start": _start, "mouse": _mouse, "selected": _inside.pairs.find(_picked_wire) if _picked_wire >= 0 else -1, "problems": TrainingPick.marked_in(training_place())}
+		var state: Dictionary = {"hover": _hover, "start": _start, "mouse": _mouse, "selected": _inside.pairs.find(_picked_wire) if _picked_wire >= 0 else -1, "problems": TrainingPick.marked_in(training_place()), "wired": TrainingPick.wired(document.training.wires_of(training_place()))}
 		TrainingPick.draw(self, origin, k, _inside.ports, _inside.wires, state)
 	elif wiring_mode and TrainingPick.probing:
 		TrainingPick.draw(self, origin, k, _inside.ports, _inside.wires, {"hover": _hover, "probes": TrainingPick.probes_in(training_place())})
