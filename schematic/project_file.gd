@@ -149,7 +149,12 @@ const FORMAT: String = "ladder-lab"
 ## that nothing protects yet ("waiting"), a diagram without the main switch
 ## ("main": false; missing: with it) and outlets for a later connection
 ## (appliance "kind": "outlet").
-const VERSION: int = 53
+## 54: each wall's own thickness and where a wall between rooms lies
+## (a room's "thickness" and "align", a value a wall; missing: the plan's,
+## as suits), rooms with slanting walls ("points" of any angle), walls
+## drawn on their own ("free_walls": a, b, thickness) and staircases
+## (a room's "stairs": "up" or "reverse").
+const VERSION: int = 54
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

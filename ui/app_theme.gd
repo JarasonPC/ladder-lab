@@ -123,6 +123,7 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"shape_polyline": '<path d="M3 18 9 8l6 8 6-11"/>',
 	"shape_polygon": '<path d="M12 3 21 10 17.5 21h-11L3 10z"/>',
 	"rotate_back": '<path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+	"plan_wall": '<path d="M3 20L10 6l11 4" stroke-width="3.2"/><circle cx="3" cy="20" r="1.8" fill="#ffffff"/><circle cx="10" cy="6" r="1.8" fill="#ffffff"/><circle cx="21" cy="10" r="1.8" fill="#ffffff"/>',
 	"room_outline": '<path d="M4 4h16v9h-7v7H4z"/><circle cx="4" cy="4" r="1.8" fill="#ffffff"/><circle cx="20" cy="4" r="1.8" fill="#ffffff"/><circle cx="20" cy="13" r="1.8" fill="#ffffff"/><circle cx="13" cy="13" r="1.8" fill="#ffffff"/><circle cx="13" cy="20" r="1.8" fill="#ffffff"/><circle cx="4" cy="20" r="1.8" fill="#ffffff"/>',
 	"room_split": '<rect x="3" y="4" width="18" height="16"/><path d="M12 2v20" stroke-dasharray="3 2"/><path d="M9 12H5M7 10l-2 2 2 2M15 12h4M17 10l2 2-2 2"/>',
 	"room_add": '<rect x="3" y="5" width="15" height="14"/><path d="M19 2v6M16 5h6" stroke-width="2.4"/><path d="M3 13h6v6"/>',

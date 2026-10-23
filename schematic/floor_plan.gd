@@ -57,6 +57,14 @@ const DIMENSION_OFFSET: float = 0.5
 ## Thinnest and thickest wall offered (m).
 const MIN_WALL_THICKNESS: float = 0.05
 const MAX_WALL_THICKNESS: float = 0.8
+## Where a wall between two rooms lies on their line: the program's choice
+## (centred, or out of the way of the room whose wall goes on outside), on
+## the line's middle, into the room it is set on, into the other room.
+enum Align { AUTO, CENTRE, INTO_THIS, INTO_OTHER }
+## Thickness of the walls of new plans (the outside ones and those between
+## rooms; the user's default, set from the plan settings).
+static var default_outer: float = OUTER_WALL
+static var default_inner: float = INNER_WALL
 ## Room sizes offered to start from (m), by English source name; an "l"
 ## cut (m) out of the lower right corner makes an L-shaped room.
 const PRESETS: Array[Dictionary] = [
@@ -94,6 +102,10 @@ const LUX: Dictionary[String, String] = {"Living room": "150, 300/500", "Bedroom
 
 ## Shortest wall of a room that is not a rectangle (m).
 const MIN_WALL: float = 0.2
+## The going of a stair's tread (m), and how far from its ends the walking
+## line starts and stops.
+const TREAD: float = 0.28
+const WALK_END: float = 0.25
 ## A layer's name is at most this long.
 const MAX_LAYER_NAME: int = 40
 
@@ -110,6 +122,33 @@ class Room:
 	var number: String = ""
 	var environment: String = ""
 	var lux: String = ""
+	## A staircase: its stairs drawn in it (straight in a rectangle, turning
+	## in an L), going up the other way with [member stairs_reverse].
+	var stairs: bool = false
+	var stairs_reverse: bool = false
+	## Each wall's own thickness (m; 0 or missing: the plan's) and where it
+	## lies between two rooms ([enum FloorPlan.Align]), by wall index.
+	var thickness: PackedFloat32Array = PackedFloat32Array()
+	var align: PackedInt32Array = PackedInt32Array()
+
+	## Wall [param k]'s own thickness, 0 for the plan's.
+	func wall_thickness(k: int) -> float:
+		return thickness[k] if k < thickness.size() else 0.0
+
+	## Where wall [param k] lies between two rooms ([enum FloorPlan.Align]).
+	func wall_align(k: int) -> int:
+		return align[k] if k < align.size() else 0
+
+	## Gives wall [param k] its own [param value] thickness (0: the plan's).
+	func set_wall_thickness(k: int, value: float) -> void:
+		while thickness.size() < points.size():
+			thickness.append(0.0)
+		thickness[k] = value
+
+	func set_wall_align(k: int, value: int) -> void:
+		while align.size() < points.size():
+			align.append(0)
+		align[k] = value
 	## Where its name or number and area are, from their place in its
 	## top left corner (m).
 	var label_offset: Vector2 = Vector2.ZERO
@@ -130,7 +169,19 @@ class Room:
 		rect = p_rect
 
 	func is_rectangle() -> bool:
-		return points.size() == 4
+		if points.size() != 4:
+			return false
+		for k: int in 4:
+			if not FloorPlan.is_straight(wall(k)):
+				return false
+		return true
+
+	## Whether every wall runs across or up and down.
+	func is_square() -> bool:
+		for k: int in points.size():
+			if not FloorPlan.is_straight(wall(k)):
+				return false
+		return true
 
 	## Its floor area (m²).
 	func area() -> float:
@@ -164,10 +215,12 @@ class Room:
 	func wall(k: int) -> PackedVector2Array:
 		return PackedVector2Array([points[k], points[(k + 1) % points.size()]])
 
-	## The way into the room from wall [param k]: right of it as drawn.
+	## The way into the room from wall [param k]: right of it as drawn (a
+	## wall across or up and down: exactly along an axis).
 	func inward(k: int) -> Vector2:
 		var w: PackedVector2Array = wall(k)
-		return (w[1] - w[0]).normalized().rotated(PI / 2.0).round()
+		var turned: Vector2 = (w[1] - w[0]).normalized().rotated(PI / 2.0)
+		return turned.round() if is_equal_approx(w[0].x, w[1].x) or is_equal_approx(w[0].y, w[1].y) else turned
 
 
 ## A line of the lighting drawn between two parts: a light switch and a
@@ -259,6 +312,21 @@ class Dimension:
 
 ## A note printed with the plan: its text (lines split by line breaks), the
 ## point it points to and where its text starts (m).
+## A wall drawn on its own (not yet round a room): its line from [member a]
+## to [member b] and its thickness (m; 0: the plan's walls between rooms),
+## lying on the middle of its line. Walls closing round a space become a
+## room (see [method add_wall]).
+class Wall:
+	var a: Vector2 = Vector2.ZERO
+	var b: Vector2 = Vector2.ZERO
+	var thickness: float = 0.0
+
+	func _init(p_a: Vector2 = Vector2.ZERO, p_b: Vector2 = Vector2.ZERO, p_thickness: float = 0.0) -> void:
+		a = p_a
+		b = p_b
+		thickness = p_thickness
+
+
 class Note:
 	var text: String = ""
 	var at: Vector2 = Vector2.ZERO
@@ -326,11 +394,13 @@ var legend_offset: Vector2 = Vector2.ZERO
 var symbol_scale: float = 1.0
 var text_scale: float = 1.0
 var rooms: Array[Room] = []
+## Walls drawn on their own, not round a room yet.
+var walls: Array[Wall] = []
 var doors: Array[Door] = []
 var windows: Array[WindowOpening] = []
 ## Thickness of the outside walls and of those between rooms (m).
-var outer_wall: float = OUTER_WALL
-var inner_wall: float = INNER_WALL
+var outer_wall: float = default_outer
+var inner_wall: float = default_inner
 var dimensions: Array[Dimension] = []
 var notes: Array[Note] = []
 var fixtures: Array[Fixture] = []
@@ -348,7 +418,7 @@ var links: Array[Link] = []
 
 
 func is_empty() -> bool:
-	return rooms.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty() and notes.is_empty() and fixtures.is_empty() and marks.is_empty()
+	return rooms.is_empty() and walls.is_empty() and doors.is_empty() and windows.is_empty() and parts.is_empty() and links.is_empty() and dimensions.is_empty() and notes.is_empty() and fixtures.is_empty() and marks.is_empty()
 
 
 ## A fixture of [param kind] at [param point]: its back against the wall
@@ -420,6 +490,13 @@ func resize_fixture(index: int, width: float, depth: float) -> void:
 func set_corner(index: int, k: int, at: Vector2) -> void:
 	var room: Room = rooms[index]
 	var n: int = room.points.size()
+	if not is_straight(room.wall((k + n - 1) % n)) or not is_straight(room.wall(k)):
+		# A slanting wall's corner goes where it is put, as long as the
+		# room does not cross itself.
+		var points: PackedVector2Array = with_corner(room.points, k, at)
+		if not points.is_empty():
+			room.points = points
+		return
 	for wall: int in [(k + n - 1) % n, k]:
 		var w: PackedVector2Array = rooms[index].wall(wall)
 		set_edge(index, wall, at.x if is_equal_approx(w[0].x, w[1].x) else at.y)
@@ -593,6 +670,333 @@ static func inner_pieces_of(shapes: Array[PackedVector2Array]) -> Array[PackedVe
 				seen[key] = true
 				pieces.append(PackedVector2Array([Vector2(line, cuts[i]), Vector2(line, cuts[i + 1])] if vertical else [Vector2(cuts[i], line), Vector2(cuts[i + 1], line)]))
 	return pieces
+
+
+## Whether wall [param w] ([from, to]) runs across or up and down (not slanting).
+static func is_straight(w: PackedVector2Array) -> bool:
+	return absf(w[0].x - w[1].x) < 0.0005 or absf(w[0].y - w[1].y) < 0.0005
+
+
+## The walls of the plan piece by piece, where they lie: every wall of every
+## room cut where another room's corner is on its line, each piece {"room",
+## "wall" (its index in the room), "a", "b" (its ends, clockwise for its
+## room), "out" (the way out of its room), "from", "to" (where its band
+## lies across the line, along "out", m), "other" (the room behind it, -1
+## for none: an outside wall), "other_wall"}. An outside wall lies outside
+## its room, as thick as set ([member Room.thickness], else
+## [member outer_wall]); a wall between two rooms is listed once, as thick
+## as the thicker set on either side (else [member inner_wall]), where its
+## [enum Align] puts it: by itself centred, but out of the way of a room
+## whose wall goes on outside (the longer way, when both do: so that room's
+## face runs straight through).
+## With [param shown] the rooms' outlines as drawn (being dragged), else
+## their own.
+func wall_pieces(shown: Array[PackedVector2Array] = []) -> Array[Dictionary]:
+	var shapes: Array[PackedVector2Array] = shown
+	if shapes.size() != rooms.size():
+		shapes = []
+		for room: Room in rooms:
+			shapes.append(room.points)
+	var raw: Array[Dictionary] = []
+	# How long the outside pieces of a wall are, by "room|wall".
+	var outside: Dictionary[String, float] = {}
+	for index: int in rooms.size():
+		var points: PackedVector2Array = shapes[index]
+		for k: int in points.size():
+			var a: Vector2 = points[k]
+			var b: Vector2 = points[(k + 1) % points.size()]
+			var length: float = a.distance_to(b)
+			if length < 0.001:
+				continue
+			var dir: Vector2 = (b - a) / length
+			var out: Vector2 = -dir.rotated(PI / 2.0)
+			if is_equal_approx(a.x, b.x) or is_equal_approx(a.y, b.y):
+				out = out.round()
+			var cuts: PackedFloat32Array = PackedFloat32Array([0.0, length])
+			for other: PackedVector2Array in shapes:
+				for p: Vector2 in other:
+					var t: float = (p - a).dot(dir)
+					if t > 0.001 and t < length - 0.001 and absf((p - a).cross(dir)) < 0.001:
+						cuts.append(t)
+			cuts.sort()
+			for i: int in cuts.size() - 1:
+				if cuts[i + 1] - cuts[i] < 0.001:
+					continue
+				var m: Vector2 = a + dir * (cuts[i] + cuts[i + 1]) * 0.5
+				var behind: int = -1
+				for j: int in shapes.size():
+					if j != index and Geometry2D.is_point_in_polygon(m + out * 0.05, shapes[j]):
+						behind = j
+				raw.append({"room": index, "wall": k, "a": a + dir * cuts[i], "b": a + dir * cuts[i + 1], "out": out, "other": behind})
+				if behind < 0:
+					var key: String = "%d|%d" % [index, k]
+					outside[key] = outside.get(key, 0.0) + cuts[i + 1] - cuts[i]
+	var pieces: Array[Dictionary] = []
+	for piece: Dictionary in raw:
+		var index: int = piece["room"]
+		var k: int = piece["wall"]
+		var room: Room = rooms[index]
+		var other: int = piece["other"]
+		if other < 0:
+			var t: float = room.wall_thickness(k)
+			piece["from"] = 0.0
+			piece["to"] = t if t > 0.0 else outer_wall
+			piece["other_wall"] = -1
+			pieces.append(piece)
+			continue
+		if other < index:
+			continue
+		var m: Vector2 = (Vector2(piece["a"]) + Vector2(piece["b"])) * 0.5
+		var j: int = _wall_through(shapes[other], m)
+		piece["other_wall"] = j
+		var thick: float = maxf(room.wall_thickness(k), rooms[other].wall_thickness(j) if j >= 0 else 0.0)
+		if thick <= 0.0:
+			thick = inner_wall
+		# Into room "room" is along -out.
+		var mode: int = room.wall_align(k)
+		if mode == Align.AUTO and j >= 0:
+			mode = [Align.AUTO, Align.CENTRE, Align.INTO_OTHER, Align.INTO_THIS][rooms[other].wall_align(j)]
+		if mode == Align.AUTO:
+			# Out of the way of the room whose wall goes on outside the
+			# longer way.
+			var mine: float = outside.get("%d|%d" % [index, k], 0.0)
+			var theirs: float = outside.get("%d|%d" % [other, j], 0.0) if j >= 0 else 0.0
+			mode = Align.CENTRE if mine == 0.0 and theirs == 0.0 else Align.INTO_OTHER if mine >= theirs else Align.INTO_THIS
+		match mode:
+			Align.INTO_OTHER:
+				piece["from"] = 0.0
+				piece["to"] = thick
+			Align.INTO_THIS:
+				piece["from"] = -thick
+				piece["to"] = 0.0
+			_:
+				piece["from"] = -thick * 0.5
+				piece["to"] = thick * 0.5
+		pieces.append(piece)
+	return pieces
+
+
+## The wall of outline [param points] point [param point] is on, -1 for none.
+static func _wall_through(points: PackedVector2Array, point: Vector2) -> int:
+	for k: int in points.size():
+		if Geometry2D.get_closest_point_to_segment(point, points[k], points[(k + 1) % points.size()]).distance_to(point) < 0.002:
+			return k
+	return -1
+
+
+## The piece of wall (see [method wall_pieces]) point [param point] is on,
+## {} for none.
+func wall_piece_at(point: Vector2) -> Dictionary:
+	for piece: Dictionary in wall_pieces():
+		if Geometry2D.get_closest_point_to_segment(point, piece["a"], piece["b"]).distance_to(point) < 0.01:
+			return piece
+	return {}
+
+
+## How far the wall at [param point] reaches into the room on the side of
+## [param into] (m): where a part on it is drawn from.
+func wall_face(point: Vector2, into: Vector2) -> float:
+	var piece: Dictionary = wall_piece_at(point)
+	if piece.is_empty():
+		return 0.0
+	var along_out: float = -into.dot(piece["out"])
+	# The band [from, to] along "out" of its room; the room on our side is
+	# the one "into" points into.
+	if along_out > 0.0:
+		return maxf(0.0, -float(piece["from"]))
+	return maxf(0.0, float(piece["to"]))
+
+
+## Thickness of free wall [param wall] (m).
+func free_thickness(wall: Wall) -> float:
+	return wall.thickness if wall.thickness > 0.0 else inner_wall
+
+
+## Adds a free wall from [param a] to [param b] ([param thickness] m, 0:
+## the plan's); when it closes the free walls round a space (the shortest
+## way back from its end to its start along them), those walls become room
+## [param room_name]: its inside within them, each its wall with its
+## thickness. Returns the new room's index, else -1.
+func add_wall(a: Vector2, b: Vector2, thickness: float, room_name: String) -> int:
+	if a.distance_to(b) < 0.01:
+		return -1
+	walls.append(Wall.new(a, b, thickness))
+	var loop: Array[int] = _loop_through(walls.size() - 1)
+	if loop.is_empty():
+		return -1
+	# The corners round the loop, from the new wall on.
+	var corners: PackedVector2Array = PackedVector2Array()
+	var halves: PackedFloat32Array = PackedFloat32Array()
+	var at: Vector2 = a
+	for index: int in loop:
+		var wall: Wall = walls[index]
+		corners.append(at)
+		halves.append(free_thickness(wall) * 0.5)
+		at = wall.b if wall.a.distance_to(at) < 0.01 else wall.a
+	var own: PackedFloat32Array = PackedFloat32Array()
+	for index: int in loop:
+		own.append(walls[index].thickness)
+	if not _simple(corners) or polygon_area(corners) < MIN_ROOM * MIN_ROOM * 0.5:
+		return -1
+	var sum: float = 0.0
+	for i: int in corners.size():
+		sum += corners[i].cross(corners[(i + 1) % corners.size()])
+	if sum < 0.0:
+		# Anticlockwise as drawn: turned round (wall k runs from corner k).
+		corners.reverse()
+		var first: Vector2 = corners[corners.size() - 1]
+		corners.remove_at(corners.size() - 1)
+		corners.insert(0, first)
+		halves.reverse()
+		own.reverse()
+	# The room's inside: within the walls, half a wall in from their lines.
+	var negative: PackedFloat32Array = PackedFloat32Array()
+	for h: float in halves:
+		negative.append(-h)
+	var inside: PackedVector2Array = grown(corners, negative)
+	if inside.size() != corners.size() or not _simple(inside):
+		return -1
+	var room: Room = Room.new(room_name)
+	room.points = inside
+	for k: int in inside.size():
+		room.set_wall_thickness(k, halves[k] * 2.0)
+	loop.sort()
+	for i: int in range(loop.size() - 1, -1, -1):
+		walls.remove_at(loop[i])
+	rooms.append(room)
+	return rooms.size() - 1
+
+
+## Moves end [param which] (0: a, 1: b) of free wall [param index] to
+## [param to] (the other ends there go along); a room [param room_name] is
+## made when the walls close round a space now. Returns its index, else -1.
+func move_wall_end(index: int, which: int, to: Vector2, room_name: String) -> int:
+	var wall: Wall = walls[index]
+	var from: Vector2 = wall.a if which == 0 else wall.b
+	var other: Vector2 = wall.b if which == 0 else wall.a
+	if other.distance_to(to) < 0.01:
+		return -1
+	for w: Wall in walls:
+		if w.a.distance_to(from) < 0.01:
+			w.a = to
+		if w.b.distance_to(from) < 0.01:
+			w.b = to
+	# Closing a space: made again through add_wall, as when drawn.
+	var moved: Wall = walls[index]
+	walls.remove_at(index)
+	return add_wall(moved.a, moved.b, moved.thickness, room_name)
+
+
+## The free walls round a space with free wall [param index]: the shortest
+## way along the others from its end back to its start, the wall first;
+## empty for none.
+func _loop_through(index: int) -> Array[int]:
+	var start: Vector2 = walls[index].a
+	var goal: Vector2 = walls[index].b
+	# Dijkstra over the walls' ends.
+	var best: Dictionary[int, float] = {}
+	var back: Dictionary[int, int] = {}
+	var ends: Dictionary[int, Vector2] = {}
+	var todo: Array[int] = []
+	for i: int in walls.size():
+		if i == index:
+			continue
+		for end: int in 2:
+			var p: Vector2 = walls[i].a if end == 0 else walls[i].b
+			if p.distance_to(goal) < 0.01:
+				var key: int = i * 2 + (1 - end)
+				best[key] = walls[i].a.distance_to(walls[i].b)
+				back[key] = -1
+				ends[key] = walls[i].b if end == 0 else walls[i].a
+				todo.append(key)
+	while not todo.is_empty():
+		var current: int = todo[0]
+		for key: int in todo:
+			if best[key] < best[current]:
+				current = key
+		todo.erase(current)
+		var p: Vector2 = ends[current]
+		if p.distance_to(start) < 0.01:
+			var loop: Array[int] = [index]
+			var path: Array[int] = []
+			var key: int = current
+			while key >= 0:
+				path.insert(0, key / 2)
+				key = back[key]
+			loop.append_array(path)
+			return loop
+		for i: int in walls.size():
+			if i == index or i == current / 2:
+				continue
+			for end: int in 2:
+				var q: Vector2 = walls[i].a if end == 0 else walls[i].b
+				if q.distance_to(p) >= 0.01:
+					continue
+				var key: int = i * 2 + (1 - end)
+				var cost: float = best[current] + walls[i].a.distance_to(walls[i].b)
+				if not best.has(key) or cost < best[key] - 1e-6:
+					var used: bool = false
+					var trace: int = current
+					while trace >= 0:
+						used = used or trace / 2 == i
+						trace = back[trace]
+					if used:
+						continue
+					best[key] = cost
+					back[key] = current
+					ends[key] = walls[i].b if end == 0 else walls[i].a
+					if not todo.has(key):
+						todo.append(key)
+	return []
+
+
+## Outline [param points] grown outwards by [param offsets] (m, one a
+## wall), the walls' lines meeting in mitres.
+static func grown(points: PackedVector2Array, offsets: PackedFloat32Array) -> PackedVector2Array:
+	var n: int = points.size()
+	var result: PackedVector2Array = PackedVector2Array()
+	for k: int in n:
+		# Corner k joins wall k - 1 and wall k.
+		var before: int = (k + n - 1) % n
+		var a0: Vector2 = points[before]
+		var a1: Vector2 = points[k]
+		var b1: Vector2 = points[(k + 1) % n]
+		var da: Vector2 = (a1 - a0).normalized()
+		var db: Vector2 = (b1 - a1).normalized()
+		var pa: Vector2 = a1 - da.rotated(PI / 2.0) * offsets[before]
+		var pb: Vector2 = a1 - db.rotated(PI / 2.0) * offsets[k]
+		var meet: Variant = Geometry2D.line_intersects_line(pa, da, pb, db)
+		if meet == null or (meet as Vector2).distance_to(a1) > 4.0 * maxf(absf(offsets[before]), absf(offsets[k])) + 0.01:
+			# Straight on (or nearly): both ends.
+			result.append(pa)
+			result.append(pb)
+		else:
+			result.append(meet)
+	return result
+
+
+## Wall [param k] of room [param index] given thickness [param value] (0:
+## the plan's) and placing [param mode] ([enum Align]); the walls of other
+## rooms along it on its line take the same thickness.
+func set_wall_look(index: int, k: int, value: float, mode: int) -> void:
+	var room: Room = rooms[index]
+	var w: PackedVector2Array = room.wall(k)
+	room.set_wall_thickness(k, value)
+	room.set_wall_align(k, mode)
+	var dir: Vector2 = (w[1] - w[0]).normalized()
+	for i: int in rooms.size():
+		if i == index:
+			continue
+		for j: int in rooms[i].points.size():
+			var o: PackedVector2Array = rooms[i].wall(j)
+			# On the same line, overlapping.
+			if absf((o[0] - w[0]).cross(dir)) > 0.001 or absf((o[1] - w[0]).cross(dir)) > 0.001:
+				continue
+			var t0: float = (o[0] - w[0]).dot(dir)
+			var t1: float = (o[1] - w[0]).dot(dir)
+			if minf(maxf(t0, t1), w[0].distance_to(w[1])) - maxf(minf(t0, t1), 0.0) > 0.001:
+				rooms[i].set_wall_thickness(j, value)
+				rooms[i].set_wall_align(j, Align.AUTO)
 
 
 ## Number of room [param index]: the one set, else counted from
@@ -799,6 +1203,8 @@ static func with_edge(points: PackedVector2Array, k: int, at: float) -> PackedVe
 func set_edge(index: int, k: int, at: float) -> void:
 	var room: Room = rooms[index]
 	var w: PackedVector2Array = room.wall(k)
+	if not is_straight(w):
+		return
 	var vertical: bool = is_equal_approx(w[0].x, w[1].x)
 	var old: float = w[0].x if vertical else w[0].y
 	var span: Vector2 = Vector2(minf(w[0].y, w[1].y), maxf(w[0].y, w[1].y)) if vertical else Vector2(minf(w[0].x, w[1].x), maxf(w[0].x, w[1].x))
@@ -868,6 +1274,95 @@ func set_wall_length(index: int, k: int, length: float) -> void:
 	set_edge(index, (k + 1) % n, at)
 
 
+## Direction of wall [param w] ([from, to]): degrees anticlockwise from the
+## right (y down), 0 to 360.
+static func wall_angle(w: PackedVector2Array) -> float:
+	return snappedf(fposmod(rad_to_deg(-(w[1] - w[0]).angle()), 360.0), 0.01)
+
+
+## Turns wall [param k] of room [param index] about its start to
+## [param degrees] (anticlockwise from the right) at [param length] m:
+## its end corner moves there, the walls beside it slanting as they must.
+## Refused when the room would cross itself.
+func set_wall_angle(index: int, k: int, degrees: float, length: float) -> bool:
+	var room: Room = rooms[index]
+	var n: int = room.points.size()
+	var start: Vector2 = room.points[k]
+	var end: Vector2 = start + Vector2.from_angle(deg_to_rad(-degrees)) * maxf(length, MIN_WALL)
+	var points: PackedVector2Array = room.points.duplicate()
+	points[(k + 1) % n] = end.snappedf(0.001)
+	if not _simple(points):
+		return false
+	if polygon_area(points) < 0.0001:
+		return false
+	room.points = _clockwise(points)
+	return true
+
+
+## [param points] with corner [param k] at [param at]; empty when the
+## outline would cross itself or its walls beside it be shorter than
+## [constant MIN_WALL].
+static func with_corner(points: PackedVector2Array, k: int, at: Vector2) -> PackedVector2Array:
+	var result: PackedVector2Array = points.duplicate()
+	var n: int = points.size()
+	result[k] = at
+	if at.distance_to(result[(k + 1) % n]) < MIN_WALL or at.distance_to(result[(k + n - 1) % n]) < MIN_WALL:
+		return PackedVector2Array()
+	if not _simple(result):
+		return PackedVector2Array()
+	return result
+
+
+## Outlines [param a] and [param b] (with slanting walls) put together,
+## clockwise; empty when they do not touch along a wall or make a hole.
+static func _merged(a: PackedVector2Array, b: PackedVector2Array) -> PackedVector2Array:
+	var merged: Array[PackedVector2Array] = Geometry2D.merge_polygons(a, b)
+	if merged.size() != 1:
+		return PackedVector2Array()
+	var outline: PackedVector2Array = _without_straight_on(merged[0])
+	# Touching at a corner only, they make one outline through it.
+	if absf(polygon_area(outline) - polygon_area(a) - polygon_area(b)) > 0.001 or outline.size() < 3 or not _simple(outline):
+		return PackedVector2Array()
+	return _clockwise(outline)
+
+
+## [param points] without the corners where the outline goes straight on.
+static func _without_straight_on(points: PackedVector2Array) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	var n: int = points.size()
+	for k: int in n:
+		var a: Vector2 = points[(k + n - 1) % n]
+		var b: Vector2 = points[k]
+		var c: Vector2 = points[(k + 1) % n]
+		if absf((b - a).normalized().cross((c - b).normalized())) > 0.0005:
+			result.append(b)
+	return result
+
+
+## Whether outline [param points] crosses itself nowhere.
+static func _simple(points: PackedVector2Array) -> bool:
+	var n: int = points.size()
+	for i: int in n:
+		for j: int in range(i + 2, n):
+			if i == 0 and j == n - 1:
+				continue
+			if Geometry2D.segment_intersects_segment(points[i], points[(i + 1) % n], points[j], points[(j + 1) % n]) != null:
+				return false
+	return true
+
+
+## [param points] clockwise as drawn (y down).
+static func _clockwise(points: PackedVector2Array) -> PackedVector2Array:
+	var sum: float = 0.0
+	for i: int in points.size():
+		sum += points[i].x * points[(i + 1) % points.size()].y - points[(i + 1) % points.size()].x * points[i].y
+	if sum >= 0.0:
+		return points
+	var turned: PackedVector2Array = points.duplicate()
+	turned.reverse()
+	return turned
+
+
 ## Gives rectangular room [param index] the inside [param size] (m): its
 ## right and bottom walls move (see [method set_edge]).
 func resize_room(index: int, size: Vector2) -> void:
@@ -881,7 +1376,7 @@ func resize_room(index: int, size: Vector2) -> void:
 func join_rooms(a: int, b: int) -> bool:
 	if a == b or a < 0 or b < 0 or a >= rooms.size() or b >= rooms.size():
 		return false
-	var outline: PackedVector2Array = union_outline([rooms[a].points, rooms[b].points])
+	var outline: PackedVector2Array = union_outline([rooms[a].points, rooms[b].points]) if rooms[a].is_square() and rooms[b].is_square() else _merged(rooms[a].points, rooms[b].points)
 	if outline.is_empty():
 		return false
 	rooms[a].points = outline
@@ -914,7 +1409,7 @@ func split_room(index: int, vertical: bool, at: float, new_name: String) -> int:
 		var cut: Array[PackedVector2Array] = Geometry2D.intersect_polygons(room.points, half)
 		if cut.size() != 1:
 			return -1
-		var outline: PackedVector2Array = union_outline([_tidy(cut[0])])
+		var outline: PackedVector2Array = union_outline([_tidy(cut[0])]) if room.is_square() else _clockwise(_without_straight_on(cut[0]))
 		if outline.is_empty() or polygon_area(outline) < MIN_ROOM * MIN_ROOM * 0.5:
 			return -1
 		pieces.append(outline)
@@ -927,6 +1422,87 @@ func split_room(index: int, vertical: bool, at: float, new_name: String) -> int:
 		if dimensions[i].room == index:
 			dimensions.remove_at(i)
 	return rooms.size() - 1
+
+
+## The stairs of a staircase of outline [param points]: {"treads": lines
+## across the way up, [constant TREAD] apart, "walk": the walking line from
+## its start to its end (the way up; turned round with [param reverse])}.
+## A rectangle has a straight flight along its longer side; an L (six
+## corners, walls across or up and down) a flight in each arm turning in the
+## square where they meet, with winders from the inner corner; any other
+## outline a straight flight along the longer side of the rectangle round
+## it, cut to the outline.
+static func stair_lines(points: PackedVector2Array, reverse: bool) -> Dictionary:
+	var treads: Array[PackedVector2Array] = []
+	var walk: PackedVector2Array = PackedVector2Array()
+	var box: Rect2 = Rect2(points[0], Vector2.ZERO)
+	for p: Vector2 in points:
+		box = box.expand(p)
+	var reflex: int = _l_corner(points)
+	if reflex >= 0:
+		var p: Vector2 = points[reflex]
+		# The corner of the box the L lacks, and the one across from it.
+		var k: Vector2 = Vector2.ZERO
+		for c: Vector2 in [box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]:
+			if not Geometry2D.is_point_in_polygon(c + (box.get_center() - c).normalized() * 0.01, points):
+				k = c
+		var o: Vector2 = box.position + box.end - k
+		# The arm along x, the arm along y, the square where they meet.
+		var arm_x: Rect2 = Rect2(Vector2(minf(p.x, k.x), minf(o.y, p.y)), Vector2(absf(k.x - p.x), absf(p.y - o.y)))
+		var arm_y: Rect2 = Rect2(Vector2(minf(o.x, p.x), minf(p.y, k.y)), Vector2(absf(p.x - o.x), absf(k.y - p.y)))
+		var sx: float = signf(k.x - p.x)
+		var sy: float = signf(k.y - p.y)
+		var t: float = TREAD
+		while t < arm_y.size.y - 0.001:
+			treads.append(PackedVector2Array([Vector2(arm_y.position.x, p.y + sy * t), Vector2(arm_y.end.x, p.y + sy * t)]))
+			t += TREAD
+		t = TREAD
+		while t < arm_x.size.x - 0.001:
+			treads.append(PackedVector2Array([Vector2(p.x + sx * t, arm_x.position.y), Vector2(p.x + sx * t, arm_x.end.y)]))
+			t += TREAD
+		# Winders in the square, from the inner corner.
+		treads.append(PackedVector2Array([p, o]))
+		treads.append(PackedVector2Array([p, Vector2(o.x, (o.y + p.y) * 0.5)]))
+		treads.append(PackedVector2Array([p, Vector2((o.x + p.x) * 0.5, o.y)]))
+		var mid_y: float = (o.x + p.x) * 0.5
+		var mid_x: float = (o.y + p.y) * 0.5
+		walk = PackedVector2Array([Vector2(mid_y, k.y - sy * WALK_END), Vector2(mid_y, mid_x), Vector2(k.x - sx * WALK_END, mid_x)])
+	else:
+		var along_x: bool = box.size.x >= box.size.y
+		var length: float = box.size.x if along_x else box.size.y
+		var start: float = box.position.x if along_x else box.position.y
+		var t: float = TREAD
+		while t < length - 0.001:
+			var line: PackedVector2Array = PackedVector2Array([Vector2(start + t, box.position.y - 1.0), Vector2(start + t, box.end.y + 1.0)]) if along_x else PackedVector2Array([Vector2(box.position.x - 1.0, start + t), Vector2(box.end.x + 1.0, start + t)])
+			for piece: PackedVector2Array in Geometry2D.intersect_polyline_with_polygon(line, points):
+				treads.append(piece)
+			t += TREAD
+		var c: Vector2 = box.get_center()
+		walk = PackedVector2Array([Vector2(box.position.x + WALK_END, c.y), Vector2(box.end.x - WALK_END, c.y)]) if along_x else PackedVector2Array([Vector2(c.x, box.position.y + WALK_END), Vector2(c.x, box.end.y - WALK_END)])
+	if reverse:
+		walk.reverse()
+	return {"treads": treads, "walk": walk}
+
+
+## The inner corner of an L-shaped outline [param points] (six corners,
+## walls across or up and down), -1 for another shape.
+static func _l_corner(points: PackedVector2Array) -> int:
+	var n: int = points.size()
+	if n != 6:
+		return -1
+	var found: int = -1
+	for i: int in n:
+		var a: Vector2 = points[(i + n - 1) % n]
+		var b: Vector2 = points[i]
+		var c: Vector2 = points[(i + 1) % n]
+		if not (is_equal_approx(a.x, b.x) or is_equal_approx(a.y, b.y)) or not (is_equal_approx(b.x, c.x) or is_equal_approx(b.y, c.y)):
+			return -1
+		# Clockwise as drawn (y down): an inner corner turns the other way.
+		if (b - a).cross(c - b) < 0.0:
+			if found >= 0:
+				return -1
+			found = i
+	return found
 
 
 ## [param points] put on the [constant SNAP] grid (cuts of a polygon come
@@ -951,15 +1527,15 @@ static func polygon_area(points: PackedVector2Array) -> float:
 ## when they do not make one room without crossings at least
 ## [constant MIN_ROOM] across.
 static func outline_room(corners: PackedVector2Array, room_name: String) -> Room:
-	if corners.size() < 4:
+	if corners.size() < 3:
 		return null
+	var square: bool = corners.size() >= 4
 	for k: int in corners.size():
-		var d: Vector2 = corners[(k + 1) % corners.size()] - corners[k]
-		if not (is_zero_approx(d.x) or is_zero_approx(d.y)):
-			return null
+		square = square and is_straight(PackedVector2Array([corners[k], corners[(k + 1) % corners.size()]]))
 	if not Geometry2D.triangulate_polygon(corners).size() > 0:
 		return null
-	var outline: PackedVector2Array = union_outline([corners])
+	# Slanting walls: the corners as they are, clockwise, without crossings.
+	var outline: PackedVector2Array = union_outline([corners]) if square else (_clockwise(_without_straight_on(corners)) if _simple(corners) else PackedVector2Array())
 	if outline.is_empty():
 		return null
 	var room: Room = Room.new(room_name)
@@ -992,6 +1568,8 @@ func duplicate_room(index: int) -> int:
 	twin.points = room.points.duplicate()
 	twin.environment = room.environment
 	twin.lux = room.lux
+	twin.stairs = room.stairs
+	twin.stairs_reverse = room.stairs_reverse
 	var by: Vector2 = Vector2(room.rect.size.x, 0.0)
 	var free: bool = true
 	for other: Room in rooms:
@@ -1095,7 +1673,15 @@ func wall_near(point: Vector2, reach: float = ON_WALL) -> Dictionary:
 			var d: float = on.distance_to(point)
 			if d < best or (inside and is_equal_approx(d, best)):
 				best = d
-				result = {"at": snap(on), "facing": maxi(FACING.find(room.inward(k)), 0)}
+				var straight: bool = is_straight(w)
+				# On a slanting wall: the way of FACING nearest to into the room.
+				var facing: int = FACING.find(room.inward(k))
+				if facing < 0:
+					var into: Vector2 = room.inward(k)
+					for f: int in FACING.size():
+						if facing < 0 or FACING[f].dot(into) > FACING[facing].dot(into):
+							facing = f
+				result = {"at": snap(on) if straight else on.snappedf(0.001), "facing": facing, "straight": straight}
 	return result
 
 
@@ -1376,8 +1962,15 @@ func bounds() -> Rect2:
 	var first: bool = true
 	for room: Room in rooms:
 		# With the outside walls round it.
-		var walled: Rect2 = room.rect.grow(outer_wall)
+		var thickest: float = outer_wall
+		for t: float in room.thickness:
+			thickest = maxf(thickest, t)
+		var walled: Rect2 = room.rect.grow(thickest)
 		result = walled if first else result.merge(walled)
+		first = false
+	for wall: Wall in walls:
+		var span: Rect2 = Rect2(wall.a, Vector2.ZERO).expand(wall.b).grow(free_thickness(wall))
+		result = span if first else result.merge(span)
 		first = false
 	for designation: String in parts:
 		result = Rect2(parts[designation], Vector2.ZERO) if first else result.expand(parts[designation])
@@ -1399,6 +1992,17 @@ func to_data() -> Dictionary:
 		for key: String in ["number", "environment", "lux"]:
 			if not str(room.get(key)).is_empty():
 				rd[key] = room.get(key)
+		if room.stairs:
+			rd["stairs"] = "reverse" if room.stairs_reverse else "up"
+		var thicknesses: Array = []
+		var aligns: Array = []
+		for k: int in room.points.size():
+			thicknesses.append(room.wall_thickness(k))
+			aligns.append(room.wall_align(k))
+		if thicknesses.any(func(t: float) -> bool: return t > 0.0):
+			rd["thickness"] = thicknesses
+		if aligns.any(func(a: int) -> bool: return a != 0):
+			rd["align"] = aligns
 		room_list.append(rd)
 	var door_list: Array = []
 	for door: Door in doors:
@@ -1453,6 +2057,14 @@ func to_data() -> Dictionary:
 		for fixture: Fixture in fixtures:
 			fixture_list.append(_with_layer({"kind": fixture.kind, "rect": [fixture.rect.position.x, fixture.rect.position.y, fixture.rect.size.x, fixture.rect.size.y], "facing": fixture.facing}, fixture.layer))
 		result["fixtures"] = fixture_list
+	if not walls.is_empty():
+		var wall_list: Array = []
+		for wall: Wall in walls:
+			var wd: Dictionary = {"a": [wall.a.x, wall.a.y], "b": [wall.b.x, wall.b.y]}
+			if wall.thickness > 0.0:
+				wd["thickness"] = wall.thickness
+			wall_list.append(wd)
+		result["free_walls"] = wall_list
 	if not marks.is_empty():
 		var mark_list: Array = []
 		for mark: Mark in marks:
@@ -1505,18 +2117,40 @@ static func from_data(raw: Variant) -> FloorPlan:
 				if _numbers(rd.get("label", []), 2):
 					room.label_offset = Vector2(clampf(float(rd["label"][0]), -50.0, 50.0), clampf(float(rd["label"][1]), -50.0, 50.0))
 				var corners: Variant = rd.get("points", [])
-				if corners is Array and (corners as Array).size() >= 6:
+				if corners is Array and (corners as Array).size() >= 3:
 					var outline: PackedVector2Array = PackedVector2Array()
 					for c: Variant in corners:
 						if _numbers(c, 2):
 							outline.append(Vector2(float(c[0]), float(c[1])))
-					# Only walls across or up and down, as one piece.
-					var shape: PackedVector2Array = union_outline([outline]) if outline.size() == (corners as Array).size() else PackedVector2Array()
+					var square: bool = true
+					for k: int in outline.size():
+						square = square and is_straight(PackedVector2Array([outline[k], outline[(k + 1) % outline.size()]]))
+					# As one piece; slanting walls without crossings.
+					var shape: PackedVector2Array = PackedVector2Array()
+					if outline.size() == (corners as Array).size():
+						if square and outline.size() >= 6:
+							shape = union_outline([outline])
+						elif not square and _simple(outline) and polygon_area(outline) > 0.0001:
+							shape = _clockwise(outline)
 					if not shape.is_empty():
 						room.points = shape
 				for key: String in ["number", "environment", "lux"]:
 					if rd.get(key, "") is String:
 						room.set(key, (rd[key] as String).strip_edges() if rd.has(key) else "")
+				room.stairs = rd.get("stairs", "") in ["up", "reverse"]
+				room.stairs_reverse = rd.get("stairs", "") == "reverse"
+				var thicknesses: Variant = rd.get("thickness", [])
+				if thicknesses is Array and (thicknesses as Array).size() == room.points.size():
+					for k: int in room.points.size():
+						var t: Variant = thicknesses[k]
+						if (t is float or t is int) and float(t) > 0.0:
+							room.set_wall_thickness(k, clampf(float(t), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS))
+				var aligns: Variant = rd.get("align", [])
+				if aligns is Array and (aligns as Array).size() == room.points.size():
+					for k: int in room.points.size():
+						var a: Variant = aligns[k]
+						if a is float or a is int:
+							room.set_wall_align(k, clampi(int(a), 0, Align.size() - 1))
 				plan.rooms.append(room)
 	var door_list: Variant = d.get("doors", [])
 	if door_list is Array:
@@ -1552,6 +2186,9 @@ static func from_data(raw: Variant) -> FloorPlan:
 				window.sill = _length(wd.get("sill", WINDOW_SILL), WINDOW_SILL, 0.0, 3.0)
 				window.height = _length(wd.get("height", WINDOW_HEIGHT), WINDOW_HEIGHT, 0.2, 3.0)
 				plan.windows.append(window)
+	# A plan saved without them has the usual walls, whatever new plans start with.
+	plan.outer_wall = OUTER_WALL
+	plan.inner_wall = INNER_WALL
 	if _numbers(d.get("walls", []), 2):
 		plan.outer_wall = clampf(float(d["walls"][0]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
 		plan.inner_wall = clampf(float(d["walls"][1]), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS)
@@ -1577,6 +2214,15 @@ static func from_data(raw: Variant) -> FloorPlan:
 				fixture.facing = clampi(int(face), 0, 3) if (face is int or face is float) else 1
 				fixture.layer = _layer_in(fd)
 				plan.fixtures.append(fixture)
+	var wall_list: Variant = d.get("free_walls", [])
+	if wall_list is Array:
+		for wd: Variant in wall_list:
+			if wd is Dictionary and _numbers(wd.get("a", []), 2) and _numbers(wd.get("b", []), 2):
+				var wall: Wall = Wall.new(Vector2(float(wd["a"][0]), float(wd["a"][1])), Vector2(float(wd["b"][0]), float(wd["b"][1])))
+				var t: Variant = wd.get("thickness", 0.0)
+				wall.thickness = clampf(float(t), MIN_WALL_THICKNESS, MAX_WALL_THICKNESS) if (t is float or t is int) and float(t) > 0.0 else 0.0
+				if wall.a.distance_to(wall.b) > 0.001:
+					plan.walls.append(wall)
 	var mark_list: Variant = d.get("marks", [])
 	if mark_list is Array:
 		for md: Variant in mark_list:

@@ -33,6 +33,8 @@ signal operate_requested(designation: String)
 ## Floor [param index] is shown (not an edit; the other copy of the
 ## document should show it too).
 signal floor_changed(index: int)
+## The wall thickness new plans start with was set (to save it).
+signal defaults_changed
 
 ## Size of the icons of the plan's tools (logical pixels).
 const ICON_SIZE: int = 22
@@ -45,6 +47,7 @@ var _bar: HBoxContainer
 var _select_button: Button
 var _room_button: Button
 var _outline_button: Button
+var _wall_button: Button
 var _split_button: Button
 var _door_button: Button
 var _wire_button: Button
@@ -109,6 +112,8 @@ var _array_target: Dictionary = {}
 var _walls_dialog: ConfirmationDialog
 var _outer_wall: SpinBox
 var _inner_wall: SpinBox
+## The walls set are the ones new plans start with.
+var _walls_default: CheckBox
 ## Where north is on the plan (degrees clockwise from up), for the sheet's arrow.
 var _north: SpinBox
 ## How large the plan's symbols and texts are drawn (%).
@@ -133,12 +138,23 @@ var _width_field: SpinBox
 var _height_field: SpinBox
 var _length_dialog: ConfirmationDialog
 var _length_label: Label
+## The wall's direction (degrees, anticlockwise from right), its own
+## thickness (0: the plan's) and where it lies between two rooms.
+var _angle_field: SpinBox
+var _thickness_field: SpinBox
+var _align_label: Label
+var _align_field: OptionButton
 var _length_field: SpinBox
 ## Room and wall (side) whose length is asked.
 var _length_wall: Vector2i = Vector2i(-1, -1)
+## The free wall the wall dialog shows, -1 for a room's wall.
+var _free_wall: int = -1
 var _number_field: LineEdit
 var _environment_field: OptionButton
 var _lux_field: LineEdit
+## A staircase, and its way up turned round.
+var _stairs_field: CheckBox
+var _stairs_reverse_field: CheckBox
 ## What the environment chosen means.
 var _environment_note: Label
 var _presets: MenuButton
@@ -197,6 +213,7 @@ func _ready() -> void:
 	_select_button = _tool_button("select", FloorPlanCanvas.Tool.SELECT, group)
 	_room_button = _tool_button("room", FloorPlanCanvas.Tool.ROOM, group)
 	_outline_button = _tool_button("room_outline", FloorPlanCanvas.Tool.OUTLINE, group)
+	_wall_button = _tool_button("plan_wall", FloorPlanCanvas.Tool.WALL, group)
 	_split_button = _tool_button("room_split", FloorPlanCanvas.Tool.SPLIT, group)
 	_door_button = _tool_button("door", FloorPlanCanvas.Tool.DOOR, group)
 	_window_button = _tool_button("plan_window", FloorPlanCanvas.Tool.WINDOW, group)
@@ -331,6 +348,7 @@ func _ready() -> void:
 	canvas.selection_changed.connect(_fill_circuits)
 	canvas.selection_changed.connect(_update_array_button)
 	canvas.length_requested.connect(_ask_length)
+	canvas.free_wall_requested.connect(_ask_free_wall)
 	canvas.door_requested.connect(_ask_door)
 	canvas.window_requested.connect(_ask_window)
 	canvas.note_requested.connect(_ask_note)
@@ -368,14 +386,35 @@ func _ready() -> void:
 	_layer_dialog.confirmed.connect(_apply_layer_name)
 	add_child(_layer_dialog)
 	_length_dialog = ConfirmationDialog.new()
-	var length_row: HBoxContainer = HBoxContainer.new()
+	var wall_box: VBoxContainer = VBoxContainer.new()
+	_length_dialog.add_child(wall_box)
 	_length_label = Label.new()
 	_length_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	length_row.add_child(_length_label)
+	_length_label.theme_type_variation = "HeaderLabel"
+	wall_box.add_child(_length_label)
+	var wall_grid: GridContainer = GridContainer.new()
+	wall_grid.columns = 2
+	wall_box.add_child(wall_grid)
 	_length_field = _metres()
-	length_row.add_child(_length_field)
-	_length_dialog.add_child(length_row)
-	_length_dialog.register_text_enter(_length_field.get_line_edit())
+	_angle_field = SpinBox.new()
+	_angle_field.min_value = -360.0
+	_angle_field.max_value = 360.0
+	_angle_field.step = 0.5
+	_angle_field.suffix = "°"
+	_thickness_field = _metres()
+	_thickness_field.min_value = 0.0
+	_thickness_field.max_value = FloorPlan.MAX_WALL_THICKNESS
+	_align_field = OptionButton.new()
+	_align_field.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	for field: Control in [_length_field, _angle_field, _thickness_field, _align_field]:
+		var label: Label = Label.new()
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		wall_grid.add_child(label)
+		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		wall_grid.add_child(field)
+		if field is SpinBox:
+			_length_dialog.register_text_enter((field as SpinBox).get_line_edit())
+	_align_label = wall_grid.get_child(6) as Label
 	_length_dialog.confirmed.connect(_apply_length)
 	add_child(_length_dialog)
 	_door_dialog = ConfirmationDialog.new()
@@ -528,6 +567,9 @@ func _ready() -> void:
 		walls_grid.add_child(size_label)
 		walls_grid.add_child(field)
 		_walls_dialog.register_text_enter(field.get_line_edit())
+	_walls_default = CheckBox.new()
+	walls_grid.add_child(Control.new())
+	walls_grid.add_child(_walls_default)
 	_walls_dialog.confirmed.connect(_apply_walls)
 	add_child(_walls_dialog)
 	_symbols_dialog = SymbolLibraryDialog.new()
@@ -630,7 +672,7 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _layers_menu, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _layers_menu, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	# The layer new things go on, while the schematic has it (an undo may
 	# have taken it away).
@@ -711,6 +753,7 @@ func retranslate() -> void:
 	_walls_dialog.title = tr("Plan settings")
 	_walls_dialog.ok_button_text = tr("OK")
 	_walls_dialog.cancel_button_text = tr("Cancel")
+	_walls_default.text = tr("Start new plans with these walls")
 	var wall_labels: Array[String] = [tr("Outside walls"), tr("Walls between rooms"), tr("North (clockwise from up)"), tr("Size of the symbols"), tr("Size of the texts")]
 	var walls_grid: GridContainer = _outer_wall.get_parent() as GridContainer
 	for k: int in wall_labels.size():
@@ -733,9 +776,20 @@ func retranslate() -> void:
 	var size_grid: GridContainer = _width_field.get_parent() as GridContainer
 	for k: int in size_labels.size():
 		(size_grid.get_child(2 * k) as Label).text = size_labels[k]
-	_length_dialog.title = tr("Wall length")
+	_length_dialog.title = tr("Wall")
+	var wall_grid: GridContainer = _length_field.get_parent() as GridContainer
+	var line_labels: Array[String] = [tr("Length"), tr("Direction"), tr("Thickness (0: the plan's)"), tr("Lies")]
+	for k: int in line_labels.size():
+		(wall_grid.get_child(2 * k) as Label).text = line_labels[k]
+	_angle_field.tooltip_text = tr("Degrees anticlockwise from the right; another one turns the wall about its start, making it slant")
+	_align_field.clear()
+	for text: String in [tr("As suits (out of the way of a wall going on outside)"), tr("On the middle of the line"), tr("Into this room"), tr("Into the other room")]:
+		_align_field.add_item(text)
 	_length_dialog.ok_button_text = tr("OK")
 	_length_dialog.cancel_button_text = tr("Cancel")
+	_stairs_field.text = tr("Staircase")
+	_stairs_field.tooltip_text = tr("Draws the stairs in the room: straight in a rectangle, turning in an L-shaped room")
+	_stairs_reverse_field.text = tr("Up the other way")
 	var labels: Array[String] = [tr("Number"), tr("Environment (ČSN 33 2000-5-51)"), tr("Illuminance (lx)")]
 	for k: int in labels.size():
 		(_room_fields.get_child(2 * k) as Label).text = labels[k]
@@ -756,7 +810,8 @@ func retranslate() -> void:
 	_room_duplicate.tooltip_text = tr("Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)")
 	_room_split.tooltip_text = tr("Split the room by a wall: drag across it where the wall goes")
 	_room_delete.tooltip_text = tr("Take the room away (what is in it stays)")
-	_outline_button.tooltip_text = tr("Draw a room by its corners: click each corner (walls go across or up and down), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it")
+	_outline_button.tooltip_text = tr("Draw a room by its corners: click each corner (walls go across or up and down, with Shift slanting by 15°), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it")
+	_wall_button.tooltip_text = tr("Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn")
 	_split_button.tooltip_text = tr("Split a room in two: drag across it where the new wall goes")
 	if _document != null:
 		refresh()
@@ -776,7 +831,7 @@ func begin_place_template(template: Dictionary) -> void:
 	canvas.placing = ""
 	canvas.placing_template = template
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
-	for button: Button in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.grab_focus()
@@ -805,13 +860,8 @@ func _fill_circuits() -> void:
 		_circuits.append(f.number)
 		var by: String = ("-" + f.device) if not f.device.is_empty() else tr("not protected yet")
 		_circuit.add_item("%s  [%s]" % [SingleLineView.circuit_text(f, _document), by])
-	# A circuit picked for new parts that has none yet is kept in the list.
-	if current > 0 and not _circuits.has(current) and part.is_empty():
-		_circuits.append(current)
-		_circuit.add_item(tr("%d  (new)") % current)
-	var fresh: int = line.next_number()
-	while _circuits.has(fresh):
-		fresh += 1
+	# A new circuit: the one picked for new parts that has nothing yet, else the next number.
+	var fresh: int = current if current > 0 and not _circuits.has(current) and part.is_empty() else line.next_number()
 	_circuits.append(fresh)
 	_circuit.add_item(tr("New circuit %d") % fresh)
 	if not part.is_empty():
@@ -865,7 +915,7 @@ func _on_listed(index: int) -> void:
 ## Ready room [param index] follows the mouse to be put where the plan is
 ## clicked (again until a right click or Esc).
 func _add_preset(index: int) -> void:
-	for button: Button in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.begin_place_room(index)
@@ -888,10 +938,46 @@ func _ask_length(index: int, k: int) -> void:
 	if not _editing or index < 0 or index >= _document.floor_plan.rooms.size():
 		return
 	_length_wall = Vector2i(index, k)
-	var w: PackedVector2Array = _document.floor_plan.rooms[index].wall(k)
-	_length_label.text = tr("Wall of %s") % tr(_document.floor_plan.rooms[index].name)
+	_free_wall = -1
+	var plan: FloorPlan = _document.floor_plan
+	var room: FloorPlan.Room = plan.rooms[index]
+	var w: PackedVector2Array = room.wall(k)
+	_length_label.text = tr("Wall of %s") % tr(room.name)
 	_length_field.min_value = FloorPlan.MIN_WALL
 	_length_field.value = w[0].distance_to(w[1])
+	_angle_field.value = FloorPlan.wall_angle(w)
+	_thickness_field.value = room.wall_thickness(k)
+	var between: bool = false
+	for piece: Dictionary in plan.wall_pieces():
+		if int(piece["other"]) >= 0 and ((piece["room"] == index and piece["wall"] == k) or (piece["other"] == index and piece["other_wall"] == k)):
+			between = true
+	var own: float = plan.inner_wall if between else plan.outer_wall
+	_thickness_field.get_line_edit().placeholder_text = String.num(own, 2)
+	_align_label.visible = between
+	_align_field.visible = between
+	_align_field.select(room.wall_align(k))
+	_length_dialog.reset_size()
+	_length_dialog.popup_centered()
+	_length_field.get_line_edit().select_all()
+	_length_field.get_line_edit().grab_focus()
+
+
+## Asks the length, direction and thickness of free wall [param index]
+## (its start stays).
+func _ask_free_wall(index: int) -> void:
+	if not _editing or index < 0 or index >= _document.floor_plan.walls.size():
+		return
+	_free_wall = index
+	var plan: FloorPlan = _document.floor_plan
+	var wall: FloorPlan.Wall = plan.walls[index]
+	_length_label.text = tr("Wall")
+	_length_field.min_value = FloorPlan.MIN_WALL
+	_length_field.value = wall.a.distance_to(wall.b)
+	_angle_field.value = FloorPlan.wall_angle(PackedVector2Array([wall.a, wall.b]))
+	_thickness_field.value = wall.thickness
+	_thickness_field.get_line_edit().placeholder_text = String.num(plan.inner_wall, 2)
+	_align_label.visible = false
+	_align_field.visible = false
 	_length_dialog.reset_size()
 	_length_dialog.popup_centered()
 	_length_field.get_line_edit().select_all()
@@ -899,11 +985,40 @@ func _ask_length(index: int, k: int) -> void:
 
 
 func _apply_length() -> void:
+	if _free_wall >= 0:
+		var index: int = _free_wall
+		if index >= _document.floor_plan.walls.size():
+			return
+		var length: float = _length_field.value
+		var angle: float = _angle_field.value
+		var thickness: float = _thickness_field.value
+		var room_name: String = canvas._next_room_name()
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			var wall: FloorPlan.Wall = doc.floor_plan.walls[index]
+			wall.thickness = thickness
+			doc.floor_plan.move_wall_end(index, 1, (wall.a + Vector2.from_angle(deg_to_rad(-angle)) * length).snappedf(0.001), room_name))
+		return
 	var wall: Vector2i = _length_wall
 	if wall.x < 0 or wall.x >= _document.floor_plan.rooms.size():
 		return
+	var room: FloorPlan.Room = _document.floor_plan.rooms[wall.x]
+	var w: PackedVector2Array = room.wall(wall.y)
 	var length: float = _length_field.value
-	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_wall_length(wall.x, wall.y, length))
+	var angle: float = _angle_field.value
+	var thickness: float = _thickness_field.value
+	var mode: int = _align_field.selected if _align_field.visible else room.wall_align(wall.y)
+	var new_length: bool = not is_equal_approx(length, w[0].distance_to(w[1]))
+	var new_angle: bool = absf(angle_difference(deg_to_rad(angle), deg_to_rad(FloorPlan.wall_angle(w)))) > 0.001
+	var new_look: bool = not is_equal_approx(thickness, room.wall_thickness(wall.y)) or mode != room.wall_align(wall.y)
+	if not (new_length or new_angle or new_look):
+		return
+	edit_requested.emit(func(doc: SchematicDocument) -> void:
+		if new_angle:
+			doc.floor_plan.set_wall_angle(wall.x, wall.y, angle, length)
+		elif new_length:
+			doc.floor_plan.set_wall_length(wall.x, wall.y, length)
+		if new_look:
+			doc.floor_plan.set_wall_look(wall.x, wall.y, thickness, mode))
 
 
 ## Asks how door [param index] is: its width, single or double, its hinge
@@ -1252,7 +1367,7 @@ func _on_layer_picked(id: int) -> void:
 
 
 func _deselect_tools() -> void:
-	for button: Button in [_select_button, _room_button, _outline_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	canvas.grab_focus()
 
@@ -1394,6 +1509,7 @@ func _ask_walls() -> void:
 	_north.value = _document.floor_plan.north
 	_symbol_size.value = _document.floor_plan.symbol_scale * 100.0
 	_text_size.value = _document.floor_plan.text_scale * 100.0
+	_walls_default.button_pressed = false
 	_walls_dialog.reset_size()
 	_walls_dialog.popup_centered()
 
@@ -1404,6 +1520,10 @@ func _apply_walls() -> void:
 	var north: float = _north.value
 	var symbols: float = _symbol_size.value / 100.0
 	var texts: float = _text_size.value / 100.0
+	if _walls_default.button_pressed:
+		FloorPlan.default_outer = outer
+		FloorPlan.default_inner = inner
+		defaults_changed.emit()
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
 		doc.floor_plan.outer_wall = outer
 		doc.floor_plan.inner_wall = inner
@@ -1486,6 +1606,13 @@ func _build_room_panel() -> void:
 	_environment_field.item_selected.connect(func(index: int) -> void:
 		_environment_note.text = tr(FloorPlan.ENVIRONMENT_NOTES[index])
 		_apply_rename())
+	# A staircase: its stairs drawn in it.
+	_stairs_field = CheckBox.new()
+	_stairs_field.toggled.connect(func(_on: bool) -> void: _apply_rename())
+	_room_box.add_child(_stairs_field)
+	_stairs_reverse_field = CheckBox.new()
+	_stairs_reverse_field.toggled.connect(func(_on: bool) -> void: _apply_rename())
+	_room_box.add_child(_stairs_reverse_field)
 	var actions: HBoxContainer = HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 4)
 	_room_box.add_child(actions)
@@ -1542,6 +1669,9 @@ func _fill_room() -> void:
 	if changed_room or not _lux_field.has_focus():
 		_lux_field.text = room.lux
 	_lux_field.placeholder_text = plan.room_lux(index)
+	_stairs_field.set_pressed_no_signal(room.stairs)
+	_stairs_reverse_field.set_pressed_no_signal(room.stairs_reverse)
+	_stairs_reverse_field.visible = room.stairs
 	_filling_room = false
 
 
@@ -1572,7 +1702,9 @@ func _apply_rename() -> void:
 	var details: bool = canvas.installation()
 	var size: Vector2 = Vector2(_width_field.value, _height_field.value)
 	var resized: bool = room.is_rectangle() and not room.rect.size.is_equal_approx(size)
-	var same: bool = room_name == room.name and not resized
+	var stairs: bool = _stairs_field.button_pressed
+	var stairs_reverse: bool = _stairs_reverse_field.button_pressed
+	var same: bool = room_name == room.name and not resized and stairs == room.stairs and stairs_reverse == room.stairs_reverse
 	if details:
 		same = same and number == room.number and lux == room.lux and environment == plan.room_environment(index)
 	if same:
@@ -1580,6 +1712,8 @@ func _apply_rename() -> void:
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
 		var edited: FloorPlan.Room = doc.floor_plan.rooms[index]
 		edited.name = room_name
+		edited.stairs = stairs
+		edited.stairs_reverse = stairs_reverse
 		if resized:
 			doc.floor_plan.resize_room(index, size)
 		if details:

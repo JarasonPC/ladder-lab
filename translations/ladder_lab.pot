@@ -5313,9 +5313,6 @@ msgstr ""
 msgid "Height"
 msgstr ""
 
-msgid "Wall length"
-msgstr ""
-
 #, c-format
 msgid "Width of %s"
 msgstr ""
@@ -6082,7 +6079,7 @@ msgstr ""
 msgid "Take the room away (what is in it stays)"
 msgstr ""
 
-msgid "Draw a room by its corners: click each corner (walls go across or up and down), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
+msgid "Draw a room by its corners: click each corner (walls go across or up and down, with Shift slanting by 15°), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
 msgstr ""
 
 msgid "Split a room in two: drag across it where the new wall goes"
@@ -6462,10 +6459,6 @@ msgid "not protected yet"
 msgstr ""
 
 #, c-format
-msgid "%d  (new)"
-msgstr ""
-
-#, c-format
 msgid "New circuit %d"
 msgstr ""
 
@@ -6498,4 +6491,43 @@ msgid "Outlet for a later connection"
 msgstr ""
 
 msgid "Outlet for a later connection (workshop, summerhouse)"
+msgstr ""
+
+msgid "Start new plans with these walls"
+msgstr ""
+
+msgid "Wall"
+msgstr ""
+
+msgid "Direction"
+msgstr ""
+
+msgid "Thickness (0: the plan's)"
+msgstr ""
+
+msgid "Lies"
+msgstr ""
+
+msgid "Degrees anticlockwise from the right; another one turns the wall about its start, making it slant"
+msgstr ""
+
+msgid "As suits (out of the way of a wall going on outside)"
+msgstr ""
+
+msgid "On the middle of the line"
+msgstr ""
+
+msgid "Into this room"
+msgstr ""
+
+msgid "Into the other room"
+msgstr ""
+
+msgid "Draws the stairs in the room: straight in a rectangle, turning in an L-shaped room"
+msgstr ""
+
+msgid "Up the other way"
+msgstr ""
+
+msgid "Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn"
 msgstr ""

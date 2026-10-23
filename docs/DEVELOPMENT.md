@@ -404,9 +404,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   beside the plan the legend of the rooms (_draw_room_legend, ROOM_COLUMNS; in paper_area and
   fit); the room dialog (double click) asks them too, each environment offered with what
   it means (FloorPlan.ENVIRONMENT_NOTES), the ones used explained under the legend
-- Floor plan rooms are outlines (FloorPlan.Room.points, clockwise as drawn, every wall across
-  or up and down; rect is the rectangle round it, set makes a rectangle; contains, area,
-  wall(k), inward(k), corner; saved as "points" beside "rect" when not a rectangle): wall_near,
+- Floor plan rooms are outlines (FloorPlan.Room.points, clockwise as drawn; rect is the
+  rectangle round it, set makes a rectangle; contains, area, wall(k), inward(k), corner;
+  saved as "points" beside "rect" when not a rectangle). A wall may slant (is_straight: across
+  or up and down; is_square: every wall so; is_rectangle: four such): drawn by the outline
+  tool with Shift (FloorPlanCanvas._angled, ANGLE_STEP 15°), by turning a wall in the wall
+  dialog (set_wall_angle about its start, refused when the outline would cross itself,
+  _simple), or with walls drawn on their own; set_edge leaves a slanting wall be, set_corner
+  and the canvas's corner handle put a slanting wall's corner where it goes (with_corner);
+  outline_room, from_data, join_rooms (_merged: Geometry2D.merge_polygons) and split_room
+  take slanting walls as they are (_clockwise, _without_straight_on); wall_near gives a
+  part on one the way of FACING nearest into the room and "straight" false, and doors and
+  windows go only into straight walls. wall_near,
   room_at and move_room work on them; set_edge(index, k, at) moves wall k (snapped, kept by
   _clamp_edge: the walls beside it MIN_WALL long, a rectangle no smaller than MIN_ROOM), a
   wall of another room on the same line along it moves along and the parts and doors on it
@@ -425,12 +434,43 @@ Architecture and conventions of the code base. Read this before changing the cod
   both FloorPlan.Opening (at, width, vertical, ends; openings() moves them with rooms and
   walls), Tool.WINDOW, a double click: window_requested -> the window dialog. Walls have a
   thickness (FloorPlan.outer_wall, inner_wall; saved "walls" when not OUTER_WALL / INNER_WALL;
-  the Walls dialog): FloorPlanCanvas._draw_building fills each room grown by outer_wall
-  (Geometry2D.offset_polygon, mitred) in wall_color, the floors over it, then the walls between
-  rooms (FloorPlan.inner_pieces_of: the pieces of the outlines with another room behind them)
-  on their line; an opening cuts its band (_band, _cut: outside the room in an outside wall,
-  centred in one between rooms); a part on a wall between rooms is drawn at its face
-  (_face, inner_wall_at); bounds and the dimensions (_dimension_gap) are past the outside walls.
+  the plan settings dialog, whose tick "Start new plans with these walls" sets
+  FloorPlan.default_outer / default_inner, the user settings "floor_plan"; a plan saved
+  without "walls" has OUTER_WALL / INNER_WALL), and each wall its own (Room.thickness, 0 the
+  plan's, and Room.align, an Align, by wall index; saved "thickness" and "align";
+  set_wall_look sets a wall's and the walls of other rooms along it on its line; the wall
+  dialog: length, direction, thickness and, between rooms, where it lies).
+  FloorPlan.wall_pieces cuts every room's walls where another room's corner is on their line:
+  outside pieces lie outside their room, as thick as the wall's own else outer_wall; a piece
+  between two rooms (once, "other" the room behind it) as thick as the thicker set on either
+  side else inner_wall, lying where its Align says, AUTO: centred, but out of the way of the
+  room whose wall goes on outside along the same line (the longer way when both do), so that
+  room's face runs straight through without a step. FloorPlanCanvas._draw_building fills each
+  room grown by its walls' thickness (FloorPlan.grown, mitred) in wall_color, the floors over
+  it, then the pieces between rooms, run on past their ends by their thickness but never over
+  a floor (Geometry2D.clip_polygons); an opening cuts its band (_band from wall_piece_at, _cut);
+  a part on a wall between rooms is drawn at its face (_face, wall_face); bounds and the
+  dimensions (_dimension_gap) are past the outside walls.
+  Walls drawn on their own (FloorPlan.walls of FloorPlan.Wall: a, b, thickness, 0 the plan's
+  inner_wall, on the middle of their line; saved "free_walls"): Tool.WALL clicks each end
+  (_next_wall_point: onto a wall's end or a room's corner near, _wall_snap, else at ANGLE_STEP
+  degrees, any with Shift, as long as typed in mm or on the grid; the length and direction
+  shown while drawn; a right click or Esc ends them); FloorPlan.add_wall adds one and, when the
+  free walls close round a space through it (_loop_through: the shortest way back along them),
+  makes those walls a room, its outline their lines grown inwards by half their thickness,
+  each wall its thickness (room_drawn asks its name); selected (free_wall_at), dragged, its
+  ends dragged by handles (move_wall_end, closing them too), deleted, a double click asks its
+  length, direction and thickness (free_wall_requested, the wall dialog); drawn square at
+  their ends over the building (_draw_free_walls); in bounds.
+  Staircases (Room.stairs, stairs_reverse; saved "stairs": "up" or "reverse"; the room panel's
+  ticks): FloorPlan.stair_lines gives the treads TREAD apart and the walking line, straight
+  along a rectangle's longer side, in an L (_l_corner) a flight in each arm turning in the
+  square where they meet with winders from the inner corner, else straight cut to the outline;
+  FloorPlanCanvas._draw_stairs draws them, a dot where the line starts, an arrow up.
+  While a room is dragged the doors, windows, fixtures, notes and marks in it are drawn moved
+  along (_room_drag_shift), while a wall is dragged the doors, windows and parts on it
+  (_edge_drag_shift), and a door or window dragged is drawn on the wall it goes onto
+  (_shown_opening).
   Dimensions printed with the plan (FloorPlan.Dimension, saved "dimensions"): a chain along
   wall "wall" of room "room" (dimension_stops: its corners, the parts on it, the ends of its
   openings) or, room -1, between "a" and "b"; "offset" from the wall (past the outside wall)
@@ -517,7 +557,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   plan; the legend's rows (_legend_row) open up for either.
   Making and changing rooms: Tool.ROOM by a drag or two clicks (_room_from), the width and
   depth typed (_room_typed, _room_field: digits, Tab, Enter, Esc; _drawn_room takes them the
-  way the mouse is); Tool.OUTLINE by its corners (_corners, _next_corner: across or up and
+  way the mouse is); Tool.OUTLINE by its corners (_corners, _next_corner: with Shift slanting by ANGLE_STEP, else across or up and
   down from the last, onto walls near, level with the first; a length typed; closed by a
   click on the first, a double click, Enter or a right click, _close_outline adding one
   corner where needed; FloorPlan.outline_room); Tool.SPLIT dragged across a room
