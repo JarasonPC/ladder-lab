@@ -157,7 +157,9 @@ const FORMAT: String = "ladder-lab"
 ## their wall (a fourth number in a part's "parts" entry, m; missing: on it),
 ## a door's "kind" (missing: hinged) and dimensions and notes always on
 ## their own layer ("annotations_hidden"; their "layer" no more read).
-const VERSION: int = 54
+## 55: a switchboard's "heat", the settings of its temperature rise
+## calculation (see [method HeatRise.settings]; missing: the defaults).
+const VERSION: int = 55
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

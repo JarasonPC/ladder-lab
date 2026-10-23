@@ -7163,3 +7163,141 @@ msgstr "nebezpečí posunu"
 msgctxt "CB"
 msgid "flexible or unstable"
 msgstr "pružné nebo nestabilní"
+
+msgid "At the top %s °C: warmer than %s °C. Make the enclosure larger, give it ventilation openings or lose less power inside."
+msgstr "Nahoře %s °C: tepleji než %s °C. Zvětšete kryt, dejte mu větrací otvory nebo snižte ztrátový výkon uvnitř."
+
+msgid "At the top %s °C: within %s °C."
+msgstr "Nahoře %s °C: v mezích %s °C."
+
+msgid "Back to the estimates"
+msgstr "Zpět na odhady"
+
+msgid "Enclosure"
+msgstr "Kryt"
+
+msgid "Estimate: type the maker's figure"
+msgstr "Odhad: zadejte údaj výrobce"
+
+msgid "Estimates (breakers and RCDs the most ČSN EN 60898-1 allows); type the maker's figure over them. Wires and terminals from the wiring laid out, at the rated current of the breaker or fuse on their net."
+msgstr "Odhady (u jističů a chráničů nejvyšší hodnoty dle ČSN EN 60898-1); přepište je údaji výrobce. Vodiče a svorky podle nakreslené kabeláže, při jmenovitém proudu jističe nebo pojistky na jejich síti."
+
+msgid "Further losses"
+msgstr "Další ztráty"
+
+msgid "Give the enclosure's size (nothing is on the rails yet to size it by)."
+msgstr "Zadejte rozměry krytu (na lištách zatím není nic, podle čeho je určit)."
+
+msgid "Horizontal partitions"
+msgstr "Vodorovné přepážky"
+
+msgid "How the enclosure is installed (fig. 1 of the method): which of its surfaces give off heat"
+msgstr "Způsob instalace krytu (obr. 1 metody): které jeho povrchy odvádějí teplo"
+
+msgid "Inlet openings"
+msgstr "Vstupní otvory"
+
+msgid "Installation and air"
+msgstr "Instalace a okolí"
+
+msgid "Loss (W)"
+msgstr "Ztráta (W)"
+
+msgid "Losses of what is not drawn: lighting, fans, heaters, transformers …"
+msgstr "Ztráty toho, co není nakresleno: osvětlení, ventilátory, topení, transformátory …"
+
+msgid "Most allowed inside"
+msgstr "Nejvýše uvnitř"
+
+msgid "Outlet openings"
+msgstr "Výstupní otvory"
+
+msgid "Power lost at the rated currents"
+msgstr "Ztrátový výkon při jmenovitých proudech"
+
+msgid "Rail %d: %s °C"
+msgstr "Lišta %d: %s °C"
+
+msgid "Reckoned in %d sections %s m wide (the warmest shown)."
+msgstr "Počítáno v %d sekcích širokých %s m (zobrazena nejteplejší)."
+
+msgid "Result"
+msgstr "Výsledek"
+
+msgid "Size from the mounting plate"
+msgstr "Rozměry podle montážní desky"
+
+msgid "Strip terminals (%d)"
+msgstr "Řadové svorky (%d)"
+
+msgid "Temperature rise of +%s"
+msgstr "Oteplení +%s"
+
+msgid "Temperature rise: at the top about %s °C (%s °C around, at most %s °C), %s W lost inside"
+msgstr "Oteplení: nahoře asi %s °C (okolí %s °C, nejvýše %s °C), ztráty uvnitř %s W"
+
+msgid "Temperature rise…"
+msgstr "Oteplení…"
+
+msgid "The enclosure round the mounting plate as laid out, rounded up to 50 mm"
+msgstr "Kryt kolem montážní desky, jak je rozvržena, zaokrouhleno nahoru na 50 mm"
+
+msgid "The warmest the air round the devices may get: see their makers' data (55 °C is common; breakers are rated at 30 °C and carry less above it)"
+msgstr "Nejvyšší teplota vzduchu kolem přístrojů: viz údaje výrobců (běžně 55 °C; jističe jsou stanoveny pro 30 °C a nad ní snesou menší proud)"
+
+msgid "Total P"
+msgstr "Celkem P"
+
+msgid "Ventilation openings"
+msgstr "Větrací otvory"
+
+msgid "Wires (%d, %s m)"
+msgstr "Vodiče (%d, %s m)"
+
+msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): fill in the enclosure, how it is installed and the devices' losses"
+msgstr "Výpočet oteplení vzduchu uvnitř (IEC 890 / ČSN 33 7107): doplňte kryt, způsob instalace a ztráty přístrojů"
+
+msgid "Separate enclosure, free on all sides"
+msgstr "Samostatný kryt přístupný ze všech stran"
+
+msgid "Separate enclosure for wall mounting"
+msgstr "Samostatný kryt pro montáž ke zdi"
+
+msgid "Separate enclosure with a side against a wall"
+msgstr "Samostatný kryt umístěný bokem ke zdi"
+
+msgid "Separate enclosure in a corner"
+msgstr "Samostatný kryt umístěný v rohu"
+
+msgid "Free-standing enclosure in a row"
+msgstr "Volně stojící řadový rozváděč"
+
+msgid "Enclosure in a row for wall mounting"
+msgstr "Řadový rozváděč pro montáž ke zdi"
+
+msgid "Enclosure in a row for wall mounting, its top covered"
+msgstr "Řadový rozváděč pro montáž ke zdi, shora krytý"
+
+msgid "%s = %s is beyond fig. %d (%s to %s): its edge is taken."
+msgstr "%s = %s je mimo obr. %d (%s až %s): použita hodnota na jeho okraji."
+
+msgid "More than %d horizontal partitions: the method does not cover them (reckoned with %d)."
+msgstr "Víc než %d vodorovné přepážky: metoda je nepokrývá (počítáno s %d)."
+
+msgid "The method has no chart for ventilation openings with Ae up to 1.25 m²: reckoned as closed, on the safe side."
+msgstr "Metoda nemá graf pro větrací otvory při Ae do 1,25 m²: počítáno jako uzavřený kryt, na straně bezpečnosti."
+
+msgid "The outlet openings (%s cm²) should be at least 1.1 times the inlet ones (%s cm²)."
+msgstr "Výstupní otvory (%s cm²) mají být alespoň 1,1násobkem vstupních (%s cm²)."
+
+msgid "Top"
+msgstr "Strop"
+
+msgid "Left side"
+msgstr "Levá strana"
+
+msgid "Right side"
+msgstr "Pravá strana"
+
+msgid "Back wall"
+msgstr "Zadní stěna"

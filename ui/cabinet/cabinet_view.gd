@@ -243,6 +243,11 @@ func _get_minimum_size() -> Vector2:
 	return Vector2(floorf(_extent().x * k) if zoom > 1.0 else 0.0, ceilf(_extent().y * k))
 
 
+## The switchboard as laid out last (after [method refresh]), null before.
+func layout() -> CabinetLayout:
+	return _layout
+
+
 ## Size of the plate in mm as laid out last (after [method refresh]).
 func plate_size() -> Vector2:
 	return _layout.size if _layout != null else Vector2.ZERO

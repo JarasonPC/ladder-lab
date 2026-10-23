@@ -77,6 +77,8 @@ var _door_selected: int = -1
 var _door_tools: ControlItemTools = ControlItemTools.new()
 var _menu: PopupMenu
 var _menu_device: String = ""
+## The temperature rise of the switchboard worked out (Edit mode).
+var _heat_dialog: HeatRiseDialog
 
 
 func _ready() -> void:
@@ -148,6 +150,14 @@ func _ready() -> void:
 	_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_menu.id_pressed.connect(func(_id: int) -> void: key_bind_requested.emit(_menu_device))
 	add_child(_menu)
+	_heat_dialog = HeatRiseDialog.new()
+	_heat_dialog.saved.connect(func(settings: Dictionary) -> void:
+		var board: String = board_name
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			for sb: Switchboard in doc.switchboards:
+				if sb.name == board:
+					sb.heat = HeatRise.changed(settings)))
+	add_child(_heat_dialog)
 	_across = ScrollContainer.new()
 	_across.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_across.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -385,6 +395,31 @@ func _rebuild() -> void:
 	fill.pressed.connect(func() -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet(b)))
 	_list.add_child(fill)
+	_list.add_child(HSeparator.new())
+	_heat_tools(b)
+
+
+## How warm switchboard [param b] gets inside with what is on its rails (see
+## [HeatRise]), and the button opening the calculation to fill in.
+func _heat_tools(b: int) -> void:
+	var layout: CabinetLayout = _view.layout()
+	if not _document.switchboards[b].rails.is_empty() and layout != null and layout.size.x > 0.0:
+		var evaluated: Dictionary = HeatRise.evaluate(_document, b, layout.size, layout.wiring.wires if layout.wiring != null else [])
+		var r: Dictionary = evaluated["result"]
+		var s: Dictionary = evaluated["settings"]
+		var summary: Label = Label.new()
+		summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		summary.text = tr("Temperature rise: at the top about %s °C (%s °C around, at most %s °C), %s W lost inside") % [
+			String.num(r["temperature"], 0), String.num(s["ambient"], 0), String.num(s["limit"], 0), String.num(evaluated["losses"]["total"], 0)]
+		summary.add_theme_color_override("font_color", AppTheme.success if r["ok"] else AppTheme.danger)
+		_list.add_child(summary)
+	var open: Button = _button(tr("Temperature rise…"), "thermometer")
+	open.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	open.tooltip_text = tr("Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): fill in the enclosure, how it is installed and the devices' losses")
+	open.disabled = layout == null or _document.switchboards[b].rails.is_empty()
+	open.pressed.connect(func() -> void: _heat_dialog.open(_document, b, _view.layout()))
+	_list.add_child(open)
 
 
 ## The student mounting the parts of a training plan in switchboard
