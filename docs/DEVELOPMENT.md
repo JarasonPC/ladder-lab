@@ -243,7 +243,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   metres, y down. Rooms (FloorPlan.Room: name, rect) are modules: drawn by dragging
   (FloorPlanCanvas Tool.ROOM) or added from PRESETS at free_spot (Add room), every edge
   snapping to SNAP 5 cm and onto the other rooms' walls within WALL_SNAP (snap_room, the
-  canvas's _snap_edge), resized by dragging an edge, moved with the parts in them and on
+  canvas's _snap_edge); onto a wall of a room beside it (along a stretch of it) within
+  FloorPlan.gap_reach (two outside walls: a gap narrower would be drawn as a wall of no set
+  thickness, so rooms go wall to wall, the wall between rooms drawn there; walls on the line
+  of the wall or corner dragged, which move along, left out), resized by dragging an edge, moved with the parts in them and on
   their walls and the doors in their walls (move_room), renamed by a double click. Doors
   (FloorPlan.Door: middle on a wall, width, vertical) put in a wall by a click (Tool.DOOR),
   drawn as an opening with the leaf and its swing. Parts (FloorPlan.placeable: light switches,

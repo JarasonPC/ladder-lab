@@ -7,6 +7,10 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- Rooms drawn, put, moved or resized near a room beside them snap wall to wall when the gap
+  would be narrower than two outside walls, so every wall between rooms has its set
+  thickness (no more walls as thick as a gap left by chance); a wall two rooms share can be
+  dragged by a little without snapping back
 - Houses of more floors: while editing, the floor below is drawn dash-dot under the one shown
   (its outside walls and staircase; hidden where this floor has its walls already), and its
   corners are caught, so the next floor is drawn right over it

@@ -2481,26 +2481,41 @@ func _room_key(key: InputEventKey) -> bool:
 func _snap_corners(rect: Rect2, skip: int = -1) -> Rect2:
 	var edges: Array[float] = [rect.position.x, rect.position.y, rect.end.x, rect.end.y]
 	for side: int in 4:
-		edges[side] = _snap_edge(edges[side], side % 2 == 1, skip)
+		var span: Vector2 = Vector2(rect.position.y, rect.end.y) if side % 2 == 0 else Vector2(rect.position.x, rect.end.x)
+		edges[side] = _snap_edge(edges[side], side % 2 == 1, skip, span)
 	return Rect2(Vector2(edges[0], edges[1]), Vector2(edges[2] - edges[0], edges[3] - edges[1]))
 
 
 ## Coordinate [param v] (y when [param horizontal_edge]) onto the nearest
-## wall running the same way within [constant FloorPlan.WALL_SNAP].
-func _snap_edge(v: float, horizontal_edge: bool, skip: int) -> float:
+## wall running the same way within [constant FloorPlan.WALL_SNAP]; for an
+## edge reaching along [param span] (x from .. to for one across, else y),
+## onto a wall beside it along a stretch of it within
+## [method FloorPlan.gap_reach] (wall to wall, no gap left for a wall of no
+## set thickness). Walls at [param moving] (the line of a wall or corner
+## dragged, which they move along with) are left out.
+func _snap_edge(v: float, horizontal_edge: bool, skip: int, span: Vector2 = Vector2(NAN, NAN), moving: float = NAN) -> float:
 	var best: float = FloorPlan.WALL_SNAP
 	var result: float = v
+	var more: float = plan().gap_reach() - FloorPlan.WALL_SNAP
 	for i: int in plan().rooms.size():
 		if i == skip:
 			continue
 		var room: FloorPlan.Room = plan().rooms[i]
 		for k: int in room.points.size():
 			var w: PackedVector2Array = room.wall(k)
-			if is_equal_approx(w[0].y, w[1].y) != horizontal_edge:
+			if is_equal_approx(w[0].y, w[1].y) != horizontal_edge or not FloorPlan.is_straight(w):
 				continue
 			var theirs: float = w[0].y if horizontal_edge else w[0].x
-			if absf(theirs - v) < best:
-				best = absf(theirs - v)
+			if not is_nan(moving) and absf(theirs - moving) < 0.001:
+				continue
+			var near: float = absf(theirs - v)
+			if not is_nan(span.x):
+				var low: float = minf(w[0].x, w[1].x) if horizontal_edge else minf(w[0].y, w[1].y)
+				var high: float = maxf(w[0].x, w[1].x) if horizontal_edge else maxf(w[0].y, w[1].y)
+				if minf(high, maxf(span.x, span.y)) - maxf(low, minf(span.x, span.y)) > 0.01:
+					near -= more
+			if near < best:
+				best = near
 				result = theirs
 	return result
 
@@ -2509,7 +2524,9 @@ func _snap_edge(v: float, horizontal_edge: bool, skip: int) -> float:
 ## grid, onto the walls of the other rooms near.
 func _corner_target(index: int) -> Vector2:
 	var at: Vector2 = FloorPlan.snap(to_plan(_mouse))
-	return Vector2(_snap_edge(at.x, false, index), _snap_edge(at.y, true, index))
+	var box: Rect2 = plan().rooms[index].rect
+	var corner: Vector2 = plan().rooms[index].points[_press.get("which", 0)] if _press.get("kind", "") == "corner" else Vector2(NAN, NAN)
+	return Vector2(_snap_edge(at.x, false, index, Vector2(box.position.y, box.end.y), corner.x), _snap_edge(at.y, true, index, Vector2(box.position.x, box.end.x), corner.y))
 
 
 ## Where wall [param k] of room [param index] dragged to the mouse goes: its
@@ -2520,7 +2537,8 @@ func _edge_target(index: int, k: int) -> float:
 	var w: PackedVector2Array = room.wall(k)
 	var horizontal: bool = is_equal_approx(w[0].y, w[1].y)
 	var m: Vector2 = FloorPlan.snap(to_plan(_mouse))
-	return FloorPlan._clamp_edge(room, k, _snap_edge(m.y if horizontal else m.x, horizontal, index))
+	var span: Vector2 = Vector2(w[0].x, w[1].x) if horizontal else Vector2(w[0].y, w[1].y)
+	return FloorPlan._clamp_edge(room, k, _snap_edge(m.y if horizontal else m.x, horizontal, index, span, w[0].y if horizontal else w[0].x))
 
 
 func _next_room_name() -> String:
