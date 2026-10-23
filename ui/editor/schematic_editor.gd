@@ -5,7 +5,7 @@ extends Node2D
 ## Select: click a symbol or wire (Shift adds), drag symbols to move them,
 ## drag on empty space for a selection box.
 ## Wire: click a terminal to start, click empty cells to add corners, finish on
-## a terminal or on a wire (a junction is inserted there).
+## a terminal or on a wire (the wire runs on along it to a terminal of a part).
 ## Place: choose a palette entry, click to place (repeatable), R/F turn the
 ## symbol before placing. Right click or Esc ends the current tool.
 ## Right click opens a menu with "Change to" (switch a contact, coil or load
@@ -1594,7 +1594,8 @@ func _start_wire(key: String) -> void:
 
 
 ## Finishes the wire on terminal [param key], or on wire [param wire_index]
-## (splitting it with a junction). Ending on a terminal, the poles beside it
+## (on along it to its nearer end, see [method SchematicDocument.branch_end]).
+## Ending on a terminal, the poles beside it
 ## go along (see [member wire_all_poles]) unless [param alone].
 func _finish_wire(key: String, wire_index: int, alone: bool = false) -> void:
 	var doc: SchematicDocument = document()
@@ -1602,9 +1603,8 @@ func _finish_wire(key: String, wire_index: int, alone: bool = false) -> void:
 	var end_key: String = key
 	var preview: Array[Vector2i] = _preview_points()
 	if wire_index >= 0:
-		var cell: Vector2i = doc.wire_cell_near(wire_index, _mouse_point)
-		preview = _route_to(cell)
-		end_key = doc.split_wire(wire_index, cell)
+		preview = _branch_preview(wire_index)
+		end_key = doc.branch_end(wire_index, doc.wire_cell_near(wire_index, _mouse_point)).get("key", "")
 	if end_key.is_empty() or end_key == _wire_start or doc.wire_between(_wire_start, end_key) >= 0:
 		# Nothing to join, or the two terminals have a wire already.
 		history.discard_last()
@@ -1625,8 +1625,8 @@ func _finish_wire(key: String, wire_index: int, alone: bool = false) -> void:
 	_emit_hint()
 
 
-## Wire under the mouse that the wire being drawn would end on (with a
-## junction), or -1. Wires already joined to the start terminal do not count:
+## Wire under the mouse that the wire being drawn would end on (branching
+## off it), or -1. Wires already joined to the start terminal do not count:
 ## a click on them adds a corner, as joining them would only close a loop.
 func _wire_to_join() -> int:
 	var doc: SchematicDocument = document()
@@ -1654,6 +1654,17 @@ func _preview_points() -> Array[Vector2i]:
 	if not key.is_empty():
 		target = document().terminal_cell(key)
 	return _route_to(target)
+
+
+## Points from the last fixed wire point to the cell of wire [param index]
+## nearest the mouse, then along that wire to the end it joins.
+func _branch_preview(index: int) -> Array[Vector2i]:
+	var cell: Vector2i = document().wire_cell_near(index, _mouse_point)
+	var result: Array[Vector2i] = _route_to(cell)
+	var along: Array[Vector2i] = document().branch_end(index, cell).get("cells", [] as Array[Vector2i])
+	for i: int in range(1, along.size()):
+		result.append(along[i])
+	return result
 
 
 func _route_to(target: Vector2i) -> Array[Vector2i]:
@@ -2178,9 +2189,8 @@ func _draw() -> void:
 		var preview: Array[Vector2i] = _preview_points()
 		var w: int = _wire_to_join()
 		if w >= 0 and doc.terminal_at(_mouse_point, _pick_radius(WIRE_PICK)).is_empty():
-			var cell: Vector2i = doc.wire_cell_near(w, _mouse_point)
-			preview = _route_to(cell)
-			draw_circle(Vector2(cell) * G, 5.0, PREVIEW_COLOR)
+			preview = _branch_preview(w)
+			draw_circle(Vector2(doc.wire_cell_near(w, _mouse_point)) * G, 5.0, PREVIEW_COLOR)
 		for i: int in range(1, preview.size()):
 			points.append(preview[i])
 		if points.size() >= 2:
