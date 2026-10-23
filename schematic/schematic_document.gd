@@ -681,6 +681,22 @@ func transpose() -> void:
 	horizontal = not horizontal
 
 
+## True when most parts of two or more terminals lie across (turned a
+## quarter), as on a drawing of horizontal current paths, whatever
+## [member horizontal] says; false when most stand upright or there are none.
+func drawn_horizontal() -> bool:
+	var across: int = 0
+	var upright: int = 0
+	for c: CircuitComponent in circuit.get_components():
+		if c.get_terminal_keys().size() < 2:
+			continue
+		if _placements[c.id].rotation % 2 == 1:
+			across += 1
+		else:
+			upright += 1
+	return across > upright
+
+
 # --- Pages -------------------------------------------------------------------
 
 ## Page a component is drawn on.

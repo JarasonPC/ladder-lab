@@ -794,6 +794,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   time they open (main.gd _rebuild_view_menu / _rebuild_settings_menu)
 - Current path numbers (the number alone, no box; above the columns, left of the rows) can be turned off in View >
   Current path numbers (saved; page windows and export follow it)
+- Direction of the current paths (toolbar, Vertical / Horizontal; SchematicDocument.horizontal):
+  choosing the other one turns the whole drawing (SchematicDocument.transpose), unless the parts
+  lie that way already (drawn_horizontal: most parts of two or more terminals turned a quarter
+  or not; a drawing made under the wrong choice), then only the numbering changes (main.gd
+  _on_layout_selected)
 - Paper size guide (View > Paper size guide: none or A4-A0, Portrait; user settings
   "view"/"paper_guide", "paper_guide_portrait"; main.gd _set_paper_guide, page windows follow
   it, never on exported sheets): SchematicView.set_paper_guide puts a PaperGuide (ui/, z_index
