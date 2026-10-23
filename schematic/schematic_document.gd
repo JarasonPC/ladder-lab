@@ -51,6 +51,9 @@ var floor_plan: FloorPlan:
 
 ## The layers of the floor plans, in the order made (see [FloorPlan.Layer]).
 var plan_layers: Array[FloorPlan.Layer] = []
+## Whether the dimensions and notes are shown (their layer,
+## [constant FloorPlan.ANNOTATIONS], is not among [member plan_layers]).
+var annotations_shown: bool = true
 
 
 ## Plan layer [param layer_name], null for none.
@@ -64,15 +67,18 @@ func plan_layer(layer_name: String) -> FloorPlan.Layer:
 ## Whether what is on layer [param layer_name] is drawn: on none ("") or
 ## on a layer there is no more, always.
 func layer_shown(layer_name: String) -> bool:
+	if layer_name == FloorPlan.ANNOTATIONS:
+		return annotations_shown
 	var layer: FloorPlan.Layer = plan_layer(layer_name)
 	return layer == null or layer.shown
 
 
 ## Adds a plan layer named [param layer_name] (trimmed); false when the name
-## is empty or taken.
+## is empty or taken (or the dimensions and notes' own,
+## [constant FloorPlan.ANNOTATIONS]).
 func add_plan_layer(layer_name: String) -> bool:
 	var trimmed: String = layer_name.strip_edges().left(FloorPlan.MAX_LAYER_NAME)
-	if trimmed.is_empty() or plan_layer(trimmed) != null:
+	if trimmed.is_empty() or trimmed == FloorPlan.ANNOTATIONS or plan_layer(trimmed) != null:
 		return false
 	plan_layers.append(FloorPlan.Layer.new(trimmed))
 	return true
@@ -83,7 +89,7 @@ func add_plan_layer(layer_name: String) -> bool:
 func rename_plan_layer(old_name: String, new_name: String) -> bool:
 	var trimmed: String = new_name.strip_edges().left(FloorPlan.MAX_LAYER_NAME)
 	var layer: FloorPlan.Layer = plan_layer(old_name)
-	if layer == null or trimmed.is_empty() or plan_layer(trimmed) != null:
+	if layer == null or trimmed.is_empty() or trimmed == FloorPlan.ANNOTATIONS or plan_layer(trimmed) != null:
 		return false
 	layer.name = trimmed
 	for plan: FloorPlan in floors:

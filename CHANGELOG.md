@@ -7,6 +7,14 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- Dimensions and notes are always on their own layer, "Dimensions and notes", shown or hidden
+  in the Layers menu; it cannot be renamed or removed and nothing else goes on it
+- More kinds of doors: swinging both ways, sliding along the wall, sliding into the wall
+  (pocket), folding and sectional garage doors besides hinged ones (in the door dialog; new
+  doors take the kind chosen last). Door widths are set in cm
+- Doors are easier to take: by their leaf and swing too. A selected door has a handle at the
+  end of its leaf: dragged to another corner it turns the door, its hinges to that end and
+  opening to that side
 - A corner that rooms share moves for all of them: the end of a wall between two rooms slides
   along the wall it ends on and never opens a gap; with Shift it moves on its own, the wall
   between them slanting. A move that would cross a room over itself is refused. While a corner

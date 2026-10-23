@@ -102,6 +102,8 @@ const FEATURE_GRAB: float = 12.0
 ## Half the side of a selection's handle (pixels): a room's corners, a door's
 ## or window's ends, a fixture's corners, a free dimension's ends.
 const HANDLE: float = 4.5
+## Width of a new garage door (m).
+const GARAGE_WIDTH: float = 2.5
 ## A press this close to a room's edge (pixels) drags the edge.
 const EDGE_GRAB: float = 6.0
 ## The middle of a symbol of a part on a wall is this far into the room (m);
@@ -207,6 +209,9 @@ var _corners: PackedVector2Array = PackedVector2Array()
 ## they run inside it they wait (in [member _corners]) to split it once they
 ## end on its wall.
 var _split_room: int = -1
+## The [enum FloorPlan.DoorKind] a door put in with Tool.DOOR is (the one
+## last chosen in the door dialog).
+var door_kind: int = FloorPlan.DoorKind.SWING
 ## The rooms as the corner or wall being dragged leaves them, and what they
 ## were worked out for (see [method _room_preview]).
 var _preview: FloorPlan = null
@@ -514,9 +519,14 @@ func handles() -> Array[Dictionary]:
 		"door", "window":
 			var openings: Array = plan().doors if selected["kind"] == "door" else plan().windows
 			if index >= 0 and index < openings.size():
-				var ends: PackedVector2Array = _shown_opening(selected["kind"], index).ends()
+				var shown: FloorPlan.Opening = _shown_opening(selected["kind"], index)
+				var ends: PackedVector2Array = shown.ends()
 				for which: int in 2:
 					list.append({"kind": selected["kind"] + "_end", "index": index, "which": which, "at": ends[which]})
+				if selected["kind"] == "door":
+					# Dragged to another corner of the door, it turns the door:
+					# its hinges to that end, opening to that side.
+					list.append({"kind": "door_swing", "index": index, "at": door_corner(shown as FloorPlan.Door)})
 		"fixture":
 			if index >= 0 and index < plan().fixtures.size():
 				var r: Rect2 = _shown_fixture_rect(index)
@@ -563,8 +573,13 @@ func _shown_opening(kind: String, index: int) -> FloorPlan.Opening:
 		(shown as FloorPlan.Door).hinge_end = door.hinge_end
 		(shown as FloorPlan.Door).opens_back = door.opens_back
 		(shown as FloorPlan.Door).double = door.double
-	if pressed == kind + "_end" and own:
-		FloorPlan.stretch_opening(shown, _press["which"], to_plan(_mouse), 0.5 if kind == "door" else 0.3, 3.0 if kind == "door" else 6.0)
+		(shown as FloorPlan.Door).kind = door.kind
+	if pressed == "door_swing" and own and kind == "door":
+		var turned: Vector2i = _door_turn(shown as FloorPlan.Door, to_plan(_mouse))
+		(shown as FloorPlan.Door).hinge_end = turned.x == 1
+		(shown as FloorPlan.Door).opens_back = turned.y == 1
+	elif pressed == kind + "_end" and own:
+		FloorPlan.stretch_opening(shown, _press["which"], to_plan(_mouse), FloorPlan.DOOR_MIN_WIDTH if kind == "door" else 0.3, FloorPlan.DOOR_MAX_WIDTH if kind == "door" else 6.0)
 	elif pressed == kind and own:
 		var wall: Dictionary = plan().wall_near(to_plan(_mouse), 0.3)
 		if wall.is_empty() or not wall["straight"]:
@@ -734,12 +749,68 @@ func window_at(point: Vector2) -> int:
 func _opening_at(list: Array, point: Vector2) -> int:
 	var m: Vector2 = to_plan(point)
 	var across: float = maxf(0.15, plan().outer_wall)
-	for i: int in list.size():
+	# A few pixels more all round, so that a thin one is easy to take.
+	var slack: float = EDGE_GRAB / (PX * zoom)
+	for i: int in range(list.size() - 1, -1, -1):
 		var opening: FloorPlan.Opening = list[i]
 		var half: Vector2 = Vector2(across, opening.width * 0.5) if opening.vertical else Vector2(opening.width * 0.5, across)
-		if Rect2(opening.at - half, half * 2.0).has_point(m):
+		if Rect2(opening.at - half, half * 2.0).grow(slack).has_point(m):
+			return i
+		if opening is FloorPlan.Door and _door_swing_box(opening as FloorPlan.Door).grow(slack).has_point(m):
+			# Its leaf and the way it swings.
 			return i
 	return -1
+
+
+## The door a click with Tool.DOOR puts in at [param at] on a wall
+## ([param vertical] running up and down): of [member door_kind], a garage
+## door wider.
+func _new_door(at: Vector2, vertical: bool) -> FloorPlan.Door:
+	var door: FloorPlan.Door = FloorPlan.Door.new(at, vertical, GARAGE_WIDTH if door_kind == FloorPlan.DoorKind.GARAGE else FloorPlan.DOOR_WIDTH)
+	door.kind = door_kind
+	return door
+
+
+## The way door [param door] opens into the room from its wall (m, a unit).
+static func door_across(door: FloorPlan.Door) -> Vector2:
+	var across: Vector2 = Vector2.LEFT if door.vertical else Vector2.DOWN
+	return -across if door.opens_back else across
+
+
+## Where the leaf of door [param door] reaches open: the corner of the
+## square it swings in away from its hinge (of a double door, of the first
+## leaf; of a sliding, folding or garage door, as far into the room).
+func door_corner(door: FloorPlan.Door) -> Vector2:
+	var along: Vector2 = Vector2.DOWN if door.vertical else Vector2.RIGHT
+	var hinge: Vector2 = door.at + along * door.width * 0.5 * (1.0 if door.hinge_end else -1.0)
+	var reach: float = door.width * (0.5 if door.double else 1.0)
+	if door.kind in [FloorPlan.DoorKind.SWING, FloorPlan.DoorKind.DOUBLE_ACTING]:
+		return hinge + door_across(door) * reach
+	return hinge + door_across(door) * minf(reach, 0.6)
+
+
+## The box the leaf of door [param door] swings in (m; both ways for one
+## swinging both ways), on the side it opens to.
+func _door_swing_box(door: FloorPlan.Door) -> Rect2:
+	var along: Vector2 = Vector2.DOWN if door.vertical else Vector2.RIGHT
+	var ends: PackedVector2Array = door.ends()
+	var depth: float = door.width * (0.5 if door.double else 1.0)
+	if door.kind not in [FloorPlan.DoorKind.SWING, FloorPlan.DoorKind.DOUBLE_ACTING]:
+		depth = minf(depth, 0.6)
+	var box: Rect2 = Rect2(ends[0], Vector2.ZERO).expand(ends[1]).expand(ends[0] + door_across(door) * depth).expand(ends[1] + door_across(door) * depth)
+	if door.kind == FloorPlan.DoorKind.DOUBLE_ACTING:
+		box = box.expand(ends[0] - door_across(door) * depth).expand(ends[1] - door_across(door) * depth)
+	return box
+
+
+## How door [param door] is turned by its corner dragged to plan point
+## [param m]: Vector2i(hinge at its end, opening the other way), by the end
+## and the side of the wall the point is nearer.
+static func _door_turn(door: FloorPlan.Door, m: Vector2) -> Vector2i:
+	var along: Vector2 = Vector2.DOWN if door.vertical else Vector2.RIGHT
+	var across: Vector2 = Vector2.LEFT if door.vertical else Vector2.DOWN
+	var hinge_end: bool = door.hinge_end if door.double else (m - door.at).dot(along) > 0.0
+	return Vector2i(1 if hinge_end else 0, 1 if (m - door.at).dot(across) < 0.0 else 0)
 
 
 ## The wall of a room under screen point [param point]: Vector2i(room,
@@ -973,8 +1044,9 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				queue_redraw()
 
 
-## The part (not the consumer unit), mark, dimension, note or fixture under
-## screen point [param point] as a selection, {} for none.
+## The part (not the consumer unit), mark or fixture under screen point
+## [param point] as a selection, {} for none (dimensions and notes stay on
+## their own layer).
 func _layered_at(point: Vector2) -> Dictionary:
 	var part: String = part_at(point)
 	if not part.is_empty() and part != FloorPlan.UNIT:
@@ -982,12 +1054,8 @@ func _layered_at(point: Vector2) -> Dictionary:
 	var mark: int = mark_at(point)
 	if mark >= 0:
 		return {"kind": "mark", "index": mark}
-	var saved: int = saved_dimension_at(point)
-	if saved >= 0:
-		return {"kind": "dimension", "index": saved}
-	var note: Dictionary = note_at(point)
-	if not note.is_empty():
-		return {"kind": "note", "index": note["index"]}
+	if saved_dimension_at(point) >= 0 or not note_at(point).is_empty():
+		return {}
 	var fixture: int = fixture_at(point)
 	if fixture >= 0:
 		return {"kind": "fixture", "index": fixture}
@@ -1123,7 +1191,8 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if not wall.is_empty() and wall["straight"]:
 				var at: Vector2 = wall["at"]
 				var vertical: bool = int(wall["facing"]) % 2 == 0
-				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.append(FloorPlan.Door.new(at, vertical)))
+				var door: FloorPlan.Door = _new_door(at, vertical)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.doors.append(door))
 		"scale_point":
 			if is_nan(_scale_from.x):
 				_scale_from = m
@@ -1143,6 +1212,13 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				var to: Vector2 = _corner_target(index)
 				var free: bool = Input.is_key_pressed(KEY_SHIFT)
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_corner(index, k, to, free))
+		"door_swing":
+			if _dragging:
+				var index: int = press["index"]
+				var turned: Vector2i = _door_turn(plan().doors[index], m)
+				edit_requested.emit(func(doc: SchematicDocument) -> void:
+					doc.floor_plan.doors[index].hinge_end = turned.x == 1
+					doc.floor_plan.doors[index].opens_back = turned.y == 1)
 		"door_end", "window_end":
 			if _dragging:
 				var index: int = press["index"]
@@ -1208,20 +1284,16 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				for dim: FloorPlan.Dimension in plan().dimensions:
 					if dim.room == edge.x and dim.wall == edge.y:
 						return
-				var layer: String = new_layer()
 				edit_requested.emit(func(doc: SchematicDocument) -> void:
 					var dim: FloorPlan.Dimension = FloorPlan.Dimension.new()
 					dim.room = edge.x
 					dim.wall = edge.y
-					dim.layer = layer
 					doc.floor_plan.dimensions.append(dim))
 			else:
-				var layer: String = new_layer()
 				edit_requested.emit(func(doc: SchematicDocument) -> void:
 					var dim: FloorPlan.Dimension = FloorPlan.Dimension.new()
 					dim.a = from
 					dim.b = to
-					dim.layer = layer
 					doc.floor_plan.dimensions.append(dim))
 		"dimension":
 			if _dragging:
@@ -2306,7 +2378,7 @@ func _draw() -> void:
 		if not near.is_empty() and near["straight"]:
 			var vertical: bool = int(near["facing"]) % 2 == 0
 			if tool == Tool.DOOR:
-				_draw_door(FloorPlan.Door.new(near["at"], vertical), s, wall, true)
+				_draw_door(_new_door(near["at"], vertical), s, wall, true)
 			else:
 				_draw_window(FloorPlan.WindowOpening.new(near["at"], vertical), s, true)
 	for i: int in rooms.size():
@@ -2377,6 +2449,17 @@ func _draw() -> void:
 	_draw_saved_dimensions(font)
 	_draw_wall_distance(font)
 	_draw_corner_slide(font)
+	if editing and _dragging and _press.get("kind", "") == "door_swing":
+		# The corners the door can be turned to.
+		var door: FloorPlan.Door = plan().doors[_press["index"]]
+		for hinge_end: bool in [false, true]:
+			for back: bool in [false, true]:
+				var turned: FloorPlan.Door = FloorPlan.Door.new(door.at, door.vertical, door.width)
+				turned.kind = door.kind
+				turned.double = door.double
+				turned.hinge_end = hinge_end
+				turned.opens_back = back
+				draw_arc(to_screen(door_corner(turned)), HANDLE + 2.0, 0.0, TAU, 16, Color(SchematicTheme.SELECTED, 0.6), 1.2, true)
 	if editing and _dragging and _press.get("kind", "") == "free_wall_end":
 		_draw_snap_dimensions(font, _wall_end_target(_press["index"], _press["which"]))
 	_draw_notes(font)
@@ -2788,20 +2871,61 @@ func _draw_door(door: FloorPlan.Door, s: float, wall: float, chosen: bool) -> vo
 	var a: Vector2 = to_screen(door.at - along * door.width * 0.5)
 	var b: Vector2 = to_screen(door.at + along * door.width * 0.5)
 	# The opening in the wall, the leaf from its hinge and its swing.
-	_cut(door)
+	var cut: PackedVector2Array = _cut(door)
 	var color: Color = SchematicTheme.SELECTED if chosen else Color(SchematicTheme.LINE, 0.7)
-	var across: Vector2 = Vector2.LEFT if door.vertical else Vector2.DOWN
-	if door.opens_back:
-		across = -across
+	var across: Vector2 = door_across(door)
 	# A leaf from each end for a double door, meeting in the middle.
 	var leaves: Array = [[a, b], [b, a]] if door.double else [[b, a] if door.hinge_end else [a, b]]
 	var length: float = door.width * s * (0.5 if door.double else 1.0)
-	for leaf_ends: Array in leaves:
-		var hinge: Vector2 = leaf_ends[0]
-		var latch: Vector2 = leaf_ends[1]
-		draw_line(hinge, hinge + across * length, color, 1.5, true)
-		var start: float = (latch - hinge).angle()
-		draw_arc(hinge, length, start, start + angle_difference(start, across.angle()), 16, color, 1.0, true)
+	match door.kind:
+		FloorPlan.DoorKind.SWING, FloorPlan.DoorKind.DOUBLE_ACTING:
+			for leaf_ends: Array in leaves:
+				var hinge: Vector2 = leaf_ends[0]
+				var latch: Vector2 = leaf_ends[1]
+				draw_line(hinge, hinge + across * length, color, 1.5, true)
+				var start: float = (latch - hinge).angle()
+				draw_arc(hinge, length, start, start + angle_difference(start, across.angle()), 16, color, 1.0, true)
+				if door.kind == FloorPlan.DoorKind.DOUBLE_ACTING:
+					# It swings the other way too.
+					draw_line(hinge, hinge - across * length, Color(color, color.a * 0.5), 1.5, true)
+					draw_arc(hinge, length, start, start + angle_difference(start, (-across).angle()), 16, Color(color, color.a * 0.5), 1.0, true)
+		FloorPlan.DoorKind.SLIDING, FloorPlan.DoorKind.POCKET:
+			# The leaf closed over the opening (outside the wall's face, or
+			# in the wall for a pocket door), where it slides to dashed, an
+			# arrow the way it slides.
+			var face: Vector2 = cut[0] if (cut[0] - a).dot(across) > (cut[1] - a).dot(across) else cut[1]
+			var off: Vector2 = (cut[0] + cut[1]) * 0.5 - a if door.kind == FloorPlan.DoorKind.POCKET else face - a + across * 3.0
+			for leaf_ends: Array in leaves:
+				var to: Vector2 = leaf_ends[0]
+				var from: Vector2 = leaf_ends[1] if not door.double else (a + b) * 0.5
+				var way: Vector2 = (to - from).normalized()
+				var span: float = from.distance_to(to)
+				draw_line(from + off, to + off, color, 3.0, true)
+				draw_dashed_line(to + off, to + off + way * span, color, 1.5, 4.0, true)
+				var tip: Vector2 = (from + to) * 0.5 + off + across * 7.0 + way * span * 0.25
+				draw_line(tip - way * span * 0.4, tip, color, 1.0, true)
+				draw_line(tip, tip - way * 6.0 + across * 3.0, color, 1.0, true)
+				draw_line(tip, tip - way * 6.0 - across * 3.0, color, 1.0, true)
+		FloorPlan.DoorKind.FOLDING:
+			# Its panels folded up, a zigzag from where it folds to.
+			for leaf_ends: Array in leaves:
+				var hinge: Vector2 = leaf_ends[0]
+				var latch: Vector2 = leaf_ends[1] if not door.double else (a + b) * 0.5
+				var points: PackedVector2Array = PackedVector2Array()
+				var panels: int = 4
+				for k: int in panels + 1:
+					var p: Vector2 = hinge.lerp(latch, float(k) / panels * 0.5)
+					points.append(p + (across * length * 0.22 if k % 2 == 1 else Vector2.ZERO))
+				draw_polyline(points, color, 1.5, true)
+				draw_dashed_line(points[points.size() - 1], latch, color, 1.0, 4.0, true)
+		FloorPlan.DoorKind.GARAGE:
+			# The door closed in the opening; dashed where it goes up under
+			# the ceiling.
+			draw_line(a, b, color, 2.0, true)
+			var depth: float = minf(door.width, 2.5) * s
+			for p: Vector2 in [a, b]:
+				draw_dashed_line(p, p + across * depth, color, 1.0, 5.0, true)
+			draw_dashed_line(a + across * depth, b + across * depth, color, 1.0, 5.0, true)
 
 
 ## Colour of the walls: grey, apart from the symbols' lines.

@@ -25,6 +25,15 @@ const MAX_OFFSET: float = 1.5
 const MIN_ROOM: float = 0.8
 ## Width of a door (m) when none is set.
 const DOOR_WIDTH: float = 0.8
+## How narrow and how wide a door can be (m; garage doors the widest).
+const DOOR_MIN_WIDTH: float = 0.5
+const DOOR_MAX_WIDTH: float = 5.0
+## Kinds of door: hinged swinging one way, swinging both ways, sliding along
+## the wall, sliding into the wall (a pocket door), folding, and a sectional
+## garage door going up under the ceiling.
+enum DoorKind { SWING, DOUBLE_ACTING, SLIDING, POCKET, FOLDING, GARAGE }
+## How each [enum DoorKind] is saved.
+const DOOR_KINDS: PackedStringArray = ["swing", "double_acting", "sliding", "pocket", "folding", "garage"]
 ## Width, sill height and height of a window (m) when none is set.
 const WINDOW_WIDTH: float = 1.2
 const WINDOW_SILL: float = 0.9
@@ -111,6 +120,10 @@ const TREAD: float = 0.28
 const WALK_END: float = 0.25
 ## A layer's name is at most this long.
 const MAX_LAYER_NAME: int = 40
+## The layer every dimension and note is on, always: the program's own,
+## never renamed nor taken away, nothing else put on it (shown or hidden by
+## [member SchematicDocument.annotations_shown]; its name shown translated).
+const ANNOTATIONS: String = "dimensions_and_notes"
 
 
 ## A room: its name and its inside (m), the outline of its walls, every one
@@ -269,6 +282,9 @@ class Opening:
 ## down from a wall running across or left of one running up and down, or
 ## to the other side ([member opens_back]).
 class Door extends Opening:
+	## Its [enum DoorKind].
+	var kind: int = DoorKind.SWING
+	## Hinged (or sliding, folding away) at its end rather than its start.
 	var hinge_end: bool = false
 	var opens_back: bool = false
 	## Two leaves, hinged at both ends, meeting in the middle.
@@ -309,8 +325,8 @@ class Dimension:
 	var a: Vector2 = Vector2.ZERO
 	var b: Vector2 = Vector2.ZERO
 	var offset: float = DIMENSION_OFFSET
-	## The layer it is on ([member SchematicDocument.plan_layers]; "" for none).
-	var layer: String = ""
+	## The layer it is on: always [constant ANNOTATIONS].
+	var layer: String = ANNOTATIONS
 
 
 ## A note printed with the plan: its text (lines split by line breaks), the
@@ -334,7 +350,8 @@ class Note:
 	var text: String = ""
 	var at: Vector2 = Vector2.ZERO
 	var label: Vector2 = Vector2.ZERO
-	var layer: String = ""
+	## The layer it is on: always [constant ANNOTATIONS].
+	var layer: String = ANNOTATIONS
 
 
 ## A piece of furniture or a fixture (one of [constant FIXTURES]): the
@@ -2288,9 +2305,12 @@ func item_layer(kind: String, index: int, designation: String) -> String:
 
 
 ## Puts what selection [param kind] names on layer [param layer_name] (""
-## none): part [param designation], or the note, dimension, fixture or mark
-## [param index].
+## none): part [param designation], or the fixture or mark [param index]
+## (dimensions and notes stay on [constant ANNOTATIONS]).
 func set_item_layer(kind: String, index: int, designation: String, layer_name: String) -> void:
+	if kind in ["note", "dimension"] or layer_name == ANNOTATIONS:
+		# Dimensions and notes stay on theirs, nothing else goes on it.
+		return
 	if kind == "part":
 		set_part_layer(designation, layer_name)
 		return
@@ -2456,6 +2476,8 @@ func to_data() -> Dictionary:
 			dd["opens_back"] = true
 		if door.double:
 			dd["double"] = true
+		if door.kind != DoorKind.SWING:
+			dd["kind"] = DOOR_KINDS[door.kind]
 		door_list.append(dd)
 	var placed: Dictionary = {}
 	for designation: String in parts:
@@ -2495,7 +2517,7 @@ func to_data() -> Dictionary:
 	if not notes.is_empty():
 		var note_list: Array = []
 		for note: Note in notes:
-			note_list.append(_with_layer({"text": note.text, "at": [note.at.x, note.at.y], "label": [note.label.x, note.label.y]}, note.layer))
+			note_list.append({"text": note.text, "at": [note.at.x, note.at.y], "label": [note.label.x, note.label.y]})
 		result["notes"] = note_list
 	if not fixtures.is_empty():
 		var fixture_list: Array = []
@@ -2522,9 +2544,9 @@ func to_data() -> Dictionary:
 		var dimension_list: Array = []
 		for dim: Dimension in dimensions:
 			if dim.room >= 0:
-				dimension_list.append(_with_layer({"room": dim.room, "wall": dim.wall, "offset": dim.offset}, dim.layer))
+				dimension_list.append({"room": dim.room, "wall": dim.wall, "offset": dim.offset})
 			else:
-				dimension_list.append(_with_layer({"a": [dim.a.x, dim.a.y], "b": [dim.b.x, dim.b.y], "offset": dim.offset}, dim.layer))
+				dimension_list.append({"a": [dim.a.x, dim.a.y], "b": [dim.b.x, dim.b.y], "offset": dim.offset})
 		result["dimensions"] = dimension_list
 	if not links.is_empty():
 		var link_list: Array = []
@@ -2602,7 +2624,8 @@ static func from_data(raw: Variant) -> FloorPlan:
 		for dd: Variant in door_list:
 			if dd is Dictionary and _numbers(dd.get("at", []), 2):
 				var width: Variant = dd.get("width", DOOR_WIDTH)
-				var door: Door = Door.new(Vector2(float(dd["at"][0]), float(dd["at"][1])), dd.get("vertical", false) == true, clampf(float(width), 0.5, 3.0) if (width is float or width is int) else DOOR_WIDTH)
+				var door: Door = Door.new(Vector2(float(dd["at"][0]), float(dd["at"][1])), dd.get("vertical", false) == true, clampf(float(width), DOOR_MIN_WIDTH, DOOR_MAX_WIDTH) if (width is float or width is int) else DOOR_WIDTH)
+				door.kind = maxi(DOOR_KINDS.find(str(dd.get("kind", ""))), DoorKind.SWING)
 				door.hinge_end = dd.get("hinge_end", false) == true
 				door.opens_back = dd.get("opens_back", false) == true
 				door.double = dd.get("double", false) == true
@@ -2645,7 +2668,6 @@ static func from_data(raw: Variant) -> FloorPlan:
 				note.text = (nd["text"] as String).left(500)
 				note.at = Vector2(float(nd["at"][0]), float(nd["at"][1]))
 				note.label = Vector2(float(nd["label"][0]), float(nd["label"][1]))
-				note.layer = _layer_in(nd)
 				plan.notes.append(note)
 	var fixture_list: Variant = d.get("fixtures", [])
 	if fixture_list is Array:
@@ -2686,7 +2708,6 @@ static func from_data(raw: Variant) -> FloorPlan:
 				continue
 			var dim: Dimension = Dimension.new()
 			dim.offset = _length(dd.get("offset", DIMENSION_OFFSET), DIMENSION_OFFSET, -20.0, 20.0)
-			dim.layer = _layer_in(dd)
 			var room: Variant = dd.get("room", -1)
 			var wall: Variant = dd.get("wall", 0)
 			if (room is int or room is float) and (wall is int or wall is float) and int(room) >= 0 and int(room) < plan.rooms.size() and int(wall) >= 0 and int(wall) < plan.rooms[int(room)].points.size():

@@ -122,6 +122,7 @@ var _north: SpinBox
 var _symbol_size: SpinBox
 var _text_size: SpinBox
 var _door_dialog: ConfirmationDialog
+var _door_kind: OptionButton
 var _door_width: SpinBox
 var _door_double: CheckBox
 var _door_hinge: OptionButton
@@ -423,15 +424,22 @@ func _ready() -> void:
 	var door_grid: GridContainer = GridContainer.new()
 	door_grid.columns = 2
 	_door_dialog.add_child(door_grid)
-	_door_width = _metres()
-	_door_width.min_value = 0.5
-	_door_width.max_value = 3.0
+	_door_kind = OptionButton.new()
+	_door_kind.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	# Its width in cm, as doors are sold.
+	_door_width = SpinBox.new()
+	_door_width.min_value = FloorPlan.DOOR_MIN_WIDTH * 100.0
+	_door_width.max_value = FloorPlan.DOOR_MAX_WIDTH * 100.0
+	_door_width.step = 1.0
+	_door_width.suffix = "cm"
+	_door_width.custom_minimum_size.x = 120.0
+	_door_dialog.register_text_enter(_door_width.get_line_edit())
 	_door_double = CheckBox.new()
 	_door_hinge = OptionButton.new()
 	_door_hinge.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_door_side = OptionButton.new()
 	_door_side.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	for field: Control in [_door_width, _door_double, _door_hinge, _door_side]:
+	for field: Control in [_door_kind, _door_width, _door_double, _door_hinge, _door_side]:
 		var label: Label = Label.new()
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		door_grid.add_child(label)
@@ -708,7 +716,7 @@ func show_step(result: StepResult) -> void:
 func retranslate() -> void:
 	_select_button.tooltip_text = tr("Select and move rooms, doors and parts; drag a room's edge to resize it")
 	_room_button.tooltip_text = tr("Draw a room: drag from corner to corner, or click both corners; type its width, Tab, its depth in mm and Enter for an exact size; it snaps to the walls of the others")
-	_door_button.tooltip_text = tr("Put a door in a wall by clicking it; a double click on a door sets its width, double door and swing; a selected door: F swaps its hinge, Shift+F opens it to the other side")
+	_door_button.tooltip_text = tr("Put a door in a wall by clicking it (of the kind chosen last); a double click on a door sets its kind, width, double door and swing; a selected door: drag the handle at the end of its leaf to another corner to turn it, F swaps its hinge, Shift+F opens it to the other side")
 	_join_button.tooltip_text = tr("Join two rooms into one (an L-shaped room and the like): click one, then the other touching it")
 	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
 	_dimension_button.tooltip_text = tr("Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away")
@@ -722,7 +730,7 @@ func retranslate() -> void:
 	_floor_dialog.title = tr("Name of the floor")
 	_floor_dialog.ok_button_text = tr("OK")
 	_floor_dialog.cancel_button_text = tr("Cancel")
-	_layers_menu.tooltip_text = tr("Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts, notes, dimensions and furniture go on; a right click on something puts it on another")
+	_layers_menu.tooltip_text = tr("Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts and furniture go on (dimensions and notes always go on their own); a right click on something puts it on another")
 	_layer_dialog.ok_button_text = tr("OK")
 	_layer_dialog.cancel_button_text = tr("Cancel")
 	_note_button.tooltip_text = tr("Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away")
@@ -763,8 +771,11 @@ func retranslate() -> void:
 	_door_dialog.title = tr("Door")
 	_door_dialog.ok_button_text = tr("OK")
 	_door_dialog.cancel_button_text = tr("Cancel")
-	var door_labels: Array[String] = [tr("Width"), tr("Double door"), tr("Hinges"), tr("Opens")]
+	var door_labels: Array[String] = [tr("Kind"), tr("Width"), tr("Double door"), tr("Hinges or slides to"), tr("Opens")]
 	var door_grid: GridContainer = _door_width.get_parent() as GridContainer
+	_door_kind.clear()
+	for kind_name: String in [tr("Hinged"), tr("Swinging both ways"), tr("Sliding along the wall"), tr("Sliding into the wall (pocket)"), tr("Folding"), tr("Garage (sectional)")]:
+		_door_kind.add_item(kind_name)
 	for k: int in door_labels.size():
 		(door_grid.get_child(2 * k) as Label).text = door_labels[k]
 	_door_hinge.clear()
@@ -1038,14 +1049,16 @@ func _apply_length() -> void:
 			doc.floor_plan.set_wall_look(wall.x, wall.y, thickness, mode))
 
 
-## Asks how door [param index] is: its width, single or double, its hinge
-## end and the side it opens to.
+## Asks how door [param index] is: its kind, its width (cm), single or
+## double, its hinge end (where it slides or folds to) and the side it
+## opens to.
 func _ask_door(index: int) -> void:
 	if not _editing or index < 0 or index >= _document.floor_plan.doors.size():
 		return
 	_door = index
 	var door: FloorPlan.Door = _document.floor_plan.doors[index]
-	_door_width.value = door.width
+	_door_kind.select(door.kind)
+	_door_width.value = roundf(door.width * 100.0)
 	_door_double.button_pressed = door.double
 	_door_hinge.select(1 if door.hinge_end else 0)
 	_door_side.select(1 if door.opens_back else 0)
@@ -1057,12 +1070,16 @@ func _apply_door() -> void:
 	var index: int = _door
 	if index < 0 or index >= _document.floor_plan.doors.size():
 		return
-	var width: float = _door_width.value
+	var kind: int = maxi(_door_kind.selected, 0)
+	var width: float = _door_width.value / 100.0
 	var double: bool = _door_double.button_pressed
 	var hinge_end: bool = _door_hinge.selected == 1
 	var opens_back: bool = _door_side.selected == 1
+	# The next door put in is of this kind too.
+	canvas.door_kind = kind
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
 		var door: FloorPlan.Door = doc.floor_plan.doors[index]
+		door.kind = kind
 		door.width = width
 		door.double = double
 		door.hinge_end = hinge_end
@@ -1116,13 +1133,11 @@ func _apply_note() -> void:
 			return
 		var anchor: Vector2 = canvas.pending_note[0]
 		var label: Vector2 = canvas.pending_note[1]
-		var layer: String = canvas.new_layer()
 		edit_requested.emit(func(doc: SchematicDocument) -> void:
 			var note: FloorPlan.Note = FloorPlan.Note.new()
 			note.text = text
 			note.at = anchor
 			note.label = label
-			note.layer = layer
 			doc.floor_plan.notes.append(note))
 		return
 	if index >= _document.floor_plan.notes.size():
@@ -1264,11 +1279,15 @@ func _fill_layers_menu() -> void:
 	var popup: PopupMenu = _layers_menu.get_popup()
 	popup.clear()
 	var layers: Array[FloorPlan.Layer] = _document.plan_layers
+	popup.add_separator(tr("Shown"))
+	# The dimensions and notes' own layer, always there.
+	popup.add_check_item(tr("Dimensions and notes"), 99)
+	popup.set_item_checked(popup.item_count - 1, _document.annotations_shown)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Every dimension and note is on this layer; it cannot be renamed nor removed, nor anything else put on it"))
+	for i: int in layers.size():
+		popup.add_check_item(layers[i].name, 100 + i)
+		popup.set_item_checked(popup.item_count - 1, layers[i].shown)
 	if not layers.is_empty():
-		popup.add_separator(tr("Shown"))
-		for i: int in layers.size():
-			popup.add_check_item(layers[i].name, 100 + i)
-			popup.set_item_checked(popup.item_count - 1, layers[i].shown)
 		popup.add_separator(tr("New things go on"))
 		popup.add_radio_check_item(tr("No layer"), 200)
 		popup.set_item_checked(popup.item_count - 1, canvas.active_layer.is_empty())
@@ -1280,13 +1299,19 @@ func _fill_layers_menu() -> void:
 	if not canvas.active_layer.is_empty():
 		popup.add_item(tr("Rename the layer %s…") % canvas.active_layer, 1)
 		popup.add_item(tr("Remove the layer %s (what is on it stays, on no layer)") % canvas.active_layer, 2)
-	if layers.any(func(layer: FloorPlan.Layer) -> bool: return not layer.shown):
+	if not _document.annotations_shown or layers.any(func(layer: FloorPlan.Layer) -> bool: return not layer.shown):
 		popup.add_item(tr("Show all layers"), 3)
 
 
 func _on_layers_menu(id: int) -> void:
 	var active: String = canvas.active_layer
 	var count: int = _document.plan_layers.size()
+	if id == 99:
+		var shown_now: bool = not _document.annotations_shown
+		if not shown_now and str(canvas.selected.get("kind", "")) in ["note", "dimension"]:
+			canvas.selected = {}
+		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.annotations_shown = shown_now)
+		return
 	if id >= 100 and id < 100 + count:
 		# Hidden, what is on it is neither drawn nor picked: nor the
 		# selection, nor the layer new things go on.
@@ -1317,6 +1342,7 @@ func _on_layers_menu(id: int) -> void:
 			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.remove_plan_layer(active))
 		3:
 			edit_requested.emit(func(doc: SchematicDocument) -> void:
+				doc.annotations_shown = true
 				for layer: FloorPlan.Layer in doc.plan_layers:
 					layer.shown = true)
 

@@ -1,7 +1,8 @@
 extends GutTest
 ## Layers of the floor plans: made, renamed and taken away with what is on
 ## them on every floor, saved, what is on a hidden one neither drawn nor
-## picked, new things put on the active one, and the Layers menu.
+## picked, new things put on the active one, dimensions and notes always on
+## their own, and the Layers menu.
 
 
 ## A room 6 × 4 with a switch SF1 and a socket XD1 on its walls, a
@@ -51,6 +52,12 @@ func test_layers_saved_renamed_and_removed() -> void:
 	plan.set_item_layer("note", 0, "", "Heating")
 	plan.set_item_layer("dimension", 0, "", "Heating")
 	plan.set_item_layer("fixture", 0, "", "Heating")
+	assert_eq(plan.notes[0].layer, FloorPlan.ANNOTATIONS, "a note stays on the dimensions and notes' layer")
+	assert_eq(plan.dimensions[0].layer, FloorPlan.ANNOTATIONS)
+	plan.set_item_layer("fixture", 0, "", FloorPlan.ANNOTATIONS)
+	assert_eq(plan.fixtures[0].layer, "Heating", "nothing else goes on it")
+	assert_false(doc.add_plan_layer(FloorPlan.ANNOTATIONS), "nor is a layer of that name made")
+	doc.annotations_shown = false
 	doc.floors[1].set_part_layer("XD2", "Sockets")
 	doc.plan_layer("Heating").shown = false
 	# Saved and read back.
@@ -62,8 +69,11 @@ func test_layers_saved_renamed_and_removed() -> void:
 	assert_true(copy.layer_shown("Gone"), "a layer there is no more: as none")
 	assert_eq(copy.floors[0].layer_of("XD1"), "Sockets")
 	assert_eq(copy.floors[1].layer_of("XD2"), "Sockets")
-	for kind: String in ["note", "dimension", "fixture"]:
-		assert_eq(copy.floors[0].item_layer(kind, 0, ""), "Heating", kind)
+	assert_eq(copy.floors[0].item_layer("fixture", 0, ""), "Heating")
+	for kind: String in ["note", "dimension"]:
+		assert_eq(copy.floors[0].item_layer(kind, 0, ""), FloorPlan.ANNOTATIONS, kind)
+	assert_false(copy.layer_shown(FloorPlan.ANNOTATIONS), "dimensions and notes hidden, saved")
+	assert_false(doc.rename_plan_layer("Heating", FloorPlan.ANNOTATIONS))
 	# Renamed: what is on it on every floor along.
 	assert_false(doc.rename_plan_layer("Sockets", "Heating"), "not onto a name taken")
 	assert_true(doc.rename_plan_layer("Sockets", "Power"))
@@ -78,7 +88,7 @@ func test_layers_saved_renamed_and_removed() -> void:
 	doc.remove_plan_layer("Heating")
 	assert_eq(doc.plan_layers.size(), 1)
 	assert_eq(plan.notes.size(), 1)
-	assert_eq(plan.notes[0].layer, "")
+	assert_eq(plan.notes[0].layer, FloorPlan.ANNOTATIONS)
 	assert_eq(plan.fixtures[0].layer, "")
 
 
@@ -99,14 +109,17 @@ func test_hidden_layer_neither_drawn_nor_picked() -> void:
 	assert_eq(canvas.fixture_at(table_at), 0)
 	assert_eq(canvas.saved_dimension_at(dimension_at), 0)
 	plan.set_part_layer("SF1", "Hidden")
-	for kind: String in ["note", "dimension", "fixture"]:
-		plan.set_item_layer(kind, 0, "", "Hidden")
+	plan.set_item_layer("fixture", 0, "", "Hidden")
 	assert_eq(canvas.part_at(switch_at), "SF1", "shown while its layer is")
 	doc.plan_layer("Hidden").shown = false
 	assert_eq(canvas.part_at(switch_at), "", "hidden")
-	assert_true(canvas.note_at(note_at).is_empty())
 	assert_eq(canvas.fixture_at(table_at), -1)
+	assert_eq(canvas.note_at(note_at)["index"], 0, "dimensions and notes on their own layer")
+	doc.annotations_shown = false
+	assert_true(canvas.note_at(note_at).is_empty())
 	assert_eq(canvas.saved_dimension_at(dimension_at), -1)
+	doc.annotations_shown = true
+	assert_true(canvas._layered_at(note_at).is_empty(), "no layer menu for a note")
 	assert_false(canvas.layer_shows("SF1"))
 	assert_false(canvas._link_shown(plan.links[0]), "its lines with it")
 	assert_true(canvas.layer_shows("EA1"), "what is on none stays")
@@ -166,14 +179,24 @@ func test_layers_menu() -> void:
 	assert_eq(view.canvas.active_layer, "Lighting")
 	assert_true(doc.layer_shown("Lighting"))
 	# The selection right-clicked put on it.
-	view.canvas.selected = {"kind": "note", "index": 0}
+	view.canvas.selected = {"kind": "fixture", "index": 0}
 	view._on_layer_picked(1)
-	assert_eq(doc.floor_plan.notes[0].layer, "Lighting")
+	assert_eq(doc.floor_plan.fixtures[0].layer, "Lighting")
 	view._layer_asked = "rename"
 	view._layer_name.text = "Light"
 	view._apply_layer_name()
-	assert_eq(doc.floor_plan.notes[0].layer, "Light")
+	assert_eq(doc.floor_plan.fixtures[0].layer, "Light")
 	assert_eq(view.canvas.active_layer, "Light")
 	view._on_layers_menu(2)
 	assert_true(doc.plan_layers.is_empty())
-	assert_eq(doc.floor_plan.notes[0].layer, "", "on none once its layer is gone")
+	assert_eq(doc.floor_plan.fixtures[0].layer, "", "on none once its layer is gone")
+	# The dimensions and notes' layer: always in the menu, hidden and shown.
+	view._fill_layers_menu()
+	var popup: PopupMenu = view._layers_menu.get_popup()
+	assert_ne(popup.get_item_index(99), -1, "always there")
+	view.canvas.selected = {"kind": "note", "index": 0}
+	view._on_layers_menu(99)
+	assert_false(doc.annotations_shown)
+	assert_true(view.canvas.selected.is_empty(), "a hidden note is not kept selected")
+	view._on_layers_menu(3)
+	assert_true(doc.annotations_shown, "Show all shows them too")

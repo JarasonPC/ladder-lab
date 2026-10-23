@@ -78,6 +78,8 @@ static func to_dict(doc: SchematicDocument) -> Dictionary:
 		for layer: FloorPlan.Layer in doc.plan_layers:
 			layer_list.append({"name": layer.name, "shown": layer.shown})
 		result["plan_layers"] = layer_list
+	if not doc.annotations_shown:
+		result["annotations_hidden"] = true
 	var symbol_list: Array = []
 	for id: String in doc.used_symbols():
 		symbol_list.append(doc.symbols[id].to_data())
@@ -223,6 +225,7 @@ static func from_dict(d: Dictionary) -> SchematicDocument:
 		for ld: Variant in layer_list:
 			if ld is Dictionary and ld.get("name", null) is String and doc.add_plan_layer(ld["name"]):
 				doc.plan_layers[-1].shown = ld.get("shown", true) != false
+	doc.annotations_shown = d.get("annotations_hidden", false) != true
 	var symbol_list: Variant = d.get("symbols", [])
 	if symbol_list is Array:
 		for raw: Variant in symbol_list:

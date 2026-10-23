@@ -711,3 +711,56 @@ func test_ghosts_and_previews_drawn() -> void:
 	await get_tree().process_frame
 	canvas._dragging = false
 	assert_null(canvas._room_preview())
+
+
+func test_door_kinds_turned_by_their_corner() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	# Saved by kind, a garage door wide.
+	var garage: FloorPlan.Door = FloorPlan.Door.new(Vector2(5, 4), false, 4.0)
+	garage.kind = FloorPlan.DoorKind.GARAGE
+	plan.doors.append(garage)
+	var again: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_eq(again.doors[0].kind, FloorPlan.DoorKind.GARAGE)
+	assert_almost_eq(again.doors[0].width, 4.0, 1e-6)
+	plan.doors.clear()
+	var canvas: FloorPlanCanvas = FloorPlanCanvas.new()
+	canvas.document = doc
+	canvas.editing = true
+	canvas.size = Vector2(1000, 700)
+	canvas.edit_requested.connect(func(change: Callable) -> void: change.call(doc))
+	add_child_autofree(canvas)
+	# Put in of the kind chosen last, every kind drawn.
+	for kind: int in FloorPlan.DOOR_KINDS.size():
+		canvas.door_kind = kind
+		canvas.tool = FloorPlanCanvas.Tool.DOOR
+		canvas._mouse = canvas.to_screen(Vector2(5.0, 3.95))
+		canvas.queue_redraw()
+		await get_tree().process_frame
+	canvas.door_kind = FloorPlan.DoorKind.SWING
+	canvas._release({"kind": "new_door"}, canvas.to_screen(Vector2(5.0, 3.95)))
+	assert_eq(plan.doors.size(), 1)
+	var door: FloorPlan.Door = plan.doors[0]
+	assert_false(door.hinge_end or door.opens_back)
+	# Taken by its leaf too, not only in the wall.
+	var leaf: Vector2 = canvas.door_corner(door)
+	assert_eq(canvas.door_at(canvas.to_screen(door.at.lerp(leaf, 0.5))), 0, "the swing is part of it")
+	canvas.tool = FloorPlanCanvas.Tool.SELECT
+	canvas.selected = {"kind": "door", "index": 0}
+	var handle: Dictionary = canvas.handle_at(canvas.to_screen(leaf))
+	assert_eq(handle.get("kind", ""), "door_swing", "a handle at the end of its leaf")
+	# Dragged to the corner at its other end, on the other side of the wall.
+	canvas._press_at = canvas.to_screen(leaf)
+	canvas._press = handle
+	canvas._dragging = true
+	var other: Vector2 = door.at + Vector2(door.width * 0.5, 0.0) - FloorPlanCanvas.door_across(door) * door.width
+	canvas._mouse = canvas.to_screen(other)
+	var shown: FloorPlan.Door = canvas._shown_opening("door", 0) as FloorPlan.Door
+	assert_true(shown.hinge_end and shown.opens_back, "shown turned while dragged")
+	canvas.queue_redraw()
+	await get_tree().process_frame
+	canvas._press = {}
+	canvas._release(handle, canvas._mouse)
+	canvas._dragging = false
+	assert_true(door.hinge_end, "hinged at its other end")
+	assert_true(door.opens_back, "opening to the other side")

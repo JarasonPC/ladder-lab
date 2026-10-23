@@ -153,8 +153,10 @@ const FORMAT: String = "ladder-lab"
 ## (a room's "thickness" and "align", a value a wall; missing: the plan's,
 ## as suits), rooms with slanting walls ("points" of any angle), walls
 ## drawn on their own ("free_walls": a, b, thickness), staircases
-## (a room's "stairs": "up" or "reverse") and wall parts' symbols moved off
-## their wall (a fourth number in a part's "parts" entry, m; missing: on it).
+## (a room's "stairs": "up" or "reverse"), wall parts' symbols moved off
+## their wall (a fourth number in a part's "parts" entry, m; missing: on it),
+## a door's "kind" (missing: hinged) and dimensions and notes always on
+## their own layer ("annotations_hidden"; their "layer" no more read).
 const VERSION: int = 54
 
 

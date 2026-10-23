@@ -464,9 +464,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   a rectangle's top and left, every wall of another outline; _dimension_line outside it),
   double-clicked or Enter on a selected wall: length_requested -> FloorPlanView's length
   dialog (set_wall_length); the room's label (Room.label_offset, saved "label") is dragged.
-  Doors: hinge_end, opens_back, double (two leaves of half the width from both ends); with
-  Tool.DOOR or Tool.WINDOW the one a click puts in is drawn where it would go; a
-  double click: door_requested -> FloorPlanView's door dialog; F / Shift+F on a selected door.
+  Doors: kind (FloorPlan.DoorKind, saved "kind" by DOOR_KINDS when not swing: hinged, swinging
+  both ways, sliding along the wall, sliding into it (pocket), folding, a sectional garage
+  door; each drawn in _draw_door), hinge_end (for sliding and folding ones the end it goes
+  to), opens_back, double (two leaves of half the width from both ends), DOOR_MIN_WIDTH ..
+  DOOR_MAX_WIDTH; with Tool.DOOR or Tool.WINDOW the one a click puts in is drawn where it
+  would go, a door of FloorPlanCanvas.door_kind (the kind last set in the door dialog;
+  _new_door, a garage GARAGE_WIDTH wide); a door is taken by its leaf and swing too
+  (_door_swing_box, a few pixels to spare); selected, besides its end handles it has one at
+  the end of its leaf (door_corner) that turns it when dragged to another corner (_door_turn:
+  hinged at the end, opening to the side of the wall nearer the mouse; the corners it can go
+  to ringed meanwhile); a double click: door_requested -> FloorPlanView's door dialog (its
+  kind, width in cm); F / Shift+F on a selected door.
   Windows (FloorPlan.WindowOpening: width, sill, height; saved "windows"), doors and windows
   both FloorPlan.Opening (at, width, vertical, ends; openings() moves them with rooms and
   walls), Tool.WINDOW, a double click: window_requested -> the window dialog. Walls have a
@@ -573,8 +582,13 @@ Architecture and conventions of the code base. Read this before changing the cod
   FloorPlan.Layer: name, shown; saved "plan_layers"; add_plan_layer, rename_plan_layer and
   remove_plan_layer, names unique, MAX_LAYER_NAME, what was on a layer taken away stays on
   none); parts (FloorPlan.part_layers by designation, saved "part_layers", never the unit),
-  notes, dimensions, fixtures and marks ("layer") are on one or on none ("");
-  SchematicDocument.layer_shown: on none or a layer there is no more, shown. On a hidden one
+  fixtures and marks ("layer") are on one or on none (""); dimensions and notes are always
+  on the program's own layer FloorPlan.ANNOTATIONS ("Dimensions and notes": not among
+  plan_layers, never renamed nor taken away, no layer of its name made, nothing else put on
+  it, set_item_layer leaves them, no right-click layer menu for them; their "layer" not
+  saved; shown by SchematicDocument.annotations_shown, saved "annotations_hidden", the
+  Layers menu's first tick, Show all too); SchematicDocument.layer_shown: on none or a layer
+  there is no more, shown. On a hidden one
   they are neither drawn nor picked (FloorPlanCanvas.layer_shows, shows; a link or cable
   only with both its parts shown, _link_shown), nor counted in the legend; the building, the
   unit and the room legend always. New ones go on FloorPlanCanvas.active_layer (new_layer:
