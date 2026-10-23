@@ -6606,3 +6606,535 @@ msgstr ""
 
 msgid "Draw the house: with Room by its corners click the corners of the house, then split it into rooms with Walls drawn across it; or drag a Room, or add a ready one."
 msgstr ""
+
+msgid "External influences (ČSN 33 2000-5-51)"
+msgstr ""
+
+msgid "Tick the influences of the room, at most one class of each; with none ticked the room is normal (N)."
+msgstr ""
+
+msgid "Meaning"
+msgstr ""
+
+msgid "List"
+msgstr ""
+
+msgid "The external influences of ČSN 33 2000-5-51 as a table: tick those of the room"
+msgstr ""
+
+msgid "Environment"
+msgstr ""
+
+msgid "Ambient temperature"
+msgstr ""
+
+msgid "Temperature and relative humidity"
+msgstr ""
+
+msgid "Altitude"
+msgstr ""
+
+msgid "Presence of water"
+msgstr ""
+
+msgid "Presence of foreign solid bodies"
+msgstr ""
+
+msgid "Presence of corrosive or polluting substances"
+msgstr ""
+
+msgid "Impact"
+msgstr ""
+
+msgid "Vibration"
+msgstr ""
+
+msgid "Other mechanical stresses"
+msgstr ""
+
+msgid "Presence of flora or mould growth"
+msgstr ""
+
+msgid "Presence of fauna"
+msgstr ""
+
+msgid "Electromagnetic, electrostatic or ionising influences"
+msgstr ""
+
+msgid "Harmonics, interharmonics"
+msgstr ""
+
+msgid "Signalling voltages"
+msgstr ""
+
+msgid "Voltage amplitude variations"
+msgstr ""
+
+msgid "Voltage unbalance"
+msgstr ""
+
+msgid "Power frequency variations"
+msgstr ""
+
+msgid "Induced low-frequency voltages"
+msgstr ""
+
+msgid "Direct current in a.c. networks"
+msgstr ""
+
+msgid "Radiated magnetic fields"
+msgstr ""
+
+msgid "Electric fields"
+msgstr ""
+
+msgid "Induced oscillatory voltages or currents"
+msgstr ""
+
+msgid "Conducted unidirectional transients of the nanosecond time scale"
+msgstr ""
+
+msgid "Conducted unidirectional transients of the microsecond to millisecond time scale"
+msgstr ""
+
+msgid "Conducted oscillatory transients"
+msgstr ""
+
+msgid "Radiated high-frequency phenomena"
+msgstr ""
+
+msgid "Electrostatic discharges"
+msgstr ""
+
+msgid "Ionisation"
+msgstr ""
+
+msgid "Solar radiation"
+msgstr ""
+
+msgid "Seismic effects"
+msgstr ""
+
+msgid "Lightning"
+msgstr ""
+
+msgid "Movement of air"
+msgstr ""
+
+msgid "Wind"
+msgstr ""
+
+msgid "Utilisation"
+msgstr ""
+
+msgid "Capability of persons"
+msgstr ""
+
+msgid "Electrical resistance of the human body"
+msgstr ""
+
+msgid "Contact of persons with earth potential"
+msgstr ""
+
+msgid "Conditions of evacuation in an emergency"
+msgstr ""
+
+msgid "Nature of processed or stored materials"
+msgstr ""
+
+msgid "Construction of buildings"
+msgstr ""
+
+msgid "Construction materials"
+msgstr ""
+
+msgid "Building design"
+msgstr ""
+
+msgctxt "AD"
+msgid "negligible"
+msgstr ""
+
+msgctxt "AD"
+msgid "free-falling drops"
+msgstr ""
+
+msgctxt "AD"
+msgid "sprays"
+msgstr ""
+
+msgctxt "AD"
+msgid "splashes"
+msgstr ""
+
+msgctxt "AD"
+msgid "jets"
+msgstr ""
+
+msgctxt "AD"
+msgid "waves"
+msgstr ""
+
+msgctxt "AD"
+msgid "immersion"
+msgstr ""
+
+msgctxt "AD"
+msgid "submersion"
+msgstr ""
+
+msgctxt "AE"
+msgid "negligible"
+msgstr ""
+
+msgctxt "AE"
+msgid "small objects"
+msgstr ""
+
+msgctxt "AE"
+msgid "very small objects"
+msgstr ""
+
+msgctxt "AE"
+msgid "light dust"
+msgstr ""
+
+msgctxt "AE"
+msgid "moderate dust"
+msgstr ""
+
+msgctxt "AE"
+msgid "heavy dust"
+msgstr ""
+
+msgctxt "AF"
+msgid "negligible"
+msgstr ""
+
+msgctxt "AF"
+msgid "atmospheric"
+msgstr ""
+
+msgctxt "AF"
+msgid "intermittent"
+msgstr ""
+
+msgctxt "AF"
+msgid "continuous"
+msgstr ""
+
+msgctxt "AG"
+msgid "low severity"
+msgstr ""
+
+msgctxt "AG"
+msgid "medium severity"
+msgstr ""
+
+msgctxt "AG"
+msgid "high severity"
+msgstr ""
+
+msgctxt "AH"
+msgid "low severity"
+msgstr ""
+
+msgctxt "AH"
+msgid "medium severity"
+msgstr ""
+
+msgctxt "AH"
+msgid "high severity"
+msgstr ""
+
+msgctxt "AK"
+msgid "no hazard"
+msgstr ""
+
+msgctxt "AK"
+msgid "hazard"
+msgstr ""
+
+msgctxt "AL"
+msgid "no hazard"
+msgstr ""
+
+msgctxt "AL"
+msgid "hazard"
+msgstr ""
+
+msgctxt "AM-1"
+msgid "controlled level"
+msgstr ""
+
+msgctxt "AM-1"
+msgid "normal level"
+msgstr ""
+
+msgctxt "AM-1"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-2"
+msgid "controlled level"
+msgstr ""
+
+msgctxt "AM-2"
+msgid "normal level"
+msgstr ""
+
+msgctxt "AM-2"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-3"
+msgid "controlled level"
+msgstr ""
+
+msgctxt "AM-3"
+msgid "normal level"
+msgstr ""
+
+msgctxt "AM-8"
+msgid "medium level"
+msgstr ""
+
+msgctxt "AM-8"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-9"
+msgid "negligible level"
+msgstr ""
+
+msgctxt "AM-9"
+msgid "medium level"
+msgstr ""
+
+msgctxt "AM-9"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-9"
+msgid "very high level"
+msgstr ""
+
+msgctxt "AM-22"
+msgid "negligible level"
+msgstr ""
+
+msgctxt "AM-22"
+msgid "medium level"
+msgstr ""
+
+msgctxt "AM-22"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-22"
+msgid "very high level"
+msgstr ""
+
+msgctxt "AM-23"
+msgid "controlled level"
+msgstr ""
+
+msgctxt "AM-23"
+msgid "medium level"
+msgstr ""
+
+msgctxt "AM-23"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-24"
+msgid "medium level"
+msgstr ""
+
+msgctxt "AM-24"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-25"
+msgid "negligible level"
+msgstr ""
+
+msgctxt "AM-25"
+msgid "medium level"
+msgstr ""
+
+msgctxt "AM-25"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-31"
+msgid "low level"
+msgstr ""
+
+msgctxt "AM-31"
+msgid "medium level"
+msgstr ""
+
+msgctxt "AM-31"
+msgid "high level"
+msgstr ""
+
+msgctxt "AM-31"
+msgid "very high level"
+msgstr ""
+
+msgctxt "AN"
+msgid "low"
+msgstr ""
+
+msgctxt "AN"
+msgid "medium"
+msgstr ""
+
+msgctxt "AN"
+msgid "high"
+msgstr ""
+
+msgctxt "AP"
+msgid "negligible"
+msgstr ""
+
+msgctxt "AP"
+msgid "low severity"
+msgstr ""
+
+msgctxt "AP"
+msgid "medium severity"
+msgstr ""
+
+msgctxt "AP"
+msgid "high severity"
+msgstr ""
+
+msgctxt "AQ"
+msgid "negligible"
+msgstr ""
+
+msgctxt "AQ"
+msgid "indirect exposure"
+msgstr ""
+
+msgctxt "AQ"
+msgid "direct exposure"
+msgstr ""
+
+msgctxt "AR"
+msgid "low"
+msgstr ""
+
+msgctxt "AR"
+msgid "medium"
+msgstr ""
+
+msgctxt "AR"
+msgid "high"
+msgstr ""
+
+msgctxt "AS"
+msgid "low"
+msgstr ""
+
+msgctxt "AS"
+msgid "medium"
+msgstr ""
+
+msgctxt "AS"
+msgid "high"
+msgstr ""
+
+msgctxt "BA"
+msgid "ordinary"
+msgstr ""
+
+msgctxt "BA"
+msgid "children"
+msgstr ""
+
+msgctxt "BA"
+msgid "handicapped"
+msgstr ""
+
+msgctxt "BA"
+msgid "instructed"
+msgstr ""
+
+msgctxt "BA"
+msgid "skilled"
+msgstr ""
+
+msgctxt "BC"
+msgid "none"
+msgstr ""
+
+msgctxt "BC"
+msgid "exceptional"
+msgstr ""
+
+msgctxt "BC"
+msgid "frequent"
+msgstr ""
+
+msgctxt "BC"
+msgid "continuous"
+msgstr ""
+
+msgctxt "BD"
+msgid "low density of persons, easy exit"
+msgstr ""
+
+msgctxt "BD"
+msgid "low density of persons, difficult exit"
+msgstr ""
+
+msgctxt "BD"
+msgid "high density of persons, easy exit"
+msgstr ""
+
+msgctxt "BD"
+msgid "high density of persons, difficult exit"
+msgstr ""
+
+msgctxt "BE"
+msgid "no significant risks"
+msgstr ""
+
+msgctxt "BE"
+msgid "fire risks"
+msgstr ""
+
+msgctxt "BE"
+msgid "explosion risks"
+msgstr ""
+
+msgctxt "BE"
+msgid "contamination risks"
+msgstr ""
+
+msgctxt "CA"
+msgid "non-combustible"
+msgstr ""
+
+msgctxt "CA"
+msgid "combustible"
+msgstr ""
+
+msgctxt "CB"
+msgid "negligible risks"
+msgstr ""
+
+msgctxt "CB"
+msgid "propagation of fire"
+msgstr ""
+
+msgctxt "CB"
+msgid "movement"
+msgstr ""
+
+msgctxt "CB"
+msgid "flexible or unstable"
+msgstr ""

@@ -3644,10 +3644,10 @@ func _draw_room_legend(s: float, font: Font) -> void:
 			used.append(environment)
 	var y: float = top_left.y + (rows + 0.8) * ROOM_ROW * s
 	for environment: String in used:
-		var index: int = FloorPlan.ENVIRONMENTS.find(environment)
-		if index < 0:
+		var meaning: String = FloorPlan.environment_note(environment)
+		if meaning.is_empty():
 			continue
-		var note: String = "%s – %s" % [environment, tr(FloorPlan.ENVIRONMENT_NOTES[index])]
+		var note: String = "%s – %s" % [environment, meaning]
 		draw_multiline_string(font, Vector2(top_left.x, y), note, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x * s, text_size - 1, -1, SchematicTheme.TEXT)
 		y += (text_size + 2) * maxf(1.0, ceilf(font.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size - 1).x / (rect.size.x * s)))
 

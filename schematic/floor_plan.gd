@@ -1598,6 +1598,41 @@ func room_environment(index: int) -> String:
 	return ENVIRONMENTS[1] if rooms[index].name == "Bathroom" else ENVIRONMENTS[0]
 
 
+## Whether room [param index] is a room with a bath or shower (its
+## environment has ČSN 33 2000-7-701 among its items).
+func is_bathroom(index: int) -> bool:
+	return ExternalInfluences.items(room_environment(index)).has(ENVIRONMENTS[1])
+
+
+## [param environment] (a room's) with the classes of [param codes]
+## ([ExternalInfluences]) in place of its own: a bathroom's mark kept in
+## front; nothing at all is normal, [constant ENVIRONMENTS] 0.
+static func with_influences(environment: String, codes: PackedStringArray) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	if ExternalInfluences.items(environment).has(ENVIRONMENTS[1]):
+		parts.append(ENVIRONMENTS[1])
+	var classes: String = ExternalInfluences.join(codes)
+	if not classes.is_empty():
+		parts.append(classes)
+	return ", ".join(parts) if not parts.is_empty() else ENVIRONMENTS[0]
+
+
+## What [param environment] means, translated: the note of one of
+## [constant ENVIRONMENTS], else a bathroom's note and what each class of
+## the external influences in it means.
+static func environment_note(environment: String) -> String:
+	var index: int = ENVIRONMENTS.find(environment)
+	if index >= 0:
+		return TranslationServer.translate(ENVIRONMENT_NOTES[index])
+	var parts: PackedStringArray = PackedStringArray()
+	if ExternalInfluences.items(environment).has(ENVIRONMENTS[1]):
+		parts.append(TranslationServer.translate(ENVIRONMENT_NOTES[1]))
+	var classes: String = ExternalInfluences.note(environment)
+	if not classes.is_empty():
+		parts.append(classes)
+	return "; ".join(parts)
+
+
 ## Illuminance (lx) of room [param index]: the one set, else the usual one for its name.
 func room_lux(index: int) -> String:
 	return rooms[index].lux if not rooms[index].lux.is_empty() else LUX.get(rooms[index].name, "150")

@@ -444,6 +444,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   beside the plan the legend of the rooms (_draw_room_legend, ROOM_COLUMNS; in paper_area and
   fit); the room dialog (double click) asks them too, each environment offered with what
   it means (FloorPlan.ENVIRONMENT_NOTES), the ones used explained under the legend
+  (FloorPlan.environment_note). An environment is a list joined by ", ": the names of
+  ENVIRONMENTS or classes of the external influences (ExternalInfluences, no nodes: ČSN 33
+  2000-5-51 Annex A, GROUPS A/B/C of categories AA … CB with their classes, AM-1 … AM-41
+  under an AM heading, AJ and BB without classes; a class's text translated with its
+  category's code as context, msgctxt in the .po; join keeps one class per category in the
+  order of the list; describe / note say what they mean). Beside the environment field the
+  List button opens InfluencesDialog: the list as a table (Tree: groups, categories, a
+  class per row with a check box, its code and meaning; ticking one takes the tick off the
+  others of its category); OK gives FloorPlan.with_influences (a bathroom's ČSN 33
+  2000-7-701 kept in front, nothing ticked N); a room's own list is offered after the
+  presets (FloorPlanView._offer_environments). FloorPlan.is_bathroom: ČSN 33 2000-7-701
+  among its items (InstallationCheck)
 - Floor plan rooms are outlines (FloorPlan.Room.points, clockwise as drawn; rect is the
   rectangle round it, set makes a rectangle; contains, area, wall(k), inward(k), corner;
   saved as "points" beside "rect" when not a rectangle). A wall may slant (is_straight: across
