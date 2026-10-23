@@ -3,7 +3,8 @@ extends ConfirmationDialog
 ## Asks what a new schematic will be, once and for good (see [member
 ## SchematicDocument.environment]): an industrial control circuit, a
 ## residential prototype or a residential installation. Each is a card with
-## its icon; a double click on a card takes it at once.
+## its icon; a double click on a card takes it at once. Kinds still being
+## made are shown locked and cannot be chosen.
 
 ## [param environment] (a [enum SchematicDocument.Kind]) was chosen.
 signal chosen(environment: int)
@@ -12,6 +13,9 @@ signal chosen(environment: int)
 const ICON_SIZE: int = 40
 ## The cards, in [enum SchematicDocument.Kind] order.
 const ICONS: PackedStringArray = ["factory", "bulb", "house"]
+## Kinds not finished yet: their cards carry a lock and cannot be chosen
+## (schematics of them made before still open).
+const LOCKED: Array[int] = [SchematicDocument.Kind.PROTOTYPE]
 
 var _cards: Array[Button] = []
 var _note: Label
@@ -35,7 +39,8 @@ func _init() -> void:
 		card.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		card.toggle_mode = true
 		card.button_group = group
-		card.icon = AppTheme.icon(ICONS[environment], ICON_SIZE)
+		card.icon = AppTheme.icon("lock" if environment in LOCKED else ICONS[environment], ICON_SIZE)
+		card.disabled = environment in LOCKED
 		card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		card.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		card.custom_minimum_size = Vector2(220, 170)
@@ -45,7 +50,7 @@ func _init() -> void:
 				_environment = environment)
 		card.gui_input.connect(func(event: InputEvent) -> void:
 			var click: InputEventMouseButton = event as InputEventMouseButton
-			if click != null and click.double_click and click.button_index == MOUSE_BUTTON_LEFT:
+			if click != null and click.double_click and click.button_index == MOUSE_BUTTON_LEFT and not card.disabled:
 				_environment = environment
 				hide()
 				chosen.emit(environment))
@@ -82,7 +87,8 @@ func ask() -> void:
 	cancel_button_text = tr("Cancel")
 	_note.text = tr("What will you draw? It cannot be changed later.")
 	for environment: int in _cards.size():
-		_cards[environment].text = environment_name(environment) + "\n" + environment_text(environment)
+		var text: String = tr("Not ready yet: coming in a later version") if environment in LOCKED else environment_text(environment)
+		_cards[environment].text = environment_name(environment) + "\n" + text
 	_cards[_environment].button_pressed = true
 	# At the interface size of the window it is asked from.
 	content_scale_factor = get_parent().get_window().content_scale_factor

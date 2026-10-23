@@ -7,6 +7,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- Walls drawn with the wall tool snap onto the rooms' walls, and walls drawn from a room's
+  wall across the room to its wall (straight or bent where you click) split it in two; they
+  take the place of the separate split tool
+- While rooms, walls, doors or windows are drawn, or a room is picked, the floor plan's side
+  panel shows the room alone, without the circuit for new parts and the parts still to place
+- A new residential installation opens on its floor plan
+- The prototype residential schematic is locked in File > New until it is finished
 - Circuits are numbered and made on the floor plan: pick a circuit (or a new one) for the
   sockets, luminaires and appliances you put on the plan, before anything protects it; the
   plan writes the circuit's number beside each part. In the consumer unit a breaker, RCBO or
@@ -93,6 +100,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   where the teacher lets it, which reports are right
 - Wiring a training plan, the terminals that already have a wire are marked with a filled
   dot, so it is easy to see what is wired and what is left
+
+### Application
+- LadderLab opens with a start window: create a project or open one; tick Program guide to
+  take the tour of the window once the project is open (ticked at the first start, after
+  the language is chosen)
 
 ### Fixed
 - No more steps in the floor plan where a wall between two rooms meets a wall going on

@@ -13,10 +13,10 @@ extends Control
 ## depth typed in mm, Tab between them, Enter); OUTLINE draws one by
 ## clicking its corners (walls across or up and down, a wall's length
 ## typed; a click on the first corner, a double click, Enter or a right
-## click closes it); SPLIT cuts a room in two by a wall dragged across it;
-## PLACE_ROOM puts a ready room ([member placing_room]) where it is
-## clicked; DOOR and WINDOW put a door or a
-## window where a wall is clicked; DIMENSION adds a chain of dimensions
+## click closes it); WALL draws walls on their own, or splits a room by
+## walls drawn from its wall across it to its wall; PLACE_ROOM puts a
+## ready room ([member placing_room]) where it is clicked; DOOR and WINDOW
+## put a door or a window where a wall is clicked; DIMENSION adds a chain of dimensions
 ## along a wall clicked or one dragged between two points (both printed);
 ## MEASURE shows the distance dragged; NOTE adds a note pointing where it
 ## is pressed, its text where it is let go; SCALE takes two points of the
@@ -65,6 +65,8 @@ signal placed
 signal unit_requested
 ## [member selected] changed.
 signal selection_changed
+## [member tool] was set.
+signal tool_changed
 ## The length of wall [param side] of room [param index] should be typed
 ## (its other end, the right or bottom wall, moves).
 signal length_requested(index: int, side: int)
@@ -83,7 +85,7 @@ signal fixture_requested(index: int)
 ## underlay should be typed, to scale it.
 signal scale_requested(a: Vector2, b: Vector2)
 
-enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE, JOIN, WINDOW, DIMENSION, MEASURE, NOTE, SCALE, UNDERLAY, OUTLINE, SPLIT, PLACE_ROOM, WALL }
+enum Tool { SELECT, ROOM, DOOR, PLACE, WIRE, JOIN, WINDOW, DIMENSION, MEASURE, NOTE, SCALE, UNDERLAY, OUTLINE, PLACE_ROOM, WALL }
 
 ## Pixels a metre at zoom 1.
 const PX: float = 60.0
@@ -147,11 +149,13 @@ var tool: Tool = Tool.SELECT:
 		_scale_from = Vector2(NAN, NAN)
 		_room_from = Vector2(NAN, NAN)
 		_corners = PackedVector2Array()
+		_split_room = -1
 		_room_typed = PackedStringArray(["", ""])
 		_room_field = 0
 		if value != Tool.PLACE_ROOM:
 			placing_room = -1
 		mouse_default_cursor_shape = Control.CURSOR_CROSS if value != Tool.SELECT else Control.CURSOR_ARROW
+		tool_changed.emit()
 ## The ready room ([constant FloorPlan.PRESETS]) Tool.PLACE_ROOM puts, -1 for none.
 var placing_room: int = -1
 ## Designation (or [constant FloorPlan.UNIT]) put by a click with Tool.PLACE.
@@ -196,6 +200,10 @@ var _hover: Dictionary = {}
 var _room_from: Vector2 = Vector2(NAN, NAN)
 ## With Tool.OUTLINE: the corners clicked so far (m).
 var _corners: PackedVector2Array = PackedVector2Array()
+## The room whose wall the walls being drawn started on, -1 for none: while
+## they run inside it they wait (in [member _corners]) to split it once they
+## end on its wall.
+var _split_room: int = -1
 ## The width and depth typed for a room being drawn (mm; with
 ## Tool.OUTLINE the first is the next wall's length), and which is typed.
 var _room_typed: PackedStringArray = PackedStringArray(["", ""])
@@ -832,8 +840,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				var clicked: bool = mb.button_index == MOUSE_BUTTON_RIGHT and mb.position.distance_to(_pan_from) < SchematicEditor.CLICK_SLOP
 				if clicked and tool == Tool.WALL and not _corners.is_empty():
 					# A right click ends the walls being drawn.
-					_corners = PackedVector2Array()
-					_room_typed = PackedStringArray(["", ""])
+					_end_walls()
 					queue_redraw()
 					return
 				if clicked and tool == Tool.OUTLINE and _corners.size() >= 2:
@@ -966,8 +973,6 @@ func _pressed(point: Vector2) -> Dictionary:
 			return {"kind": "room_corner"}
 		Tool.WALL:
 			return {"kind": "wall_point"}
-		Tool.SPLIT:
-			return {"kind": "split"}
 		Tool.PLACE_ROOM:
 			return {"kind": "place_room"}
 		Tool.DOOR:
@@ -1077,20 +1082,6 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				else:
 					# Put back last among the walls.
 					selected = {"kind": "free_wall", "index": plan().walls.size() - 1}
-		"split":
-			if _dragging:
-				var line: Dictionary = split_line()
-				if not line.is_empty():
-					var index: int = line["room"]
-					var vertical: bool = line["vertical"]
-					var at: float = line["at"]
-					var new_index: int = plan().rooms.size()
-					var room_name: String = _next_room_name()
-					var done: Array[bool] = [false]
-					edit_requested.emit(func(doc: SchematicDocument) -> void: done[0] = doc.floor_plan.split_room(index, vertical, at, room_name) >= 0)
-					if done[0]:
-						selected = {"kind": "room", "index": new_index}
-						room_drawn.emit(new_index)
 		"place_room":
 			var ghost: FloorPlan.Room = _placed_room()
 			if ghost != null:
@@ -1719,18 +1710,35 @@ static func _angled(from: Vector2, to: Vector2, length: float, step: float) -> V
 
 ## Where the wall being drawn ends: on a wall's end or a room's corner near
 ## the mouse, else from the last point at a whole number of
-## [constant ANGLE_STEP] degrees (any with Shift), as long as typed (mm) or
-## on the grid; the first point on the grid.
+## [constant ANGLE_STEP] degrees (any with Shift), as long as typed (mm),
+## onto a room's wall it meets near the mouse or on the grid; the first
+## point on the grid, onto a room's wall near.
 func _next_wall_point() -> Vector2:
 	var m: Vector2 = to_plan(_mouse)
 	var near: Vector2 = _wall_snap(m)
 	if _corners.is_empty():
-		return near if not is_nan(near.x) else FloorPlan.snap(m)
+		if not is_nan(near.x):
+			return near
+		var on_wall: Vector2 = _room_wall_snap(m)
+		return on_wall if not is_nan(on_wall.x) else FloorPlan.snap(m)
 	var last: Vector2 = _corners[_corners.size() - 1]
 	if _room_typed[0].is_empty() and not is_nan(near.x):
 		return near
 	var typed: float = float(_room_typed[0]) / 1000.0 if not _room_typed[0].is_empty() else -1.0
-	return _angled(last, m, typed, 0.0 if Input.is_key_pressed(KEY_SHIFT) else ANGLE_STEP)
+	var to: Vector2 = _angled(last, m, typed, 0.0 if Input.is_key_pressed(KEY_SHIFT) else ANGLE_STEP)
+	if typed > 0.0 or to.distance_to(last) < 0.001:
+		return to
+	# Onto a room's wall the way it goes, where that meets one near the mouse.
+	var reach: float = FEATURE_GRAB / (PX * zoom)
+	var far: Vector2 = last + (to - last).normalized() * 1000.0
+	var best: Vector2 = to
+	for room: FloorPlan.Room in plan().rooms:
+		for k: int in room.points.size():
+			var hit: Variant = Geometry2D.segment_intersects_segment(last, far, room.points[k], room.points[(k + 1) % room.points.size()])
+			if hit != null and (hit as Vector2).distance_to(last) > 0.01 and (hit as Vector2).distance_to(m) < reach:
+				reach = (hit as Vector2).distance_to(m)
+				best = (hit as Vector2).snappedf(0.001)
+	return best
 
 
 ## A free wall's end or a room's corner within reach of plan point
@@ -1751,9 +1759,32 @@ func _wall_snap(m: Vector2) -> Vector2:
 	return best
 
 
+## The point of a room's wall nearest plan point [param m] within reach
+## (along a wall across or up and down on the grid), NAN for none.
+func _room_wall_snap(m: Vector2) -> Vector2:
+	var reach: float = FEATURE_GRAB / (PX * zoom)
+	var best: Vector2 = Vector2(NAN, NAN)
+	for room: FloorPlan.Room in plan().rooms:
+		for k: int in room.points.size():
+			var a: Vector2 = room.points[k]
+			var b: Vector2 = room.points[(k + 1) % room.points.size()]
+			var p: Vector2 = Geometry2D.get_closest_point_to_segment(m, a, b)
+			if p.distance_to(m) >= reach:
+				continue
+			if absf(a.y - b.y) < 0.001:
+				p.x = clampf(snappedf(p.x, FloorPlan.SNAP), minf(a.x, b.x), maxf(a.x, b.x))
+			elif absf(a.x - b.x) < 0.001:
+				p.y = clampf(snappedf(p.y, FloorPlan.SNAP), minf(a.y, b.y), maxf(a.y, b.y))
+			reach = p.distance_to(m)
+			best = p.snappedf(0.001) if absf(a.y - b.y) < 0.001 or absf(a.x - b.x) < 0.001 else p
+	return best
+
+
 ## Puts the next point of the walls being drawn: the first, else a wall to
 ## it from the last; walls closing round a space make a room (named as
-## asked), and the drawing ends.
+## asked), and the drawing ends. Walls started on a room's wall and running
+## inside it wait: once they end on its wall they split it in two (the new
+## room named as asked); leaving it, they become walls on their own.
 func _add_wall_point() -> void:
 	var to: Vector2 = _next_wall_point()
 	_room_typed = PackedStringArray(["", ""])
@@ -1763,6 +1794,36 @@ func _add_wall_point() -> void:
 	var from: Vector2 = _corners[_corners.size() - 1]
 	if from.distance_to(to) < 0.01:
 		return
+	if _corners.size() == 1:
+		# From a room's wall into the room (of two rooms on a wall, the one it goes into).
+		_split_room = -1
+		for i: int in plan().rooms.size():
+			var points: PackedVector2Array = plan().rooms[i].points
+			if FloorPlan.wall_through(points, from) >= 0 and Geometry2D.is_point_in_polygon((from + to) * 0.5, points):
+				_split_room = i
+	if _split_room >= 0:
+		var room: FloorPlan.Room = plan().rooms[_split_room]
+		if Geometry2D.is_point_in_polygon((from + to) * 0.5, room.points):
+			if FloorPlan.wall_through(room.points, to) < 0:
+				if Geometry2D.is_point_in_polygon(to, room.points):
+					_corners.append(to)
+					return
+			else:
+				var line: PackedVector2Array = _corners + PackedVector2Array([to])
+				var index: int = _split_room
+				var room_name: String = _next_room_name()
+				var made: Array[int] = [-1]
+				edit_requested.emit(func(doc: SchematicDocument) -> void: made[0] = doc.floor_plan.split_room(index, line, room_name))
+				if made[0] >= 0:
+					_corners = PackedVector2Array()
+					_split_room = -1
+					selected = {"kind": "room", "index": made[0]}
+					room_drawn.emit(made[0])
+				# Refused: the walls wait on, for another end.
+				return
+		# Out of the room: what waited becomes walls on their own.
+		_end_walls()
+		_corners = PackedVector2Array([from])
 	var room_name: String = _next_room_name()
 	var made: Array[int] = [-1]
 	edit_requested.emit(func(doc: SchematicDocument) -> void: made[0] = doc.floor_plan.add_wall(from, to, 0.0, room_name))
@@ -1772,6 +1833,20 @@ func _add_wall_point() -> void:
 		room_drawn.emit(made[0])
 	else:
 		_corners = PackedVector2Array([to])
+
+
+## Ends the walls being drawn: those waiting to split a room become walls
+## on their own (one edit).
+func _end_walls() -> void:
+	if _split_room >= 0 and _corners.size() > 1:
+		var corners: PackedVector2Array = _corners
+		var room_name: String = _next_room_name()
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			for k: int in corners.size() - 1:
+				doc.floor_plan.add_wall(corners[k], corners[k + 1], 0.0, room_name))
+	_corners = PackedVector2Array()
+	_split_room = -1
+	_room_typed = PackedStringArray(["", ""])
 
 
 ## The free wall under screen point [param point], -1 for none.
@@ -1861,36 +1936,10 @@ func _close_outline() -> void:
 	_add_room(room)
 
 
-## The wall the split tool would put in: dragged from the press to the
-## mouse, up and down or across (as dragged), at the middle of the drag on
-## the grid and onto the walls near, across the room the drag's middle is
-## in: {"room", "vertical", "at", "pieces" (where it runs inside the
-## room, m)}; {} when it would not cut a room in two.
-func split_line() -> Dictionary:
-	var a: Vector2 = to_plan(_press_at)
-	var b: Vector2 = to_plan(_mouse)
-	var room: int = plan().room_at((a + b) * 0.5)
-	if room < 0:
-		return {}
-	var vertical: bool = absf(b.y - a.y) >= absf(b.x - a.x)
-	var at: float = FloorPlan.snap((a + b) * 0.5)[0 if vertical else 1]
-	at = _snap_edge(at, not vertical, room)
-	var box: Rect2 = plan().rooms[room].rect
-	var low: float = box.position.x if vertical else box.position.y
-	var high: float = box.end.x if vertical else box.end.y
-	if at - low < FloorPlan.MIN_ROOM - 0.001 or high - at < FloorPlan.MIN_ROOM - 0.001:
-		return {}
-	# The pieces of the line inside the room (an L's line may leave it).
-	var from: Vector2 = Vector2(at, box.position.y - 1.0) if vertical else Vector2(box.position.x - 1.0, at)
-	var to: Vector2 = Vector2(at, box.end.y + 1.0) if vertical else Vector2(box.end.x + 1.0, at)
-	var pieces: Array[PackedVector2Array] = Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([from, to]), plan().rooms[room].points)
-	return {"room": room, "vertical": vertical, "at": at, "pieces": pieces}
-
-
 ## What the room tools are drawing: the room dragged or clicked with its
 ## size and area (the size typed in a box), the corners clicked so far
-## with the next wall and the way back to the first, the wall a split puts
-## in with the rooms it makes, a ready room where it would go.
+## with the next wall and the way back to the first, the walls waiting to
+## split a room, a ready room where it would go.
 func _draw_room_tools(s: float, font: Font, wall: float) -> void:
 	var color: Color = SchematicTheme.SELECTED
 	if _drawing_rect():
@@ -1904,6 +1953,10 @@ func _draw_room_tools(s: float, font: Font, wall: float) -> void:
 		draw_circle(to_screen(_room_point(to_plan(_mouse))), 4.0, color)
 	if tool == Tool.WALL and Rect2(Vector2.ZERO, size).has_point(_mouse):
 		var to: Vector2 = _next_wall_point()
+		if _corners.size() > 1 and _split_room >= 0:
+			# Waiting to split the room, drawn over it.
+			draw_colored_polygon(_screen_points(plan().rooms[_split_room].points), Color(color, 0.06))
+			draw_polyline(_screen_points(_corners), color, maxf(wall, 2.0), true)
 		if not _corners.is_empty():
 			var from: Vector2 = _corners[_corners.size() - 1]
 			var thick: float = plan().inner_wall
@@ -1938,19 +1991,6 @@ func _draw_room_tools(s: float, font: Font, wall: float) -> void:
 			draw_circle(p, 3.0, color)
 		if _corners.is_empty() and Rect2(Vector2.ZERO, size).has_point(_mouse):
 			draw_circle(to_screen(next), 4.0, color)
-	if tool == Tool.SPLIT and _dragging and _press.get("kind", "") == "split":
-		var line: Dictionary = split_line()
-		if not line.is_empty():
-			var room: FloorPlan.Room = plan().rooms[int(line["room"])]
-			draw_colored_polygon(_screen_points(room.points), Color(color, 0.06))
-			for piece: PackedVector2Array in line["pieces"]:
-				draw_line(to_screen(piece[0]), to_screen(piece[1]), color, maxf(wall, 2.0), true)
-			var box: Rect2 = room.rect
-			var vertical: bool = line["vertical"]
-			var at: float = line["at"]
-			var first: float = at - (box.position.x if vertical else box.position.y)
-			var second: float = (box.end.x if vertical else box.end.y) - at
-			draw_string(font, _mouse + Vector2(12, -8), "%s m | %s m" % [_metres_text(first), _metres_text(second)], HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
 	if tool == Tool.PLACE_ROOM:
 		var ghost: FloorPlan.Room = _placed_room()
 		if ghost != null:
@@ -2030,8 +2070,10 @@ func _room_key(key: InputEventKey) -> bool:
 	if drawing and ch.length() == 1 and ch >= "0" and ch <= "9" and _room_typed[_room_field].length() < 6:
 		_room_typed[_room_field] += ch
 		return true
-	if key.keycode == KEY_ESCAPE and (drawing or tool in [Tool.PLACE_ROOM, Tool.SPLIT, Tool.OUTLINE, Tool.WALL]):
-		if drawing:
+	if key.keycode == KEY_ESCAPE and (drawing or tool in [Tool.PLACE_ROOM, Tool.OUTLINE, Tool.WALL]):
+		if drawing and tool == Tool.WALL:
+			_end_walls()
+		elif drawing:
 			_room_from = Vector2(NAN, NAN)
 			_corners = PackedVector2Array()
 			_room_typed = PackedStringArray(["", ""])

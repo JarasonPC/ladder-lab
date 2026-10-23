@@ -164,9 +164,12 @@ func test_single_line_in_the_main_window() -> void:
 	var main: Main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 	TranslationServer.set_locale("en")
 	main._new_document(SchematicDocument.Kind.RESIDENTIAL)
 	assert_eq(main.edit_doc.environment, SchematicDocument.Kind.RESIDENTIAL)
+	assert_eq(main.area, Main.Area.WORKSPACE, "a new house starts on its floor plan")
+	main._set_area(Main.Area.SCHEMATIC)
 	assert_true(main._single_line.visible, "the single-line diagram in place of the schematic")
 	assert_false(main.view.visible)
 	assert_eq(main._palette.entries(), Palette.INSTALLATION_ENTRIES)

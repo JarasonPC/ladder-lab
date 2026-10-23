@@ -106,8 +106,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   palette (the program has no example circuits); the properties panel
   (with the check results) shows in Edit mode only while something is selected or the check
   results are shown; it starts on the schematic (Schematic | Workspace); by default (no
-  settings saved yet) the timing chart and event log are rolled in; until it is answered, the
-  welcome card offers the tour and the first lesson
+  settings saved yet) the timing chart and event log are rolled in. At every start (unless a
+  schematic came as an argument and opened) the start window (StartDialog, main.gd
+  _ask_start, once the recovery copies were offered: Later goes on to it, Restore skips it;
+  on the first start after the welcome card's language) asks to Create project (the
+  NewSchematicDialog) or Open project (the file dialog); given up there (Cancel, no file, a
+  file that does not load) it is asked again (_ask_start_again, deferred: one exclusive
+  dialog at a time); closed, the empty schematic stays. Its tick Program guide (ticked at
+  the first start) starts the tour once the project is open (_started); main.gd _starting
+  while it is under way
 - Example circuits (ExampleCircuits): circuits the tests and the screenshot tools build, not
   offered in the program; each has a power circuit with a motor on the left (L1 L2
   L3 on top) and its control circuit on the right; circuit breakers FA1 (C16, three poles) for
@@ -148,10 +155,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   wire colour). TourOverlay (CanvasLayer 3): the window dimmed but for the control of the
   step (clicks there go through, _has_point), a card beside it, steps that wait for the
   control to be used (Next does it), Esc; main.gd builds its stops and puts the mode and
-  area back after it. WelcomeCard over the drawing until it is answered: first the language (main.gd
-  LOCALE_NAMES, asked in both languages at once, set_language), then the tour or the first
-  lesson in it (settings
-  "tutorial"/"welcomed"; finished lessons "tutorial"/"finished")
+  area back after it. WelcomeCard over the drawing on the first start: the language (main.gd
+  LOCALE_NAMES, asked in both languages at once, set_language), answered by choosing one
+  (settings "tutorial"/"welcomed"), then the start window; finished lessons
+  "tutorial"/"finished"
 - Environments: a schematic is an industrial control circuit, a prototype residential
   (light switches, luminaires and sockets drawn and wired freely on the schematic, for
   students to try circuits out) or a residential installation (the consumer unit as its
@@ -159,9 +166,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   saved as "environment": "prototype" / "installation", missing = industrial, "residential"
   before version 41 = prototype; SchematicDocument.residential is true for both house
   kinds and set true makes a prototype), chosen at File > New for good (NewSchematicDialog:
-  three cards, a double click takes one; environment_name / environment_text; main.gd
-  _new_document(environment): L and N supply points, PE too for a prototype, a residential
-  installation its supply and main switch from update_single_line) and shown by a muted
+  three cards, a double click takes one; kinds not finished yet, NewSchematicDialog.LOCKED
+  (the prototype), are a disabled card with a lock, schematics of them still open;
+  environment_name / environment_text; main.gd _new_document(environment): L and N supply
+  points, PE too for a prototype, a residential installation its supply and main switch
+  from update_single_line, shown on its floor plan) and shown by a muted
   label in the toolbar (main.gd _update_environment). The palette follows it
   (Palette.environment: ENTRIES, RESIDENTIAL_ENTRIES or INSTALLATION_ENTRIES: the main
   switch, a breaker (1+N and 3+N besides) and an RCD whose poles are set in the properties,
@@ -386,7 +395,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   circuit number FloorPlanCanvas.circuit by SingleLine.feed, again until a right click).
   Beside the plan a circuit picker (FloorPlanView._fill_circuits): the circuits by number,
   protected or waiting, and a new one; the circuit of the selected part, changed there, or
-  the one new parts go on (the first unless "No circuit" is picked). Luminaires and switches
+  the one new parts go on (the first unless "No circuit" is picked). It and the list of the
+  parts not on the plan hide while rooms, walls, doors or windows are drawn (ROOM_TOOLS) or
+  a room is picked (_parts_side, _update_parts_side on FloorPlanCanvas.tool_changed and
+  selection_changed). Luminaires and switches
   have their circuit's number after their designation ("-EA1 /3"). Light switches are parts
   a circuit feeds too (SingleLine.is_load; end_part, end_count leave them out at the circuit's
   end on the diagram). Tool.WIRE draws the lighting (FloorPlan.links, FloorPlan.Link: two parts
@@ -460,8 +472,15 @@ Architecture and conventions of the code base. Read this before changing the cod
   Walls drawn on their own (FloorPlan.walls of FloorPlan.Wall: a, b, thickness, 0 the plan's
   inner_wall, on the middle of their line; saved "free_walls"): Tool.WALL clicks each end
   (_next_wall_point: onto a wall's end or a room's corner near, _wall_snap, else at ANGLE_STEP
-  degrees, any with Shift, as long as typed in mm or on the grid; the length and direction
-  shown while drawn; a right click or Esc ends them); FloorPlan.add_wall adds one and, when the
+  degrees, any with Shift, as long as typed in mm, onto a room's wall where the way it goes
+  meets one near the mouse, or on the grid; the first point onto a room's wall near,
+  _room_wall_snap, on the grid along a straight one; the length and direction shown while
+  drawn; a right click or Esc ends them, _end_walls). Walls from a room's wall into the room
+  (_split_room: of two rooms on that wall, the one the first wall goes into) wait in _corners
+  while inside it, drawn over it; ending on its wall they split it (FloorPlan.split_room
+  along the line, straight or bent: the room keeps the larger piece, the new one is named as
+  asked; refused, they wait on), leaving it or ended they become walls on their own (one
+  edit). FloorPlan.add_wall adds one and, when the
   free walls close round a space through it (_loop_through: the shortest way back along them),
   makes those walls a room, its outline their lines grown inwards by half their thickness,
   each wall its thickness (room_drawn asks its name); selected (free_wall_at), dragged, its
@@ -569,8 +588,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   way the mouse is); Tool.OUTLINE by its corners (_corners, _next_corner: with Shift slanting by ANGLE_STEP, else across or up and
   down from the last, onto walls near, level with the first; a length typed; closed by a
   click on the first, a double click, Enter or a right click, _close_outline adding one
-  corner where needed; FloorPlan.outline_room); Tool.SPLIT dragged across a room
-  (split_line, FloorPlan.split_room: two pieces each one piece, its chains dropped);
+  corner where needed; FloorPlan.outline_room); a room split by walls drawn across it
+  (Tool.WALL, see above; FloorPlan.split_room(index, line): the line's ends on its walls,
+  wall_through, its corners and the middle of each stretch inside; the pieces round the
+  outline from either end, _corners_between, each one piece nowhere narrower than MIN_ROOM;
+  the walls on the room's walls keep their thickness and alignment, _carry_wall_looks; its
+  chains dropped; the room panel's split and the room menu's take the wall tool);
   Tool.PLACE_ROOM (begin_place_room, placing_room, _placed_room snapped with snap_room) for
   "Add room"; room_drawn after each new room -> FloorPlanView's name picker
   (_usual_names; a name sets a bathroom's environment and illuminance as before);
@@ -1563,7 +1586,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   Switchboard, WorkspaceGroup, ControlBox) - RefCounted, no nodes; any symbol can be rotated and mirrored left-right (F,
   mirror_component) or top-bottom (Shift+F, flip_component) as seen on the drawing, so
   vertical and horizontal current paths can be mixed
-- `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd;
+- `ui/` nodes: SchematicView, WireLayer, symbols/ (one _draw() class per symbol), main.gd,
+  StartDialog, NewSchematicDialog;
   floor_plan/ (FloorPlanView, FloorPlanCanvas, PlanSymbols, PlanGlyph, SymbolLibraryDialog,
   SymbolEditor, SymbolCanvas), single_line/ (SingleLineView,
   SingleLineCanvas)

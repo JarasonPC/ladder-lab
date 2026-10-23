@@ -1394,43 +1394,112 @@ func join_rooms(a: int, b: int) -> bool:
 	return true
 
 
-## Room [param index] split in two along the line across it
-## ([param vertical]: x = [param at], else y = [param at]): it keeps the
-## part left of or above the line, a new room [param new_name] (the last)
-## gets the other. Refused (-1) when the line does not cut it into two
-## pieces, each one piece at least [constant MIN_ROOM] across; else the new
-## room's index. The chains of dimensions along its walls are dropped.
-func split_room(index: int, vertical: bool, at: float, new_name: String) -> int:
-	if index < 0 or index >= rooms.size():
+## Room [param index] split in two by a wall along [param line]: its
+## corners, the first and the last on the room's walls, the others inside
+## it, the wall straight or bent. The room keeps the larger piece, a new
+## room [param new_name] (the last) gets the other; the walls of the pieces
+## that lie on the room's walls keep their thickness and alignment. Refused
+## (-1) when the line does not cut it into two pieces, each at least
+## [constant MIN_ROOM] across; else the new room's index. The chains of
+## dimensions along its walls are dropped.
+func split_room(index: int, line: PackedVector2Array, new_name: String) -> int:
+	if index < 0 or index >= rooms.size() or line.size() < 2:
 		return -1
 	var room: Room = rooms[index]
-	var box: Rect2 = room.rect
-	at = snappedf(at, SNAP)
-	var low: float = box.position.x if vertical else box.position.y
-	var high: float = box.end.x if vertical else box.end.y
-	if at - low < MIN_ROOM - 0.001 or high - at < MIN_ROOM - 0.001:
+	var a: Vector2 = line[0]
+	var b: Vector2 = line[line.size() - 1]
+	var i: int = wall_through(room.points, a)
+	var j: int = wall_through(room.points, b)
+	if i < 0 or j < 0 or a.distance_to(b) < 0.01:
 		return -1
-	var far: float = 1000.0
-	var first_half: PackedVector2Array = PackedVector2Array([Vector2(-far, -far), Vector2(at, -far), Vector2(at, far), Vector2(-far, far)]) if vertical else PackedVector2Array([Vector2(-far, -far), Vector2(far, -far), Vector2(far, at), Vector2(-far, at)])
-	var second_half: PackedVector2Array = PackedVector2Array([Vector2(at, -far), Vector2(far, -far), Vector2(far, far), Vector2(at, far)]) if vertical else PackedVector2Array([Vector2(-far, at), Vector2(far, at), Vector2(far, far), Vector2(-far, far)])
-	var pieces: Array[PackedVector2Array] = []
-	for half: PackedVector2Array in [first_half, second_half]:
-		var cut: Array[PackedVector2Array] = Geometry2D.intersect_polygons(room.points, half)
-		if cut.size() != 1:
+	# Through the room: every corner between the ends and every stretch's middle inside.
+	for k: int in range(1, line.size()):
+		if not Geometry2D.is_point_in_polygon((line[k - 1] + line[k]) * 0.5, room.points):
 			return -1
-		var outline: PackedVector2Array = union_outline([_tidy(cut[0])]) if room.is_square() else _clockwise(_without_straight_on(cut[0]))
-		if outline.is_empty() or polygon_area(outline) < MIN_ROOM * MIN_ROOM * 0.5:
+		if k < line.size() - 1 and not Geometry2D.is_point_in_polygon(line[k], room.points):
+			return -1
+	var inner: PackedVector2Array = line.slice(1, line.size() - 1)
+	var back: PackedVector2Array = inner.duplicate()
+	back.reverse()
+	var pieces: Array[PackedVector2Array] = []
+	for piece: PackedVector2Array in [
+			PackedVector2Array([a]) + inner + PackedVector2Array([b]) + _corners_between(room.points, b, j, a, i),
+			PackedVector2Array([b]) + back + PackedVector2Array([a]) + _corners_between(room.points, a, i, b, j)]:
+		var outline: PackedVector2Array = _clockwise(_without_straight_on(_without_repeats(piece)))
+		if outline.size() < 3 or not _simple(outline) or polygon_area(outline) < MIN_ROOM * MIN_ROOM * 0.5:
+			return -1
+		# Nowhere narrower than MIN_ROOM.
+		if Geometry2D.offset_polygon(outline, -MIN_ROOM * 0.5 + 0.001).size() != 1:
 			return -1
 		pieces.append(outline)
-	room.points = pieces[0]
-	room.label_offset = Vector2.ZERO
+	if polygon_area(pieces[1]) > polygon_area(pieces[0]):
+		pieces.reverse()
 	var other: Room = Room.new(new_name)
 	other.points = pieces[1]
+	_carry_wall_looks(room, other)
+	var kept: Room = Room.new()
+	kept.points = pieces[0]
+	_carry_wall_looks(room, kept)
+	room.points = kept.points
+	room.thickness = kept.thickness
+	room.align = kept.align
+	room.label_offset = Vector2.ZERO
 	rooms.append(other)
-	for i: int in range(dimensions.size() - 1, -1, -1):
-		if dimensions[i].room == index:
-			dimensions.remove_at(i)
+	for d: int in range(dimensions.size() - 1, -1, -1):
+		if dimensions[d].room == index:
+			dimensions.remove_at(d)
 	return rooms.size() - 1
+
+
+## The wall of outline [param points] that point [param p] lies on, -1 for none.
+static func wall_through(points: PackedVector2Array, p: Vector2) -> int:
+	for k: int in points.size():
+		if Geometry2D.get_closest_point_to_segment(p, points[k], points[(k + 1) % points.size()]).distance_to(p) < 0.01:
+			return k
+	return -1
+
+
+## The corners of outline [param points] going round it from [param p] (on
+## wall [param i]) to [param q] (on wall [param j]), neither of them.
+static func _corners_between(points: PackedVector2Array, p: Vector2, i: int, q: Vector2, j: int) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	if i == j and points[i].distance_to(q) >= points[i].distance_to(p):
+		return result
+	var k: int = (i + 1) % points.size()
+	while true:
+		result.append(points[k])
+		if k == j:
+			break
+		k = (k + 1) % points.size()
+	return result
+
+
+## [param points] without a corner on the one before it (the last on the first too).
+static func _without_repeats(points: PackedVector2Array) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	for p: Vector2 in points:
+		if result.is_empty() or result[result.size() - 1].distance_to(p) > 0.001:
+			result.append(p)
+	if result.size() > 1 and result[0].distance_to(result[result.size() - 1]) <= 0.001:
+		result.remove_at(result.size() - 1)
+	return result
+
+
+## Gives the walls of [param piece] that lie on a wall of [param room] that
+## wall's own thickness and alignment.
+static func _carry_wall_looks(room: Room, piece: Room) -> void:
+	for k: int in piece.points.size():
+		var p: Vector2 = piece.points[k]
+		var q: Vector2 = piece.points[(k + 1) % piece.points.size()]
+		for w: int in room.points.size():
+			var a: Vector2 = room.points[w]
+			var b: Vector2 = room.points[(w + 1) % room.points.size()]
+			if Geometry2D.get_closest_point_to_segment(p, a, b).distance_to(p) < 0.01 and Geometry2D.get_closest_point_to_segment(q, a, b).distance_to(q) < 0.01:
+				if room.wall_thickness(w) > 0.0:
+					piece.set_wall_thickness(k, room.wall_thickness(w))
+				if room.wall_align(w) != 0:
+					piece.set_wall_align(k, room.wall_align(w))
+				break
 
 
 ## The stairs of a staircase of outline [param points]: {"treads": lines

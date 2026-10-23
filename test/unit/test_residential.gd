@@ -277,6 +277,7 @@ func test_new_residential_schematic_in_the_main_window() -> void:
 	var main: Main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 	TranslationServer.set_locale("en")
 	main._new_document(true)
 	assert_true(main.edit_doc.residential)
@@ -290,6 +291,9 @@ func test_new_residential_schematic_in_the_main_window() -> void:
 	assert_eq(main._environment_label.text, "Industrial")
 	main._new_dialog.ask()
 	assert_true(main._new_dialog.visible)
-	main._new_dialog._cards[1].button_pressed = true
+	assert_true(main._new_dialog._cards[1].disabled, "the prototype is locked until it is finished")
+	main._new_dialog._cards[2].button_pressed = true
 	main._new_dialog.get_ok_button().pressed.emit()
-	assert_true(main.edit_doc.residential, "Create makes the card chosen")
+	assert_eq(main.edit_doc.environment, SchematicDocument.Kind.RESIDENTIAL, "Create makes the card chosen")
+	assert_eq(main.area, Main.Area.WORKSPACE, "a new house opens on its floor plan")
+	assert_true(main._floor_plan.visible)

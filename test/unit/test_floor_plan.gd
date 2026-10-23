@@ -131,6 +131,7 @@ func test_floor_plan_in_the_main_window() -> void:
 	var main: Main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 	TranslationServer.set_locale("en")
 	main._replace_document(_house(), "")
 	main._set_area(Main.Area.WORKSPACE)
@@ -151,10 +152,17 @@ func test_floor_plan_in_the_main_window() -> void:
 	assert_true(main.edit_doc.floor_plan.parts.has("SF1"))
 	plan_view._add_preset(0)
 	assert_eq(plan_view.canvas.tool, FloorPlanCanvas.Tool.PLACE_ROOM, "a living room follows the mouse")
+	assert_false(plan_view._list.visible, "no parts to place while a room is put")
 	plan_view.canvas._press_at = plan_view.canvas.to_screen(Vector2(10.0, 2.0))
 	plan_view.canvas._mouse = plan_view.canvas._press_at
 	plan_view.canvas._release({"kind": "place_room"}, plan_view.canvas._press_at)
 	assert_eq(main.edit_doc.floor_plan.rooms.size(), 3, "a living room put where clicked")
+	plan_view.canvas.tool = FloorPlanCanvas.Tool.SELECT
+	plan_view.canvas.selected = {}
+	assert_true(plan_view._list.visible, "the parts to place with nothing picked")
+	plan_view.canvas.selected = {"kind": "room", "index": 0}
+	assert_false(plan_view._list.visible, "a room picked shows the room alone")
+	assert_false(plan_view._list_title.visible)
 	await wait_process_frames(2)
 	# While simulating, a click on the switch on the plan switches it.
 	main._set_mode(Main.Mode.SIMULATE)
@@ -185,6 +193,7 @@ func test_consumer_unit_opened_from_the_plan() -> void:
 	var main: Main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 	main._replace_document(_house(), "")
 	main._set_area(Main.Area.WORKSPACE)
 	var plan_view: FloorPlanView = main._floor_plan
@@ -276,6 +285,7 @@ func test_door_swing_and_undo_on_the_plan() -> void:
 	var main: Main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 	main._replace_document(_house(), "")
 	main._set_area(Main.Area.WORKSPACE)
 	main._floor_plan._add_preset(0)

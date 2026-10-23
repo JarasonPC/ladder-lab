@@ -86,6 +86,8 @@ const ICON_PATHS: Dictionary[String, String] = {
 	"panel": '<rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="7" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="17" r="2"/>',
 	"columns": '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>',
 	"plus": '<path d="M12 5v14"/><path d="M5 12h14"/>',
+	"folder": '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+	"lock": '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
 	"arrow_left": '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
 	"arrow_right": '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
 	"arrow_up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',

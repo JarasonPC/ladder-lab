@@ -51,6 +51,7 @@ func before_each() -> void:
 	main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 	editor = main.editor
 	TranslationServer.set_locale("en")
 
@@ -297,6 +298,7 @@ func test_restore_offers_the_next_copy() -> void:
 	assert_true(main._recovery_dialog.visible, "the other copy is offered")
 	assert_ne(main._recovery_path, paths[0])
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 
 
 func test_plc_and_page_windows_follow_the_language() -> void:
