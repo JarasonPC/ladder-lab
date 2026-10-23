@@ -107,6 +107,9 @@ const EDGE_GRAB: float = 6.0
 ## The middle of a symbol of a part on a wall is this far into the room (m);
 ## upright, it is drawn from this far over its middle.
 const WALL_SYMBOL_OFFSET: float = 0.15
+## How far past the middle of a wall part's symbol the handle moving it off
+## its wall is (m at symbol size 1).
+const OFFSET_HANDLE: float = 0.32
 ## A part within this (m) of the mouse is under it.
 const PART_GRAB: float = 0.25
 ## Least height of the legend under the plan on a sheet (m): room for the
@@ -356,7 +359,23 @@ func symbol_center(designation: String) -> Vector2:
 	if not plan().facing.has(designation):
 		return at
 	var into: Vector2 = FloorPlan.FACING[plan().facing[designation]]
-	return at + _face(designation) + into * WALL_SYMBOL_OFFSET * _symbols()
+	return at + _face(designation) + into * (WALL_SYMBOL_OFFSET * _symbols() + _offset(designation))
+
+
+## How far part [param designation]'s symbol is off its wall (m; its handle
+## dragged: where it goes).
+func _offset(designation: String) -> float:
+	if _dragging and _press.get("kind", "") == "part_offset" and _press.get("designation", "") == designation:
+		return _dragged_offset(designation, _mouse)
+	return plan().offsets.get(designation, 0.0)
+
+
+## The offset of part [param designation]'s symbol from its wall with its
+## handle dragged from the press to screen point [param point].
+func _dragged_offset(designation: String, point: Vector2) -> float:
+	var into: Vector2 = FloorPlan.FACING[plan().facing[designation]]
+	var offset: float = plan().offsets.get(designation, 0.0) + (to_plan(point) - to_plan(_press_at)).dot(into)
+	return clampf(snappedf(offset, 0.01), 0.0, FloorPlan.MAX_OFFSET)
 
 
 ## From the line of its wall to the wall's face, for a part on a wall
@@ -500,6 +519,13 @@ func handles() -> Array[Dictionary]:
 				var corners: Array[Vector2] = [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
 				for which: int in 4:
 					list.append({"kind": "fixture_corner", "index": index, "which": which, "at": corners[which]})
+		"part":
+			# On a wall: its symbol dragged off the wall, clear of it.
+			var designation: String = str(selected.get("designation", ""))
+			if plan().facing.has(designation):
+				var into: Vector2 = FloorPlan.FACING[plan().facing[designation]]
+				var middle: Vector2 = _shown_at(designation) + symbol_center(designation) - plan().parts[designation]
+				list.append({"kind": "part_offset", "designation": designation, "at": middle + into * OFFSET_HANDLE * _symbols()})
 		"dimension":
 			if index >= 0 and index < plan().dimensions.size() and plan().dimensions[index].room < 0:
 				var ends: PackedVector2Array = _dimension_geometry(index)["ends"]
@@ -1215,6 +1241,11 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.add_link(from, from_port, to, to_port))
 		"new_part":
 			_put_part(m, false)
+		"part_offset":
+			if _dragging:
+				var designation: String = press["designation"]
+				var offset: float = _dragged_offset(designation, point)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_offset(designation, offset))
 		"part":
 			if _dragging:
 				var designation: String = press["designation"]
@@ -1427,8 +1458,21 @@ func _draw_wall_distance(font: Font) -> void:
 		return
 	var wall: Dictionary = plan().wall_near(point, 0.05)
 	var into: Vector2 = FloorPlan.FACING[int(wall.get("facing", 1))]
-	var from: Vector2 = ref["from"]
 	var color: Color = SchematicTheme.SELECTED
+	_draw_wall_dimension(font, ref["from"], point, into, color)
+	if not _typed.is_empty():
+		draw_circle(to_screen(point), 4.0, color)
+		var text: String = _typed + " mm  ↵"
+		var at: Vector2 = to_screen(point) + Vector2(12, -14)
+		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
+		draw_rect(Rect2(at + Vector2(-4, -_sized(TEXT_SIZE) - 2), Vector2(width + 8, _sized(TEXT_SIZE) + 8)), SchematicTheme.BACKGROUND)
+		draw_rect(Rect2(at + Vector2(-4, -_sized(TEXT_SIZE) - 2), Vector2(width + 8, _sized(TEXT_SIZE) + 8)), color, false, 1.0)
+		draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
+
+
+## A dimension in the room (towards [param into]) along a wall from
+## [param from] to [param point], in [param color].
+func _draw_wall_dimension(font: Font, from: Vector2, point: Vector2, into: Vector2, color: Color) -> void:
 	var a: Vector2 = to_screen(from + into * 0.35)
 	var b: Vector2 = to_screen(point + into * 0.35)
 	draw_line(a, b, color, 1.0, true)
@@ -1438,14 +1482,25 @@ func _draw_wall_distance(font: Font) -> void:
 		draw_line(end[1] - tick, end[1] + tick, color, 1.6, true)
 	if a.distance_to(b) > 1.0:
 		_draw_length(font, a, b, (to_screen(into) - to_screen(Vector2.ZERO)).normalized(), from.distance_to(point), color)
-	if not _typed.is_empty():
-		draw_circle(to_screen(point), 4.0, color)
-		var text: String = _typed + " mm  ↵"
-		var at: Vector2 = to_screen(point) + Vector2(12, -14)
-		var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x
-		draw_rect(Rect2(at + Vector2(-4, -_sized(TEXT_SIZE) - 2), Vector2(width + 8, _sized(TEXT_SIZE) + 8)), SchematicTheme.BACKGROUND)
-		draw_rect(Rect2(at + Vector2(-4, -_sized(TEXT_SIZE) - 2), Vector2(width + 8, _sized(TEXT_SIZE) + 8)), color, false, 1.0)
-		draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), color)
+
+
+## A point snapped onto a room's wall (not at its end): dimensions from it
+## to both ends of the wall, in the room.
+func _draw_snap_dimensions(font: Font, point: Vector2) -> void:
+	var ref: Dictionary = plan().wall_reference(point)
+	if ref.is_empty():
+		return
+	var wall: PackedVector2Array = ref["wall"]
+	if point.distance_to(wall[0]) < 0.01 or point.distance_to(wall[1]) < 0.01:
+		return
+	# Into the room the wall belongs to (between two, the one the walls
+	# come from).
+	var into: Vector2 = (wall[1] - wall[0]).normalized().orthogonal()
+	var toward: Vector2 = _corners[_corners.size() - 1] - point if not _corners.is_empty() else into
+	if plan().room_at(point + into * 0.05) < 0 or (plan().room_at(point - into * 0.05) >= 0 and toward.dot(into) < 0.0):
+		into = -into
+	for end: Vector2 in [wall[0], wall[1]]:
+		_draw_wall_dimension(font, end, point, into, SchematicTheme.SELECTED)
 
 
 ## A click while simulating: a switch's rocker is switched.
@@ -1973,6 +2028,7 @@ func _draw_room_tools(s: float, font: Font, wall: float) -> void:
 			_draw_typed_size(font, to_screen(to) + Vector2(10, 10), false)
 			draw_circle(to_screen(from), 3.0, color)
 		draw_circle(to_screen(to), 4.0, color)
+		_draw_snap_dimensions(font, to)
 	if tool == Tool.OUTLINE:
 		var next: Vector2 = _next_corner()
 		var points: PackedVector2Array = PackedVector2Array()
@@ -1991,6 +2047,8 @@ func _draw_room_tools(s: float, font: Font, wall: float) -> void:
 			draw_circle(p, 3.0, color)
 		if _corners.is_empty() and Rect2(Vector2.ZERO, size).has_point(_mouse):
 			draw_circle(to_screen(next), 4.0, color)
+		if Rect2(Vector2.ZERO, size).has_point(_mouse):
+			_draw_snap_dimensions(font, next)
 	if tool == Tool.PLACE_ROOM:
 		var ghost: FloorPlan.Room = _placed_room()
 		if ghost != null:
@@ -2994,6 +3052,11 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 	var chosen: bool = selected.get("kind", "") == "part" and selected.get("designation", "") == designation
 	var color: Color = SchematicTheme.SELECTED if chosen else SchematicTheme.LINE
 	var width: float = clampf(1.6 * zoom, 1.0, 2.5)
+	var offset: float = _offset(designation) if into != Vector2.ZERO else 0.0
+	if offset > 0.0:
+		# Moved off its wall: a thin line back to where it is on the wall.
+		var wall_at: Vector2 = _shown_at(designation) + _face(designation)
+		draw_line(to_screen(wall_at), to_screen(wall_at + into * offset), color, 1.0, true)
 	var label: String = designation
 	var height_text: String = ""
 	if designation == FloorPlan.UNIT:
@@ -3017,7 +3080,7 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 				height_text = _height((c as LightSwitch).height)
 		elif c is SocketOutlet:
 			var socket: SocketOutlet = c as SocketOutlet
-			PlanSymbols.draw_socket(self, socket, to_screen(_shown_at(designation) + _face(designation)), into, s, color, width, not editing and socket.energized)
+			PlanSymbols.draw_socket(self, socket, to_screen(_shown_at(designation) + _face(designation) + into * offset), into, s, color, width, not editing and socket.energized)
 			if not is_equal_approx(socket.height, SocketOutlet.STANDARD_HEIGHT):
 				height_text = _height(socket.height)
 		elif c is Luminaire:

@@ -19,6 +19,8 @@ const SNAP: float = 0.05
 const WALL_SNAP: float = 0.3
 ## A switch, socket or appliance dropped this close to a wall (m) goes onto it.
 const ON_WALL: float = 0.5
+## How far a wall part's symbol can be moved off its wall (m).
+const MAX_OFFSET: float = 1.5
 ## Smallest room side (m).
 const MIN_ROOM: float = 0.8
 ## Width of a door (m) when none is set.
@@ -412,6 +414,10 @@ var parts: Dictionary[String, Vector2] = {}
 ## Which way each part on a wall faces into its room (index into
 ## [constant FACING]); parts in no entry (luminaires) are on the ceiling.
 var facing: Dictionary[String, int] = {}
+## How far each part on a wall has its symbol moved off the wall into the
+## room (m), so that it does not cover the wall; parts in no entry are drawn
+## on their wall.
+var offsets: Dictionary[String, float] = {}
 ## The layer each part is on (by designation); parts in no entry are on none.
 var part_layers: Dictionary[String, String] = {}
 ## The lighting drawn on the plan of a residential installation.
@@ -1843,6 +1849,7 @@ func place(designation: String, point: Vector2, on_ceiling: bool) -> void:
 	var wall: Dictionary = {} if on_ceiling else wall_near(point)
 	if wall.is_empty():
 		parts[designation] = snap(point)
+		offsets.erase(designation)
 	else:
 		parts[designation] = wall["at"]
 		facing[designation] = wall["facing"]
@@ -1858,6 +1865,16 @@ func place_on_wall(designation: String, point: Vector2, face: int = -1) -> void:
 		return
 	parts[designation] = point
 	facing[designation] = face if face >= 0 else int(wall["facing"])
+
+
+## Moves the symbol of part [param designation] on a wall [param offset] m
+## off it into the room (0: on the wall).
+func set_offset(designation: String, offset: float) -> void:
+	offset = clampf(snappedf(offset, 0.01), 0.0, MAX_OFFSET)
+	if offset > 0.0 and facing.has(designation):
+		offsets[designation] = offset
+	else:
+		offsets.erase(designation)
 
 
 ## Points spread over room [param index] in [param rows] × [param columns]
@@ -1898,6 +1915,7 @@ func row_points(index: int, k: int, count: int, start: float = 0.0, spacing: flo
 func remove(designation: String) -> void:
 	parts.erase(designation)
 	facing.erase(designation)
+	offsets.erase(designation)
 	part_layers.erase(designation)
 	for i: int in range(links.size() - 1, -1, -1):
 		if links[i].a == designation or links[i].b == designation:
@@ -1910,6 +1928,8 @@ func rename(old_designation: String, new_designation: String) -> void:
 		parts[new_designation] = parts[old_designation]
 		if facing.has(old_designation):
 			facing[new_designation] = facing[old_designation]
+		if offsets.has(old_designation):
+			offsets[new_designation] = offsets[old_designation]
 		if part_layers.has(old_designation):
 			part_layers[new_designation] = part_layers[old_designation]
 	for link: Link in links:
@@ -1919,6 +1939,7 @@ func rename(old_designation: String, new_designation: String) -> void:
 			link.b = new_designation
 	parts.erase(old_designation)
 	facing.erase(old_designation)
+	offsets.erase(old_designation)
 	part_layers.erase(old_designation)
 
 
@@ -2126,6 +2147,8 @@ func to_data() -> Dictionary:
 		var entry: Array = [parts[designation].x, parts[designation].y]
 		if facing.has(designation):
 			entry.append(facing[designation])
+			if offsets.has(designation):
+				entry.append(offsets[designation])
 		placed[designation] = entry
 	var result: Dictionary = {"rooms": room_list, "doors": door_list, "parts": placed}
 	if not part_layers.is_empty():
@@ -2368,6 +2391,8 @@ static func from_data(raw: Variant) -> FloorPlan:
 				plan.parts[designation] = Vector2(float(entry[0]), float(entry[1]))
 				if (entry as Array).size() > 2 and (entry[2] is int or entry[2] is float) and int(entry[2]) >= 0 and int(entry[2]) < 4:
 					plan.facing[designation] = int(entry[2])
+					if (entry as Array).size() > 3 and (entry[3] is int or entry[3] is float):
+						plan.set_offset(designation, float(entry[3]))
 	var layer_list: Variant = d.get("part_layers", {})
 	if layer_list is Dictionary:
 		for designation: Variant in layer_list:

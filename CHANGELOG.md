@@ -7,6 +7,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- Drawing walls or a room by its corners, a point snapped onto a room's wall shows its
+  distances to both ends of that wall
+- A switch, socket or other part on a wall can have its symbol dragged off the wall into the
+  room by the handle beside it when selected, so that it does not cover the wall; a thin line
+  joins it to its place on the wall
 - Walls drawn with the wall tool snap onto the rooms' walls, and walls drawn from a room's
   wall across the room to its wall (straight or bent where you click) split it in two; they
   take the place of the separate split tool

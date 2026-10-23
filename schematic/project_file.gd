@@ -152,8 +152,9 @@ const FORMAT: String = "ladder-lab"
 ## 54: each wall's own thickness and where a wall between rooms lies
 ## (a room's "thickness" and "align", a value a wall; missing: the plan's,
 ## as suits), rooms with slanting walls ("points" of any angle), walls
-## drawn on their own ("free_walls": a, b, thickness) and staircases
-## (a room's "stairs": "up" or "reverse").
+## drawn on their own ("free_walls": a, b, thickness), staircases
+## (a room's "stairs": "up" or "reverse") and wall parts' symbols moved off
+## their wall (a fourth number in a part's "parts" entry, m; missing: on it).
 const VERSION: int = 54
 
 

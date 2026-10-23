@@ -634,3 +634,49 @@ func test_symbol_and_text_sizes() -> void:
 	assert_almost_eq(again.symbol_scale, 2.0, 1e-6)
 	assert_almost_eq(again.text_scale, 1.5, 1e-6)
 	assert_false(FloorPlan.from_data({"rooms": []}).to_data().has("sizes"), "the usual sizes are not written")
+
+
+func test_wall_symbols_moved_off_their_wall() -> void:
+	var doc: SchematicDocument = _house()
+	var plan: FloorPlan = doc.floor_plan
+	plan.place("SF1", Vector2(3.3, 1.0), false)
+	plan.place("EA1", Vector2(5.0, 2.0), true)
+	plan.set_offset("EA1", 0.4)
+	assert_false(plan.offsets.has("EA1"), "a luminaire on the ceiling is on no wall")
+	plan.set_offset("SF1", 9.0)
+	assert_eq(plan.offsets["SF1"], FloorPlan.MAX_OFFSET, "never further than MAX_OFFSET")
+	plan.set_offset("SF1", 0.234)
+	assert_almost_eq(plan.offsets["SF1"], 0.23, 1e-6, "to the centimetre")
+	var loaded: FloorPlan = FloorPlan.from_data(plan.to_data())
+	assert_almost_eq(loaded.offsets.get("SF1", 0.0), 0.23, 1e-6, "saved")
+	assert_false(loaded.offsets.has("EA1"))
+	plan.place("SF1", Vector2(3.3, 2.0), false)
+	assert_true(plan.offsets.has("SF1"), "moved along its wall it stays off it")
+	plan.rename("SF1", "SF2")
+	assert_true(plan.offsets.has("SF2"), "renamed along")
+	plan.set_offset("SF2", 0.0)
+	assert_false(plan.offsets.has("SF2"), "back on its wall")
+	# Dragged off its wall by its handle on the canvas.
+	plan.place("SF2", Vector2(3.3, 1.0), false)
+	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	canvas.size = Vector2(1000, 700)
+	canvas.edit_requested.connect(func(change: Callable) -> void: change.call(doc))
+	var before: Vector2 = canvas.symbol_center("SF2")
+	canvas.selected = {"kind": "part", "designation": "SF2"}
+	var handle: Dictionary = canvas.handles()[0]
+	assert_eq(handle["kind"], "part_offset", "a part on a wall has the handle")
+	assert_eq(canvas.handle_at(canvas.to_screen(handle["at"]))["kind"], "part_offset")
+	canvas._press_at = canvas.to_screen(handle["at"])
+	canvas._press = canvas._pressed(canvas._press_at)
+	canvas._dragging = true
+	canvas._mouse = canvas.to_screen(handle["at"] + Vector2(0.5, 0.3))
+	assert_almost_eq(canvas.symbol_center("SF2").x, before.x + 0.5, 1e-4, "shown off its wall while dragged")
+	var press: Dictionary = canvas._press
+	canvas._press = {}
+	canvas._release(press, canvas._mouse)
+	assert_almost_eq(plan.offsets["SF2"], 0.5, 1e-6, "into the room only, as far as dragged")
+	assert_almost_eq(canvas.symbol_center("SF2").x, before.x + 0.5, 1e-4)
+	canvas.selected = {"kind": "part", "designation": "EA1"}
+	assert_true(canvas.handles().is_empty(), "a luminaire on the ceiling has none")
