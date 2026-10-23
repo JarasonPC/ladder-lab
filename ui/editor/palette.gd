@@ -94,17 +94,17 @@ const RESIDENTIAL_ENTRIES: Array[Dictionary] = [
 ]
 
 ## Entries of a residential installation (its single-line diagram, see
-## [SingleLine]): the protection that makes its circuits and groups, and
-## the parts a circuit feeds.
+## [SingleLine]): the main switch and the protection that makes its circuits
+## and groups (poles, characteristic and ratings set in the properties once
+## placed), and the parts a circuit feeds (a luminaire alike on a wall or the
+## ceiling: the floor plan tells them apart).
 const INSTALLATION_ENTRIES: Array[Dictionary] = [
+	{"title": "Main switch", "template": {"type": "cam_switch", "poles": 4, "positions": "0-I"}, "group": "protection"},
 	{"title": "Circuit breaker", "template": {"type": "breaker", "characteristic": "B", "rated_current": 16.0}},
-	{"title": "Circuit breaker, three poles", "template": {"type": "breaker", "poles": 3, "characteristic": "B", "rated_current": 16.0}},
 	{"title": "Residual current device (RCD)", "template": {"type": "rcd", "poles": 2}},
-	{"title": "Residual current device, four poles", "template": {"type": "rcd", "poles": 4}},
 	{"title": "RCD with overcurrent release (RCBO)", "template": {"type": "rcd", "poles": 2, "overcurrent": true, "rated_current": 16.0, "characteristic": "B"}},
 	{"title": "Arc fault detection device with breaker (AFDD)", "template": {"type": "afdd"}},
 	{"title": "Luminaire", "template": {"type": "luminaire"}},
-	{"title": "Wall luminaire", "template": {"type": "luminaire", "wall": true}},
 	{"title": "Socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 1}},
 	{"title": "Double socket outlet 230 V (type E)", "template": {"type": "socket", "gangs": 2}},
 	{"title": "Water heater", "template": {"type": "appliance", "kind": "water_heater"}},
@@ -115,6 +115,7 @@ const INSTALLATION_ENTRIES: Array[Dictionary] = [
 	{"title": "Dishwasher", "template": {"type": "appliance", "kind": "dishwasher"}},
 	{"title": "Heater", "template": {"type": "appliance", "kind": "heater"}},
 	{"title": "Fridge", "template": {"type": "appliance", "kind": "fridge"}},
+	{"title": "Outlet for a later connection (workshop, summerhouse)", "template": {"type": "appliance", "kind": "outlet"}},
 ]
 
 ## Entries of a residential installation's floor plan: the light switches
@@ -139,6 +140,7 @@ const PLAN_ENTRIES: Array[Dictionary] = [
 	{"title": "Dishwasher", "template": {"type": "appliance", "kind": "dishwasher"}},
 	{"title": "Heater", "template": {"type": "appliance", "kind": "heater"}},
 	{"title": "Fridge", "template": {"type": "appliance", "kind": "fridge"}},
+	{"title": "Outlet for a later connection (workshop, summerhouse)", "template": {"type": "appliance", "kind": "outlet"}},
 	{"title": "Kitchen worktop", "template": {"type": "fixture", "kind": "worktop"}},
 	{"title": "Bath", "template": {"type": "fixture", "kind": "bath"}},
 	{"title": "Shower tray", "template": {"type": "fixture", "kind": "shower"}},
@@ -453,8 +455,10 @@ func refresh_paper() -> void:
 			(child as CanvasItem).queue_redraw()
 
 
-## [param component] on a paper tile of [param button] as the floor plan draws it.
-func _add_plan_icon(button: Button, component: CircuitComponent, fixture: String = "", custom: CustomSymbol = null) -> void:
+## [param component] on a paper tile of [param button] as the floor plan
+## draws it (with [param single_line] as the single-line diagram hangs it
+## from its circuit's line).
+func _add_plan_icon(button: Button, component: CircuitComponent, fixture: String = "", custom: CustomSymbol = null, single_line: bool = false) -> void:
 	var paper: Panel = Panel.new()
 	_tiles.append(paper)
 	_style_tile(paper)
@@ -467,6 +471,7 @@ func _add_plan_icon(button: Button, component: CircuitComponent, fixture: String
 	glyph.component = component
 	glyph.fixture = fixture
 	glyph.custom = custom
+	glyph.single_line = single_line
 	glyph.size = TILE.size
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	paper.add_child(glyph)
@@ -512,6 +517,10 @@ func _add_icon(button: Button, template: Dictionary) -> void:
 	if plan:
 		# The floor plan's parts as the plan draws them.
 		_add_plan_icon(button, component)
+		return
+	if environment == SchematicDocument.Kind.RESIDENTIAL and SingleLine.is_load(component):
+		# The parts a circuit feeds as the single-line diagram draws them.
+		_add_plan_icon(button, component, "", null, true)
 		return
 	var supply: bool = component is PowerSupply
 	var upright: bool = component is ThreePhaseMotor or component is AnalogSensor or component is ProximitySensor or component is ProtectiveDevice or component is MotorBreaker or component is LightSwitch or component is SocketOutlet or component.get_terminal_names().size() > 3

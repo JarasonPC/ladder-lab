@@ -5291,12 +5291,6 @@ msgstr "Přepěťová ochrana (SPD)"
 msgid "Residual current device (RCD)"
 msgstr "Proudový chránič (RCD)"
 
-msgid "Circuit breaker, three poles"
-msgstr "Jistič, třípólový"
-
-msgid "Residual current device, four poles"
-msgstr "Proudový chránič, čtyřpólový"
-
 msgid "RCD with overcurrent release (RCBO)"
 msgstr "Chránič s nadproudovou ochranou (RCBO)"
 
@@ -5409,8 +5403,8 @@ msgstr "Selektivní, se zpožděním (S)"
 msgid "Drag to move its circuit (the ones selected along); Shift+click selects more; Delete takes them away"
 msgstr "Tažením přesunete jeho obvod (i s ostatními vybranými); Shift+klik vybere další; Delete je odstraní"
 
-msgid "Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together."
-msgstr "Vyberte v paletě jistič nebo chránič a klikněte mezi obvody; pod přípojnicí skupiny nebo pod jistič obvodu, který nic nenapájí, jej vložíte pod tento přístroj (chránič 30 mA pod selektivní 300 mA, jističe pod jistič); zásuvku, svítidlo nebo spotřebič na obvod. Jistič nebo chránič přesunete tažením. Shift+klik nebo rámeček tažený z prázdného místa vybere více prvků, které pak přetáhnete nebo smažete najednou."
+msgid "Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. A breaker, RCBO or AFDD put in protects the first circuit of the floor plan waiting for one; choose another in its Circuit. Its poles, characteristic and rating are set in its properties. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together."
+msgstr "Vyberte v paletě jistič nebo chránič a klikněte mezi obvody; pod přípojnicí skupiny nebo pod jistič obvodu, který nic nenapájí, jej vložíte pod tento přístroj (chránič 30 mA pod selektivní 300 mA, jističe pod jistič); zásuvku, svítidlo nebo spotřebič na obvod. Vložený jistič, chránič s nadproudovou ochranou nebo AFDD jistí první obvod z půdorysu, který na jištění čeká; jiný zvolíte v jeho poli Obvod. Póly, charakteristiku a jmenovité hodnoty nastavíte v jeho vlastnostech. Jistič nebo chránič přesunete tažením. Shift+klik nebo rámeček tažený z prázdného místa vybere více prvků, které pak přetáhnete nebo smažete najednou."
 
 msgid "No RCD of 30 mA or less protects this circuit. ČSN 33 2000-4-41 asks for one on every circuit an ordinary person (laik) can reach: sockets, lighting and what is fed in a home."
 msgstr "Obvod nechrání proudový chránič 30 mA nebo citlivější. ČSN 33 2000-4-41 jej požaduje u každého obvodu přístupného laikům: zásuvky, osvětlení a vše napájené v bytě."
@@ -6487,3 +6481,46 @@ msgid_plural "%d minutes from the first run to the last report"
 msgstr[0] "%d minuta od prvního spuštění po poslední hlášení"
 msgstr[1] "%d minuty od prvního spuštění po poslední hlášení"
 msgstr[2] "%d minut od prvního spuštění po poslední hlášení"
+
+msgid "not protected yet"
+msgstr "zatím nejištěn"
+
+#, c-format
+msgid "%d  (new)"
+msgstr "%d  (nový)"
+
+#, c-format
+msgid "New circuit %d"
+msgstr "Nový obvod %d"
+
+msgid "Main switch: Delete takes it away (the supply then goes straight onto the busbars)"
+msgstr "Hlavní vypínač: Delete jej odebere (přívod pak vede přímo na přípojnice)"
+
+msgid "None: every circuit of the floor plan is protected."
+msgstr "Žádné: každý obvod z půdorysu je jištěn."
+
+#, c-format
+msgid "Circuit %d (%s)"
+msgstr "Obvod %d (%s)"
+
+msgid "A new circuit (spare), this one waiting"
+msgstr "Nový obvod (rezerva), tento počká na jištění"
+
+#, c-format
+msgid "%d part"
+msgid_plural "%d parts"
+msgstr[0] "%d prvek"
+msgstr[1] "%d prvky"
+msgstr[2] "%d prvků"
+
+msgid "Circuit"
+msgstr "Obvod"
+
+msgid "Circuits waiting for protection"
+msgstr "Obvody čekající na jištění"
+
+msgid "Outlet for a later connection"
+msgstr "Vývod"
+
+msgid "Outlet for a later connection (workshop, summerhouse)"
+msgstr "Vývod pro pozdější připojení (dílna, altán)"

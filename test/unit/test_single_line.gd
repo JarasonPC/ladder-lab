@@ -173,7 +173,7 @@ func test_single_line_in_the_main_window() -> void:
 	var canvas: SingleLineCanvas = main._single_line.canvas
 	await wait_process_frames(2)
 	# A breaker put under the busbars, a socket onto its circuit.
-	main._palette.template_chosen.emit(Palette.INSTALLATION_ENTRIES[0]["template"])
+	main._palette.template_chosen.emit(Palette.INSTALLATION_ENTRIES[1]["template"])
 	assert_false(canvas.placing.is_empty())
 	canvas._place(canvas.at(SingleLineCanvas.BREAKER_U, SingleLineCanvas.SPACING))
 	assert_eq(main.edit_doc.single_line.feeders().size(), 1, "a circuit, undoably")
@@ -346,7 +346,7 @@ func test_several_selected_dragged_and_deleted() -> void:
 	edits[1].call(doc)
 	assert_null(doc.circuit.get_component("FA1"))
 	assert_null(doc.circuit.get_component("FA3"))
-	assert_null(doc.circuit.get_component("EB1"), "with what it fed")
+	assert_null(doc.circuit.get_component("EB1"), "with what it fed, as it is on no floor plan")
 	assert_eq(doc.single_line.columns.size(), 1)
 
 
@@ -365,7 +365,7 @@ func test_ghost_marks_where_it_goes() -> void:
 	var preview: Dictionary = canvas._preview(target, template, PackedStringArray())
 	var ghost: String = canvas._ghost.designation
 	assert_eq(preview["shown"], PackedStringArray([ghost]), "the breaker to be drawn see-through")
-	var ghost_v: float = SingleLineCanvas._attach_v(preview["laid"], ghost)
+	var ghost_v: float = canvas._attach_end(preview["laid"], [SingleLine.Feeder.new(ghost)])
 	assert_almost_eq(ghost_v, fa3 + SingleLineCanvas.SPACING, 0.01, "where the new circuit will be")
 	doc.single_line.add(doc, _component(template, ghost), target["index"], target["into"])
 	canvas._layout()
@@ -439,3 +439,98 @@ func test_cable_length_voltage_drop_and_loop_impedance() -> void:
 	assert_almost_eq(again.supply_impedance, 2.8, 1e-6)
 	var check: Dictionary = SingleLineView.checks(line, f, doc)
 	assert_true(check["bad"])
+
+
+func test_circuits_numbered_made_on_the_plan_and_protected() -> void:
+	var doc: SchematicDocument = _house()
+	var line: SingleLine = doc.single_line
+	assert_eq(line.feeder_of("FA1").number, 1, "numbered in the order they came")
+	assert_eq(line.feeder_of("FA3").number, 3)
+	# Parts put on circuit 4, which nothing protects yet.
+	doc.add(_component({"type": "socket", "gangs": 2}, "XD2"), SingleLine.hidden_cell(doc))
+	doc.add(_component({"type": "socket", "gangs": 1}, "XD3"), SingleLine.hidden_cell(doc))
+	line.feed("XD2", 4)
+	line.feed("XD3", 4)
+	doc.update_single_line()
+	assert_eq(line.waiting.size(), 1, "a circuit waiting for its protection")
+	assert_eq(line.feeder_feeding("XD2").number, 4)
+	assert_eq(line.feeder_feeding("XD2").device, "")
+	assert_eq(line.tag("XD3", doc.circuit), "Z 4.2", "tagged by its circuit's number")
+	assert_eq(line.next_number(), 5)
+	assert_eq(doc.get_wire_count() > 0, true)
+	for wire: PackedStringArray in doc.circuit.get_wires():
+		assert_false(wire[0].begins_with("XD2") or wire[1].begins_with("XD2"), "not wired while nothing protects it")
+	# Saved and loaded with its number.
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_eq(copy.single_line.waiting.size(), 1)
+	assert_eq(copy.single_line.feeder_feeding("XD3").number, 4)
+	# A breaker put in protects the first circuit waiting.
+	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 16.0}, "FA4"), 3, "", "", line.first_waiting().number))
+	assert_true(line.waiting.is_empty())
+	assert_eq(line.feeder_of("FA4").number, 4)
+	assert_eq(line.feeder_of("FA4").loads, PackedStringArray(["XD2", "XD3"]))
+	# Another breaker, then the circuit moved onto it: FA4's waits no more, FA5 protects it.
+	assert_true(line.add(doc, _component({"type": "breaker", "characteristic": "B", "rated_current": 16.0}, "FA5"), 4))
+	assert_eq(line.feeder_of("FA5").number, 5, "a new spare circuit")
+	assert_true(line.assign(doc, "FA4", 0), "FA4 takes a new circuit, its own waits")
+	assert_eq(line.waiting.size(), 1)
+	assert_true(line.assign(doc, "FA5", 4))
+	assert_eq(line.feeder_of("FA5").loads.size(), 2)
+	assert_eq(line.feeder_of("FA5").number, 4)
+	# Deleting its breaker: the circuit waits again, its parts kept.
+	doc.remove_component(doc.circuit.get_component("FA5").id)
+	doc.update_single_line()
+	assert_not_null(doc.circuit.get_component("XD2"))
+	assert_eq(line.feeder_feeding("XD2").number, 4)
+	assert_eq(line.feeder_feeding("XD2").device, "")
+
+
+func test_main_switch_taken_away_and_put_back() -> void:
+	var doc: SchematicDocument = _house()
+	var line: SingleLine = doc.single_line
+	assert_not_null(doc.circuit.get_component(SingleLine.MAIN))
+	assert_false(line.add(doc, _component({"type": "cam_switch", "poles": 4, "positions": "0-I"}, SingleLine.MAIN), 0), "only one")
+	doc.remove_component(doc.circuit.get_component(SingleLine.MAIN).id)
+	doc.update_single_line()
+	assert_false(line.main_switch)
+	assert_null(doc.circuit.get_component(SingleLine.MAIN), "not made again")
+	# The busbars straight from the supply: the luminaire lights once its breaker is on.
+	(doc.circuit.get_component("FA1") as CircuitBreaker).switched_on = true
+	var sim: Simulator = Simulator.new(doc.circuit)
+	sim.step()
+	assert_true((doc.circuit.get_component("EA1") as Luminaire).energized)
+	var copy: SchematicDocument = DocumentSerializer.from_dict(DocumentSerializer.to_dict(doc))
+	assert_false(copy.single_line.main_switch, "saved without it")
+	assert_null(copy.circuit.get_component(SingleLine.MAIN))
+	# Put back from the palette.
+	var canvas: SingleLineCanvas = autofree(SingleLineCanvas.new())
+	canvas.document = doc
+	canvas.editing = true
+	var template: Dictionary = Palette.INSTALLATION_ENTRIES[0]["template"]
+	assert_eq(SingleLineCanvas.new_designation(doc, template), SingleLine.MAIN)
+	assert_true(canvas.drop_target(canvas.at(0.0, 0.0), template).get("main", false))
+	assert_true(line.add(doc, _component(template, SingleLine.MAIN), 0))
+	assert_true(line.main_switch)
+	assert_true(doc.circuit.get_component(SingleLine.MAIN) is CamSwitch)
+	assert_true(canvas.drop_target(canvas.at(0.0, 0.0), template).is_empty(), "no second one")
+
+
+func test_poles_drawn_apart_and_parts_one_under_another() -> void:
+	var doc: SchematicDocument = _house()
+	var line: SingleLine = doc.single_line
+	assert_true(line.add(doc, _component({"type": "breaker", "poles": 4, "characteristic": "B", "rated_current": 16.0}, "FA4"), 3))
+	assert_true(SingleLine.has_n_pole(doc.circuit.get_component("FA4")), "four poles: three phases and N")
+	assert_eq(line.phases_of(line.feeder_of("FA4"), doc.circuit), PackedInt32Array([1, 2, 3]))
+	assert_true(line.add(doc, _component({"type": "socket", "gangs": 1}, "XD2"), 0, "", "FA2"))
+	var canvas: SingleLineCanvas = autofree(SingleLineCanvas.new())
+	canvas.document = doc
+	canvas._layout()
+	assert_eq(SingleLineCanvas.pole_count(doc.circuit.get_component("FA4")), 4)
+	var v: float = canvas._circuit_entry("FA4")["v"]
+	var poles: PackedFloat32Array = SingleLineCanvas._circuit_poles(v, doc.circuit.get_component("FA4"))
+	assert_almost_eq(poles[3] - poles[0], 3.0 * SingleLineCanvas.POLE, 0.01, "a pole each")
+	assert_almost_eq((poles[0] + poles[3]) * 0.5, v, 0.01, "about the outlet")
+	# Each part of FA2 is drawn and picked on its own.
+	var fa2: float = canvas._circuit_entry("FA2")["v"]
+	assert_eq(canvas.thing_at(canvas.at(canvas._part_u(0), fa2 + 15.0)).get("designation", ""), "XD1")
+	assert_eq(canvas.thing_at(canvas.at(canvas._part_u(1), fa2 + 15.0)).get("designation", ""), "XD2")

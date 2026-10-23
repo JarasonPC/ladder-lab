@@ -154,8 +154,9 @@ var placing_room: int = -1
 var placing: String = ""
 ## A palette template a click with Tool.PLACE makes a new part of ({} for none).
 var placing_template: Dictionary = {}
-## The circuit (its device) new parts go on in a residential installation.
-var circuit: String = ""
+## The circuit (its number, 0 for none) new parts go on in a residential
+## installation; made, waiting for its protection, when none has it yet.
+var circuit: int = 0
 var zoom: float = 1.0
 ## Screen position of the plan's origin.
 var offset: Vector2 = Vector2(60.0, 60.0)
@@ -1211,7 +1212,7 @@ func _put_part(m: Vector2, exact: bool) -> void:
 		return
 	if not placing_template.is_empty():
 		var template: Dictionary = placing_template.duplicate()
-		var feeder: String = circuit
+		var feeder: int = circuit
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_part_layer(add_part(doc, template, feeder, m, exact), layer))
 		return
 	var designation: String = placing
@@ -1231,12 +1232,13 @@ func _put_part(m: Vector2, exact: bool) -> void:
 	placed.emit()
 
 
-## Makes a part of [param template] in [param doc], fed by circuit
-## [param feeder] (a device; none for ""), and puts it at [param at] on the
+## Makes a part of [param template] in [param doc], fed by circuit number
+## [param feeder] (none for 0; made, waiting for its protection, when no
+## circuit has that number yet), and puts it at [param at] on the
 ## plan (onto the nearest wall unless it goes on the ceiling; with
 ## [param exact] at that very point, facing [param face] when given).
 ## Returns its designation ("" if none was made).
-static func add_part(doc: SchematicDocument, template: Dictionary, feeder: String, at: Vector2, exact: bool = false, face: int = -1) -> String:
+static func add_part(doc: SchematicDocument, template: Dictionary, feeder: int, at: Vector2, exact: bool = false, face: int = -1) -> String:
 	var data: Dictionary = template.duplicate()
 	data["designation"] = SingleLineCanvas.new_designation(doc, template)
 	var part: CircuitComponent = DocumentSerializer.component_from_dict(data)
@@ -1247,9 +1249,8 @@ static func add_part(doc: SchematicDocument, template: Dictionary, feeder: Strin
 	var def: CustomSymbol = template_symbol(doc, template)
 	if def != null:
 		doc.use_symbol(def)
-	var f: SingleLine.Feeder = doc.single_line.feeder_of(feeder)
-	if f != null:
-		f.loads.append(part.designation)
+	if feeder > 0:
+		doc.single_line.feed(part.designation, feeder)
 	if exact and not on_ceiling(part):
 		doc.floor_plan.place_on_wall(part.designation, at, face)
 	else:
@@ -2671,6 +2672,11 @@ func _draw_part(designation: String, s: float, font: Font) -> void:
 			var tag: String = document.single_line.tag(designation, document.circuit)
 			if not tag.is_empty():
 				label = tag
+		elif installation():
+			# Its circuit's number after the designation.
+			var fed: SingleLine.Feeder = document.single_line.feeder_feeding(designation)
+			if fed != null:
+				label += " /%d" % fed.number
 		if c is LightSwitch:
 			PlanSymbols.draw_switch(self, c as LightSwitch, at, upright, s, color, width)
 			if not is_equal_approx((c as LightSwitch).height, LightSwitch.STANDARD_HEIGHT):

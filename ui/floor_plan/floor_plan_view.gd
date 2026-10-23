@@ -123,8 +123,9 @@ var _door_side: OptionButton
 var _door: int = -1
 var _circuit_title: Label
 var _circuit: OptionButton
-## Circuits offered (their devices), by item index of [member _circuit] (the first: none).
-var _circuits: PackedStringArray = PackedStringArray()
+## Circuits offered (their numbers), by item index of [member _circuit]
+## (the first: none, the last: a new one).
+var _circuits: PackedInt32Array = PackedInt32Array()
 ## The circuit for new parts was chosen (else the first is taken).
 var _circuit_picked: bool = false
 var _room_fields: GridContainer
@@ -796,47 +797,42 @@ func _fill_circuits() -> void:
 	if part == FloorPlan.UNIT:
 		part = ""
 	_circuit_title.text = (tr("Circuit of -%s") % part if not part.is_empty() else tr("Circuit for new parts")).to_upper()
-	_circuits = PackedStringArray([""])
+	_circuits = PackedInt32Array([0])
 	_circuit.clear()
 	_circuit.add_item(tr("No circuit"))
-	for f: SingleLine.Feeder in line.feeders():
-		_circuits.append(f.device)
-		var where: String = f.destination
-		if where.is_empty():
-			var end: CircuitComponent = SingleLine.end_part(f, _document.circuit)
-			where = ""
-			if end is SocketOutlet:
-				where = tr("Sockets")
-			elif end is Luminaire:
-				where = tr("Lighting")
-			elif end is Appliance:
-				where = ApplianceSymbol.title_of(end as Appliance)
-		_circuit.add_item(("-%s  %s" % [f.device, where]).strip_edges())
-	var current: String = canvas.circuit
+	var current: int = canvas.circuit
+	for f: SingleLine.Feeder in line.circuits():
+		_circuits.append(f.number)
+		var by: String = ("-" + f.device) if not f.device.is_empty() else tr("not protected yet")
+		_circuit.add_item("%s  [%s]" % [SingleLineView.circuit_text(f, _document), by])
+	# A circuit picked for new parts that has none yet is kept in the list.
+	if current > 0 and not _circuits.has(current) and part.is_empty():
+		_circuits.append(current)
+		_circuit.add_item(tr("%d  (new)") % current)
+	var fresh: int = line.next_number()
+	while _circuits.has(fresh):
+		fresh += 1
+	_circuits.append(fresh)
+	_circuit.add_item(tr("New circuit %d") % fresh)
 	if not part.is_empty():
 		var fed: SingleLine.Feeder = line.feeder_feeding(part)
-		current = fed.device if fed != null else ""
-	elif (current.is_empty() and not _circuit_picked) or not _circuits.has(current):
-		current = _circuits[1] if _circuits.size() > 1 else ""
+		current = fed.number if fed != null else 0
+	elif current == 0 and not _circuit_picked:
+		current = _circuits[1] if _circuits.size() > 2 else fresh
 		canvas.circuit = current
 	_circuit.select(maxi(_circuits.find(current), 0))
 
 
 func _on_circuit_chosen(index: int) -> void:
-	var device: String = _circuits[index] if index < _circuits.size() else ""
+	var number: int = _circuits[index] if index < _circuits.size() else 0
 	var part: String = canvas.selected.get("designation", "") if canvas.selected.get("kind", "") == "part" else ""
 	if part.is_empty() or part == FloorPlan.UNIT:
-		canvas.circuit = device
+		canvas.circuit = number
 		_circuit_picked = true
+		_fill_circuits()
 		return
 	# The selected part moves to the circuit chosen.
-	edit_requested.emit(func(doc: SchematicDocument) -> void:
-		var old: SingleLine.Feeder = doc.single_line.feeder_feeding(part)
-		if old != null:
-			old.loads.remove_at(old.loads.find(part))
-		var f: SingleLine.Feeder = doc.single_line.feeder_of(device)
-		if f != null:
-			f.loads.append(part))
+	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.feed(part, number))
 
 
 func _entry_text(designation: String) -> String:
@@ -1373,7 +1369,7 @@ func _apply_array() -> void:
 	if index >= plan.rooms.size():
 		return
 	var template: Dictionary = _array_templates[_array_part.selected]
-	var feeder: String = canvas.circuit
+	var feeder: int = canvas.circuit
 	var points: PackedVector2Array
 	var face: int = -1
 	if _array_target["kind"] == "room":

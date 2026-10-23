@@ -107,7 +107,7 @@ func test_parts_put_on_the_plan_onto_a_circuit_and_tagged() -> void:
 	canvas.size = Vector2(800, 600)
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
 	canvas.placing_template = {"type": "socket", "gangs": 2}
-	canvas.circuit = "FA2"
+	canvas.circuit = 2
 	var edits: Array[Callable] = []
 	canvas.edit_requested.connect(func(change: Callable) -> void: edits.append(change))
 	canvas._press_at = canvas.to_screen(Vector2(1.0, 1.9))

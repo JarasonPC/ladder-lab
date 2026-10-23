@@ -7,14 +7,21 @@ extends RefCounted
 ## column is a circuit (its breaker, RCBO or AFDD and what it feeds) or a
 ## group: a device with circuits and other groups under it (an RCD with
 ## its circuits, a 30 mA RCD under a selective 300 mA one, breakers under a
-## breaker): any protective device heads one once something is put under it. Only the phases are drawn; N and PE are
-## wired all the same. No nodes.
+## breaker): any protective device heads one once something is put under it. The
+## phases and the N poles of the devices are drawn; N and PE are wired all
+## the same. No nodes.
+##
+## Every circuit has a number ([member Feeder.number], its cable's too). A
+## circuit is made on the floor plan by putting parts on it, before anything
+## protects it: it waits ([member waiting]) until a breaker, RCBO or AFDD is
+## given it in the consumer unit ([method assign]).
 ##
 ## The parts are components of the document's circuit; the diagram keeps
 ## their order, phases and groups and what each circuit feeds, and wires
 ## them all ([method wire]: every wire of the document is made here, none is
-## drawn by hand). The supply points, the main switch [constant MAIN] and the
-## ripple control contacts [constant HDO] are made and kept by it.
+## drawn by hand). The supply points, the main switch [constant MAIN] (while
+## the diagram has one, [member main_switch]) and the ripple control
+## contacts [constant HDO] are made and kept by it.
 
 ## The main switch: four poles, L1 L2 L3 and N.
 const MAIN: String = "QB1"
@@ -46,7 +53,10 @@ const SUPPLY_IMPEDANCE: float = 0.4
 
 ## An outgoing circuit: its protective device and the parts it feeds.
 class Feeder extends RefCounted:
-	## Its circuit breaker, RCBO or AFDD.
+	## Its number in the installation (from 1; its cable is -WD and the
+	## number), 0 while none is given yet.
+	var number: int = 0
+	## Its circuit breaker, RCBO or AFDD ("" while it waits for one).
 	var device: String = ""
 	## Phase 1-3 its first pole is on (a three-pole device takes all three).
 	var phase: int = 1
@@ -68,6 +78,8 @@ class Feeder extends RefCounted:
 
 	func to_data() -> Dictionary:
 		var d: Dictionary = {"device": device, "phase": phase}
+		if number > 0:
+			d["number"] = number
 		if not loads.is_empty():
 			d["loads"] = Array(loads)
 		if not destination.is_empty():
@@ -83,6 +95,8 @@ class Feeder extends RefCounted:
 	static func from_data(d: Dictionary) -> Feeder:
 		var raw_phase: Variant = d.get("phase", 1)
 		var f: Feeder = Feeder.new(str(d.get("device", "")), clampi(int(raw_phase) if raw_phase is float or raw_phase is int else 1, 1, 3))
+		var raw_number: Variant = d.get("number", 0)
+		f.number = maxi(int(raw_number), 0) if raw_number is float or raw_number is int else 0
 		var raw: Variant = d.get("loads", [])
 		if raw is Array:
 			for load: Variant in raw:
@@ -121,6 +135,12 @@ class Group extends RefCounted:
 
 ## The columns left to right: [SingleLine.Feeder] or [SingleLine.Group].
 var columns: Array[RefCounted] = []
+## Circuits made on the floor plan that nothing protects yet (no device),
+## by number.
+var waiting: Array[Feeder] = []
+## The supply comes in through the main switch [constant MAIN] (else
+## straight onto the busbars).
+var main_switch: bool = true
 ## The supply cable written at the incoming side ("" for [constant SUPPLY_CABLE]).
 var supply_cable: String = ""
 ## A surge protective device (SPD) on the busbars to PE (drawn only).
@@ -130,7 +150,7 @@ var supply_impedance: float = SUPPLY_IMPEDANCE
 
 
 func is_empty() -> bool:
-	return columns.is_empty() and supply_cable.is_empty() and spd and is_equal_approx(supply_impedance, SUPPLY_IMPEDANCE)
+	return columns.is_empty() and waiting.is_empty() and main_switch and supply_cable.is_empty() and spd and is_equal_approx(supply_impedance, SUPPLY_IMPEDANCE)
 
 
 # --- Design checks --------------------------------------------------------------------
@@ -355,12 +375,70 @@ func feeder_of(designation: String) -> Feeder:
 	return null
 
 
-## The circuit feeding part [param designation], or null.
+## The circuit feeding part [param designation] (protected or waiting), or null.
 func feeder_feeding(designation: String) -> Feeder:
-	for f: Feeder in feeders():
+	for f: Feeder in circuits():
 		if f.loads.has(designation):
 			return f
 	return null
+
+
+## Every circuit, protected or waiting, by number.
+func circuits() -> Array[Feeder]:
+	var list: Array[Feeder] = feeders()
+	list.append_array(waiting)
+	list.sort_custom(func(a: Feeder, b: Feeder) -> bool: return a.number < b.number)
+	return list
+
+
+## The circuit numbered [param number], or null.
+func circuit_numbered(number: int) -> Feeder:
+	for f: Feeder in circuits():
+		if f.number == number:
+			return f
+	return null
+
+
+## The smallest number no circuit has.
+func next_number() -> int:
+	var used: Dictionary[int, bool] = {}
+	for f: Feeder in feeders():
+		used[f.number] = true
+	for f: Feeder in waiting:
+		used[f.number] = true
+	var n: int = 1
+	while used.has(n):
+		n += 1
+	return n
+
+
+## The waiting circuit of the smallest number, or null for none.
+func first_waiting() -> Feeder:
+	var best: Feeder = null
+	for f: Feeder in waiting:
+		if best == null or f.number < best.number:
+			best = f
+	return best
+
+
+## Gives every circuit without a number (or with one another has) the next
+## free one, in the order of the columns, then the waiting ones.
+func _number_all() -> void:
+	var seen: Dictionary[int, bool] = {}
+	var missing: Array[Feeder] = []
+	var all: Array[Feeder] = feeders()
+	all.append_array(waiting)
+	for f: Feeder in all:
+		if f.number <= 0 or seen.has(f.number):
+			missing.append(f)
+		else:
+			seen[f.number] = true
+	var n: int = 1
+	for f: Feeder in missing:
+		while seen.has(n):
+			n += 1
+		f.number = n
+		seen[n] = true
 
 
 ## The group of RCD [param designation], or null.
@@ -452,9 +530,9 @@ func switched_by_hdo(f: Feeder) -> bool:
 	return f.hdo and group_holding(f) == null
 
 
-## Number of the cable of circuit [param f]: its place among the circuits, from 1.
+## Number of the cable of circuit [param f]: the circuit's number.
 func cable_number(f: Feeder) -> int:
-	return feeders().find(f) + 1
+	return f.number
 
 
 ## The cable of circuit [param f] as written: the one set, else one that
@@ -480,11 +558,7 @@ static func cable_text(f: Feeder, circuit: Circuit) -> String:
 ## (its device [param device] when not in it yet).
 func phases_of(f: Feeder, circuit: Circuit, device: CircuitComponent = null) -> PackedInt32Array:
 	var c: CircuitComponent = device if device != null else circuit.get_component(f.device)
-	var poles: int = 1
-	if c is MotorBreaker and not (c is ResidualCurrentDevice or c is ArcFaultDevice):
-		poles = (c as MotorBreaker).poles
-	elif c is ResidualCurrentDevice:
-		poles = maxi((c as ResidualCurrentDevice).poles - 1, 1)
+	var poles: int = _poles(c) if c != null else 1
 	var list: PackedInt32Array = PackedInt32Array()
 	# Three poles take L1, L2 and L3 in turn whatever the phase set.
 	var first: int = 1 if poles >= 3 else f.phase
@@ -509,20 +583,35 @@ func next_phase(circuit: Circuit) -> int:
 # --- Edits ----------------------------------------------------------------------------
 
 ## Adds [param c] to [param doc] (if it is not there yet) and to the diagram:
-## an RCD as a new group, a protective device as a new circuit, at
-## [param index] of the columns or, with [param into] (an RCD's
-## designation), of that group; a part fed into circuit [param feeder] (a
-## device's designation). Rewires. Returns false when it does not fit
-## there (nothing changed then).
-func add(doc: SchematicDocument, c: CircuitComponent, index: int, into: String = "", feeder: String = "") -> bool:
+## the main switch [constant MAIN], an RCD as a new group, a protective
+## device as a new circuit (waiting circuit [param number] when there is
+## one, else a new one), at [param index] of the columns or, with
+## [param into] (an RCD's designation), of that group; a part fed into
+## circuit [param feeder] (a device's designation). Rewires. Returns false
+## when it does not fit there (nothing changed then).
+func add(doc: SchematicDocument, c: CircuitComponent, index: int, into: String = "", feeder: String = "", number: int = 0) -> bool:
 	var placed: bool = false
-	if heads_group(c) or protects_circuit(c):
+	if is_main(c):
+		if main_switch:
+			return false
+		main_switch = true
+		placed = true
+	elif heads_group(c) or protects_circuit(c):
 		var parent: Group = null
 		if not into.is_empty():
 			if not can_hold(into) or not fits_poles(doc, _poles(c), into):
 				return false
 			parent = open_group(into)
-		var item: RefCounted = Group.new(c.designation) if heads_group(c) else Feeder.new(c.designation)
+		var item: RefCounted = Group.new(c.designation)
+		if not heads_group(c):
+			var f: Feeder = _waiting_numbered(number)
+			if f != null:
+				waiting.erase(f)
+			else:
+				f = Feeder.new()
+				f.number = next_number()
+			f.device = c.designation
+			item = f
 		var list: Array[RefCounted] = parent.items if parent != null else columns
 		list.insert(clampi(index, 0, list.size()), item)
 		_set_phase_of(item, _phase_under(doc, parent, c))
@@ -537,6 +626,64 @@ func add(doc: SchematicDocument, c: CircuitComponent, index: int, into: String =
 		return false
 	if doc.circuit.get_component(c.id) == null:
 		doc.add(c, hidden_cell(doc))
+	wire(doc)
+	return true
+
+
+## Whether [param c] is the main switch.
+static func is_main(c: CircuitComponent) -> bool:
+	return c is CamSwitch and c.designation == MAIN
+
+
+## The waiting circuit numbered [param number], or null.
+func _waiting_numbered(number: int) -> Feeder:
+	for f: Feeder in waiting:
+		if f.number == number:
+			return f
+	return null
+
+
+## Puts part [param designation] onto circuit [param number] (made, waiting
+## for its protection, when no circuit has that number yet), off the circuit
+## it was on; 0 takes it off any. Does not rewire.
+func feed(designation: String, number: int) -> void:
+	var old: Feeder = feeder_feeding(designation)
+	if old != null:
+		old.loads.remove_at(old.loads.find(designation))
+	if number <= 0:
+		return
+	var f: Feeder = circuit_numbered(number)
+	if f == null:
+		f = Feeder.new()
+		f.number = number
+		waiting.append(f)
+	f.loads.append(designation)
+
+
+## Circuit [param number] (a waiting one) is protected by breaker, RCBO or
+## AFDD [param device] from now on, in its place in the diagram: the circuit
+## the device protected waits in its stead when it feeds something; with
+## [param number] 0 (or none waiting so) the device protects a new circuit,
+## feeding nothing. Rewires. Returns false when nothing changed.
+func assign(doc: SchematicDocument, device: String, number: int) -> bool:
+	var old: Feeder = feeder_of(device)
+	if old == null or old.number == number:
+		return false
+	var f: Feeder = _waiting_numbered(number)
+	if f == null:
+		if old.loads.is_empty():
+			return false
+		f = Feeder.new()
+		f.number = next_number()
+	else:
+		waiting.erase(f)
+	var list: Array[RefCounted] = list_holding(old)
+	list[list.find(old)] = f
+	f.device = device
+	f.phase = old.phase
+	old.device = ""
+	if not old.loads.is_empty() or not old.destination.is_empty():
+		waiting.append(old)
 	wire(doc)
 	return true
 
@@ -672,15 +819,22 @@ func set_phase(doc: SchematicDocument, designation: String, phase: int) -> void:
 	wire(doc)
 
 
-## Leaves [param designation] out of the diagram (its component is gone): a
-## group's circuits and groups stay where it was, a circuit goes with what
-## it fed unfed, a part fed is no longer fed.
+## Leaves [param designation] out of the diagram (its component is gone): the
+## main switch (the supply straight onto the busbars), a group's circuits
+## and groups stay where it was, a circuit feeding something waits for
+## another device, a part fed is no longer fed.
 func remove(designation: String) -> void:
+	if designation == MAIN:
+		main_switch = false
+		return
 	var item: RefCounted = item_of(designation)
 	if item != null:
 		var list: Array[RefCounted] = list_holding(item)
 		var at: int = list.find(item)
 		list.remove_at(at)
+		if item is Feeder and (not (item as Feeder).loads.is_empty() or not (item as Feeder).destination.is_empty()):
+			(item as Feeder).device = ""
+			waiting.append(item as Feeder)
 		if item is Group:
 			var sub: Array[RefCounted] = (item as Group).items
 			for k: int in sub.size():
@@ -697,8 +851,8 @@ func rename(old_designation: String, new_designation: String) -> void:
 	for g: Group in groups():
 		if g.device == old_designation:
 			g.device = new_designation
-	for f: Feeder in feeders():
-		if f.device == old_designation:
+	for f: Feeder in circuits():
+		if f.device == old_designation and not old_designation.is_empty():
 			f.device = new_designation
 		var at: int = f.loads.find(old_designation)
 		if at >= 0:
@@ -708,11 +862,15 @@ func rename(old_designation: String, new_designation: String) -> void:
 ## Drops what [param circuit] no longer has, and parts of a kind that no
 ## longer fits (a breaker turned into an RCD's group head and the like).
 func prune(circuit: Circuit) -> void:
-	for f: Feeder in feeders():
+	for f: Feeder in circuits():
 		for i: int in range(f.loads.size() - 1, -1, -1):
 			var load: CircuitComponent = circuit.get_component(f.loads[i])
 			if load == null or not is_load(load):
 				f.loads.remove_at(i)
+	# A waiting circuit feeding nothing is no more.
+	for i: int in range(waiting.size() - 1, -1, -1):
+		if waiting[i].loads.is_empty():
+			waiting.remove_at(i)
 	var stale: PackedStringArray = PackedStringArray()
 	for item: RefCounted in items():
 		var c: CircuitComponent = circuit.get_component(device_of(item))
@@ -725,6 +883,7 @@ func prune(circuit: Circuit) -> void:
 		if g.items.is_empty() and not heads_group(circuit.get_component(g.device)):
 			var list: Array[RefCounted] = list_holding(g)
 			list[list.find(g)] = Feeder.new(g.device, g.phase)
+	_number_all()
 
 
 ## A cell of the (never shown) schematic page for a new part, clear of the others.
@@ -732,9 +891,10 @@ static func hidden_cell(doc: SchematicDocument) -> Vector2i:
 	return Vector2i(6 * doc.circuit.get_components().size(), 0)
 
 
-## Whether [param c] switches N too: an RCD, RCBO or AFDD.
+## Whether [param c] switches N too: an RCD, RCBO or AFDD, a breaker of
+## four poles (three phases and N).
 static func has_n_pole(c: CircuitComponent) -> bool:
-	return c is ResidualCurrentDevice or c is ArcFaultDevice
+	return c is ResidualCurrentDevice or c is ArcFaultDevice or (c is MotorBreaker and (c as MotorBreaker).poles == 4)
 
 
 static func _poles(c: CircuitComponent) -> int:
@@ -743,7 +903,7 @@ static func _poles(c: CircuitComponent) -> int:
 	if c is ArcFaultDevice:
 		return 1
 	if c is MotorBreaker:
-		return (c as MotorBreaker).poles
+		return mini((c as MotorBreaker).poles, 3)
 	return 1
 
 
@@ -761,13 +921,16 @@ func wire(doc: SchematicDocument) -> void:
 	_make_fixed_parts(doc)
 	for i: int in range(doc.get_wire_count() - 1, -1, -1):
 		doc.remove_wire(i)
+	# The busbars: the main switch's outputs, else the supply points.
+	var bus: Dictionary[int, String] = {1: SUPPLIES[0], 2: SUPPLIES[1], 3: SUPPLIES[2]}
+	var n_bus: String = SUPPLIES[3]
 	var main: CircuitComponent = doc.circuit.get_component(MAIN)
-	var main_keys: PackedStringArray = main.get_terminal_keys()
-	for k: int in 4:
-		doc.connect_terminals(SUPPLIES[k], main_keys[2 * k])
-	# The busbars: the main switch's outputs.
-	var bus: Dictionary[int, String] = {1: main_keys[1], 2: main_keys[3], 3: main_keys[5]}
-	var n_bus: String = main_keys[7]
+	if main != null:
+		var main_keys: PackedStringArray = main.get_terminal_keys()
+		for k: int in 4:
+			doc.connect_terminals(SUPPLIES[k], main_keys[2 * k])
+		bus = {1: main_keys[1], 2: main_keys[3], 3: main_keys[5]}
+		n_bus = main_keys[7]
 	var hdo_contacts: Array[CircuitComponent] = []
 	for c: CircuitComponent in doc.circuit.get_components():
 		if c.designation == HDO and c is LatchingSwitch:
@@ -1096,17 +1259,21 @@ static func _path(graph: Dictionary[String, PackedStringArray], chain: PackedStr
 	return path
 
 
-## The supply points, the main switch and one ripple control contact a
-## circuit switched by it (made or taken away to match).
+## The supply points, the main switch (while the diagram has one) and one
+## ripple control contact a circuit switched by it (made or taken away to match).
 func _make_fixed_parts(doc: SchematicDocument) -> void:
 	var conductors: Array[PowerSupply.Conductor] = [PowerSupply.Conductor.L, PowerSupply.Conductor.L2, PowerSupply.Conductor.L3, PowerSupply.Conductor.N, PowerSupply.Conductor.PE]
 	for k: int in SUPPLIES.size():
 		if doc.circuit.get_component(SUPPLIES[k]) == null:
 			doc.add(PowerSupply.new(SUPPLIES[k], conductors[k]), hidden_cell(doc))
 	var main: CircuitComponent = doc.circuit.get_component(MAIN)
-	if not (main is CamSwitch) or (main as CamSwitch).poles != 4:
-		if main != null:
-			doc.remove_component(main.id)
+	if main != null and (not main_switch or not (main is CamSwitch) or (main as CamSwitch).poles != 4):
+		# Taken away without the diagram forgetting it.
+		var had: bool = main_switch
+		doc.remove_component(main.id)
+		main_switch = had
+		main = null
+	if main == null and main_switch:
 		doc.add(CamSwitch.new(MAIN, CamSwitch.Positions.OFF_ON, 4), hidden_cell(doc))
 	var wanted: int = 0
 	for f: Feeder in feeders():
@@ -1151,6 +1318,13 @@ static func list_from_data(raw: Variant) -> Array[RefCounted]:
 
 func to_data() -> Dictionary:
 	var result: Dictionary = {"columns": list_data(columns)}
+	if not waiting.is_empty():
+		var list: Array[Dictionary] = []
+		for f: Feeder in waiting:
+			list.append(f.to_data())
+		result["waiting"] = list
+	if not main_switch:
+		result["main"] = false
 	if not supply_cable.is_empty():
 		result["supply_cable"] = supply_cable
 	if not spd:
@@ -1166,6 +1340,15 @@ static func from_data(d: Variant) -> SingleLine:
 	if not (d is Dictionary):
 		return line
 	line.columns = list_from_data((d as Dictionary).get("columns", []))
+	var raw_waiting: Variant = (d as Dictionary).get("waiting", [])
+	if raw_waiting is Array:
+		for item: Variant in raw_waiting:
+			if item is Dictionary:
+				var f: Feeder = Feeder.from_data(item)
+				f.device = ""
+				line.waiting.append(f)
+	line.main_switch = (d as Dictionary).get("main", true) != false
+	line._number_all()
 	var cable: Variant = (d as Dictionary).get("supply_cable", "")
 	line.supply_cable = cable if cable is String else ""
 	line.spd = (d as Dictionary).get("spd", true) != false

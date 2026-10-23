@@ -4,20 +4,28 @@ extends Control
 ## diagram (see [SingleLine]), as Czech projects draw it: the supply through
 ## the main switch onto busbars L1, L2, L3 and N across the sheet, a surge
 ## protective device, the PE and N bars, and the circuits hanging down from
-## a dot on their busbar (the phase written beside it), a group's under its
-## RCD (an outline with its test button) from a busbar of their own with the
-## group's N bar, a group under another one a level lower. Each circuit: its breaker (as on the schematic: the cross
-## and the releases), designation and rating beside it, an AFDD with its
-## caption and arc, the ripple control contact where it has one, the cable
-## number on a ledger and the cable along the line, the symbol of what it
-## feeds, where it goes and the room it goes to (a link to the floor plan).
-## Only phases are drawn. Wheel zooms at the mouse, right or middle drag pans.
+## a dot on their busbar (the phases written beside them), a group's under its
+## RCD (an outline with its test button) from busbars of their own (one a
+## phase) with the group's N bar, a group under another one a level lower.
+## Every conductor a device switches is drawn on its own, a pole each (the
+## phases and an N pole; the poles of one device joined by a dashed link),
+## and they come together into one line only at the circuit's outlet. Each
+## circuit: its breaker (as on the schematic: the cross and the releases),
+## designation and rating beside it, an AFDD with its caption and arc, the
+## ripple control contact where it has one, the cable number on a ledger and
+## the cable along the line, every part it feeds (light switches aside) one
+## under another with its designation, drawn as on the floor plan
+## ([PlanSymbols], hung from the line: [method draw_load]), where it goes and
+## the room it goes to (a link to the floor plan). Wheel zooms at the
+## mouse, right or middle drag pans.
 ##
-## Edit mode: a click selects a device or a part fed, Shift or Ctrl+click
+## Edit mode: a click selects a device (the main switch too) or a part fed, Shift or Ctrl+click
 ## adds one or takes it out, a drag from an empty place selects what is in
 ## its box; with [method begin_place] the part from the palette goes where
 ## it is clicked (a breaker or RCD between the columns or into a group, a
-## part onto the circuit under the mouse); the devices selected dragged
+## part onto the circuit under the mouse, the main switch where the
+## diagram has none; a breaker, RCBO or AFDD takes the first circuit
+## waiting for its protection); the devices selected dragged
 ## move their circuits or groups; while placing or dragging the diagram
 ## makes room where they go. Delete takes the selection away. Simulate mode: the
 ## circuits in the colours of their voltage; a click switches the main
@@ -41,7 +49,13 @@ const MIN_ZOOM: float = 0.25
 const MAX_ZOOM: float = 5.0
 const ZOOM_STEP: float = 1.15
 ## Across the sheet, from one circuit to the next.
-const SPACING: float = 74.0
+const SPACING: float = 84.0
+## Across, from one pole of a device to the next; between the conductors
+## of the surge protective device.
+const POLE: float = 24.0
+const SPD_POLE: float = 10.0
+## Down, from one busbar of a group of three phases to the next.
+const SUB_GAP: float = 12.0
 ## Gaps before and after a group, and before a circuit of an RCBO or AFDD
 ## (its release box beside it).
 const GROUP_GAP: float = 0.95 * SPACING
@@ -54,15 +68,22 @@ const N_U: float = 66.0
 ## a group (each symbol 3 cells tall).
 const BREAKER_U: float = 110.0
 const RCD_U: float = 100.0
-const GROUP_BREAKER_U: float = 222.0
+const GROUP_BREAKER_U: float = 246.0
 ## A group's N bar and busbar.
 const N_BAR_U: float = 172.0
 const SUB_BUS_U: float = 205.0
 ## Ripple control contact of a circuit of its own.
 const HDO_U: float = 190.0
 const LEDGER_U: float = 302.0
+## The poles of a circuit run down to here and come together a little lower.
+const MERGE_U: float = 40.0
+const JOIN_U: float = 24.0
 const LOAD_U: float = 410.0
 const LOAD_R: float = 13.0
+## Down, from one part a circuit feeds to the next; a metre of the floor
+## plan's symbols (pixels at zoom 1).
+const LOAD_STEP: float = 36.0
+const LOAD_SCALE: float = 100.0
 ## Incoming: the main switch's column and its top, the SPD's column.
 const MAIN_V: float = -100.0
 const MAIN_U: float = -120.0
@@ -70,8 +91,7 @@ const SUPPLY_U: float = -175.0
 const SPD_V: float = -18.0
 const SPD_U: float = 136.0
 const BAR_U: float = -76.0
-## RCD: its N pole beside its phase pole, the release box right of it.
-const N_POLE: float = 12.0
+## RCD: the release box right of its last pole.
 const RCD_BOX := Rect2(20, 22, 22, 16)
 const TEST_BUTTON := Vector2(31, 12)
 const OUTLINE := Rect2(-14, 4, 62, 54)
@@ -84,7 +104,7 @@ const SMALL_SIZE: float = 9.5
 const DEVICE_GRAB := Rect2(-6, -50, 72, 94)
 ## How much lower a group under another one is drawn: its RCD hangs from the
 ## other's busbar as a group's from the lowest busbar.
-const LEVEL: float = SUB_BUS_U - 44.0
+const LEVEL: float = SUB_BUS_U + 2.0 * SUB_GAP - 44.0
 ## A circuit without the additional protection of a 30 mA RCD: its mark
 ## (above the cable's ledger) and what it says.
 const MARK_U: float = 30.0
@@ -107,15 +127,18 @@ var step: StepResult = null
 ## Drawn for a sheet: no selection, placing or hint.
 var sheet: bool = false
 
-## Laid out by [method _layout]: per circuit {"designation", "v", "group"
-## (the RCD it is directly under or ""), "depth" (how many groups it is
-## under)}, per group {"designation", "v0" (its RCD), "v1" (the last thing
-## on its busbar), "end" (the last circuit under it), "depth", "parent"};
-## the deepest group's depth.
+## Laid out by [method _layout]: per circuit {"designation", "v" (its
+## outlet, its poles about it), "group" (the device it is directly under or
+## ""), "depth" (how many groups it is under), "n_u" (the row its N comes
+## from)}, per group {"designation", "v0" (its first pole), "v1" (the last
+## pole on its busbars), "end" (the last circuit under it), "depth",
+## "parent", "n_u"}; the deepest group's depth; the most parts a circuit
+## feeds.
 var _circuits: Array[Dictionary] = []
 var _groups: Array[Dictionary] = []
 var _end_v: float = 0.0
 var _depth: int = 0
+var _most_parts: int = 0
 ## A drag from an empty place selecting what is in its box (from that point).
 var _banding: bool = false
 var _band_from: Vector2 = Vector2.ZERO
@@ -188,7 +211,7 @@ func local(point: Vector2) -> Vector2:
 ## Where the drawing is (local x = v across, y = u down), for fitting it and for a sheet.
 func extent() -> Rect2:
 	_layout()
-	return Rect2(MAIN_V - 150.0, SUPPLY_U - 30.0, _end_v - MAIN_V + 230.0, _load_u() + 160.0 - SUPPLY_U)
+	return Rect2(MAIN_V - 3.0 * POLE - 150.0, SUPPLY_U - 30.0, _end_v - MAIN_V + 3.0 * POLE + 230.0, _load_u() + maxi(_most_parts - 1, 0) * LOAD_STEP + 160.0 - SUPPLY_U)
 
 
 ## Shows everything, as large as fits.
@@ -231,6 +254,7 @@ func _apply(laid: Dictionary) -> void:
 	_groups = laid["groups"]
 	_end_v = laid["end_v"]
 	_depth = laid["depth"]
+	_most_parts = laid["parts"]
 
 
 ## The layout of [param l] (see [member _circuits]); circuits of
@@ -238,7 +262,7 @@ func _apply(laid: Dictionary) -> void:
 func _layout_of(l: SingleLine, boxed: PackedStringArray = PackedStringArray()) -> Dictionary:
 	var circuits: Array[Dictionary] = []
 	var groups: Array[Dictionary] = []
-	var laid: Dictionary = {"circuits": circuits, "groups": groups, "end_v": SPACING * 1.15, "depth": 0}
+	var laid: Dictionary = {"circuits": circuits, "groups": groups, "end_v": SPACING * 1.15, "depth": 0, "parts": 0}
 	if l != null:
 		laid["end_v"] = _lay(l.columns, 0, "", SPACING * 1.15, laid, boxed, N_U)
 	return laid
@@ -259,13 +283,16 @@ func _lay(list: Array[RefCounted], depth: int, parent: String, v: float, laid: D
 			var entry: Dictionary = {"designation": g.device, "v0": v, "v1": v, "end": v, "depth": depth, "parent": parent, "n_u": n_u}
 			(laid["groups"] as Array[Dictionary]).append(entry)
 			laid["depth"] = maxi(int(laid["depth"]), depth)
+			var head: CircuitComponent = _part(g.device) if document != null else null
+			var head_width: float = (pole_count(head) - 1) * POLE
 			if g.items.is_empty():
-				v += SPACING
+				v += SPACING + head_width
 			else:
 				# Under its N bar (an RCD's, an AFDD's), else the N it has.
-				var n_under: float = _n_bar_u(depth) + 10.0 if SingleLine.has_n_pole(_part(g.device)) else n_u
+				var n_under: float = _n_bar_u(depth) + 10.0 if SingleLine.has_n_pole(head) else n_u
 				v = _lay(g.items, depth + 1, g.device, v, laid, boxed, n_under)
-				entry["v1"] = _attach_v(laid, SingleLine.device_of(g.items.back()))
+				entry["v1"] = maxf(_attach_end(laid, g.items), entry["v0"] + head_width)
+				v = maxf(v, float(entry["v0"]) + head_width + SPACING)
 			entry["end"] = maxf(v - SPACING, float(entry["v0"]))
 			after_group = true
 		else:
@@ -276,21 +303,48 @@ func _lay(list: Array[RefCounted], depth: int, parent: String, v: float, laid: D
 			if after_group or (is_boxed and (depth == 0 or k > 0)):
 				v += maxf(AFTER_GROUP if after_group else 0.0, BOX_GAP if is_boxed else 0.0)
 			after_group = false
-			(laid["circuits"] as Array[Dictionary]).append({"designation": designation, "v": v, "group": parent, "depth": depth})
-			v += SPACING
+			# Its poles about its outlet.
+			var half: float = (pole_count(device) - 1) * POLE * 0.5 if device != null else 0.0
+			v += half
+			(laid["circuits"] as Array[Dictionary]).append({"designation": designation, "v": v, "group": parent, "depth": depth, "n_u": n_u})
+			if document != null:
+				laid["parts"] = maxi(int(laid["parts"]), _parts_of(item as SingleLine.Feeder).size())
+			v += SPACING + half
 	return v
 
 
-## Where device [param designation] is laid out in [param laid]: a
-## circuit's line or a group's RCD; NAN for nowhere.
-static func _attach_v(laid: Dictionary, designation: String) -> float:
-	for entry: Dictionary in laid["circuits"]:
-		if entry["designation"] == designation:
-			return entry["v"]
-	for entry: Dictionary in laid["groups"]:
-		if entry["designation"] == designation:
-			return entry["v0"]
-	return NAN
+## The last pole of what is in [param list] in [param laid] (across): how far a group's busbars go.
+func _attach_end(laid: Dictionary, list: Array[RefCounted]) -> float:
+	var end: float = -INF
+	for item: RefCounted in list:
+		var designation: String = SingleLine.device_of(item)
+		var c: CircuitComponent = _part(designation)
+		for entry: Dictionary in laid["circuits"]:
+			if entry["designation"] == designation:
+				end = maxf(end, float(entry["v"]) + (pole_count(c) - 1) * POLE * 0.5)
+		for entry: Dictionary in laid["groups"]:
+			if entry["designation"] == designation:
+				end = maxf(end, float(entry["v0"]) + (pole_count(c) - 1) * POLE)
+	return end
+
+
+## How many poles device [param c] has drawn: its phases and its N pole.
+static func pole_count(c: CircuitComponent) -> int:
+	if c == null:
+		return 1
+	return SingleLine.phase_count(c) + (1 if SingleLine.has_n_pole(c) else 0)
+
+
+## The parts circuit [param f] feeds that the diagram draws (light switches left out).
+func _parts_of(f: SingleLine.Feeder) -> Array[CircuitComponent]:
+	var list: Array[CircuitComponent] = []
+	if f == null:
+		return list
+	for designation: String in f.loads:
+		var c: CircuitComponent = document.circuit.get_component(designation)
+		if c != null and not (c is LightSwitch):
+			list.append(c)
+	return list
 
 
 func _group_entry(designation: String) -> Dictionary:
@@ -337,20 +391,21 @@ func _circuit_entry(designation: String) -> Dictionary:
 # --- Finding things -------------------------------------------------------------------
 
 ## What is under screen point [param point]: {"kind": "device" / "load" /
-## "main" / "hdo" / "test" / "room", "designation"}, {} for nothing.
+## "main" / "hdo" / "test" / "room" / "warning", "designation"}, {} for nothing.
 func thing_at(point: Vector2) -> Dictionary:
 	_layout()
 	var p: Vector2 = local(point)
 	var u: float = p.x
 	var v: float = p.y
-	if absf(v - MAIN_V) < 24.0 and u > MAIN_U - 6.0 and u < MAIN_U + 66.0:
+	if line().main_switch and v > _main_v(0) - 24.0 and v < _main_v(3) + 10.0 and u > MAIN_U - 6.0 and u < MAIN_U + 66.0:
 		return {"kind": "main", "designation": SingleLine.MAIN}
 	for g: Dictionary in _groups:
-		var gv: float = g["v0"]
+		var head: CircuitComponent = document.circuit.get_component(g["designation"])
+		var poles: PackedFloat32Array = _group_poles(g["v0"], head)
 		var ru: float = _rcd_u(g["depth"])
-		if SingleLine.has_n_pole(document.circuit.get_component(g["designation"])) and Vector2(u, v).distance_to(Vector2(ru + TEST_BUTTON.y, gv + TEST_BUTTON.x)) < 6.0:
+		if _has_box(head) and Vector2(u, v).distance_to(Vector2(ru + TEST_BUTTON.y, poles[poles.size() - 1] + TEST_BUTTON.x)) < 6.0:
 			return {"kind": "test", "designation": g["designation"]}
-		if Rect2(ru + DEVICE_GRAB.position.x, gv + DEVICE_GRAB.position.y, DEVICE_GRAB.size.x, DEVICE_GRAB.size.y + N_POLE).has_point(Vector2(u, v)):
+		if _grab(ru, poles).has_point(Vector2(u, v)):
 			return {"kind": "device", "designation": g["designation"]}
 	for entry: Dictionary in _circuits:
 		var cv: float = entry["v"]
@@ -359,20 +414,75 @@ func thing_at(point: Vector2) -> Dictionary:
 			continue
 		var top: float = _breaker_u(entry["depth"])
 		var device: CircuitComponent = document.circuit.get_component(f.device)
-		if (device is ResidualCurrentDevice or device is ArcFaultDevice) and Vector2(u, v).distance_to(Vector2(top + TEST_BUTTON.y, cv + TEST_BUTTON.x)) < 6.0:
+		var poles: PackedFloat32Array = _circuit_poles(cv, device)
+		if _has_box(device) and Vector2(u, v).distance_to(Vector2(top + TEST_BUTTON.y, poles[poles.size() - 1] + TEST_BUTTON.x)) < 6.0:
 			return {"kind": "test", "designation": f.device}
-		if Rect2(top + DEVICE_GRAB.position.x, cv + DEVICE_GRAB.position.y, DEVICE_GRAB.size.x, DEVICE_GRAB.size.y).has_point(Vector2(u, v)):
+		if _grab(top, poles).has_point(Vector2(u, v)):
 			return {"kind": "device", "designation": f.device}
-		if line().switched_by_hdo(f) and absf(v - cv) < 14.0 and u > HDO_U - 4.0 and u < HDO_U + 44.0:
+		if line().switched_by_hdo(f) and absf(v - poles[0]) < 14.0 and u > HDO_U - 4.0 and u < HDO_U + 44.0:
 			return {"kind": "hdo", "designation": SingleLine.HDO}
 		if line().lacks_rcd(f, document.circuit) and Vector2(u, v).distance_to(Vector2(_ledger_u() - MARK_U, cv + 14.0)) < 9.0:
 			return {"kind": "warning", "designation": f.device}
-		var end: CircuitComponent = SingleLine.end_part(f, document.circuit)
-		if end != null and absf(v - cv) < 18.0 and absf(u - _load_u()) < 18.0:
-			return {"kind": "load", "designation": end.designation}
-		if not f.room.is_empty() and v > cv + 6.0 and v < cv + 22.0 and u > _load_u() + 18.0 and u < _load_u() + 120.0:
+		var parts: Array[CircuitComponent] = _parts_of(f)
+		for i: int in parts.size():
+			if v > cv - 4.0 and v < cv + SPACING - 14.0 and absf(u - _part_u(i)) < LOAD_STEP * 0.5:
+				return {"kind": "load", "designation": parts[i].designation}
+		var below: float = _part_u(maxi(parts.size() - 1, 0)) + 18.0
+		if not f.room.is_empty() and v > cv + 6.0 and v < cv + 22.0 and u > below and u < below + 100.0:
 			return {"kind": "room", "designation": f.room}
 	return {}
+
+
+## The hold of a device whose symbol's top is [param top], its poles at [param poles] (local u, v).
+static func _grab(top: float, poles: PackedFloat32Array) -> Rect2:
+	var first: float = poles[0]
+	var last: float = poles[poles.size() - 1]
+	return Rect2(top + DEVICE_GRAB.position.x, first + DEVICE_GRAB.position.y, DEVICE_GRAB.size.x, DEVICE_GRAB.size.y + last - first)
+
+
+## Whether [param c] has a release box: an RCD, RCBO or AFDD.
+static func _has_box(c: CircuitComponent) -> bool:
+	return c is ResidualCurrentDevice or c is ArcFaultDevice
+
+
+## Across, the poles of a circuit's device [param c] about its outlet at [param v].
+static func _circuit_poles(v: float, c: CircuitComponent) -> PackedFloat32Array:
+	var n: int = pole_count(c)
+	var list: PackedFloat32Array = PackedFloat32Array()
+	for k: int in n:
+		list.append(v + (k - (n - 1) * 0.5) * POLE)
+	return list
+
+
+## Across, the poles of a group's device [param c] from its first at [param v0].
+static func _group_poles(v0: float, c: CircuitComponent) -> PackedFloat32Array:
+	var list: PackedFloat32Array = PackedFloat32Array()
+	for k: int in pole_count(c):
+		list.append(v0 + k * POLE)
+	return list
+
+
+## Across, pole [param k] of the main switch (L1 L2 L3 N, N on [constant MAIN_V]).
+static func _main_v(k: int) -> float:
+	return MAIN_V + (k - 3) * POLE
+
+
+## Down, the row phase [param ph] comes from under device [param parent]:
+## a busbar of its group (one a phase under a device of three), or the
+## main busbar of that phase for "".
+func _row_u(parent: String, ph: int) -> float:
+	if parent.is_empty():
+		return BUS_U[clampi(ph, 1, 3) - 1]
+	var g: Dictionary = _group_entry(parent)
+	if g.is_empty():
+		return BUS_U[clampi(ph, 1, 3) - 1]
+	var three: bool = SingleLine.phase_count(_part(parent)) > 1
+	return _sub_bus_u(g["depth"]) + ((clampi(ph, 1, 3) - 1) * SUB_GAP if three else 0.0)
+
+
+## Down, part [param index] of a circuit's parts.
+func _part_u(index: int) -> float:
+	return _load_u() + index * LOAD_STEP
 
 
 ## Where [param template] (or the devices being dragged, [param moving])
@@ -385,6 +495,8 @@ func drop_target(point: Vector2, template: Dictionary, moving: PackedStringArray
 	var u: float = p.x
 	var v: float = p.y
 	var kind: String = str(template.get("type", ""))
+	if moving.is_empty() and kind == "cam_switch":
+		return {} if line().main_switch else {"index": 0, "into": "", "feeder": "", "main": true}
 	if moving.is_empty() and kind in ["socket", "luminaire", "appliance"]:
 		for entry: Dictionary in _circuits:
 			if absf(v - float(entry["v"])) < SPACING * 0.5:
@@ -454,7 +566,7 @@ static func _template_poles(template: Dictionary) -> int:
 		"rcd":
 			return 3 if int(template.get("poles", 2)) == 4 else 1
 		"breaker":
-			return int(template.get("poles", 1))
+			return mini(int(template.get("poles", 1)), 3)
 	return 1
 
 
@@ -578,7 +690,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					room_requested.emit(thing["designation"])
 					return
 				var adding: bool = mb.shift_pressed or mb.ctrl_pressed or mb.meta_pressed
-				var designation: String = thing.get("designation", "") if thing.get("kind", "") in ["device", "load"] else ""
+				var designation: String = thing.get("designation", "") if thing.get("kind", "") in ["device", "load", "main"] else ""
 				_press_at = mb.position
 				_dragging = false
 				_press_modified = adding
@@ -659,14 +771,15 @@ func _select_box(a: Vector2, b: Vector2, adding: bool) -> void:
 ## Where each device and part fed is (local u, v): {"designation", "at"}.
 func _anchors() -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
+	if line().main_switch:
+		list.append({"designation": SingleLine.MAIN, "at": Vector2(MAIN_U + 30.0, _main_v(0))})
 	for g: Dictionary in _groups:
 		list.append({"designation": g["designation"], "at": Vector2(_rcd_u(g["depth"]) + 30.0, g["v0"])})
 	for entry: Dictionary in _circuits:
 		list.append({"designation": entry["designation"], "at": Vector2(_breaker_u(entry["depth"]) + 30.0, entry["v"])})
-		var f: SingleLine.Feeder = line().feeder_of(entry["designation"])
-		var end: CircuitComponent = SingleLine.end_part(f, document.circuit) if f != null else null
-		if end != null:
-			list.append({"designation": end.designation, "at": Vector2(_load_u(), entry["v"])})
+		var parts: Array[CircuitComponent] = _parts_of(line().feeder_of(entry["designation"]))
+		for i: int in parts.size():
+			list.append({"designation": parts[i].designation, "at": Vector2(_part_u(i), float(entry["v"]) + 20.0)})
 	return list
 
 
@@ -710,12 +823,15 @@ func _place(point: Vector2) -> void:
 	var index: int = target["index"]
 	var into: String = target["into"]
 	var feeder: String = target["feeder"]
+	# A breaker, RCBO or AFDD protects the first circuit waiting for it.
+	var waiting: SingleLine.Feeder = line().first_waiting()
+	var number: int = waiting.number if waiting != null else 0
 	edit_requested.emit(func(doc: SchematicDocument) -> void:
 		var data: Dictionary = template.duplicate()
 		data["designation"] = new_designation(doc, template)
 		var c: CircuitComponent = DocumentSerializer.component_from_dict(data)
 		if c != null:
-			doc.single_line.add(doc, c, index, into, feeder))
+			doc.single_line.add(doc, c, index, into, feeder, number))
 
 
 func _move(designations: PackedStringArray, point: Vector2) -> void:
@@ -727,8 +843,9 @@ func _move(designations: PackedStringArray, point: Vector2) -> void:
 	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.move_many(doc, designations, index, into))
 
 
-## Takes the selection away in one edit: each device with what its circuit
-## feeds (what is under an RCD stays), each part fed.
+## Takes the selection away in one edit: each device (what is under an RCD
+## stays; a circuit's parts on a floor plan wait for another device, the
+## others go with it), each part fed.
 func delete_selected() -> void:
 	var chosen: PackedStringArray = PackedStringArray()
 	for designation: String in selection:
@@ -743,7 +860,9 @@ func delete_selected() -> void:
 			gone.append(designation)
 			var f: SingleLine.Feeder = doc.single_line.feeder_of(designation)
 			if f != null:
-				gone.append_array(f.loads)
+				for load: String in f.loads:
+					if doc.floor_of(load) < 0:
+						gone.append(load)
 		for d: String in gone:
 			var c: CircuitComponent = doc.circuit.get_component(d)
 			if c != null:
@@ -753,6 +872,8 @@ func delete_selected() -> void:
 ## Designation of a new part made from [param template] in [param doc].
 static func new_designation(doc: SchematicDocument, template: Dictionary) -> String:
 	match str(template.get("type", "")):
+		"cam_switch":
+			return SingleLine.MAIN
 		"breaker":
 			return doc.next_device_designation("FA")
 		"rcd", "afdd":
@@ -771,7 +892,7 @@ static func new_designation(doc: SchematicDocument, template: Dictionary) -> Str
 func _tooltip(thing: Dictionary) -> String:
 	match thing.get("kind", ""):
 		"main":
-			return tr("Main switch: click to switch it while simulating") if not editing else tr("Main switch")
+			return tr("Main switch: click to switch it while simulating") if not editing else tr("Main switch: Delete takes it away (the supply then goes straight onto the busbars)")
 		"hdo":
 			return tr("Ripple control contactor (HDO, low tariff): click to switch it while simulating")
 		"test":
@@ -827,8 +948,10 @@ func _draw() -> void:
 	if sheet:
 		return
 	if not fed.is_empty():
+		# Where the part goes: under the circuit's last part.
 		var v: float = _circuit_entry(fed["feeder"]).get("v", 0.0)
-		draw_arc(at(_load_u(), v), (LOAD_R + 6.0) * zoom, 0.0, TAU, 32, SchematicTheme.HOVER, 2.0, true)
+		var next: int = _parts_of(line().feeder_of(fed["feeder"])).size()
+		draw_arc(at(_part_u(next), v + 18.0), (LOAD_R + 6.0) * zoom, 0.0, TAU, 32, SchematicTheme.HOVER, 2.0, true)
 	if _banding:
 		var box: Rect2 = Rect2(_band_from, Vector2.ZERO).expand(_mouse)
 		draw_rect(box, Color(SchematicTheme.SELECTED, 0.12))
@@ -941,14 +1064,22 @@ static func afdd_color() -> Color:
 	return Color("ff7d6b") if SchematicTheme.dark else Color("e2261c")
 
 
+## Terminal keys of the incoming conductors L1 L2 L3 N: into and out of
+## the main switch's poles (both the supply point without one).
 func _main_keys() -> PackedStringArray:
 	var main: CircuitComponent = document.circuit.get_component(SingleLine.MAIN)
-	return main.get_terminal_keys() if main != null else PackedStringArray(["", "", "", "", "", "", "", ""])
+	if main != null:
+		return main.get_terminal_keys()
+	var keys: PackedStringArray = PackedStringArray()
+	for k: int in 4:
+		keys.append(SingleLine.SUPPLIES[k])
+		keys.append(SingleLine.SUPPLIES[k])
+	return keys
 
 
 func _draw_busbars() -> void:
 	var keys: PackedStringArray = _main_keys()
-	var v0: float = MAIN_V - 14.0
+	var v0: float = _main_v(0) - 14.0
 	var v1: float = _end_v - SPACING * 0.4
 	for k: int in 3:
 		var color: Color = _reach(keys[2 * k + 1])
@@ -963,34 +1094,44 @@ func _draw_incoming() -> void:
 	var keys: PackedStringArray = _main_keys()
 	var line_color: Color = SchematicTheme.LINE
 	var supply: String = line().supply_cable if not line().supply_cable.is_empty() else SingleLine.SUPPLY_CABLE
-	_seg(SUPPLY_U, MAIN_V, MAIN_U, MAIN_V, _reach(keys[0]))
-	_across(SUPPLY_U + 8.0, MAIN_V, [[tr("Incoming supply"), DESIGNATION_SIZE, designation_color()], [supply, DATA_SIZE, data_color()]], true, 10.0)
-	# The main switch: a switch-disconnector, four poles shown as one.
 	var main: CamSwitch = document.circuit.get_component(SingleLine.MAIN) as CamSwitch
-	var closed: bool = main != null and main.position != CamSwitch.OFF
-	_switch(MAIN_U, MAIN_V, _reach(keys[0]), _reach(keys[1]), closed, "circle")
-	_across(MAIN_U + 30.0, MAIN_V, [[_dash(SingleLine.MAIN), DESIGNATION_SIZE, designation_color()], [_amps(SingleLine.MAIN_RATING), DATA_SIZE, data_color()]], true, 18.0)
-	_seg(MAIN_U + 60.0, MAIN_V, N_U, MAIN_V, _reach(keys[1]))
-	for k: int in 3:
-		_dot(BUS_U[k], MAIN_V, _reach(keys[2 * k + 1]))
-	_dot(N_U, MAIN_V, _reach(keys[7]))
+	# L1 L2 L3 and N each on its own, through the main switch's poles when
+	# there is one, onto their busbars.
+	var bus: PackedFloat32Array = PackedFloat32Array([BUS_U[0], BUS_U[1], BUS_U[2], N_U])
+	for k: int in 4:
+		var v: float = _main_v(k)
+		if main == null:
+			_seg(SUPPLY_U, v, bus[k], v, _reach(keys[2 * k]))
+		else:
+			_seg(SUPPLY_U, v, MAIN_U, v, _reach(keys[2 * k]))
+			_switch(MAIN_U, v, _reach(keys[2 * k]), _reach(keys[2 * k + 1]), main.position != CamSwitch.OFF, "circle")
+			_seg(MAIN_U + 60.0, v, bus[k], v, _reach(keys[2 * k + 1]))
+		_dot(bus[k], v, _reach(keys[2 * k + 1]))
+	_across(SUPPLY_U + 8.0, _main_v(0), [[tr("Incoming supply"), DESIGNATION_SIZE, designation_color()], [supply, DATA_SIZE, data_color()]], true, 10.0)
+	if main != null:
+		_link(MAIN_U, _main_v(0), _main_v(3))
+		var chosen: bool = selection.has(SingleLine.MAIN) and not sheet
+		if chosen:
+			draw_rect(Rect2(at(MAIN_U - 6.0, _main_v(0) - 56.0), Vector2(72.0, _main_v(3) - _main_v(0) + 70.0) * zoom), Color(SchematicTheme.SELECTED, 0.15))
+		_across(MAIN_U + 30.0, _main_v(0), [[_dash(SingleLine.MAIN), DESIGNATION_SIZE, designation_color()], [_amps(SingleLine.MAIN_RATING), DATA_SIZE, data_color()]], true, 18.0)
 	if line().spd:
-		# The surge protective device on all phases and N to earth.
-		_seg(BUS_U[0], SPD_V, SPD_U - 6.0, SPD_V, _reach(keys[1]))
-		for k: int in 3:
-			_dot(BUS_U[k], SPD_V, _reach(keys[2 * k + 1]))
-		_dot(N_U, SPD_V, _reach(keys[7]))
-		var box: Rect2 = Rect2(at(SPD_U, SPD_V - 9.0), Vector2(18.0, 28.0) * zoom)
+		# The surge protective device on each phase and N, to earth.
+		var box_u: float = SPD_U
+		for k: int in 4:
+			var v: float = SPD_V + k * SPD_POLE
+			_seg(bus[k], v, box_u, v, _reach(keys[2 * k + 1]))
+			_dot(bus[k], v, _reach(keys[2 * k + 1]))
+		var vc: float = SPD_V + 1.5 * SPD_POLE
+		var box: Rect2 = Rect2(at(box_u, SPD_V - 6.0), Vector2(3.0 * SPD_POLE + 12.0, 28.0) * zoom)
 		draw_rect(box, SchematicTheme.BACKGROUND)
 		draw_rect(box, line_color, false, _width(line_color))
-		_seg(SPD_U + 4.0, SPD_V, SPD_U + 22.0, SPD_V, line_color, 1.1)
-		_poly(PackedVector2Array([Vector2(SPD_U + 16.0, SPD_V - 3.5), Vector2(SPD_U + 22.0, SPD_V), Vector2(SPD_U + 16.0, SPD_V + 3.5)]), line_color, 1.1)
-		_seg(SPD_U - 6.0, SPD_V, SPD_U, SPD_V, line_color)
-		_seg(SPD_U + 28.0, SPD_V, SPD_U + 60.0, SPD_V, line_color)
+		_seg(box_u + 4.0, vc, box_u + 22.0, vc, line_color, 1.1)
+		_poly(PackedVector2Array([Vector2(box_u + 16.0, vc - 3.5), Vector2(box_u + 22.0, vc), Vector2(box_u + 16.0, vc + 3.5)]), line_color, 1.1)
+		_seg(box_u + 28.0, vc, box_u + 60.0, vc, line_color)
 		for k: int in 3:
 			var half: float = 9.0 - 3.0 * k
-			_seg(SPD_U + 60.0 + 4.0 * k, SPD_V - half, SPD_U + 60.0 + 4.0 * k, SPD_V + half, line_color)
-		_across(SPD_U + 14.0, SPD_V, [["-FC1", DESIGNATION_SIZE, designation_color()], [tr("SPD T1+T2"), DATA_SIZE, data_color()]], true, 16.0)
+			_seg(box_u + 60.0 + 4.0 * k, vc - half, box_u + 60.0 + 4.0 * k, vc + half, line_color)
+		_across(box_u + 14.0, SPD_V - 6.0, [["-FC1", DESIGNATION_SIZE, designation_color()], [tr("SPD T1+T2"), DATA_SIZE, data_color()]], true, 10.0)
 	# The PE and N bars over the busbars.
 	var pe0: float = SPACING * 1.0
 	var pe1: float = SPACING * 2.4
@@ -1007,6 +1148,14 @@ func _draw_incoming() -> void:
 	_seg(BAR_U + 10.0, nm, N_U, nm, _reach(keys[7]))
 	_dot(N_U, nm, _reach(keys[7]))
 
+
+## The dashed link joining the poles of a device from [param v0] to
+## [param v1] across, at its link's height under its top [param u].
+func _link(u: float, v0: float, v1: float) -> void:
+	if v1 - v0 < 1.0:
+		return
+	var tip: float = BreakerSymbol.CLOSED_TIP.x
+	draw_dashed_line(at(u + BreakerSymbol.LINK_Y, v0 + tip), at(u + BreakerSymbol.LINK_Y, v1 + tip - 4.0), SchematicTheme.LINE, maxf(1.2 * zoom, 1.0), 3.0 * zoom)
 
 ## A bar of terminals from [param v0] to [param v1] at [param u] (10 deep);
 ## [param stripes] over [param fill] as on a PE bar.
@@ -1076,7 +1225,7 @@ func _breaker(u: float, v: float, color_in: Color, color_out: Color, closed: boo
 
 ## The release box of an RCD or RCBO (IΔ, worked by the ring round its
 ## leads) or of an AFDD (an arc), right of its last pole at [param v] (the
-## first [param span] left of it), joined to the blade by a dashed link;
+## first [param span] left of it), joined to the blades by a dashed link;
 ## with [param outline] the device's outline and its test button.
 func _release_box(u: float, v: float, arc: bool, span: float, outline: bool, tripped: bool) -> void:
 	var mark: Color = SchematicTheme.WARNING if tripped else SchematicTheme.LINE
@@ -1102,7 +1251,8 @@ func _release_box(u: float, v: float, arc: bool, span: float, outline: bool, tri
 		_poly(ring, mark, 1.1)
 		_poly(PackedVector2Array([Vector2(ring_u, v + 6.0), Vector2(ring_u, v + RCD_BOX.get_center().x), Vector2(u + RCD_BOX.end.y, v + RCD_BOX.get_center().x)]), mark, 1.1)
 	if outline:
-		var rect: Rect2 = Rect2(at(u + OUTLINE.position.y, v + OUTLINE.position.x), Vector2(OUTLINE.size.x, OUTLINE.size.y) * zoom)
+		var left: float = v - span + OUTLINE.position.x
+		var rect: Rect2 = Rect2(at(u + OUTLINE.position.y, left), Vector2(OUTLINE.size.x + span, OUTLINE.size.y) * zoom)
 		var dim: Color = Color(SchematicTheme.LINE, 0.55)
 		for side: int in 4:
 			var a: Vector2 = [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)][side]
@@ -1114,7 +1264,6 @@ func _release_box(u: float, v: float, arc: bool, span: float, outline: bool, tri
 		var fs: int = maxi(roundi(7.5 * zoom), 1)
 		var w: float = _font.get_string_size("T", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		draw_string(_font, button + Vector2(-w * 0.5, (_font.get_ascent(fs) - _font.get_descent(fs)) * 0.5), "T", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, SchematicTheme.LINE)
-
 
 ## Marking written on [param c]: "B16", an RCD "40/0,03 A typ A", an RCBO
 ## "B16/0,03 A typ A".
@@ -1145,79 +1294,84 @@ func _draw_group(g: Dictionary) -> void:
 	var group: SingleLine.Group = _shown().group_of(designation)
 	if head == null or group == null:
 		return
-	var v: float = g["v0"]
+	var v0: float = g["v0"]
 	var v1: float = g["v1"]
 	var depth: int = g["depth"]
+	var parent: String = g["parent"]
 	var ru: float = _rcd_u(depth)
 	var keys: PackedStringArray = head.get_terminal_keys()
 	var phases: int = SingleLine.phase_count(head)
 	var n_pole: bool = SingleLine.has_n_pole(head)
-	# From the busbars, or from the busbar of the group it is under.
-	var bus_u: float = BUS_U[group.phase - 1] if phases == 1 else BUS_U[0]
-	if depth > 0:
-		bus_u = _sub_bus_u(depth - 1)
-	var color_in: Color = _reach(keys[0])
-	var color_out: Color = _reach(keys[1])
+	var poles: PackedFloat32Array = _group_poles(v0, head)
+	var last: float = poles[poles.size() - 1]
 	var chosen: bool = selection.has(designation) and not sheet and ghost_of.is_empty()
 	if chosen:
-		draw_rect(Rect2(at(ru - 6.0, v - 58.0), Vector2(110.0, 72.0) * zoom), Color(SchematicTheme.SELECTED, 0.15))
-	_seg(bus_u, v, ru, v, color_in)
-	if phases == 1 or depth > 0:
-		_dot(bus_u, v, color_in)
-	else:
-		for k: int in 3:
-			_dot(BUS_U[k], v, _reach(keys[2 * k]))
+		draw_rect(Rect2(at(ru - 6.0, v0 - 58.0), Vector2(110.0 + last - v0, 72.0) * zoom), Color(SchematicTheme.SELECTED, 0.15))
 	var closed: bool = head.is_path_closed(0)
 	var tripped: bool = (head as MotorBreaker).tripped if head is MotorBreaker else (head as CircuitBreaker).tripped if head is CircuitBreaker else false
-	var labels: Array = []
-	var n_in: Color = SchematicTheme.LINE
-	var n_out: Color = SchematicTheme.LINE
+	var label_u: float = (N_U if parent.is_empty() else _row_u(parent, 3)) + 12.0
+	# Each phase from its busbar through its pole onto the group's busbar
+	# of that phase.
+	for k: int in phases:
+		var ph: int = group.phase if phases == 1 else k + 1
+		var pv: float = poles[k]
+		var color_in: Color = _reach(keys[2 * k])
+		var color_out: Color = _reach(keys[2 * k + 1])
+		var source: float = _row_u(parent, ph)
+		_seg(source, pv, ru, pv, color_in)
+		_dot(source, pv, color_in)
+		if SingleLine.heads_group(head):
+			_switch(ru, pv, color_in, color_out, closed, "", tripped)
+		else:
+			_breaker(ru, pv, color_in, color_out, closed, tripped)
+		_across(label_u, pv, [["L%d" % ph, SMALL_SIZE, data_color()]], false, 3.0)
+		var row: float = _sub_bus_u(depth) + ((ph - 1) * SUB_GAP if phases > 1 else 0.0)
+		_seg(ru + 60.0, pv, row, pv, color_out)
+		_seg(row, v0, row, maxf(v1, pv), color_out, 1.6)
 	if n_pole:
-		# The N from the busbar or the N bar over it, through its N pole.
-		n_in = _reach(keys[2 * phases])
-		n_out = _reach(keys[2 * phases + 1])
-		_seg(g["n_u"], v + N_POLE, ru, v + N_POLE, n_in)
-		if is_equal_approx(float(g["n_u"]), N_U):
-			_dot(N_U, v + N_POLE, n_in)
-		_switch(ru, v + N_POLE, n_in, n_out, closed, "", tripped)
-		draw_dashed_line(at(ru + BreakerSymbol.LINK_Y, v), at(ru + BreakerSymbol.LINK_Y, v + N_POLE), SchematicTheme.LINE, maxf(1.2 * zoom, 1.0), 3.0 * zoom)
-	if SingleLine.heads_group(head):
-		_switch(ru, v, color_in, color_out, closed, "", tripped)
-		labels = [[_dash(designation), DESIGNATION_SIZE, designation_color()], [rating_of(head), DATA_SIZE, data_color()]]
-	else:
-		_breaker(ru, v, color_in, color_out, closed, tripped)
-		labels = _device_labels(head)
-	if n_pole:
-		_release_box(ru, v + N_POLE, head is ArcFaultDevice, N_POLE, true, tripped)
-	_across(ru + 30.0, v, labels, true, 20.0)
-	if phases == 1:
-		_across((N_U if depth == 0 else _sub_bus_u(depth - 1)) + 12.0, v, [["L%d" % group.phase, SMALL_SIZE, data_color()]], false, 5.0)
-	# The group's busbar, and with an N pole its N bar, long enough for the
-	# groups under it.
-	var sub_u: float = _sub_bus_u(depth)
-	_seg(ru + 60.0, v, sub_u, v, color_out)
-	_seg(sub_u, v, sub_u, v1, color_out, 1.6)
-	if n_pole:
-		var bar_end: float = v + 6.0 + SPACING * 0.95
+		# The N from the busbar or the N bar over it, through its N pole onto its N bar.
+		var nv: float = poles[phases]
+		var n_in: Color = _reach(keys[2 * phases])
+		var n_out: Color = _reach(keys[2 * phases + 1])
+		_seg(g["n_u"], nv, ru, nv, n_in)
+		_dot(g["n_u"], nv, n_in)
+		_switch(ru, nv, n_in, n_out, closed, "", tripped)
+		_across(label_u, nv, [["N", SMALL_SIZE, data_color()]], false, 3.0)
+		# Long enough for what takes its N from it.
+		var bar_u: float = _n_bar_u(depth)
+		var bar_end: float = nv + SPACING * 0.95
 		for other: Dictionary in _groups:
-			if other["parent"] == designation:
-				bar_end = maxf(bar_end, float(other["v0"]) + N_POLE + 8.0)
+			if float(other["n_u"]) == bar_u + 10.0 and _under(other["designation"], group):
+				var other_poles: PackedFloat32Array = _group_poles(other["v0"], _part(other["designation"]))
+				bar_end = maxf(bar_end, other_poles[other_poles.size() - 1] + 8.0)
+		for entry: Dictionary in _circuits:
+			if float(entry["n_u"]) == bar_u + 10.0 and _under(entry["designation"], group):
+				var entry_poles: PackedFloat32Array = _circuit_poles(entry["v"], _part(entry["designation"]))
+				bar_end = maxf(bar_end, entry_poles[entry_poles.size() - 1] + 8.0)
 		var number: int = 1
 		for other: Dictionary in _groups:
 			if other == g:
 				break
 			if SingleLine.has_n_pole(_part(other["designation"])):
 				number += 1
-		_seg(ru + 60.0, v + N_POLE, _n_bar_u(depth), v + N_POLE, n_out)
-		_bar(_n_bar_u(depth), v + 6.0, bar_end, SchematicTheme.NEUTRAL)
-		_across(_n_bar_u(depth) + 5.0, bar_end, [["N%d" % number, DATA_SIZE, SchematicTheme.TEXT]], false, 5.0)
-	for entry: Dictionary in _circuits:
-		if entry["group"] == designation and float(entry["v"]) < v1:
-			_dot(sub_u, entry["v"], color_out)
-	for other: Dictionary in _groups:
-		if other["parent"] == designation and float(other["v0"]) < v1:
-			_dot(sub_u, other["v0"], color_out)
+		_seg(ru + 60.0, nv, bar_u, nv, n_out)
+		_bar(bar_u, nv - 6.0, bar_end, SchematicTheme.NEUTRAL)
+		_across(bar_u + 5.0, bar_end, [["N%d" % number, DATA_SIZE, SchematicTheme.TEXT]], false, 5.0)
+	_link(ru, v0, last)
+	if _has_box(head):
+		_release_box(ru, last, head is ArcFaultDevice, last - v0, true, tripped)
+	var labels: Array = []
+	if SingleLine.heads_group(head):
+		labels = [[_dash(designation), DESIGNATION_SIZE, designation_color()], [rating_of(head), DATA_SIZE, data_color()]]
+	else:
+		labels = _device_labels(head)
+	_across(ru + 30.0, v0, labels, true, 20.0)
 
+
+## Whether device [param designation] is under [param group] in the diagram drawn.
+func _under(designation: String, group: SingleLine.Group) -> bool:
+	var item: RefCounted = _shown().item_of(designation)
+	return item != null and item != group and _shown().is_under(item, group)
 
 ## The texts beside breaker, RCBO or AFDD [param device]: "AFDD", its
 ## designation and its marking (an RCBO's breaker marking over its residual
@@ -1243,55 +1397,67 @@ func _draw_circuit(entry: Dictionary) -> void:
 		return
 	var v: float = entry["v"]
 	var depth: int = entry["depth"]
-	var in_group: bool = depth > 0
+	var parent: String = entry["group"]
 	var keys: PackedStringArray = device.get_terminal_keys()
 	var phases: PackedInt32Array = _shown().phases_of(f, document.circuit, device)
 	var top: float = _breaker_u(depth)
-	var start: float = _sub_bus_u(depth - 1) if in_group else BUS_U[phases[0] - 1]
-	var color_in: Color = _reach(keys[0])
-	var color_out: Color = _reach(keys[1])
+	var poles: PackedFloat32Array = _circuit_poles(v, device)
+	var first: float = poles[0]
+	var last: float = poles[poles.size() - 1]
 	var chosen: bool = selection.has(f.device) and not sheet and ghost_of.is_empty()
 	if chosen:
-		draw_rect(Rect2(at(top - 6.0, v - 56.0), Vector2(108.0, 72.0) * zoom), Color(SchematicTheme.SELECTED, 0.15))
-	if phases.size() > 1 and not in_group:
-		start = BUS_U[0]
-	_seg(start, v, top, v, color_in)
-	if not in_group:
-		if phases.size() > 1:
-			for ph: int in phases:
-				_dot(BUS_U[ph - 1], v, _reach(keys[2 * phases.find(ph)]))
-		else:
-			_dot(start, v, color_in)
-	var names: PackedStringArray = PackedStringArray()
-	for ph: int in phases:
-		names.append("L%d" % ph)
-	var phase_text: String = " ".join(names)
-	_across((_sub_bus_u(depth - 1) if in_group else N_U) + 12.0, v, [[phase_text, SMALL_SIZE, data_color()]], false, 5.0)
+		draw_rect(Rect2(at(top - 6.0, first - 56.0), Vector2(108.0 + last - first, 72.0) * zoom), Color(SchematicTheme.SELECTED, 0.15))
 	var closed: bool = device.is_path_closed(0)
 	var tripped: bool = (device as MotorBreaker).tripped if device is MotorBreaker else (device as CircuitBreaker).tripped if device is CircuitBreaker else false
-	_breaker(top, v, color_in, color_out, closed, tripped)
-	if device is ArcFaultDevice:
-		_release_box(top, v, true, 0.0, true, tripped)
-	elif device is ResidualCurrentDevice:
-		_release_box(top, v, false, 0.0, true, tripped)
-	_across(top + 30.0, v, _device_labels(device), true, 25.0)
-	# Down to what it feeds, through the ripple control contact.
+	var label_u: float = (N_U if parent.is_empty() else _row_u(parent, 3)) + 12.0
+	# Each phase from its busbar through its pole, the N through an N pole.
+	var outs: Array[Color] = []
+	for k: int in phases.size():
+		var pv: float = poles[k]
+		var color_in: Color = _reach(keys[2 * k])
+		var color_out: Color = _reach(keys[2 * k + 1])
+		var source: float = _row_u(parent, phases[k])
+		_seg(source, pv, top, pv, color_in)
+		_dot(source, pv, color_in)
+		_breaker(top, pv, color_in, color_out, closed, tripped)
+		_across(label_u, pv, [["L%d" % phases[k], SMALL_SIZE, data_color()]], false, 3.0)
+		outs.append(color_out)
+	if SingleLine.has_n_pole(device):
+		var nv: float = poles[phases.size()]
+		var n_in: Color = _reach(keys[2 * phases.size()])
+		var n_out: Color = _reach(keys[2 * phases.size() + 1])
+		_seg(entry["n_u"], nv, top, nv, n_in)
+		_dot(entry["n_u"], nv, n_in)
+		_switch(top, nv, n_in, n_out, closed, "", tripped)
+		_across(label_u, nv, [["N", SMALL_SIZE, data_color()]], false, 3.0)
+		outs.append(n_out)
+	_link(top, first, last)
+	if _has_box(device):
+		_release_box(top, last, device is ArcFaultDevice, last - first, true, tripped)
+	_across(top + 30.0, first, _device_labels(device), true, 25.0)
+	# Down to the outlet, the first pole through the ripple control contact;
+	# the poles come together there into one line.
 	var u: float = top + 60.0
-	var out_color: Color = color_out
-	if _shown().switched_by_hdo(f):
-		_seg(u, v, HDO_U, v, out_color)
+	var ledger_u: float = _ledger_u()
+	var merge_u: float = ledger_u - MERGE_U
+	var join_u: float = ledger_u - JOIN_U
+	var hdo: bool = _shown().switched_by_hdo(f)
+	if hdo:
+		_seg(u, first, HDO_U, first, outs[0])
 		var contact: CircuitComponent = _hdo_contact(f)
 		var contact_keys: PackedStringArray = contact.get_terminal_keys() if contact != null else PackedStringArray(["", ""])
 		var hdo_closed: bool = contact != null and contact.is_path_closed(0)
-		_switch(HDO_U - 10.0, v, out_color, _reach(contact_keys[1]), hdo_closed, "arc")
-		_across(HDO_U + 20.0, v, [[_dash(SingleLine.HDO), DATA_SIZE, designation_color()], [tr("HDO"), SMALL_SIZE, SchematicTheme.TEXT]], true, 16.0)
-		out_color = _reach(contact_keys[1])
-		u = HDO_U + 50.0
-	var load: CircuitComponent = SingleLine.end_part(f, document.circuit)
-	var load_u: float = _load_u()
-	var ledger_u: float = _ledger_u()
-	var load_top: float = load_u - (10.0 if load is SocketOutlet or load is Luminaire else LOAD_R) if load != null else load_u - LOAD_R
-	_seg(u, v, load_top, v, out_color)
+		_switch(HDO_U - 10.0, first, outs[0], _reach(contact_keys[1]), hdo_closed, "arc")
+		_across(HDO_U + 20.0, first, [[_dash(SingleLine.HDO), DATA_SIZE, designation_color()], [tr("HDO"), SMALL_SIZE, SchematicTheme.TEXT]], true, 16.0)
+		outs[0] = _reach(contact_keys[1])
+	for k: int in poles.size():
+		var from_u: float = HDO_U + 50.0 if k == 0 and hdo else u
+		_seg(from_u, poles[k], merge_u, poles[k], outs[k])
+		_seg(merge_u, poles[k], join_u, v, outs[k])
+	var out_color: Color = outs[0]
+	var parts: Array[CircuitComponent] = _parts_of(f)
+	var end_u: float = _part_u(parts.size() - 1) if not parts.is_empty() else _load_u() - LOAD_R
+	_seg(join_u, v, end_u, v, out_color)
 	# The cable: its number on a ledger, its type along the line.
 	_seg(ledger_u, v, ledger_u, v + 30.0, SchematicTheme.LINE, 1.0)
 	_across(ledger_u - 7.0, v + 8.0, [["-WD%d" % _shown().cable_number(f), DATA_SIZE, designation_color()]], false, 2.0)
@@ -1306,18 +1472,24 @@ func _draw_circuit(entry: Dictionary) -> void:
 		_along(ledger_u + 6.0, v + 7.0, text, SMALL_SIZE, SchematicTheme.WARNING if over else SchematicTheme.TEXT)
 	if not sheet and ghost_of.is_empty() and _shown().lacks_rcd(f, document.circuit):
 		_rcd_warning(ledger_u - MARK_U, v)
-	if load != null:
-		_load(load, load_u, v, selection.has(load.designation) and not sheet)
-		var count: int = SingleLine.end_count(f, document.circuit)
-		if count > 1:
-			_across(load_u, v, [["%d×" % count, DATA_SIZE, SchematicTheme.TEXT]], false, LOAD_R + 5.0)
+	# Every part it feeds, one under another, with its designation.
+	for i: int in parts.size():
+		var part: CircuitComponent = parts[i]
+		var part_chosen: bool = selection.has(part.designation) and not sheet
+		var color: Color = SchematicTheme.HOVER if part_chosen else SchematicTheme.LINE
+		var on: bool = step != null and part is Load and (part as Load).energized
+		var def: CustomSymbol = document.symbol((part as Appliance).symbol) if part is Appliance else null
+		draw_load(self, part, at(_part_u(i), v), zoom, color, _width(SchematicTheme.LINE), on, def, _font)
+		if i < parts.size() - 1:
+			_dot(_part_u(i), v, out_color)
+		_across(_part_u(i) - 9.0, v, [[_dash(part.designation), SMALL_SIZE, designation_color()]], false, 44.0)
 	var destination: String = f.destination
 	if destination.is_empty():
-		destination = _kind_name(load) if load != null else tr("Spare")
-	_along(load_u + 22.0, v, destination, DEST_SIZE, SchematicTheme.TEXT)
+		destination = _kind_name(parts[0]) if not parts.is_empty() else tr("Spare")
+	var below: float = (_part_u(parts.size() - 1) if not parts.is_empty() else _load_u()) + 22.0
+	_along(below, v, destination, DEST_SIZE, SchematicTheme.TEXT)
 	if not f.room.is_empty():
-		_along(load_u + 22.0, v + 14.0, "→ " + f.room, DATA_SIZE, link_color(), false, true)
-
+		_along(below, v + 14.0, "→ " + f.room, DATA_SIZE, link_color(), false, true)
 
 ## The mark of a circuit without a 30 mA RCD: a warning triangle right of
 ## its line at [param u].
@@ -1354,78 +1526,30 @@ func _kind_name(c: CircuitComponent) -> String:
 		return tr("Sockets")
 	if c is Luminaire:
 		return tr("Lighting")
-	if c is Appliance and not (c as Appliance).title.is_empty():
-		return (c as Appliance).title
 	if c is Appliance:
-		return tr(["Water heater", "Oven", "Induction hob", "Microwave", "Washing machine", "Dishwasher", "Heater", "Fridge", "Kettle"][(c as Appliance).kind])
+		return ApplianceSymbol.title_of(c as Appliance)
 	return ""
 
 
-## The symbol of what a circuit feeds, centred at [param u], [param v].
-func _load(c: CircuitComponent, u: float, v: float, chosen: bool) -> void:
-	var color: Color = SchematicTheme.HOVER if chosen else SchematicTheme.LINE
-	var on: bool = step != null and c is Load and (c as Load).energized
-	var center: Vector2 = at(u, v)
-	var r: float = LOAD_R * zoom
-	var width: float = _width(SchematicTheme.LINE)
+## Part [param c] a circuit feeds drawn as on the floor plan ([PlanSymbols]),
+## hung from its circuit's line at screen point [param at] to the right, at
+## zoom [param z]; [param on]: it works (lit, live). A luminaire is drawn
+## alike on a wall or the ceiling; an appliance drawn with the user's own
+## symbol [param def] has it in its box.
+static func draw_load(item: CanvasItem, c: CircuitComponent, at: Vector2, z: float, color: Color, width: float, on: bool, def: CustomSymbol, font: Font) -> void:
+	var s: float = LOAD_SCALE * z
 	if c is SocketOutlet:
-		# Open away from the busbars, as on the floor plan.
-		if on:
-			var fill: PackedVector2Array = PackedVector2Array()
-			for k: int in 13:
-				fill.append(center + Vector2.from_angle(PI + PI * k / 12.0) * 10.0 * zoom)
-			draw_colored_polygon(fill, PlanSymbols.GLOW)
-		draw_arc(center, 10.0 * zoom, PI, TAU, 16, color, width, true)
-		return
-	if c is Luminaire:
-		draw_circle(center, 10.0 * zoom, SchematicTheme.LAMP_ON if on else SchematicTheme.BACKGROUND)
-		draw_arc(center, 10.0 * zoom, 0.0, TAU, 24, color, width, true)
-		var d: float = 7.0 * zoom
-		draw_line(center + Vector2(-d, -d), center + Vector2(d, d), color, width, true)
-		draw_line(center + Vector2(-d, d), center + Vector2(d, -d), color, width, true)
-		return
-	var appliance: Appliance = c as Appliance
-	if appliance == null:
-		return
-	if appliance.kind == Appliance.Kind.WATER_HEATER:
-		draw_circle(center, r, PlanSymbols.GLOW if on else SchematicTheme.BACKGROUND)
-		draw_arc(center, r, 0.0, TAU, 24, color, width, true)
-		for k: int in range(-9, 10, 3):
-			var h: float = sqrt(LOAD_R * LOAD_R - k * k) * zoom
-			draw_line(center + Vector2(k * zoom, -h), center + Vector2(k * zoom, h), color, maxf(0.8 * zoom, 1.0), true)
-		return
-	var box: Rect2 = Rect2(center - Vector2(r, r), Vector2(r, r) * 2.0)
-	draw_rect(box, PlanSymbols.GLOW if on else SchematicTheme.BACKGROUND)
-	draw_rect(box, color, false, width)
-	var thin: float = maxf(1.1 * zoom, 1.0)
-	var def: CustomSymbol = document.symbol(appliance.symbol)
-	if def != null:
-		# The user's own symbol in its box.
-		def.draw_fitted(self, box.grow(-2.5 * zoom), INF, color, thin, get_theme_default_font(), chosen)
-		return
-	match appliance.kind:
-		Appliance.Kind.HOB:
-			for a: float in [-6.5, 6.5]:
-				for b: float in [-6.5, 6.5]:
-					draw_arc(center + Vector2(a, b) * zoom, 3.6 * zoom, 0.0, TAU, 12, color, thin, true)
-		Appliance.Kind.FRIDGE:
-			for k: int in 3:
-				var d: Vector2 = Vector2.from_angle(PI / 2.0 + k * PI / 3.0) * 8.0 * zoom
-				draw_line(center - d, center + d, color, thin, true)
-		Appliance.Kind.WASHING_MACHINE, Appliance.Kind.DISHWASHER:
-			draw_arc(center, 8.0 * zoom, 0.0, TAU, 20, color, thin, true)
-			draw_arc(center, 3.0 * zoom, 0.0, TAU, 12, color, thin, true)
-		Appliance.Kind.MICROWAVE:
-			for k: int in 3:
-				var wave: PackedVector2Array = PackedVector2Array()
-				for i: int in 9:
-					wave.append(center + Vector2(-8.0 + 2.0 * i, -5.0 + 5.0 * k + sin(i * PI / 2.0) * 1.6) * zoom)
-				draw_polyline(wave, color, thin, true)
-		Appliance.Kind.OVEN:
-			draw_rect(Rect2(center - Vector2(8, 6) * zoom, Vector2(16, 12) * zoom), color, false, thin)
-		_:
-			var zig: PackedVector2Array = PackedVector2Array([center + Vector2(-9, 0) * zoom])
-			for i: int in 6:
-				zig.append(center + Vector2(-7.0 + 2.8 * i, -4.0 if i % 2 == 0 else 4.0) * zoom)
-			zig.append(center + Vector2(9, 0) * zoom)
-			draw_polyline(zig, color, thin, true)
+		PlanSymbols.draw_socket(item, c as SocketOutlet, at, Vector2.RIGHT, s, color, width, on)
+	elif c is Luminaire:
+		var center: Vector2 = at + Vector2.RIGHT * (PlanSymbols.LAMP_RADIUS + 0.06) * s
+		item.draw_line(at, center, color, width, true)
+		PlanSymbols.draw_luminaire(item, center, s, color, width, on)
+	elif c is Appliance and def != null:
+		var half: float = PlanSymbols.APPLIANCE * 0.35 * s
+		var box: Rect2 = Rect2(at + Vector2(0.06 * s, -half), Vector2(half, half) * 2.0)
+		item.draw_line(at, at + Vector2(0.06 * s, 0.0), color, width, true)
+		item.draw_rect(box, PlanSymbols.GLOW if on else SchematicTheme.BACKGROUND)
+		item.draw_rect(box, color, false, width)
+		def.draw_fitted(item, box.grow(-2.0 * z), INF, color, maxf(width * 0.8, 1.0), font)
+	elif c is Appliance:
+		PlanSymbols.draw_appliance(item, c as Appliance, at, Vector2.RIGHT, s * 0.7, color, width, on)
