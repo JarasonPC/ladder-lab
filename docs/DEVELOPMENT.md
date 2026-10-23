@@ -164,7 +164,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   installation its supply and main switch from update_single_line) and shown by a muted
   label in the toolbar (main.gd _update_environment). The palette follows it
   (Palette.environment: ENTRIES, RESIDENTIAL_ENTRIES or INSTALLATION_ENTRIES: the main
-  switch, one breaker and one RCD whose poles are set in the properties, one luminaire;
+  switch, a breaker (1+N and 3+N besides) and an RCD whose poles are set in the properties,
+  one luminaire;
   Palette.all_entries all, each title once, for the datasheets and Change type). A house
   installation of either kind has its floor plan in place of the Workspace. Its parts: light switches (LightSwitch "SF1",
   numbered (řazení) and their terminals marked as ČSN EN 60669-1 does, the incoming
@@ -292,8 +293,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   passes first_waiting), else a new one; assign(doc, device, number) gives a device another
   waiting circuit (its own waits when it feeds something; 0 a new spare one); remove of a
   circuit's device leaves it waiting when it feeds something (the canvas's Delete takes its
-  parts on no floor plan along). A breaker of four poles is three phases and N (has_n_pole;
-  _poles at most 3). items() walks
+  parts on no floor plan along). A breaker of four poles is three phases and N, one of two
+  with MotorBreaker.n_pole (saved "n_pole"; the properties' tick, the palette's "Circuit
+  breaker 1+N") a phase and N (has_n_pole; _poles without it, at most 3); its marking
+  carries its poles ("B16/1+N", "C20/3", rating_of). items() walks
   them all, a group before what is under it; item_of, group_holding, list_holding,
   depth_of, is_under, column_of (the top column); residual_protection and lacks_rcd: a
   circuit feeding something without an RCD of 30 mA or less over it (its RCBO or a group's
@@ -332,7 +335,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   circuit (entry "v" its outlet, its poles about it, _circuit_poles) a pole from a dot on the
   busbar of its phase (_row_u; "L1".. "N" beside each pole), an N pole from the N busbar or
   its group's N bar ("n_u"), the poles running down to MERGE_U over the ledger and together
-  into one line at JOIN_U, the breaker as on the
+  into one line at JOIN_U (the ledger under the lowest breaker with room for that,
+  _ledger_u), each busbar starting where its conductor comes onto it, the breaker as on the
   schematic (BreakerSymbol's geometry: cross, thermal and magnetic releases turning with the
   blade), an RCBO's IΔ box and ring or an AFDD's arc box and red "AFDD" caption, each with the
   device's dashed outline and test button, designation and rating before it (B16, an RCD
@@ -346,7 +350,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   room_requested); a group: its head's poles from its busbars (_group_poles from "v0"; an RCD:
   plain blades, the ring, the IΔ box, outline and test button; a breaker, RCBO or AFDD as on
   a circuit, with its N pole if it has one), with an N pole its N bar Nn, and its own busbars
-  (one a phase under a head of three, SUB_GAP apart) with what is under it; a
+  (one a phase under a head of three, SUB_GAP apart, each from its pole on, what is under a
+  head of three starting right of its poles so none hangs in line with one) with what is
+  under it; a
   group under a group LEVEL lower (_rcd_u, _n_bar_u, _sub_bus_u, _breaker_u by depth; the
   ledger and loads lower by the deepest group, _ledger_u, _load_u; _lay keeps each group's
   "n_u", where the N of what is under it comes from). A circuit lacking a 30 mA RCD has a
@@ -466,7 +472,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   ticks): FloorPlan.stair_lines gives the treads TREAD apart and the walking line, straight
   along a rectangle's longer side, in an L (_l_corner) a flight in each arm turning in the
   square where they meet with winders from the inner corner, else straight cut to the outline;
-  FloorPlanCanvas._draw_stairs draws them, a dot where the line starts, an arrow up.
+  FloorPlanCanvas._draw_stairs draws them, a dot where the line starts, an arrow up. Where
+  they start there is no wall (stair_start_wall: across the walking line's start, nearest
+  it; open_wall): wall_pieces leaves it out, the room's own and one shared with the room it
+  is entered from, and the room is not grown there.
   While a room is dragged the doors, windows, fixtures, notes and marks in it are drawn moved
   along (_room_drag_shift), while a wall is dragged the doors, windows and parts on it
   (_edge_drag_shift), and a door or window dragged is drawn on the wall it goes onto

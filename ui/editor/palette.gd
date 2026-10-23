@@ -101,6 +101,8 @@ const RESIDENTIAL_ENTRIES: Array[Dictionary] = [
 const INSTALLATION_ENTRIES: Array[Dictionary] = [
 	{"title": "Main switch", "template": {"type": "cam_switch", "poles": 4, "positions": "0-I"}, "group": "protection"},
 	{"title": "Circuit breaker", "template": {"type": "breaker", "characteristic": "B", "rated_current": 16.0}},
+	{"title": "Circuit breaker 1+N (L + N)", "template": {"type": "breaker", "poles": 2, "n_pole": true, "characteristic": "B", "rated_current": 16.0}},
+	{"title": "Circuit breaker 3+N", "template": {"type": "breaker", "poles": 4, "characteristic": "B", "rated_current": 16.0}},
 	{"title": "Residual current device (RCD)", "template": {"type": "rcd", "poles": 2}},
 	{"title": "RCD with overcurrent release (RCBO)", "template": {"type": "rcd", "poles": 2, "overcurrent": true, "rated_current": 16.0, "characteristic": "B"}},
 	{"title": "Arc fault detection device with breaker (AFDD)", "template": {"type": "afdd"}},
