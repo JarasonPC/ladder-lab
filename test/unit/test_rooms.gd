@@ -35,27 +35,43 @@ func _apply(canvas: FloorPlanCanvas, doc: SchematicDocument) -> Array[Callable]:
 func test_split_by_a_wall() -> void:
 	var plan: FloorPlan = FloorPlan.new()
 	plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 6, 4)))
+	plan.rooms[0].set_wall_thickness(0, 0.45)
 	var dim: FloorPlan.Dimension = FloorPlan.Dimension.new()
 	dim.room = 0
 	plan.dimensions.append(dim)
-	assert_eq(plan.split_room(0, true, 0.5, "Room 2"), -1, "a piece too narrow")
-	assert_eq(plan.split_room(0, true, 7.0, "Room 2"), -1, "the line misses it")
-	var other: int = plan.split_room(0, true, 3.52, "Room 2")
+	assert_eq(plan.split_room(0, PackedVector2Array([Vector2(0.5, 0), Vector2(0.5, 4)]), "Room 2"), -1, "a piece too narrow")
+	assert_eq(plan.split_room(0, PackedVector2Array([Vector2(7, 0), Vector2(7, 4)]), "Room 2"), -1, "the line misses it")
+	assert_eq(plan.split_room(0, PackedVector2Array([Vector2(3.5, 0), Vector2(3.5, 2)]), "Room 2"), -1, "not across it")
+	var other: int = plan.split_room(0, PackedVector2Array([Vector2(3.5, 0), Vector2(3.5, 4)]), "Room 2")
 	assert_eq(other, 1)
-	assert_eq(plan.rooms[0].rect, Rect2(0, 0, 3.5, 4), "on the grid; the left part kept")
+	assert_eq(plan.rooms[0].rect, Rect2(0, 0, 3.5, 4), "the larger piece kept")
 	assert_eq(plan.rooms[1].rect, Rect2(3.5, 0, 2.5, 4))
 	assert_eq(plan.rooms[1].name, "Room 2")
-	assert_true(plan.rooms[1].is_rectangle())
+	assert_true(plan.rooms[0].is_rectangle() and plan.rooms[1].is_rectangle())
 	assert_eq(plan.dimensions.size(), 0, "its chains dropped")
+	for room: FloorPlan.Room in plan.rooms:
+		var top: int = FloorPlan.wall_through(room.points, room.rect.position + Vector2(1, 0))
+		assert_almost_eq(room.wall_thickness(top), 0.45, 0.0001, "the top wall keeps its thickness")
+	assert_eq(plan.overlaps().size(), 0, "the halves share a wall, they do not overlap")
+	# A bent wall: across, then down.
+	var bent: int = plan.split_room(0, PackedVector2Array([Vector2(0, 1.5), Vector2(2, 1.5), Vector2(2, 4)]), "Hall")
+	assert_eq(bent, 2)
+	assert_eq(plan.rooms[2].points.size(), 4, "the corner piece a rectangle")
+	assert_eq(plan.rooms[2].rect, Rect2(0, 1.5, 2, 2.5))
+	assert_eq(plan.rooms[0].points.size(), 6, "the rest an L")
+	assert_almost_eq(plan.rooms[0].area() + plan.rooms[2].area(), 3.5 * 4.0, 0.001, "nothing lost")
 	# An L split across its leg, into two rectangles.
 	var l_room: FloorPlan.Room = FloorPlan.preset_room(FloorPlan.PRESETS.size() - 1, Vector2(10, 0), "Living room")
 	plan.rooms.append(l_room)
 	assert_eq(l_room.points.size(), 6)
-	var cut: int = plan.split_room(2, false, 3.0, "Hall")
-	assert_eq(cut, 3)
-	assert_almost_eq(plan.rooms[2].area() + plan.rooms[3].area(), 6.0 * 5.0 - 2.5 * 2.0, 0.001, "nothing lost")
-	assert_true(plan.rooms[2].is_rectangle() and plan.rooms[3].is_rectangle())
-	assert_eq(plan.overlaps().size(), 0, "the halves share a wall, they do not overlap")
+	var box: Rect2 = l_room.rect
+	var cut: int = plan.split_room(3, PackedVector2Array([Vector2(box.position.x, 3.0), Vector2(box.end.x, 3.0)]), "Hall")
+	if cut < 0:
+		# The leg on the other side: cut it where the room is whole.
+		cut = plan.split_room(3, PackedVector2Array([Vector2(box.position.x, 2.0), Vector2(box.end.x, 2.0)]), "Hall")
+	assert_eq(cut, 4)
+	assert_almost_eq(plan.rooms[3].area() + plan.rooms[4].area(), 6.0 * 5.0 - 2.5 * 2.0, 0.001, "nothing lost")
+	assert_true(plan.rooms[3].is_square() and plan.rooms[4].is_square())
 
 
 func test_a_cut_into_three_is_refused() -> void:
@@ -64,7 +80,8 @@ func test_a_cut_into_three_is_refused() -> void:
 	var u: FloorPlan.Room = FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 2), Vector2(2, 2), Vector2(2, 0), Vector2(3, 0), Vector2(3, 3), Vector2(0, 3)]), "U")
 	assert_not_null(u)
 	plan.rooms.append(u)
-	assert_eq(plan.split_room(0, false, 1.0, "x"), -1, "across both arms")
+	assert_eq(plan.split_room(0, PackedVector2Array([Vector2(0, 1), Vector2(3, 1)]), "x"), -1, "across both arms")
+	assert_eq(plan.split_room(0, PackedVector2Array([Vector2(1, 1), Vector2(2, 1)]), "x"), -1, "outside it, between its arms")
 	assert_eq(plan.rooms.size(), 1)
 
 
@@ -201,19 +218,29 @@ func test_rooms_split_and_placed() -> void:
 	_apply(canvas, doc)
 	var drawn: Array[int] = []
 	canvas.room_drawn.connect(func(index: int) -> void: drawn.append(index))
-	canvas.tool = FloorPlanCanvas.Tool.SPLIT
-	# Dragged down across it: a wall up and down.
-	canvas._press_at = canvas.to_screen(Vector2(2.48, 0.5))
-	canvas._press = canvas._pressed(canvas._press_at)
-	canvas._dragging = true
-	canvas._mouse = canvas.to_screen(Vector2(2.55, 3.5))
-	var line: Dictionary = canvas.split_line()
-	assert_true(line["vertical"])
-	assert_almost_eq(line["at"], 2.5, 1e-6)
-	canvas._release(canvas._press, canvas._mouse)
+	canvas.tool = FloorPlanCanvas.Tool.WALL
+	# Walls clicked from the top wall down to the bottom one: snapped onto them.
+	_click(canvas, Vector2(2.48, 0.05))
+	assert_eq(canvas._corners, PackedVector2Array([Vector2(2.5, 0)]), "onto the wall, on the grid")
+	_click(canvas, Vector2(2.52, 2.0))
+	assert_eq(canvas._corners.size(), 2, "inside the room it waits")
+	assert_eq(canvas._split_room, 0)
+	assert_eq(doc.floor_plan.walls.size(), 0, "no wall on its own")
+	canvas._mouse = canvas.to_screen(Vector2(2.53, 3.95))
+	assert_eq(canvas._next_wall_point(), Vector2(2.5, 4), "straight on onto the bottom wall")
+	_click(canvas, Vector2(2.53, 3.95))
 	assert_eq(doc.floor_plan.rooms.size(), 2)
-	assert_eq(doc.floor_plan.rooms[0].rect, Rect2(0, 0, 2.5, 4))
-	assert_eq(doc.floor_plan.rooms[1].rect, Rect2(2.5, 0, 3.5, 4))
+	assert_eq(doc.floor_plan.rooms[0].rect, Rect2(2.5, 0, 3.5, 4), "the larger piece kept")
+	assert_eq(doc.floor_plan.rooms[1].rect, Rect2(0, 0, 2.5, 4))
+	assert_true(canvas._corners.is_empty(), "the drawing ends")
+	# Walls inside a room ended by a right click stay, as walls on their own.
+	_click(canvas, Vector2(4.0, 0.0))
+	_click(canvas, Vector2(4.0, 1.0))
+	assert_eq(doc.floor_plan.walls.size(), 0)
+	canvas._end_walls()
+	assert_eq(doc.floor_plan.walls.size(), 1)
+	doc.floor_plan.walls.clear()
+	canvas.tool = FloorPlanCanvas.Tool.SELECT
 	assert_eq(drawn, [1] as Array[int], "the new room to be named")
 	# A ready room follows the mouse and snaps onto the walls.
 	canvas.begin_place_room(3)
@@ -320,7 +347,7 @@ func test_room_menu() -> void:
 	assert_eq(doc.floor_plan.rooms[1].name, "Kitchen")
 	view.set("_menu_room", 0)
 	menu.id_pressed.emit(2)
-	assert_eq(canvas.tool, FloorPlanCanvas.Tool.SPLIT, "split: the tool to drag the wall")
+	assert_eq(canvas.tool, FloorPlanCanvas.Tool.WALL, "split: walls drawn across it")
 	view.set("_menu_room", 1)
 	menu.id_pressed.emit(4)
 	assert_eq(doc.floor_plan.rooms.size(), 1, "deleted")

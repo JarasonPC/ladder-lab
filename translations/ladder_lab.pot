@@ -4198,18 +4198,6 @@ msgstr ""
 msgid "Next"
 msgstr ""
 
-msgid "New here? Take a short tour of the window, or learn to draw your first circuit in a lesson."
-msgstr ""
-
-msgid "Take the tour"
-msgstr ""
-
-msgid "First lesson"
-msgstr ""
-
-msgid "Not now"
-msgstr ""
-
 msgid "A lamp and a switch"
 msgstr ""
 
@@ -6073,16 +6061,10 @@ msgstr ""
 msgid "Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)"
 msgstr ""
 
-msgid "Split the room by a wall: drag across it where the wall goes"
-msgstr ""
-
 msgid "Take the room away (what is in it stays)"
 msgstr ""
 
 msgid "Draw a room by its corners: click each corner (walls go across or up and down, with Shift slanting by 15°), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
-msgstr ""
-
-msgid "Split a room in two: drag across it where the new wall goes"
 msgstr ""
 
 #, c-format
@@ -6529,9 +6511,6 @@ msgstr ""
 msgid "Up the other way"
 msgstr ""
 
-msgid "Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn"
-msgstr ""
-
 msgid "Circuit breaker 1+N (L + N)"
 msgstr ""
 
@@ -6539,4 +6518,25 @@ msgid "Circuit breaker 3+N"
 msgstr ""
 
 msgid "A phase and N (1+N)"
+msgstr ""
+
+msgid "Create project"
+msgstr ""
+
+msgid "Open project"
+msgstr ""
+
+msgid "Program guide"
+msgstr ""
+
+msgid "A short tour of the window, once the project is open."
+msgstr ""
+
+msgid "Not ready yet: coming in a later version"
+msgstr ""
+
+msgid "Split the room by a wall: draw it from one of its walls across the room to another, bent where clicked"
+msgstr ""
+
+msgid "Draw walls: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); they snap onto the rooms' walls. Walls drawn from a room's wall across the room to its wall split it; walls closing round a space become a room. A right click or Esc ends the walls being drawn"
 msgstr ""

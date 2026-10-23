@@ -38,6 +38,9 @@ signal defaults_changed
 
 ## Size of the icons of the plan's tools (logical pixels).
 const ICON_SIZE: int = 22
+## Tools drawing rooms, walls, doors and windows: the side panel leaves the
+## parts out meanwhile.
+const ROOM_TOOLS: Array[FloorPlanCanvas.Tool] = [FloorPlanCanvas.Tool.ROOM, FloorPlanCanvas.Tool.OUTLINE, FloorPlanCanvas.Tool.WALL, FloorPlanCanvas.Tool.PLACE_ROOM, FloorPlanCanvas.Tool.DOOR, FloorPlanCanvas.Tool.WINDOW]
 
 var canvas: FloorPlanCanvas
 var _document: SchematicDocument
@@ -48,7 +51,6 @@ var _select_button: Button
 var _room_button: Button
 var _outline_button: Button
 var _wall_button: Button
-var _split_button: Button
 var _door_button: Button
 var _wire_button: Button
 var _join_button: Button
@@ -214,7 +216,6 @@ func _ready() -> void:
 	_room_button = _tool_button("room", FloorPlanCanvas.Tool.ROOM, group)
 	_outline_button = _tool_button("room_outline", FloorPlanCanvas.Tool.OUTLINE, group)
 	_wall_button = _tool_button("plan_wall", FloorPlanCanvas.Tool.WALL, group)
-	_split_button = _tool_button("room_split", FloorPlanCanvas.Tool.SPLIT, group)
 	_door_button = _tool_button("door", FloorPlanCanvas.Tool.DOOR, group)
 	_window_button = _tool_button("plan_window", FloorPlanCanvas.Tool.WINDOW, group)
 	_wire_button = _tool_button("wire", FloorPlanCanvas.Tool.WIRE, group)
@@ -345,7 +346,8 @@ func _ready() -> void:
 	canvas.placed.connect(func() -> void:
 		_select_button.button_pressed = true
 		_list.deselect_all())
-	canvas.selection_changed.connect(_fill_circuits)
+	canvas.selection_changed.connect(_update_parts_side)
+	canvas.tool_changed.connect(_update_parts_side)
 	canvas.selection_changed.connect(_update_array_button)
 	canvas.length_requested.connect(_ask_length)
 	canvas.free_wall_requested.connect(_ask_free_wall)
@@ -672,7 +674,7 @@ func refresh() -> void:
 		_unit.refresh()
 	_back_button.visible = not plan_shown
 	_back_button.text = tr("Floor plan") if not plan_shown else ""
-	for button: Control in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _layers_menu, _walls_button, _delete_button]:
+	for button: Control in [_select_button, _room_button, _outline_button, _wall_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _layers_menu, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	# The layer new things go on, while the schematic has it (an undo may
 	# have taken it away).
@@ -684,7 +686,7 @@ func refresh() -> void:
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
 	_symbols_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
-	_fill_circuits()
+	_update_parts_side()
 	_fit_button.visible = plan_shown
 	(_side.get_parent() as Control).visible = _editing
 	_listed = _document.unplaced_parts()
@@ -808,11 +810,10 @@ func retranslate() -> void:
 	_rename_field.placeholder_text = tr("Name of the room")
 	_name_menu.tooltip_text = tr("A usual name: a bathroom, a kitchen, ... (in a house installation it sets the environment and illuminance)")
 	_room_duplicate.tooltip_text = tr("Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)")
-	_room_split.tooltip_text = tr("Split the room by a wall: drag across it where the wall goes")
+	_room_split.tooltip_text = tr("Split the room by a wall: draw it from one of its walls across the room to another, bent where clicked")
 	_room_delete.tooltip_text = tr("Take the room away (what is in it stays)")
 	_outline_button.tooltip_text = tr("Draw a room by its corners: click each corner (walls go across or up and down, with Shift slanting by 15°), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it")
-	_wall_button.tooltip_text = tr("Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn")
-	_split_button.tooltip_text = tr("Split a room in two: drag across it where the new wall goes")
+	_wall_button.tooltip_text = tr("Draw walls: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); they snap onto the rooms' walls. Walls drawn from a room's wall across the room to its wall split it; walls closing round a space become a room. A right click or Esc ends the walls being drawn")
 	if _document != null:
 		refresh()
 
@@ -831,10 +832,26 @@ func begin_place_template(template: Dictionary) -> void:
 	canvas.placing = ""
 	canvas.placing_template = template
 	canvas.tool = FloorPlanCanvas.Tool.PLACE
-	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.grab_focus()
+
+
+## Whether the side panel is about parts (the circuit new ones go on, those
+## not on the plan yet): not while rooms are drawn or one is picked.
+func _parts_side() -> bool:
+	return canvas.tool not in ROOM_TOOLS and canvas.selected.get("kind", "") not in ["room", "edge"]
+
+
+## The parts' side of the panel, shown or hidden by [method _parts_side].
+func _update_parts_side() -> void:
+	if _list == null:
+		return
+	var shown: bool = _parts_side()
+	for control: Control in [_list_title, _list, _list_hint]:
+		control.visible = shown
+	_fill_circuits()
 
 
 ## The circuit picker of a residential installation: the circuit of the
@@ -842,7 +859,7 @@ func begin_place_template(template: Dictionary) -> void:
 func _fill_circuits() -> void:
 	if _document == null or _circuit == null:
 		return
-	var shown: bool = canvas.installation()
+	var shown: bool = canvas.installation() and _parts_side()
 	_circuit_title.visible = shown
 	_circuit.visible = shown
 	if not shown:
@@ -915,7 +932,7 @@ func _on_listed(index: int) -> void:
 ## Ready room [param index] follows the mouse to be put where the plan is
 ## clicked (again until a right click or Esc).
 func _add_preset(index: int) -> void:
-	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	_list.deselect_all()
 	canvas.begin_place_room(index)
@@ -1367,7 +1384,7 @@ func _on_layer_picked(id: int) -> void:
 
 
 func _deselect_tools() -> void:
-	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _split_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
+	for button: Button in [_select_button, _room_button, _outline_button, _wall_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _wire_button, _join_button]:
 		button.set_pressed_no_signal(false)
 	canvas.grab_focus()
 
@@ -1617,7 +1634,7 @@ func _build_room_panel() -> void:
 	actions.add_theme_constant_override("separation", 4)
 	_room_box.add_child(actions)
 	_room_duplicate = _room_action(actions, "duplicate", func() -> void: _duplicate_room(_renaming))
-	_room_split = _room_action(actions, "room_split", func() -> void: _split_button.button_pressed = true)
+	_room_split = _room_action(actions, "room_split", func() -> void: _wall_button.button_pressed = true)
 	_room_delete = _room_action(actions, "delete", func() -> void: canvas.delete_selected())
 	_room_box.add_child(HSeparator.new())
 	canvas.selection_changed.connect(_fill_room)
@@ -1797,7 +1814,7 @@ func _on_room_menu(id: int) -> void:
 		1:
 			_duplicate_room(index)
 		2:
-			_split_button.button_pressed = true
+			_wall_button.button_pressed = true
 		3:
 			_join_button.button_pressed = true
 			canvas.begin_join(index)

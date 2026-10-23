@@ -4213,18 +4213,6 @@ msgstr "Hotovo"
 msgid "Next"
 msgstr "Další"
 
-msgid "New here? Take a short tour of the window, or learn to draw your first circuit in a lesson."
-msgstr "Jste tu poprvé? Projděte si krátkou prohlídku okna, nebo se v lekci naučte nakreslit svůj první obvod."
-
-msgid "Take the tour"
-msgstr "Projít prohlídku"
-
-msgid "First lesson"
-msgstr "První lekce"
-
-msgid "Not now"
-msgstr "Teď ne"
-
 msgid "A lamp and a switch"
 msgstr "Signálka a spínač"
 
@@ -6089,17 +6077,11 @@ msgstr "Obvyklý název: koupelna, kuchyně, … (v elektroinstalaci domu podle 
 msgid "Duplicate the room beside it (Ctrl+D); the arrow keys move a room (Shift: 50 cm)"
 msgstr "Zdvojit místnost vedle ní (Ctrl+D); šipky místnost posouvají (Shift: po 50 cm)"
 
-msgid "Split the room by a wall: drag across it where the wall goes"
-msgstr "Rozdělit místnost příčkou: táhněte přes ni tam, kde má příčka být"
-
 msgid "Take the room away (what is in it stays)"
 msgstr "Odstranit místnost (co v ní je, zůstane)"
 
 msgid "Draw a room by its corners: click each corner (walls go across or up and down, with Shift slanting by 15°), or type a wall's length in mm and press Enter; a click on the first corner, a double click, Enter or a right click closes it"
 msgstr "Kreslit místnost po rozích: klikněte na každý roh (stěny vedou vodorovně nebo svisle, se Shiftem šikmo po 15°), nebo napište délku stěny v mm a stiskněte Enter; klik na první roh, dvojklik, Enter nebo pravé tlačítko ji uzavře"
-
-msgid "Split a room in two: drag across it where the new wall goes"
-msgstr "Rozdělit místnost na dvě: táhněte přes ni tam, kde má být nová příčka"
 
 #, c-format
 msgid "Area %s m²"
@@ -6554,9 +6536,6 @@ msgstr "Nakreslí v místnosti schodiště: přímé v obdélníku, zalomené v 
 msgid "Up the other way"
 msgstr "Stoupá opačně"
 
-msgid "Draw walls on their own: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); walls closing round a space become a room. A right click or Esc ends the walls being drawn"
-msgstr "Kreslit samostatné zdi: klikněte, kde každá zeď začíná a končí (po 15°, se Shiftem v libovolném úhlu; nebo napište délku v mm a stiskněte Enter); zdi, které uzavřou prostor, se stanou místností. Pravé tlačítko nebo Esc kreslení zdí ukončí"
-
 msgid "Circuit breaker 1+N (L + N)"
 msgstr "Jistič 1+N (L + N)"
 
@@ -6565,3 +6544,24 @@ msgstr "Jistič 3+N"
 
 msgid "A phase and N (1+N)"
 msgstr "Fáze a N (1+N)"
+
+msgid "Create project"
+msgstr "Vytvořit projekt"
+
+msgid "Open project"
+msgstr "Otevřít projekt"
+
+msgid "Program guide"
+msgstr "Průvodce programem"
+
+msgid "A short tour of the window, once the project is open."
+msgstr "Krátká prohlídka okna, jakmile bude projekt otevřený."
+
+msgid "Not ready yet: coming in a later version"
+msgstr "Zatím není hotové: přijde v některé z dalších verzí"
+
+msgid "Split the room by a wall: draw it from one of its walls across the room to another, bent where clicked"
+msgstr "Rozdělit místnost příčkou: nakreslete ji od jedné její stěny přes místnost k jiné, zalomenou tam, kam kliknete"
+
+msgid "Draw walls: click where each wall starts and ends (by 15°, with Shift at any angle; type a length in mm and press Enter); they snap onto the rooms' walls. Walls drawn from a room's wall across the room to its wall split it; walls closing round a space become a room. A right click or Esc ends the walls being drawn"
+msgstr "Kreslit zdi: klikněte, kde každá zeď začíná a končí (po 15°, se Shiftem v libovolném úhlu; nebo napište délku v mm a stiskněte Enter); přichytávají se ke stěnám místností. Zdi nakreslené od stěny místnosti přes místnost k její stěně ji rozdělí; zdi, které uzavřou prostor, se stanou místností. Pravé tlačítko nebo Esc kreslení zdí ukončí"

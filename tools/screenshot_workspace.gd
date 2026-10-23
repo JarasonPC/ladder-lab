@@ -19,6 +19,8 @@ func _initialize() -> void:
 	DisplayServer.window_set_size(Vector2i(1600, 1000))
 	var main: Node = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
+	# No start window over the pictures.
+	(main.get("_start_dialog") as Window).hide()
 	await _frames(5)
 	main.call("_replace_document", ExampleCircuits.build(example), "")
 	main.call("_set_area", 1)

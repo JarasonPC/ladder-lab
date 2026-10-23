@@ -3,7 +3,8 @@ extends GutTest
 ## lesson starts on its own schematic, ticks its steps as the drawing and
 ## the simulation get there, rings what it is about, checks its goals and
 ## ends with another schematic; the tour shows every stop and waits for
-## Simulate; the welcome card asks the language first and is offered once.
+## Simulate; the welcome card asks the language first and is offered once,
+## then the start window asks for a project and the tour.
 
 const Main: GDScript = preload("res://ui/main.gd")
 const MAIN_SCENE: String = "res://main.tscn"
@@ -43,6 +44,7 @@ func before_each() -> void:
 	main = (load(MAIN_SCENE) as PackedScene).instantiate() as Main
 	add_child_autofree(main)
 	main._recovery_dialog.hide()
+	main._start_dialog.hide()
 	editor = main.editor
 	TranslationServer.set_locale("en")
 
@@ -417,18 +419,60 @@ func test_tour_started_again_from_its_last_stop_puts_back_the_first_mode() -> vo
 
 func test_welcome_asks_the_language_first() -> void:
 	main._welcomed = false
+	main._starting = true
+	main._ask_start()
 	var welcome: WelcomeCard = main._welcome
-	assert_true(welcome.asking_language(), "the language before the tour and the lesson")
-	assert_false(welcome._tour.is_visible_in_tree())
-	var czech: Button = welcome._language_page.get_child(2).get_child(1)
+	assert_true(welcome.visible, "the language before the start window")
+	assert_false(main._start_dialog.visible)
+	var czech: Button = welcome.get_child(0).get_child(2).get_child(1)
 	assert_eq(czech.text, "Čeština")
 	czech.pressed.emit()
 	assert_eq(TranslationServer.get_locale(), "cs")
 	assert_eq(main._locale_index, 1)
-	assert_false(welcome.asking_language())
-	assert_eq(welcome._tour.text, "Projít prohlídku", "offered in the language chosen")
-	assert_false(main._welcomed, "answered only with the tour, the lesson or Not now")
+	assert_false(welcome.visible)
+	assert_true(main._welcomed)
+	assert_true(main._start_dialog.visible, "then the start window")
+	assert_eq(main._start_dialog._create.text, "Vytvořit projekt", "asked in the language chosen")
+	assert_true(main._start_dialog.wants_tour(), "the first start offers the tour")
+	main._start_dialog.hide()
 	TranslationServer.set_locale("en")
+
+
+func test_start_window_creates_a_project_then_the_tour() -> void:
+	main._welcomed = true
+	main._starting = true
+	main._ask_start(true)
+	assert_true(main._start_dialog.visible)
+	main._start_dialog._create.pressed.emit()
+	assert_false(main._start_dialog.visible)
+	assert_true(main._new_dialog.visible, "the kind of the new project asked")
+	main._new_dialog.get_cancel_button().pressed.emit()
+	await get_tree().process_frame
+	assert_true(main._start_dialog.visible, "back to the start window when given up")
+	assert_true(main._start_dialog.wants_tour(), "the tour ticked as it was")
+	main._start_dialog._create.pressed.emit()
+	main._new_dialog._cards[0].button_pressed = true
+	main._new_dialog.get_ok_button().pressed.emit()
+	assert_false(main._starting)
+	assert_false(main._start_dialog.visible)
+	await get_tree().process_frame
+	assert_true(main._tour.visible, "the tour once the project is open")
+	main._tour.stop(false)
+
+
+func test_start_window_closed_keeps_the_empty_schematic() -> void:
+	main._welcomed = true
+	main._starting = true
+	main._ask_start()
+	assert_false(main._start_dialog.wants_tour(), "the tour is not ticked at later starts")
+	# Closed by its close button or Esc.
+	main._start_dialog.hide()
+	main._start_dialog.canceled.emit()
+	assert_false(main._starting)
+	main._new_dialog.ask()
+	main._new_dialog.get_cancel_button().pressed.emit()
+	await get_tree().process_frame
+	assert_false(main._start_dialog.visible, "File > New given up asks nothing more")
 
 
 func test_wiring_step_rings_the_terminals_still_to_wire() -> void:

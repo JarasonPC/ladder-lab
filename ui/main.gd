@@ -247,10 +247,15 @@ var _tour: TourOverlay
 ## Mode and area to go back to when the tour ends.
 var _tour_mode: Mode = Mode.EDIT
 var _tour_area: Area = Area.SCHEMATIC
-## Offered on the first start: the tour or the first lesson.
+## Offered on the first start: the language, before the start window.
 var _welcome: WelcomeCard
 ## The welcome card was answered (remembered).
 var _welcomed: bool = false
+## Asks at every start for a project to create or open.
+var _start_dialog: StartDialog
+## The start window asks for a project, or what it chose is under way
+## (a new one's kind asked, a file being picked).
+var _starting: bool = false
 
 
 func _ready() -> void:
@@ -367,8 +372,8 @@ func _ready() -> void:
 	_start_blank()
 	# A schematic double-clicked in the file manager comes as an argument.
 	var start_file: String = FileAssociation.file_from_args(OS.get_cmdline_args())
-	if not start_file.is_empty():
-		open_file(start_file)
+	# Otherwise the start window asks for a project.
+	_starting = start_file.is_empty() or not open_file(start_file)
 	# Marked alive while running, so another LadderLab started meanwhile does
 	# not offer this one's unsaved changes.
 	RecoveryFile.beat()
@@ -378,8 +383,6 @@ func _ready() -> void:
 	heartbeat.timeout.connect(func() -> void: RecoveryFile.beat())
 	add_child(heartbeat)
 	_offer_recovery()
-	if not _welcomed:
-		_welcome.show()
 
 
 func _process(_delta: float) -> void:
@@ -744,20 +747,17 @@ func _build_ui() -> void:
 	_control_tab.pressed.connect(func() -> void: _set_control_rolled(false))
 	middle.add_child(_control_tab)
 	_welcome = WelcomeCard.new()
-	# The language first, before the tour or a lesson is offered in it.
+	# The language first, before the start window asks in it.
 	_welcome.languages = LOCALE_NAMES
-	_welcome.language_chosen.connect(set_language)
+	_welcome.language_chosen.connect(func(index: int) -> void:
+		set_language(index)
+		_answer_welcome()
+		# The first start offers the tour.
+		_ask_start(true))
 	_welcome.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_welcome.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_welcome.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
 	_welcome.hide()
-	_welcome.tour_chosen.connect(func() -> void:
-		_answer_welcome()
-		start_tour())
-	_welcome.lesson_chosen.connect(func() -> void:
-		_answer_welcome()
-		start_lesson(0))
-	_welcome.dismissed.connect(_answer_welcome)
 	_canvas_area.add_child(_welcome)
 
 	_timing_panel = TimingPanel.new()
@@ -857,6 +857,9 @@ func _build_dialogs() -> void:
 	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_file_dialog.use_native_dialog = true
 	_file_dialog.file_selected.connect(_on_file_selected)
+	_file_dialog.canceled.connect(func() -> void:
+		if _dialog_purpose == DialogPurpose.OPEN:
+			_ask_start_again())
 	add_child(_file_dialog)
 	_unsaved_dialog = ConfirmationDialog.new()
 	_discard_button = _unsaved_dialog.add_button("", true, "discard")
@@ -905,6 +908,8 @@ func _build_dialogs() -> void:
 	_recovery_discard_button = _recovery_dialog.add_button("", true, "discard")
 	# A copy offered after another was restored replaces that one: ask first.
 	_recovery_dialog.confirmed.connect(func() -> void: _confirm_discard(_restore_recovery))
+	# Later: on to the start window (once this one is gone).
+	_recovery_dialog.canceled.connect(func() -> void: _ask_start.call_deferred())
 	_recovery_dialog.custom_action.connect(func(_action: StringName) -> void:
 		_recovery_dialog.hide()
 		RecoveryFile.remove(_recovery_path)
@@ -947,7 +952,15 @@ func _build_dialogs() -> void:
 	add_child(_about_dialog)
 	_new_dialog = NewSchematicDialog.new()
 	_new_dialog.chosen.connect(_new_document)
+	_new_dialog.chosen.connect(func(_environment: int) -> void: _started())
+	_new_dialog.canceled.connect(_ask_start_again)
 	add_child(_new_dialog)
+	_start_dialog = StartDialog.new()
+	_start_dialog.create_chosen.connect(_new_dialog.ask)
+	_start_dialog.open_chosen.connect(_show_open_dialog)
+	# Closed: the empty schematic stays.
+	_start_dialog.canceled.connect(func() -> void: _starting = false)
+	add_child(_start_dialog)
 	_key_prompt = KeyPrompt.new()
 	_key_prompt.chosen.connect(func(designation: String, key: String) -> void:
 		# The same key again (or none taken off none) changes nothing.
@@ -1079,7 +1092,6 @@ func _retranslate() -> void:
 	_key_strip.retranslate()
 	_lesson_panel.rebuild()
 	_tour.retranslate()
-	_welcome.retranslate()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
 		_check_panel.run(edit_doc)
@@ -1789,6 +1801,8 @@ func _new_document(environment: int = SchematicDocument.Kind.INDUSTRIAL) -> void
 	if doc.environment == SchematicDocument.Kind.RESIDENTIAL:
 		doc.update_single_line()
 		_replace_document(doc, "")
+		# A new house is drawn from its rooms: the floor plan first.
+		_set_area(Area.WORKSPACE)
 		return
 	doc.add(PowerSupply.new("L", PowerSupply.Conductor.L), Vector2i(2, 1))
 	doc.add(PowerSupply.new("N", PowerSupply.Conductor.N), Vector2i(2, 16))
@@ -2201,6 +2215,7 @@ func _quit() -> void:
 func _offer_recovery() -> void:
 	var found: PackedStringArray = RecoveryFile.orphans()
 	if found.is_empty():
+		_ask_start()
 		return
 	_recovery_path = found[0]
 	var result: Dictionary = RecoveryFile.read(_recovery_path)
@@ -2227,8 +2242,39 @@ func _restore_recovery() -> void:
 	_replace_document(result["document"], result["file"])
 	_mark_dirty()
 	RecoveryFile.remove(_recovery_path)
+	# The restored schematic is the project: no start window.
+	_starting = false
 	# Copies of other sessions that did not close properly come next.
 	_offer_recovery()
+
+
+## The start window, once copies of unsaved changes were offered (the first
+## start asks for the language before it); [param tour] ticks the tour.
+func _ask_start(tour: bool = false) -> void:
+	if not _welcomed:
+		_welcome.show()
+	elif _starting and _error_dialog.visible:
+		# A file that did not load: once the error is read.
+		_error_dialog.visibility_changed.connect(_ask_start_again, CONNECT_ONE_SHOT)
+	elif _starting:
+		_start_dialog.ask(tour)
+
+
+## Back to the start window when what it chose was given up (no kind of
+## schematic or no file chosen), the tour ticked as it was.
+func _ask_start_again() -> void:
+	if _starting:
+		# Once the dialog given up is gone: one exclusive dialog at a time.
+		_ask_start.call_deferred(_start_dialog.wants_tour())
+
+
+## The project asked for at the start is open: the tour follows if ticked.
+func _started() -> void:
+	if not _starting:
+		return
+	_starting = false
+	if _start_dialog.wants_tour():
+		start_tour.call_deferred()
 
 
 ## Runs [param action] right away, or after asking what to do with unsaved
@@ -2285,7 +2331,10 @@ func _show_file_dialog(purpose: DialogPurpose) -> void:
 func _on_file_selected(path: String) -> void:
 	match _dialog_purpose:
 		DialogPurpose.OPEN:
-			open_file(path)
+			if open_file(path):
+				_started()
+			else:
+				_ask_start_again()
 		DialogPurpose.SAVE:
 			if path.get_extension().to_lower() != _file_extension():
 				path += "." + _file_extension()
