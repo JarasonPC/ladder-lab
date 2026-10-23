@@ -207,6 +207,10 @@ var _corners: PackedVector2Array = PackedVector2Array()
 ## they run inside it they wait (in [member _corners]) to split it once they
 ## end on its wall.
 var _split_room: int = -1
+## The rooms as the corner or wall being dragged leaves them, and what they
+## were worked out for (see [method _room_preview]).
+var _preview: FloorPlan = null
+var _preview_key: Array = []
 ## The width and depth typed for a room being drawn (mm; with
 ## Tool.OUTLINE the first is the next wall's length), and which is typed.
 var _room_typed: PackedStringArray = PackedStringArray(["", ""])
@@ -1137,7 +1141,8 @@ func _release(press: Dictionary, point: Vector2) -> void:
 				var index: int = press["index"]
 				var k: int = press["which"]
 				var to: Vector2 = _corner_target(index)
-				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_corner(index, k, to))
+				var free: bool = Input.is_key_pressed(KEY_SHIFT)
+				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_corner(index, k, to, free))
 		"door_end", "window_end":
 			if _dragging:
 				var index: int = press["index"]
@@ -1281,9 +1286,13 @@ func _release(press: Dictionary, point: Vector2) -> void:
 			if _dragging:
 				var index: int = press["index"]
 				var k: int = press["side"]
-				var at: float = _edge_target(index, k)
 				# The rooms sharing the wall keep sharing it.
-				edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_edge(index, k, at))
+				if FloorPlan.is_straight(plan().rooms[index].wall(k)):
+					var at: float = _edge_target(index, k)
+					edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.set_edge(index, k, at))
+				else:
+					var shift: float = _slant_shift(index, k)
+					edit_requested.emit(func(doc: SchematicDocument) -> void: doc.floor_plan.move_wall(index, k, shift))
 		"label":
 			if _dragging and by != Vector2.ZERO:
 				var index: int = press["index"]
@@ -1915,12 +1924,18 @@ func free_wall_at(point: Vector2) -> int:
 	return -1
 
 
-## Where end [param which] of free wall [param index] goes as it is dragged.
+## Where end [param which] of free wall [param index] goes as it is
+## dragged: onto a wall's end or a room's corner near, else onto a room's
+## wall near, else at a whole number of [constant ANGLE_STEP] degrees from
+## its other end (any with Shift).
 func _wall_end_target(index: int, which: int) -> Vector2:
 	var m: Vector2 = to_plan(_mouse)
 	var near: Vector2 = _wall_snap(m)
 	if not is_nan(near.x):
 		return near
+	var on_wall: Vector2 = _room_wall_snap(m)
+	if not is_nan(on_wall.x):
+		return on_wall
 	var wall: FloorPlan.Wall = plan().walls[index]
 	var fixed: Vector2 = wall.a if which == 1 else wall.b
 	return _angled(fixed, m, -1.0, 0.0 if Input.is_key_pressed(KEY_SHIFT) else ANGLE_STEP)
@@ -1942,18 +1957,19 @@ func _shown_free_wall(index: int) -> PackedVector2Array:
 	return ends
 
 
-## The free walls: a band of its thickness on each one's line, square at
-## its ends (the one selected in the selection colour).
+## The free walls: a band of its thickness on each one's line, its ends
+## joined to the walls they are on (see [method FloorPlan.free_wall_outlines];
+## the one selected in the selection colour).
 func _draw_free_walls() -> void:
+	var shown: Array[PackedVector2Array] = []
 	for i: int in plan().walls.size():
-		var ends: PackedVector2Array = _shown_free_wall(i)
-		var half: float = plan().free_thickness(plan().walls[i]) * 0.5
-		var dir: Vector2 = (ends[1] - ends[0]).normalized()
-		var side: Vector2 = dir.orthogonal() * half
-		var a: Vector2 = ends[0] - dir * half
-		var b: Vector2 = ends[1] + dir * half
+		shown.append(_shown_free_wall(i))
+	var outlines: Array[PackedVector2Array] = plan().free_wall_outlines(shown)
+	for i: int in outlines.size():
+		if outlines[i].is_empty():
+			continue
 		var chosen: bool = selected.get("kind", "") == "free_wall" and selected.get("index", -1) == i
-		draw_colored_polygon(_screen_points(PackedVector2Array([a - side, b - side, b + side, a + side])), Color(SchematicTheme.SELECTED, 0.8) if chosen else wall_color())
+		draw_colored_polygon(_screen_points(outlines[i]), Color(SchematicTheme.SELECTED, 0.8) if chosen else wall_color())
 
 
 ## Adds corner [param corner] (not twice over, nor back on the last).
@@ -2284,6 +2300,15 @@ func _draw() -> void:
 		_draw_door(_shown_opening("door", i), s, wall, selected.get("kind", "") == "door" and selected.get("index", -1) == i)
 	for i: int in plan().windows.size():
 		_draw_window(_shown_opening("window", i), s, selected.get("kind", "") == "window" and selected.get("index", -1) == i)
+	if editing and tool in [Tool.DOOR, Tool.WINDOW] and Rect2(Vector2.ZERO, size).has_point(_mouse):
+		# The door or window a click puts in, where it would go.
+		var near: Dictionary = plan().wall_near(to_plan(_mouse), 0.3)
+		if not near.is_empty() and near["straight"]:
+			var vertical: bool = int(near["facing"]) % 2 == 0
+			if tool == Tool.DOOR:
+				_draw_door(FloorPlan.Door.new(near["at"], vertical), s, wall, true)
+			else:
+				_draw_window(FloorPlan.WindowOpening.new(near["at"], vertical), s, true)
 	for i: int in rooms.size():
 		# Name and area in the room's corner, clear of its ceiling light (or
 		# where it was dragged to); in a residential installation its number
@@ -2351,6 +2376,9 @@ func _draw() -> void:
 		draw_dashed_line(to_screen(symbol_center(_press["designation"])), _mouse, SchematicTheme.SELECTED, 1.6, 5.0)
 	_draw_saved_dimensions(font)
 	_draw_wall_distance(font)
+	_draw_corner_slide(font)
+	if editing and _dragging and _press.get("kind", "") == "free_wall_end":
+		_draw_snap_dimensions(font, _wall_end_target(_press["index"], _press["which"]))
 	_draw_notes(font)
 	for handle: Dictionary in handles():
 		var c: Vector2 = to_screen(handle["at"])
@@ -2571,6 +2599,9 @@ func _draw_grid(s: float) -> void:
 ## wall of it is dragged to.
 func _shown_points(index: int) -> PackedVector2Array:
 	var room: FloorPlan.Room = plan().rooms[index]
+	var preview: FloorPlan = _room_preview()
+	if preview != null and index < preview.rooms.size():
+		return preview.rooms[index].points
 	if not _dragging or _press.get("index", -1) != index:
 		return room.points
 	match _press.get("kind", ""):
@@ -2581,27 +2612,57 @@ func _shown_points(index: int) -> PackedVector2Array:
 			for i: int in moved.size():
 				moved[i] += to.position - room.rect.position
 			return moved
-		"edge":
-			if not FloorPlan.is_straight(room.wall(_press["side"])):
-				return room.points
-			return FloorPlan.with_edge(room.points, _press["side"], _edge_target(index, _press["side"]))
-		"corner":
-			var n: int = room.points.size()
-			var k: int = _press["which"]
-			var to: Vector2 = _corner_target(index)
-			if not FloorPlan.is_straight(room.wall((k + n - 1) % n)) or not FloorPlan.is_straight(room.wall(k)):
-				var moved_corner: PackedVector2Array = FloorPlan.with_corner(room.points, k, to)
-				return moved_corner if not moved_corner.is_empty() else room.points
-			var shaped: PackedVector2Array = room.points
-			for wall: int in [(k + n - 1) % n, k]:
-				var w0: Vector2 = shaped[wall]
-				var w1: Vector2 = shaped[(wall + 1) % n]
-				var vertical: bool = is_equal_approx(w0.x, w1.x)
-				var probe: FloorPlan.Room = FloorPlan.Room.new()
-				probe.points = shaped
-				shaped = FloorPlan.with_edge(shaped, wall, FloorPlan._clamp_edge(probe, wall, to.x if vertical else to.y))
-			return shaped
 	return room.points
+
+
+## The rooms as the corner or wall being dragged leaves them (the edit tried
+## on a copy of them, every room it moves), null while none is dragged.
+func _room_preview() -> FloorPlan:
+	if not _dragging or _press.get("kind", "") not in ["corner", "edge"]:
+		_preview = null
+		return null
+	var key: Array = [_mouse, _press_at, _press.get("kind", ""), Input.is_key_pressed(KEY_SHIFT)]
+	if _preview != null and key == _preview_key:
+		return _preview
+	var preview: FloorPlan = plan().rooms_copy()
+	var index: int = _press["index"]
+	if _press["kind"] == "corner":
+		preview.set_corner(index, _press["which"], _corner_target(index), Input.is_key_pressed(KEY_SHIFT))
+	elif FloorPlan.is_straight(plan().rooms[index].wall(_press["side"])):
+		preview.set_edge(index, _press["side"], _edge_target(index, _press["side"]))
+	else:
+		preview.move_wall(index, _press["side"], _slant_shift(index, _press["side"]))
+	_preview = preview
+	_preview_key = key
+	return preview
+
+
+## How far slanting wall [param k] of room [param index] is dragged out of
+## the room (m, on the grid; into it when negative).
+func _slant_shift(index: int, k: int) -> float:
+	var w: PackedVector2Array = plan().rooms[index].wall(k)
+	var out: Vector2 = -(w[1] - w[0]).normalized().rotated(PI / 2.0)
+	return snappedf((to_plan(_mouse) - to_plan(_press_at)).dot(out), FloorPlan.SNAP)
+
+
+## While a corner shared by rooms slides along a wall: its distances to the
+## wall's ends, in the rooms.
+func _draw_corner_slide(font: Font) -> void:
+	if not editing or not _dragging or _press.get("kind", "") != "corner":
+		return
+	var index: int = _press["index"]
+	var k: int = _press["which"]
+	var start: Vector2 = plan().rooms[index].points[k]
+	var line: PackedVector2Array = plan().corner_line(start)
+	if line.is_empty():
+		return
+	var now: Vector2 = _shown_points(index)[k]
+	var into: Vector2 = (line[1] - line[0]).normalized().orthogonal()
+	if plan().room_at(start + into * 0.05) < 0:
+		into = -into
+	for end: Vector2 in line:
+		if end.distance_to(now) > 0.01:
+			_draw_wall_dimension(font, end, now, into, SchematicTheme.SELECTED)
 
 
 ## Where part [param designation] is shown: where it is dragged to.
@@ -2646,14 +2707,20 @@ func _draw_building(shapes: Array[PackedVector2Array], rooms: Array[PackedVector
 		var to: float = piece["to"]
 		var dir: Vector2 = (b - a).normalized()
 		draw_colored_polygon(_screen_points(PackedVector2Array([a + out * from, b + out * from, b + out * to, a + out * to])), color)
-		# Run on past each end, round a corner, but off the floors.
+		# Run on past each end, round a corner, but off the floors; not off
+		# the floor of either of its rooms where that has a corner of more
+		# than a right angle there (a slanting wall), so the band reaches
+		# the wall across.
 		var reach: float = to - from
 		for end: PackedVector2Array in [PackedVector2Array([a - dir * reach, a]), PackedVector2Array([b, b + dir * reach])]:
+			var tip: Vector2 = a if end[1] == a else b
 			var rest: Array[PackedVector2Array] = [PackedVector2Array([end[0] + out * from, end[1] + out * from, end[1] + out * to, end[0] + out * to])]
-			for floor_shape: PackedVector2Array in shapes:
+			for j: int in shapes.size():
+				if (j == int(piece["room"]) or j == int(piece["other"])) and FloorPlan.obtuse_corner(shapes[j], tip):
+					continue
 				var cut: Array[PackedVector2Array] = []
 				for part: PackedVector2Array in rest:
-					cut.append_array(Geometry2D.clip_polygons(part, floor_shape))
+					cut.append_array(Geometry2D.clip_polygons(part, shapes[j]))
 				rest = cut
 			for part: PackedVector2Array in rest:
 				draw_colored_polygon(_screen_points(part), color)

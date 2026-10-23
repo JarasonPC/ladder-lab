@@ -1,8 +1,9 @@
 extends GutTest
 ## Walls of the floor plan: where a wall between two rooms lies (no step
 ## where a wall goes on outside), each wall's own thickness and placing,
-## slanting walls, walls drawn on their own closing into a room, stairs,
-## and what moves along while a room, wall or door is dragged.
+## slanting walls, walls drawn on their own closing into a room and joined
+## to the walls they meet, stairs, and what moves along while a room, wall
+## or door is dragged.
 
 
 func _plan() -> FloorPlan:
@@ -221,3 +222,113 @@ func test_doors_and_windows_dragged_along() -> void:
 	canvas._mouse = canvas.to_screen(Vector2(4.5, 1))
 	assert_true(canvas._shown_opening("window", 0).at.is_equal_approx(Vector2(4.5, 1.5)))
 	canvas._dragging = false
+
+
+func test_slanting_walls_joined_all_the_way() -> void:
+	var plan: FloorPlan = _plan()
+	plan.rooms.append(FloorPlan.Room.new("Room", Rect2(0, 0, 6, 4)))
+	# A free wall slanting up onto the room's top wall: its end cut along
+	# that wall, in the middle of its band (outside the room), not square.
+	plan.walls.append(FloorPlan.Wall.new(Vector2(2, 3), Vector2(3, 0)))
+	var outline: PackedVector2Array = plan.free_wall_outlines()[0]
+	var middle: float = -plan.outer_wall * 0.5
+	assert_almost_eq(outline[1].y, middle, 1e-4, "both corners at the top on the middle of the top wall's band")
+	assert_almost_eq(outline[2].y, middle, 1e-4)
+	assert_almost_eq(outline[0].distance_to(outline[3]), plan.inner_wall, 1e-4, "square at its free end")
+	# Two free walls from one end at a right angle: mitred, the outer corner shared.
+	plan.walls.clear()
+	plan.walls.append(FloorPlan.Wall.new(Vector2(10, 0), Vector2(14, 0)))
+	plan.walls.append(FloorPlan.Wall.new(Vector2(10, 0), Vector2(10, 3)))
+	var outlines: Array[PackedVector2Array] = plan.free_wall_outlines()
+	var half: float = plan.inner_wall * 0.5
+	assert_true(_near(outlines[0], Vector2(10 - half, -half)), "the outer corner")
+	assert_true(_near(outlines[1], Vector2(10 - half, -half)), "the same on the other wall")
+	assert_true(_near(outlines[0], Vector2(10 + half, half)) and _near(outlines[1], Vector2(10 + half, half)), "the inner corner")
+	# A wall between two rooms meeting the outside wall at a slant runs on
+	# into it: the room with the corner of more than a right angle there
+	# does not cut it off.
+	var left: FloorPlan.Room = FloorPlan.outline_room(PackedVector2Array([Vector2(0, 10), Vector2(3, 10), Vector2(2, 14), Vector2(0, 14)]), "Left")
+	var right: FloorPlan.Room = FloorPlan.outline_room(PackedVector2Array([Vector2(3, 10), Vector2(6, 10), Vector2(6, 14), Vector2(2, 14)]), "Right")
+	assert_true(FloorPlan.obtuse_corner(right.points, Vector2(3, 10)), "the right room's corner at the top")
+	assert_false(FloorPlan.obtuse_corner(left.points, Vector2(3, 10)), "the left room's is sharp")
+	assert_false(FloorPlan.obtuse_corner(left.points, Vector2(1, 10)), "no corner there")
+	assert_false(FloorPlan.obtuse_corner(left.points, Vector2(0, 10)), "a right angle")
+
+
+func _near(points: PackedVector2Array, p: Vector2) -> bool:
+	for q: Vector2 in points:
+		if q.distance_to(p) < 1e-4:
+			return true
+	return false
+
+
+func _area(plan: FloorPlan) -> float:
+	var sum: float = 0.0
+	for room: FloorPlan.Room in plan.rooms:
+		sum += room.area()
+	return sum
+
+
+func test_corners_rooms_share_move_together() -> void:
+	var plan: FloorPlan = _plan()
+	plan.rooms.append(FloorPlan.Room.new("Room", Rect2(0, 0, 6, 4)))
+	# Split by a slanting wall: its bottom end dragged along the bottom wall
+	# moves the corner of both rooms (no gap opens between them).
+	assert_eq(plan.split_room(0, PackedVector2Array([Vector2(4, 0), Vector2(2, 4)]), "Room 2"), 1)
+	var bottom: Vector2 = Vector2(2, 4)
+	assert_eq(plan.corners_at(bottom).size(), 2, "both rooms have the corner")
+	var line: PackedVector2Array = plan.corner_line(bottom)
+	assert_true(line.has(Vector2(0, 4)) and line.has(Vector2(6, 4)), "it slides along the bottom wall")
+	var c: Vector2i = plan.corners_at(bottom)[0]
+	assert_true(plan.set_corner(c.x, c.y, Vector2(1.0, 4.6)))
+	var moved: Vector2 = Vector2(1, 4)
+	assert_eq(plan.corners_at(moved).size(), 2, "both moved, onto the bottom wall")
+	assert_almost_eq(_area(plan), 24.0, 1e-4, "nothing lost, nothing overlapping")
+	assert_eq(plan.overlaps().size(), 0)
+	# Never past the end of the wall it slides on.
+	c = plan.corners_at(moved)[0]
+	plan.set_corner(c.x, c.y, Vector2(-3.0, 4.0))
+	assert_eq(plan.corners_at(Vector2(FloorPlan.MIN_WALL, 4)).size(), 2)
+	# The top end slides along the top wall only.
+	c = plan.corners_at(Vector2(4, 0))[0]
+	assert_true(plan.set_corner(c.x, c.y, Vector2(5, 2)))
+	assert_eq(plan.corners_at(Vector2(5, 0)).size(), 2)
+	# A move that would cross a room over itself is refused, nothing changed.
+	var before: Array = [plan.rooms[0].points.duplicate(), plan.rooms[1].points.duplicate()]
+	var single: FloorPlan = _plan()
+	single.rooms.append(FloorPlan.outline_room(PackedVector2Array([Vector2(0, 0), Vector2(4, 0), Vector2(2, 3)]), "Room"))
+	single.rooms.append(FloorPlan.outline_room(PackedVector2Array([Vector2(4, 0), Vector2(8, 0), Vector2(2, 3)]), "Room 2"))
+	var shape: Array = [single.rooms[0].points.duplicate(), single.rooms[1].points.duplicate()]
+	var tip: Vector2i = single.corners_at(Vector2(2, 3))[0]
+	assert_false(single.set_corner(tip.x, tip.y, Vector2(6, -2)), "it would turn a room round")
+	assert_eq([single.rooms[0].points, single.rooms[1].points], shape)
+	assert_eq([plan.rooms[0].points, plan.rooms[1].points], before)
+
+
+func test_walls_between_rooms_stay_straight_unless_free() -> void:
+	var plan: FloorPlan = _plan()
+	plan.rooms.append(FloorPlan.Room.new("Left", Rect2(0, 0, 3, 4)))
+	plan.rooms.append(FloorPlan.Room.new("Right", Rect2(3, 0, 3, 4)))
+	# The top end of the wall between them dragged along the top: the whole
+	# wall moves, up and down as it was.
+	plan.set_corner(0, 1, Vector2(4.0, -0.7))
+	assert_eq(plan.rooms[0].rect, Rect2(0, 0, 4, 4))
+	assert_eq(plan.rooms[1].rect, Rect2(4, 0, 2, 4))
+	# With Shift (free) only its end moves: the wall slants.
+	plan.set_corner(0, 1, Vector2(3.0, 0.0), true)
+	assert_true(_near(plan.rooms[0].points, Vector2(3, 0)) and _near(plan.rooms[1].points, Vector2(3, 0)))
+	assert_true(_near(plan.rooms[0].points, Vector2(4, 4)), "its bottom end stays")
+	assert_almost_eq(_area(plan), 24.0, 1e-4)
+	# The slanting wall dragged sideways: both rooms follow it.
+	var k: int = FloorPlan.wall_through(plan.rooms[0].points, Vector2(3.5, 2.0))
+	assert_true(plan.move_wall(0, k, 0.5))
+	assert_almost_eq(plan.rooms[0].points[k].y, 0.0, 1e-4, "its top end along the top wall")
+	assert_gt(plan.rooms[0].points[k].x, 3.4)
+	assert_eq(plan.corners_at(plan.rooms[0].points[k]).size(), 2, "still shared")
+	assert_almost_eq(_area(plan), 24.0, 1e-4)
+	assert_false(plan.move_wall(0, k, 9.0), "never crossing the room over")
+	# Turned in the wall dialog: the other room keeps the corner.
+	var top: Vector2 = plan.rooms[0].points[k]
+	var end: Vector2 = plan.rooms[0].points[(k + 1) % plan.rooms[0].points.size()]
+	assert_true(plan.set_wall_angle(0, k, FloorPlan.wall_angle(PackedVector2Array([top, end])), top.distance_to(end) - 0.5))
+	assert_eq(plan.corners_at(plan.rooms[0].points[(k + 1) % plan.rooms[0].points.size()]).size(), 2)

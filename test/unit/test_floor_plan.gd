@@ -680,3 +680,34 @@ func test_wall_symbols_moved_off_their_wall() -> void:
 	assert_almost_eq(canvas.symbol_center("SF2").x, before.x + 0.5, 1e-4)
 	canvas.selected = {"kind": "part", "designation": "EA1"}
 	assert_true(canvas.handles().is_empty(), "a luminaire on the ceiling has none")
+
+
+func test_ghosts_and_previews_drawn() -> void:
+	var doc: SchematicDocument = _house()
+	var canvas: FloorPlanCanvas = FloorPlanCanvas.new()
+	canvas.document = doc
+	canvas.editing = true
+	canvas.size = Vector2(1000, 700)
+	add_child_autofree(canvas)
+	# The door and the window a click would put in, drawn where they go.
+	for tool: FloorPlanCanvas.Tool in [FloorPlanCanvas.Tool.DOOR, FloorPlanCanvas.Tool.WINDOW]:
+		canvas.tool = tool
+		canvas._mouse = canvas.to_screen(Vector2(5.0, 4.05))
+		canvas.queue_redraw()
+		await get_tree().process_frame
+	# A corner the hall and the room share, dragged: both rooms shown moved.
+	canvas.tool = FloorPlanCanvas.Tool.SELECT
+	canvas.selected = {"kind": "room", "index": 0}
+	canvas._press_at = canvas.to_screen(Vector2(3, 0))
+	canvas._press = canvas._pressed(canvas._press_at)
+	assert_eq(canvas._press["kind"], "corner")
+	canvas._dragging = true
+	canvas._mouse = canvas.to_screen(Vector2(3.5, 0.2))
+	var preview: FloorPlan = canvas._room_preview()
+	assert_not_null(preview)
+	assert_eq(canvas._shown_points(0), preview.rooms[0].points)
+	assert_true(canvas._shown_points(1).has(Vector2(3.5, 0)), "the room beside it moves along")
+	canvas.queue_redraw()
+	await get_tree().process_frame
+	canvas._dragging = false
+	assert_null(canvas._room_preview())
