@@ -2725,7 +2725,7 @@ func _draw() -> void:
 	_draw_reference(font)
 	for i: int in shapes.size():
 		if plan().rooms[i].stairs:
-			_draw_stairs(shapes[i], plan().rooms[i].stairs_reverse)
+			_draw_stairs(shapes[i], plan().rooms[i].stairs_reverse, stairs_to(i, 1), stairs_to(i, -1), font)
 	for i: int in rooms.size():
 		var chosen: bool = selected.get("kind", "") == "room" and selected.get("index", -1) == i
 		if chosen or i == _join_first:
@@ -2852,7 +2852,7 @@ func _draw() -> void:
 	if legend:
 		_draw_legend(s, font)
 	if plan().rooms.is_empty() and editing:
-		var hint: String = tr("Draw a room: pick Room and drag, or add one of the ready rooms.")
+		var hint: String = tr("Draw the house: with Room by its corners click the corners of the house, then split it into rooms with Walls drawn across it; or drag a Room, or add a ready one.")
 		if reference_floor() >= 0:
 			hint = tr("Draw this floor over the one below it, dash-dot: its corners are caught (by the corners of the house, then walls across it).")
 		draw_string(font, Vector2(20, 30), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), Color(SchematicTheme.LINE, 0.6))
@@ -3186,12 +3186,44 @@ func _draw_building(shapes: Array[PackedVector2Array], rooms: Array[PackedVector
 ## The stairs of a staircase of outline [param points] (see
 ## [method FloorPlan.stair_lines]): its treads, the walking line from a dot
 ## where it starts to an arrow where it goes up to.
-func _draw_stairs(points: PackedVector2Array, reverse: bool) -> void:
+## Whether staircase room [param index] goes on to a staircase on the floor
+## [param way] (1 above, -1 below): one there over it.
+func stairs_to(index: int, way: int) -> bool:
+	if document == null:
+		return false
+	var other: int = document.floor + way
+	if other < 0 or other >= document.floors.size():
+		return false
+	for room: FloorPlan.Room in document.floors[other].rooms:
+		if room.stairs:
+			for piece: PackedVector2Array in Geometry2D.intersect_polygons(room.points, plan().rooms[index].points):
+				if FloorPlan.polygon_area(piece) > 0.1:
+					return true
+	return false
+
+
+## The stairs of a staircase of outline [param points] (see
+## [method FloorPlan.stair_lines]): its treads, the walking line from a dot
+## where it starts to an arrow where it goes up to. Going [param up] to the
+## floor above, the flight is cut halfway up as the plan is (a break line
+## across it, the treads past it dashed) and its start says "up"; arriving
+## from the floor below ([param down]), its top end says "down".
+func _draw_stairs(points: PackedVector2Array, reverse: bool, up: bool = false, down: bool = false, font: Font = null) -> void:
 	var stairs: Dictionary = FloorPlan.stair_lines(points, reverse)
 	var color: Color = Color(SchematicTheme.LINE, 0.6)
+	var line: PackedVector2Array = stairs["walk"]
+	var total: float = 0.0
+	for k: int in range(1, line.size()):
+		total += line[k - 1].distance_to(line[k])
 	for tread: PackedVector2Array in stairs["treads"]:
-		draw_line(to_screen(tread[0]), to_screen(tread[tread.size() - 1]), color, 1.0, true)
-	var walk: PackedVector2Array = _screen_points(stairs["walk"])
+		var a: Vector2 = to_screen(tread[0])
+		var b: Vector2 = to_screen(tread[tread.size() - 1])
+		if up and line.size() > 1 and _along(line, (tread[0] + tread[tread.size() - 1]) * 0.5) > total * 0.5:
+			# Past the cut: above the plane the plan is cut at.
+			draw_dashed_line(a, b, Color(color, 0.45), 1.0, 4.0, true)
+		else:
+			draw_line(a, b, color, 1.0, true)
+	var walk: PackedVector2Array = _screen_points(line)
 	if walk.size() < 2:
 		return
 	draw_polyline(walk, SchematicTheme.LINE, 1.3, true)
@@ -3199,6 +3231,43 @@ func _draw_stairs(points: PackedVector2Array, reverse: bool) -> void:
 	var tip: Vector2 = walk[walk.size() - 1]
 	var back: Vector2 = (walk[walk.size() - 2] - tip).normalized() * 10.0
 	draw_colored_polygon(PackedVector2Array([tip, tip + back + back.orthogonal() * 0.4, tip + back - back.orthogonal() * 0.4]), SchematicTheme.LINE)
+	if up:
+		# The break line, slanting across the flight halfway up.
+		var middle: Vector2 = _at_along(line, total * 0.5)
+		var way: Vector2 = (_at_along(line, total * 0.5 + 0.05) - middle).normalized()
+		var across: Vector2 = way.orthogonal().rotated(deg_to_rad(20.0)) * 3.0
+		for piece: PackedVector2Array in Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([middle - across, middle + across]), points):
+			draw_line(to_screen(piece[0]), to_screen(piece[piece.size() - 1]), SchematicTheme.LINE, 1.3, true)
+	if font != null and up:
+		draw_string(font, walk[0] + Vector2(6, -6), tr("up"), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
+	if font != null and down:
+		draw_string(font, tip + Vector2(6, -6), tr("down"), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), SchematicTheme.TEXT)
+
+
+## How far along polyline [param line] (m) the point of it nearest to
+## [param p] is.
+static func _along(line: PackedVector2Array, p: Vector2) -> float:
+	var best: float = INF
+	var result: float = 0.0
+	var run: float = 0.0
+	for k: int in range(1, line.size()):
+		var q: Vector2 = Geometry2D.get_closest_point_to_segment(p, line[k - 1], line[k])
+		if q.distance_to(p) < best:
+			best = q.distance_to(p)
+			result = run + line[k - 1].distance_to(q)
+		run += line[k - 1].distance_to(line[k])
+	return result
+
+
+## The point [param distance] m along polyline [param line].
+static func _at_along(line: PackedVector2Array, distance: float) -> Vector2:
+	var left: float = distance
+	for k: int in range(1, line.size()):
+		var step: float = line[k - 1].distance_to(line[k])
+		if left <= step:
+			return line[k - 1].lerp(line[k], left / step if step > 0.0 else 0.0)
+		left -= step
+	return line[line.size() - 1]
 
 
 ## Across the wall [param opening] is in: from where to where its band

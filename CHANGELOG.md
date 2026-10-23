@@ -7,6 +7,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- The floor plan's tools are grouped (selecting, building, electrics, dimensions and notes,
+  underlay and view), and an empty plan says how to draw a house: its outline by its corners,
+  then walls across it
+- Staircases are drawn as plans show them: going up to the floor above, the flight is cut
+  halfway with a break line and marked "up"; arriving from below, marked "down"
 - A room's number or name goes where it covers no door, window, part or designation
 - While a wall or corner is dragged, the doors, windows and parts on the walls it moves are
   shown moving along

@@ -5002,9 +5002,6 @@ msgstr ""
 msgid "Mounting height %s m"
 msgstr ""
 
-msgid "Draw a room: pick Room and drag, or add one of the ready rooms."
-msgstr ""
-
 msgid "Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling."
 msgstr ""
 
@@ -6599,4 +6596,13 @@ msgid "-%s is in zone %d of the bathroom: no socket outlets or switches there."
 msgstr ""
 
 msgid "Check the installation: circuits not protected, socket circuits and bathrooms without a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a bathroom's zones"
+msgstr ""
+
+msgid "up"
+msgstr ""
+
+msgid "down"
+msgstr ""
+
+msgid "Draw the house: with Room by its corners click the corners of the house, then split it into rooms with Walls drawn across it; or drag a Room, or add a ready one."
 msgstr ""

@@ -47,6 +47,8 @@ var _document: SchematicDocument
 var _editing: bool = false
 var _fit_pending: bool = true
 var _bar: HBoxContainer
+## The lines between the groups of tools in [member _bar].
+var _tool_gaps: Array[VSeparator] = []
 var _select_button: Button
 var _room_button: Button
 var _outline_button: Button
@@ -292,6 +294,24 @@ func _ready() -> void:
 	_delete_button.icon = AppTheme.icon("delete", ICON_SIZE)
 	_delete_button.pressed.connect(func() -> void: canvas.delete_selected())
 	_bar.add_child(_delete_button)
+	# The tools in groups: selecting, building, the electrics, dimensions
+	# and notes, what is drawn under the plan and how it shows.
+	var groups: Array = [[_select_button, _delete_button],
+		[_outline_button, _wall_button, _room_button, _presets, _join_button, _door_button, _window_button],
+		[_wire_button, _array_button, _symbols_button, _check_button],
+		[_dimension_button, _measure_button, _note_button],
+		[_underlay_menu, _layers_menu, _walls_button]]
+	var at: int = _back_button.get_index() + 1
+	for g: int in groups.size():
+		if g > 0:
+			var gap: VSeparator = VSeparator.new()
+			_bar.add_child(gap)
+			_bar.move_child(gap, at)
+			_tool_gaps.append(gap)
+			at += 1
+		for control: Control in groups[g]:
+			_bar.move_child(control, at)
+			at += 1
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bar.add_child(spacer)
@@ -718,6 +738,8 @@ func refresh() -> void:
 	_fill_floor_tabs()
 	_wire_button.visible = _editing and plan_shown and canvas.installation()
 	_check_button.visible = _editing and plan_shown and canvas.installation()
+	for gap: VSeparator in _tool_gaps:
+		gap.visible = _editing and plan_shown
 	_symbols_button.visible = _editing and plan_shown and canvas.installation()
 	_join_button.visible = _editing and plan_shown
 	_update_parts_side()

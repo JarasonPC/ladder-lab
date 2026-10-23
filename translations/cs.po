@@ -5017,9 +5017,6 @@ msgstr "Kliknutím jej přepnete"
 msgid "Mounting height %s m"
 msgstr "Montážní výška %s m"
 
-msgid "Draw a room: pick Room and drag, or add one of the ready rooms."
-msgstr "Nakreslete místnost: zvolte Místnost a táhněte, nebo přidejte některou z připravených místností."
-
 msgid "Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling."
 msgstr "Vyberte přístroj a klikněte, kam patří: vypínače, zásuvky a spotřebiče jdou na nejbližší stěnu, svítidla na strop."
 
@@ -6625,3 +6622,12 @@ msgstr "-%s je v zóně %d koupelny: zásuvky ani vypínače tam nepatří."
 
 msgid "Check the installation: circuits not protected, socket circuits and bathrooms without a 30 mA residual current device, too many sockets on a circuit, switches and sockets in a bathroom's zones"
 msgstr "Zkontrolovat instalaci: nejištěné obvody, zásuvkové obvody a koupelny bez proudového chrániče 30 mA, příliš mnoho zásuvek na obvodu, vypínače a zásuvky v zónách koupelny"
+
+msgid "up"
+msgstr "nahoru"
+
+msgid "down"
+msgstr "dolů"
+
+msgid "Draw the house: with Room by its corners click the corners of the house, then split it into rooms with Walls drawn across it; or drag a Room, or add a ready one."
+msgstr "Nakreslete dům: nástrojem Místnost po rozích klikněte na rohy domu, pak ho rozdělte na místnosti Zdmi nakreslenými napříč; nebo táhněte Místnost, nebo přidejte připravenou."

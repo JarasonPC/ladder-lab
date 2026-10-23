@@ -811,6 +811,8 @@ func test_staircase_lighting_across_floors_and_the_floor_below() -> void:
 	await get_tree().process_frame
 	# The floor below drawn under this one, its corners caught.
 	assert_eq(canvas.reference_floor(), 0)
+	assert_true(canvas.stairs_to(0, -1), "upstairs: the stairs come up from below")
+	assert_false(canvas.stairs_to(0, 1), "and go no higher")
 	assert_true(canvas._room_point(Vector2(0.05, 5.45)).distance_to(Vector2(0, 5.5)) < 1e-4, "onto the corner of the floor below")
 	var below: PackedVector2Array = doc.floors[0].building_outlines()[0]
 	below.append(below[0])
@@ -823,6 +825,7 @@ func test_staircase_lighting_across_floors_and_the_floor_below() -> void:
 	assert_true(canvas.stair_ghosts().has("SF2"))
 	assert_true(canvas.stair_ghosts().has("EA1"))
 	assert_eq(canvas.reference_floor(), 1, "the lowest floor drawn over the one above")
+	assert_true(canvas.stairs_to(1, 1), "downstairs: the stairs go up, cut halfway")
 	canvas.queue_redraw()
 	await get_tree().process_frame
 	# The switch downstairs taken off the plan: its link upstairs goes too.

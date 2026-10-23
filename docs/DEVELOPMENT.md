@@ -553,7 +553,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   ticks): FloorPlan.stair_lines gives the treads TREAD apart and the walking line, straight
   along a rectangle's longer side, in an L (_l_corner) a flight in each arm turning in the
   square where they meet with winders from the inner corner, else straight cut to the outline;
-  FloorPlanCanvas._draw_stairs draws them, a dot where the line starts, an arrow up. Where
+  FloorPlanCanvas._draw_stairs draws them, a dot where the line starts, an arrow up; a
+  staircase going on to one over it on the floor above (stairs_to) is cut halfway up as the
+  plan is (a break line across the flight, the treads past it dashed; _along, _at_along)
+  and says "up" at its start, one arriving from a staircase on the floor below says "down"
+  at its top end. Where
   they start there is no wall (stair_start_wall: across the walking line's start, nearest
   it; open_wall): wall_pieces leaves it out, the room's own and one shared with the room it
   is entered from, and the room is not grown there.
@@ -643,7 +647,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   unit and the room legend always. New ones go on FloorPlanCanvas.active_layer (new_layer:
   "" while the schematic has no such layer; a view setting, not saved); a right click on one
   (_layered_at) -> layer_menu_requested -> FloorPlanView's layer picker (set_item_layer, or a
-  new layer it goes on). FloorPlanView's Layers menu (editing only; its text the active
+  new layer it goes on). The plan's tools are in groups (FloorPlanView: selecting;
+  building: outline, walls, rooms, ready rooms, joining, doors, windows; the electrics:
+  lighting, rows, symbols, check; dimensions, measuring, notes; the underlay, layers and
+  the plan settings), lines between them (_tool_gaps); an empty plan says how a house is
+  drawn (its outline by its corners, then walls across it). FloorPlanView's Layers menu
+  (editing only; its text the active
   layer): a tick per layer shows or hides it (hiding drops the selection and, if it is the
   active one, the active layer), the layer new things go on (choosing a hidden one shows it),
   New, Rename and Remove the active one, Show all; every change one undoable edit.
