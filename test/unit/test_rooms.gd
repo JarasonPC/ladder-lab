@@ -397,3 +397,17 @@ func test_rooms_beside_each_other_put_wall_to_wall() -> void:
 	canvas._mouse = canvas.to_screen(Vector2(4.4, 2.0))
 	assert_almost_eq(canvas._edge_target(0, 1), 4.4, 1e-4)
 	canvas._press = {}
+
+
+func test_doors_and_parts_shown_moving_with_their_wall() -> void:
+	var doc: SchematicDocument = _house()
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Living room", Rect2(0, 0, 4, 4)))
+	doc.floor_plan.doors.append(FloorPlan.Door.new(Vector2(4, 2), true))
+	var canvas: FloorPlanCanvas = _canvas(doc)
+	canvas._press = {"kind": "edge", "index": 0, "side": 1}
+	canvas._press_at = canvas.to_screen(Vector2(4, 1))
+	canvas._dragging = true
+	canvas._mouse = canvas.to_screen(Vector2(5, 1))
+	assert_almost_eq(canvas._shown_opening("door", 0).at.x, 5.0, 1e-4, "the door goes with its wall")
+	canvas._dragging = false
+	canvas._press = {}

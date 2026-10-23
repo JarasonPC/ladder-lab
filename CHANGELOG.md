@@ -7,6 +7,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
 ## Unreleased
 
 ### Schematic editor
+- A room's number or name goes where it covers no door, window, part or designation
+- While a wall or corner is dragged, the doors, windows and parts on the walls it moves are
+  shown moving along
 - A floor added above (or a basement below) starts with the outline of the house and its
   staircase from the floor next to it
 - The bathroom zones (ČSN 33 2000-7-701) are drawn round baths and shower trays on the plan

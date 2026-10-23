@@ -558,9 +558,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   it; open_wall): wall_pieces leaves it out, the room's own and one shared with the room it
   is entered from, and the room is not grown there.
   While a room is dragged the doors, windows, fixtures, notes and marks in it are drawn moved
-  along (_room_drag_shift), while a wall is dragged the doors, windows and parts on it
-  (_edge_drag_shift), and a door or window dragged is drawn on the wall it goes onto
-  (_shown_opening).
+  along (_room_drag_shift), while a wall or a corner is dragged the doors, windows and parts
+  on the walls it moves, each keeping its share of the way along its wall (_wall_drag_shift
+  from _room_preview; a door or window only while its wall stays straight the same way),
+  and a door or window dragged is drawn on the wall it goes onto (_shown_opening).
+  A room's label (_label_at) not dragged anywhere goes into the first spot along the top of
+  the room, then its bottom, then its middle, from its top left corner on, where it covers
+  no door with its swing, window, part's symbol or designation (_label_obstacles; the parts
+  drawn first, their boxes in _taken; _label_size), else into its top left corner.
   Dimensions printed with the plan (FloorPlan.Dimension, saved "dimensions"): a chain along
   wall "wall" of room "room" (dimension_stops: its corners, the parts on it, the ends of its
   openings) or, room -1, between "a" and "b"; "offset" from the wall (past the outside wall)

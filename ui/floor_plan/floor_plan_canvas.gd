@@ -589,8 +589,9 @@ func _shown_opening(kind: String, index: int) -> FloorPlan.Opening:
 			return original
 		shown.at = wall["at"]
 		shown.vertical = int(wall["facing"]) % 2 == 0
-	elif pressed == "edge":
-		shown.at += _edge_drag_shift(original.at, original.vertical)
+	elif pressed in ["edge", "corner"]:
+		var moved: Vector2 = _wall_drag_shift(original.at, true)
+		shown.at += moved
 	else:
 		var by: Vector2 = _room_drag_shift(original.at)
 		if by == Vector2.ZERO:
@@ -610,22 +611,32 @@ func _room_drag_shift(point: Vector2) -> Vector2:
 	return _shown_points(index)[0] - plan().rooms[index].points[0]
 
 
-## How far something on the wall being dragged at [param point] moves with
-## it ([param vertical]: an opening running up and down; zero when it is
-## not on that wall).
-func _edge_drag_shift(point: Vector2, vertical: bool) -> Vector2:
-	if not _dragging or _press.get("kind", "") != "edge":
+## How far something on a wall at [param point] moves while a wall or a
+## corner is dragged: along with the wall it is on, keeping its share of the
+## way along it (see [method _room_preview]); a door or window
+## ([param opening]) only while that wall stays straight the same way.
+func _wall_drag_shift(point: Vector2, opening: bool = false) -> Vector2:
+	var preview: FloorPlan = _room_preview()
+	if preview == null:
 		return Vector2.ZERO
-	var index: int = _press["index"]
-	var k: int = _press["side"]
-	var before: PackedVector2Array = plan().rooms[index].wall(k)
-	var wall_vertical: bool = is_equal_approx(before[0].x, before[1].x)
-	if wall_vertical != vertical:
-		return Vector2.ZERO
-	if Geometry2D.get_closest_point_to_segment(point, before[0], before[1]).distance_to(point) > 0.01:
-		return Vector2.ZERO
-	var after: PackedVector2Array = _shown_points(index)
-	return after[k] - before[0]
+	for i: int in plan().rooms.size():
+		var before: PackedVector2Array = plan().rooms[i].points
+		if i >= preview.rooms.size() or preview.rooms[i].points.size() != before.size():
+			continue
+		for k: int in before.size():
+			var a: Vector2 = before[k]
+			var b: Vector2 = before[(k + 1) % before.size()]
+			if Geometry2D.get_closest_point_to_segment(point, a, b).distance_to(point) > 0.01:
+				continue
+			var after: PackedVector2Array = preview.rooms[i].wall(k)
+			if after[0] == a and after[1] == b:
+				continue
+			if opening and not (FloorPlan.is_straight(after) and is_equal_approx(a.x, b.x) == is_equal_approx(after[0].x, after[1].x)):
+				return Vector2.ZERO
+			var length: float = a.distance_to(b)
+			var t: float = a.distance_to(point) / length if length > 0.001 else 0.0
+			return after[0].lerp(after[1], t) - point
+	return Vector2.ZERO
 
 
 ## The note under screen point [param point]: {"index", "end": "anchor"
@@ -1083,9 +1094,65 @@ func _label_at(index: int) -> Vector2:
 	var wall: float = maxf(WALL * PX * zoom, 2.0)
 	var font: Font = get_theme_default_font()
 	var by: Vector2 = room.label_offset
-	if _dragging and _press.get("kind", "") == "label" and _press.get("index", -1) == index:
+	var dragged: bool = _dragging and _press.get("kind", "") == "label" and _press.get("index", -1) == index
+	if dragged:
 		by += FloorPlan.snap(to_plan(_mouse) - to_plan(_press_at))
-	return to_screen(corner + by) + Vector2(wall + 6.0, wall + 10.0 + font.get_ascent(_sized(NAME_SIZE)))
+	var ascent: float = font.get_ascent(_sized(NAME_SIZE))
+	if by != Vector2.ZERO or dragged:
+		return to_screen(corner + by) + Vector2(wall + 6.0, wall + 10.0 + ascent)
+	# Where it was not dragged to: the first corner of the room (then its
+	# middle) where it covers no door, window or part.
+	var size: Vector2 = _label_size(index, font)
+	var box: Rect2 = Rect2(shown.points[0], Vector2.ZERO)
+	for p: Vector2 in shown.points:
+		box = box.expand(p)
+	var room_box: Rect2 = Rect2(to_screen(box.position), box.size * PX * zoom)
+	var inset: Vector2 = Vector2(wall + 6.0, wall + 10.0)
+	# Along its top, then its bottom, then its middle, from the left.
+	var spots: Array[Vector2] = [to_screen(corner) + inset]
+	var left: float = room_box.position.x + inset.x
+	var right: float = room_box.end.x - inset.x - size.x
+	for y: float in [room_box.position.y + inset.y, room_box.end.y - inset.y - size.y, room_box.get_center().y - size.y * 0.5]:
+		for k: int in 9:
+			spots.append(Vector2(lerpf(left, right, k / 8.0), y))
+	var taken: Array[Rect2] = _label_obstacles(box)
+	for spot: Vector2 in spots:
+		var label_box: Rect2 = Rect2(spot, size)
+		if not shown.contains(to_plan(spot), 0.0) or not shown.contains(to_plan(label_box.end), 0.0):
+			continue
+		if not taken.any(func(r: Rect2) -> bool: return r.intersects(label_box)):
+			return spot + Vector2(0.0, ascent)
+	return to_screen(corner) + inset + Vector2(0.0, ascent)
+
+
+## How large the label of room [param index] is on the screen (its name or
+## number over its area).
+func _label_size(index: int, font: Font) -> Vector2:
+	var title: String = plan().room_number(index) if installation() else tr(plan().rooms[index].name)
+	var title_size: int = _sized(NAME_SIZE) + (6 if installation() else 0)
+	var area: String = "%s m²" % String.num(plan().rooms[index].area(), 1)
+	var width: float = maxf(font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x, font.get_string_size(area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE)).x)
+	return Vector2(width, title_size + _sized(TEXT_SIZE) + 4.0)
+
+
+## What a room's label in [param box] (m) should not cover, on the screen:
+## the doors with their swing, the windows there, and the parts' symbols
+## and designations (as drawn, [member _taken]).
+func _label_obstacles(box: Rect2) -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	var near: Rect2 = box.grow(1.0)
+	for door: FloorPlan.Door in plan().doors:
+		var swing: Rect2 = _door_swing_box(door)
+		if near.intersects(swing):
+			result.append(Rect2(to_screen(swing.position), swing.size * PX * zoom).grow(4.0))
+	for window: FloorPlan.WindowOpening in plan().windows:
+		if near.has_point(window.at):
+			var ends: PackedVector2Array = window.ends()
+			result.append(Rect2(to_screen(ends[0]), Vector2.ZERO).expand(to_screen(ends[1])).grow(10.0))
+	# The parts' symbols and designations as drawn last.
+	for taken: Rect2 in _taken:
+		result.append(taken.grow(3.0))
+	return result
 
 
 ## The room whose label is under screen point [param point], -1 for none.
@@ -2685,19 +2752,6 @@ func _draw() -> void:
 				_draw_door(_new_door(near["at"], vertical), s, wall, true)
 			else:
 				_draw_window(FloorPlan.WindowOpening.new(near["at"], vertical), s, true)
-	for i: int in rooms.size():
-		# Name and area in the room's corner, clear of its ceiling light (or
-		# where it was dragged to); in a residential installation its number
-		# (the legend names it).
-		var room: FloorPlan.Room = plan().rooms[i]
-		var corner: Vector2 = _label_at(i)
-		var chosen_label: bool = selected.get("kind", "") == "label" and selected.get("index", -1) == i
-		if installation():
-			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE) + 6, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.75))
-		else:
-			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.55))
-		var area: String = "%s m²" % String.num(room.area(), 1)
-		draw_string(font, corner + Vector2(0, _sized(NAME_SIZE) + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(SchematicTheme.LINE, 0.45))
 	for i: int in plan().fixtures.size():
 		var fixture: FloorPlan.Fixture = plan().fixtures[i]
 		if not shows(fixture):
@@ -2738,6 +2792,19 @@ func _draw() -> void:
 	for designation: String in plan().parts:
 		if layer_shows(designation):
 			_draw_part(designation, s, font)
+	for i: int in rooms.size():
+		# Name and area in the room's corner, clear of its ceiling light (or
+		# where it was dragged to); in a residential installation its number
+		# (the legend names it).
+		var room: FloorPlan.Room = plan().rooms[i]
+		var corner: Vector2 = _label_at(i)
+		var chosen_label: bool = selected.get("kind", "") == "label" and selected.get("index", -1) == i
+		if installation():
+			draw_string(font, corner, plan().room_number(i), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE) + 6, SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.75))
+		else:
+			draw_string(font, corner, tr(room.name), HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(NAME_SIZE), SchematicTheme.SELECTED if chosen_label else Color(SchematicTheme.LINE, 0.55))
+		var area: String = "%s m²" % String.num(room.area(), 1)
+		draw_string(font, corner + Vector2(0, _sized(NAME_SIZE) + 1), area, HORIZONTAL_ALIGNMENT_LEFT, -1, _sized(TEXT_SIZE), Color(SchematicTheme.LINE, 0.45))
 	if editing:
 		_draw_room_tools(s, font, wall)
 	if editing and tool == Tool.PLACE and not placing.is_empty():
@@ -3063,9 +3130,8 @@ func _shown_at(designation: String) -> Vector2:
 		return FloorPlan.snap(at + to_plan(_mouse) - to_plan(_press_at))
 	if _dragging and _press.get("kind", "") == "room":
 		return at + _room_drag_shift(at)
-	if _dragging and _press.get("kind", "") == "edge":
-		var w: PackedVector2Array = plan().rooms[_press["index"]].wall(_press["side"])
-		return at + _edge_drag_shift(at, is_equal_approx(w[0].x, w[1].x))
+	if _dragging and _press.get("kind", "") in ["edge", "corner"] and plan().facing.has(designation):
+		return at + _wall_drag_shift(at)
 	return at
 
 
