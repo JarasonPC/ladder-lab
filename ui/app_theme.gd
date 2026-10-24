@@ -345,6 +345,24 @@ static func frame(button: BaseButton) -> void:
 	button.add_theme_stylebox_override("disabled", box(bg1, RADIUS, 9.0, 4.0, Color(border, 0.5), 1))
 
 
+## Marks text field or drop-down field [param control] as a value still to
+## give ([param missing]): a thicker edge on its left and a thin frame in
+## the warning colour; unmarked, it looks as the theme draws it.
+static func mark_missing(control: Control, missing: bool) -> void:
+	var edit: bool = control is LineEdit
+	if not missing:
+		control.remove_theme_stylebox_override("normal")
+		return
+	var s: StyleBoxFlat = box(bg0 if edit else bg2, RADIUS, 9.0 if edit else 10.0, 5.0, Color(warning, 0.55), 1)
+	s.border_width_left = 3
+	control.add_theme_stylebox_override("normal", s)
+
+
+## Whether [param control] is marked by [method mark_missing].
+static func marked_missing(control: Control) -> bool:
+	return control.has_theme_stylebox_override("normal")
+
+
 static func _line(color: Color, vertical: bool) -> StyleBoxLine:
 	var s: StyleBoxLine = StyleBoxLine.new()
 	s.color = color

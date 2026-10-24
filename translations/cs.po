@@ -7244,9 +7244,6 @@ msgstr "Způsob instalace krytu"
 msgid "Item"
 msgstr "Položka"
 
-msgid "Still to give:"
-msgstr "Zbývá zadat:"
-
 msgid "Strip terminals (%d), all together"
 msgstr "Řadové svorky (%d), dohromady"
 
@@ -7379,9 +7376,6 @@ msgstr "Nespočítáno: zbývá zadat"
 msgid "Notes"
 msgstr "Poznámky"
 
-msgid "Power lost in +%s"
-msgstr "Ztrátový výkon v +%s"
-
 msgid "Quantity symbol"
 msgstr "Veličina"
 
@@ -7423,9 +7417,6 @@ msgstr "Hodnota"
 
 msgid "Where"
 msgstr "Kde"
-
-msgid "Whole list over the screen"
-msgstr "Celý seznam přes obrazovku"
 
 msgid "Wider than %s m or over %s m² of Ae: reckoned in %d sections %s m wide, each with P/%d and its share of the openings; the dividing walls do not count. The warmest section:"
 msgstr "Širší než %s m nebo Ae nad %s m²: počítáno v %d sekcích širokých %s m, každá s P/%d a svým podílem otvorů; dělicí stěny se nepočítají. Nejteplejší sekce:"
@@ -7498,9 +7489,6 @@ msgstr "Exportováno z LadderLab %s: soubor %s, schéma „%s“, dne %s."
 
 msgid "Loss of -%s at its rated current, from its maker (W)"
 msgstr "Ztráta -%s při jmenovitém proudu podle výrobce (W)"
-
-msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires into the fields; an empty field is not given."
-msgstr "Do polí zapište ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez každé skupiny vodičů; prázdné pole není zadáno."
 
 msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given."
 msgstr "Do polí zapište ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez vodičů na sítích každého jmenovitého proudu: jejich délky se berou z nakreslené kabeláže a ztráta se počítá podle přílohy H ČSN EN 61439-1 při 70 °C. Prázdné pole není zadáno."
@@ -8173,3 +8161,45 @@ msgstr "Bytové"
 
 msgid "Power switchgear"
 msgstr "Výkonové"
+
+
+msgid "All given"
+msgstr "Vše zadáno"
+
+msgid "Enclosure and air"
+msgstr "Skříň a okolí"
+
+msgid "Go to the next value the calculation still needs"
+msgstr "Přejít na další údaj, který výpočet ještě potřebuje"
+
+msgid "Next to give"
+msgstr "Další k zadání"
+
+msgid "Not worked out yet: the result and the curve show once all is given."
+msgstr "Zatím nespočítáno: výsledek a křivka se ukážou, až bude vše zadáno."
+
+#, c-format
+msgid "Still to give: %d"
+msgstr "Zbývá zadat: %d"
+
+msgid "Type (optional)"
+msgstr "Typ (nepovinné)"
+
+msgid "optional"
+msgstr "nepovinné"
+
+msgid "optional, for the protocol"
+msgstr "nepovinné, pro protokol"
+
+
+#, c-format
+msgid "%d on Enclosure and air"
+msgstr "%d na kartě Skříň a okolí"
+
+#, c-format
+msgid "%d on Losses"
+msgstr "%d na kartě Ztráty"
+
+#, c-format
+msgid "Still to give: %s."
+msgstr "Zbývá zadat: %s."

@@ -3,14 +3,13 @@ extends VBoxContainer
 ## The losses of a switchboard's temperature rise calculation ([HeatRise])
 ## as a table with a text field for each value to give: a device's loss
 ## (W, from its maker), each group of wires' cross-section (mm²), the strip
-## terminals' and further losses (W). A field not filled in says "enter" in
-## the warning colour. Beside each its loss (W), under them the total.
+## terminals' and further losses (W). A field not filled in is marked
+## ([method AppTheme.mark_missing]). Beside each its loss (W), under them the total.
 ## A device's type from its maker has a text field of its own (column
-## "Type"): typing completes it with a type already given to the same
+## "Type", optional: for the protocol only): typing completes it with a type already given to the same
 ## device (the same name and data: on these rails or another switchboard's)
 ## and the "▾" beside it lists them; a type taken from there brings its loss
-## into an empty loss field ([method known]). Used in the dialog and over
-## the whole screen ([HeatRiseDialog]).
+## into an empty loss field ([method known]). Used in [HeatRiseDialog].
 
 ## [param value] was typed for row [param what] ([constant HeatRiseDialog.ROW_DEVICE]
 ## …) of [param name] (the device's designation, the current); null when
@@ -48,6 +47,7 @@ func _init() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.follow_focus = true
 	add_child(scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 5
@@ -72,7 +72,7 @@ func fill(doc: SchematicDocument, losses: Dictionary, board: int = -1) -> void:
 		child.queue_free()
 	_rows.clear()
 	# The heading row.
-	var titles: Array[String] = [tr("Item"), tr("What"), tr("Type"), tr("Given"), tr("Loss (W)")]
+	var titles: Array[String] = [tr("Item"), tr("What"), tr("Type (optional)"), tr("Given"), tr("Loss (W)")]
 	var widths: Array[float] = [item_width, -1.0, type_width, field_width, 70.0]
 	for i: int in 5:
 		var head: Label = _label(titles[i], widths[i])
@@ -106,8 +106,7 @@ func show_losses(losses: Dictionary) -> void:
 	for row: Dictionary in _rows:
 		var loss: Variant = by_row.get(row["what"] + "|" + row["name"])
 		(row["loss"] as Label).text = String.num(loss, 1) if loss != null else ""
-		var field: LineEdit = row["field"]
-		field.placeholder_text = tr("enter")
+		AppTheme.mark_missing(row["field"], loss == null)
 		if row["types"] != null:
 			(row["types"] as MenuButton).disabled = known(row["name"]).is_empty()
 	if _total != null:
@@ -168,6 +167,16 @@ func fields() -> Array[LineEdit]:
 	return result
 
 
+## The text fields of the values still to give (their loss not known), in
+## the order of the rows.
+func empty_fields() -> Array[LineEdit]:
+	var result: Array[LineEdit] = []
+	for row: Dictionary in _rows:
+		if (row["loss"] as Label).text.is_empty():
+			result.append(row["field"])
+	return result
+
+
 ## A row; [param type] is the device's type as given (null: a row that is
 ## not a device's, without a type field).
 func _row(what: String, name: String, item: String, text: String, given: Variant, unit: String, type: Variant = null) -> void:
@@ -186,8 +195,7 @@ func _row(what: String, name: String, item: String, text: String, given: Variant
 		type_input.custom_minimum_size.x = type_width
 		type_input.select_all_on_focus = true
 		type_input.text = str(type)
-		type_input.placeholder_text = tr("enter")
-		type_input.add_theme_color_override("font_placeholder_color", AppTheme.warning)
+		type_input.placeholder_text = tr("optional")
 		type_input.tooltip_text = tr("Type of -%s from its maker (e.g. its order code)") % name
 		type_input.text_changed.connect(func(value: String) -> void: _type_typed(type_input, name, value))
 		type_input.text_submitted.connect(func(_value: String) -> void: _type_taken(name))
@@ -226,8 +234,6 @@ func _row(what: String, name: String, item: String, text: String, given: Variant
 	input.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	input.select_all_on_focus = true
 	input.text = HeatRiseDialog.shown(given)
-	input.placeholder_text = tr("enter")
-	input.add_theme_color_override("font_placeholder_color", AppTheme.warning)
 	input.tooltip_text = tr("Loss of -%s at its rated current, from its maker (W)") % name if what == HeatRiseDialog.ROW_DEVICE else (tr("Cross-section of these wires (mm²)") if what == HeatRiseDialog.ROW_WIRES else tr("W"))
 	input.text_changed.connect(func(value: String) -> void: typed.emit(what, name, HeatRiseDialog.number(value)))
 	box.add_child(input)

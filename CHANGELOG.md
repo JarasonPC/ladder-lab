@@ -203,6 +203,12 @@ What changed in each LadderLab version. Version numbers follow the rules in
   where the teacher lets it, which reports are right
 - Wiring a training plan, the terminals that already have a wire are marked with a filled
   dot, so it is easy to see what is wired and what is left
+- The temperature rise calculation is easier to fill in: what is given is on two tabs,
+  Enclosure and air and Losses, each saying how many values it still lacks, with the result
+  always beside them; a field still to give has a warning-coloured edge instead of "enter",
+  Next to give goes to the next one, the openings are asked only for a vented enclosure, and
+  the enclosure's power loss and the devices' types say they are optional (for the
+  protocol). The losses table has the whole tab, so the list over the whole screen is gone
 
 ### Application
 - A house installation is drawn, not simulated: its toolbar has no Edit | Simulate switch,
