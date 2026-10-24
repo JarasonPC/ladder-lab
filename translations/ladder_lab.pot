@@ -7219,9 +7219,6 @@ msgstr ""
 msgid "Item"
 msgstr ""
 
-msgid "Still to give:"
-msgstr ""
-
 msgid "Strip terminals (%d), all together"
 msgstr ""
 
@@ -7354,9 +7351,6 @@ msgstr ""
 msgid "Notes"
 msgstr ""
 
-msgid "Power lost in +%s"
-msgstr ""
-
 msgid "Quantity symbol"
 msgstr ""
 
@@ -7397,9 +7391,6 @@ msgid "Value"
 msgstr ""
 
 msgid "Where"
-msgstr ""
-
-msgid "Whole list over the screen"
 msgstr ""
 
 msgid "Wider than %s m or over %s m² of Ae: reckoned in %d sections %s m wide, each with P/%d and its share of the openings; the dividing walls do not count. The warmest section:"
@@ -7472,9 +7463,6 @@ msgid "Exported from LadderLab %s: file %s, schematic \"%s\", on %s."
 msgstr ""
 
 msgid "Loss of -%s at its rated current, from its maker (W)"
-msgstr ""
-
-msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires into the fields; an empty field is not given."
 msgstr ""
 
 msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given."
@@ -8147,4 +8135,46 @@ msgid "Household"
 msgstr ""
 
 msgid "Power switchgear"
+msgstr ""
+
+
+msgid "All given"
+msgstr ""
+
+msgid "Enclosure and air"
+msgstr ""
+
+msgid "Go to the next value the calculation still needs"
+msgstr ""
+
+msgid "Next to give"
+msgstr ""
+
+msgid "Not worked out yet: the result and the curve show once all is given."
+msgstr ""
+
+#, c-format
+msgid "Still to give: %d"
+msgstr ""
+
+msgid "Type (optional)"
+msgstr ""
+
+msgid "optional"
+msgstr ""
+
+msgid "optional, for the protocol"
+msgstr ""
+
+
+#, c-format
+msgid "%d on Enclosure and air"
+msgstr ""
+
+#, c-format
+msgid "%d on Losses"
+msgstr ""
+
+#, c-format
+msgid "Still to give: %s."
 msgstr ""

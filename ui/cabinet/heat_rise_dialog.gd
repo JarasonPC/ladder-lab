@@ -47,12 +47,15 @@ var _vented_label: Label
 var _vented: OptionButton
 var _partitions: OptionButton
 var _losses: HeatLossTable
-## The losses table over the whole screen, and the button opening it.
-var _wide: AcceptDialog
-var _wide_losses: HeatLossTable
-var _wide_hint: Label
-var _wide_button: Button
 var _loss_hint: Label
+## The two tabs of what is given (the enclosure and the air round it, the
+## losses), their buttons, the openings asked only for a vented enclosure.
+var _pages: Array[Control] = []
+var _tabs: Array[Button] = []
+var _vents: GridContainer
+## How many values are still to give, and the button going to the next.
+var _gaps: Label
+var _next_button: Button
 var _results: Label
 var _verdict: Label
 var _warnings: Label
@@ -64,37 +67,81 @@ var _rdf_help: RdfHelpDialog
 
 
 func _init() -> void:
-	min_size = Vector2i(1180, 560)
+	min_size = Vector2i(1080, 580)
+	var outer: VBoxContainer = VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	add_child(outer)
+	# What is given, on two tabs, and how much is still to give.
+	var bar: HBoxContainer = HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 8)
+	outer.add_child(bar)
+	var track: PanelContainer = PanelContainer.new()
+	track.theme_type_variation = "SegmentTrack"
+	bar.add_child(track)
+	var segments: HBoxContainer = HBoxContainer.new()
+	segments.add_theme_constant_override("separation", 2)
+	track.add_child(segments)
+	var tabs: ButtonGroup = ButtonGroup.new()
+	for page: int in 2:
+		var tab: Button = Button.new()
+		tab.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		tab.theme_type_variation = "SegmentButton"
+		tab.focus_mode = Control.FOCUS_NONE
+		tab.toggle_mode = true
+		tab.button_group = tabs
+		tab.pressed.connect(func() -> void: _show_page(page))
+		segments.add_child(tab)
+		_tabs.append(tab)
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_child(spacer)
+	_gaps = Label.new()
+	_gaps.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	bar.add_child(_gaps)
+	_next_button = Button.new()
+	_next_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_next_button.focus_mode = Control.FOCUS_NONE
+	_next_button.icon = AppTheme.icon("chevron_right")
+	_next_button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	AppTheme.frame(_next_button)
+	_next_button.pressed.connect(_next_empty)
+	bar.add_child(_next_button)
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	add_child(row)
-	# The enclosure and the air round it.
-	# The enclosure's column scrolls: with the RDF table it is taller than the others.
-	var left_scroll: ScrollContainer = ScrollContainer.new()
-	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	left_scroll.custom_minimum_size = Vector2(290, 420)
-	left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(left_scroll)
-	var left: VBoxContainer = _column(row, 270.0)
-	row.remove_child(left)
-	left_scroll.add_child(left)
+	row.add_theme_constant_override("separation", 20)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(row)
+	# Tab 1: the enclosure, the air round it and the rated diversity factor.
+	var first: ScrollContainer = ScrollContainer.new()
+	first.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	first.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	first.follow_focus = true
+	row.add_child(first)
+	_pages.append(first)
+	var columns: HBoxContainer = HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 24)
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	first.add_child(columns)
+	var left: VBoxContainer = _column(columns, 300.0)
 	_caption(left)
 	var grid: GridContainer = _grid(left)
 	for key: String in ["height", "width", "depth"]:
 		_field(grid, key, " mm")
-	_field(grid, "enclosure_loss", " W")
 	_plate_note = _muted(left)
-	_caption(left)
-	_mounting_label = _plain(left)
-	_mounting = _option(left)
+	# Not needed for the calculation: the protocol's balance only.
+	_field(_grid(left), "enclosure_loss", " W")
+	var right: VBoxContainer = _column(columns, 300.0)
+	_caption(right)
+	_mounting_label = _plain(right)
+	_mounting = _option(right)
 	_mounting.item_selected.connect(func(index: int) -> void: _choose("mounting", index - 1))
-	_vented_label = _plain(left)
-	_vented = _option(left)
+	_vented_label = _plain(right)
+	_vented = _option(right)
 	_vented.item_selected.connect(func(index: int) -> void: _choose("vented", null if index == 0 else index == 2))
-	var vents: GridContainer = _grid(left)
-	_field(vents, "inlet", " cm²")
-	_field(vents, "outlet", " cm²")
-	var more: GridContainer = _grid(left)
+	# The openings, asked once the enclosure has them.
+	_vents = _grid(right)
+	_field(_vents, "inlet", " cm²")
+	_field(_vents, "outlet", " cm²")
+	var more: GridContainer = _grid(right)
 	var label: Label = Label.new()
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	more.add_child(label)
@@ -108,8 +155,8 @@ func _init() -> void:
 	_field(more, "limit", " °C")
 	# The rated diversity factor, one for the switchboard; its help ("?") says
 	# what it is and has the values the standards give to put in.
-	_caption(left)
-	var rdf_grid: GridContainer = _grid(left)
+	_caption(right)
+	var rdf_grid: GridContainer = _grid(right)
 	_field(rdf_grid, "rdf", "")
 	_rdf_help_button = Button.new()
 	_rdf_help_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -125,60 +172,42 @@ func _init() -> void:
 		_settings["rdf"] = rdf
 		_fill())
 	add_child(_rdf_help)
-	# The losses.
-	var middle: VBoxContainer = _column(row, 540.0)
-	_caption(middle)
+	# Tab 2: the losses, the table as wide as the tab.
+	var second: VBoxContainer = VBoxContainer.new()
+	second.add_theme_constant_override("separation", 6)
+	second.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(second)
+	_pages.append(second)
+	_caption(second)
 	_losses = HeatLossTable.new()
-	_losses.custom_minimum_size = Vector2(540, 260)
+	_losses.type_width = 150.0
+	_losses.text_width = 240.0
+	_losses.field_width = 90.0
 	_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_losses.typed.connect(_loss_typed)
-	middle.add_child(_losses)
-	_wide_button = Button.new()
-	_wide_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_wide_button.focus_mode = Control.FOCUS_NONE
-	_wide_button.icon = AppTheme.icon("window")
-	_wide_button.pressed.connect(func() -> void:
-		_wide_losses.fill(_document, _evaluated["losses"], _board)
-		_wide.popup_centered_ratio(0.97))
-	middle.add_child(_wide_button)
-	_loss_hint = _muted(middle)
-	# The same table over the whole screen: every row, the whole of each text.
-	_wide = AcceptDialog.new()
-	_wide.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	var wide_column: VBoxContainer = VBoxContainer.new()
-	_wide.add_child(wide_column)
-	_wide_hint = _muted(wide_column)
-	_wide_losses = HeatLossTable.new()
-	_wide_losses.field_width = 140.0
-	_wide_losses.item_width = 100.0
-	_wide_losses.type_width = 200.0
-	_wide_losses.text_width = 360.0
-	_wide_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_wide_losses.typed.connect(_loss_typed)
-	wide_column.add_child(_wide_losses)
-	_wide.visibility_changed.connect(func() -> void:
-		if not _wide.visible:
-			_losses.fill(_document, _evaluated["losses"], _board))
-	add_child(_wide)
-	# The result.
-	var right: VBoxContainer = _column(row, 330.0)
-	_caption(right)
+	second.add_child(_losses)
+	_loss_hint = _muted(second)
+	# The result beside both tabs.
+	var result: VBoxContainer = _column(row, 320.0)
+	result.size_flags_horizontal = Control.SIZE_FILL
+	_caption(result)
 	_results = Label.new()
 	_results.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_results.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_results.custom_minimum_size.x = 320.0
-	right.add_child(_results)
+	result.add_child(_results)
 	_verdict = Label.new()
 	_verdict.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_verdict.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_verdict.custom_minimum_size.x = 320.0
-	right.add_child(_verdict)
+	result.add_child(_verdict)
 	_curve = HeatRiseCurve.new()
 	_curve.custom_minimum_size = Vector2(320, 180)
 	_curve.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right.add_child(_curve)
-	_warnings = _muted(right)
+	result.add_child(_curve)
+	_warnings = _muted(result)
 	_warnings.add_theme_color_override("font_color", AppTheme.warning)
+	_show_page(0)
 	confirmed.connect(func() -> void: saved.emit(_settings.duplicate(true)))
 
 
@@ -205,9 +234,9 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 		_labels[i].text = labels[i]
 	_fields["limit"].tooltip_text = tr("The warmest the air round the devices may get: see their makers' data")
 	_fields["enclosure_loss"].tooltip_text = tr("The power loss the enclosure takes as its maker gives it (W): the protocol's balance against the losses inside, not needed for the calculation")
-	for key: String in _fields:
-		_fields[key].add_theme_color_override("font_placeholder_color", AppTheme.warning)
-		_fields[key].placeholder_text = tr("enter")
+	# An empty field is marked while the calculation needs it (see
+	# [method _show_gaps]); the enclosure's power loss is for the protocol only.
+	_fields["enclosure_loss"].placeholder_text = tr("optional, for the protocol")
 	_plate_note.text = tr("The mounting plate as laid out: %s × %s mm (width × height); the enclosure is larger.") % [String.num(_plate.x, 0), String.num(_plate.y, 0)] if _plate.x > 0.0 else ""
 	_mounting_label.text = tr("How the enclosure is installed")
 	_vented_label.text = tr("Ventilation openings")
@@ -224,14 +253,13 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	_partitions.add_item(choose)
 	for n: int in HeatRise.MAX_PARTITIONS + 1:
 		_partitions.add_item(str(n))
-	_wide_button.text = tr("Whole list over the screen")
-	_wide.title = tr("Power lost in +%s") % doc.switchboards[b].name
-	_wide.ok_button_text = tr("Close")
-	_wide_hint.text = tr("Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires into the fields; an empty field is not given.")
 	_loss_hint.text = tr("Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given.")
+	_next_button.text = tr("Next to give")
+	_next_button.tooltip_text = tr("Go to the next value the calculation still needs")
 	_fill()
 	_losses.fill(_document, _evaluated["losses"], _board)
-	popup_centered_clamped(Vector2i(1260, 680), 0.92)
+	_show_gaps()
+	popup_centered_clamped(Vector2i(1200, 660), 0.92)
 
 
 ## The settings being edited.
@@ -325,10 +353,8 @@ func _fill() -> void:
 	_mounting.select(int(_settings.get("mounting", -1)) + 1)
 	_vented.select(0 if not _settings.has("vented") else (2 if _settings["vented"] else 1))
 	_partitions.select(int(_settings.get("partitions", -1)) + 1)
-	var vented: bool = _settings.get("vented", false)
-	for key: String in ["inlet", "outlet"]:
-		_fields[key].editable = vented
-		_fields[key].placeholder_text = tr("enter") if vented else "—"
+	# The openings are asked once the enclosure has them.
+	_vents.visible = _settings.get("vented", false)
 	_filling = false
 	_refresh()
 
@@ -338,18 +364,21 @@ func _fill() -> void:
 func _refresh() -> void:
 	_evaluated = HeatRise.evaluate(_document, _board, _wires, _settings)
 	_losses.show_losses(_evaluated["losses"])
-	if _wide.visible:
-		_wide_losses.show_losses(_evaluated["losses"])
 	_fill_result()
+	_show_gaps()
 
 
 func _fill_result() -> void:
 	var gaps: Array = _evaluated["missing"]
+	_curve.visible = gaps.is_empty()
 	if not gaps.is_empty():
-		var lines: PackedStringArray = PackedStringArray([tr("Still to give:")])
-		for gap: Dictionary in gaps:
-			lines.append("• " + (tr(gap["text"]) % gap["args"] if not (gap["args"] as Array).is_empty() else tr(gap["text"])))
-		_results.text = "\n".join(lines)
+		var losses: int = _loss_gaps()
+		var where: PackedStringArray = PackedStringArray()
+		if gaps.size() > losses:
+			where.append(tr("%d on Enclosure and air") % (gaps.size() - losses))
+		if losses > 0:
+			where.append(tr("%d on Losses") % losses)
+		_results.text = tr("Not worked out yet: the result and the curve show once all is given.") + "\n\n" + tr("Still to give: %s.") % ", ".join(where)
 		_verdict.text = ""
 		_warnings.text = ""
 		_curve.result = {}
@@ -394,6 +423,86 @@ func _fill_result() -> void:
 	for i: int in _rails.size():
 		_curve.marks.append(Vector2(_height_of(_rails[i], size), i + 1))
 	_curve.queue_redraw()
+
+
+## Shows tab [param page] (0 the enclosure and the air, 1 the losses).
+func _show_page(page: int) -> void:
+	for i: int in _pages.size():
+		_pages[i].visible = i == page
+	_tabs[page].set_pressed_no_signal(true)
+
+
+## How many values of the losses tab are still to give.
+func _loss_gaps() -> int:
+	var lost: Dictionary = _evaluated.get("losses", {})
+	if lost.is_empty():
+		return 0
+	var count: int = 0
+	for device: Dictionary in lost["devices"]:
+		if device["power"] == null:
+			count += 1
+	for group: Dictionary in lost["groups"]:
+		if group["section"] == null:
+			count += 1
+	if lost["terminal_count"] > 0 and lost["terminals"] == null:
+		count += 1
+	if lost["extra"] == null:
+		count += 1
+	return count
+
+
+## What is still to give: counted on each tab and over them, each field
+## the calculation needs and has not got marked.
+func _show_gaps() -> void:
+	var gaps: int = (_evaluated["missing"] as Array).size()
+	var losses: int = _loss_gaps()
+	var titles: Array[String] = [tr("Enclosure and air"), tr("Losses")]
+	var counts: Array[int] = [gaps - losses, losses]
+	for i: int in 2:
+		_tabs[i].text = "%s  (%d)" % [titles[i], counts[i]] if counts[i] > 0 else titles[i]
+		_tabs[i].icon = AppTheme.icon("check", 16, AppTheme.success) if counts[i] == 0 else null
+	_gaps.text = tr("Still to give: %d") % gaps if gaps > 0 else tr("All given")
+	_gaps.add_theme_color_override("font_color", AppTheme.warning if gaps > 0 else AppTheme.success)
+	_next_button.visible = gaps > 0
+	for control: Control in _wanted_controls():
+		AppTheme.mark_missing(control, control in _empty_controls())
+
+
+## The fields and choices the calculation needs, in their order on the tabs.
+func _wanted_controls() -> Array[Control]:
+	var result: Array[Control] = [_fields["height"], _fields["width"], _fields["depth"], _mounting, _vented, _fields["inlet"], _fields["outlet"],
+		_partitions, _fields["ambient"], _fields["limit"], _fields["rdf"]]
+	result.append_array(_losses.fields())
+	return result
+
+
+## Those of [method _wanted_controls] not given yet (the openings only for a
+## vented enclosure).
+func _empty_controls() -> Array[Control]:
+	var result: Array[Control] = []
+	var vented: bool = _settings.get("vented", false)
+	for key: String in ["height", "width", "depth", "inlet", "outlet", "ambient", "limit", "rdf"]:
+		if (key == "inlet" or key == "outlet") and not vented:
+			continue
+		if not _settings.has(key):
+			result.append(_fields[key])
+	for pair: Array in [["mounting", _mounting], ["vented", _vented], ["partitions", _partitions]]:
+		if not _settings.has(pair[0]):
+			result.append(pair[1])
+	result.append_array(_losses.empty_fields())
+	return result
+
+
+## Goes to the first value still to give: its tab shown, its field focused.
+func _next_empty() -> void:
+	var empty: Array[Control] = _empty_controls()
+	var table: Array = []
+	table.append_array(_losses.fields())
+	for control: Control in _wanted_controls():
+		if control in empty:
+			_show_page(1 if control in table else 0)
+			control.grab_focus()
+			return
 
 
 ## Where on the height (0 the floor, 1 the top) the middle of rail

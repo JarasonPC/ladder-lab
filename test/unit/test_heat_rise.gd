@@ -184,7 +184,11 @@ func test_panel_asks_and_the_dialog_saves_what_is_given() -> void:
 	var fields: Dictionary = dialog.get("_fields")
 	for key: String in fields:
 		assert_eq((fields[key] as LineEdit).text, "", "%s empty until given" % key)
-	assert_string_contains((dialog.get("_results") as Label).text, "Still to give")
+	assert_string_contains((dialog.get("_results") as Label).text, "Not worked out yet")
+	assert_true(AppTheme.marked_missing(fields["height"]), "a value still to give marked")
+	assert_false(AppTheme.marked_missing(fields["enclosure_loss"]), "the protocol's own value is optional")
+	assert_false((dialog.get("_vents") as Control).visible, "openings asked only once the enclosure has them")
+	assert_false((dialog.get("_curve") as Control).visible, "no empty curve")
 	# Give it all.
 	for pair: Array in [["height", "800"], ["width", "600"], ["depth", "250"], ["ambient", "35"], ["limit", "55"], ["rdf", "1"]]:
 		(fields[pair[0]] as LineEdit).text = pair[1]
@@ -200,13 +204,16 @@ func test_panel_asks_and_the_dialog_saves_what_is_given() -> void:
 	for row: Dictionary in table.get("_rows"):
 		var input: LineEdit = row["field"]
 		assert_eq(input.text, "", "empty until given")
-		assert_eq(input.placeholder_text, "enter", "says where to write")
+		assert_true(AppTheme.marked_missing(input), "marked while not given")
 		var text: String = {HeatRiseDialog.ROW_DEVICE: "3,5", HeatRiseDialog.ROW_WIRES: "2.5"}.get(row["what"], "0")
 		input.text = text
 		input.text_changed.emit(text)
 	await wait_process_frames(1)
 	assert_eq(dialog.evaluated()["missing"].size(), 0, str(dialog.evaluated()["missing"]))
 	assert_string_contains((dialog.get("_results") as Label).text, "Δt1,0")
+	assert_true((dialog.get("_curve") as Control).visible)
+	assert_false(AppTheme.marked_missing(fields["height"]), "given, not marked")
+	assert_false((dialog.get("_next_button") as Control).visible, "nothing left to go to")
 	var s: Dictionary = dialog.settings()
 	assert_eq(s["mounting"], 1, "the second of the list")
 	assert_eq(s["vented"], false)
@@ -401,26 +408,39 @@ func test_export_has_the_protocol() -> void:
 	assert_true(ExportPreview.CONTENTS.has("heat_rise"))
 
 
-func test_whole_list_over_the_screen_takes_what_is_typed() -> void:
+func test_tabs_count_and_next_goes_to_what_is_still_to_give() -> void:
 	var doc: SchematicDocument = _filled_board()
 	var dialog: HeatRiseDialog = HeatRiseDialog.new()
 	add_child_autofree(dialog)
 	dialog.open(doc, 0, HeatRiseReport.layout(doc, 0))
-	(dialog.get("_wide_button") as Button).pressed.emit()
-	var wide: AcceptDialog = dialog.get("_wide")
-	assert_true(wide.visible)
-	var wide_table: HeatLossTable = dialog.get("_wide_losses")
-	var first: Dictionary = (wide_table.get("_rows") as Array)[0]
-	assert_eq(first["what"], HeatRiseDialog.ROW_DEVICE)
-	var designation: String = first["name"]
-	assert_string_contains(HeatRiseReport.device_text(doc, designation), ",", "what tells the device apart")
-	var input: LineEdit = first["field"]
-	input.text = "4,2"
-	input.text_changed.emit("4,2")
-	assert_eq(dialog.settings()["losses"][designation], 4.2)
-	wide.hide()
-	var small: HeatLossTable = dialog.get("_losses")
-	assert_eq(small.field(HeatRiseDialog.ROW_DEVICE, designation).text, "4.2", "the dialog's table follows")
+	var tabs: Array = dialog.get("_tabs")
+	var pages: Array = dialog.get("_pages")
+	assert_true((pages[0] as Control).visible, "the enclosure first")
+	assert_false((pages[1] as Control).visible)
+	var table: HeatLossTable = dialog.get("_losses")
+	var losses: int = table.fields().size()
+	assert_string_contains((tabs[1] as Button).text, "(%d)" % losses, "the losses still to give counted on their tab")
+	var gaps: int = (dialog.evaluated()["missing"] as Array).size()
+	assert_string_contains((tabs[0] as Button).text, "(%d)" % (gaps - losses))
+	# Everything on the first tab given: Next goes on to the losses.
+	var fields: Dictionary = dialog.get("_fields")
+	for pair: Array in [["height", "800"], ["width", "600"], ["depth", "250"], ["ambient", "35"], ["limit", "55"], ["rdf", "1"]]:
+		(fields[pair[0]] as LineEdit).text = pair[1]
+		(fields[pair[0]] as LineEdit).text_changed.emit(pair[1])
+	for option: String in ["_mounting", "_vented", "_partitions"]:
+		(dialog.get(option) as OptionButton).select(1)
+		(dialog.get(option) as OptionButton).item_selected.emit(1)
+	assert_eq((tabs[0] as Button).text, "Enclosure and air", "nothing left there")
+	(dialog.get("_next_button") as Button).pressed.emit()
+	assert_true((pages[1] as Control).visible, "on to the losses")
+	var first: LineEdit = table.fields()[0]
+	assert_true(first.has_focus(), "the first value still to give")
+	# A vented enclosure asks for its openings, and they are counted.
+	(dialog.get("_vented") as OptionButton).select(2)
+	(dialog.get("_vented") as OptionButton).item_selected.emit(2)
+	assert_true((dialog.get("_vents") as Control).visible)
+	assert_string_contains((tabs[0] as Button).text, "(2)", "inlet and outlet")
+	assert_true(AppTheme.marked_missing(fields["inlet"]))
 	dialog.hide()
 
 

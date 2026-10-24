@@ -1309,11 +1309,19 @@ Architecture and conventions of the code base. Read this before changing the cod
   ({"settings", "losses", "missing", "size", "result"}). CabinetPanel (Edit mode) shows under
   its tools how many values are still to give, or once all are, how warm it gets at the top
   (green within the limit, red above), and "Temperature rise…" opening HeatRiseDialog
-  (ui/cabinet/): number fields empty until typed (a decimal comma taken), the installation,
-  ventilation and partitions chosen from "— choose —", the mounting plate's size shown as a
-  fact; the losses as a Tree (device losses, each wire group's cross-section, the strip
-  terminals, further losses typed in column "Given", marked while not given; the loss and the
-  total beside); the result: what is still to give, else Ae with its surfaces, k, d, x,
+  (ui/cabinet/): what is given on two tabs (a segmented switch, _show_page): Enclosure and
+  air (the size, the mounting plate's size shown as a fact, the enclosure's power loss
+  "optional, for the protocol"; the installation, ventilation and partitions chosen from
+  "— choose —", the inlet and outlet openings shown only for a vented enclosure, the air
+  round it and the most allowed inside, RDF) and Losses (the HeatLossTable as wide as the
+  tab), each tab saying how many of its values are still to give (a tick once none,
+  _loss_gaps), over them "Still to give: n" and Next to give (_next_empty: the tab of the
+  first value still to give shown, its field focused); number fields empty until typed (a
+  decimal comma taken); every field or choice the calculation still needs marked
+  (AppTheme.mark_missing: a thin warning-coloured frame, thicker on the left;
+  _wanted_controls, _empty_controls), never the optional ones; the result beside both tabs:
+  while anything is missing that it is not worked out yet and how many values each tab
+  still lacks (the curve hidden), else Ae with its surfaces, k, d, x,
   Δt0,5, f or g and c, Δt1,0, each rail's temperature at its height on the plate, the
   verdict, the warnings and HeatRiseCurve (the curve over the height as figs. 8 and 9, the air
   round it, the limit, the rails), all following each change; OK saves the settings as one
@@ -1323,14 +1331,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   the other switchboards with their losses: letters added at the end are completed with one,
   the rest selected; a MenuButton beside lists them (framed like the field, AppTheme.frame, as
   the RDF field's "?"); one taken (chosen, Enter, focus left)
-  brings its loss into an empty loss field), a LineEdit for the value to give with its unit, "enter" in the warning colour while empty, the loss; the total;
+  brings its loss into an empty loss field; empty it says "optional", the column "Type
+  (optional)"), a LineEdit for the value to give with its unit, marked while its loss is not
+  known (empty_fields), the loss; the total;
   typed emits each value, show_losses puts the losses in without touching the fields). Each
   device in it is named with what tells it apart (HeatRiseReport.device_text: the parts
   list's name and data, a breaker's, RCD's or fuse's data alone as it names it, an RCD's poles
   added: "Circuit breaker C16, 3 poles", "Residual current device (RCD) 40 A 30 mA A, 4 poles",
-  "Ir 4.6 A"); "Whole list over the screen" opens another HeatLossTable in an AcceptDialog
-  nearly the size of the window (popup_centered_ratio), typed in alike, the dialog's table
-  filled again when it closes. The
+  "Ir 4.6 A"). The
   calculation is always made on the switchboard laid out at HeatRiseReport.LAYOUT_K
   (HeatRiseReport.layout: the panel, the dialog and the export reckon the same wire lengths,
   which move a little with the scale). Export: "heat_rise" in ExportPreview.CONTENTS
