@@ -7537,9 +7537,6 @@ msgstr ""
 msgid "ČSN EN 61439-3 (DBO, ordinary persons)"
 msgstr ""
 
-msgid "Use RDF = %s"
-msgstr ""
-
 msgid "At the rated currents"
 msgstr ""
 
@@ -8143,11 +8140,14 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-msgid "When the maker gives none, the standards assume (a click on a value puts it in):"
+msgid "Use"
 msgstr ""
 
-msgid "What the rated diversity factor is"
+msgid "What the rated diversity factor is, and the values the standards assume"
 msgstr ""
 
-msgid "The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, ČSN EN 61439-2 (PSC) and ČSN EN 61439-3 (DBO) assume the values in the table under the field."
+msgid "Types already given to the same device"
+msgstr ""
+
+msgid "The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, ČSN EN 61439-2 (PSC) and ČSN EN 61439-3 (DBO) assume these (pick one and Use, or double-click it):"
 msgstr ""

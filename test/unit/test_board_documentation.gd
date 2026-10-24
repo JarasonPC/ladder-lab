@@ -293,3 +293,41 @@ func test_panel_opens_the_documentation() -> void:
 	dialog.confirmed.emit()
 	dialog.hide()
 	assert_eq(doc.switchboards[0].documentation, {"serial_number": "24004"})
+
+
+func test_type_completed_from_the_same_device() -> void:
+	var doc: SchematicDocument = _house()
+	doc.switchboards[0].heat = HeatRise.settings({"types": {"FA1": "LTE-16B-1"}, "losses": {"FA1": 1.8}})
+	var dialog: HeatRiseDialog = HeatRiseDialog.new()
+	add_child_autofree(dialog)
+	dialog.open(doc, 0, HeatRiseReport.layout(doc, 0))
+	var table: HeatLossTable = dialog.get("_losses")
+	var rows: Array = table.get("_rows")
+	var devices: Array = rows.filter(func(r: Dictionary) -> bool: return r["what"] == HeatRiseDialog.ROW_DEVICE)
+	assert_eq(devices.size(), 5, "each device its own row")
+	assert_eq(table.known("FA2"), {"LTE-16B-1": 1.8}, "the same B16 elsewhere")
+	assert_eq(table.known("FA4"), {}, "the C10 is another device")
+	var fa2: Dictionary = devices.filter(func(r: Dictionary) -> bool: return r["name"] == "FA2")[0]
+	assert_false((fa2["types"] as MenuButton).disabled)
+	var fa4: Dictionary = devices.filter(func(r: Dictionary) -> bool: return r["name"] == "FA4")[0]
+	assert_true((fa4["types"] as MenuButton).disabled, "nothing to offer")
+	# Typing completes it, the rest selected.
+	var input: LineEdit = fa2["type"]
+	input.grab_focus()
+	input.text = "lt"
+	input.caret_column = 2
+	input.text_changed.emit("lt")
+	assert_eq(input.text, "LTE-16B-1")
+	assert_eq(input.get_selected_text(), "E-16B-1")
+	assert_eq(dialog.settings()["types"]["FA2"], "LTE-16B-1")
+	# Taken: its loss comes along into the empty field.
+	input.text_submitted.emit(input.text)
+	assert_eq(dialog.settings()["losses"]["FA2"], 1.8)
+	assert_eq((fa2["field"] as LineEdit).text, "1.8")
+	# A different type stays its own.
+	var fa3: Dictionary = devices.filter(func(r: Dictionary) -> bool: return r["name"] == "FA3")[0]
+	(fa3["type"] as LineEdit).text = "X"
+	(fa3["type"] as LineEdit).caret_column = 1
+	(fa3["type"] as LineEdit).text_changed.emit("X")
+	assert_eq(dialog.settings()["types"]["FA3"], "X")
+	dialog.hide()

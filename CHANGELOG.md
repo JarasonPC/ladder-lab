@@ -26,9 +26,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   overload relay its setting …), each value to give has a text field of its own saying
   "enter" until it is filled in, and the list of losses opens over the whole screen
 - The temperature rise calculation asks for the rated diversity factor RDF of the
-  switchboard: its losses at the rated currents count RDF² times; the values ČSN EN 61439-2
-  and 61439-3 assume are shown beside it to put in with a click, and in the protocol; the "?"
-  beside the field explains what RDF is
+  switchboard: its losses at the rated currents count RDF² times; the "?" beside its field
+  says what RDF is and shows the values ČSN EN 61439-2 and 61439-3 assume as a table to put
+  one in; the protocol has them too
+- A device's type in the temperature rise calculation is completed while typing from the
+  types already given to the same device (the same breaker on these rails or in another
+  switchboard), and the arrow beside it lists them; a type taken so brings its loss into an
+  empty loss field
 - The temperature rise protocol says what it was exported from: the program and its version,
   the file, the schematic and when
 - Switchboard documentation: Documentation… under the switchboard's tools asks for its
