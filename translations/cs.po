@@ -1230,9 +1230,6 @@ msgstr "Přidat lištu"
 msgid "Add an empty DIN rail at the bottom"
 msgstr "Přidat dolů prázdnou DIN lištu"
 
-msgid "Fill from the schematic"
-msgstr "Naplnit ze schématu"
-
 #, c-format
 msgid "Rail %d"
 msgstr "Lišta %d"
@@ -5159,9 +5156,6 @@ msgstr "Výšky jsou ke středu krabice; jiná výška je napsána u prvku (h)."
 msgid "Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms."
 msgstr "Vyberte prvek v paletě a klikněte, kam patří; Delete odebere výběr. Tažení pravým nebo prostředním tlačítkem posouvá, kolečko přibližuje."
 
-msgid "Click the main switch, a breaker, an RCD or its test button to operate it. Right or middle drag pans, wheel zooms."
-msgstr "Kliknutím ovládáte hlavní vypínač, jistič, chránič nebo jeho testovací tlačítko. Tažení pravým nebo prostředním tlačítkem posouvá, kolečko přibližuje."
-
 msgid "Prototype residential"
 msgstr "Domovní – prototyp"
 
@@ -8209,3 +8203,33 @@ msgstr "Jak na to"
 
 msgid "More about groups and protection"
 msgstr "Více o skupinách a jištění"
+
+
+msgid "A click picks a device, its arrows move it. Ctrl+wheel zooms, right or middle drag moves."
+msgstr "Klik vybere přístroj, šipkami ho posunete. Ctrl+kolečko přiblíží, tažení pravým nebo prostředním tlačítkem posune."
+
+#, c-format
+msgid "Add %d new part from the schematic"
+msgid_plural "Add %d new parts from the schematic"
+msgstr[0] "Doplnit %d nový prvek ze schématu"
+msgstr[1] "Doplnit %d nové prvky ze schématu"
+msgstr[2] "Doplnit %d nových prvků ze schématu"
+
+msgid "Calculations and documents"
+msgstr "Výpočty a dokumenty"
+
+msgid "Documentation"
+msgstr "Dokumentace"
+
+msgid "Rails"
+msgstr "Lišty"
+
+msgid "Single-line diagram"
+msgstr "Jednopólové schéma"
+
+#, c-format
+msgid "The consumer unit %s as it is built: its rails with the devices, the wiring, the temperature rise and the documentation"
+msgstr "Rozváděč %s, jak je postavený: lišty s přístroji, zapojení, oteplení a dokumentace"
+
+msgid "The consumer unit's circuits and their protection"
+msgstr "Obvody rozváděče a jejich jištění"

@@ -170,7 +170,7 @@ func test_panel_asks_and_the_dialog_saves_what_is_given() -> void:
 	await wait_process_frames(2)
 	var open: Button = null
 	var summary: Label = null
-	for child: Node in (panel.get("_list") as VBoxContainer).get_children():
+	for child: Node in (panel.get("_list") as VBoxContainer).find_children("*", "", true, false):
 		if child is Button and (child as Button).text == "Temperature rise…":
 			open = child
 		if child is Label and (child as Label).text.begins_with("Temperature rise:"):
@@ -224,7 +224,7 @@ func test_panel_asks_and_the_dialog_saves_what_is_given() -> void:
 	assert_eq(doc.switchboards[0].heat["height"], 800.0)
 	assert_eq(doc.switchboards[0].heat["extra"], 0.0, "0 given, not assumed")
 	await wait_process_frames(1)
-	for child: Node in (panel.get("_list") as VBoxContainer).get_children():
+	for child: Node in (panel.get("_list") as VBoxContainer).find_children("*", "", true, false):
 		if child is Label and (child as Label).text.begins_with("Temperature rise:"):
 			summary = child
 		if child is Button and (child as Button).text == "Temperature rise…":

@@ -1211,9 +1211,6 @@ msgstr ""
 msgid "Add an empty DIN rail at the bottom"
 msgstr ""
 
-msgid "Fill from the schematic"
-msgstr ""
-
 #, c-format
 msgid "Rail %d"
 msgstr ""
@@ -5144,9 +5141,6 @@ msgstr ""
 msgid "Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms."
 msgstr ""
 
-msgid "Click the main switch, a breaker, an RCD or its test button to operate it. Right or middle drag pans, wheel zooms."
-msgstr ""
-
 msgid "Prototype residential"
 msgstr ""
 
@@ -8183,4 +8177,33 @@ msgid "How to"
 msgstr ""
 
 msgid "More about groups and protection"
+msgstr ""
+
+
+msgid "A click picks a device, its arrows move it. Ctrl+wheel zooms, right or middle drag moves."
+msgstr ""
+
+#, c-format
+msgid "Add %d new part from the schematic"
+msgid_plural "Add %d new parts from the schematic"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Calculations and documents"
+msgstr ""
+
+msgid "Documentation"
+msgstr ""
+
+msgid "Rails"
+msgstr ""
+
+msgid "Single-line diagram"
+msgstr ""
+
+#, c-format
+msgid "The consumer unit %s as it is built: its rails with the devices, the wiring, the temperature rise and the documentation"
+msgstr ""
+
+msgid "The consumer unit's circuits and their protection"
 msgstr ""

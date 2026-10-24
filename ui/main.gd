@@ -76,6 +76,8 @@ var _edit_button: Button
 var _simulate_button: Button
 var _schematic_button: Button
 var _workspace_button: Button
+## A house installation's consumer unit (the floor plan's area, the unit open).
+var _unit_button: Button
 var _layout_select: OptionButton
 var _edit_tools: HBoxContainer
 var _undo_button: Button
@@ -348,6 +350,9 @@ func _ready() -> void:
 	_floor_plan.cabinet_edit_requested.connect(_edit_cabinet)
 	_floor_plan.operate_requested.connect(view.operate_device)
 	# The floor shown is the same in the schematic edited and the one simulated.
+	_floor_plan.unit_shown.connect(func(_open: bool) -> void:
+		_sync_area_buttons()
+		_update_mode_ui())
 	_floor_plan.floor_changed.connect(func(index: int) -> void:
 		edit_doc.floor = index
 		if view.document != null:
@@ -591,8 +596,15 @@ func _build_ui() -> void:
 	area_track.add_child(area_segments)
 	var area_group: ButtonGroup = ButtonGroup.new()
 	_schematic_button = _button(area_segments, func() -> void: _set_area(Area.SCHEMATIC), "schematic")
-	_workspace_button = _button(area_segments, func() -> void: _set_area(Area.WORKSPACE), "workspace")
-	for b: Button in [_schematic_button, _workspace_button]:
+	_workspace_button = _button(area_segments, func() -> void:
+		_set_area(Area.WORKSPACE)
+		_floor_plan.close_unit(), "workspace")
+	_unit_button = _button(area_segments, func() -> void:
+		_set_area(Area.WORKSPACE)
+		_floor_plan.open_unit()
+		_sync_area_buttons(), "cabinet")
+	_unit_button.visible = false
+	for b: Button in [_schematic_button, _workspace_button, _unit_button]:
 		b.theme_type_variation = "SegmentButton"
 		b.toggle_mode = true
 		b.button_group = area_group
@@ -1626,15 +1638,17 @@ func _update_mode_ui() -> void:
 	_numbers_toggle.visible = schematic and not single_line
 	_layout_select.visible = schematic and not single_line
 	_clamp_toggle.visible = schematic and not single_line
-	# A residential installation's floor plan takes its parts from the palette too.
-	var plan_parts: bool = not schematic and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
+	# A residential installation's floor plan takes its parts from the palette
+	# too; its consumer unit none (devices come from the single-line diagram).
+	var plan_parts: bool = not schematic and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL and not _floor_plan.unit_open()
 	_palette.plan = plan_parts
 	_palette_bar.visible = editing and (schematic or plan_parts) and not training
 	_lesson_bar.visible = schematic and _lesson_run != null
 	_training_bar.visible = training
 	_training_panel.simulating = training and not editing
 	_schematic_button.disabled = training and not editing
-	_schematic_button.tooltip_text = tr("While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown") if training and not editing else ""
+	if training and not editing:
+		_schematic_button.tooltip_text = tr("While a training plan runs as the student wired it, the schematic is not what runs: back in Edit mode it is shown")
 	_update_side_bar()
 	_update_control_panel()
 	_sim_tools.visible = not editing
@@ -1662,10 +1676,22 @@ func _update_environment() -> void:
 	# A house installation is drawn, never simulated.
 	_mode_switch.visible = environment != SchematicDocument.Kind.RESIDENTIAL
 	_mode_gap.visible = _mode_switch.visible
-	# A house installation has its floor plan in place of the workspace.
+	# A house installation has its floor plan in place of the workspace; an
+	# installation's three views in the order a house is drawn: the floor
+	# plan, the single-line diagram, the consumer unit.
+	var installation: bool = environment == SchematicDocument.Kind.RESIDENTIAL
 	_workspace_button.text = tr("Floor plan") if residential else tr("Workspace")
 	_workspace_button.icon = AppTheme.icon("house" if residential else "workspace")
 	_workspace_button.tooltip_text = tr("Rooms, and where the switches, sockets, luminaires and appliances are, with the cables between them") if residential else tr("Switchboards, control stations and the motors, limit switches and sensors in the field")
+	_schematic_button.text = tr("Single-line diagram") if installation else tr("Schematic")
+	_schematic_button.tooltip_text = tr("The consumer unit's circuits and their protection") if installation else tr("The circuit diagram, page by page")
+	_workspace_button.get_parent().move_child(_workspace_button, 0 if installation else 1)
+	_unit_button.visible = installation
+	_unit_button.text = tr("Consumer unit")
+	_unit_button.tooltip_text = tr("The consumer unit %s as it is built: its rails with the devices, the wiring, the temperature rise and the documentation") % FloorPlan.UNIT
+	if not installation and _floor_plan.unit_open():
+		_floor_plan.close_unit()
+	_sync_area_buttons()
 	if area == Area.WORKSPACE:
 		_workspace.visible = not residential
 		_floor_plan.visible = residential
@@ -1748,11 +1774,19 @@ func _set_area(new_area: Area) -> void:
 	if new_area == area:
 		return
 	area = new_area
-	_schematic_button.set_pressed_no_signal(area == Area.SCHEMATIC)
-	_workspace_button.set_pressed_no_signal(area == Area.WORKSPACE)
+	_sync_area_buttons()
 	_update_mode_ui()
 	if area == Area.SCHEMATIC:
 		_fit_camera_later()
+
+
+## The area switch pressed as shown: the schematic (single-line diagram),
+## the workspace (floor plan), or a house installation's consumer unit.
+func _sync_area_buttons() -> void:
+	var unit: bool = area == Area.WORKSPACE and _floor_plan.unit_open() and _unit_button.visible
+	_schematic_button.set_pressed_no_signal(area == Area.SCHEMATIC)
+	_workspace_button.set_pressed_no_signal(area == Area.WORKSPACE and not unit)
+	_unit_button.set_pressed_no_signal(unit)
 
 
 ## Part [param designation] of the workspace shown in the schematic: its page,
@@ -3208,15 +3242,15 @@ func _on_stepped(result: StepResult) -> void:
 			_hint_label.text = tr("Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms.")
 		elif area == Area.SCHEMATIC:
 			_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
+		elif _floor_plan.unit_open():
+			_hint_label.text = tr("A click picks a device, its arrows move it. Ctrl+wheel zooms, right or middle drag moves.")
 		elif edit_doc != null and edit_doc.residential:
 			_hint_label.text = tr("Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms.")
 		else:
 			_hint_label.text = ""
 		_fit_status_label()
 		return
-	if _single_line_shown():
-		_hint_label.text = tr("Click the main switch, a breaker, an RCD or its test button to operate it. Right or middle drag pans, wheel zooms.")
-	elif area == Area.SCHEMATIC:
+	if area == Area.SCHEMATIC:
 		_hint_label.text = tr("Click buttons and switches to operate them. Right or middle drag pans, wheel zooms.")
 	elif edit_doc != null and edit_doc.residential:
 		_hint_label.text = tr("Click a light switch on the plan to switch it (of two rockers, the side clicked). Right or middle drag pans, wheel zooms.")

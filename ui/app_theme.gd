@@ -635,6 +635,9 @@ static func build() -> Theme:
 	t.set_font_size("font_size", "TutorialLabel", SMALL_FONT_SIZE)
 	t.set_type_variation("Card", "PanelContainer")
 	t.set_stylebox("panel", "Card", box(chart_bg, RADIUS + 2, 1.0, 1.0, border, 1))
+	# A thin bar of how much is done (the switchboard's calculations and documents).
+	t.set_stylebox("background", "ProgressBar", box(bg3, 2, 0.0, 0.0))
+	t.set_stylebox("fill", "ProgressBar", box(accent, 2, 0.0, 0.0))
 	t.set_type_variation("FunctionCard", "PanelContainer")
 	t.set_stylebox("panel", "FunctionCard", box(bg2, RADIUS + 2, 10.0, 8.0, border, 1))
 	t.set_type_variation("FunctionCardActive", "PanelContainer")

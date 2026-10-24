@@ -21,6 +21,10 @@ const FIELDS: Array[Array] = [
 	["web", "Web"],
 ]
 
+## How many values [method missing] asks for while nothing is given: the
+## name, company ID, authorisation, address, and a phone or an e-mail.
+const REQUIRED: int = 5
+
 ## What was given, by field; a field not given is missing.
 static var data: Dictionary = {}
 

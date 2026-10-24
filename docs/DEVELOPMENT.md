@@ -280,9 +280,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   one on the side clicked as seen from the room; SchematicView.toggle_light_switch). Plan
   edits are workspace edits (one undo step each, Edit mode only). The consumer unit is
   switchboard RD1 (FloorPlan.UNIT without its "+"): FloorPlanCanvas.unit_requested (a
-  double click on its symbol in Edit mode, a click while simulating) makes FloorPlanView
-  open it in a CabinetPanel in place of the plan (open_unit, close_unit by the Floor plan
-  button), made first in Edit mode by SchematicDocument.ensure_consumer_unit (an undoable
+  double click on its symbol in Edit mode, a click while simulating) or the toolbar's
+  Consumer unit makes FloorPlanView open it in a CabinetPanel in place of the plan
+  (open_unit; close_unit by the toolbar's Floor plan; unit_shown tells main.gd, unit_open;
+  the plan's bar hidden meanwhile, the panel's heading "Consumer unit +RD1" before Inside |
+  Door | Door open, the palette hidden), made first in Edit mode by SchematicDocument.ensure_consumer_unit (an undoable
   edit: the switchboard with fill_cabinet's devices; only once). Export: with "workspace"
   ticked, a residential document gets a "floor_plan" sheet (SheetRenderer) in place of the
   workspace: a FloorPlanCanvas with legend set, sized to paper_area() (the plan with a
@@ -911,6 +913,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   title block texts (company, project, drawing no., revision, drawn by, checked by, date; empty
   date = export date) are SchematicDocument.title_block (TitleBlock, saved), edited in
   File > Title block… together with the schematic title (undoable)
+- Area switch of a residential installation: Floor plan | Single-line diagram | Consumer unit
+  in that order (main.gd _update_environment moves the floor plan's button first and shows
+  _unit_button; the schematic's button named Single-line diagram), Consumer unit the floor
+  plan's area with the unit open (_sync_area_buttons)
 - Workspace (ui/workspace/, Schematic | Workspace in the toolbar, a segmented switch like Edit |
   Simulate; both modes, the simulation runs on whichever is shown): WorkspaceView in place of the
   page tabs and the schematic (SchematicView hidden, editor inactive), its WorkspaceTree in a
@@ -1220,7 +1226,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   side; every wire end has an insulated ferrule collar (CabinetParts.COLLAR, yellow on control,
   blue on power wires), its metal showing only going into a strip terminal (wire "pins");
   device labels sit on the plate CabinetLayout.LABEL_OFF over (or under) their device, drawn
-  with the place under the wires (a contactor's on its front); every wire carries a
+  over the wires as a label stuck on is (CabinetView._paint_labels in the wires' layer;
+  a contactor's on its front); every wire carries a
   yellow marker sleeve at each terminal end with its wire number printed along it (bottom to
   top; the supply conductor's name "L1", "N", "PE" on a net without a number;
   CabinetWiring._marks), CabinetParts.MARKER_FROM from the end and before the bend into the
@@ -1277,8 +1284,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   lanes of their own to the hinge side and through a fitting in the right wall (its gland
   "door", CabinetParts.door_fitting, tagged Door); to a door of another switchboard in the
   cable between the two. Edited in
-  CabinetPanel beside the drawing (undoable, "Fill from the schematic" fills the opened
-  switchboard), breakers, fuse holders and overload relays operated there while simulating.
+  CabinetPanel beside the drawing (undoable; under Rails the rails and Add rail, and "Add n
+  new parts from the schematic" filling the opened switchboard only while the schematic has
+  something no switchboard holds; under Calculations and documents a card each for the
+  temperature rise and the documentation, CabinetPanel._card: how many values are given of
+  how many with a bar, or the result; the place picked named as what it is, an RCD, RCBO
+  or AFDD by its own name, _item_title), breakers, fuse holders and overload relays operated there while simulating.
   tools/screenshot_workspace.gd screenshots the app's workspace, a switchboard and a station
   (xvfb) for visual review; tools/screenshot_readme.gd takes the screenshots in README.md
   (docs/screenshots/, kept out of the project by a .gdignore): retake them when the look changes
@@ -1318,9 +1329,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   resistances; "terminals" and "extra" as given; the total null while anything is missing.
   Switchboard.heat keeps what was given (settings cleans: right kind and range only; saved
   as the switchboard's "heat", ProjectFile 55, enclosure_loss and types 56). evaluate(doc, board, wires) runs it all
-  ({"settings", "losses", "missing", "size", "result"}). CabinetPanel (Edit mode) shows under
-  its tools how many values are still to give, or once all are, how warm it gets at the top
-  (green within the limit, red above), and "Temperature rise…" opening HeatRiseDialog
+  ({"settings", "losses", "missing", "size", "result"}). CabinetPanel (Edit mode) shows in
+  its temperature rise card how many values are given of those a calculation with nothing
+  given asks for, or once all are, how warm it gets at the top (green within the limit,
+  red above), and "Temperature rise…" opening HeatRiseDialog
   (ui/cabinet/): what is given on two tabs (a segmented switch, _show_page): Enclosure and
   air (the size, the mounting plate's size shown as a fact, the enclosure's power loss
   "optional, for the protocol"; the installation, ventilation and partitions chosen from
@@ -1389,8 +1401,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   options saved as such, "— choose —" until chosen) or "heat" (the rated diversity factor and
   the dimensions, the temperature rise settings'); clean keeps what makes sense, nothing
   assumed; shown, missing, standard (61439-3 for DBO, 61439-2 for PSC), conflicts (Inc over
-  InA, Ue under Un). CabinetPanel (Edit mode) shows under the temperature rise how many values
-  are still to give (the maker's too) and "Documentation…" opening
+  InA, Ue under Un). CabinetPanel (Edit mode) shows in its documentation card how many values
+  are given (the maker's too, Manufacturer.REQUIRED) and "Documentation…" opening
   BoardDocumentationDialog (every field empty until given, "enter" in the warning colour,
   the "heat" ones shown as the calculation has them; OK saves as one edit). Export:
   "interface" and "instructions" in ExportPreview.CONTENTS (the contents in an
