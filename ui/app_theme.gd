@@ -334,6 +334,17 @@ static func box(bg: Color, radius: int = RADIUS, margin_h: float = 10.0, margin_
 	return s
 
 
+## Frames [param button] like a text field beside it, so a small button
+## next to one reads as a button (the theme's buttons are flat); in the
+## current variant's colours.
+static func frame(button: BaseButton) -> void:
+	button.add_theme_stylebox_override("normal", box(bg1, RADIUS, 9.0, 4.0, border, 1))
+	button.add_theme_stylebox_override("hover", box(bg2, RADIUS, 9.0, 4.0, border_strong, 1))
+	button.add_theme_stylebox_override("pressed", box(accent_soft, RADIUS, 9.0, 4.0, accent, 1))
+	button.add_theme_stylebox_override("hover_pressed", box(accent_soft, RADIUS, 9.0, 4.0, accent, 1))
+	button.add_theme_stylebox_override("disabled", box(bg1, RADIUS, 9.0, 4.0, Color(border, 0.5), 1))
+
+
 static func _line(color: Color, vertical: bool) -> StyleBoxLine:
 	var s: StyleBoxLine = StyleBoxLine.new()
 	s.color = color
