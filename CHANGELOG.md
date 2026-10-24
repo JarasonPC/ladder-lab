@@ -8,14 +8,15 @@ What changed in each LadderLab version. Version numbers follow the rules in
 
 ### Schematic editor
 - Temperature rise of a switchboard by calculation (IEC 890 / ČSN 33 7107, as ČSN EN 61439-1
-  allows): under the switchboard's tools you see how warm the air at its top gets with what
-  is on its rails, and Temperature rise… opens the calculation to fill in: the enclosure's
-  size (from the mounting plate until typed), how it is installed, ventilation openings,
-  partitions, the air round it and the most allowed inside, each device's losses (estimated
-  until you type the maker's figure) and further losses. Wires and terminals are counted
-  from the wiring laid out. It shows Ae, k, c, the rise half way up and at the top, each
-  rail's temperature and the temperature curve, and what the method could not cover; the
-  consumer unit of a house has it too
+  allows): Temperature rise… under the switchboard's tools asks for everything the drawing
+  does not tell, nothing assumed: the enclosure's size, how it is installed, ventilation
+  openings, partitions, the air round it and the most allowed inside, each device's loss
+  from its maker, the cross-section of the wires (their lengths come from the wiring laid
+  out), the strip terminals' and further losses. Until all is given it lists what is
+  missing; then it shows Ae, k, c, the rise half way up and at the top, each rail's
+  temperature and the temperature curve, and what the method could not cover, and the
+  switchboard's tools say how warm it gets at the top. The consumer unit of a house has it
+  too
 - A room's environment can be any combination of the external influences of ČSN 33 2000-5-51:
   the List button beside the environment field shows them all in a table (code and meaning,
   grouped as in the standard's Annex A) to tick those of the room, one class of each; the

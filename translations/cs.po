@@ -571,8 +571,6 @@ msgstr "Úpravy"
 msgid "Simulate"
 msgstr "Simulace"
 
-
-
 msgid "Direction of the current paths"
 msgstr "Směr proudových drah"
 
@@ -1134,7 +1132,6 @@ msgstr "Název stránky %d:"
 
 msgid "Export page as PNG…"
 msgstr "Exportovat stránku jako PNG…"
-
 
 msgid "Export PDF"
 msgstr "Exportovat PDF"
@@ -4578,7 +4575,6 @@ msgstr "%s zhasne s %s pod 40 %%"
 msgid "10 V (reference)"
 msgstr "10 V (reference)"
 
-
 #, c-format
 msgid "%s is not on this CPU or its modules."
 msgstr "%s na tomto CPU ani jeho modulech není."
@@ -4627,7 +4623,6 @@ msgstr "Svítidla a zásuvky"
 msgid "Light switch no. %s of a house installation"
 msgstr "Vypínač řazení %s domovní elektroinstalace"
 
-
 #, c-format
 msgid "Pole %d, supply"
 msgstr "Pól %d, přívod"
@@ -4640,35 +4635,24 @@ msgstr "Sepnuto s %s, je-li zapnut."
 msgid "Pole %d, output"
 msgstr "Pól %d, vývod"
 
-
 msgid "The supply of both rockers."
 msgstr "Přívod obou kolébek."
-
 
 #, c-format
 msgid "Closed to %s by the first rocker."
 msgstr "Sepnut s %s první kolébkou."
 
-
 #, c-format
 msgid "Closed to %s by the second rocker."
 msgstr "Sepnut s %s druhou kolébkou."
-
 
 #, c-format
 msgid "Closed to %s at rest."
 msgstr "Sepnut s %s v klidu."
 
-
 #, c-format
 msgid "Closed to %s switched over."
 msgstr "Sepnut s %s po přepnutí."
-
-
-
-
-
-
 
 msgid "Traveller in"
 msgstr "Přepínací vodič, vstup"
@@ -4741,7 +4725,6 @@ msgstr "Kostra"
 msgid "(standard)"
 msgstr "(standardní)"
 
-
 msgid "Rated power (W)"
 msgstr "Jmenovitý příkon (W)"
 
@@ -4753,7 +4736,6 @@ msgstr "Jednoduchá"
 
 msgid "Double"
 msgstr "Dvojitá"
-
 
 msgid "Mounting height (m)"
 msgstr "Montážní výška (m)"
@@ -4770,8 +4752,6 @@ msgstr "3 - třípólový"
 
 msgid "5 - series (two rockers)"
 msgstr "5 - sériový (lustrový)"
-
-
 
 msgid "6 - two-way (staircase)"
 msgstr "6 - střídavý (schodišťový)"
@@ -4799,8 +4779,6 @@ msgstr "Vypínač řazení 3 (třípólový)"
 
 msgid "Switch no. 5 (series, two rockers)"
 msgstr "Přepínač řazení 5 (sériový)"
-
-
 
 msgid "Switch no. 6 (two-way, staircase)"
 msgstr "Přepínač řazení 6 (střídavý, schodišťový)"
@@ -7170,23 +7148,8 @@ msgstr "Nahoře %s °C: tepleji než %s °C. Zvětšete kryt, dejte mu větrací
 msgid "At the top %s °C: within %s °C."
 msgstr "Nahoře %s °C: v mezích %s °C."
 
-msgid "Back to the estimates"
-msgstr "Zpět na odhady"
-
 msgid "Enclosure"
 msgstr "Kryt"
-
-msgid "Estimate: type the maker's figure"
-msgstr "Odhad: zadejte údaj výrobce"
-
-msgid "Estimates (breakers and RCDs the most ČSN EN 60898-1 allows); type the maker's figure over them. Wires and terminals from the wiring laid out, at the rated current of the breaker or fuse on their net."
-msgstr "Odhady (u jističů a chráničů nejvyšší hodnoty dle ČSN EN 60898-1); přepište je údaji výrobce. Vodiče a svorky podle nakreslené kabeláže, při jmenovitém proudu jističe nebo pojistky na jejich síti."
-
-msgid "Further losses"
-msgstr "Další ztráty"
-
-msgid "Give the enclosure's size (nothing is on the rails yet to size it by)."
-msgstr "Zadejte rozměry krytu (na lištách zatím není nic, podle čeho je určit)."
 
 msgid "Horizontal partitions"
 msgstr "Vodorovné přepážky"
@@ -7202,9 +7165,6 @@ msgstr "Instalace a okolí"
 
 msgid "Loss (W)"
 msgstr "Ztráta (W)"
-
-msgid "Losses of what is not drawn: lighting, fans, heaters, transformers …"
-msgstr "Ztráty toho, co není nakresleno: osvětlení, ventilátory, topení, transformátory …"
 
 msgid "Most allowed inside"
 msgstr "Nejvýše uvnitř"
@@ -7224,12 +7184,6 @@ msgstr "Počítáno v %d sekcích širokých %s m (zobrazena nejteplejší)."
 msgid "Result"
 msgstr "Výsledek"
 
-msgid "Size from the mounting plate"
-msgstr "Rozměry podle montážní desky"
-
-msgid "Strip terminals (%d)"
-msgstr "Řadové svorky (%d)"
-
 msgid "Temperature rise of +%s"
 msgstr "Oteplení +%s"
 
@@ -7239,23 +7193,8 @@ msgstr "Oteplení: nahoře asi %s °C (okolí %s °C, nejvýše %s °C), ztráty
 msgid "Temperature rise…"
 msgstr "Oteplení…"
 
-msgid "The enclosure round the mounting plate as laid out, rounded up to 50 mm"
-msgstr "Kryt kolem montážní desky, jak je rozvržena, zaokrouhleno nahoru na 50 mm"
-
-msgid "The warmest the air round the devices may get: see their makers' data (55 °C is common; breakers are rated at 30 °C and carry less above it)"
-msgstr "Nejvyšší teplota vzduchu kolem přístrojů: viz údaje výrobců (běžně 55 °C; jističe jsou stanoveny pro 30 °C a nad ní snesou menší proud)"
-
 msgid "Total P"
 msgstr "Celkem P"
-
-msgid "Ventilation openings"
-msgstr "Větrací otvory"
-
-msgid "Wires (%d, %s m)"
-msgstr "Vodiče (%d, %s m)"
-
-msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): fill in the enclosure, how it is installed and the devices' losses"
-msgstr "Výpočet oteplení vzduchu uvnitř (IEC 890 / ČSN 33 7107): doplňte kryt, způsob instalace a ztráty přístrojů"
 
 msgid "Separate enclosure, free on all sides"
 msgstr "Samostatný kryt přístupný ze všech stran"
@@ -7301,3 +7240,108 @@ msgstr "Pravá strana"
 
 msgid "Back wall"
 msgstr "Zadní stěna"
+
+msgid "Further losses (lighting, fans, heaters …)"
+msgstr "Další ztráty (osvětlení, ventilátory, topení …)"
+
+msgid "Given"
+msgstr "Zadáno"
+
+msgid "How the enclosure is installed"
+msgstr "Způsob instalace krytu"
+
+msgid "Item"
+msgstr "Položka"
+
+msgid "Not given yet (%s)"
+msgstr "Zatím nezadáno (%s)"
+
+msgid "Still to give:"
+msgstr "Zbývá zadat:"
+
+msgid "Strip terminals (%d), all together"
+msgstr "Řadové svorky (%d), dohromady"
+
+msgid "The ambient temperature"
+msgstr "Teplota okolí"
+
+msgid "The cross-section of the wires carrying %s A"
+msgstr "Průřez vodičů s proudem %s A"
+
+msgid "The enclosure's depth"
+msgstr "Hloubka krytu"
+
+msgid "The enclosure's height"
+msgstr "Výška krytu"
+
+msgid "The enclosure's width"
+msgstr "Šířka krytu"
+
+msgid "The further losses"
+msgstr "Další ztráty"
+
+msgid "The horizontal partitions"
+msgstr "Vodorovné přepážky"
+
+msgid "The inlet openings"
+msgstr "Vstupní otvory"
+
+msgid "The loss of -%s"
+msgstr "Ztráta -%s"
+
+msgid "The loss of the strip terminals"
+msgstr "Ztráta řadových svorek"
+
+msgid "The most allowed inside"
+msgstr "Nejvyšší dovolená teplota uvnitř"
+
+msgid "The mounting plate as laid out: %s × %s mm (width × height); the enclosure is larger."
+msgstr "Montážní deska podle rozvržení: %s × %s mm (šířka × výška); kryt je větší."
+
+msgid "The outlet openings"
+msgstr "Výstupní otvory"
+
+msgid "The warmest the air round the devices may get: see their makers' data"
+msgstr "Nejvyšší teplota vzduchu kolem přístrojů: viz údaje výrobců"
+
+msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty cell is not given."
+msgstr "Zadejte ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez vodičů na sítích každého jmenovitého proudu: jejich délky se berou z nakreslené kabeláže a ztráta se počítá podle přílohy H ČSN EN 61439-1 při 70 °C. Prázdná buňka není zadána."
+
+msgid "W"
+msgstr "W"
+
+msgid "W, from the maker"
+msgstr "W, podle výrobce"
+
+msgid "What"
+msgstr "Popis"
+
+msgid "Whether it has ventilation openings"
+msgstr "Zda má větrací otvory"
+
+msgid "Wires (%d, %s m), cross-section mm²"
+msgstr "Vodiče (%d, %s m), průřez mm²"
+
+msgid "With ventilation openings"
+msgstr "S větracími otvory"
+
+msgid "Without ventilation openings"
+msgstr "Bez větracích otvorů"
+
+msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections"
+msgstr "Výpočet oteplení vzduchu uvnitř (IEC 890 / ČSN 33 7107): zadejte kryt, způsob instalace, ztráty přístrojů a průřezy vodičů"
+
+msgid "mm²"
+msgstr "mm²"
+
+msgid "— choose —"
+msgstr "— vyberte —"
+
+msgid "Temperature rise: %d value still to give"
+msgid_plural "Temperature rise: %d values still to give"
+msgstr[0] "Oteplení: zbývá zadat %d údaj"
+msgstr[1] "Oteplení: zbývá zadat %d údaje"
+msgstr[2] "Oteplení: zbývá zadat %d údajů"
+
+msgid "Ventilation openings"
+msgstr "Větrací otvory"

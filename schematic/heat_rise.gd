@@ -11,7 +11,10 @@ extends RefCounted
 ## pixel, the line width of the drawing ±0.001 k). P is the power lost by the
 ## devices and conductors inside at their rated currents ([method losses]).
 ## An enclosure over 11.5 m² of Ae or wider than 1.5 m is reckoned in
-## sections of equal width, the dividing walls not counted. No nodes.
+## sections of equal width, the dividing walls not counted. Nothing is
+## assumed: what the drawing does not tell (the enclosure, the devices'
+## losses, the wires' cross-sections …) has to be given, and the calculation
+## is made only once it all is ([method missing]). No nodes.
 
 ## How an enclosure is installed (fig. 1): the curve of fig. 3 and the factor
 ## b of its top, back and sides (table 3; the front is always free,
@@ -48,29 +51,23 @@ const SMALL_K: float = 0.6264
 const SMALL_EXP: float = -0.7349
 const SMALL_FROM: float = 0.08
 
-## What a switchboard's calculation is given ([member Switchboard.heat]):
-## the enclosure's height, width and depth in mm (0: from the mounting
-## plate laid out), its installation (index of [constant MOUNTINGS]), the
-## inlet and outlet ventilation openings in cm² (0 inlet: closed), the
-## horizontal partitions, the ambient temperature and the highest the air
-## inside may reach (°C), losses (W) set by hand by device designation, and
-## further losses (W) of what the drawing has not got (lighting, fans,
-## heaters …).
-const DEFAULTS: Dictionary = {
-	"height": 0.0, "width": 0.0, "depth": 0.0, "mounting": 1, "inlet": 0.0, "outlet": 0.0,
-	"partitions": 0, "ambient": 35.0, "limit": 55.0, "losses": {}, "extra": 0.0,
-}
-## Depth of an enclosure when none is set (mm): a switchboard, a consumer
-## unit; the mounting plate is this much smaller than the enclosure across
-## and up, and the size is rounded up to ROUND_TO.
-const DEPTH: float = 250.0
-const UNIT_DEPTH: float = 110.0
-const PLATE_MARGIN: float = 70.0
-const ROUND_TO: float = 50.0
+## What a switchboard's calculation is given ([member Switchboard.heat]),
+## each only once the user has given it, nothing assumed: the enclosure's
+## "height", "width" and "depth" (mm), its "mounting" (index of
+## [constant MOUNTINGS]), whether it has ventilation openings ("vented") and
+## then the "inlet" and "outlet" openings (cm²), the horizontal
+## "partitions", the "ambient" temperature and the most the air inside may
+## reach, "limit" (°C), the "losses" of each device at its rated current (W
+## by designation, from its maker), the cross-section of the wires on the
+## nets of each rated current ("sections": mm² by the current as text,
+## "16"), what the strip terminals lose together ("terminals", W) and the
+## further losses of what is not drawn ("extra", W: lighting, fans …).
+const NUMBERS: PackedStringArray = ["height", "width", "depth", "inlet", "outlet", "ambient", "limit", "terminals", "extra"]
 
 ## Copper conductors (annex H of ČSN EN 61439-1): cross-section (mm²) and
 ## resistance at 20 °C (mΩ/m); the temperature coefficient α (1/K) and the
-## conductor temperature reckoned with (°C, the most PVC takes: conservative).
+## conductor temperature of annex H's loss formula (°C, the most PVC
+## insulation is allowed).
 const CONDUCTORS: Array[Vector2] = [
 	Vector2(0.5, 36.0), Vector2(0.75, 24.5), Vector2(1.0, 18.1), Vector2(1.5, 12.1),
 	Vector2(2.5, 7.41), Vector2(4.0, 4.61), Vector2(6.0, 3.08), Vector2(10.0, 1.83),
@@ -80,35 +77,6 @@ const CONDUCTORS: Array[Vector2] = [
 ]
 const ALPHA: float = 0.004
 const CONDUCTOR_TEMPERATURE: float = 70.0
-## Wires carrying at most this current (A) are taken as control wires of
-## CONTROL_SECTION mm²; heavier ones as [constant WorkspaceCables.SECTIONS] gives.
-const CONTROL_CURRENT: float = 6.0
-const CONTROL_SECTION: float = 1.0
-## Resistance of a strip terminal's connection (mΩ), each carrying its net's current.
-const TERMINAL_RESISTANCE: float = 1.0
-## Losses (W) of a circuit breaker's pole (also of an RCD, an RCBO, a motor
-## breaker), by rated current (A): the most ČSN EN 60898-1 allows, so on the
-## safe side of what a maker gives.
-const BREAKER_POLE: Array[Vector2] = [
-	Vector2(10.0, 3.0), Vector2(16.0, 3.5), Vector2(25.0, 4.5), Vector2(32.0, 6.0), Vector2(40.0, 7.5),
-	Vector2(50.0, 9.0), Vector2(63.0, 13.0), Vector2(100.0, 15.0), Vector2(125.0, 20.0),
-]
-## A fuse link's pole by rated current (cylindrical 10×38, 14×51, 22×58).
-const FUSE_POLE: Array[Vector2] = [Vector2(32.0, 3.0), Vector2(50.0, 5.0), Vector2(125.0, 9.5)]
-## Estimates (W) for the other devices: a contactor (coil and main contacts),
-## an auxiliary relay, a time relay, a thermal overload relay, a bridge
-## rectifier, a PLC and each of its modules, a frequency inverter of the
-## smallest sizes, a network switch. A maker's figure replaces them.
-const CONTACTOR: float = 4.0
-const RELAY: float = 1.0
-const TIMER: float = 1.5
-const OVERLOAD: float = 4.5
-const RECTIFIER: float = 2.0
-const PLC: float = 6.0
-const PLC_MODULE: float = 2.0
-const VFD: float = 40.0
-const NETWORK_SWITCH: float = 3.0
-
 ## Fig. 2: k of an enclosure without ventilation openings, Ae > 1.25 m², by Ae (m²) from 0.75 step 0.25.
 const FIG2_FROM: float = 0.75
 const FIG2_STEP: float = 0.25
@@ -361,55 +329,47 @@ const FIG7: Array[float] = [
 ]
 
 
-## The settings in [param data] (a switchboard's [member Switchboard.heat])
-## with every key of [constant DEFAULTS]; a value of the wrong type or out of
-## range is the default.
+## The settings in [param data] (a switchboard's [member Switchboard.heat]):
+## only what was given and makes sense (a number of the right kind in its
+## range, a mounting of the list, losses and cross-sections by key); nothing
+## is filled in for what is missing.
 static func settings(data: Variant) -> Dictionary:
 	var d: Dictionary = data if data is Dictionary else {}
-	var s: Dictionary = DEFAULTS.duplicate(true)
-	for key: String in ["height", "width", "depth", "inlet", "outlet", "extra"]:
-		if (d.get(key) is float or d.get(key) is int) and float(d[key]) >= 0.0:
-			s[key] = float(d[key])
-	for key: String in ["ambient", "limit"]:
-		if (d.get(key) is float or d.get(key) is int) and absf(float(d[key])) < 200.0:
-			s[key] = float(d[key])
-	if (d.get("mounting") is float or d.get("mounting") is int) and int(d["mounting"]) >= 0 and int(d["mounting"]) < MOUNTINGS.size():
+	var s: Dictionary = {}
+	for key: String in NUMBERS:
+		if _is_number(d.get(key)):
+			var value: float = float(d[key])
+			if (key in ["ambient", "limit"] and absf(value) < 200.0) or (key not in ["ambient", "limit"] and value >= 0.0):
+				s[key] = value
+	if _is_number(d.get("mounting")) and int(d["mounting"]) >= 0 and int(d["mounting"]) < MOUNTINGS.size():
 		s["mounting"] = int(d["mounting"])
-	if (d.get("partitions") is float or d.get("partitions") is int) and int(d["partitions"]) >= 0:
+	if _is_number(d.get("partitions")) and int(d["partitions"]) >= 0 and int(d["partitions"]) <= MAX_PARTITIONS:
 		s["partitions"] = int(d["partitions"])
-	if d.get("losses") is Dictionary:
-		for designation: Variant in d["losses"]:
-			var value: Variant = d["losses"][designation]
-			if (value is float or value is int) and float(value) >= 0.0:
-				s["losses"][str(designation)] = float(value)
+	if d.get("vented") is bool:
+		s["vented"] = d["vented"]
+	for key: String in ["losses", "sections"]:
+		if d.get(key) is Dictionary:
+			var given: Dictionary = {}
+			for name: Variant in d[key]:
+				var value: Variant = d[key][name]
+				if _is_number(value) and float(value) >= 0.0 and (key == "losses" or float(value) > 0.0):
+					given[str(name)] = float(value)
+			if not given.is_empty():
+				s[key] = given
 	return s
 
 
-## [param s] without what is as [constant DEFAULTS] (what a switchboard saves).
-static func changed(s: Dictionary) -> Dictionary:
-	var result: Dictionary = {}
-	for key: String in DEFAULTS:
-		if key == "losses":
-			if not (s.get("losses", {}) as Dictionary).is_empty():
-				result["losses"] = (s["losses"] as Dictionary).duplicate()
-		elif s.has(key) and s[key] != DEFAULTS[key]:
-			result[key] = s[key]
-	return result
+static func _is_number(value: Variant) -> bool:
+	return value is float or value is int
 
 
-## Height, width and depth (mm) of the enclosure of [param s] around a
-## mounting plate of [param plate] mm (across, up): those set, else the plate
-## with [constant PLATE_MARGIN] rounded up to [constant ROUND_TO], the depth
-## [constant DEPTH] ([constant UNIT_DEPTH] for a consumer unit, [param unit]).
-static func enclosure(s: Dictionary, plate: Vector2, unit: bool) -> Vector3:
-	var height: float = s["height"] if s["height"] > 0.0 else _rounded(plate.y)
-	var width: float = s["width"] if s["width"] > 0.0 else _rounded(plate.x)
-	var depth: float = s["depth"] if s["depth"] > 0.0 else (UNIT_DEPTH if unit else DEPTH)
-	return Vector3(height, width, depth)
-
-
-static func _rounded(plate: float) -> float:
-	return ceilf((plate + PLATE_MARGIN) / ROUND_TO) * ROUND_TO if plate > 0.0 else 0.0
+## Height, width and depth (mm) of the enclosure given in [param s], or
+## null while any of them is missing or 0.
+static func enclosure(s: Dictionary) -> Variant:
+	for key: String in ["height", "width", "depth"]:
+		if float(s.get(key, 0.0)) <= 0.0:
+			return null
+	return Vector3(s["height"], s["width"], s["depth"])
 
 
 ## Whether switchboard [param b] of [param doc] is a house's consumer unit.
@@ -417,16 +377,57 @@ static func is_unit(doc: SchematicDocument, b: int) -> bool:
 	return b >= 0 and b < doc.switchboards.size() and doc.switchboards[b].name == FloorPlan.UNIT.trim_prefix("+")
 
 
-## The whole calculation of switchboard [param b] of [param doc] laid out on
-## a mounting plate of [param plate] mm with [param wires] (its wiring), with
-## settings [param s] (its own when null): {"settings", "size" (mm, see
-## [method enclosure]), "losses" ([method losses]), "result"
-## ([method calculate])}.
-static func evaluate(doc: SchematicDocument, b: int, plate: Vector2, wires: Array, s: Variant = null) -> Dictionary:
+## What switchboard [param b] of [param doc] still needs to be given (see
+## [method missing]) and, once nothing does, its calculation, with
+## [param wires] its wiring laid out and settings [param s] (its own when
+## null): {"settings", "losses" ([method losses]), "missing", "size" (mm,
+## null while missing), "result" ([method calculate], {} while anything is
+## missing)}.
+static func evaluate(doc: SchematicDocument, b: int, wires: Array, s: Variant = null) -> Dictionary:
 	var used: Dictionary = s if s is Dictionary else settings(doc.switchboards[b].heat)
-	var size: Vector3 = enclosure(used, plate, is_unit(doc, b))
 	var lost: Dictionary = losses(doc, b, wires, used)
-	return {"settings": used, "size": size, "losses": lost, "result": calculate(size, used, lost["total"])}
+	var gaps: Array[Dictionary] = missing(used, lost)
+	var size: Variant = enclosure(used)
+	var result: Dictionary = {}
+	if gaps.is_empty():
+		result = calculate(size, used, lost["total"])
+	return {"settings": used, "losses": lost, "missing": gaps, "size": size, "result": result}
+
+
+## What [param s] and [param lost] (see [method losses]) still lack before
+## the calculation can be made: [{"text" (English), "args"}].
+static func missing(s: Dictionary, lost: Dictionary) -> Array[Dictionary]:
+	var gaps: Array[Dictionary] = []
+	var sizes: Dictionary = {"height": "The enclosure's height", "width": "The enclosure's width", "depth": "The enclosure's depth"}
+	for key: String in sizes:
+		if float(s.get(key, 0.0)) <= 0.0:
+			gaps.append(_note(sizes[key], []))
+	if not s.has("mounting"):
+		gaps.append(_note("How the enclosure is installed", []))
+	if not s.has("vented"):
+		gaps.append(_note("Whether it has ventilation openings", []))
+	elif s["vented"]:
+		if float(s.get("inlet", 0.0)) <= 0.0:
+			gaps.append(_note("The inlet openings", []))
+		if not s.has("outlet"):
+			gaps.append(_note("The outlet openings", []))
+	if not s.has("partitions"):
+		gaps.append(_note("The horizontal partitions", []))
+	if not s.has("ambient"):
+		gaps.append(_note("The ambient temperature", []))
+	if not s.has("limit"):
+		gaps.append(_note("The most allowed inside", []))
+	for device: Dictionary in lost["devices"]:
+		if device["power"] == null:
+			gaps.append(_note("The loss of -%s", [device["designation"]]))
+	for group: Dictionary in lost["groups"]:
+		if group["section"] == null:
+			gaps.append(_note("The cross-section of the wires carrying %s A", [_num(group["amperes"])]))
+	if lost["terminal_count"] > 0 and not s.has("terminals"):
+		gaps.append(_note("The loss of the strip terminals", []))
+	if not s.has("extra"):
+		gaps.append(_note("The further losses", []))
+	return gaps
 
 
 # --- Losses -------------------------------------------------------------------
@@ -434,16 +435,21 @@ static func evaluate(doc: SchematicDocument, b: int, plate: Vector2, wires: Arra
 ## The power lost in switchboard [param b] of [param doc] at the rated
 ## currents, with [param wires] its wiring ([member CabinetWiring.wires]) and
 ## [param s] its settings: {"devices": [{"designation", "kind"
-## ([enum CabinetDevices.Kind]), "estimate" (W, see [method estimate]),
-## "power" (W, the one set by hand or the estimate), "set" (by hand)}],
-## "wires" (W), "wire_count", "wire_length" (m), "terminals" (W),
-## "terminal_count", "extra" (W), "total" (W)}. A conductor carries the
-## largest rated current of a breaker, fuse or overload relay on its net
-## (none: no loss), warm at [constant CONDUCTOR_TEMPERATURE] (annex H of
-## ČSN EN 61439-1); PE carries none.
+## ([enum CabinetDevices.Kind]), "power" (W as given, null while not)}],
+## "groups": the wires by the current of their net, largest first,
+## [{"key" (the current as text), "amperes", "count", "length" (m),
+## "section" (mm² as given, null while not), "power" (W, null while the
+## section is missing)}], "wire_count", "wire_length" (m), "terminal_count",
+## "terminals" and "extra" (W as given, null while not), "total" (W, null
+## while anything is missing)}. A wire carries the largest rated current of
+## a breaker, an RCD, a fuse or an overload relay (its setting) on its net
+## and loses I² R20 (1 + α (Tc − 20 °C)) per metre (annex H of ČSN EN
+## 61439-1); one on a net with none of them (a control circuit fed from
+## outside) is not counted, nor are PE and Ethernet.
 static func losses(doc: SchematicDocument, b: int, wires: Array, s: Dictionary) -> Dictionary:
 	var circuit: Circuit = doc.circuit
-	var by_hand: Dictionary = s["losses"]
+	var given: Dictionary = s.get("losses", {})
+	var sections: Dictionary = s.get("sections", {})
 	var devices: Array[Dictionary] = []
 	var under: Dictionary[String, String] = CabinetDevices.overloads_under_contactors(circuit)
 	var strips: Array[String] = []
@@ -459,43 +465,58 @@ static func losses(doc: SchematicDocument, b: int, wires: Array, s: Dictionary) 
 					designations.append(under[item.designation])
 				for designation: String in designations:
 					var c: CircuitComponent = CabinetDevices.device(circuit, designation)
-					if c == null:
-						continue
-					var guess: float = estimate(c)
-					devices.append({"designation": designation, "kind": CabinetDevices.kind_of(c), "estimate": guess,
-						"power": float(by_hand.get(designation, guess)), "set": by_hand.has(designation)})
+					if c != null:
+						devices.append({"designation": designation, "kind": CabinetDevices.kind_of(c),
+							"power": float(given[designation]) if given.has(designation) else null})
 	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
 	var current: Dictionary[int, float] = net_currents(circuit, net)
-	var wire_power: float = 0.0
-	var length: float = 0.0
-	var count: int = 0
+	var by_key: Dictionary = {}
+	var wire_count: int = 0
+	var wire_length: float = 0.0
 	for wire: Dictionary in wires:
 		var conductor: int = wire.get("conductor", CabinetDevices.Conductor.CONTROL)
 		if conductor == CabinetDevices.Conductor.PE or conductor == CabinetDevices.Conductor.NETWORK:
+			continue
+		var amperes: float = current.get(int(wire.get("net", -1)), 0.0)
+		if amperes <= 0.0:
 			continue
 		var points: PackedVector2Array = wire.get("points", PackedVector2Array())
 		var metres: float = 0.0
 		for i: int in range(1, points.size()):
 			metres += points[i - 1].distance_to(points[i]) / 1000.0
-		length += metres
-		count += 1
-		wire_power += conductor_loss(current.get(int(wire.get("net", -1)), 0.0), metres)
-	var terminal_power: float = 0.0
+		var key: String = _num(amperes)
+		if not by_key.has(key):
+			by_key[key] = {"key": key, "amperes": amperes, "count": 0, "length": 0.0}
+		by_key[key]["count"] += 1
+		by_key[key]["length"] += metres
+		wire_count += 1
+		wire_length += metres
+	var groups: Array[Dictionary] = []
+	for key: String in by_key:
+		var group: Dictionary = by_key[key]
+		group["section"] = float(sections[key]) if sections.has(key) else null
+		group["power"] = conductor_loss(group["amperes"], group["length"], group["section"]) if group["section"] != null else null
+		groups.append(group)
+	groups.sort_custom(func(a: Dictionary, c: Dictionary) -> bool: return a["amperes"] > c["amperes"])
 	var terminal_count: int = 0
 	var all_strips: Dictionary = CabinetDevices.strips(doc) if not strips.is_empty() else {}
 	for strip: String in strips:
-		for terminal: Dictionary in all_strips.get(strip, []):
-			terminal_count += 1
-			var keys: PackedStringArray = terminal["keys"]
-			if terminal["kind"] == "PE" or keys.is_empty():
-				continue
-			var amperes: float = current.get(net.get(keys[0], -1), 0.0)
-			terminal_power += amperes * amperes * TERMINAL_RESISTANCE / 1000.0
-	var total: float = wire_power + terminal_power + float(s["extra"])
+		terminal_count += (all_strips.get(strip, []) as Array).size()
+	var total: Variant = 0.0
+	var parts: Array = []
 	for device: Dictionary in devices:
-		total += device["power"]
-	return {"devices": devices, "wires": wire_power, "wire_count": count, "wire_length": length,
-		"terminals": terminal_power, "terminal_count": terminal_count, "extra": float(s["extra"]), "total": total}
+		parts.append(device["power"])
+	for group: Dictionary in groups:
+		parts.append(group["power"])
+	parts.append(s.get("terminals") if terminal_count > 0 else 0.0)
+	parts.append(s.get("extra"))
+	for part: Variant in parts:
+		if part == null:
+			total = null
+			break
+		total += float(part)
+	return {"devices": devices, "groups": groups, "wire_count": wire_count, "wire_length": wire_length,
+		"terminal_count": terminal_count, "terminals": s.get("terminals"), "extra": s.get("extra"), "total": total}
 
 
 ## The largest rated current (A) of a breaker, an RCD, a fuse or an overload
@@ -517,26 +538,13 @@ static func net_currents(circuit: Circuit, net: Dictionary[String, int]) -> Dict
 	return result
 
 
-## Loss (W) of a copper conductor [param metres] long carrying [param amperes]:
-## I² R20 (1 + α (Tc − 20 °C)), its cross-section by the current
-## ([method section_for]).
-static func conductor_loss(amperes: float, metres: float) -> float:
+## Loss (W) of copper conductors of [param mm2] [param metres] long in all
+## carrying [param amperes]: I² R20 (1 + α (Tc − 20 °C)) (annex H of ČSN EN
+## 61439-1).
+static func conductor_loss(amperes: float, metres: float, mm2: float) -> float:
 	if amperes <= 0.0 or metres <= 0.0:
 		return 0.0
-	var ohms: float = resistance(section_for(amperes)) / 1000.0
-	return amperes * amperes * ohms * (1.0 + ALPHA * (CONDUCTOR_TEMPERATURE - 20.0)) * metres
-
-
-## Cross-section (mm²) of a wire carrying [param amperes]: a control wire's
-## up to [constant CONTROL_CURRENT], else the smallest of
-## [constant WorkspaceCables.SECTIONS] taking it.
-static func section_for(amperes: float) -> float:
-	if amperes <= CONTROL_CURRENT:
-		return CONTROL_SECTION
-	for entry: Vector2 in WorkspaceCables.SECTIONS:
-		if amperes <= entry.y:
-			return entry.x
-	return WorkspaceCables.SECTIONS[WorkspaceCables.SECTIONS.size() - 1].x
+	return amperes * amperes * resistance(mm2) / 1000.0 * (1.0 + ALPHA * (CONDUCTOR_TEMPERATURE - 20.0)) * metres
 
 
 ## Resistance at 20 °C (mΩ/m) of a copper conductor of [param mm2] (the
@@ -546,46 +554,6 @@ static func resistance(mm2: float) -> float:
 		if entry.x >= mm2 - 0.001:
 			return entry.y
 	return CONDUCTORS[CONDUCTORS.size() - 1].y
-
-
-## Estimated loss (W) of device [param c] at its rated current (see the
-## constants above), 0 for what is not a device of a switchboard.
-static func estimate(c: CircuitComponent) -> float:
-	if c is CircuitBreaker:
-		return _per_pole(BREAKER_POLE, (c as CircuitBreaker).rated_current, 1)
-	if c is MotorBreaker:
-		var breaker: MotorBreaker = c as MotorBreaker
-		return _per_pole(BREAKER_POLE, breaker.rated_current, 2 if breaker.n_pole else breaker.poles)
-	if c is Fuse:
-		return _per_pole(FUSE_POLE, (c as Fuse).rated_current, 1)
-	if c is ThreePoleFuse:
-		return _per_pole(FUSE_POLE, (c as ThreePoleFuse).rated_current, (c as ThreePoleFuse).poles)
-	match CabinetDevices.kind_of(c):
-		CabinetDevices.Kind.CONTACTOR:
-			return CONTACTOR
-		CabinetDevices.Kind.RELAY:
-			return RELAY
-		CabinetDevices.Kind.TIMER:
-			return TIMER
-		CabinetDevices.Kind.OVERLOAD:
-			return OVERLOAD
-		CabinetDevices.Kind.RECTIFIER:
-			return RECTIFIER
-		CabinetDevices.Kind.PLC:
-			return PLC + PLC_MODULE * (c as Plc).modules.size()
-		CabinetDevices.Kind.VFD:
-			return VFD
-		CabinetDevices.Kind.SWITCH:
-			return NETWORK_SWITCH
-	return 0.0
-
-
-static func _per_pole(table: Array[Vector2], amperes: float, poles: int) -> float:
-	for entry: Vector2 in table:
-		if amperes <= entry.x + 0.001:
-			return entry.y * maxi(poles, 1)
-	return table[table.size() - 1].y * maxi(poles, 1)
-
 
 # --- The calculation ------------------------------------------------------------
 
@@ -605,9 +573,9 @@ static func calculate(size: Vector3, s: Dictionary, power: float) -> Dictionary:
 	var mounting: Dictionary = MOUNTINGS[clampi(int(s["mounting"]), 0, MOUNTINGS.size() - 1)]
 	if int(s["partitions"]) > MAX_PARTITIONS:
 		warnings.append(_note("More than %d horizontal partitions: the method does not cover them (reckoned with %d).", [MAX_PARTITIONS, MAX_PARTITIONS]))
-	var inlet: float = s["inlet"]
-	if inlet > 0.0 and float(s["outlet"]) < OUTLET_SHARE * inlet - 0.001:
-		warnings.append(_note("The outlet openings (%s cm²) should be at least 1.1 times the inlet ones (%s cm²).", [_num(float(s["outlet"])), _num(inlet)]))
+	var inlet: float = float(s.get("inlet", 0.0)) if s.get("vented", false) else 0.0
+	if inlet > 0.0 and float(s.get("outlet", 0.0)) < OUTLET_SHARE * inlet - 0.001:
+		warnings.append(_note("The outlet openings (%s cm²) should be at least 1.1 times the inlet ones (%s cm²).", [_num(float(s.get("outlet", 0.0))), _num(inlet)]))
 	# Sections of equal width: none wider than MAX_WIDTH, none over MAX_AE.
 	var n: int = maxi(1, ceili(w / MAX_WIDTH - 0.0001))
 	while n < 100 and _surfaces(h, w / n, depth, mounting, n == 1, true).reduce(_sum_ae, 0.0) > MAX_AE:
@@ -740,5 +708,8 @@ static func _note(text: String, args: Array) -> Dictionary:
 	return {"text": text, "args": args}
 
 
+## [param value] as written: a whole number without decimals, else to two places.
 static func _num(value: float) -> String:
-	return String.num(value, 2 if absf(value) < 100.0 else 0)
+	if absf(value - roundf(value)) < 0.005:
+		return str(roundi(value))
+	return String.num(value, 2)
