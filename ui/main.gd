@@ -212,6 +212,8 @@ var _area_switch: Control
 var _environment_label: Label
 var _new_dialog: NewSchematicDialog
 var _mode_switch: Control
+## The line after the Edit | Simulate switch, hidden with it.
+var _mode_gap: VSeparator
 ## The lesson being taken (see [LessonRun]), or null; its index in
 ## [method Lessons.all].
 var _lesson_run: LessonRun = null
@@ -347,11 +349,7 @@ func _ready() -> void:
 		if view.document != null:
 			view.document.floor = index)
 	editor.edited.connect(_single_line.refresh)
-	view.stepped.connect(_single_line.show_step)
 	_single_line.edit_requested.connect(_edit_workspace)
-	_single_line.operate_requested.connect(view.operate_device)
-	_single_line.switch_toggled.connect(view.toggle_switch)
-	_single_line.test_requested.connect(view.press_test)
 	_single_line.selection_changed.connect(_on_single_line_selected)
 	_single_line.room_requested.connect(_show_room)
 	editor.key_bind_requested.connect(_ask_key)
@@ -613,7 +611,8 @@ func _build_ui() -> void:
 		b.toggle_mode = true
 		b.button_group = mode_group
 	_edit_button.button_pressed = true
-	bar.add_child(VSeparator.new())
+	_mode_gap = VSeparator.new()
+	bar.add_child(_mode_gap)
 
 	_layout_select = _option(bar)
 	_layout_select.add_item("")
@@ -1632,6 +1631,9 @@ func _update_environment() -> void:
 	_environment_label.text = NewSchematicDialog.environment_name(environment)
 	_environment_label.tooltip_text = NewSchematicDialog.environment_text(environment)
 	_update_control_panel()
+	# A house installation is drawn, never simulated.
+	_mode_switch.visible = environment != SchematicDocument.Kind.RESIDENTIAL
+	_mode_gap.visible = _mode_switch.visible
 	# A house installation has its floor plan in place of the workspace.
 	_workspace_button.text = tr("Floor plan") if residential else tr("Workspace")
 	_workspace_button.icon = AppTheme.icon("house" if residential else "workspace")
@@ -1660,6 +1662,11 @@ func _update_title() -> void:
 
 func _set_mode(new_mode: Mode) -> void:
 	if new_mode == mode:
+		return
+	if new_mode == Mode.SIMULATE and _installation():
+		# A house installation is not simulated.
+		_edit_button.set_pressed_no_signal(true)
+		_simulate_button.set_pressed_no_signal(false)
 		return
 	if new_mode == Mode.SIMULATE and _training():
 		# A training plan runs as the student wired it: shown on the
@@ -1823,8 +1830,8 @@ func _replace_document(doc: SchematicDocument, path: String) -> void:
 	_check_panel.hide()
 	TrainingPick.marked = PackedStringArray()
 	TrainingPick.clear_probes()
-	if doc.training != null:
-		# A training plan is wired in Edit mode.
+	if doc.training != null or doc.environment == SchematicDocument.Kind.RESIDENTIAL:
+		# A training plan is wired in Edit mode; a house installation has no other.
 		_switch_mode(Mode.EDIT)
 	_show_document(doc, true)
 	_training_panel.show_plan(doc)
@@ -1959,6 +1966,11 @@ func _on_selection_changed(c: CircuitComponent) -> void:
 		_properties.show_wire()
 	else:
 		_properties.show_component(c)
+
+
+## Whether the edited schematic is a house installation (drawn, never simulated).
+func _installation() -> bool:
+	return edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
 
 
 ## Whether the single-line diagram of a residential installation shows.

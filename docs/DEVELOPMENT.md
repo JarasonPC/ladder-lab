@@ -171,7 +171,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   environment_name / environment_text; main.gd _new_document(environment): L and N supply
   points, PE too for a prototype, a residential installation its supply and main switch
   from update_single_line, shown on its floor plan) and shown by a muted
-  label in the toolbar (main.gd _update_environment). The palette follows it
+  label in the toolbar (main.gd _update_environment). A residential installation is drawn,
+  never simulated: the Edit | Simulate switch is hidden for it (_update_environment), main.gd
+  _set_mode refuses Simulate (_installation) and _replace_document puts Edit mode back when
+  one is opened; the solver still runs it in the tests. The palette follows it
   (Palette.environment: ENTRIES, RESIDENTIAL_ENTRIES or INSTALLATION_ENTRIES: the main
   switch, a breaker (1+N and 3+N besides) and an RCD whose poles are set in the properties,
   one luminaire;
@@ -272,7 +275,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   onto a wall as FloorPlanCanvas.on_ceiling says: its cross WALL_LAMP_OFFSET into the room
   with a line on the wall's side), an appliance's box with its sign, the consumer unit half
   filled; a height other than the standard one is written under the designation ("h 1.10").
-  While simulating the plan shows the simulation copy: lit luminaires glow, live sockets and
+  While simulating (a prototype; an installation is not simulated) the plan shows the simulation copy: lit luminaires glow, live sockets and
   working appliances are filled, and a click on a switch switches its rocker (of two, the
   one on the side clicked as seen from the room; SchematicView.toggle_light_switch). Plan
   edits are workspace edits (one undo step each, Edit mode only). The consumer unit is
@@ -374,9 +377,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   ledger and loads lower by the deepest group, _ledger_u, _load_u; _lay keeps each group's
   "n_u", where the N of what is under it comes from). A circuit lacking a 30 mA RCD has a
   warning triangle over its ledger (NO_RCD_TEXT as its tooltip and in the panel). Colours:
-  designations green, data magenta, links blue, AFDD red; while simulating every line in the
-  colour of the voltage reaching it (StepResult.terminal_reach), lit luminaires and working
-  parts filled. Edit mode: a click selects (selected, whose properties main.gd shows through
+  designations green, data magenta, links blue, AFDD red. A click selects (selected, whose properties main.gd shows through
   the editor's selection; selection holds all selected: Shift or Ctrl+click toggles,
   _select_box from a drag on an empty place), begin_place takes a palette template to
   drop_target ({"index", "into", "feeder"}: between the columns, into the deepest group
@@ -386,9 +387,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   While placing or dragging _preview lays out a copy of the diagram as it would be: the
   canvas draws that, the parts put or moved left out and drawn on the ghost layer (a child
   SingleLineCanvas at 45 % opacity: ghost_of, _draw_ghost; the part placed is _ghost, made
-  with its designation at begin_place, _part finds it). Simulate
-  mode: QB1 and QA1 switch (switch_toggled -> SchematicView.toggle_switch), breakers and RCDs
-  switch (operate_requested), test buttons trip (SchematicView.press_test). SingleLineView: a
+  with its designation at begin_place, _part finds it). SingleLineView: a
   bar (Delete, Show all), the canvas and in Edit mode a panel for the selected circuit (phase,
   destination, room from the floor plan's rooms, cable, ripple control), group (phase) or
   supply (cable, SPD) with the circuits waiting for protection (SingleLineView.circuit_text);

@@ -205,6 +205,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   dot, so it is easy to see what is wired and what is left
 
 ### Application
+- A house installation is drawn, not simulated: its toolbar has no Edit | Simulate switch,
+  so the floor plan, single-line diagram and consumer unit are always ready for editing
 - LadderLab opens with a start window: create a project or open one; tick Program guide to
   take the tour of the window once the project is open (ticked at the first start, after
   the language is chosen)

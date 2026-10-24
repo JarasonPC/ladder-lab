@@ -194,18 +194,12 @@ func test_single_line_in_the_main_window() -> void:
 	canvas.end_place()
 	canvas._select(breaker)
 	assert_eq(main.editor.selected_components.size(), 1)
-	# While simulating the main switch and the breaker switch the socket on.
+	# A house installation is drawn, not simulated: no Edit | Simulate switch, Simulate refused.
+	assert_false(main._mode_switch.visible, "no Edit | Simulate switch")
 	main._set_mode(Main.Mode.SIMULATE)
 	await wait_process_frames(2)
-	assert_false(canvas.editing)
-	canvas._operate(canvas.at(SingleLineCanvas.MAIN_U + 30.0, SingleLineCanvas.MAIN_V))
-	canvas._operate(canvas.at(SingleLineCanvas.BREAKER_U + 30.0, v))
-	var socket: SocketOutlet = null
-	for c: CircuitComponent in main.view.document.circuit.get_components():
-		if c is SocketOutlet:
-			socket = c as SocketOutlet
-	assert_true(socket.energized, "switched on from the diagram")
-	await wait_process_frames(2)
+	assert_eq(main.mode, Main.Mode.EDIT, "stays in Edit mode")
+	assert_true(canvas.editing)
 
 
 func test_single_line_sheet_in_the_export() -> void:
