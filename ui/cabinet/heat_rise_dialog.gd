@@ -60,6 +60,9 @@ var _curve: HeatRiseCurve
 ## The table of the rated diversity factors, its heading cells, its rows'
 ## texts and its buttons (each putting its value in).
 var _rdf_hint: Label
+## The "?" beside the RDF field and the help it opens: what RDF is.
+var _rdf_help_button: Button
+var _rdf_help: AcceptDialog
 var _rdf_table: GridContainer
 var _rdf_heads: Array[Label] = []
 var _rdf_rows: Array[Label] = []
@@ -114,6 +117,20 @@ func _init() -> void:
 	_caption(left)
 	var rdf_grid: GridContainer = _grid(left)
 	_field(rdf_grid, "rdf", "")
+	_rdf_help_button = Button.new()
+	_rdf_help_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_rdf_help_button.focus_mode = Control.FOCUS_NONE
+	_rdf_help_button.text = "?"
+	_rdf_help_button.custom_minimum_size.x = 30.0
+	_rdf_help_button.pressed.connect(func() -> void: _rdf_help.popup_centered())
+	var rdf_box: Control = _fields["rdf"].get_parent()
+	rdf_box.add_child(_rdf_help_button)
+	rdf_box.move_child(_rdf_help_button, 1)
+	_rdf_help = AcceptDialog.new()
+	_rdf_help.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_rdf_help.dialog_autowrap = true
+	_rdf_help.min_size = Vector2i(480, 0)
+	add_child(_rdf_help)
 	_rdf_hint = _muted(left)
 	_rdf_table = GridContainer.new()
 	_rdf_table.columns = 3
@@ -225,7 +242,11 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	ok_button_text = tr("OK")
 	cancel_button_text = tr("Cancel")
 	var captions: Array[String] = [tr("Enclosure"), tr("Installation and air"), tr("Rated diversity factor"), tr("Power lost at the rated currents"), tr("Result")]
-	_rdf_hint.text = tr("One RDF for the whole switchboard: the outgoing circuits loaded together at RDF times their rated currents lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. When the maker gives none, the standards assume (a click on a value puts it in):")
+	_rdf_hint.text = tr("When the maker gives none, the standards assume (a click on a value puts it in):")
+	_rdf_help_button.tooltip_text = tr("What the rated diversity factor is")
+	_rdf_help.title = tr("Rated diversity factor RDF")
+	_rdf_help.ok_button_text = tr("Close")
+	_rdf_help.dialog_text = tr("The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, ČSN EN 61439-2 (PSC) and ČSN EN 61439-3 (DBO) assume the values in the table under the field.")
 	var heads: Array[String] = [tr("What"), tr("ČSN EN 61439-2 (PSC, power)"), tr("ČSN EN 61439-3 (DBO, ordinary persons)")]
 	for i: int in 3:
 		_rdf_heads[i].text = heads[i]

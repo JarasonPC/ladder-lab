@@ -1292,7 +1292,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   HeatRise.balance = it less total P) and "types" (each device's type from its maker, text
   by designation; losses' devices carry "type"). The rated diversity factor "rdf" (one for the switchboard,
   over 0 and at most 1, typed or put in from RDF_TABLE, the values ČSN EN 61439-2 (PSC) and
-  61439-3 (DBO) assume, shown in the dialog with a button for each and in the protocol):
+  61439-3 (DBO) assume, shown in the dialog with a button for each, what RDF is in the help a "?" beside its field
+  opens (_rdf_help), and in the protocol):
   losses' "rated" (devices, wires, strip terminals at their rated currents) times RDF², plus
   "extra", is "total". losses(doc, board, wires, settings): the devices on its rails (an
   overload relay under its contactor too) with their losses as given ("losses" by
