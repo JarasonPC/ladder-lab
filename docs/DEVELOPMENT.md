@@ -936,7 +936,11 @@ Architecture and conventions of the code base. Read this before changing the cod
 - Area switch of a residential installation: Floor plan | Single-line diagram | Consumer unit
   in that order (main.gd _update_environment moves the floor plan's button first and shows
   _unit_button; the schematic's button named Single-line diagram), Consumer unit the floor
-  plan's area with the unit open (_sync_area_buttons)
+  plan's area with the unit open (_sync_area_buttons); Undo and Redo in the toolbar in each
+  of the three (main.gd _edit_tools, Delete and the schematic's tools only where they
+  apply); the status bar's hint one short sentence on what the mouse does there, then how
+  the view moves (on the floor plan by its tool, FloorPlanView.hint, following
+  FloorPlanCanvas.tool_changed)
 - Workspace (ui/workspace/, Schematic | Workspace in the toolbar, a segmented switch like Edit |
   Simulate; both modes, the simulation runs on whichever is shown): WorkspaceView in place of the
   page tabs and the schematic (SchematicView hidden, editor inactive), its WorkspaceTree in a

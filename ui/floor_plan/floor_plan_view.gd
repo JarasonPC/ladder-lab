@@ -757,6 +757,37 @@ func show_tab(tab: int) -> void:
 	tab_changed.emit(tab)
 
 
+## One short sentence on the tool in use, for the status bar (what moving
+## the view takes the main window adds).
+func hint() -> String:
+	match canvas.tool:
+		FloorPlanCanvas.Tool.ROOM:
+			return tr("Drag from corner to corner, or type the width and depth in mm")
+		FloorPlanCanvas.Tool.OUTLINE:
+			return tr("Click each corner; a click on the first, Enter or a right click closes the room")
+		FloorPlanCanvas.Tool.WALL:
+			return tr("Click where each wall starts and ends; a right click ends")
+		FloorPlanCanvas.Tool.DOOR, FloorPlanCanvas.Tool.WINDOW:
+			return tr("Click a wall to put it in; a double click on one sets it")
+		FloorPlanCanvas.Tool.JOIN:
+			return tr("Click two rooms that touch")
+		FloorPlanCanvas.Tool.WIRE:
+			return tr("Drag from a light switch to the luminaire it switches")
+		FloorPlanCanvas.Tool.DIMENSION:
+			return tr("Click a wall for its dimensions, or drag between two points")
+		FloorPlanCanvas.Tool.MEASURE:
+			return tr("Drag between two points to measure")
+		FloorPlanCanvas.Tool.NOTE:
+			return tr("Press where the note points and let go where its text goes")
+		FloorPlanCanvas.Tool.PLACE, FloorPlanCanvas.Tool.PLACE_ROOM:
+			return tr("Click where it goes; a right click ends")
+		FloorPlanCanvas.Tool.SCALE:
+			return tr("Click two points a known distance apart")
+		FloorPlanCanvas.Tool.UNDERLAY:
+			return tr("Drag the underlay into place")
+	return tr("A click selects, a drag moves, a double click edits")
+
+
 ## The tab of the tools shown (see [constant TAB_BUILDING]).
 func shown_tab() -> int:
 	return _tab

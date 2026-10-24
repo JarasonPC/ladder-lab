@@ -242,6 +242,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
 - A house installation has three views in the toolbar, in the order it is drawn: Floor
   plan, Single-line diagram and Consumer unit; the consumer unit opens with one click, its
   name beside Inside | Door, without the floor plan's palette
+- Undo and Redo are in the toolbar in every view of a house installation, and the status
+  bar says in one short sentence what a click or drag does with the tool in use
 - A house installation is drawn, not simulated: its toolbar has no Edit | Simulate switch,
   so the floor plan, single-line diagram and consumer unit are always ready for editing
 - LadderLab opens with a start window: create a project or open one; tick Program guide to

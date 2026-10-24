@@ -5135,9 +5135,6 @@ msgstr ""
 msgid "Heights are to the middle of the box; a height other than these is written beside the part (h)."
 msgstr ""
 
-msgid "Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms."
-msgstr ""
-
 msgid "Prototype residential"
 msgstr ""
 
@@ -5254,9 +5251,6 @@ msgstr ""
 
 #, c-format
 msgid "Height of %s"
-msgstr ""
-
-msgid "Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
 msgstr ""
 
 msgid "Join two rooms into one (an L-shaped room and the like): click one, then the other touching it"
@@ -8169,10 +8163,6 @@ msgstr ""
 msgid "More about groups and protection"
 msgstr ""
 
-
-msgid "A click picks a device, its arrows move it. Ctrl+wheel zooms, right or middle drag moves."
-msgstr ""
-
 #, c-format
 msgid "Add %d new part from the schematic"
 msgid_plural "Add %d new parts from the schematic"
@@ -8273,4 +8263,56 @@ msgstr ""
 
 
 msgid "Size"
+msgstr ""
+
+
+msgid "A click picks a device, its arrows move it"
+msgstr ""
+
+msgid "A click selects, a drag moves, a double click edits"
+msgstr ""
+
+msgid "A click selects, a drag moves; a part from the palette goes where clicked"
+msgstr ""
+
+msgid "Click a wall for its dimensions, or drag between two points"
+msgstr ""
+
+msgid "Click a wall to put it in; a double click on one sets it"
+msgstr ""
+
+msgid "Click each corner; a click on the first, Enter or a right click closes the room"
+msgstr ""
+
+msgid "Click two points a known distance apart"
+msgstr ""
+
+msgid "Click two rooms that touch"
+msgstr ""
+
+msgid "Click where each wall starts and ends; a right click ends"
+msgstr ""
+
+msgid "Click where it goes; a right click ends"
+msgstr ""
+
+msgid "Ctrl+wheel zooms, right drag moves"
+msgstr ""
+
+msgid "Drag between two points to measure"
+msgstr ""
+
+msgid "Drag from a light switch to the luminaire it switches"
+msgstr ""
+
+msgid "Drag from corner to corner, or type the width and depth in mm"
+msgstr ""
+
+msgid "Drag the underlay into place"
+msgstr ""
+
+msgid "Press where the note points and let go where its text goes"
+msgstr ""
+
+msgid "wheel zooms, right drag pans"
 msgstr ""
