@@ -5,19 +5,25 @@ extends VBoxContainer
 ## (W, from its maker), each group of wires' cross-section (mm²), the strip
 ## terminals' and further losses (W). A field not filled in says "enter" in
 ## the warning colour. Beside each its loss (W), under them the total.
-## Used in the dialog and over the whole screen ([HeatRiseDialog]).
+## A device's type from its maker has a text field of its own (column
+## "Type"). Used in the dialog and over the whole screen ([HeatRiseDialog]).
 
 ## [param value] was typed for row [param what] ([constant HeatRiseDialog.ROW_DEVICE]
 ## …) of [param name] (the device's designation, the current); null when
-## the field was emptied or is not a number.
+## the field was emptied or is not a number; a device's type
+## ([constant HeatRiseDialog.ROW_TYPE]) as text.
 signal typed(what: String, name: String, value: Variant)
 
 ## Width of the text fields and of the first column.
 var field_width: float = 80.0
 var item_width: float = 64.0
+var type_width: float = 96.0
+## Least width of the description column.
+var text_width: float = 120.0
 
 var _grid: GridContainer
-## Per row: {"what", "name", "field" (LineEdit), "loss" (Label)}.
+## Per row: {"what", "name", "field" (LineEdit), "type" (a device's LineEdit
+## for its type, else null), "loss" (Label)}.
 var _rows: Array[Dictionary] = []
 var _total: Label
 var _total_title: Label
@@ -32,7 +38,7 @@ func _init() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(scroll)
 	_grid = GridContainer.new()
-	_grid.columns = 4
+	_grid.columns = 5
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 4)
@@ -47,15 +53,15 @@ func fill(doc: SchematicDocument, losses: Dictionary) -> void:
 		child.queue_free()
 	_rows.clear()
 	# The heading row.
-	var titles: Array[String] = [tr("Item"), tr("What"), tr("Given"), tr("Loss (W)")]
-	var widths: Array[float] = [item_width, -1.0, field_width, 70.0]
-	for i: int in 4:
+	var titles: Array[String] = [tr("Item"), tr("What"), tr("Type"), tr("Given"), tr("Loss (W)")]
+	var widths: Array[float] = [item_width, -1.0, type_width, field_width, 70.0]
+	for i: int in 5:
 		var head: Label = _label(titles[i], widths[i])
 		head.theme_type_variation = "MutedLabel"
-		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if i == 3 else HORIZONTAL_ALIGNMENT_LEFT
+		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if i == 4 else HORIZONTAL_ALIGNMENT_LEFT
 		_grid.add_child(head)
 	for device: Dictionary in losses["devices"]:
-		_row(HeatRiseDialog.ROW_DEVICE, device["designation"], "-" + device["designation"], HeatRiseReport.device_text(doc, device["designation"]), device["power"], "W")
+		_row(HeatRiseDialog.ROW_DEVICE, device["designation"], "-" + device["designation"], HeatRiseReport.device_text(doc, device["designation"]), device["power"], "W", device["type"])
 	for group: Dictionary in losses["groups"]:
 		_row(HeatRiseDialog.ROW_WIRES, group["key"], "%s A" % group["key"], tr("Wires (%d, %s m), cross-section") % [group["count"], String.num(group["length"], 1)], group["section"], "mm²")
 	if losses["terminal_count"] > 0:
@@ -63,7 +69,7 @@ func fill(doc: SchematicDocument, losses: Dictionary) -> void:
 	_rated = _sum_row(tr("At the rated currents"))
 	_row(HeatRiseDialog.ROW_EXTRA, "", "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], "W")
 	_total = _sum_row("")
-	_total_title = _grid.get_child(_grid.get_child_count() - 3)
+	_total_title = _grid.get_child(_grid.get_child_count() - 4)
 	show_losses(losses)
 
 
@@ -99,6 +105,14 @@ func field(what: String, name: String) -> LineEdit:
 	return null
 
 
+## The text field for the type of device [param name], null for none.
+func type_field(name: String) -> LineEdit:
+	for row: Dictionary in _rows:
+		if row["what"] == HeatRiseDialog.ROW_DEVICE and row["name"] == name:
+			return row["type"]
+	return null
+
+
 ## The text fields, in the order of the rows.
 func fields() -> Array[LineEdit]:
 	var result: Array[LineEdit] = []
@@ -107,14 +121,32 @@ func fields() -> Array[LineEdit]:
 	return result
 
 
-func _row(what: String, name: String, item: String, text: String, given: Variant, unit: String) -> void:
+## A row; [param type] is the device's type as given (null: a row that is
+## not a device's, without a type field).
+func _row(what: String, name: String, item: String, text: String, given: Variant, unit: String, type: Variant = null) -> void:
 	_grid.add_child(_label(item, item_width))
 	var description: Label = _label(text, -1.0)
+	description.custom_minimum_size.x = text_width
 	description.tooltip_text = text
 	description.mouse_filter = Control.MOUSE_FILTER_PASS
 	description.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	description.clip_text = true
 	_grid.add_child(description)
+	var type_input: LineEdit = null
+	if type != null:
+		type_input = LineEdit.new()
+		type_input.custom_minimum_size.x = type_width
+		type_input.select_all_on_focus = true
+		type_input.text = str(type)
+		type_input.placeholder_text = tr("enter")
+		type_input.add_theme_color_override("font_placeholder_color", AppTheme.warning)
+		type_input.tooltip_text = tr("Type of -%s from its maker (e.g. its order code)") % name
+		type_input.text_changed.connect(func(value: String) -> void: typed.emit(HeatRiseDialog.ROW_TYPE, name, value))
+		_grid.add_child(type_input)
+	else:
+		var none: Control = Control.new()
+		none.custom_minimum_size.x = type_width
+		_grid.add_child(none)
 	var box: HBoxContainer = HBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
 	var input: LineEdit = LineEdit.new()
@@ -137,16 +169,18 @@ func _row(what: String, name: String, item: String, text: String, given: Variant
 	var loss: Label = _label("", 70.0)
 	loss.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_grid.add_child(loss)
-	_rows.append({"what": what, "name": name, "field": input, "loss": loss})
+	_rows.append({"what": what, "name": name, "field": input, "type": type_input, "loss": loss})
 
 
 ## A row of a sum: [param title] across, its value (returned) on the right.
 func _sum_row(title: String) -> Label:
 	_grid.add_child(Control.new())
 	var heading: Label = _label(title, -1.0)
+	heading.custom_minimum_size.x = text_width
 	heading.add_theme_color_override("font_color", AppTheme.accent)
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_grid.add_child(heading)
+	_grid.add_child(Control.new())
 	_grid.add_child(Control.new())
 	var value: Label = _label("", 70.0)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT

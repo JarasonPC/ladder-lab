@@ -10,7 +10,7 @@ enum Mode { EDIT, SIMULATE }
 enum Area { SCHEMATIC, WORKSPACE }
 enum FileMenuId { NEW, OPEN, SAVE, SAVE_AS, EXPORT_PNG, EXPORT_PDF, TITLE_BLOCK, QUIT, ASSOCIATE, EXPORT_CSV, SAVE_PLAN, SAVE_FAULTS }
 enum ViewMenuId { FULLSCREEN, THEME_DARK, THEME_LIGHT, WHITE_PAPER, GRID, WIRE_NUMBERS, PATH_NUMBERS, VOLTAGE_VIEW, CURRENT_VIEW, DUCT_COVERS, PAPER_NONE, PAPER_PORTRAIT, SCALE = 20, PAPER = 40 }
-enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, LANGUAGE = 10 }
+enum SettingsMenuId { WIRE_POLES, WIRE_ON_DROP, CABLES_CZECH, CABLES_HARMONISED, MANUFACTURER, LANGUAGE = 10 }
 enum DialogPurpose { OPEN, SAVE, EXPORT_PNG, EXPORT_PDF, EXPORT_CSV, SAVE_PLAN }
 enum PageMenuId { RENAME, MOVE_LEFT, MOVE_RIGHT, DELETE, WINDOW }
 enum HelpMenuId { CHECK_UPDATES, CHECK_AT_START, WEBSITE, REPORT, ABOUT, DATASHEETS, TOUR }
@@ -131,6 +131,12 @@ var _rename_field: LineEdit
 var _title_block_dialog: ConfirmationDialog
 var _title_block_edits: Dictionary[String, LineEdit] = {}
 var _title_block_labels: Dictionary[String, Label] = {}
+## Settings > Switchboard manufacturer…: a field for each of [constant
+## Manufacturer.FIELDS].
+var _maker_dialog: ConfirmationDialog
+var _maker_hint: Label
+var _maker_edits: Dictionary[String, LineEdit] = {}
+var _maker_labels: Dictionary[String, Label] = {}
 ## True while the tabs are being filled (their signals are ignored).
 var _updating_pages: bool = false
 ## Renders the pages for PNG and PDF export.
@@ -138,7 +144,7 @@ var _sheet_renderer: SheetRenderer
 ## Shows the sheets before they are exported; what it shows is saved.
 var _export_preview: ExportPreview
 ## What a PDF export holds (see [method ExportPreview.contents]), remembered.
-var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "heat_rise": true, "plc_programs": true, "timers": true, "workspace": true, "parts_list": true}
+var _export_contents: Dictionary[String, bool] = {"schematic": true, "stations": true, "switchboards": true, "heat_rise": true, "interface": true, "instructions": true, "plc_programs": true, "timers": true, "workspace": true, "parts_list": true}
 var _export_pdf: bool = false
 ## Largest paper of the exported sheets (user settings, "export"/"largest_paper").
 var _export_paper: String = SheetLayout.DEFAULT_LARGEST
@@ -941,6 +947,35 @@ func _build_dialogs() -> void:
 	_title_block_dialog.add_child(grid)
 	_title_block_dialog.confirmed.connect(_apply_title_block)
 	add_child(_title_block_dialog)
+	_maker_dialog = ConfirmationDialog.new()
+	var maker_box: VBoxContainer = VBoxContainer.new()
+	_maker_dialog.add_child(maker_box)
+	_maker_hint = _label(maker_box)
+	_maker_hint.theme_type_variation = "MutedLabel"
+	_maker_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_maker_hint.custom_minimum_size.x = 440.0
+	var maker_grid: GridContainer = GridContainer.new()
+	maker_grid.columns = 2
+	maker_box.add_child(maker_grid)
+	for field: String in Manufacturer.keys():
+		_maker_labels[field] = _label(maker_grid)
+		var maker_edit: LineEdit = LineEdit.new()
+		maker_edit.custom_minimum_size = Vector2(320, 0)
+		maker_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		maker_edit.add_theme_color_override("font_placeholder_color", AppTheme.warning)
+		maker_grid.add_child(maker_edit)
+		_maker_dialog.register_text_enter(maker_edit)
+		_maker_edits[field] = maker_edit
+	_maker_dialog.confirmed.connect(func() -> void:
+		var given: Dictionary = {}
+		for field: String in _maker_edits:
+			given[field] = _maker_edits[field].text
+		Manufacturer.data = Manufacturer.clean(given)
+		_save_settings()
+		_workspace.refresh()
+		for window: PlaceWindow in _place_windows():
+			window.refresh())
+	add_child(_maker_dialog)
 	_update_dialog = ConfirmationDialog.new()
 	_update_dialog.dialog_autowrap = true
 	_update_dialog.min_size = Vector2i(440, 0)
@@ -1134,6 +1169,13 @@ func _retranslate_dialogs() -> void:
 	for field: String in _title_block_labels:
 		_title_block_labels[field].text = _title_block_caption(field)
 	_title_block_edits["date"].placeholder_text = tr("Date of the export")
+	_maker_dialog.title = tr("Switchboard manufacturer")
+	_maker_dialog.ok_button_text = tr("OK")
+	_maker_dialog.cancel_button_text = tr("Cancel")
+	_maker_hint.text = tr("Who makes the switchboards: written into each switchboard's interface characteristics, operating instructions and temperature rise protocol in every schematic. An empty field is not given.")
+	for field: Array in Manufacturer.FIELDS:
+		_maker_labels[field[0]].text = tr(field[1])
+		_maker_edits[field[0]].placeholder_text = tr("enter")
 	_update_dialog.title = tr("Updates")
 	_about_dialog.retranslate()
 
@@ -1281,6 +1323,9 @@ func _rebuild_settings_menu() -> void:
 	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.CZECH)
 	popup.add_radio_check_item(tr("European (H07RN-F, H05VV5-F, NYY)"), SettingsMenuId.CABLES_HARMONISED)
 	popup.set_item_checked(popup.item_count - 1, WorkspaceCables.naming == WorkspaceCables.Naming.HARMONISED)
+	popup.add_separator(tr("Documents"))
+	popup.add_item(tr("Switchboard manufacturer…"), SettingsMenuId.MANUFACTURER)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Who makes the switchboards: the name, company ID, authorisation, address and contacts written into their documents"))
 	popup.add_separator(tr("Language"))
 	for i: int in LOCALE_NAMES.size():
 		popup.add_radio_check_item(LOCALE_NAMES[i], SettingsMenuId.LANGUAGE + i)
@@ -1301,6 +1346,11 @@ func _on_settings_menu(id: int) -> void:
 		for window: PlaceWindow in _place_windows():
 			window.refresh()
 		_save_settings()
+	elif id == SettingsMenuId.MANUFACTURER:
+		for field: String in _maker_edits:
+			_maker_edits[field].text = Manufacturer.value(field)
+		_maker_dialog.popup_centered()
+		_maker_edits["name"].grab_focus()
 	elif id >= SettingsMenuId.LANGUAGE:
 		set_language(id - SettingsMenuId.LANGUAGE)
 
@@ -2601,6 +2651,8 @@ func _prepare_export(contents: Dictionary) -> void:
 	_sheet_renderer.stations = contents.get("stations", false)
 	_sheet_renderer.switchboards = contents.get("switchboards", false)
 	_sheet_renderer.heat_rise = contents.get("heat_rise", false)
+	_sheet_renderer.interface = contents.get("interface", false)
+	_sheet_renderer.instructions = contents.get("instructions", false)
 	_sheet_renderer.plc_programs = contents.get("plc_programs", false)
 	_sheet_renderer.timers = contents.get("timers", false)
 	_sheet_renderer.workspace = contents.get("workspace", false)
@@ -2980,6 +3032,10 @@ func _load_settings() -> void:
 		_locale_index = maxi(LOCALES.find(str(config.get_value("view", "language", "en"))), 0)
 		_check_updates = bool(config.get_value("updates", "check_at_start", true))
 		_associate_files = bool(config.get_value("files", "associate", true))
+		var maker: Dictionary = {}
+		for key: String in Manufacturer.keys():
+			maker[key] = config.get_value("manufacturer", key, "")
+		Manufacturer.data = Manufacturer.clean(maker)
 		_welcomed = bool(config.get_value("tutorial", "welcomed", false))
 		var finished: Variant = config.get_value("tutorial", "finished", PackedStringArray())
 		if finished is PackedStringArray or finished is Array:
@@ -3025,6 +3081,10 @@ func _save_settings() -> void:
 	config.set_value("view", "language", LOCALES[_locale_index])
 	config.set_value("updates", "check_at_start", _check_updates)
 	config.set_value("files", "associate", _associate_files)
+	if config.has_section("manufacturer"):
+		config.erase_section("manufacturer")
+	for key: String in Manufacturer.data:
+		config.set_value("manufacturer", key, Manufacturer.data[key])
 	config.set_value("tutorial", "welcomed", _welcomed)
 	config.set_value("tutorial", "finished", PackedStringArray(_finished_lessons.keys()))
 	config.save(SETTINGS_PATH)

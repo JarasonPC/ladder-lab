@@ -159,7 +159,10 @@ const FORMAT: String = "ladder-lab"
 ## their own layer ("annotations_hidden"; their "layer" no more read).
 ## 55: a switchboard's "heat", the settings of its temperature rise
 ## calculation (see [method HeatRise.settings]; missing: the defaults).
-const VERSION: int = 55
+## 56: a switchboard's "documentation" (see [method
+## BoardDocumentation.clean]), its temperature rise settings' enclosure
+## loss "enclosure_loss" and the devices' "types".
+const VERSION: int = 56
 
 
 ## PLC program files (see [method save_plc_program]). 2: the network

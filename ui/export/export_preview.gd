@@ -3,9 +3,10 @@ extends ConfirmationDialog
 ## Shows the sheets about to be exported (PNG: the page shown, PDF: every
 ## page) as they will be saved, one at a time with page buttons, and the
 ## paper each is on. The wire numbers can be left out; a PDF holds, as
-## ticked, the schematic, the control stations, the switchboards, the PLC
-## programs, the time relays, the workspace and the parts list. OK asks where
-## to save.
+## ticked, the schematic, the control stations, the switchboards, their
+## temperature rise protocols, interface characteristics and operating
+## instructions, the PLC programs, the time relays, the workspace and the
+## parts list (in rows that wrap). OK asks where to save.
 
 ## Wire numbers were switched on or off: render the sheets again.
 signal wire_numbers_toggled(on: bool)
@@ -15,8 +16,8 @@ signal contents_changed
 signal paper_changed
 
 ## What a PDF can hold, in order (keys of [method contents]).
-const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "heat_rise", "plc_programs", "timers", "workspace", "parts_list"]
-const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "Temperature rise", "PLC programs", "Time relays", "Workspace", "Parts list"]
+const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "heat_rise", "interface", "instructions", "plc_programs", "timers", "workspace", "parts_list"]
+const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "Temperature rise", "Interface characteristics", "Operating instructions", "PLC programs", "Time relays", "Workspace", "Parts list"]
 
 var _picture: TextureRect
 var _status: Label
@@ -25,7 +26,7 @@ var _next: Button
 var _numbers: CheckBox
 var _paper_label: Label
 var _paper: OptionButton
-var _contents_row: HBoxContainer
+var _contents_row: HFlowContainer
 var _contents: Dictionary[String, CheckBox] = {}
 var _images: Array[Image] = []
 var _layouts: Array[SheetLayout] = []
@@ -76,8 +77,9 @@ func _init() -> void:
 	_paper.select(SheetLayout.paper_index(SheetLayout.DEFAULT_LARGEST))
 	_paper.item_selected.connect(func(_index: int) -> void: paper_changed.emit())
 	bar.add_child(_paper)
-	_contents_row = HBoxContainer.new()
-	_contents_row.add_theme_constant_override("separation", 12)
+	_contents_row = HFlowContainer.new()
+	_contents_row.add_theme_constant_override("h_separation", 12)
+	_contents_row.add_theme_constant_override("v_separation", 4)
 	box.add_child(_contents_row)
 	for key: String in CONTENTS:
 		var check: CheckBox = CheckBox.new()
@@ -110,7 +112,9 @@ func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, larges
 		check.set_pressed_no_signal(bool(chosen.get(CONTENTS[i], true)))
 		check.disabled = not bool(available.get(CONTENTS[i], true))
 	_contents["timers"].tooltip_text = tr("The function, times and control input of each time relay, with the timing diagram of its function")
-	_contents["heat_rise"].tooltip_text = tr("The protocol of each switchboard's temperature rise calculation: the data given, the losses, Ae, each step of the calculation, the temperatures and the curve")
+	_contents["heat_rise"].tooltip_text = tr("The protocol of each switchboard's temperature rise calculation: the summary and balance, the parameters, the data given, the losses, Ae, each step of the calculation, the temperatures and the curve")
+	_contents["interface"].tooltip_text = tr("The interface characteristics of each switchboard after ČSN EN 61439-1: its maker, type, serial number, customer and the 26 characteristics given in Documentation…")
+	_contents["instructions"].tooltip_text = tr("The operating and maintenance instructions of each switchboard: the maker's contacts, the technical data and how to operate the protective devices it has")
 	_contents["workspace"].tooltip_text = tr("Each floor on a sheet of its own, with the layers shown on its plan") if residential else ""
 	_update_numbers()
 	rendering()

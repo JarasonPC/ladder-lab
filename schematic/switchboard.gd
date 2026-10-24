@@ -3,8 +3,9 @@ extends RefCounted
 ## A switchboard (rozvaděč, location "+RA1") of the workspace: its DIN rails
 ## ([CabinetRail]) with the devices and terminal strips of the circuit, top to
 ## bottom, the push buttons, switches and signal lamps on its door, and where
-## it sits on the workspace, and what its temperature rise calculation is
-## given ([HeatRise]). Design data only.
+## it sits on the workspace, what its temperature rise calculation is given
+## ([HeatRise]) and what its documentation is ([BoardDocumentation]).
+## Design data only.
 
 ## Items in a row on a new door.
 const DOOR_COLUMNS: int = 3
@@ -23,6 +24,9 @@ var position: Vector2 = Vector2.ZERO
 ## What its temperature rise calculation was given beyond the drawing (see
 ## [method HeatRise.settings]); nothing for what was not.
 var heat: Dictionary = {}
+## What its documentation was given beyond the drawing (see [method
+## BoardDocumentation.clean]); nothing for what was not.
+var documentation: Dictionary = {}
 
 
 func _init(p_name: String = "", p_position: Vector2 = Vector2.ZERO) -> void:
@@ -41,6 +45,8 @@ func to_data() -> Dictionary:
 		d["door"] = {"columns": door.columns, "items": door.to_data()["items"]}
 	if not heat.is_empty():
 		d["heat"] = heat.duplicate(true)
+	if not documentation.is_empty():
+		d["documentation"] = documentation.duplicate(true)
 	return d
 
 
@@ -66,4 +72,5 @@ static func from_data(data: Variant) -> Switchboard:
 			board.door = door
 	board.door.name = ""
 	board.heat = HeatRise.settings(d.get("heat", {}))
+	board.documentation = BoardDocumentation.clean(d.get("documentation", {}))
 	return board

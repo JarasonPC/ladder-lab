@@ -62,8 +62,12 @@ const SMALL_FROM: float = 0.08
 ## nets of each rated current ("sections": mm² by the current as text,
 ## "16"), what the strip terminals lose together ("terminals", W), the
 ## further losses of what is not drawn ("extra", W: lighting, fans …) and
-## the rated diversity factor "rdf" (over 0, at most 1).
-const NUMBERS: PackedStringArray = ["height", "width", "depth", "inlet", "outlet", "ambient", "limit", "terminals", "extra", "rdf"]
+## the rated diversity factor "rdf" (over 0, at most 1). For the protocol
+## only, not the calculation: the power loss the enclosure takes as its
+## maker gives it ("enclosure_loss", W, over 0; the balance, [method
+## balance]) and each device's type from its maker ("types": text by
+## designation, "LTE-16B-1").
+const NUMBERS: PackedStringArray = ["height", "width", "depth", "inlet", "outlet", "ambient", "limit", "terminals", "extra", "rdf", "enclosure_loss"]
 
 ## The rated diversity factor (RDF, součinitel soudobosti) as ČSN EN 61439-2
 ## (PSC, power switchgear) and ČSN EN 61439-3 (DBO, distribution boards
@@ -360,6 +364,9 @@ static func settings(data: Variant) -> Dictionary:
 			if key == "rdf":
 				if value > 0.0 and value <= 1.0:
 					s[key] = value
+			elif key == "enclosure_loss":
+				if value > 0.0:
+					s[key] = value
 			elif (key in ["ambient", "limit"] and absf(value) < 200.0) or (key not in ["ambient", "limit"] and value >= 0.0):
 				s[key] = value
 	if _is_number(d.get("mounting")) and int(d["mounting"]) >= 0 and int(d["mounting"]) < MOUNTINGS.size():
@@ -377,6 +384,14 @@ static func settings(data: Variant) -> Dictionary:
 					given[str(name)] = float(value)
 			if not given.is_empty():
 				s[key] = given
+	if d.get("types") is Dictionary:
+		var types: Dictionary = {}
+		for name: Variant in d["types"]:
+			var text: Variant = d["types"][name]
+			if text is String and not (text as String).strip_edges().is_empty():
+				types[str(name)] = (text as String).strip_edges()
+		if not types.is_empty():
+			s["types"] = types
 	return s
 
 
@@ -458,7 +473,8 @@ static func missing(s: Dictionary, lost: Dictionary) -> Array[Dictionary]:
 ## The power lost in switchboard [param b] of [param doc] at the rated
 ## currents, with [param wires] its wiring ([member CabinetWiring.wires]) and
 ## [param s] its settings: {"devices": [{"designation", "kind"
-## ([enum CabinetDevices.Kind]), "power" (W as given, null while not)}],
+## ([enum CabinetDevices.Kind]), "power" (W as given, null while not),
+## "type" (its maker's type as given, "" while not)}],
 ## "groups": the wires by the current of their net, largest first,
 ## [{"key" (the current as text), "amperes", "count", "length" (m),
 ## "section" (mm² as given, null while not), "power" (W, null while the
@@ -475,6 +491,7 @@ static func losses(doc: SchematicDocument, b: int, wires: Array, s: Dictionary) 
 	var circuit: Circuit = doc.circuit
 	var given: Dictionary = s.get("losses", {})
 	var sections: Dictionary = s.get("sections", {})
+	var types: Dictionary = s.get("types", {})
 	var devices: Array[Dictionary] = []
 	var under: Dictionary[String, String] = CabinetDevices.overloads_under_contactors(circuit)
 	var strips: Array[String] = []
@@ -492,7 +509,8 @@ static func losses(doc: SchematicDocument, b: int, wires: Array, s: Dictionary) 
 					var c: CircuitComponent = CabinetDevices.device(circuit, designation)
 					if c != null:
 						devices.append({"designation": designation, "kind": CabinetDevices.kind_of(c),
-							"power": float(given[designation]) if given.has(designation) else null})
+							"power": float(given[designation]) if given.has(designation) else null,
+							"type": types.get(designation, "")})
 	var net: Dictionary[String, int] = CabinetDevices.nets(circuit)
 	var current: Dictionary[int, float] = net_currents(circuit, net)
 	var by_key: Dictionary = {}
@@ -547,6 +565,16 @@ static func losses(doc: SchematicDocument, b: int, wires: Array, s: Dictionary) 
 	return {"devices": devices, "groups": groups, "wire_count": wire_count, "wire_length": wire_length,
 		"terminal_count": terminal_count, "terminals": s.get("terminals"), "extra": s.get("extra"),
 		"rated": rated, "rdf": rdf, "total": total}
+
+
+## What the enclosure can still take: the power loss its maker gives it
+## ("enclosure_loss" of [param s]) less the total P of [param lost] (see
+## [method losses]); below 0 it loses more than it takes. Null while either
+## is missing.
+static func balance(s: Dictionary, lost: Dictionary) -> Variant:
+	if not s.has("enclosure_loss") or lost["total"] == null:
+		return null
+	return float(s["enclosure_loss"]) - float(lost["total"])
 
 
 ## The largest rated current (A) of a breaker, an RCD, a fuse or an overload

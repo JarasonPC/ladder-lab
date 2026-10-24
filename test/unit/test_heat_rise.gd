@@ -275,13 +275,13 @@ func test_protocol_shows_the_whole_calculation() -> void:
 	assert_string_contains(all, "%s K" % HeatRiseReport._n(e["result"]["top"], 2), "Δt1,0 as worked out")
 	assert_eq(rows.filter(func(r: Dictionary) -> bool: return r["type"] == "curve").size(), 1, "the curve")
 	# Shared out over A4 sheets: every row once, a table going on repeats its heading.
-	var sheets: Array[Array] = HeatRiseSheet.split(rows)
+	var sheets: Array[Array] = ReportSheet.split(rows)
 	assert_gt(sheets.size(), 0)
 	for sheet: Array in sheets:
 		var height: float = 0.0
 		for row: Dictionary in sheet:
-			height += HeatRiseSheet.HEIGHTS[row["type"]]
-		assert_lte(height, HeatRiseSheet.SIZE.y + 0.01, "fits its sheet")
+			height += ReportSheet.height_of(row)
+		assert_lte(height, ReportSheet.SIZE.y + 0.01, "fits its sheet")
 	# Not all given: says what is missing, no calculation.
 	doc.switchboards[0].heat.erase("ambient")
 	rows = HeatRiseReport.new().rows(doc, 0)

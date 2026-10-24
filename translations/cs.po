@@ -7585,3 +7585,588 @@ msgstr "Součinitel soudobosti RDF = %s, jeden pro celý rozváděč (ČSN EN 61
 
 msgid "Total P (RDF = %s)"
 msgstr "Celkem P (RDF = %s)"
+
+msgid "Name or business name"
+msgstr "Jméno nebo obchodní firma"
+
+msgid "Company ID (IČ)"
+msgstr "IČ"
+
+msgid "Authorisation"
+msgstr "Oprávnění"
+
+msgid "Trade name"
+msgstr "Obchodní název"
+
+msgid "Address"
+msgstr "Adresa"
+
+msgid "Phone"
+msgstr "Telefon"
+
+msgid "E-mail"
+msgstr "E-mail"
+
+msgid "Web"
+msgstr "Web"
+
+msgid "Original manufacturer"
+msgstr "Původní výrobce"
+
+msgid "Switchboard type"
+msgstr "Typ rozváděče"
+
+msgid "Material of the enclosure"
+msgstr "Materiál skříně"
+
+msgid "Metal"
+msgstr "kovový"
+
+msgid "Plastic"
+msgstr "plastový"
+
+msgid "Serial number of the switchboard"
+msgstr "Výrobní číslo rozváděče"
+
+msgid "Order / project number"
+msgstr "Zakázka / projekt číslo"
+
+msgid "Customer / investor"
+msgstr "Odběratel / investor"
+
+msgid "Rated voltage (Un)"
+msgstr "Jmenovité napětí (Un)"
+
+msgid "Rated operational voltage (Ue), (Ue ≥ Un)"
+msgstr "Jmenovité pracovní napětí (Ue), (Ue ≥ Un)"
+
+msgid "Rated insulation voltage (Ui)"
+msgstr "Jmenovité izolační napětí (Ui)"
+
+msgid "Rated impulse withstand voltage (Uimp)"
+msgstr "Jmenovité impulzní výdržné napětí (Uimp)"
+
+msgid "Rated current of the assembly (InA)"
+msgstr "Jmenovitý proud rozvodnice (InA)"
+
+msgid "Rated current of the main circuit (Inc) ≤ InA"
+msgstr "Jmenovitý proud hlavního obvodu (Inc) ≤ InA"
+
+msgid "Rated peak withstand current (Ipk)"
+msgstr "Jmenovitý dynamický proud (Ipk)"
+
+msgid "Rated diversity factor (RDF)"
+msgstr "Součinitel soudobosti (RDF)"
+
+msgid "Rated frequency (fn)"
+msgstr "Jmenovitý kmitočet (fn)"
+
+msgid "Additional requirements depending on the specific service conditions of a functional unit (e.g. type of coordination, overload characteristics)"
+msgstr "Doplňující požadavky závislé na specifických provozních podmínkách funkční jednotky (např. typ koordinace, charakteristiky přetížení)"
+
+msgid "Pollution degree"
+msgstr "Stupeň znečištění"
+
+msgid "Types of system earthing the assembly is designed for"
+msgstr "Typy uzemnění soustavy, pro kterou je rozvodnice určena"
+
+msgid "Indoor and/or outdoor installation"
+msgstr "Vnitřní a/nebo venkovní instalace"
+
+msgid "Indoor installation"
+msgstr "vnitřní instalace"
+
+msgid "Outdoor installation"
+msgstr "venkovní instalace"
+
+msgid "Indoor and outdoor installation"
+msgstr "vnitřní i venkovní instalace"
+
+msgid "Stationary or movable"
+msgstr "Stabilní nebo mobilní"
+
+msgid "Stationary"
+msgstr "stabilní"
+
+msgid "Movable"
+msgstr "mobilní"
+
+msgid "Degree of protection"
+msgstr "Stupeň ochrany"
+
+msgid "Intended for use by skilled or ordinary persons"
+msgstr "Určen pro používání znalými osobami nebo laiky"
+
+msgid "Ordinary persons"
+msgstr "laická obsluha"
+
+msgid "Skilled persons"
+msgstr "znalé osoby"
+
+msgid "Electromagnetic compatibility (EMC) classification"
+msgstr "Třídění elektromagnetické kompatibility (EMC)"
+
+msgid "Environment A – industrial"
+msgstr "prostředí A – průmyslové"
+
+msgid "Environment B – residential"
+msgstr "prostředí B – domácnosti"
+
+msgid "Special service conditions, if applicable"
+msgstr "Zvláštní provozní podmínky, přichází-li to v úvahu"
+
+msgid "External design"
+msgstr "Vnější konstrukce"
+
+msgid "Protection against mechanical impact"
+msgstr "Ochrana proti mechanickým rázům"
+
+msgid "Type of construction"
+msgstr "Typ konstrukce"
+
+msgid "Fixed parts"
+msgstr "pevné části"
+
+msgid "Removable parts"
+msgstr "vyjímatelné části"
+
+msgid "Withdrawable parts"
+msgstr "výsuvné části"
+
+msgid "Nature of the short-circuit protective device(s)"
+msgstr "Druh zařízení jistícího (jistících) před zkratem"
+
+msgid "Fuses"
+msgstr "Pojistky"
+
+msgid "Circuit breaker and fuses"
+msgstr "Jistič a pojistky"
+
+msgid "Measures for protection against electric shock"
+msgstr "Opatření pro ochranu před úrazem elektrickým proudem"
+
+msgid "Class I – automatic disconnection of supply"
+msgstr "I. třída – automatické odpojení od zdroje"
+
+msgid "Class II – double insulation"
+msgstr "II. třída – dvojitá izolace"
+
+msgid "Overall dimensions, including projections such as handles, covers, doors (H × W × D mm)"
+msgstr "Celkové rozměry včetně výstupků, např. rukojetí, krytů, dveří (V × Š × H mm)"
+
+msgid "Operating conditions"
+msgstr "Provozní podmínky"
+
+msgid "Normal service conditions"
+msgstr "normální"
+
+msgid "Special service conditions"
+msgstr "zvláštní"
+
+msgid "Summary"
+msgstr "Souhrn"
+
+msgid "Standards"
+msgstr "Normy"
+
+msgid "Location"
+msgstr "Umístění"
+
+msgid "Dimensions (w × h × d)"
+msgstr "Rozměry (š × v × h)"
+
+msgid "Effective cooling surface Ae"
+msgstr "Účinný chladicí povrch skříně Ae"
+
+msgid "%d sections, %s m² each"
+msgstr "%d sekcí, každá %s m²"
+
+msgid "not worked out"
+msgstr "nevypočteno"
+
+msgid "Power loss the enclosure takes (from its maker)"
+msgstr "Ztrátový výkon rozváděče (dle výrobce skříně)"
+
+msgid "Power lost by the components at the rated currents"
+msgstr "Ztrátový výkon komponent při jmenovitých proudech"
+
+msgid "Power lost with the diversity factor (RDF² · P + further losses)"
+msgstr "Ztrátový výkon po započtení součinitele soudobosti (RDF² · P + další ztráty)"
+
+msgid "Remaining available power loss"
+msgstr "Zbývající dostupný ztrátový výkon"
+
+msgid "Temperature of the air at the top (at most)"
+msgstr "Teplota vzduchu nahoře (nejvýše)"
+
+msgid "Date: %s  ·  Worked out by: %s"
+msgstr "Datum: %s  ·  Výpočet provedl: %s"
+
+msgid "Evaluation: %s"
+msgstr "Zhodnocení: %s"
+
+msgid "Warning: the documentation is valid only with the devices fitted exactly as the switchboard maker's documentation gives them – the table of parameters."
+msgstr "Upozornění: dokumentace je platná pouze při osazení přístrojů přesně podle dokumentace výrobce rozváděče – tabulky parametrů."
+
+msgid "Parameters"
+msgstr "Parametry"
+
+msgid "Pcs"
+msgstr "Kusů"
+
+msgid "Total (W)"
+msgstr "Celkem (W)"
+
+msgid "Strip terminals"
+msgstr "Svorkovnice"
+
+msgid "Total for the components at the rated currents"
+msgstr "Celkem za komponenty při jmenovitých proudech"
+
+msgid "Rated diversity factor RDF (the losses RDF² times)"
+msgstr "Součinitel soudobosti RDF (ztráty RDF²krát)"
+
+msgid "Power lost by the components with the diversity factor: RDF² · P"
+msgstr "Ztrátový výkon komponent po započtení součinitele soudobosti: RDF² · P"
+
+msgid "Enclosure %s: the power loss it takes"
+msgstr "Rozvodnice %s: ztrátový výkon, který odvede"
+
+msgid "Enclosure: the power loss it takes"
+msgstr "Rozvodnice: ztrátový výkon, který odvede"
+
+msgid "Overall balance (below 0: the enclosure takes more)"
+msgstr "Celková bilance (pod 0: skříň odvede víc)"
+
+msgid "Each device's loss at its rated current from its maker, as in the parameters."
+msgstr "Ztráta každého přístroje při jeho jmenovitém proudu dle výrobce, jak ji uvádějí parametry."
+
+msgid "Arc fault detection device with circuit breaker"
+msgstr "Detektor obloukových poruch s jističem"
+
+msgid "Residual current device with overcurrent release (RCBO)"
+msgstr "Proudový chránič s nadproudovou ochranou (RCBO)"
+
+msgid "not made, values are still to give (see the end)."
+msgstr "neprovedeno, zbývá zadat údaje (viz konec)."
+
+msgid "the air at the top reaches %s °C, within the %s °C allowed"
+msgstr "vzduch nahoře dosáhne %s °C, v mezích dovolených %s °C"
+
+msgid "the air at the top reaches %s °C, warmer than the %s °C allowed"
+msgstr "vzduch nahoře dosáhne %s °C, víc než dovolených %s °C"
+
+msgid "the power loss the enclosure takes is not given"
+msgstr "ztrátový výkon rozváděče není zadán"
+
+msgid "the %s W lost are within the %s W the enclosure takes (%s W left)"
+msgstr "ztráty %s W nepřekračují %s W, které skříň odvede (zbývá %s W)"
+
+msgid "the %s W lost are %s W more than the %s W the enclosure takes"
+msgstr "ztráty %s W jsou o %s W vyšší než %s W, které skříň odvede"
+
+msgid "Complies"
+msgstr "Vyhovuje"
+
+msgid "Does not comply"
+msgstr "Nevyhovuje"
+
+msgid "Not decided"
+msgstr "Nerozhodnuto"
+
+msgid "The power loss the enclosure takes (from its maker)"
+msgstr "Ztrátový výkon rozváděče (dle výrobce skříně)"
+
+msgid "The maker's type of -%s"
+msgstr "Typ -%s dle výrobce"
+
+msgid "%s (in Documentation…)"
+msgstr "%s (v Dokumentaci…)"
+
+msgid "Still to give for the protocol"
+msgstr "Pro protokol zbývá zadat"
+
+msgid "Distribution board (DBO) intended to be operated by ordinary persons, after ČSN EN 61439-1 ed. 3 and ČSN EN 61439-3"
+msgstr "Rozvodnice DBO určená k provozování laiky, dle ČSN EN 61439-1 ed. 3 a ČSN EN 61439-3"
+
+msgid "Power switchgear and controlgear assembly (PSC), after ČSN EN 61439-1 ed. 3 and ČSN EN 61439-2"
+msgstr "Výkonový rozváděč PSC, dle ČSN EN 61439-1 ed. 3 a ČSN EN 61439-2"
+
+msgid "Authorisation: %s"
+msgstr "Oprávnění: %s"
+
+msgid "Interface characteristics of switchboard +%s"
+msgstr "Charakteristiky rozhraní rozváděče +%s"
+
+msgid "The characteristics of the assembly for ensuring compatibility with the ratings of the circuits it is connected to and with the conditions of the electrical installation. This document is part of the accompanying technical documentation of every assembly (ČSN EN 61439-1 ed. 3%s)."
+msgstr "Charakteristiky rozvodnice pro potřeby zajištění kompatibility se jmenovitými hodnotami obvodů, k nimž je rozvodnice připojena, a s podmínkami elektrické instalace. Tento dokument je součástí průvodní technické dokumentace každé rozvodnice (ČSN EN 61439-1 ed. 3%s)."
+
+msgid "The documentation is valid only with the devices fitted exactly as the switchboard maker's documentation gives them."
+msgstr "Dokumentace je platná pouze při osazení přístrojů přesně podle dokumentace výrobce rozváděče."
+
+msgid "Switchboard manufacturer"
+msgstr "Výrobce rozváděče"
+
+msgid "No."
+msgstr "Č."
+
+msgid "%s (Settings > Switchboard manufacturer…)"
+msgstr "%s (Nastavení > Výrobce rozváděčů…)"
+
+msgid "%s (Temperature rise…)"
+msgstr "%s (Oteplení…)"
+
+msgid "%s (Documentation…)"
+msgstr "%s (Dokumentace…)"
+
+msgid "Still to give"
+msgstr "Zbývá zadat"
+
+msgid "Operating and maintenance instructions of switchboard +%s"
+msgstr "Pokyny pro obsluhu a údržbu rozváděče nn +%s"
+
+msgid "Following these instructions is necessary for the product to work properly within the meaning of Act No. 90/2016 Coll. and Act No. 22/1997 Coll."
+msgstr "Dodržení těchto pokynů je nezbytné pro správnou funkci výrobku ve smyslu zákona č. 90/2016 Sb. a zákona č. 22/1997 Sb."
+
+msgid "Phone: %s"
+msgstr "Tel.: %s"
+
+msgid "E-mail: %s"
+msgstr "E-mail: %s"
+
+msgid "Web: %s"
+msgstr "www: %s"
+
+msgid "I. General"
+msgstr "I. Všeobecné pojednání"
+
+msgid "These operating instructions are intended for switchboards made by %s."
+msgstr "Tyto pokyny pro obsluhu jsou určeny pro rozváděče vyrobené firmou %s."
+
+msgid "For the sake of clarity these instructions do not contain all the detailed information about all types of products. The details of the technical design and equipment are given in the documentation. Switchboards are subject to constant technical improvement in the course of technical progress. Changes are reserved. Following these instructions is necessary for the product to work properly."
+msgstr "Tento návod z důvodu přehlednosti neobsahuje veškeré podrobné informace o všech typech výrobků. Podrobnosti o technickém provedení a vybavení jsou uvedeny v dokumentaci. Rozváděče v rámci technického pokroku podléhají neustálému technickému zdokonalování. Změny jsou vyhrazeny. Dodržení těchto pokynů je nezbytné pro správnou funkci výrobku."
+
+msgid "The switchboards are intended for distributing electric energy and supplying electrical equipment."
+msgstr "Rozváděče jsou určené k rozvodu elektrické energie a k napájení elektrických zařízení."
+
+msgid "If you wish further information, or situations arise that these instructions do not describe in enough detail, ask for the information you need by phone or e-mail."
+msgstr "Pokud si přejete další informace nebo vyskytnou-li se situace, které nejsou v tomto návodu dostatečně podrobně popsány, vyžádejte si potřebné informace telefonicky nebo elektronickou poštou."
+
+msgid "A declaration of conformity has been drawn up for the products under § 12 of Act No. 22/1997 Coll., Title III of Act No. 90/2016 Coll. and Government Regulation No. 118/2016 Coll."
+msgstr "Na výrobky je zpracováno prohlášení o shodě dle § 12 zákona č. 22/1997 Sb., hlavy III zákona č. 90/2016 Sb. a NV č. 118/2016 Sb."
+
+msgid "II. Construction and description of the switchboard"
+msgstr "II. Konstrukce a popis rozváděče"
+
+msgid "The switchboard is made in accordance with %s and the technical documentation attached. Its construction, function and purpose are fully evident from it. Using it for other purposes is not permitted."
+msgstr "Rozváděč je vyroben v souladu s %s a přiloženou technickou dokumentací. Z té je plně zřejmé jeho konstrukční provedení, jeho funkce a určení. Používat jej k jiným účelům není přípustné."
+
+msgid "III. Design"
+msgstr "III. Provedení"
+
+msgid "The distribution boards are made of plastic or sheet steel according to the type required, by ABB, Eaton, Hager, Famatel, Schneider Electric, OEZ and others, with a degree of protection of at least IP 30 and protection class I or II."
+msgstr "Rozvodnice jsou v plastovém nebo oceloplechovém provedení podle požadovaného typu, výrobců ABB, Eaton, Hager, Famatel, Schneider Electric, OEZ a dalších, v krytí minimálně IP 30 s třídou ochrany I nebo II."
+
+msgid "This switchboard: %s."
+msgstr "Tento rozváděč: %s."
+
+msgid "IV. Equipment"
+msgstr "IV. Vybavení"
+
+msgid "The devices fitted are as the project gives them. Only branded devices are used. All the components (materials and devices) used to make the switchboard can withstand the mechanical, electrical and thermal stresses and the effects of humidity that occur in normal service. Built-in devices and components without electronic circuits are not sensitive to electromagnetic disturbances. Built-in devices and components with electronic circuits meet the EMC requirements (ČSN EN 61000-1-2) under Government Regulation No. 117/2016 Coll."
+msgstr "Přístrojová náplň je dle projektu. Používány jsou výhradně značkové přístroje. Všechny komponenty (materiály a přístroje) použité na výrobu rozváděče jsou schopny odolávat mechanickému, elektrickému a tepelnému namáhání a účinkům vlhkosti, které působí v běžném provozu. Vestavěné přístroje a součásti nezahrnující elektronické obvody nejsou citlivé na elektromagnetické rušení. Vestavěné přístroje a součásti zahrnující elektronické obvody odpovídají požadavkům na EMC (ČSN EN 61000-1-2) dle NV č. 117/2016 Sb."
+
+msgid "V. Technical data"
+msgstr "V. Technické údaje"
+
+msgid "Voltage system"
+msgstr "Napěťová soustava"
+
+msgid "Protection against electric shock"
+msgstr "Ochrana před nebezpečným dotykem"
+
+msgid "automatic disconnection of supply (MCB)"
+msgstr "samočinným odpojením od zdroje (MCB)"
+
+msgid "automatic disconnection of supply"
+msgstr "samočinným odpojením od zdroje"
+
+msgid "Additional protection"
+msgstr "Doplňková ochrana"
+
+msgid "residual current device RCD (FI)"
+msgstr "proudovým chráničem RCD (FI)"
+
+msgid "Recommended additional protection"
+msgstr "Doporučená doplňková ochrana"
+
+msgid "arc fault detection device AFDD, surge protective device SPD"
+msgstr "obloukovou ochranou AFDD, svodičem přepětí SPD"
+
+msgid "Working conditions indoors"
+msgstr "Pracovní podmínky pro vnitřní provedení"
+
+msgid "−5 to +40 °C, relative humidity 90 % at +20 °C, average +35 °C over 24 h"
+msgstr "−5 až +40 °C, relativní vlhkost 90 % při +20 °C, průměr +35 °C za 24 h"
+
+msgid "Ambient temperature (temperature rise calculation)"
+msgstr "Teplota okolí (výpočet oteplení)"
+
+msgid "Ratings"
+msgstr "Jmenovité hodnoty"
+
+msgid "given on the switchboard's rating plate and in the documentation supplied with it"
+msgstr "uvedeny na štítku rozváděče a v dokumentaci přiložené k rozváděči"
+
+msgid "VI. Safety measures for work and operation"
+msgstr "VI. Bezpečnostní opatření pro práci a obsluhu"
+
+msgid "Operating the switchboard means the actions connected with its service, e.g. inspection, cleaning, switching a circuit breaker on or off, pressing a button, watching the signal lamps and the like. Where personal protective equipment is prescribed for operation, it must be used. The person maintaining the switchboard must be professionally qualified within the meaning of § 19 of Act No. 250/2021 Coll. Persons without electrical qualification – ordinary persons – must not work on switchboards; they may only operate switchboards accessible to ordinary persons that are part of the fixed electrical installation. Under ČSN 33 1310 ed. 2:2009, instruction in the correct and safe use of the electrical installation including its distribution boards and switchboards is given by the person who made the installation or a person authorised by them. Once instructed, ordinary persons use the equipment but do not interfere with it."
+msgstr "Obsluhou rozváděče se rozumí úkony spojené s provozem rozváděče, např. prohlídka, čištění, zapnutí a vypnutí jističe, stisknutí tlačítka, pozorování kontrolek apod. Pokud je pro obsluhu stanoveno používání osobních ochranných prostředků, musí být tyto použity. Osoba provádějící údržbu rozváděče musí mít odbornou způsobilost ve smyslu § 19 zákona č. 250/2021 Sb. Osoby bez elektrotechnické kvalifikace – laici – nesmí provádět práce na rozváděčích, pouze obsluhu rozváděčů přístupných laické obsluze, které jsou součástí pevné elektrické instalace. Ve smyslu ČSN 33 1310 ed. 2:2009 provádí poučení o správném a bezpečném užívání elektrické instalace včetně příslušných rozvodnic a rozváděčů osoba, která elektrickou instalaci zhotovila, nebo jí zmocněná osoba. Na základě poučení laici se zařízením zacházejí, ale do zařízení nezasahují."
+
+msgid "VII. Operating the protective devices in the switchboard"
+msgstr "VII. Ovládání ochranných obvodů v rozváděči"
+
+msgid "In this switchboard: %s"
+msgstr "V tomto rozváděči: %s"
+
+msgid "The switchboard has none of these devices."
+msgstr "Rozváděč nemá žádný z těchto přístrojů."
+
+msgid "VIII. Maintenance"
+msgstr "VIII. Údržba"
+
+msgid "Safe and correct operation of the switchboard requires that it is operated and maintained in accordance with the standards and regulations in force, the requirements of the suppliers of the individual devices and these instructions. The maintenance needed is minimal, focused on: regular checks of the power connections and the connections of the protective conductors, visual inspections, checks of the heating of the connections and of the temperature rise inside the switchboard. Excessive heating and exceeding the operating temperature inside the switchboard can shorten the life of the devices, or even lead to a fire in the switchboard. Safe operation means having a specialist firm (preferably the switchboard's maker) check the switchboard once every five years, above all to remove dirt and dust, inspect it visually and then tighten all connections, and replace any faulty parts at once. Only a person with electrical qualification, the switchboard's maker or an inspection technician may carry out this check."
+msgstr "Bezpečný a správný chod rozváděče předpokládá, že jeho obsluha a údržba bude provedena ve smyslu platných norem a předpisů, požadavků dodavatelů jednotlivých přístrojů a podle tohoto návodu. Potřebná údržba rozváděče je minimálního rozsahu, se zaměřením na: pravidelnou kontrolu silových spojů a spojů ochranných vodičů, provádění vizuálních prohlídek, kontroly oteplování spojů a oteplení uvnitř rozváděče. Nadměrné oteplení a překročení provozní teploty uvnitř rozváděče může vést ke snížení životnosti přístrojů, případně až k požáru v rozváděči. Bezpečný provoz znamená jednou za pět let zajistit odbornou firmu (nejlépe výrobce rozváděče) na zkontrolování rozváděče, především k odstranění nečistot a prachu, vizuální kontrolu s následným dotažením všech spojů a okamžitě vyměnit případné vadné díly. Tuto kontrolu může provádět pouze osoba s elektrotechnickým vzděláním, výrobce rozváděče nebo revizní technik."
+
+msgid "The switchboard is designed for a certain operating temperature (see the technical data). The operator must therefore keep the ambient temperature within the limits prescribed. The safety signs and safety marking must be checked and renewed (after the ČSN ISO 3864 series of standards in force)."
+msgstr "Rozváděč je navržen na určitou provozní teplotu (viz technické údaje). Provozovatel proto musí zajistit teplotu okolí v předepsaných mezích. Bezpečnostní tabulky a bezpečnostní značení je nutné kontrolovat a obnovovat (dle platného souboru norem ČSN ISO 3864)."
+
+msgid "The owner of the switchboard should have the electrical installation inspected regularly after ČSN 33 1500/Z3/4.2004 annex 2, at intervals by the environment (usually every five years)."
+msgstr "Majitel rozváděče by měl zajistit pravidelnou revizi elektroinstalace dle ČSN 33 1500/Z3/4.2004 přílohy 2, v termínu dle prostředí (běžně každých pět let)."
+
+msgid "IX. Disposal"
+msgstr "IX. Likvidace"
+
+msgid "The cardboard packaging is fully recyclable and can be used as a secondary raw material. The protective packaging of PE film is not biodegradable. The switchboard as a whole should last as long as the electrical installation, in practice about 30 years. The product or its components must be handed over for recycling or disposed of in an environmentally friendly way in accordance with the laws and regulations in force."
+msgstr "Ochranný obal z kartonu je plně recyklovatelný a je použitelný jako druhotná surovina. Ochranný obal z plastové PE fólie není biologicky odbouratelný. Rozváděč jako celek by měl mít životnost po celou dobu životnosti elektroinstalace. V praxi to znamená životnost cca 30 let. Výrobek nebo jeho komponenty se musí odevzdat k recyklaci nebo zlikvidovat ve smyslu platných zákonů a vyhlášek způsobem šetrným k životnímu prostředí."
+
+msgid "X. Conclusion and special arrangements"
+msgstr "X. Závěr a zvláštní ujednání"
+
+msgid "It is forbidden to interfere with the construction and wiring of the switchboard without the consent of the designer and the maker (e.g. to replace circuit breakers with others of different ratings, replace devices, remove protective covers, blanking plates etc.)."
+msgstr "Je zakázáno zasahovat do konstrukce a zapojení rozváděče bez souhlasu projektanta a výrobce (např. vyměňovat jističe za jiné hodnoty, vyměňovat přístroje, odstraňovat ochranné kryty, záslepky atd.)."
+
+msgid "For the switchboard to work safely and without faults, the provisions of these instructions must be followed. Breaking them ends the warranty of the switchboard. Nor does the warranty cover protective elements (e.g. fuses) or parts of the working equipment worn by natural wear. If individual components of the switchboard stop working, contact the maker of the equipment at once. If any component in the switchboard is replaced by a firm other than %s – the switchboard's maker, the new maker – the installing firm – takes over all responsibility and must draw up new documentation of the switchboard including a new temperature rise calculation, as it becomes the switchboard's new maker (ČSN EN 61439-1 ed. 3). The original documentation supplied with this switchboard becomes invalid! The switchboard's maker is not responsible for mechanical and electrical damage to components caused by unskilled handling of the equipment or unskilled connection of the equipment."
+msgstr "Pro bezporuchový a bezpečný chod rozváděče je nutné dodržovat ustanovení tohoto návodu. Při jejich porušení zaniká záruka na rozváděč. Záruka se rovněž nevztahuje na ochranné prvky (např. pojistky) ani na díly pracovního zařízení opotřebené přirozeným opotřebením. V případě nefunkčnosti jednotlivých komponent rozváděče je zapotřebí ihned kontaktovat výrobce zařízení. V případě výměny jakékoliv komponenty v rozváděči jinou firmou než %s – výrobcem rozváděče přebírá nový výrobce – montážní firma – na sebe veškerou zodpovědnost a je povinen vypracovat novou dokumentaci k rozváděči včetně nového výpočtu oteplení, neboť se stává novým výrobcem rozváděče (ČSN EN 61439-1 ed. 3). Původní dokumentace dodaná k tomuto rozváděči se stává neplatnou! Výrobce rozváděče nenese zodpovědnost za mechanické a elektrické poškození komponent způsobené neodbornou manipulací se zařízením nebo neodborným zapojením zařízení."
+
+msgid "The main switch is meant only for switching off or on, most often the whole switchboard. It never trips by itself. At first sight, though, it looks like a circuit breaker. It should be labelled \"Main switch\". If the main switch is off, check that nobody is working on the electrical equipment!"
+msgstr "Vypínač je určen pouze k vypnutí nebo zapnutí, nejčastěji celého rozváděče. Sám od sebe nikdy nevypadne. Na první pohled ale vypadá jako jistič. Měl by být popsaný jako „Hlavní vypínač“. Pokud je vypínač vypnutý, zkontrolujte, zda na elektrickém zařízení někdo nepracuje!"
+
+msgid "You can switch a circuit breaker on by lifting its lever up, or first pressing the lever down and then lifting it up. If the circuit breaker trips again, though, there is a fault somewhere in the circuit. Do not switch it on again; call an expert with professional qualification. Bear in mind that a circuit breaker does not trip by itself. Its tripping protects the circuit against electric shock or fire."
+msgstr "Jistič můžete nahodit zvednutím páčky směrem nahoru, popř. nejprve stlačit páčku dolů a pak zvednout nahoru. Pokud ale dojde opět k vybavení jističe, je někde v obvodu závada. Jistič znovu nenahazujte, ale zavolejte odborníka s odbornou způsobilostí. Je potřeba si uvědomit, že jistič nevypadne sám od sebe. Jeho vybavení ochrání obvod před úrazem elektrickým proudem, popř. před požárem."
+
+msgid "A residual current device is a somewhat more complex device than a circuit breaker, and it can trip for many reasons, not all of them dangerous to life. If you switch it on (as a circuit breaker) and it does not trip again, all is well. If it trips again, unplug all the appliances from the socket outlets it feeds. Switch it on. Plugging the appliances in one after another tells you which one is faulty. Even so, the fault need not lie in the appliance itself: it may be a fire starting somewhere at a pinched cord, or simply many appliances with large residual currents on one socket circuit. An expert or an inspection technician will find the exact cause."
+msgstr "Proudový chránič je o něco složitější zařízení než jistič a jeho vybavení může mít mnoho příčin. A ne všechny jsou životu nebezpečné. Pokud proudový chránič nahodíte (obdobně jako jistič) a již nevypadne, je vše v pořádku. Pokud opět vypadne, vypojte ze zásuvek, které proudový chránič má pod sebou, všechny spotřebiče. Nahoďte proudový chránič. Postupným připojením spotřebičů zjistíte, který spotřebič je vadný. Ale ani tak nemusí být závada vyloženě na spotřebiči. Může jít o požár v počátcích někde u skřípnuté šňůry, nebo se jen sešlo hodně spotřebičů s velkými reziduálními proudy na jednom zásuvkovém obvodu. Přesnou příčinu určí odborník nebo revizní technik."
+
+msgid "Residual current devices must be tested regularly at the intervals their maker gives. Usually every 6 months, check that the residual current device works by pressing the test button on the device itself. The residual current device must trip at once. If it does not, call an expert!"
+msgstr "Je nutné pravidelně testovat proudové chrániče v termínech stanovených výrobcem. Obvykle každých 6 měsíců je nutné prověřit funkčnost proudového chrániče tak, že zmáčknete testovací tlačítko přímo na těle přístroje. Proudový chránič musí okamžitě vypadnout. Pokud se tak nestane, volejte odborníka!"
+
+msgid "Arc fault detection devices protect against fires breaking out. An arc fault detection device fills the functional gap of today's protective devices – circuit breakers, residual current devices and fuses – and lessens the effects of a fault arc by disconnecting the circuit. It has a self-test that starts automatically every 15 hours to test the circuits and the detection algorithm. It can also be tested by hand by pressing the test button on its front. The status LED on the front of the device (which also serves as the test button) gives simple and clear information on why it tripped on devices made by OEZ."
+msgstr "Obloukové ochrany jsou určeny pro ochranu před vznikem požáru. Oblouková ochrana zaplňuje funkční mezeru současných ochran – jističů, proudových chráničů a pojistek – a zmírňuje efekty poruchového elektrického oblouku odpojením obvodu. Oblouková ochrana je vybavena samočinným testem, který je automaticky spuštěn každých 15 hodin pro otestování obvodů a detekčního algoritmu. Spoušť je možné testovat také ručně, stlačením testovacího tlačítka na čele přístroje. LED ukazatel stavu na čele obloukové ochrany (který plní i úlohu testovacího tlačítka) poskytuje jednoduchou a jasnou informaci o důvodech vypnutí u přístrojů firmy OEZ."
+
+msgid "Devices made by Eaton give more detailed diagnostics."
+msgstr "V případě přístroje od firmy Eaton je diagnostika podrobnější."
+
+msgid "Other devices include installation contactors for switching e.g. underfloor heating, control and time relays, energy meters, time switches and other equipment. For a description of their function or a possible fault, see their maker's documentation, or call the maker of your switchboard."
+msgstr "Mezi ostatní přístroje patří instalační stykače pro spínání např. podlahového topení, ovládací a časová relé, měřiče spotřeby, spínací hodiny a další zařízení. Pro jejich popis funkce nebo možnou závadu nahlédněte do dokumentace výrobce, popř. volejte výrobce Vašeho rozváděče."
+
+msgid "Documentation of +%s"
+msgstr "Dokumentace +%s"
+
+msgid "What the switchboard's interface characteristics, operating instructions and temperature rise protocol say about it beyond the drawing. Nothing is assumed: an empty field is not given."
+msgstr "Co o rozváděči nad rámec výkresu uvádějí jeho charakteristiky rozhraní, pokyny pro obsluhu a protokol výpočtu oteplení. Nic se nepředpokládá: prázdné pole není zadáno."
+
+msgid "not given: Settings > Switchboard manufacturer…"
+msgstr "nezadáno: Nastavení > Výrobce rozváděčů…"
+
+msgid "Interface characteristics (ČSN EN 61439-1)"
+msgstr "Charakteristiky rozhraní (ČSN EN 61439-1)"
+
+msgid "DBO: a distribution board operated by ordinary persons (ČSN EN 61439-3); PSC: power switchgear and controlgear (ČSN EN 61439-2)"
+msgstr "DBO: rozvodnice určená k provozování laiky (ČSN EN 61439-3); PSC: výkonový rozváděč (ČSN EN 61439-2)"
+
+msgid "give it in Temperature rise…"
+msgstr "zadejte v Oteplení…"
+
+msgid "Type of -%s from its maker (e.g. its order code)"
+msgstr "Typ -%s dle výrobce (např. jeho objednací označení)"
+
+msgid "Power loss it takes"
+msgstr "Ztrátový výkon skříně"
+
+msgid "The power loss the enclosure takes as its maker gives it (W): the protocol's balance against the losses inside, not needed for the calculation"
+msgstr "Ztrátový výkon, který skříň podle svého výrobce odvede (W): pro bilanci v protokolu proti ztrátám uvnitř, výpočet ho nepotřebuje"
+
+msgid "Documentation: all given"
+msgstr "Dokumentace: vše zadáno"
+
+msgid "The switchboard maker (Settings > Switchboard manufacturer…), the switchboard's type, serial number, customer and interface characteristics, exported as its interface characteristics and operating instructions"
+msgstr "Výrobce rozváděče (Nastavení > Výrobce rozváděčů…), typ rozváděče, výrobní číslo, odběratel a charakteristiky rozhraní, exportované jako charakteristiky rozhraní a pokyny pro obsluhu"
+
+msgid "Documentation…"
+msgstr "Dokumentace…"
+
+msgid "Give what the switchboard's interface characteristics, operating instructions and temperature rise protocol say about it: its type, serial number, customer, voltages, currents, degree of protection …"
+msgstr "Zadejte, co o rozváděči uvádějí jeho charakteristiky rozhraní, pokyny pro obsluhu a protokol oteplení: typ, výrobní číslo, odběratele, napětí, proudy, stupeň ochrany …"
+
+msgid "Interface characteristics +%s"
+msgstr "Charakteristiky rozhraní +%s"
+
+msgid "Operating instructions +%s"
+msgstr "Pokyny pro obsluhu +%s"
+
+msgid "The protocol of each switchboard's temperature rise calculation: the summary and balance, the parameters, the data given, the losses, Ae, each step of the calculation, the temperatures and the curve"
+msgstr "Protokol výpočtu oteplení každého rozváděče: souhrn a bilance, parametry, zadané údaje, ztráty, Ae, každý krok výpočtu, teploty a křivka"
+
+msgid "The interface characteristics of each switchboard after ČSN EN 61439-1: its maker, type, serial number, customer and the 26 characteristics given in Documentation…"
+msgstr "Charakteristiky rozhraní každého rozváděče dle ČSN EN 61439-1: výrobce, typ, výrobní číslo, odběratel a 26 charakteristik zadaných v Dokumentaci…"
+
+msgid "The operating and maintenance instructions of each switchboard: the maker's contacts, the technical data and how to operate the protective devices it has"
+msgstr "Pokyny pro obsluhu a údržbu každého rozváděče: kontakty výrobce, technické údaje a ovládání ochranných přístrojů, které má"
+
+msgid "Who makes the switchboards: written into each switchboard's interface characteristics, operating instructions and temperature rise protocol in every schematic. An empty field is not given."
+msgstr "Kdo rozváděče vyrábí: uvádí se v charakteristikách rozhraní, pokynech pro obsluhu a protokolu oteplení každého rozváděče ve všech schématech. Prázdné pole není zadáno."
+
+msgid "Documents"
+msgstr "Dokumenty"
+
+msgid "Switchboard manufacturer…"
+msgstr "Výrobce rozváděčů…"
+
+msgid "Who makes the switchboards: the name, company ID, authorisation, address and contacts written into their documents"
+msgstr "Kdo rozváděče vyrábí: jméno, IČ, oprávnění, adresa a kontakty uváděné v jejich dokumentech"
+
+msgid "The rated current of the main circuit Inc is larger than the rated current of the assembly InA."
+msgstr "Jmenovitý proud hlavního obvodu Inc je větší než jmenovitý proud rozvodnice InA."
+
+msgid "The rated operational voltage Ue is lower than the rated voltage Un."
+msgstr "Jmenovité pracovní napětí Ue je nižší než jmenovité napětí Un."
+
+msgid "Other devices"
+msgstr "Ostatní přístroje"
+
+msgid "Phone or e-mail"
+msgstr "Telefon nebo e-mail"
+
+msgid "%d value still to give"
+msgid_plural "%d values still to give"
+msgstr[0] "zbývá zadat %d údaj"
+msgstr[1] "zbývá zadat %d údaje"
+msgstr[2] "zbývá zadat %d údajů"
+
+msgid "Documentation: %d value still to give"
+msgid_plural "Documentation: %d values still to give"
+msgstr[0] "Dokumentace: zbývá zadat %d údaj"
+msgstr[1] "Dokumentace: zbývá zadat %d údaje"
+msgstr[2] "Dokumentace: zbývá zadat %d údajů"

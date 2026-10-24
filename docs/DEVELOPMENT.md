@@ -867,7 +867,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   remembered in the user settings, section "export"): the schematic, the control stations
   (StationsSheet: ControlBoxViews with their names, side by side, shared out over A4 sheets by
   StationsSheet.arrange: as many as fit, then the next sheet), each switchboard with something in
-  it on a sheet of its own, the PLC programs (PlcCanvas.paper: read-only, no editing aids; a
+  it on a sheet of its own, its temperature rise protocol, interface characteristics and
+  operating instructions, the PLC programs (PlcCanvas.paper: read-only, no editing aids; a
   function block diagram on one sheet, a ladder LADDER_ROWS rows to a sheet,
   PlcLadCanvas.paper_pages / paper_rows, whole rungs together where they fit) (CabinetView SWITCHBOARD_WIDTH wide), the time
   relays (TimersSheet.entries: by designation, the function's title, its times t or t1 / t2,
@@ -1286,7 +1287,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   only when all of it is (missing lists the rest: the enclosure's height, width and depth,
   "mounting", "vented" and then "inlet" and "outlet", "partitions", "ambient", "limit", each
   device's loss, the cross-section of each group of wires, the strip terminals' loss when
-  there are any, "extra", "rdf"). The rated diversity factor "rdf" (one for the switchboard,
+  there are any, "extra", "rdf"). For the protocol only, not asked for by missing:
+  "enclosure_loss" (W over 0, the power loss the enclosure takes as its maker gives it;
+  HeatRise.balance = it less total P) and "types" (each device's type from its maker, text
+  by designation; losses' devices carry "type"). The rated diversity factor "rdf" (one for the switchboard,
   over 0 and at most 1, typed or put in from RDF_TABLE, the values ČSN EN 61439-2 (PSC) and
   61439-3 (DBO) assume, shown in the dialog with a button for each and in the protocol):
   losses' "rated" (devices, wires, strip terminals at their rated currents) times RDF², plus
@@ -1299,7 +1303,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   conductor_loss as annex H of ČSN EN 61439-1 at CONDUCTOR_TEMPERATURE with CONDUCTORS'
   resistances; "terminals" and "extra" as given; the total null while anything is missing.
   Switchboard.heat keeps what was given (settings cleans: right kind and range only; saved
-  as the switchboard's "heat", ProjectFile 55). evaluate(doc, board, wires) runs it all
+  as the switchboard's "heat", ProjectFile 55, enclosure_loss and types 56). evaluate(doc, board, wires) runs it all
   ({"settings", "losses", "missing", "size", "result"}). CabinetPanel (Edit mode) shows under
   its tools how many values are still to give, or once all are, how warm it gets at the top
   (green within the limit, red above), and "Temperature rise…" opening HeatRiseDialog
@@ -1311,8 +1315,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   Δt0,5, f or g and c, Δt1,0, each rail's temperature at its height on the plate, the
   verdict, the warnings and HeatRiseCurve (the curve over the height as figs. 8 and 9, the air
   round it, the limit, the rails), all following each change; OK saves the settings as one
-  edit. The losses are a HeatLossTable (a grid: the item, what it is, a LineEdit for the value
-  to give with its unit, "enter" in the warning colour while empty, the loss; the total;
+  edit. The enclosure's power loss is a field under its size. The losses are a HeatLossTable
+  (a grid: the item, what it is, a device's type (a LineEdit, typed emits ROW_TYPE with the
+  text), a LineEdit for the value to give with its unit, "enter" in the warning colour while empty, the loss; the total;
   typed emits each value, show_losses puts the losses in without touching the fields). Each
   device in it is named with what tells it apart (HeatRiseReport.device_text: the parts
   list's name and data, a breaker's, RCD's or fuse's data alone as it names it, an RCD's poles
@@ -1325,16 +1330,56 @@ Architecture and conventions of the code base. Read this before changing the cod
   which move a little with the scale). Export: "heat_rise" in ExportPreview.CONTENTS
   (Temperature rise; SheetRenderer.heat_rise, available for a switchboard with something on
   its rails, _on_rails) puts after the switchboards each one's protocol: HeatRiseReport.rows
-  (title, headings, texts, tables, the curve: what it was exported from
-  (HeatRiseReport.source_text: LadderLab and its version, the file, the schematic's title,
-  date and time); the method; 1. the data given; 2. the losses,
-  each device with its data and loss, the wires by current with I, count, L, S, R20 and P,
+  (a ReportRows: title, headings, texts, tables, the curve: what it was exported from
+  (ReportRows.source_text: LadderLab and its version, the file, the schematic's title,
+  date and time); the method; the summary (standards by the assembly type, the switchboard's
+  type, material and location from its documentation, the installation, dimensions, Ae, the
+  enclosure's power loss, the losses at the rated currents, RDF, total P, what remains, the
+  temperature at the top), the date (the title block's or today), who worked it out (the
+  title block's drawn by), the evaluation (Complies / Does not comply / Not decided while the
+  enclosure's power loss is missing) and the warning; the parameters (device_groups: the
+  devices by name (an RCD, RCBO or AFDD by its own), maker's type, data (device_text without
+  the name) and loss, designations shortened by PartsList.designations, how many, the total;
+  the strip terminals, the wire groups, the totals, the enclosure's power loss negative and
+  the overall balance); 1. the data given; 2. the losses,
+  the wires by current with I, count, L, S, R20 and P,
   the sums and total P; 3. Ae surface by surface with its size, A0, b, A0 · b; 4. P, k, d,
   x, Δt0,5, f or g, c, Δt1,0 (and Δt0,75) each with where it comes from and its figures put
   in; 5. Δt and the temperature half way up, three quarters, at the top and at each rail;
   the result; the curve (HeatRiseCurve.paper); notes; while not all is given what is still
-  to give) drawn by HeatRiseSheet on A4 portrait (split: texts wrapped, a heading never last,
-  a table's heading row repeated on the sheet it goes on to)
+  to give, then what the protocol still lacks: the enclosure's power loss, the devices'
+  types, the switchboard's type, material, location) drawn by ReportSheet on A4 portrait
+  (split: texts wrapped, a table row with "wrap" wrapped in its cells ("\n" a new line,
+  height_of by its most lines), a heading never last, a table's heading row repeated on the
+  sheet it goes on to)
+- Switchboard documentation (dokumentace rozváděče): the switchboard maker, Manufacturer
+  (schematic/, static data: name, company ID, authorisation, trade name, address, phone,
+  e-mail, web; Settings > Switchboard manufacturer…, main.gd _maker_dialog, user settings
+  section "manufacturer"; missing: name, ID, authorisation, address, a phone or an e-mail),
+  the same for every schematic. Switchboard.documentation (BoardDocumentation, no nodes,
+  saved as "documentation", ProjectFile 56): HEADER (original maker, type, material, serial
+  number, order, customer) and the 26 CHARACTERISTICS of ČSN EN 61439-1 in order, each
+  "text" (as typed, "long" several lines), "number" (over 0, its unit), "choice" (English
+  options saved as such, "— choose —" until chosen) or "heat" (the rated diversity factor and
+  the dimensions, the temperature rise settings'); clean keeps what makes sense, nothing
+  assumed; shown, missing, standard (61439-3 for DBO, 61439-2 for PSC), conflicts (Inc over
+  InA, Ue under Un). CabinetPanel (Edit mode) shows under the temperature rise how many values
+  are still to give (the maker's too) and "Documentation…" opening
+  BoardDocumentationDialog (every field empty until given, "enter" in the warning colour,
+  the "heat" ones shown as the calculation has them; OK saves as one edit). Export:
+  "interface" and "instructions" in ExportPreview.CONTENTS (the contents in an
+  HFlowContainer), for each switchboard with something on its rails after its protocol:
+  InterfaceReport.rows (kind_text by the assembly type, the standards, the validity note,
+  the maker (maker_text) and header, the 26 characteristics numbered, each as given or "not
+  given", notes, what is still to give and where) and InstructionsReport.rows (a fixed text
+  in ten parts naming the maker, its contacts; III the switchboard's type, material,
+  original maker, IP and protection class; V the technical data as given (the voltage system
+  from earthing, fn and Un, protection, RCDs, the temperature rise's ambient, operating
+  conditions, pollution degree, IP, RDF); VII lettered parts only for what devices finds
+  (the main switch: a house's QB1 on the consumer unit or a cam switch on the door; breakers
+  and RCBOs, RCDs, AFDDs, other devices but fuses), each with the designations; notes lines;
+  what is still to give), drawn by ReportSheet ("Interface characteristics +RA1",
+  "Operating instructions +RA1")
 - Training plans (wiring exercises): File > Save as training plan… (main.gd _save_plan, the
   plan dialog's tick "List the mistakes…") writes a copy of an industrial schematic with
   switchboards as a .ladplan (TrainingPlan.EXTENSION; the .ladder format, the document's
