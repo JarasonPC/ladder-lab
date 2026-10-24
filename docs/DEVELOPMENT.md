@@ -1292,8 +1292,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   HeatRise.balance = it less total P) and "types" (each device's type from its maker, text
   by designation; losses' devices carry "type"). The rated diversity factor "rdf" (one for the switchboard,
   over 0 and at most 1, typed or put in from RDF_TABLE, the values ČSN EN 61439-2 (PSC) and
-  61439-3 (DBO) assume, shown in the dialog with a button for each, what RDF is in the help a "?" beside its field
-  opens (_rdf_help), and in the protocol):
+  61439-3 (DBO) assume, shown in RdfHelpDialog, the help the "?" beside its field opens (what
+  RDF is, a muted text, and the table as a Tree like InfluencesDialog: a value cell picked
+  and Use, or double-clicked, puts it in), and in the protocol):
   losses' "rated" (devices, wires, strip terminals at their rated currents) times RDF², plus
   "extra", is "total". losses(doc, board, wires, settings): the devices on its rails (an
   overload relay under its contactor too) with their losses as given ("losses" by
@@ -1318,9 +1319,10 @@ Architecture and conventions of the code base. Read this before changing the cod
   round it, the limit, the rails), all following each change; OK saves the settings as one
   edit. The enclosure's power loss is a field under its size. The losses are a HeatLossTable
   (a grid: the item, what it is, a device's type (a LineEdit, typed emits ROW_TYPE with the
-  text; devices alike, HeatRiseReport.device_groups, are one row "-FA1…-FA4" "4 × …" whose
-  type and loss go to each of them and whose loss is theirs together; HeatRiseReport.gap_texts
-  asks for their loss once, in the dialog, the panel's count and the protocol), a LineEdit for the value to give with its unit, "enter" in the warning colour while empty, the loss; the total;
+  text; known gives the types of the same device (device_text alike) on these rails and in
+  the other switchboards with their losses: letters added at the end are completed with one,
+  the rest selected; a MenuButton beside lists them; one taken (chosen, Enter, focus left)
+  brings its loss into an empty loss field), a LineEdit for the value to give with its unit, "enter" in the warning colour while empty, the loss; the total;
   typed emits each value, show_losses puts the losses in without touching the fields). Each
   device in it is named with what tells it apart (HeatRiseReport.device_text: the parts
   list's name and data, a breaker's, RCD's or fuse's data alone as it names it, an RCD's poles

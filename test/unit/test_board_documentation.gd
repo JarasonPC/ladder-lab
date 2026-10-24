@@ -295,27 +295,39 @@ func test_panel_opens_the_documentation() -> void:
 	assert_eq(doc.switchboards[0].documentation, {"serial_number": "24004"})
 
 
-func test_devices_alike_given_once() -> void:
+func test_type_completed_from_the_same_device() -> void:
 	var doc: SchematicDocument = _house()
+	doc.switchboards[0].heat = HeatRise.settings({"types": {"FA1": "LTE-16B-1"}, "losses": {"FA1": 1.8}})
 	var dialog: HeatRiseDialog = HeatRiseDialog.new()
 	add_child_autofree(dialog)
 	dialog.open(doc, 0, HeatRiseReport.layout(doc, 0))
 	var table: HeatLossTable = dialog.get("_losses")
-	var devices: Array = (table.get("_rows") as Array).filter(func(r: Dictionary) -> bool: return r["what"] == HeatRiseDialog.ROW_DEVICE)
-	assert_eq(devices.size(), 3, "the RCD, the three B16 breakers as one row, the C10")
-	var b16: Dictionary = devices.filter(func(r: Dictionary) -> bool: return (r["names"] as PackedStringArray).size() == 3)[0]
-	assert_eq(b16["names"], PackedStringArray(["FA1", "FA2", "FA3"]))
-	assert_eq(table.field(HeatRiseDialog.ROW_DEVICE, "FA2"), b16["field"], "any of them finds the row")
-	var gaps: PackedStringArray = HeatRiseReport.gap_texts(doc, dialog.evaluated()["missing"], dialog.evaluated()["losses"])
-	assert_true(gaps.has("The loss of -FA1…-FA3"), "asked for once: %s" % str(gaps))
-	assert_false(gaps.has("The loss of -FA2"))
-	# Typed once, given to each.
-	(b16["field"] as LineEdit).text_changed.emit("1,8")
-	(b16["type"] as LineEdit).text_changed.emit("LTE-16B-1")
-	var s: Dictionary = dialog.settings()
-	for designation: String in ["FA1", "FA2", "FA3"]:
-		assert_eq(s["losses"][designation], 1.8)
-		assert_eq(s["types"][designation], "LTE-16B-1")
-	assert_false(s["losses"].has("FA4"), "the C10 is no B16")
-	assert_eq((b16["loss"] as Label).text, "5.4", "the three together")
+	var rows: Array = table.get("_rows")
+	var devices: Array = rows.filter(func(r: Dictionary) -> bool: return r["what"] == HeatRiseDialog.ROW_DEVICE)
+	assert_eq(devices.size(), 5, "each device its own row")
+	assert_eq(table.known("FA2"), {"LTE-16B-1": 1.8}, "the same B16 elsewhere")
+	assert_eq(table.known("FA4"), {}, "the C10 is another device")
+	var fa2: Dictionary = devices.filter(func(r: Dictionary) -> bool: return r["name"] == "FA2")[0]
+	assert_false((fa2["types"] as MenuButton).disabled)
+	var fa4: Dictionary = devices.filter(func(r: Dictionary) -> bool: return r["name"] == "FA4")[0]
+	assert_true((fa4["types"] as MenuButton).disabled, "nothing to offer")
+	# Typing completes it, the rest selected.
+	var input: LineEdit = fa2["type"]
+	input.grab_focus()
+	input.text = "lt"
+	input.caret_column = 2
+	input.text_changed.emit("lt")
+	assert_eq(input.text, "LTE-16B-1")
+	assert_eq(input.get_selected_text(), "E-16B-1")
+	assert_eq(dialog.settings()["types"]["FA2"], "LTE-16B-1")
+	# Taken: its loss comes along into the empty field.
+	input.text_submitted.emit(input.text)
+	assert_eq(dialog.settings()["losses"]["FA2"], 1.8)
+	assert_eq((fa2["field"] as LineEdit).text, "1.8")
+	# A different type stays its own.
+	var fa3: Dictionary = devices.filter(func(r: Dictionary) -> bool: return r["name"] == "FA3")[0]
+	(fa3["type"] as LineEdit).text = "X"
+	(fa3["type"] as LineEdit).caret_column = 1
+	(fa3["type"] as LineEdit).text_changed.emit("X")
+	assert_eq(dialog.settings()["types"]["FA3"], "X")
 	dialog.hide()

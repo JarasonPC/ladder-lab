@@ -6,10 +6,11 @@ extends VBoxContainer
 ## terminals' and further losses (W). A field not filled in says "enter" in
 ## the warning colour. Beside each its loss (W), under them the total.
 ## A device's type from its maker has a text field of its own (column
-## "Type"). Devices alike (the same name and data, type and loss as given,
-## [method HeatRiseReport.device_groups]) are one row, "-FA1…-FA4" with how
-## many: their type and loss are given once for all of them, the loss
-## beside them all together. Used in the dialog and over the whole screen ([HeatRiseDialog]).
+## "Type"): typing completes it with a type already given to the same
+## device (the same name and data: on these rails or another switchboard's)
+## and the "▾" beside it lists them; a type taken from there brings its loss
+## into an empty loss field ([method known]). Used in the dialog and over
+## the whole screen ([HeatRiseDialog]).
 
 ## [param value] was typed for row [param what] ([constant HeatRiseDialog.ROW_DEVICE]
 ## …) of [param name] (the device's designation, the current); null when
@@ -25,14 +26,21 @@ var type_width: float = 96.0
 var text_width: float = 120.0
 
 var _grid: GridContainer
-## Per row: {"what", "name" (the first of "names"), "names" (the devices'
-## designations, a wire group's current, else ""), "field" (LineEdit),
-## "type" (the devices' LineEdit for their type, else null), "loss" (Label)}.
+## Per row: {"what", "name", "field" (LineEdit), "type" (a device's LineEdit
+## for its type, else null), "types" (its MenuButton of the types known),
+## "loss" (Label)}.
 var _rows: Array[Dictionary] = []
 var _total: Label
 var _total_title: Label
 ## The devices', wires' and terminals' losses at their rated currents.
 var _rated: Label
+## What the table shows: the document, its switchboard, the losses last
+## shown, what each device is (by designation, see [method
+## HeatRiseReport.device_text]).
+var _doc: SchematicDocument
+var _board: int = -1
+var _latest: Dictionary = {}
+var _texts: Dictionary[String, String] = {}
 
 
 func _init() -> void:
@@ -50,8 +58,15 @@ func _init() -> void:
 
 
 ## The rows of [param losses] (see [method HeatRise.losses]) of
-## [param doc], every field filled with what is given.
-func fill(doc: SchematicDocument, losses: Dictionary) -> void:
+## switchboard [param board] of [param doc], every field filled with what is
+## given.
+func fill(doc: SchematicDocument, losses: Dictionary, board: int = -1) -> void:
+	_doc = doc
+	_board = board
+	_latest = losses
+	_texts.clear()
+	for device: Dictionary in losses["devices"]:
+		_texts[device["designation"]] = HeatRiseReport.device_text(doc, device["designation"])
 	for child: Node in _grid.get_children():
 		_grid.remove_child(child)
 		child.queue_free()
@@ -64,20 +79,14 @@ func fill(doc: SchematicDocument, losses: Dictionary) -> void:
 		head.theme_type_variation = "MutedLabel"
 		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if i == 4 else HORIZONTAL_ALIGNMENT_LEFT
 		_grid.add_child(head)
-	for alike: Dictionary in HeatRiseReport.device_groups(doc, losses):
-		var names: PackedStringArray = PackedStringArray()
-		for designation: String in alike["designations"]:
-			names.append(designation.trim_prefix("-"))
-		var text: String = HeatRiseReport.device_text(doc, names[0])
-		if names.size() > 1:
-			text = tr("%d × %s") % [names.size(), text]
-		_row(HeatRiseDialog.ROW_DEVICE, names, PartsList.designations(alike["designations"]), text, alike["power"], "W", alike["type"])
+	for device: Dictionary in losses["devices"]:
+		_row(HeatRiseDialog.ROW_DEVICE, device["designation"], "-" + device["designation"], _texts[device["designation"]], device["power"], "W", device["type"])
 	for group: Dictionary in losses["groups"]:
-		_row(HeatRiseDialog.ROW_WIRES, PackedStringArray([group["key"]]), "%s A" % group["key"], tr("Wires (%d, %s m), cross-section") % [group["count"], String.num(group["length"], 1)], group["section"], "mm²")
+		_row(HeatRiseDialog.ROW_WIRES, group["key"], "%s A" % group["key"], tr("Wires (%d, %s m), cross-section") % [group["count"], String.num(group["length"], 1)], group["section"], "mm²")
 	if losses["terminal_count"] > 0:
-		_row(HeatRiseDialog.ROW_TERMINALS, PackedStringArray([""]), "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], "W")
+		_row(HeatRiseDialog.ROW_TERMINALS, "", "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], "W")
 	_rated = _sum_row(tr("At the rated currents"))
-	_row(HeatRiseDialog.ROW_EXTRA, PackedStringArray([""]), "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], "W")
+	_row(HeatRiseDialog.ROW_EXTRA, "", "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], "W")
 	_total = _sum_row("")
 	_total_title = _grid.get_child(_grid.get_child_count() - 4)
 	show_losses(losses)
@@ -86,6 +95,7 @@ func fill(doc: SchematicDocument, losses: Dictionary) -> void:
 ## The loss beside each field and the total from [param losses], the fields
 ## as they are.
 func show_losses(losses: Dictionary) -> void:
+	_latest = losses
 	var by_row: Dictionary = {}
 	for device: Dictionary in losses["devices"]:
 		by_row[HeatRiseDialog.ROW_DEVICE + "|" + device["designation"]] = device["power"]
@@ -94,14 +104,12 @@ func show_losses(losses: Dictionary) -> void:
 	by_row[HeatRiseDialog.ROW_TERMINALS + "|"] = losses["terminals"]
 	by_row[HeatRiseDialog.ROW_EXTRA + "|"] = losses["extra"]
 	for row: Dictionary in _rows:
-		# Devices alike lose together.
-		var loss: Variant = 0.0
-		for name: String in row["names"]:
-			var part: Variant = by_row.get(row["what"] + "|" + name)
-			loss = null if loss == null or part == null else loss + part
+		var loss: Variant = by_row.get(row["what"] + "|" + row["name"])
 		(row["loss"] as Label).text = String.num(loss, 1) if loss != null else ""
 		var field: LineEdit = row["field"]
 		field.placeholder_text = tr("enter")
+		if row["types"] != null:
+			(row["types"] as MenuButton).disabled = known(row["name"]).is_empty()
 	if _total != null:
 		_rated.text = String.num(losses["rated"], 1) if losses["rated"] != null else "?"
 		_total.text = String.num(losses["total"], 1) if losses["total"] != null else "?"
@@ -111,11 +119,10 @@ func show_losses(losses: Dictionary) -> void:
 		_total_title.mouse_filter = Control.MOUSE_FILTER_PASS
 
 
-## The text field of row [param what] of [param name] (a device's
-## designation: the row of it and the devices alike), null for none.
+## The text field of row [param what] of [param name], null for none.
 func field(what: String, name: String) -> LineEdit:
 	for row: Dictionary in _rows:
-		if row["what"] == what and (row["names"] as PackedStringArray).has(name):
+		if row["what"] == what and row["name"] == name:
 			return row["field"]
 	return null
 
@@ -123,9 +130,34 @@ func field(what: String, name: String) -> LineEdit:
 ## The text field for the type of device [param name], null for none.
 func type_field(name: String) -> LineEdit:
 	for row: Dictionary in _rows:
-		if row["what"] == HeatRiseDialog.ROW_DEVICE and (row["names"] as PackedStringArray).has(name):
+		if row["what"] == HeatRiseDialog.ROW_DEVICE and row["name"] == name:
 			return row["type"]
 	return null
+
+
+## The types already given to devices the same as [param designation]
+## (what [method HeatRiseReport.device_text] says of them alike), on these
+## rails as the losses last shown have them and in the other switchboards,
+## each with its loss as given there (null: none): {type: loss}.
+func known(designation: String) -> Dictionary:
+	var result: Dictionary = {}
+	if _doc == null or not _texts.has(designation):
+		return result
+	var text: String = _texts[designation]
+	for device: Dictionary in _latest.get("devices", []):
+		var type: String = device["type"]
+		if device["designation"] != designation and not type.is_empty() and _texts.get(device["designation"], "") == text:
+			if result.get(type) == null:
+				result[type] = device["power"]
+	for b: int in _doc.switchboards.size():
+		if b == _board:
+			continue
+		var heat: Dictionary = HeatRise.settings(_doc.switchboards[b].heat)
+		var types: Dictionary = heat.get("types", {})
+		for other: String in types:
+			if result.get(types[other]) == null and HeatRiseReport.device_text(_doc, other) == text:
+				result[types[other]] = heat.get("losses", {}).get(other)
+	return result
 
 
 ## The text fields, in the order of the rows.
@@ -136,11 +168,9 @@ func fields() -> Array[LineEdit]:
 	return result
 
 
-## A row of [param names] (devices alike: what is typed goes to each); [param
-## type] is the devices' type as given (null: a row that is not a device's,
-## without a type field).
-func _row(what: String, names: PackedStringArray, item: String, text: String, given: Variant, unit: String, type: Variant = null) -> void:
-	var shown_names: String = item.trim_prefix("-")
+## A row; [param type] is the device's type as given (null: a row that is
+## not a device's, without a type field).
+func _row(what: String, name: String, item: String, text: String, given: Variant, unit: String, type: Variant = null) -> void:
 	_grid.add_child(_label(item, item_width))
 	var description: Label = _label(text, -1.0)
 	description.custom_minimum_size.x = text_width
@@ -150,6 +180,7 @@ func _row(what: String, names: PackedStringArray, item: String, text: String, gi
 	description.clip_text = true
 	_grid.add_child(description)
 	var type_input: LineEdit = null
+	var types_menu: MenuButton = null
 	if type != null:
 		type_input = LineEdit.new()
 		type_input.custom_minimum_size.x = type_width
@@ -157,14 +188,35 @@ func _row(what: String, names: PackedStringArray, item: String, text: String, gi
 		type_input.text = str(type)
 		type_input.placeholder_text = tr("enter")
 		type_input.add_theme_color_override("font_placeholder_color", AppTheme.warning)
-		type_input.tooltip_text = tr("Type of -%s from its maker (e.g. its order code)") % shown_names
-		type_input.text_changed.connect(func(value: String) -> void:
-			for name: String in names:
-				typed.emit(HeatRiseDialog.ROW_TYPE, name, value))
-		_grid.add_child(type_input)
+		type_input.tooltip_text = tr("Type of -%s from its maker (e.g. its order code)") % name
+		type_input.text_changed.connect(func(value: String) -> void: _type_typed(type_input, name, value))
+		type_input.text_submitted.connect(func(_value: String) -> void: _type_taken(name))
+		type_input.focus_exited.connect(func() -> void: _type_taken(name))
+		var type_box: HBoxContainer = HBoxContainer.new()
+		type_box.add_theme_constant_override("separation", 2)
+		type_box.add_child(type_input)
+		types_menu = MenuButton.new()
+		types_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		types_menu.flat = false
+		types_menu.icon = AppTheme.icon("chevron_down")
+		types_menu.focus_mode = Control.FOCUS_NONE
+		types_menu.tooltip_text = tr("Types already given to the same device")
+		types_menu.disabled = known(name).is_empty()
+		types_menu.about_to_popup.connect(func() -> void:
+			var popup: PopupMenu = types_menu.get_popup()
+			popup.clear()
+			for known_type: String in known(name):
+				popup.add_item(known_type))
+		types_menu.get_popup().index_pressed.connect(func(index: int) -> void:
+			type_input.text = types_menu.get_popup().get_item_text(index)
+			type_input.set_meta("typed", type_input.text)
+			typed.emit(HeatRiseDialog.ROW_TYPE, name, type_input.text)
+			_type_taken(name))
+		type_box.add_child(types_menu)
+		_grid.add_child(type_box)
 	else:
 		var none: Control = Control.new()
-		none.custom_minimum_size.x = type_width
+		none.custom_minimum_size.x = type_width + 30.0
 		_grid.add_child(none)
 	var box: HBoxContainer = HBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
@@ -175,10 +227,8 @@ func _row(what: String, names: PackedStringArray, item: String, text: String, gi
 	input.text = HeatRiseDialog.shown(given)
 	input.placeholder_text = tr("enter")
 	input.add_theme_color_override("font_placeholder_color", AppTheme.warning)
-	input.tooltip_text = tr("Loss of -%s at its rated current, from its maker (W)") % shown_names if what == HeatRiseDialog.ROW_DEVICE else (tr("Cross-section of these wires (mm²)") if what == HeatRiseDialog.ROW_WIRES else tr("W"))
-	input.text_changed.connect(func(value: String) -> void:
-		for name: String in names:
-			typed.emit(what, name, HeatRiseDialog.number(value)))
+	input.tooltip_text = tr("Loss of -%s at its rated current, from its maker (W)") % name if what == HeatRiseDialog.ROW_DEVICE else (tr("Cross-section of these wires (mm²)") if what == HeatRiseDialog.ROW_WIRES else tr("W"))
+	input.text_changed.connect(func(value: String) -> void: typed.emit(what, name, HeatRiseDialog.number(value)))
 	box.add_child(input)
 	var unit_label: Label = Label.new()
 	unit_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -190,7 +240,37 @@ func _row(what: String, names: PackedStringArray, item: String, text: String, gi
 	var loss: Label = _label("", 70.0)
 	loss.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_grid.add_child(loss)
-	_rows.append({"what": what, "name": names[0], "names": names, "field": input, "type": type_input, "loss": loss})
+	_rows.append({"what": what, "name": name, "field": input, "type": type_input, "types": types_menu, "loss": loss})
+
+
+## [param value] typed as the type of device [param name] in [param input]:
+## while letters are added at its end, completed with a type the same
+## device has elsewhere (the rest selected, so typing on replaces it).
+func _type_typed(input: LineEdit, name: String, value: String) -> void:
+	var before: String = input.get_meta("typed", "")
+	input.set_meta("typed", value)
+	if value.length() > before.length() and not value.is_empty() and input.caret_column == value.length():
+		for type: String in known(name):
+			if type.length() > value.length() and type.to_lower().begins_with(value.to_lower()):
+				input.text = type
+				input.caret_column = type.length()
+				input.select(value.length(), type.length())
+				value = type
+				break
+	typed.emit(HeatRiseDialog.ROW_TYPE, name, value)
+
+
+## The type of device [param name] taken: one the same device has elsewhere
+## brings its loss into the loss field while that is empty.
+func _type_taken(name: String) -> void:
+	for row: Dictionary in _rows:
+		if row["what"] != HeatRiseDialog.ROW_DEVICE or row["name"] != name:
+			continue
+		var field: LineEdit = row["field"]
+		var power: Variant = known(name).get((row["type"] as LineEdit).text.strip_edges())
+		if field.text.strip_edges().is_empty() and power != null:
+			field.text = HeatRiseDialog.shown(power)
+			typed.emit(HeatRiseDialog.ROW_DEVICE, name, float(power))
 
 
 ## A row of a sum: [param title] across, its value (returned) on the right.

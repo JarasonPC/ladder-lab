@@ -57,16 +57,10 @@ var _results: Label
 var _verdict: Label
 var _warnings: Label
 var _curve: HeatRiseCurve
-## The table of the rated diversity factors, its heading cells, its rows'
-## texts and its buttons (each putting its value in).
-var _rdf_hint: Label
-## The "?" beside the RDF field and the help it opens: what RDF is.
+## The "?" beside the RDF field and the help it opens: what RDF is and the
+## values the standards assume, to put in.
 var _rdf_help_button: Button
-var _rdf_help: AcceptDialog
-var _rdf_table: GridContainer
-var _rdf_heads: Array[Label] = []
-var _rdf_rows: Array[Label] = []
-var _rdf_buttons: Array[Button] = []
+var _rdf_help: RdfHelpDialog
 
 
 func _init() -> void:
@@ -112,8 +106,8 @@ func _init() -> void:
 	more.add_child(_partitions)
 	_field(more, "ambient", " °C")
 	_field(more, "limit", " °C")
-	# The rated diversity factor, one for the switchboard, and the values the
-	# standards give to choose from (a click on one puts it in).
+	# The rated diversity factor, one for the switchboard; its help ("?") says
+	# what it is and has the values the standards give to put in.
 	_caption(left)
 	var rdf_grid: GridContainer = _grid(left)
 	_field(rdf_grid, "rdf", "")
@@ -122,56 +116,15 @@ func _init() -> void:
 	_rdf_help_button.focus_mode = Control.FOCUS_NONE
 	_rdf_help_button.text = "?"
 	_rdf_help_button.custom_minimum_size.x = 30.0
-	_rdf_help_button.pressed.connect(func() -> void: _rdf_help.popup_centered())
+	_rdf_help_button.pressed.connect(func() -> void: _rdf_help.open())
 	var rdf_box: Control = _fields["rdf"].get_parent()
 	rdf_box.add_child(_rdf_help_button)
 	rdf_box.move_child(_rdf_help_button, 1)
-	_rdf_help = AcceptDialog.new()
-	_rdf_help.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_rdf_help.dialog_autowrap = true
-	_rdf_help.min_size = Vector2i(480, 0)
+	_rdf_help = RdfHelpDialog.new()
+	_rdf_help.chosen.connect(func(rdf: float) -> void:
+		_settings["rdf"] = rdf
+		_fill())
 	add_child(_rdf_help)
-	_rdf_hint = _muted(left)
-	_rdf_table = GridContainer.new()
-	_rdf_table.columns = 3
-	_rdf_table.add_theme_constant_override("h_separation", 6)
-	_rdf_table.add_theme_constant_override("v_separation", 2)
-	left.add_child(_rdf_table)
-	for c: int in 3:
-		var head: Label = Label.new()
-		head.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		head.theme_type_variation = "MutedLabel"
-		head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		head.custom_minimum_size.x = 120.0 if c == 0 else 64.0
-		_rdf_table.add_child(head)
-		_rdf_heads.append(head)
-	for entry: Array in HeatRise.RDF_TABLE:
-		var what: Label = Label.new()
-		what.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		what.custom_minimum_size.x = 120.0
-		what.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_rdf_table.add_child(what)
-		_rdf_rows.append(what)
-		for value: Variant in [entry[1], entry[2]]:
-			if value == null:
-				var none: Label = Label.new()
-				none.text = "–"
-				none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-				_rdf_table.add_child(none)
-				continue
-			var use: Button = Button.new()
-			use.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-			use.focus_mode = Control.FOCUS_NONE
-			use.text = String.num(value, 1)
-			use.custom_minimum_size.x = 64.0
-			use.add_theme_stylebox_override("normal", AppTheme.box(Color(AppTheme.accent, 0.12), AppTheme.RADIUS, 8.0, 2.0, Color(AppTheme.accent, 0.6), 1))
-			use.add_theme_stylebox_override("hover", AppTheme.box(Color(AppTheme.accent, 0.3), AppTheme.RADIUS, 8.0, 2.0, AppTheme.accent, 1))
-			use.pressed.connect(func() -> void:
-				_settings["rdf"] = value
-				_fill())
-			_rdf_table.add_child(use)
-			_rdf_buttons.append(use)
 	# The losses.
 	var middle: VBoxContainer = _column(row, 540.0)
 	_caption(middle)
@@ -185,7 +138,7 @@ func _init() -> void:
 	_wide_button.focus_mode = Control.FOCUS_NONE
 	_wide_button.icon = AppTheme.icon("window")
 	_wide_button.pressed.connect(func() -> void:
-		_wide_losses.fill(_document, _evaluated["losses"])
+		_wide_losses.fill(_document, _evaluated["losses"], _board)
 		_wide.popup_centered_ratio(0.97))
 	middle.add_child(_wide_button)
 	_loss_hint = _muted(middle)
@@ -205,7 +158,7 @@ func _init() -> void:
 	wide_column.add_child(_wide_losses)
 	_wide.visibility_changed.connect(func() -> void:
 		if not _wide.visible:
-			_losses.fill(_document, _evaluated["losses"]))
+			_losses.fill(_document, _evaluated["losses"], _board))
 	add_child(_wide)
 	# The result.
 	var right: VBoxContainer = _column(row, 330.0)
@@ -242,18 +195,7 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	ok_button_text = tr("OK")
 	cancel_button_text = tr("Cancel")
 	var captions: Array[String] = [tr("Enclosure"), tr("Installation and air"), tr("Rated diversity factor"), tr("Power lost at the rated currents"), tr("Result")]
-	_rdf_hint.text = tr("When the maker gives none, the standards assume (a click on a value puts it in):")
-	_rdf_help_button.tooltip_text = tr("What the rated diversity factor is")
-	_rdf_help.title = tr("Rated diversity factor RDF")
-	_rdf_help.ok_button_text = tr("Close")
-	_rdf_help.dialog_text = tr("The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, ČSN EN 61439-2 (PSC) and ČSN EN 61439-3 (DBO) assume the values in the table under the field.")
-	var heads: Array[String] = [tr("What"), tr("ČSN EN 61439-2 (PSC, power)"), tr("ČSN EN 61439-3 (DBO, ordinary persons)")]
-	for i: int in 3:
-		_rdf_heads[i].text = heads[i]
-	for i: int in _rdf_rows.size():
-		_rdf_rows[i].text = tr(HeatRise.RDF_TABLE[i][0])
-	for button: Button in _rdf_buttons:
-		button.tooltip_text = tr("Use RDF = %s") % button.text
+	_rdf_help_button.tooltip_text = tr("What the rated diversity factor is, and the values the standards assume")
 	for i: int in _captions.size():
 		_captions[i].text = captions[i].to_upper()
 	var labels: Array[String] = [tr("Height"), tr("Width"), tr("Depth"), tr("Power loss it takes"), tr("Inlet openings"), tr("Outlet openings"),
@@ -287,7 +229,7 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	_wide_hint.text = tr("Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires into the fields; an empty field is not given.")
 	_loss_hint.text = tr("Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given.")
 	_fill()
-	_losses.fill(_document, _evaluated["losses"])
+	_losses.fill(_document, _evaluated["losses"], _board)
 	popup_centered_clamped(Vector2i(1260, 680), 0.92)
 
 
@@ -404,8 +346,8 @@ func _fill_result() -> void:
 	var gaps: Array = _evaluated["missing"]
 	if not gaps.is_empty():
 		var lines: PackedStringArray = PackedStringArray([tr("Still to give:")])
-		for gap: String in HeatRiseReport.gap_texts(_document, gaps, _evaluated["losses"]):
-			lines.append("• " + gap)
+		for gap: Dictionary in gaps:
+			lines.append("• " + (tr(gap["text"]) % gap["args"] if not (gap["args"] as Array).is_empty() else tr(gap["text"])))
 		_results.text = "\n".join(lines)
 		_verdict.text = ""
 		_warnings.text = ""

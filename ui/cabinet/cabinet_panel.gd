@@ -418,8 +418,7 @@ func _heat_tools(b: int) -> void:
 		var summary: Label = Label.new()
 		summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		# Devices alike count once: their loss is given once.
-		var gaps: int = HeatRiseReport.gap_texts(_document, evaluated["missing"], evaluated["losses"]).size()
+		var gaps: int = (evaluated["missing"] as Array).size()
 		if gaps > 0:
 			summary.text = tr_n("Temperature rise: %d value still to give", "Temperature rise: %d values still to give", gaps) % gaps
 			summary.add_theme_color_override("font_color", AppTheme.warning)
