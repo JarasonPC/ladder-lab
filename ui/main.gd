@@ -155,6 +155,10 @@ var _export_render: int = 0
 ## Big red warning over the schematic during an unprotected short circuit.
 var _short_banner: Label
 var _properties: PropertiesPanel
+## The single-line diagram's fields of the selected circuit (over the
+## properties) and its checks (under them), in the side panel.
+var _single_line_top: PanelContainer
+var _single_line_bottom: PanelContainer
 var _datasheet_window: DatasheetWindow = null
 ## Switchboards, control stations and parts in the field (both modes).
 var _workspace: WorkspaceView
@@ -632,7 +636,11 @@ func _build_ui() -> void:
 	_rotate_button = _tool(_edit_tools, func() -> void: editor.rotate_selection(), "rotate")
 	_mirror_button = _tool(_edit_tools, func() -> void: editor.mirror_selection(), "mirror")
 	_flip_button = _tool(_edit_tools, func() -> void: editor.flip_selection(), "flip")
-	_delete_button = _tool(_edit_tools, func() -> void: editor.delete_selection(), "delete")
+	_delete_button = _tool(_edit_tools, func() -> void:
+		if _single_line_shown():
+			_single_line.canvas.delete_selected()
+		else:
+			editor.delete_selection(), "delete")
 	_edit_tools.add_child(_spacer(8))
 	_number_button = _tool(_edit_tools, func() -> void: editor.number_wires(), "hash")
 	_check_button = _button(_edit_tools, func() -> void: _check_panel.run(edit_doc), "check")
@@ -723,9 +731,20 @@ func _build_ui() -> void:
 	_canvas_area.add_child(_short_banner)
 	_side = VBoxContainer.new()
 	_side.add_theme_constant_override("separation", 0)
+	# The single-line diagram's circuit over the properties of its device,
+	# the circuit's checks under them: one panel.
+	_single_line_top = PanelContainer.new()
+	_single_line_top.theme_type_variation = "RightPanel"
+	_single_line_top.add_child(_single_line.panel)
+	_side.add_child(_single_line_top)
 	_properties = PropertiesPanel.new()
 	_properties.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_side.add_child(_properties)
+	_single_line_bottom = PanelContainer.new()
+	_single_line_bottom.theme_type_variation = "RightSection"
+	_single_line_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_single_line_bottom.add_child(_single_line.checks_panel)
+	_side.add_child(_single_line_bottom)
 	_check_panel = CheckPanel.new()
 	_side.add_child(_check_panel)
 	_side_bar = _side_panel(middle, _side, "properties", true)
@@ -1126,6 +1145,7 @@ func _retranslate() -> void:
 	_key_strip.retranslate()
 	_lesson_panel.rebuild()
 	_tour.retranslate()
+	_set_properties_look()
 	_properties.show_component(_single_selected())
 	if _check_panel.visible:
 		_check_panel.run(edit_doc)
@@ -1531,7 +1551,15 @@ func _set_control_rolled(rolled: bool) -> void:
 ## The properties (and check results) beside the schematic: only in Edit
 ## mode while something is selected or the check results are shown.
 func _update_side_bar() -> void:
-	_side_bar.visible = area == Area.SCHEMATIC and mode == Mode.EDIT and not _training() and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible)
+	var single_line: bool = _single_line_shown() and mode == Mode.EDIT
+	_side_bar.visible = single_line or (area == Area.SCHEMATIC and mode == Mode.EDIT and not _training() and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible))
+	# The single-line diagram's circuit and checks round the properties of
+	# the device selected (none while nothing is).
+	_single_line_top.visible = single_line
+	_single_line_bottom.visible = single_line
+	_properties.visible = not single_line or _single_selected() != null
+	_properties.size_flags_vertical = Control.SIZE_FILL if single_line else Control.SIZE_EXPAND_FILL
+	_properties.theme_type_variation = "RightSection" if single_line else "RightPanel"
 
 
 ## Shows the simulation as currents ([param on]) or as voltages.
@@ -1962,10 +1990,19 @@ func _on_issue_selected(ids: PackedStringArray) -> void:
 ## Properties of the one selected component, or the number of the one
 ## selected wire.
 func _on_selection_changed(c: CircuitComponent) -> void:
+	_set_properties_look()
 	if c == null and editor.selected_components.is_empty() and editor.selected_wires.size() == 1:
 		_properties.show_wire()
 	else:
 		_properties.show_component(c)
+
+
+## The properties as the area shown wants them: on the single-line diagram
+## headed by the device, without orientation and markings (which it has not).
+func _set_properties_look() -> void:
+	var c: CircuitComponent = _single_selected()
+	_properties.drawing = not _single_line_shown()
+	_properties.heading = "%s -%s" % [PartsList.new().name_of(edit_doc, c.designation), c.designation] if c != null and not _properties.drawing else ""
 
 
 ## Whether the edited schematic is a house installation (drawn, never simulated).

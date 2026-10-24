@@ -387,11 +387,23 @@ Architecture and conventions of the code base. Read this before changing the cod
   While placing or dragging _preview lays out a copy of the diagram as it would be: the
   canvas draws that, the parts put or moved left out and drawn on the ghost layer (a child
   SingleLineCanvas at 45 % opacity: ghost_of, _draw_ghost; the part placed is _ghost, made
-  with its designation at begin_place, _part finds it). SingleLineView: a
-  bar (Delete, Show all), the canvas and in Edit mode a panel for the selected circuit (phase,
+  with its designation at begin_place, _part finds it). SingleLineView: the canvas with
+  zoom out, zoom in and Show all in its bottom right corner (no bar over it; Delete is the
+  main toolbar's, main.gd routing it to SingleLineCanvas.delete_selected) and, in Edit mode,
+  the fields of the selected circuit (headed by its number and what it feeds; phase,
   destination, room from the floor plan's rooms, cable, ripple control), group (phase) or
-  supply (cable, SPD) with the circuits waiting for protection (SingleLineView.circuit_text);
-  a circuit's Circuit field assigns it another waiting circuit; main.gd shows it in place of the schematic (_single_line_shown: page
+  supply (cable, SPD) with the circuits waiting for protection (SingleLineView.circuit_text)
+  as SingleLineView.panel, and under them checks_panel: the circuit's checks a row each
+  (checks()["rows"]: ✓ within bounds, ✕ out of them, ≈ the cable's length), the warning of
+  a circuit without a 30 mA RCD, and the help: two sentences while nothing is selected, the
+  whole of it folded under a link (More about groups and protection, How to). main.gd puts
+  both in its side panel (_single_line_top over the properties, _single_line_bottom under
+  them; _update_side_bar shows it all the time on the diagram, the properties only while a
+  device or part is selected): one panel. On the diagram the PropertiesPanel is headed by
+  what the part is and its designation (heading, PartsList.name_of) and leaves out what the
+  diagram has not (drawing false: no orientation, no note on markings; the time-current
+  characteristic folded under its caption); a circuit's Circuit field assigns it another
+  waiting circuit; main.gd shows it in place of the schematic (_single_line_shown: page
   bar, rotate, mirror, flip, numbering and Check hidden) and sends it the palette's templates.
   Export: the schematic pages of a residential installation are one "single_line" sheet
   (SingleLineCanvas.extent, sheet set)

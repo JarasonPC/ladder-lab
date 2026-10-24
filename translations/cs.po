@@ -5227,9 +5227,6 @@ msgstr "Bez místnosti"
 msgid "Group %s"
 msgstr "Skupina %s"
 
-msgid "Delete the selected breaker, RCD or part (Delete)"
-msgstr "Odebrat vybraný jistič, chránič nebo prvek (Delete)"
-
 msgid "Destination"
 msgstr "Kam vede"
 
@@ -6430,10 +6427,6 @@ msgstr "Hlavní vypínač: Delete jej odebere (přívod pak vede přímo na př�
 
 msgid "None: every circuit of the floor plan is protected."
 msgstr "Žádné: každý obvod z půdorysu je jištěn."
-
-#, c-format
-msgid "Circuit %d (%s)"
-msgstr "Obvod %d (%s)"
 
 msgid "A new circuit (spare), this one waiting"
 msgstr "Nový obvod (rezerva), tento počká na jištění"
@@ -8203,3 +8196,16 @@ msgstr "%d na kartě Ztráty"
 #, c-format
 msgid "Still to give: %s."
 msgstr "Zbývá zadat: %s."
+
+
+msgid "Checks"
+msgstr "Kontroly"
+
+msgid "Drag a breaker or an RCD from the palette between the circuits, a socket, luminaire or appliance onto a circuit. A click selects, Shift+click adds."
+msgstr "Jistič nebo chránič vložte z palety mezi obvody, zásuvku, svítidlo nebo spotřebič na obvod. Klik vybere, Shift+klik přidá."
+
+msgid "How to"
+msgstr "Jak na to"
+
+msgid "More about groups and protection"
+msgstr "Více o skupinách a jištění"
