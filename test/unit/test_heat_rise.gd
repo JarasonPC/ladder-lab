@@ -194,16 +194,15 @@ func test_panel_asks_and_the_dialog_saves_what_is_given() -> void:
 	(dialog.get("_vented") as OptionButton).item_selected.emit(1)
 	(dialog.get("_partitions") as OptionButton).select(1)
 	(dialog.get("_partitions") as OptionButton).item_selected.emit(1)
-	var tree: Tree = dialog.get("_losses")
-	for item: TreeItem in tree.get_root().get_children():
-		match item.get_metadata(0):
-			HeatRiseDialog.ROW_DEVICE:
-				item.set_text(2, "3,5")
-			HeatRiseDialog.ROW_WIRES:
-				item.set_text(2, "2.5")
-			HeatRiseDialog.ROW_TERMINALS, HeatRiseDialog.ROW_EXTRA:
-				item.set_text(2, "0")
-	tree.item_edited.emit()
+	var table: HeatLossTable = dialog.get("_losses")
+	assert_gt(table.fields().size(), 3, "a text field for every value to give")
+	for row: Dictionary in table.get("_rows"):
+		var input: LineEdit = row["field"]
+		assert_eq(input.text, "", "empty until given")
+		assert_eq(input.placeholder_text, "enter", "says where to write")
+		var text: String = {HeatRiseDialog.ROW_DEVICE: "3,5", HeatRiseDialog.ROW_WIRES: "2.5"}.get(row["what"], "0")
+		input.text = text
+		input.text_changed.emit(text)
 	await wait_process_frames(1)
 	assert_eq(dialog.evaluated()["missing"].size(), 0, str(dialog.evaluated()["missing"]))
 	assert_string_contains((dialog.get("_results") as Label).text, "Δt1,0")
@@ -303,6 +302,37 @@ func test_protocol_of_a_ventilated_board_in_sections() -> void:
 	assert_string_contains(all, "fig. 5: inlet 610 cm²")
 
 
+func test_protocol_says_what_it_was_exported_from() -> void:
+	var doc: SchematicDocument = _filled_board()
+	_all_given(doc)
+	var report: HeatRiseReport = HeatRiseReport.new()
+	var source: String = report.source_text("board.ladder", "My house")
+	assert_string_contains(source, "LadderLab %s" % ProjectSettings.get_setting("application/config/version"))
+	assert_string_contains(source, "board.ladder")
+	assert_string_contains(source, "My house")
+	assert_string_contains(report.source_text("", "x"), "not saved")
+	var rows: Array[Dictionary] = report.rows(doc, 0, source)
+	assert_eq(rows[1]["text"], source, "right under the title")
+
+
+func test_house_consumer_unit_breakers_alike() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	var line: SingleLine = doc.single_line
+	assert_true(line.add(doc, DocumentSerializer.component_from_dict({"type": "rcd", "poles": 4, "rated_current": 40.0, "designation": "FB1"}), 0))
+	for i: int in 3:
+		assert_true(line.add(doc, DocumentSerializer.component_from_dict({"type": "breaker", "characteristic": "B", "rated_current": 16.0, "designation": "FA%d" % (i + 1)}), i, "FB1"))
+	doc.update_single_line()
+	var b: int = doc.ensure_consumer_unit()
+	var lost: Dictionary = HeatRise.evaluate(doc, b, HeatRiseReport.layout(doc, b).wiring.wires, {})["losses"]
+	var names: Array = lost["devices"].map(func(d: Dictionary) -> String: return d["designation"])
+	for designation: String in ["FB1", "FA1", "FA2", "FA3"]:
+		assert_true(names.has(designation), "each breaker its own row, alike or not: %s" % str(names))
+	assert_eq(HeatRiseReport.device_text(doc, "FA2"), "Circuit breaker B16", "no auxiliary contact for its own pole")
+	assert_string_contains(HeatRiseReport.device_text(doc, "FB1"), "4 poles")
+	assert_false(HeatRiseReport.device_text(doc, "FB1").begins_with("Circuit breaker"), "an RCD named as one")
+
+
 func test_export_has_the_protocol() -> void:
 	var doc: SchematicDocument = _filled_board()
 	_all_given(doc)
@@ -329,15 +359,16 @@ func test_whole_list_over_the_screen_takes_what_is_typed() -> void:
 	(dialog.get("_wide_button") as Button).pressed.emit()
 	var wide: AcceptDialog = dialog.get("_wide")
 	assert_true(wide.visible)
-	var tree: Tree = dialog.get("_wide_losses")
-	var first: TreeItem = tree.get_root().get_first_child()
-	assert_string_contains(first.get_text(1), ",", "what tells the device apart: %s" % first.get_text(1))
-	var designation: String = first.get_metadata(1)
-	first.set_text(2, "4,2")
-	tree.item_edited.emit()
-	await wait_process_frames(1)
+	var wide_table: HeatLossTable = dialog.get("_wide_losses")
+	var first: Dictionary = (wide_table.get("_rows") as Array)[0]
+	assert_eq(first["what"], HeatRiseDialog.ROW_DEVICE)
+	var designation: String = first["name"]
+	assert_string_contains(HeatRiseReport.device_text(doc, designation), ",", "what tells the device apart")
+	var input: LineEdit = first["field"]
+	input.text = "4,2"
+	input.text_changed.emit("4,2")
 	assert_eq(dialog.settings()["losses"][designation], 4.2)
 	wide.hide()
-	var small: Tree = dialog.get("_losses")
-	assert_eq(small.get_root().get_first_child().get_text(2), "4.2", "the dialog's table follows")
+	var small: HeatLossTable = dialog.get("_losses")
+	assert_eq(small.field(HeatRiseDialog.ROW_DEVICE, designation).text, "4.2", "the dialog's table follows")
 	dialog.hide()

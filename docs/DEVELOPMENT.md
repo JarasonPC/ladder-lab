@@ -1307,16 +1307,23 @@ Architecture and conventions of the code base. Read this before changing the cod
   Δt0,5, f or g and c, Δt1,0, each rail's temperature at its height on the plate, the
   verdict, the warnings and HeatRiseCurve (the curve over the height as figs. 8 and 9, the air
   round it, the limit, the rails), all following each change; OK saves the settings as one
-  edit. Each device in it is named with what tells it apart (HeatRiseReport.device_text: the
-  parts list's name and data, "Circuit breaker C16, 3 poles", "Ir 4.6 A"); "Whole list over
-  the screen" opens the same losses table in an AcceptDialog nearly the size of the window
-  (popup_centered_ratio), typed in alike, the dialog's table following when it closes. The
+  edit. The losses are a HeatLossTable (a grid: the item, what it is, a LineEdit for the value
+  to give with its unit, "enter" in the warning colour while empty, the loss; the total;
+  typed emits each value, show_losses puts the losses in without touching the fields). Each
+  device in it is named with what tells it apart (HeatRiseReport.device_text: the parts
+  list's name and data, a breaker's, RCD's or fuse's data alone as it names it, an RCD's poles
+  added: "Circuit breaker C16, 3 poles", "Residual current device (RCD) 40 A 30 mA A, 4 poles",
+  "Ir 4.6 A"); "Whole list over the screen" opens another HeatLossTable in an AcceptDialog
+  nearly the size of the window (popup_centered_ratio), typed in alike, the dialog's table
+  filled again when it closes. The
   calculation is always made on the switchboard laid out at HeatRiseReport.LAYOUT_K
   (HeatRiseReport.layout: the panel, the dialog and the export reckon the same wire lengths,
   which move a little with the scale). Export: "heat_rise" in ExportPreview.CONTENTS
   (Temperature rise; SheetRenderer.heat_rise, available for a switchboard with something on
   its rails, _on_rails) puts after the switchboards each one's protocol: HeatRiseReport.rows
-  (title, headings, texts, tables, the curve: the method; 1. the data given; 2. the losses,
+  (title, headings, texts, tables, the curve: what it was exported from
+  (HeatRiseReport.source_text: LadderLab and its version, the file, the schematic's title,
+  date and time); the method; 1. the data given; 2. the losses,
   each device with its data and loss, the wires by current with I, count, L, S, R20 and P,
   the sums and total P; 3. Ae surface by surface with its size, A0, b, A0 · b; 4. P, k, d,
   x, Δt0,5, f or g, c, Δt1,0 (and Δt0,75) each with where it comes from and its figures put

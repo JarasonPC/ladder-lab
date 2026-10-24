@@ -346,7 +346,7 @@ func data_of(doc: SchematicDocument, designation: String) -> String:
 ## The contact blocks device [param designation] needs: of a button, switch
 ## or limit switch all its blocks ("1 NO + 1 NC"), of a contactor, relay,
 ## time relay or breaker its auxiliary contacts ("aux. 2 NO + 1 NC"), changeover
-## contacts as CO; "" for none.
+## contacts as CO (a breaker's or fuse's own pole is not one); "" for none.
 func contacts_of(doc: SchematicDocument, designation: String) -> String:
 	var no: int = 0
 	var nc: int = 0
@@ -359,7 +359,7 @@ func contacts_of(doc: SchematicDocument, designation: String) -> String:
 			operated = true
 		if c is ChangeoverContact:
 			co += 1
-		elif c is SwitchingElement and not (c is OverloadContact):
+		elif c is SwitchingElement and not (c is OverloadContact or c is ProtectiveDevice):
 			if (c as SwitchingElement).contact_type == SwitchingElement.ContactType.NO:
 				no += 1
 			else:
