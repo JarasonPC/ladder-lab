@@ -355,6 +355,10 @@ func _ready() -> void:
 	_floor_plan.operate_requested.connect(view.operate_device)
 	# The floor shown is the same in the schematic edited and the one simulated.
 	_floor_plan.tab_changed.connect(func(_tab: int) -> void: _update_mode_ui())
+	# The status bar's sentence follows the plan's tool.
+	_floor_plan.canvas.tool_changed.connect(func() -> void:
+		if _hint_label != null:
+			_on_stepped(view.last_result))
 	_floor_plan.part_selected.connect(_on_single_line_selected)
 	_floor_plan.inspector_changed.connect(func() -> void:
 		if _side_bar != null:
@@ -1658,9 +1662,12 @@ func _update_mode_ui() -> void:
 	_workspace.visible = not schematic and not residential
 	_floor_plan.visible = not schematic and residential
 	_tree_bar.visible = not schematic and not residential
-	_edit_tools.visible = editing and schematic and not training
+	# Undo and redo in every view of a house installation, Delete where the
+	# editor's selection is (a view's own deletes what it selected).
+	_edit_tools.visible = editing and not training and (schematic or _installation())
+	_delete_button.visible = schematic
 	for tool: Control in [_rotate_button, _mirror_button, _flip_button, _number_button, _check_button]:
-		tool.visible = not single_line
+		tool.visible = schematic and not single_line
 	_numbers_toggle.visible = schematic and not single_line
 	_layout_select.visible = schematic and not single_line
 	_clamp_toggle.visible = schematic and not single_line
@@ -3277,15 +3284,18 @@ func _on_stepped(result: StepResult) -> void:
 		# The workspace has its hints in its own bar.
 		_status_label.text = _editor_hint if area == Area.SCHEMATIC else ""
 		_status_label.remove_theme_color_override("font_color")
+		# One short sentence on what the mouse does where it is, then how
+		# the view moves.
+		var view_hint: String = tr("wheel zooms, right drag pans")
 		if _single_line_shown():
 			_status_label.text = ""
-			_hint_label.text = tr("Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms.")
+			_hint_label.text = "%s  ·  %s" % [tr("A click selects, a drag moves; a part from the palette goes where clicked"), view_hint]
 		elif area == Area.SCHEMATIC:
 			_hint_label.text = tr("Right or middle drag pans, wheel zooms.")
 		elif _floor_plan.unit_open():
-			_hint_label.text = tr("A click picks a device, its arrows move it. Ctrl+wheel zooms, right or middle drag moves.")
+			_hint_label.text = "%s  ·  %s" % [tr("A click picks a device, its arrows move it"), tr("Ctrl+wheel zooms, right drag moves")]
 		elif edit_doc != null and edit_doc.residential:
-			_hint_label.text = tr("Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms.")
+			_hint_label.text = "%s  ·  %s" % [_floor_plan.hint(), view_hint]
 		else:
 			_hint_label.text = ""
 		_fit_status_label()

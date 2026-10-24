@@ -5150,9 +5150,6 @@ msgstr "Kabel, čárka za každou žílu"
 msgid "Heights are to the middle of the box; a height other than these is written beside the part (h)."
 msgstr "Výšky jsou ke středu krabice; jiná výška je napsána u prvku (h)."
 
-msgid "Pick a part in the palette and click where it goes; Delete takes the selection away. Right or middle drag pans, wheel zooms."
-msgstr "Vyberte prvek v paletě a klikněte, kam patří; Delete odebere výběr. Tažení pravým nebo prostředním tlačítkem posouvá, kolečko přibližuje."
-
 msgid "Prototype residential"
 msgstr "Domovní – prototyp"
 
@@ -5270,9 +5267,6 @@ msgstr "Šířka – %s"
 #, c-format
 msgid "Height of %s"
 msgstr "Výška – %s"
-
-msgid "Double-click a room to edit it, a dimension of the selected room to type its length (or select a wall and press Enter); Delete takes the selection away; a right click ends drawing. Right or middle drag pans, wheel zooms."
-msgstr "Dvojklikem místnost upravíte, dvojklikem na kótu vybrané místnosti zadáte délku (nebo vyberte zeď a stiskněte Enter); Delete odebere výběr; pravé tlačítko ukončí kreslení. Tažením pravým nebo prostředním tlačítkem posunete, kolečkem zvětšíte."
 
 msgid "Join two rooms into one (an L-shaped room and the like): click one, then the other touching it"
 msgstr "Spojit dvě místnosti v jednu (místnost tvaru L apod.): klikněte na jednu, pak na druhou, která s ní sousedí"
@@ -8194,10 +8188,6 @@ msgstr "Jak na to"
 msgid "More about groups and protection"
 msgstr "Více o skupinách a jištění"
 
-
-msgid "A click picks a device, its arrows move it. Ctrl+wheel zooms, right or middle drag moves."
-msgstr "Klik vybere přístroj, šipkami ho posunete. Ctrl+kolečko přiblíží, tažení pravým nebo prostředním tlačítkem posune."
-
 #, c-format
 msgid "Add %d new part from the schematic"
 msgid_plural "Add %d new parts from the schematic"
@@ -8300,3 +8290,55 @@ msgstr "Podklad"
 
 msgid "Size"
 msgstr "Rozměry"
+
+
+msgid "A click picks a device, its arrows move it"
+msgstr "Klik vybere přístroj, šipkami ho posunete"
+
+msgid "A click selects, a drag moves, a double click edits"
+msgstr "Klik vybere, tažení posune, dvojklik upraví"
+
+msgid "A click selects, a drag moves; a part from the palette goes where clicked"
+msgstr "Klik vybere, tažení posune; prvek z palety se vloží, kam kliknete"
+
+msgid "Click a wall for its dimensions, or drag between two points"
+msgstr "Klikněte na zeď pro její kóty, nebo táhněte mezi dvěma body"
+
+msgid "Click a wall to put it in; a double click on one sets it"
+msgstr "Kliknutím na zeď je vložíte; dvojklikem je nastavíte"
+
+msgid "Click each corner; a click on the first, Enter or a right click closes the room"
+msgstr "Klikněte na každý roh; klik na první, Enter nebo pravé tlačítko místnost uzavře"
+
+msgid "Click two points a known distance apart"
+msgstr "Klikněte na dva body o známé vzdálenosti"
+
+msgid "Click two rooms that touch"
+msgstr "Klikněte na dvě místnosti, které se dotýkají"
+
+msgid "Click where each wall starts and ends; a right click ends"
+msgstr "Klikněte, kde každá zeď začíná a končí; pravé tlačítko kreslení ukončí"
+
+msgid "Click where it goes; a right click ends"
+msgstr "Klikněte, kam patří; pravé tlačítko ukončí"
+
+msgid "Ctrl+wheel zooms, right drag moves"
+msgstr "Ctrl+kolečko přiblíží, tažení pravým posune"
+
+msgid "Drag between two points to measure"
+msgstr "Táhněte mezi dvěma body a změříte vzdálenost"
+
+msgid "Drag from a light switch to the luminaire it switches"
+msgstr "Táhněte od vypínače ke svítidlu, které spíná"
+
+msgid "Drag from corner to corner, or type the width and depth in mm"
+msgstr "Táhněte z rohu do rohu, nebo napište šířku a hloubku v mm"
+
+msgid "Drag the underlay into place"
+msgstr "Přetáhněte podklad na místo"
+
+msgid "Press where the note points and let go where its text goes"
+msgstr "Stiskněte, kam poznámka ukazuje, a pusťte, kde bude její text"
+
+msgid "wheel zooms, right drag pans"
+msgstr "kolečko přiblíží, tažení pravým posune"
