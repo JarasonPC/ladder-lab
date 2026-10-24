@@ -1293,8 +1293,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   by designation; losses' devices carry "type"). The rated diversity factor "rdf" (one for the switchboard,
   over 0 and at most 1, typed or put in from RDF_TABLE, the values ČSN EN 61439-2 (PSC) and
   61439-3 (DBO) assume, shown in RdfHelpDialog, the help the "?" beside its field opens (what
-  RDF is, a muted text, and the table as a Tree like InfluencesDialog: a value cell picked
-  and Use, or double-clicked, puts it in), and in the protocol):
+  RDF is, a muted text, and the table as a Tree like InfluencesDialog, its columns Household
+  (DBO) and Power switchgear (PSC), narrow: a value cell picked and Use, or double-clicked,
+  puts it in), and in the protocol):
   losses' "rated" (devices, wires, strip terminals at their rated currents) times RDF², plus
   "extra", is "total". losses(doc, board, wires, settings): the devices on its rails (an
   overload relay under its contactor too) with their losses as given ("losses" by

@@ -8174,5 +8174,11 @@ msgstr "Co je součinitel soudobosti a jaké hodnoty předpokládají normy"
 msgid "Types already given to the same device"
 msgstr "Typy již zadané stejnému přístroji"
 
-msgid "The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, ČSN EN 61439-2 (PSC) and ČSN EN 61439-3 (DBO) assume these (pick one and Use, or double-click it):"
-msgstr "Součinitel soudobosti RDF je jeden pro celý rozváděč (ČSN EN 61439-1): podíl jmenovitých proudů, který vývody vedou současně a trvale. Při zatížení RDF násobkem jmenovitých proudů ztrácejí přístroje, vodiče a řadové svorky RDF²násobek ztrát při jmenovitých proudech; další ztráty zůstávají, jak jsou. 1 znamená bez soudobosti, jak počítá IEC 890. Použijte hodnotu výrobce nebo projektu; když žádná není, ČSN EN 61439-2 (PSC) a ČSN EN 61439-3 (DBO) předpokládají tyto (vyberte jednu a Použít, nebo na ni dvakrát klikněte):"
+msgid "The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, the standards assume these for household distribution boards (DBO, ČSN EN 61439-3) and power switchgear (PSC, ČSN EN 61439-2); pick one and Use, or double-click it:"
+msgstr "Součinitel soudobosti RDF je jeden pro celý rozváděč (ČSN EN 61439-1): podíl jmenovitých proudů, který vývody vedou současně a trvale. Při zatížení RDF násobkem jmenovitých proudů ztrácejí přístroje, vodiče a řadové svorky RDF²násobek ztrát při jmenovitých proudech; další ztráty zůstávají, jak jsou. 1 znamená bez soudobosti, jak počítá IEC 890. Použijte hodnotu výrobce nebo projektu; když žádná není, normy předpokládají tyto pro bytové rozvodnice (DBO, ČSN EN 61439-3) a výkonové rozváděče (PSC, ČSN EN 61439-2); vyberte jednu a Použít, nebo na ni dvakrát klikněte:"
+
+msgid "Household"
+msgstr "Bytové"
+
+msgid "Power switchgear"
+msgstr "Výkonové"

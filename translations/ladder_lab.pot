@@ -8149,5 +8149,11 @@ msgstr ""
 msgid "Types already given to the same device"
 msgstr ""
 
-msgid "The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, ČSN EN 61439-2 (PSC) and ČSN EN 61439-3 (DBO) assume these (pick one and Use, or double-click it):"
+msgid "The rated diversity factor RDF (součinitel soudobosti) is one for the whole switchboard (ČSN EN 61439-1): the share of their rated currents the outgoing circuits carry together for a long time. Loaded at RDF times their rated currents, the devices, wires and strip terminals lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. Take the maker's or the project's value; when there is none, the standards assume these for household distribution boards (DBO, ČSN EN 61439-3) and power switchgear (PSC, ČSN EN 61439-2); pick one and Use, or double-click it:"
+msgstr ""
+
+msgid "Household"
+msgstr ""
+
+msgid "Power switchgear"
 msgstr ""
