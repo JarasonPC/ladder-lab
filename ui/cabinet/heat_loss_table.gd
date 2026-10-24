@@ -20,6 +20,9 @@ var _grid: GridContainer
 ## Per row: {"what", "name", "field" (LineEdit), "loss" (Label)}.
 var _rows: Array[Dictionary] = []
 var _total: Label
+var _total_title: Label
+## The devices', wires' and terminals' losses at their rated currents.
+var _rated: Label
 
 
 func _init() -> void:
@@ -57,16 +60,10 @@ func fill(doc: SchematicDocument, losses: Dictionary) -> void:
 		_row(HeatRiseDialog.ROW_WIRES, group["key"], "%s A" % group["key"], tr("Wires (%d, %s m), cross-section") % [group["count"], String.num(group["length"], 1)], group["section"], "mm²")
 	if losses["terminal_count"] > 0:
 		_row(HeatRiseDialog.ROW_TERMINALS, "", "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], "W")
+	_rated = _sum_row(tr("At the rated currents"))
 	_row(HeatRiseDialog.ROW_EXTRA, "", "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], "W")
-	_grid.add_child(Control.new())
-	var total_title: Label = _label(tr("Total P"), -1.0)
-	total_title.add_theme_color_override("font_color", AppTheme.accent)
-	_grid.add_child(total_title)
-	_grid.add_child(Control.new())
-	_total = _label("", 70.0)
-	_total.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_total.add_theme_color_override("font_color", AppTheme.accent)
-	_grid.add_child(_total)
+	_total = _sum_row("")
+	_total_title = _grid.get_child(_grid.get_child_count() - 3)
 	show_losses(losses)
 
 
@@ -86,7 +83,12 @@ func show_losses(losses: Dictionary) -> void:
 		var field: LineEdit = row["field"]
 		field.placeholder_text = tr("enter")
 	if _total != null:
+		_rated.text = String.num(losses["rated"], 1) if losses["rated"] != null else "?"
 		_total.text = String.num(losses["total"], 1) if losses["total"] != null else "?"
+		var rdf: String = String.num(losses["rdf"], 2) if losses["rdf"] != null else "?"
+		_total_title.text = tr("Total P (RDF = %s)") % rdf
+		_total_title.tooltip_text = tr("Total P = RDF² · %s + further losses (RDF = %s)") % [_rated.text, rdf]
+		_total_title.mouse_filter = Control.MOUSE_FILTER_PASS
 
 
 ## The text field of row [param what] of [param name], null for none.
@@ -136,6 +138,21 @@ func _row(what: String, name: String, item: String, text: String, given: Variant
 	loss.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_grid.add_child(loss)
 	_rows.append({"what": what, "name": name, "field": input, "loss": loss})
+
+
+## A row of a sum: [param title] across, its value (returned) on the right.
+func _sum_row(title: String) -> Label:
+	_grid.add_child(Control.new())
+	var heading: Label = _label(title, -1.0)
+	heading.add_theme_color_override("font_color", AppTheme.accent)
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_grid.add_child(heading)
+	_grid.add_child(Control.new())
+	var value: Label = _label("", 70.0)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.add_theme_color_override("font_color", AppTheme.accent)
+	_grid.add_child(value)
+	return value
 
 
 func _label(text: String, width: float) -> Label:

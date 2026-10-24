@@ -53,6 +53,13 @@ var _results: Label
 var _verdict: Label
 var _warnings: Label
 var _curve: HeatRiseCurve
+## The table of the rated diversity factors, its heading cells, its rows'
+## texts and its buttons (each putting its value in).
+var _rdf_hint: Label
+var _rdf_table: GridContainer
+var _rdf_heads: Array[Label] = []
+var _rdf_rows: Array[Label] = []
+var _rdf_buttons: Array[Button] = []
 
 
 func _init() -> void:
@@ -61,7 +68,15 @@ func _init() -> void:
 	row.add_theme_constant_override("separation", 16)
 	add_child(row)
 	# The enclosure and the air round it.
-	var left: VBoxContainer = _column(row, 260.0)
+	# The enclosure's column scrolls: with the RDF table it is taller than the others.
+	var left_scroll: ScrollContainer = ScrollContainer.new()
+	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left_scroll.custom_minimum_size = Vector2(290, 420)
+	left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left_scroll)
+	var left: VBoxContainer = _column(row, 270.0)
+	row.remove_child(left)
+	left_scroll.add_child(left)
 	_caption(left)
 	var grid: GridContainer = _grid(left)
 	for key: String in ["height", "width", "depth"]:
@@ -89,6 +104,52 @@ func _init() -> void:
 	more.add_child(_partitions)
 	_field(more, "ambient", " °C")
 	_field(more, "limit", " °C")
+	# The rated diversity factor, one for the switchboard, and the values the
+	# standards give to choose from (a click on one puts it in).
+	_caption(left)
+	var rdf_grid: GridContainer = _grid(left)
+	_field(rdf_grid, "rdf", "")
+	_rdf_hint = _muted(left)
+	_rdf_table = GridContainer.new()
+	_rdf_table.columns = 3
+	_rdf_table.add_theme_constant_override("h_separation", 6)
+	_rdf_table.add_theme_constant_override("v_separation", 2)
+	left.add_child(_rdf_table)
+	for c: int in 3:
+		var head: Label = Label.new()
+		head.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		head.theme_type_variation = "MutedLabel"
+		head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		head.custom_minimum_size.x = 120.0 if c == 0 else 64.0
+		_rdf_table.add_child(head)
+		_rdf_heads.append(head)
+	for entry: Array in HeatRise.RDF_TABLE:
+		var what: Label = Label.new()
+		what.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		what.custom_minimum_size.x = 120.0
+		what.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_rdf_table.add_child(what)
+		_rdf_rows.append(what)
+		for value: Variant in [entry[1], entry[2]]:
+			if value == null:
+				var none: Label = Label.new()
+				none.text = "–"
+				none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				_rdf_table.add_child(none)
+				continue
+			var use: Button = Button.new()
+			use.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+			use.focus_mode = Control.FOCUS_NONE
+			use.text = String.num(value, 1)
+			use.custom_minimum_size.x = 64.0
+			use.add_theme_stylebox_override("normal", AppTheme.box(Color(AppTheme.accent, 0.12), AppTheme.RADIUS, 8.0, 2.0, Color(AppTheme.accent, 0.6), 1))
+			use.add_theme_stylebox_override("hover", AppTheme.box(Color(AppTheme.accent, 0.3), AppTheme.RADIUS, 8.0, 2.0, AppTheme.accent, 1))
+			use.pressed.connect(func() -> void:
+				_settings["rdf"] = value
+				_fill())
+			_rdf_table.add_child(use)
+			_rdf_buttons.append(use)
 	# The losses.
 	var middle: VBoxContainer = _column(row, 380.0)
 	_caption(middle)
@@ -156,11 +217,19 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	title = tr("Temperature rise of +%s") % doc.switchboards[b].name
 	ok_button_text = tr("OK")
 	cancel_button_text = tr("Cancel")
-	var captions: Array[String] = [tr("Enclosure"), tr("Installation and air"), tr("Power lost at the rated currents"), tr("Result")]
+	var captions: Array[String] = [tr("Enclosure"), tr("Installation and air"), tr("Rated diversity factor"), tr("Power lost at the rated currents"), tr("Result")]
+	_rdf_hint.text = tr("One RDF for the whole switchboard: the outgoing circuits loaded together at RDF times their rated currents lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. When the maker gives none, the standards assume (a click on a value puts it in):")
+	var heads: Array[String] = [tr("What"), tr("ČSN EN 61439-2 (PSC, power)"), tr("ČSN EN 61439-3 (DBO, ordinary persons)")]
+	for i: int in 3:
+		_rdf_heads[i].text = heads[i]
+	for i: int in _rdf_rows.size():
+		_rdf_rows[i].text = tr(HeatRise.RDF_TABLE[i][0])
+	for button: Button in _rdf_buttons:
+		button.tooltip_text = tr("Use RDF = %s") % button.text
 	for i: int in _captions.size():
 		_captions[i].text = captions[i].to_upper()
 	var labels: Array[String] = [tr("Height"), tr("Width"), tr("Depth"), tr("Inlet openings"), tr("Outlet openings"),
-		tr("Horizontal partitions"), tr("Ambient temperature"), tr("Most allowed inside")]
+		tr("Horizontal partitions"), tr("Ambient temperature"), tr("Most allowed inside"), tr("RDF")]
 	for i: int in _labels.size():
 		_labels[i].text = labels[i]
 	_fields["limit"].tooltip_text = tr("The warmest the air round the devices may get: see their makers' data")
@@ -206,6 +275,8 @@ func _typed(key: String, text: String) -> void:
 	if _filling:
 		return
 	var value: Variant = number(text)
+	if key == "rdf" and value != null and (value <= 0.0 or value > 1.0):
+		value = null
 	if value == null:
 		_settings.erase(key)
 	else:

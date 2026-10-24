@@ -1286,7 +1286,11 @@ Architecture and conventions of the code base. Read this before changing the cod
   only when all of it is (missing lists the rest: the enclosure's height, width and depth,
   "mounting", "vented" and then "inlet" and "outlet", "partitions", "ambient", "limit", each
   device's loss, the cross-section of each group of wires, the strip terminals' loss when
-  there are any, "extra"). losses(doc, board, wires, settings): the devices on its rails (an
+  there are any, "extra", "rdf"). The rated diversity factor "rdf" (one for the switchboard,
+  over 0 and at most 1, typed or put in from RDF_TABLE, the values ČSN EN 61439-2 (PSC) and
+  61439-3 (DBO) assume, shown in the dialog with a button for each and in the protocol):
+  losses' "rated" (devices, wires, strip terminals at their rated currents) times RDF², plus
+  "extra", is "total". losses(doc, board, wires, settings): the devices on its rails (an
   overload relay under its contactor too) with their losses as given ("losses" by
   designation, null while not); the wires laid out (CabinetWiring.wires) grouped by the
   largest rated current of a breaker, RCD, fuse or overload relay on their net

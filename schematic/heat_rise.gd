@@ -60,9 +60,27 @@ const SMALL_FROM: float = 0.08
 ## reach, "limit" (°C), the "losses" of each device at its rated current (W
 ## by designation, from its maker), the cross-section of the wires on the
 ## nets of each rated current ("sections": mm² by the current as text,
-## "16"), what the strip terminals lose together ("terminals", W) and the
-## further losses of what is not drawn ("extra", W: lighting, fans …).
-const NUMBERS: PackedStringArray = ["height", "width", "depth", "inlet", "outlet", "ambient", "limit", "terminals", "extra"]
+## "16"), what the strip terminals lose together ("terminals", W), the
+## further losses of what is not drawn ("extra", W: lighting, fans …) and
+## the rated diversity factor "rdf" (over 0, at most 1).
+const NUMBERS: PackedStringArray = ["height", "width", "depth", "inlet", "outlet", "ambient", "limit", "terminals", "extra", "rdf"]
+
+## The rated diversity factor (RDF, součinitel soudobosti) as ČSN EN 61439-2
+## (PSC, power switchgear) and ČSN EN 61439-3 (DBO, distribution boards
+## operated by ordinary persons) give it when the maker gives none, shown
+## for the user to choose from: what it applies to (English source text),
+## the PSC value and the DBO value (null: none). The outgoing circuits are
+## loaded at RDF times their rated currents together, so what they lose at
+## their rated currents is lost RDF² times.
+const RDF_TABLE: Array[Array] = [
+	["2 and 3 outgoing circuits", 0.9, 0.8],
+	["4 and 5 outgoing circuits", 0.8, 0.7],
+	["6 to 9 outgoing circuits", 0.7, 0.6],
+	["10 and more outgoing circuits", 0.6, 0.5],
+	["Electric actuator", 0.2, null],
+	["Motors up to 100 kW", 0.8, null],
+	["Motors over 100 kW", 1.0, null],
+]
 
 ## Copper conductors (annex H of ČSN EN 61439-1): cross-section (mm²) and
 ## resistance at 20 °C (mΩ/m); the temperature coefficient α (1/K) and the
@@ -339,7 +357,10 @@ static func settings(data: Variant) -> Dictionary:
 	for key: String in NUMBERS:
 		if _is_number(d.get(key)):
 			var value: float = float(d[key])
-			if (key in ["ambient", "limit"] and absf(value) < 200.0) or (key not in ["ambient", "limit"] and value >= 0.0):
+			if key == "rdf":
+				if value > 0.0 and value <= 1.0:
+					s[key] = value
+			elif (key in ["ambient", "limit"] and absf(value) < 200.0) or (key not in ["ambient", "limit"] and value >= 0.0):
 				s[key] = value
 	if _is_number(d.get("mounting")) and int(d["mounting"]) >= 0 and int(d["mounting"]) < MOUNTINGS.size():
 		s["mounting"] = int(d["mounting"])
@@ -427,6 +448,8 @@ static func missing(s: Dictionary, lost: Dictionary) -> Array[Dictionary]:
 		gaps.append(_note("The loss of the strip terminals", []))
 	if not s.has("extra"):
 		gaps.append(_note("The further losses", []))
+	if not s.has("rdf"):
+		gaps.append(_note("The rated diversity factor RDF", []))
 	return gaps
 
 
@@ -440,7 +463,9 @@ static func missing(s: Dictionary, lost: Dictionary) -> Array[Dictionary]:
 ## [{"key" (the current as text), "amperes", "count", "length" (m),
 ## "section" (mm² as given, null while not), "power" (W, null while the
 ## section is missing)}], "wire_count", "wire_length" (m), "terminal_count",
-## "terminals" and "extra" (W as given, null while not), "total" (W, null
+## "terminals" and "extra" (W as given, null while not), "rated" (W of the
+## devices, wires and terminals at their rated currents, null while one is
+## missing), "rdf" (as given), "total" (W: RDF² · rated + extra, null
 ## while anything is missing)}. A wire carries the largest rated current of
 ## a breaker, an RCD, a fuse or an overload relay (its setting) on its net
 ## and loses I² R20 (1 + α (Tc − 20 °C)) per metre (annex H of ČSN EN
@@ -502,21 +527,26 @@ static func losses(doc: SchematicDocument, b: int, wires: Array, s: Dictionary) 
 	var all_strips: Dictionary = CabinetDevices.strips(doc) if not strips.is_empty() else {}
 	for strip: String in strips:
 		terminal_count += (all_strips.get(strip, []) as Array).size()
-	var total: Variant = 0.0
+	# At the rated currents: the devices, the wires, the strip terminals.
+	var rated: Variant = 0.0
 	var parts: Array = []
 	for device: Dictionary in devices:
 		parts.append(device["power"])
 	for group: Dictionary in groups:
 		parts.append(group["power"])
 	parts.append(s.get("terminals") if terminal_count > 0 else 0.0)
-	parts.append(s.get("extra"))
 	for part: Variant in parts:
 		if part == null:
-			total = null
+			rated = null
 			break
-		total += float(part)
+		rated += float(part)
+	var rdf: Variant = s.get("rdf")
+	var total: Variant = null
+	if rated != null and rdf != null and s.has("extra"):
+		total = rdf * rdf * rated + float(s["extra"])
 	return {"devices": devices, "groups": groups, "wire_count": wire_count, "wire_length": wire_length,
-		"terminal_count": terminal_count, "terminals": s.get("terminals"), "extra": s.get("extra"), "total": total}
+		"terminal_count": terminal_count, "terminals": s.get("terminals"), "extra": s.get("extra"),
+		"rated": rated, "rdf": rdf, "total": total}
 
 
 ## The largest rated current (A) of a breaker, an RCD, a fuse or an overload
