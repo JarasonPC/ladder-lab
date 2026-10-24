@@ -43,6 +43,11 @@ var _vented_label: Label
 var _vented: OptionButton
 var _partitions: OptionButton
 var _losses: Tree
+## The losses table over the whole screen, and the button opening it.
+var _wide: AcceptDialog
+var _wide_losses: Tree
+var _wide_hint: Label
+var _wide_button: Button
 var _loss_hint: Label
 var _results: Label
 var _verdict: Label
@@ -87,22 +92,30 @@ func _init() -> void:
 	# The losses.
 	var middle: VBoxContainer = _column(row, 380.0)
 	_caption(middle)
-	_losses = Tree.new()
-	_losses.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_losses.hide_root = true
-	_losses.columns = 4
-	_losses.column_titles_visible = true
-	_losses.select_mode = Tree.SELECT_ROW
-	_losses.set_column_expand(0, false)
-	_losses.set_column_custom_minimum_width(0, 64)
-	for c: int in [2, 3]:
-		_losses.set_column_expand(c, false)
-		_losses.set_column_custom_minimum_width(c, 76)
-	_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_losses.custom_minimum_size = Vector2(380, 280)
-	_losses.item_edited.connect(_cell_typed)
+	_losses = _new_tree(64.0, 76.0)
+	_losses.custom_minimum_size = Vector2(380, 260)
 	middle.add_child(_losses)
+	_wide_button = Button.new()
+	_wide_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_wide_button.focus_mode = Control.FOCUS_NONE
+	_wide_button.icon = AppTheme.icon("window")
+	_wide_button.pressed.connect(func() -> void:
+		_fill_tree(_wide_losses)
+		_wide.popup_centered_ratio(0.97))
+	middle.add_child(_wide_button)
 	_loss_hint = _muted(middle)
+	# The same table over the whole screen: every row, the whole of each text.
+	_wide = AcceptDialog.new()
+	_wide.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	var wide_column: VBoxContainer = VBoxContainer.new()
+	_wide.add_child(wide_column)
+	_wide_hint = _muted(wide_column)
+	_wide_losses = _new_tree(110.0, 130.0)
+	wide_column.add_child(_wide_losses)
+	_wide.visibility_changed.connect(func() -> void:
+		if not _wide.visible:
+			_fill_tree(_losses))
+	add_child(_wide)
 	# The result.
 	var right: VBoxContainer = _column(row, 330.0)
 	_caption(right)
@@ -161,10 +174,15 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	_partitions.add_item(choose)
 	for n: int in HeatRise.MAX_PARTITIONS + 1:
 		_partitions.add_item(str(n))
-	_losses.set_column_title(0, tr("Item"))
-	_losses.set_column_title(1, tr("What"))
-	_losses.set_column_title(2, tr("Given"))
-	_losses.set_column_title(3, tr("Loss (W)"))
+	for tree: Tree in [_losses, _wide_losses]:
+		tree.set_column_title(0, tr("Item"))
+		tree.set_column_title(1, tr("What"))
+		tree.set_column_title(2, tr("Given"))
+		tree.set_column_title(3, tr("Loss (W)"))
+	_wide_button.text = tr("Whole list over the screen")
+	_wide.title = tr("Power lost in +%s") % doc.switchboards[b].name
+	_wide.ok_button_text = tr("Close")
+	_wide_hint.text = tr("Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires; an empty cell is not given.")
 	_loss_hint.text = tr("Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty cell is not given.")
 	_fill()
 	popup_centered_clamped(Vector2i(1100, 680), 0.92)
@@ -204,10 +222,11 @@ func _choose(key: String, value: Variant) -> void:
 	_fill()
 
 
-## A cell typed in the losses table: a device's loss, a cross-section, the
-## strip terminals' or the further losses (empty: not given).
-func _cell_typed() -> void:
-	for item: TreeItem in _losses.get_root().get_children():
+## A cell typed in losses table [param tree]: a device's loss, a
+## cross-section, the strip terminals' or the further losses (empty: not
+## given).
+func _cell_typed(tree: Tree) -> void:
+	for item: TreeItem in tree.get_root().get_children():
 		var what: Variant = item.get_metadata(0)
 		if what == null:
 			continue
@@ -260,26 +279,47 @@ func _fill() -> void:
 	_refresh()
 
 
-## The table and the result again (the fields as they are).
+## The tables and the result again (the fields as they are).
 func _refresh() -> void:
 	_evaluated = HeatRise.evaluate(_document, _board, _wires, _settings)
-	_fill_losses()
+	for tree: Tree in [_losses, _wide_losses]:
+		if tree == _losses or _wide.visible:
+			_fill_tree(tree)
 	_fill_result()
 
 
-func _fill_losses() -> void:
+## A losses table: a row per device, per group of wires, the strip
+## terminals, further losses; the total.
+func _new_tree(first: float, numbers: float) -> Tree:
+	var tree: Tree = Tree.new()
+	tree.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	tree.hide_root = true
+	tree.columns = 4
+	tree.column_titles_visible = true
+	tree.select_mode = Tree.SELECT_ROW
+	tree.set_column_expand(0, false)
+	tree.set_column_custom_minimum_width(0, int(first))
+	for c: int in [2, 3]:
+		tree.set_column_expand(c, false)
+		tree.set_column_custom_minimum_width(c, int(numbers))
+	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tree.item_edited.connect(_cell_typed.bind(tree))
+	return tree
+
+
+func _fill_tree(tree: Tree) -> void:
 	var losses: Dictionary = _evaluated["losses"]
-	_losses.clear()
-	var root: TreeItem = _losses.create_item()
+	tree.clear()
+	var root: TreeItem = tree.create_item()
 	for device: Dictionary in losses["devices"]:
-		_row(root, ROW_DEVICE, device["designation"], device["designation"], tr(CabinetPanel.KIND_TITLES[device["kind"]]), device["power"], device["power"], tr("W, from the maker"))
+		_row(root, ROW_DEVICE, device["designation"], "-" + device["designation"], HeatRiseReport.device_text(_document, device["designation"]), device["power"], device["power"], tr("W, from the maker"))
 	for group: Dictionary in losses["groups"]:
 		var what: String = tr("Wires (%d, %s m), cross-section mm²") % [group["count"], String.num(group["length"], 1)]
 		_row(root, ROW_WIRES, group["key"], "%s A" % group["key"], what, group["section"], group["power"], tr("mm²"))
 	if losses["terminal_count"] > 0:
 		_row(root, ROW_TERMINALS, "", "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], losses["terminals"], tr("W"))
 	_row(root, ROW_EXTRA, "", "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], losses["extra"], tr("W"))
-	var total: TreeItem = _losses.create_item(root)
+	var total: TreeItem = tree.create_item(root)
 	total.set_text(1, tr("Total P"))
 	total.set_text(3, String.num(losses["total"], 1) if losses["total"] != null else "?")
 	total.set_text_alignment(3, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -291,7 +331,7 @@ func _fill_losses() -> void:
 ## the current), [param given] typed in column 2 (null: not given yet,
 ## marked), [param loss] in column 3.
 func _row(root: TreeItem, what: String, name: String, item_text: String, text: String, given: Variant, loss: Variant, unit: String) -> void:
-	var item: TreeItem = _losses.create_item(root)
+	var item: TreeItem = root.get_tree().create_item(root)
 	item.set_metadata(0, what)
 	item.set_metadata(1, name)
 	item.set_text(0, item_text)

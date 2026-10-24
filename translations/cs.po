@@ -7345,3 +7345,174 @@ msgstr[2] "Oteplení: zbývá zadat %d údajů"
 
 msgid "Ventilation openings"
 msgstr "Větrací otvory"
+
+msgid "%s (fig. 1, curve %d)"
+msgstr "%s (obr. 1, křivka %d)"
+
+msgid "1. Data given"
+msgstr "1. Zadané údaje"
+
+msgid "2. Power lost at the rated currents P"
+msgstr "2. Ztrátový výkon při jmenovitých proudech P"
+
+msgid "3. Effective cooling surface Ae (table 3)"
+msgstr "3. Účinný chladicí povrch Ae (tab. 3)"
+
+msgid "4. Temperature rise"
+msgstr "4. Oteplení"
+
+msgid "5. Temperature of the air inside"
+msgstr "5. Teplota vzduchu uvnitř"
+
+msgid "= Δt1,0 (the top quarter of a small enclosure)"
+msgstr "= Δt1,0 (horní čtvrtina malého krytu)"
+
+msgid "After IEC 890 (ČSN 33 7107 part 1), the calculation ČSN EN 61439-1 allows for verifying the temperature rise of an assembly: the effective cooling surface Ae = Σ A0 · b, the rise of the air half way up Δt0,5 = k · d · P^x and at the top Δt1,0 = c · Δt0,5, k and c off the method's charts. The losses at the rated currents as given; the wires' losses by annex H of ČSN EN 61439-1."
+msgstr "Podle IEC 890 (ČSN 33 7107 část 1), výpočtem, kterým ČSN EN 61439-1 dovoluje ověřit oteplení rozváděče: účinný chladicí povrch Ae = Σ A0 · b, oteplení vzduchu v polovině výšky Δt0,5 = k · d · P^x a v horní části Δt1,0 = c · Δt0,5, k a c z grafů metody. Ztráty při jmenovitých proudech podle zadání; ztráty vodičů podle přílohy H ČSN EN 61439-1."
+
+msgid "At the top (1.0 h)"
+msgstr "Nahoře (1,0 h)"
+
+msgid "Depth of the enclosure"
+msgstr "Hloubka krytu"
+
+msgid "Devices (%d)"
+msgstr "Přístroje (%d)"
+
+msgid "From"
+msgstr "Odkud"
+
+msgid "Half way up (0.5 h)"
+msgstr "V polovině výšky (0,5 h)"
+
+msgid "Height of the enclosure h"
+msgstr "Výška krytu h"
+
+msgid "How it is installed"
+msgstr "Způsob instalace"
+
+msgid "Losses"
+msgstr "Ztráty"
+
+msgid "Mounting plate as laid out (w × h)"
+msgstr "Montážní deska podle rozvržení (š × v)"
+
+msgid "Not worked out: still to give"
+msgstr "Nespočítáno: zbývá zadat"
+
+msgid "Notes"
+msgstr "Poznámky"
+
+msgid "Power lost in +%s"
+msgstr "Ztrátový výkon v +%s"
+
+msgid "Quantity symbol"
+msgstr "Veličina"
+
+msgid "Rail %d (at %s h)"
+msgstr "Lišta %d (ve výšce %s h)"
+
+msgid "Result: at the top %s °C, warmer than the %s °C allowed."
+msgstr "Výsledek: nahoře %s °C, tepleji než dovolených %s °C."
+
+msgid "Result: at the top %s °C, within the %s °C allowed."
+msgstr "Výsledek: nahoře %s °C, v mezích dovolených %s °C."
+
+msgid "Size (m)"
+msgstr "Rozměry (m)"
+
+msgid "Surface"
+msgstr "Povrch"
+
+msgid "Temperature (°C)"
+msgstr "Teplota (°C)"
+
+msgid "Temperature rise"
+msgstr "Oteplení"
+
+msgid "Temperature rise +%s"
+msgstr "Oteplení +%s"
+
+msgid "Temperature rise of switchboard +%s: calculation"
+msgstr "Výpočet oteplení rozváděče +%s"
+
+msgid "The protocol of each switchboard's temperature rise calculation: the data given, the losses, Ae, each step of the calculation, the temperatures and the curve"
+msgstr "Protokol o výpočtu oteplení každého rozváděče: zadané údaje, ztráty, Ae, každý krok výpočtu, teploty a oteplovací křivka"
+
+msgid "Three quarters up (0.75 h)"
+msgstr "Ve třech čtvrtinách výšky (0,75 h)"
+
+msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires; an empty cell is not given."
+msgstr "Zadejte ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez každé skupiny vodičů; prázdná buňka není zadána."
+
+msgid "Value"
+msgstr "Hodnota"
+
+msgid "Where"
+msgstr "Kde"
+
+msgid "Whole list over the screen"
+msgstr "Celý seznam přes obrazovku"
+
+msgid "Wider than %s m or over %s m² of Ae: reckoned in %d sections %s m wide, each with P/%d and its share of the openings; the dividing walls do not count. The warmest section:"
+msgstr "Širší než %s m nebo Ae nad %s m²: počítáno v %d sekcích širokých %s m, každá s P/%d a svým podílem otvorů; dělicí stěny se nepočítají. Nejteplejší sekce:"
+
+msgid "Width of the enclosure w"
+msgstr "Šířka krytu w"
+
+msgid "Wires"
+msgstr "Vodiče"
+
+msgid "Wires (%d, %s m)"
+msgstr "Vodiče (%d, %s m)"
+
+msgid "Wires laid out, by the rated current I of the breaker, fuse or overload relay on their net: P = I² · R20 · (1 + α (Tc − 20 °C)) · L, α = %s 1/K, Tc = %s °C (annex H of ČSN EN 61439-1)."
+msgstr "Vodiče podle kabeláže, po skupinách podle jmenovitého proudu I jističe, pojistky nebo nadproudové ochrany na jejich síti: P = I² · R20 · (1 + α (Tc − 20 °C)) · L, α = %s 1/K, Tc = %s °C (příloha H ČSN EN 61439-1)."
+
+msgid "closed"
+msgstr "uzavřený"
+
+msgid "fig. 2 (closed): Ae = %s m²"
+msgstr "obr. 2 (uzavřený): Ae = %s m²"
+
+msgid "fig. 3, curve %d: f = %s"
+msgstr "obr. 3, křivka %d: f = %s"
+
+msgid "fig. 4 (with openings): inlet %s cm², Ae = %s m²"
+msgstr "obr. 4 (s otvory): vstupní %s cm², Ae = %s m²"
+
+msgid "fig. 5: inlet %s cm², f = %s"
+msgstr "obr. 5: vstupní %s cm², f = %s"
+
+msgid "fig. 6 (Ae ≤ %s m²): k = %s · Ae^%s"
+msgstr "obr. 6 (Ae ≤ %s m²): k = %s · Ae^%s"
+
+msgid "fig. 7: g = %s"
+msgstr "obr. 7: g = %s"
+
+msgid "none (closed)"
+msgstr "nemá (uzavřený)"
+
+msgid "not given"
+msgstr "nezadáno"
+
+msgid "not used for Ae ≤ 1.25 m²"
+msgstr "pro Ae ≤ 1,25 m² se nepoužívá"
+
+msgid "table 4 (closed), %d partitions"
+msgstr "tab. 4 (uzavřený), přepážek: %d"
+
+msgid "table 5 (with openings), %d partitions"
+msgstr "tab. 5 (s otvory), přepážek: %d"
+
+msgid "total P (part 2)"
+msgstr "celkové P (oddíl 2)"
+
+msgid "total P / %d, the section's share"
+msgstr "celkové P / %d, podíl sekce"
+
+msgid "with openings"
+msgstr "s otvory"
+
+msgid "with openings: inlet %s, outlet %s"
+msgstr "s otvory: vstupní %s, výstupní %s"

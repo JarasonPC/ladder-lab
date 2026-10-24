@@ -2,7 +2,8 @@ class_name SheetRenderer
 extends Node
 ## Renders the sheets of an export (PNG, PDF): the pages of the schematic at
 ## rest, and, as chosen, the control stations ([StationsSheet]), each
-## switchboard ([CabinetView]), the time relays ([TimersSheet]), the workspace
+## switchboard ([CabinetView]) and its temperature rise protocol
+## ([HeatRiseSheet]), the time relays ([TimersSheet]), the workspace
 ## ([WorkspaceCanvas]) and the parts list ([PartsSheet]), on white paper, each
 ## on the sheet chosen by [SheetLayout] with its frame and title block
 ## ([SheetFrame]), numbered in turn, at [constant DPI] dots per inch of the paper.
@@ -40,6 +41,8 @@ var switchboards: bool = false
 var timers: bool = false
 var workspace: bool = false
 var parts_list: bool = false
+## The temperature rise protocol of each switchboard with something in it.
+var heat_rise: bool = false
 ## Scales a floor plan is printed at, the largest first.
 const PLAN_SCALES: Array[int] = [50, 100, 200, 500]
 var plc_programs: bool = false
@@ -71,7 +74,7 @@ static func end_white_paper() -> void:
 
 
 ## What [param doc] has sheets of: {"stations", "switchboards" (one with
-## something in it), "workspace" (places or parts), "plc_programs",
+## something in it), "heat_rise" (one with something on its rails), "workspace" (places or parts), "plc_programs",
 ## "timers" (time relays)}.
 static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 	var fitted: bool = false
@@ -80,6 +83,7 @@ static func available(doc: SchematicDocument) -> Dictionary[String, bool]:
 	return {
 		"stations": not doc.control_boxes.is_empty(),
 		"switchboards": fitted,
+		"heat_rise": doc.switchboards.any(_on_rails),
 		"workspace": _floors_drawn(doc).size() > 0 if doc.residential else not (doc.places().is_empty() and Workspace.field_devices(doc.circuit).is_empty()),
 		"plc_programs": not _programs(doc).is_empty(),
 		"timers": not TimersSheet.entries(doc).is_empty(),
@@ -115,11 +119,21 @@ static func _fitted(board: Switchboard) -> bool:
 	return false
 
 
+## True when something sits on the rails of [param board] (its temperature
+## rise has losses to reckon with).
+static func _on_rails(board: Switchboard) -> bool:
+	for rail: CabinetRail in board.rails:
+		if not rail.items.is_empty():
+			return true
+	return false
+
+
 ## What the sheets of an export of [param doc] show, in order: {"kind"
 ## ("page", or "single_line" for a residential installation, "stations",
-## "switchboard", "plc", "timers", "workspace" or "floor_plan", "parts") and
-## "page", "boxes" (see [method StationsSheet.arrange]), "board", "relays" (see
-## [method TimersSheet.entries]) or "rows"}. Only
+## "switchboard", "heat_rise", "plc", "timers", "workspace" or "floor_plan",
+## "parts") and "page", "boxes" (see [method StationsSheet.arrange]), "board",
+## "relays" (see [method TimersSheet.entries]) or "rows" (a temperature rise
+## protocol's with its "board", see [HeatRiseSheet])}. Only
 ## what [param doc] has: stations, switchboards with something in them, a
 ## workspace with places or parts.
 func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary]:
@@ -138,6 +152,11 @@ func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary
 		for b: int in doc.switchboards.size():
 			if _fitted(doc.switchboards[b]):
 				result.append({"kind": "switchboard", "board": b})
+	if heat_rise:
+		for b: int in doc.switchboards.size():
+			if _on_rails(doc.switchboards[b]):
+				for rows: Array in HeatRiseSheet.split(HeatRiseReport.new().rows(doc, b)):
+					result.append({"kind": "heat_rise", "board": b, "rows": rows})
 	if plc_programs:
 		for plc: Plc in _programs(doc):
 			if plc.program.language == PlcProgram.Language.LAD:
@@ -322,6 +341,13 @@ func _sheet(copy: SchematicDocument, spec: Dictionary, index: int, count: int) -
 			content.add_child(plan)
 			frame.page_title = tr("Floor plan") if copy.floors.size() == 1 else tr("Floor plan %s") % copy.floor_plan.floor_name()
 			extent = Rect2(Vector2.ZERO, plan.size / G)
+		"heat_rise":
+			var protocol: HeatRiseSheet = HeatRiseSheet.new()
+			protocol.rows = spec["rows"]
+			content.add_child(protocol)
+			var heated: Switchboard = copy.switchboards[spec["board"]]
+			frame.page_title = tr("Temperature rise +%s") % heated.name
+			extent = protocol.extent()
 		"parts":
 			var table: PartsSheet = PartsSheet.new()
 			table.rows = spec["rows"]

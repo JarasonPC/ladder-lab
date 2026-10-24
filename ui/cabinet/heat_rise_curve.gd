@@ -12,6 +12,8 @@ var ambient: float = 35.0
 var limit: float = 55.0
 ## The rails: (height 0..1, rail number).
 var marks: Array[Vector2] = []
+## Drawn on a sheet of the export: schematic colours and font, black curve.
+var paper: bool = false
 
 const PAD_LEFT: float = 36.0
 const PAD_BOTTOM: float = 22.0
@@ -19,9 +21,11 @@ const PAD: float = 8.0
 
 
 func _draw() -> void:
-	var font: Font = get_theme_default_font()
-	var font_size: int = get_theme_default_font_size() - 3
-	var muted: Color = AppTheme.text_muted
+	var font: Font = AppTheme.schematic_font() if paper else get_theme_default_font()
+	var font_size: int = 11 if paper else get_theme_default_font_size() - 3
+	var muted: Color = SchematicTheme.TEXT if paper else AppTheme.text_muted
+	var danger: Color = SchematicTheme.DESIGNATION if paper else AppTheme.danger
+	var accent: Color = SchematicTheme.DESIGNATION if paper else AppTheme.accent
 	var area: Rect2 = Rect2(PAD_LEFT, PAD, size.x - PAD_LEFT - PAD, size.y - PAD - PAD_BOTTOM)
 	if area.size.x <= 10.0 or area.size.y <= 10.0:
 		return
@@ -49,9 +53,11 @@ func _draw() -> void:
 	var ax: float = to_x.call(ambient)
 	draw_dashed_line(Vector2(ax, area.position.y), Vector2(ax, area.end.y), muted, 1.0, 4.0)
 	var lx: float = to_x.call(limit)
-	draw_line(Vector2(lx, area.position.y), Vector2(lx, area.end.y), AppTheme.danger, 1.5)
+	draw_line(Vector2(lx, area.position.y), Vector2(lx, area.end.y), danger, 1.5)
+	if paper:
+		draw_string(font, Vector2(lx + 3.0, area.position.y + font_size), "%s °C" % String.num(limit, 0), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, danger)
 	# The curve: solid where the method gives it, dashed under the middle.
-	var colour: Color = AppTheme.success if result.get("ok", true) else AppTheme.danger
+	var colour: Color = SchematicTheme.LINE if paper else (AppTheme.success if result.get("ok", true) else AppTheme.danger)
 	var points: PackedVector2Array = PackedVector2Array()
 	for i: int in 41:
 		var h: float = i / 40.0
@@ -65,5 +71,5 @@ func _draw() -> void:
 		draw_circle(Vector2(to_x.call(ambient + HeatRise.rise_at(result, h)), to_y.call(h)), 3.5, colour)
 	for mark: Vector2 in marks:
 		var at: Vector2 = Vector2(to_x.call(ambient + HeatRise.rise_at(result, mark.x)), to_y.call(mark.x))
-		draw_circle(at, 2.5, AppTheme.accent)
-		draw_string(font, at + Vector2(6.0, font_size * 0.35), str(int(mark.y)), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, AppTheme.accent)
+		draw_circle(at, 2.5, accent)
+		draw_string(font, at + Vector2(6.0, font_size * 0.35), str(int(mark.y)), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, accent)

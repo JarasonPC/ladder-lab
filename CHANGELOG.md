@@ -17,6 +17,13 @@ What changed in each LadderLab version. Version numbers follow the rules in
   temperature and the temperature curve, and what the method could not cover, and the
   switchboard's tools say how warm it gets at the top. The consumer unit of a house has it
   too
+- The export can hold each switchboard's temperature rise protocol (Temperature rise in the
+  export preview): the data given, every device's and wire group's loss, the cooling surface
+  surface by surface and each step of the calculation with its figures, the temperatures
+  over the height and at each rail, the result and the curve
+- In the temperature rise calculation each device shows what tells it apart (a breaker its
+  characteristic, rated current and poles, an overload relay its setting …), and the list of
+  losses opens over the whole screen
 - A room's environment can be any combination of the external influences of ČSN 33 2000-5-51:
   the List button beside the environment field shows them all in a table (code and meaning,
   grouped as in the standard's Annex A) to tick those of the room, one class of each; the

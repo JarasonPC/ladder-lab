@@ -402,8 +402,9 @@ func _rebuild() -> void:
 ## How warm switchboard [param b] gets inside with what is on its rails (see
 ## [HeatRise]), and the button opening the calculation to fill in.
 func _heat_tools(b: int) -> void:
-	var layout: CabinetLayout = _view.layout()
-	if not _document.switchboards[b].rails.is_empty() and layout != null:
+	# Laid out as the calculation always is (the view's scale moves the wires a little).
+	var layout: CabinetLayout = HeatRiseReport.layout(_document, b) if not _document.switchboards[b].rails.is_empty() else null
+	if layout != null:
 		var evaluated: Dictionary = HeatRise.evaluate(_document, b, layout.wiring.wires if layout.wiring != null else [])
 		var summary: Label = Label.new()
 		summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -423,7 +424,7 @@ func _heat_tools(b: int) -> void:
 	open.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	open.tooltip_text = tr("Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections")
 	open.disabled = layout == null or _document.switchboards[b].rails.is_empty()
-	open.pressed.connect(func() -> void: _heat_dialog.open(_document, b, _view.layout()))
+	open.pressed.connect(func() -> void: _heat_dialog.open(_document, b, HeatRiseReport.layout(_document, b)))
 	_list.add_child(open)
 
 

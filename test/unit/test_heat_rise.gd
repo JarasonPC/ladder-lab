@@ -229,3 +229,115 @@ func test_panel_asks_and_the_dialog_saves_what_is_given() -> void:
 	(fields["depth"] as LineEdit).text_changed.emit("")
 	assert_false(dialog.settings().has("depth"))
 	dialog.hide()
+
+
+## Switchboard 0 of [param doc] with everything its calculation needs given.
+func _all_given(doc: SchematicDocument, changes: Dictionary = {}) -> void:
+	var wires: Array = HeatRiseReport.layout(doc, 0).wiring.wires
+	var lost: Dictionary = HeatRise.evaluate(doc, 0, wires, {})["losses"]
+	var s: Dictionary = _given({"height": 800.0, "width": 600.0, "depth": 250.0, "terminals": 0.5, "extra": 0.0, "losses": {}, "sections": {}})
+	for device: Dictionary in lost["devices"]:
+		s["losses"][device["designation"]] = 3.0
+	for group: Dictionary in lost["groups"]:
+		s["sections"][group["key"]] = 2.5
+	s.merge(changes, true)
+	doc.switchboards[0].heat = HeatRise.settings(s)
+
+
+func test_device_tells_what_it_is() -> void:
+	var doc: SchematicDocument = _filled_board()
+	var lost: Dictionary = HeatRise.evaluate(doc, 0, [], {})["losses"]
+	for device: Dictionary in lost["devices"]:
+		var c: CircuitComponent = CabinetDevices.device(doc.circuit, device["designation"])
+		var text: String = HeatRiseReport.device_text(doc, device["designation"])
+		if c is CircuitBreaker or c is MotorBreaker:
+			assert_string_contains(text, "%d" % roundi(float(c.get("rated_current"))), "the rated current of -%s: %s" % [device["designation"], text])
+			assert_false(text.begins_with("Circuit breaker, Circuit breaker"), "named once")
+		if c is OverloadRelay:
+			assert_string_contains(text, "Ir ")
+
+
+func test_protocol_shows_the_whole_calculation() -> void:
+	var doc: SchematicDocument = _filled_board()
+	_all_given(doc)
+	var rows: Array[Dictionary] = HeatRiseReport.new().rows(doc, 0)
+	var texts: PackedStringArray = PackedStringArray()
+	for row: Dictionary in rows:
+		if row.has("text"):
+			texts.append(row["text"])
+		if row.has("cells"):
+			texts.append(" | ".join(PackedStringArray(row["cells"].map(func(c: Variant) -> String: return str(c)))))
+	var all: String = "\n".join(texts)
+	for part: String in ["1. Data given", "2. Power lost at the rated currents P", "3. Effective cooling surface Ae", "4. Temperature rise",
+			"5. Temperature of the air inside", "Height of the enclosure h | 800 mm", "R20 (mΩ/m)", "Ae | ", "k · d · P^x", "c · Δt0,5", "Rail 1", "Result: at the top"]:
+		assert_string_contains(all, part)
+	var e: Dictionary = HeatRise.evaluate(doc, 0, HeatRiseReport.layout(doc, 0).wiring.wires)
+	assert_string_contains(all, "%s K" % HeatRiseReport._n(e["result"]["top"], 2), "Δt1,0 as worked out")
+	assert_eq(rows.filter(func(r: Dictionary) -> bool: return r["type"] == "curve").size(), 1, "the curve")
+	# Shared out over A4 sheets: every row once, a table going on repeats its heading.
+	var sheets: Array[Array] = HeatRiseSheet.split(rows)
+	assert_gt(sheets.size(), 0)
+	for sheet: Array in sheets:
+		var height: float = 0.0
+		for row: Dictionary in sheet:
+			height += HeatRiseSheet.HEIGHTS[row["type"]]
+		assert_lte(height, HeatRiseSheet.SIZE.y + 0.01, "fits its sheet")
+	# Not all given: says what is missing, no calculation.
+	doc.switchboards[0].heat.erase("ambient")
+	rows = HeatRiseReport.new().rows(doc, 0)
+	var headings: Array = rows.filter(func(r: Dictionary) -> bool: return r["type"] == "heading").map(func(r: Dictionary) -> String: return r["text"])
+	assert_true(headings.has("Not worked out: still to give"))
+	assert_false(headings.has("4. Temperature rise"))
+
+
+func test_protocol_of_a_ventilated_board_in_sections() -> void:
+	var doc: SchematicDocument = _filled_board()
+	_all_given(doc, {"height": 2200.0, "width": 2900.0, "depth": 800.0, "vented": true, "inlet": 1220.0, "outlet": 1800.0, "partitions": 2})
+	var rows: Array[Dictionary] = HeatRiseReport.new().rows(doc, 0)
+	var all: String = ""
+	for row: Dictionary in rows:
+		all += str(row.get("text", "")) + " ".join(PackedStringArray(row.get("cells", []).map(func(c: Variant) -> String: return str(c)))) + "\n"
+	assert_string_contains(all, "reckoned in 2 sections")
+	assert_string_contains(all, "fig. 4 (with openings): inlet 610 cm²")
+	assert_string_contains(all, "table 5 (with openings), 2 partitions")
+	assert_string_contains(all, "fig. 5: inlet 610 cm²")
+
+
+func test_export_has_the_protocol() -> void:
+	var doc: SchematicDocument = _filled_board()
+	_all_given(doc)
+	assert_true(SheetRenderer.available(doc)["heat_rise"])
+	var renderer: SheetRenderer = SheetRenderer.new()
+	renderer.schematic = false
+	renderer.heat_rise = true
+	var specs: Array[Dictionary] = renderer.sheets(doc, PackedInt32Array())
+	assert_gt(specs.size(), 0)
+	for spec: Dictionary in specs:
+		assert_eq(spec["kind"], "heat_rise")
+		assert_eq(spec["board"], 0)
+	renderer.heat_rise = false
+	assert_eq(renderer.sheets(doc, PackedInt32Array()).size(), 0, "only when chosen")
+	renderer.free()
+	assert_true(ExportPreview.CONTENTS.has("heat_rise"))
+
+
+func test_whole_list_over_the_screen_takes_what_is_typed() -> void:
+	var doc: SchematicDocument = _filled_board()
+	var dialog: HeatRiseDialog = HeatRiseDialog.new()
+	add_child_autofree(dialog)
+	dialog.open(doc, 0, HeatRiseReport.layout(doc, 0))
+	(dialog.get("_wide_button") as Button).pressed.emit()
+	var wide: AcceptDialog = dialog.get("_wide")
+	assert_true(wide.visible)
+	var tree: Tree = dialog.get("_wide_losses")
+	var first: TreeItem = tree.get_root().get_first_child()
+	assert_string_contains(first.get_text(1), ",", "what tells the device apart: %s" % first.get_text(1))
+	var designation: String = first.get_metadata(1)
+	first.set_text(2, "4,2")
+	tree.item_edited.emit()
+	await wait_process_frames(1)
+	assert_eq(dialog.settings()["losses"][designation], 4.2)
+	wide.hide()
+	var small: Tree = dialog.get("_losses")
+	assert_eq(small.get_root().get_first_child().get_text(2), "4.2", "the dialog's table follows")
+	dialog.hide()
