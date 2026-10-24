@@ -7,7 +7,9 @@ extends ConfirmationDialog
 ## most the air inside may reach; each device's loss at its rated current
 ## (from its maker), the cross-section of the wires on the nets of each rated
 ## current (their lengths come from the wiring laid out), what the strip
-## terminals lose and further losses. An empty field is not given. Until all
+## terminals lose and further losses; for the protocol, the power loss the
+## enclosure takes (from its maker) and each device's type from its maker.
+## An empty field is not given. Until all
 ## is, the result says what is missing; then it follows every change: Ae, k,
 ## c, the rise half way up and at the top, the temperature of each rail, the
 ## curve over the height, what the method could not cover. OK gives the
@@ -21,6 +23,8 @@ const ROW_DEVICE: String = "device"
 const ROW_WIRES: String = "wires"
 const ROW_TERMINALS: String = "terminals"
 const ROW_EXTRA: String = "extra"
+## A device's type from its maker (text, by designation).
+const ROW_TYPE: String = "type"
 
 var _document: SchematicDocument
 var _board: int = -1
@@ -63,7 +67,7 @@ var _rdf_buttons: Array[Button] = []
 
 
 func _init() -> void:
-	min_size = Vector2i(1020, 560)
+	min_size = Vector2i(1180, 560)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	add_child(row)
@@ -81,6 +85,7 @@ func _init() -> void:
 	var grid: GridContainer = _grid(left)
 	for key: String in ["height", "width", "depth"]:
 		_field(grid, key, " mm")
+	_field(grid, "enclosure_loss", " W")
 	_plate_note = _muted(left)
 	_caption(left)
 	_mounting_label = _plain(left)
@@ -151,10 +156,10 @@ func _init() -> void:
 			_rdf_table.add_child(use)
 			_rdf_buttons.append(use)
 	# The losses.
-	var middle: VBoxContainer = _column(row, 380.0)
+	var middle: VBoxContainer = _column(row, 540.0)
 	_caption(middle)
 	_losses = HeatLossTable.new()
-	_losses.custom_minimum_size = Vector2(400, 260)
+	_losses.custom_minimum_size = Vector2(540, 260)
 	_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_losses.typed.connect(_loss_typed)
 	middle.add_child(_losses)
@@ -176,6 +181,8 @@ func _init() -> void:
 	_wide_losses = HeatLossTable.new()
 	_wide_losses.field_width = 140.0
 	_wide_losses.item_width = 100.0
+	_wide_losses.type_width = 200.0
+	_wide_losses.text_width = 360.0
 	_wide_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_wide_losses.typed.connect(_loss_typed)
 	wide_column.add_child(_wide_losses)
@@ -228,11 +235,15 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 		button.tooltip_text = tr("Use RDF = %s") % button.text
 	for i: int in _captions.size():
 		_captions[i].text = captions[i].to_upper()
-	var labels: Array[String] = [tr("Height"), tr("Width"), tr("Depth"), tr("Inlet openings"), tr("Outlet openings"),
+	var labels: Array[String] = [tr("Height"), tr("Width"), tr("Depth"), tr("Power loss it takes"), tr("Inlet openings"), tr("Outlet openings"),
 		tr("Horizontal partitions"), tr("Ambient temperature"), tr("Most allowed inside"), tr("RDF")]
 	for i: int in _labels.size():
 		_labels[i].text = labels[i]
 	_fields["limit"].tooltip_text = tr("The warmest the air round the devices may get: see their makers' data")
+	_fields["enclosure_loss"].tooltip_text = tr("The power loss the enclosure takes as its maker gives it (W): the protocol's balance against the losses inside, not needed for the calculation")
+	for key: String in _fields:
+		_fields[key].add_theme_color_override("font_placeholder_color", AppTheme.warning)
+		_fields[key].placeholder_text = tr("enter")
 	_plate_note.text = tr("The mounting plate as laid out: %s × %s mm (width × height); the enclosure is larger.") % [String.num(_plate.x, 0), String.num(_plate.y, 0)] if _plate.x > 0.0 else ""
 	_mounting_label.text = tr("How the enclosure is installed")
 	_vented_label.text = tr("Ventilation openings")
@@ -256,7 +267,7 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	_loss_hint.text = tr("Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given.")
 	_fill()
 	_losses.fill(_document, _evaluated["losses"])
-	popup_centered_clamped(Vector2i(1100, 680), 0.92)
+	popup_centered_clamped(Vector2i(1260, 680), 0.92)
 
 
 ## The settings being edited.
@@ -277,6 +288,8 @@ func _typed(key: String, text: String) -> void:
 	var value: Variant = number(text)
 	if key == "rdf" and value != null and (value <= 0.0 or value > 1.0):
 		value = null
+	if key == "enclosure_loss" and value != null and value <= 0.0:
+		value = null
 	if value == null:
 		_settings.erase(key)
 	else:
@@ -296,10 +309,20 @@ func _choose(key: String, value: Variant) -> void:
 
 
 ## [param value] typed in the losses table for row [param what] of
-## [param name]: a device's loss, a cross-section, the strip terminals' or
-## the further losses (null: not given).
+## [param name]: a device's loss or maker's type (text), a cross-section,
+## the strip terminals' or the further losses (null: not given).
 func _loss_typed(what: String, name: String, value: Variant) -> void:
 	match what:
+		ROW_TYPE:
+			var types: Dictionary = _settings.get("types", {})
+			if value == null or str(value).strip_edges().is_empty():
+				types.erase(name)
+			else:
+				types[name] = str(value).strip_edges()
+			if types.is_empty():
+				_settings.erase("types")
+			else:
+				_settings["types"] = types
 		ROW_DEVICE, ROW_WIRES:
 			var store: String = "losses" if what == ROW_DEVICE else "sections"
 			var given: Dictionary = _settings.get(store, {})
@@ -341,7 +364,7 @@ func _fill() -> void:
 	var vented: bool = _settings.get("vented", false)
 	for key: String in ["inlet", "outlet"]:
 		_fields[key].editable = vented
-		_fields[key].placeholder_text = "" if vented else "—"
+		_fields[key].placeholder_text = tr("enter") if vented else "—"
 	_filling = false
 	_refresh()
 

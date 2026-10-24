@@ -79,6 +79,7 @@ var _menu: PopupMenu
 var _menu_device: String = ""
 ## The temperature rise of the switchboard worked out (Edit mode).
 var _heat_dialog: HeatRiseDialog
+var _documentation_dialog: BoardDocumentationDialog
 
 
 func _ready() -> void:
@@ -158,6 +159,14 @@ func _ready() -> void:
 				if sb.name == board:
 					sb.heat = HeatRise.settings(settings)))
 	add_child(_heat_dialog)
+	_documentation_dialog = BoardDocumentationDialog.new()
+	_documentation_dialog.saved.connect(func(data: Dictionary) -> void:
+		var board: String = board_name
+		edit_requested.emit(func(doc: SchematicDocument) -> void:
+			for sb: Switchboard in doc.switchboards:
+				if sb.name == board:
+					sb.documentation = BoardDocumentation.clean(data)))
+	add_child(_documentation_dialog)
 	_across = ScrollContainer.new()
 	_across.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_across.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -425,6 +434,31 @@ func _heat_tools(b: int) -> void:
 	open.tooltip_text = tr("Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections")
 	open.disabled = layout == null or _document.switchboards[b].rails.is_empty()
 	open.pressed.connect(func() -> void: _heat_dialog.open(_document, b, HeatRiseReport.layout(_document, b)))
+	_list.add_child(open)
+	_documentation_tools(b)
+
+
+## How much of switchboard [param b]'s documentation is still to give (see
+## [BoardDocumentation]), and the button opening it.
+func _documentation_tools(b: int) -> void:
+	var board: Switchboard = _document.switchboards[b]
+	var gaps: int = BoardDocumentation.missing(board).size() + Manufacturer.missing().size()
+	var summary: Label = Label.new()
+	summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if gaps > 0:
+		summary.text = tr_n("Documentation: %d value still to give", "Documentation: %d values still to give", gaps) % gaps
+		summary.add_theme_color_override("font_color", AppTheme.warning)
+	else:
+		summary.text = tr("Documentation: all given")
+		summary.add_theme_color_override("font_color", AppTheme.success)
+	summary.tooltip_text = tr("The switchboard maker (Settings > Switchboard manufacturer…), the switchboard's type, serial number, customer and interface characteristics, exported as its interface characteristics and operating instructions")
+	summary.mouse_filter = Control.MOUSE_FILTER_PASS
+	_list.add_child(summary)
+	var open: Button = _button(tr("Documentation…"), "datasheet")
+	open.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	open.tooltip_text = tr("Give what the switchboard's interface characteristics, operating instructions and temperature rise protocol say about it: its type, serial number, customer, voltages, currents, degree of protection …")
+	open.pressed.connect(func() -> void: _documentation_dialog.open(_document.switchboards[b]))
 	_list.add_child(open)
 
 

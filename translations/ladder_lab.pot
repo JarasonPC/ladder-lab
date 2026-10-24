@@ -7560,3 +7560,588 @@ msgstr ""
 
 msgid "Total P (RDF = %s)"
 msgstr ""
+
+msgid "Name or business name"
+msgstr ""
+
+msgid "Company ID (IČ)"
+msgstr ""
+
+msgid "Authorisation"
+msgstr ""
+
+msgid "Trade name"
+msgstr ""
+
+msgid "Address"
+msgstr ""
+
+msgid "Phone"
+msgstr ""
+
+msgid "E-mail"
+msgstr ""
+
+msgid "Web"
+msgstr ""
+
+msgid "Original manufacturer"
+msgstr ""
+
+msgid "Switchboard type"
+msgstr ""
+
+msgid "Material of the enclosure"
+msgstr ""
+
+msgid "Metal"
+msgstr ""
+
+msgid "Plastic"
+msgstr ""
+
+msgid "Serial number of the switchboard"
+msgstr ""
+
+msgid "Order / project number"
+msgstr ""
+
+msgid "Customer / investor"
+msgstr ""
+
+msgid "Rated voltage (Un)"
+msgstr ""
+
+msgid "Rated operational voltage (Ue), (Ue ≥ Un)"
+msgstr ""
+
+msgid "Rated insulation voltage (Ui)"
+msgstr ""
+
+msgid "Rated impulse withstand voltage (Uimp)"
+msgstr ""
+
+msgid "Rated current of the assembly (InA)"
+msgstr ""
+
+msgid "Rated current of the main circuit (Inc) ≤ InA"
+msgstr ""
+
+msgid "Rated peak withstand current (Ipk)"
+msgstr ""
+
+msgid "Rated diversity factor (RDF)"
+msgstr ""
+
+msgid "Rated frequency (fn)"
+msgstr ""
+
+msgid "Additional requirements depending on the specific service conditions of a functional unit (e.g. type of coordination, overload characteristics)"
+msgstr ""
+
+msgid "Pollution degree"
+msgstr ""
+
+msgid "Types of system earthing the assembly is designed for"
+msgstr ""
+
+msgid "Indoor and/or outdoor installation"
+msgstr ""
+
+msgid "Indoor installation"
+msgstr ""
+
+msgid "Outdoor installation"
+msgstr ""
+
+msgid "Indoor and outdoor installation"
+msgstr ""
+
+msgid "Stationary or movable"
+msgstr ""
+
+msgid "Stationary"
+msgstr ""
+
+msgid "Movable"
+msgstr ""
+
+msgid "Degree of protection"
+msgstr ""
+
+msgid "Intended for use by skilled or ordinary persons"
+msgstr ""
+
+msgid "Ordinary persons"
+msgstr ""
+
+msgid "Skilled persons"
+msgstr ""
+
+msgid "Electromagnetic compatibility (EMC) classification"
+msgstr ""
+
+msgid "Environment A – industrial"
+msgstr ""
+
+msgid "Environment B – residential"
+msgstr ""
+
+msgid "Special service conditions, if applicable"
+msgstr ""
+
+msgid "External design"
+msgstr ""
+
+msgid "Protection against mechanical impact"
+msgstr ""
+
+msgid "Type of construction"
+msgstr ""
+
+msgid "Fixed parts"
+msgstr ""
+
+msgid "Removable parts"
+msgstr ""
+
+msgid "Withdrawable parts"
+msgstr ""
+
+msgid "Nature of the short-circuit protective device(s)"
+msgstr ""
+
+msgid "Fuses"
+msgstr ""
+
+msgid "Circuit breaker and fuses"
+msgstr ""
+
+msgid "Measures for protection against electric shock"
+msgstr ""
+
+msgid "Class I – automatic disconnection of supply"
+msgstr ""
+
+msgid "Class II – double insulation"
+msgstr ""
+
+msgid "Overall dimensions, including projections such as handles, covers, doors (H × W × D mm)"
+msgstr ""
+
+msgid "Operating conditions"
+msgstr ""
+
+msgid "Normal service conditions"
+msgstr ""
+
+msgid "Special service conditions"
+msgstr ""
+
+msgid "Summary"
+msgstr ""
+
+msgid "Standards"
+msgstr ""
+
+msgid "Location"
+msgstr ""
+
+msgid "Dimensions (w × h × d)"
+msgstr ""
+
+msgid "Effective cooling surface Ae"
+msgstr ""
+
+msgid "%d sections, %s m² each"
+msgstr ""
+
+msgid "not worked out"
+msgstr ""
+
+msgid "Power loss the enclosure takes (from its maker)"
+msgstr ""
+
+msgid "Power lost by the components at the rated currents"
+msgstr ""
+
+msgid "Power lost with the diversity factor (RDF² · P + further losses)"
+msgstr ""
+
+msgid "Remaining available power loss"
+msgstr ""
+
+msgid "Temperature of the air at the top (at most)"
+msgstr ""
+
+msgid "Date: %s  ·  Worked out by: %s"
+msgstr ""
+
+msgid "Evaluation: %s"
+msgstr ""
+
+msgid "Warning: the documentation is valid only with the devices fitted exactly as the switchboard maker's documentation gives them – the table of parameters."
+msgstr ""
+
+msgid "Parameters"
+msgstr ""
+
+msgid "Pcs"
+msgstr ""
+
+msgid "Total (W)"
+msgstr ""
+
+msgid "Strip terminals"
+msgstr ""
+
+msgid "Total for the components at the rated currents"
+msgstr ""
+
+msgid "Rated diversity factor RDF (the losses RDF² times)"
+msgstr ""
+
+msgid "Power lost by the components with the diversity factor: RDF² · P"
+msgstr ""
+
+msgid "Enclosure %s: the power loss it takes"
+msgstr ""
+
+msgid "Enclosure: the power loss it takes"
+msgstr ""
+
+msgid "Overall balance (below 0: the enclosure takes more)"
+msgstr ""
+
+msgid "Each device's loss at its rated current from its maker, as in the parameters."
+msgstr ""
+
+msgid "Arc fault detection device with circuit breaker"
+msgstr ""
+
+msgid "Residual current device with overcurrent release (RCBO)"
+msgstr ""
+
+msgid "not made, values are still to give (see the end)."
+msgstr ""
+
+msgid "the air at the top reaches %s °C, within the %s °C allowed"
+msgstr ""
+
+msgid "the air at the top reaches %s °C, warmer than the %s °C allowed"
+msgstr ""
+
+msgid "the power loss the enclosure takes is not given"
+msgstr ""
+
+msgid "the %s W lost are within the %s W the enclosure takes (%s W left)"
+msgstr ""
+
+msgid "the %s W lost are %s W more than the %s W the enclosure takes"
+msgstr ""
+
+msgid "Complies"
+msgstr ""
+
+msgid "Does not comply"
+msgstr ""
+
+msgid "Not decided"
+msgstr ""
+
+msgid "The power loss the enclosure takes (from its maker)"
+msgstr ""
+
+msgid "The maker's type of -%s"
+msgstr ""
+
+msgid "%s (in Documentation…)"
+msgstr ""
+
+msgid "Still to give for the protocol"
+msgstr ""
+
+msgid "Distribution board (DBO) intended to be operated by ordinary persons, after ČSN EN 61439-1 ed. 3 and ČSN EN 61439-3"
+msgstr ""
+
+msgid "Power switchgear and controlgear assembly (PSC), after ČSN EN 61439-1 ed. 3 and ČSN EN 61439-2"
+msgstr ""
+
+msgid "Authorisation: %s"
+msgstr ""
+
+msgid "Interface characteristics of switchboard +%s"
+msgstr ""
+
+msgid "The characteristics of the assembly for ensuring compatibility with the ratings of the circuits it is connected to and with the conditions of the electrical installation. This document is part of the accompanying technical documentation of every assembly (ČSN EN 61439-1 ed. 3%s)."
+msgstr ""
+
+msgid "The documentation is valid only with the devices fitted exactly as the switchboard maker's documentation gives them."
+msgstr ""
+
+msgid "Switchboard manufacturer"
+msgstr ""
+
+msgid "No."
+msgstr ""
+
+msgid "%s (Settings > Switchboard manufacturer…)"
+msgstr ""
+
+msgid "%s (Temperature rise…)"
+msgstr ""
+
+msgid "%s (Documentation…)"
+msgstr ""
+
+msgid "Still to give"
+msgstr ""
+
+msgid "Operating and maintenance instructions of switchboard +%s"
+msgstr ""
+
+msgid "Following these instructions is necessary for the product to work properly within the meaning of Act No. 90/2016 Coll. and Act No. 22/1997 Coll."
+msgstr ""
+
+msgid "Phone: %s"
+msgstr ""
+
+msgid "E-mail: %s"
+msgstr ""
+
+msgid "Web: %s"
+msgstr ""
+
+msgid "I. General"
+msgstr ""
+
+msgid "These operating instructions are intended for switchboards made by %s."
+msgstr ""
+
+msgid "For the sake of clarity these instructions do not contain all the detailed information about all types of products. The details of the technical design and equipment are given in the documentation. Switchboards are subject to constant technical improvement in the course of technical progress. Changes are reserved. Following these instructions is necessary for the product to work properly."
+msgstr ""
+
+msgid "The switchboards are intended for distributing electric energy and supplying electrical equipment."
+msgstr ""
+
+msgid "If you wish further information, or situations arise that these instructions do not describe in enough detail, ask for the information you need by phone or e-mail."
+msgstr ""
+
+msgid "A declaration of conformity has been drawn up for the products under § 12 of Act No. 22/1997 Coll., Title III of Act No. 90/2016 Coll. and Government Regulation No. 118/2016 Coll."
+msgstr ""
+
+msgid "II. Construction and description of the switchboard"
+msgstr ""
+
+msgid "The switchboard is made in accordance with %s and the technical documentation attached. Its construction, function and purpose are fully evident from it. Using it for other purposes is not permitted."
+msgstr ""
+
+msgid "III. Design"
+msgstr ""
+
+msgid "The distribution boards are made of plastic or sheet steel according to the type required, by ABB, Eaton, Hager, Famatel, Schneider Electric, OEZ and others, with a degree of protection of at least IP 30 and protection class I or II."
+msgstr ""
+
+msgid "This switchboard: %s."
+msgstr ""
+
+msgid "IV. Equipment"
+msgstr ""
+
+msgid "The devices fitted are as the project gives them. Only branded devices are used. All the components (materials and devices) used to make the switchboard can withstand the mechanical, electrical and thermal stresses and the effects of humidity that occur in normal service. Built-in devices and components without electronic circuits are not sensitive to electromagnetic disturbances. Built-in devices and components with electronic circuits meet the EMC requirements (ČSN EN 61000-1-2) under Government Regulation No. 117/2016 Coll."
+msgstr ""
+
+msgid "V. Technical data"
+msgstr ""
+
+msgid "Voltage system"
+msgstr ""
+
+msgid "Protection against electric shock"
+msgstr ""
+
+msgid "automatic disconnection of supply (MCB)"
+msgstr ""
+
+msgid "automatic disconnection of supply"
+msgstr ""
+
+msgid "Additional protection"
+msgstr ""
+
+msgid "residual current device RCD (FI)"
+msgstr ""
+
+msgid "Recommended additional protection"
+msgstr ""
+
+msgid "arc fault detection device AFDD, surge protective device SPD"
+msgstr ""
+
+msgid "Working conditions indoors"
+msgstr ""
+
+msgid "−5 to +40 °C, relative humidity 90 % at +20 °C, average +35 °C over 24 h"
+msgstr ""
+
+msgid "Ambient temperature (temperature rise calculation)"
+msgstr ""
+
+msgid "Ratings"
+msgstr ""
+
+msgid "given on the switchboard's rating plate and in the documentation supplied with it"
+msgstr ""
+
+msgid "VI. Safety measures for work and operation"
+msgstr ""
+
+msgid "Operating the switchboard means the actions connected with its service, e.g. inspection, cleaning, switching a circuit breaker on or off, pressing a button, watching the signal lamps and the like. Where personal protective equipment is prescribed for operation, it must be used. The person maintaining the switchboard must be professionally qualified within the meaning of § 19 of Act No. 250/2021 Coll. Persons without electrical qualification – ordinary persons – must not work on switchboards; they may only operate switchboards accessible to ordinary persons that are part of the fixed electrical installation. Under ČSN 33 1310 ed. 2:2009, instruction in the correct and safe use of the electrical installation including its distribution boards and switchboards is given by the person who made the installation or a person authorised by them. Once instructed, ordinary persons use the equipment but do not interfere with it."
+msgstr ""
+
+msgid "VII. Operating the protective devices in the switchboard"
+msgstr ""
+
+msgid "In this switchboard: %s"
+msgstr ""
+
+msgid "The switchboard has none of these devices."
+msgstr ""
+
+msgid "VIII. Maintenance"
+msgstr ""
+
+msgid "Safe and correct operation of the switchboard requires that it is operated and maintained in accordance with the standards and regulations in force, the requirements of the suppliers of the individual devices and these instructions. The maintenance needed is minimal, focused on: regular checks of the power connections and the connections of the protective conductors, visual inspections, checks of the heating of the connections and of the temperature rise inside the switchboard. Excessive heating and exceeding the operating temperature inside the switchboard can shorten the life of the devices, or even lead to a fire in the switchboard. Safe operation means having a specialist firm (preferably the switchboard's maker) check the switchboard once every five years, above all to remove dirt and dust, inspect it visually and then tighten all connections, and replace any faulty parts at once. Only a person with electrical qualification, the switchboard's maker or an inspection technician may carry out this check."
+msgstr ""
+
+msgid "The switchboard is designed for a certain operating temperature (see the technical data). The operator must therefore keep the ambient temperature within the limits prescribed. The safety signs and safety marking must be checked and renewed (after the ČSN ISO 3864 series of standards in force)."
+msgstr ""
+
+msgid "The owner of the switchboard should have the electrical installation inspected regularly after ČSN 33 1500/Z3/4.2004 annex 2, at intervals by the environment (usually every five years)."
+msgstr ""
+
+msgid "IX. Disposal"
+msgstr ""
+
+msgid "The cardboard packaging is fully recyclable and can be used as a secondary raw material. The protective packaging of PE film is not biodegradable. The switchboard as a whole should last as long as the electrical installation, in practice about 30 years. The product or its components must be handed over for recycling or disposed of in an environmentally friendly way in accordance with the laws and regulations in force."
+msgstr ""
+
+msgid "X. Conclusion and special arrangements"
+msgstr ""
+
+msgid "It is forbidden to interfere with the construction and wiring of the switchboard without the consent of the designer and the maker (e.g. to replace circuit breakers with others of different ratings, replace devices, remove protective covers, blanking plates etc.)."
+msgstr ""
+
+msgid "For the switchboard to work safely and without faults, the provisions of these instructions must be followed. Breaking them ends the warranty of the switchboard. Nor does the warranty cover protective elements (e.g. fuses) or parts of the working equipment worn by natural wear. If individual components of the switchboard stop working, contact the maker of the equipment at once. If any component in the switchboard is replaced by a firm other than %s – the switchboard's maker, the new maker – the installing firm – takes over all responsibility and must draw up new documentation of the switchboard including a new temperature rise calculation, as it becomes the switchboard's new maker (ČSN EN 61439-1 ed. 3). The original documentation supplied with this switchboard becomes invalid! The switchboard's maker is not responsible for mechanical and electrical damage to components caused by unskilled handling of the equipment or unskilled connection of the equipment."
+msgstr ""
+
+msgid "The main switch is meant only for switching off or on, most often the whole switchboard. It never trips by itself. At first sight, though, it looks like a circuit breaker. It should be labelled \"Main switch\". If the main switch is off, check that nobody is working on the electrical equipment!"
+msgstr ""
+
+msgid "You can switch a circuit breaker on by lifting its lever up, or first pressing the lever down and then lifting it up. If the circuit breaker trips again, though, there is a fault somewhere in the circuit. Do not switch it on again; call an expert with professional qualification. Bear in mind that a circuit breaker does not trip by itself. Its tripping protects the circuit against electric shock or fire."
+msgstr ""
+
+msgid "A residual current device is a somewhat more complex device than a circuit breaker, and it can trip for many reasons, not all of them dangerous to life. If you switch it on (as a circuit breaker) and it does not trip again, all is well. If it trips again, unplug all the appliances from the socket outlets it feeds. Switch it on. Plugging the appliances in one after another tells you which one is faulty. Even so, the fault need not lie in the appliance itself: it may be a fire starting somewhere at a pinched cord, or simply many appliances with large residual currents on one socket circuit. An expert or an inspection technician will find the exact cause."
+msgstr ""
+
+msgid "Residual current devices must be tested regularly at the intervals their maker gives. Usually every 6 months, check that the residual current device works by pressing the test button on the device itself. The residual current device must trip at once. If it does not, call an expert!"
+msgstr ""
+
+msgid "Arc fault detection devices protect against fires breaking out. An arc fault detection device fills the functional gap of today's protective devices – circuit breakers, residual current devices and fuses – and lessens the effects of a fault arc by disconnecting the circuit. It has a self-test that starts automatically every 15 hours to test the circuits and the detection algorithm. It can also be tested by hand by pressing the test button on its front. The status LED on the front of the device (which also serves as the test button) gives simple and clear information on why it tripped on devices made by OEZ."
+msgstr ""
+
+msgid "Devices made by Eaton give more detailed diagnostics."
+msgstr ""
+
+msgid "Other devices include installation contactors for switching e.g. underfloor heating, control and time relays, energy meters, time switches and other equipment. For a description of their function or a possible fault, see their maker's documentation, or call the maker of your switchboard."
+msgstr ""
+
+msgid "Documentation of +%s"
+msgstr ""
+
+msgid "What the switchboard's interface characteristics, operating instructions and temperature rise protocol say about it beyond the drawing. Nothing is assumed: an empty field is not given."
+msgstr ""
+
+msgid "not given: Settings > Switchboard manufacturer…"
+msgstr ""
+
+msgid "Interface characteristics (ČSN EN 61439-1)"
+msgstr ""
+
+msgid "DBO: a distribution board operated by ordinary persons (ČSN EN 61439-3); PSC: power switchgear and controlgear (ČSN EN 61439-2)"
+msgstr ""
+
+msgid "give it in Temperature rise…"
+msgstr ""
+
+msgid "Type of -%s from its maker (e.g. its order code)"
+msgstr ""
+
+msgid "Power loss it takes"
+msgstr ""
+
+msgid "The power loss the enclosure takes as its maker gives it (W): the protocol's balance against the losses inside, not needed for the calculation"
+msgstr ""
+
+msgid "Documentation: all given"
+msgstr ""
+
+msgid "The switchboard maker (Settings > Switchboard manufacturer…), the switchboard's type, serial number, customer and interface characteristics, exported as its interface characteristics and operating instructions"
+msgstr ""
+
+msgid "Documentation…"
+msgstr ""
+
+msgid "Give what the switchboard's interface characteristics, operating instructions and temperature rise protocol say about it: its type, serial number, customer, voltages, currents, degree of protection …"
+msgstr ""
+
+msgid "Interface characteristics +%s"
+msgstr ""
+
+msgid "Operating instructions +%s"
+msgstr ""
+
+msgid "The protocol of each switchboard's temperature rise calculation: the summary and balance, the parameters, the data given, the losses, Ae, each step of the calculation, the temperatures and the curve"
+msgstr ""
+
+msgid "The interface characteristics of each switchboard after ČSN EN 61439-1: its maker, type, serial number, customer and the 26 characteristics given in Documentation…"
+msgstr ""
+
+msgid "The operating and maintenance instructions of each switchboard: the maker's contacts, the technical data and how to operate the protective devices it has"
+msgstr ""
+
+msgid "Who makes the switchboards: written into each switchboard's interface characteristics, operating instructions and temperature rise protocol in every schematic. An empty field is not given."
+msgstr ""
+
+msgid "Documents"
+msgstr ""
+
+msgid "Switchboard manufacturer…"
+msgstr ""
+
+msgid "Who makes the switchboards: the name, company ID, authorisation, address and contacts written into their documents"
+msgstr ""
+
+msgid "The rated current of the main circuit Inc is larger than the rated current of the assembly InA."
+msgstr ""
+
+msgid "The rated operational voltage Ue is lower than the rated voltage Un."
+msgstr ""
+
+msgid "Other devices"
+msgstr ""
+
+msgid "Phone or e-mail"
+msgstr ""
+
+msgid "%d value still to give"
+msgid_plural "%d values still to give"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Documentation: %d value still to give"
+msgid_plural "Documentation: %d values still to give"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""

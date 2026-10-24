@@ -30,6 +30,20 @@ What changed in each LadderLab version. Version numbers follow the rules in
   and 61439-3 assume are shown beside it to put in with a click, and in the protocol
 - The temperature rise protocol says what it was exported from: the program and its version,
   the file, the schematic and when
+- Switchboard documentation: Documentation… under the switchboard's tools asks for its
+  original manufacturer, type, enclosure material, serial number, order, customer and the 26
+  interface characteristics of ČSN EN 61439-1 (voltages, currents, frequency, pollution
+  degree, earthing system, degree of protection, IK …), nothing assumed; Settings >
+  Switchboard manufacturer… keeps your own name, company ID, authorisation, address and
+  contacts for every schematic. The export can hold each switchboard's interface
+  characteristics and its operating and maintenance instructions (with parts only for the
+  protective devices it has: main switch, breakers, RCDs, AFDDs, other devices)
+- The temperature rise protocol starts with a summary (standards, the switchboard's type,
+  material, location, installation, dimensions, Ae, the losses against the power loss the
+  enclosure takes from its maker and what remains, the temperature at the top, the date, who
+  worked it out, the evaluation) and the parameters: the devices grouped by name, maker's type,
+  data and loss with how many of each, the wires, the totals and the overall balance. The
+  calculation asks for each device's type and the enclosure's power loss for it
 - A room's environment can be any combination of the external influences of ČSN 33 2000-5-51:
   the List button beside the environment field shows them all in a table (code and meaning,
   grouped as in the standard's Annex A) to tick those of the room, one class of each; the

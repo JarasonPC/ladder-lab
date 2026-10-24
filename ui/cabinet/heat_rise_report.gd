@@ -1,9 +1,14 @@
 class_name HeatRiseReport
-extends RefCounted
+extends ReportRows
 ## The protocol of a switchboard's temperature rise calculation
-## ([HeatRise]) as rows for the export ([HeatRiseSheet]): the method, the
-## data given, the losses (each device with what tells it apart, the wires by
-## their current with their length, cross-section, resistance and loss),
+## ([HeatRise]) as rows for the export ([ReportSheet]): the method, a summary
+## (the enclosure, its type and material from the documentation
+## ([BoardDocumentation]), the losses against the power loss the enclosure
+## takes, the date, who worked it out, the evaluation), the parameters (the
+## devices grouped by name, maker's type, data and loss with how many, the
+## strip terminals, the wires, the totals and the balance), the data given,
+## the losses (the wires by their current with their length, cross-section,
+## resistance and loss),
 ## the effective cooling surface surface by surface, each step of the
 ## calculation with its figures put in, the temperatures over the height and
 ## at each rail, the verdict, the curve and what the method could not cover.
@@ -13,16 +18,6 @@ extends RefCounted
 ## Pixels per mm the switchboard is laid out at for its calculation, so the
 ## panel, the dialog and the export reckon the same wire lengths.
 const LAYOUT_K: float = 1.0
-
-## A row: {"type": "title" / "heading" / "text" / "table" / "curve" / "gap"}
-## with "text" (title, heading, text; "muted" for a note), a table row's
-## "cells", "widths" (parts of the width), "align" ("l" or "r" per cell),
-## "head" (a table's heading row, repeated on a sheet it goes on to),
-## "table" (which table it is in), "bold"; a curve's "result", "ambient",
-## "limit", "marks".
-var _rows: Array[Dictionary] = []
-var _table: int = 0
-
 
 ## Switchboard [param b] of [param doc] laid out for its calculation.
 static func layout(doc: SchematicDocument, b: int) -> CabinetLayout:
@@ -50,15 +45,6 @@ static func device_text(doc: SchematicDocument, designation: String) -> String:
 	return "%s, %s" % [name, data]
 
 
-## What a protocol was exported from: the program and its version, the
-## file ([param file_name], "" when not saved), the schematic's
-## [param title] and when.
-func source_text(file_name: String, title: String) -> String:
-	var version: String = str(ProjectSettings.get_setting("application/config/version", ""))
-	var when: String = Time.get_datetime_string_from_system(false, true)
-	return tr("Exported from LadderLab %s: file %s, schematic \"%s\", on %s.") % [version, file_name if not file_name.is_empty() else tr("not saved"), title, when]
-
-
 ## The protocol rows of switchboard [param b] of [param doc]; [param source]
 ## says what it was exported from (see [method source_text]).
 func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictionary]:
@@ -74,12 +60,70 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 	if not source.is_empty():
 		_text(source, false)
 	_text(tr("After IEC 890 (ČSN 33 7107 part 1), the calculation ČSN EN 61439-1 allows for verifying the temperature rise of an assembly: the effective cooling surface Ae = Σ A0 · b, the rise of the air half way up Δt0,5 = k · d · P^x and at the top Δt1,0 = c · Δt0,5, k and c off the method's charts. The losses at the rated currents as given; the wires' losses by annex H of ČSN EN 61439-1."), true)
+	var r: Dictionary = e["result"]
+	var size: Variant = e["size"]
+	var rdf: Variant = losses["rdf"]
+	var balance: Variant = HeatRise.balance(s, losses)
+	var with_rdf: Variant = rdf * rdf * losses["rated"] if rdf != null and losses["rated"] != null else null
+	var docs: Dictionary = BoardDocumentation.clean(board.documentation)
+	# The summary.
+	_heading(tr("Summary"))
+	var widths: Array[float] = [0.6, 0.4]
+	var align: Array = ["l", "l"]
+	_table_head([tr("Item"), tr("Value")], widths, align)
+	var standards: String = "ČSN EN 61439-1"
+	if not BoardDocumentation.standard(board).is_empty():
+		standards += ", " + BoardDocumentation.standard(board)
+	_table_row([tr("Standards"), standards + ", IEC 890 (ČSN 33 7107)"], widths, align)
+	_table_row([tr("Switchboard type"), docs.get("board_type", tr("not given"))], widths, align)
+	_table_row([tr("Material of the enclosure"), tr(docs["material"]) if docs.has("material") else tr("not given")], widths, align)
+	_table_row([tr("Location"), tr(docs["location"]) if docs.has("location") else tr("not given")], widths, align)
+	_table_row([tr("How it is installed"), tr(HeatRise.MOUNTINGS[s["mounting"]]["title"]) if s.has("mounting") else tr("not given")], widths, align)
+	_table_row([tr("Dimensions (w × h × d)"), "%s × %s × %s mm" % [_n(size.y, 0), _n(size.x, 0), _n(size.z, 0)] if size != null else tr("not given")], widths, align)
+	_table_row([tr("Effective cooling surface Ae"), "%s m²" % _n(r["section"]["ae"], 2) if not r.is_empty() and r["sections"] == 1 else (tr("%d sections, %s m² each") % [r["sections"], _n(r["section"]["ae"], 2)] if not r.is_empty() else tr("not worked out"))], widths, align)
+	_table_row([tr("Power loss the enclosure takes (from its maker)"), _given(s.get("enclosure_loss"), "W")], widths, align)
+	_table_row([tr("Power lost by the components at the rated currents"), _given(losses["rated"], "W")], widths, align)
+	_table_row([tr("Rated diversity factor RDF"), _given(rdf, "")], widths, align)
+	_table_row([tr("Power lost with the diversity factor (RDF² · P + further losses)"), _given(losses["total"], "W")], widths, align)
+	_table_row([tr("Remaining available power loss"), _given(balance, "W")], widths, align, true)
+	_table_row([tr("Temperature of the air at the top (at most)"), "%s °C (%s °C)" % [_n(r["temperature"], 1), _n(s["limit"], 0)] if not r.is_empty() else tr("not worked out")], widths, align, true)
+	_gap()
+	var date: String = doc.title_block.date if not doc.title_block.date.is_empty() else Time.get_date_string_from_system()
+	var by: String = doc.title_block.drawn_by if not doc.title_block.drawn_by.is_empty() else "…………………………"
+	_text(tr("Date: %s  ·  Worked out by: %s") % [date, by], false)
+	_text(tr("Evaluation: %s") % _evaluation(e, balance), false)
+	_text(tr("Warning: the documentation is valid only with the devices fitted exactly as the switchboard maker's documentation gives them – the table of parameters."), false)
+	# The parameters: the devices grouped, the terminals, the wires, the balance.
+	_heading(tr("Parameters"))
+	widths = [0.19, 0.16, 0.2, 0.14, 0.1, 0.07, 0.14]
+	align = ["l", "l", "l", "l", "r", "r", "r"]
+	_table_head([tr("Name"), tr("Type"), tr("Data"), tr("Designation"), tr("Loss (W)"), tr("Pcs"), tr("Total (W)")], widths, align)
+	var named: String = ""
+	for group: Dictionary in device_groups(doc, losses):
+		var power: Variant = group["power"]
+		_table_row([group["name"] if group["name"] != named else "", group["type"] if not group["type"].is_empty() else tr("not given"), group["data"],
+			PartsList.designations(group["designations"]), _given(power, ""), str(group["designations"].size()),
+			_given(power * group["designations"].size() if power != null else null, "")], widths, align)
+		named = group["name"]
+	if losses["terminal_count"] > 0:
+		_table_row([tr("Strip terminals"), "", "", "", "", str(losses["terminal_count"]), _given(losses["terminals"], "")], widths, align)
+	for group: Dictionary in losses["groups"]:
+		_table_row([tr("Wires"), "%s mm²" % _given(group["section"], "") if group["section"] != null else tr("not given"), "I = %s A, L = %s m" % [_n(group["amperes"], 2), _n(group["length"], 2)],
+			"", "", str(group["count"]), _n(group["power"], 2) if group["power"] != null else tr("not given")], widths, align)
+	var across: Array[float] = [0.86, 0.14]
+	var right: Array = ["l", "r"]
+	_table_row([tr("Total for the components at the rated currents"), _given(losses["rated"], "")], across, right, true)
+	_table_row([tr("Rated diversity factor RDF (the losses RDF² times)"), _given(rdf, "")], across, right)
+	_table_row([tr("Power lost by the components with the diversity factor: RDF² · P"), _given(with_rdf, "")], across, right)
+	_table_row([tr("Further losses (lighting, fans, heaters …)"), _given(losses["extra"], "")], across, right)
+	_table_row([tr("Total P"), _given(losses["total"], "")], across, right, true)
+	var enclosure: String = tr("Enclosure %s: the power loss it takes") % docs["board_type"] if docs.has("board_type") else tr("Enclosure: the power loss it takes")
+	_table_row([enclosure, _given(-float(s["enclosure_loss"]) if s.has("enclosure_loss") else null, "")], across, right)
+	_table_row([tr("Overall balance (below 0: the enclosure takes more)"), _given(-balance if balance != null else null, "")], across, right, true)
 	# The data given.
 	_heading(tr("1. Data given"))
-	var head: Array = [tr("Item"), tr("Value")]
-	var widths: Array[float] = [0.5, 0.5]
-	_table_head(head, widths, ["l", "l"])
-	var size: Variant = e["size"]
+	widths = [0.5, 0.5]
+	_table_head([tr("Item"), tr("Value")], widths, ["l", "l"])
 	for pair: Array in [["height", tr("Height of the enclosure h")], ["width", tr("Width of the enclosure w")], ["depth", tr("Depth of the enclosure")]]:
 		_table_row([pair[1], _given(s.get(pair[0]), "mm")], widths, ["l", "l"])
 	_table_row([tr("Mounting plate as laid out (w × h)"), "%s × %s mm" % [_n(laid.size.x, 0), _n(laid.size.y, 0)]], widths, ["l", "l"])
@@ -95,18 +139,16 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 	_table_row([tr("Horizontal partitions"), str(s["partitions"]) if s.has("partitions") else tr("not given")], widths, ["l", "l"])
 	_table_row([tr("Ambient temperature"), _given(s.get("ambient"), "°C")], widths, ["l", "l"])
 	_table_row([tr("Most allowed inside"), _given(s.get("limit"), "°C")], widths, ["l", "l"])
-	_table_row([tr("Rated diversity factor RDF"), _given(s.get("rdf"), "")], widths, ["l", "l"])
+	_table_row([tr("Rated diversity factor RDF"), _given(rdf, "")], widths, ["l", "l"])
+	_table_row([tr("Power loss the enclosure takes (from its maker)"), _given(s.get("enclosure_loss"), "W")], widths, ["l", "l"])
 	# The losses.
 	_heading(tr("2. Power lost at the rated currents P"))
-	widths = [0.12, 0.7, 0.18]
-	_table_head([tr("Designation"), tr("Device"), tr("Loss (W)")], widths, ["l", "l", "r"])
-	for device: Dictionary in losses["devices"]:
-		_table_row(["-" + device["designation"], device_text(doc, device["designation"]), _given(device["power"], "")], widths, ["l", "l", "r"])
+	_text(tr("Each device's loss at its rated current from its maker, as in the parameters."), true)
 	if not losses["groups"].is_empty():
 		_gap()
 		_text(tr("Wires laid out, by the rated current I of the breaker, fuse or overload relay on their net: P = I² · R20 · (1 + α (Tc − 20 °C)) · L, α = %s 1/K, Tc = %s °C (annex H of ČSN EN 61439-1).") % [_n(HeatRise.ALPHA, 3), _n(HeatRise.CONDUCTOR_TEMPERATURE, 0)], true)
 		widths = [0.13, 0.12, 0.15, 0.15, 0.2, 0.25]
-		var align: Array = ["r", "r", "r", "r", "r", "r"]
+		align = ["r", "r", "r", "r", "r", "r"]
 		_table_head(["I (A)", tr("Wires"), "L (m)", "S (mm²)", "R20 (mΩ/m)", "P (W)"], widths, align)
 		for group: Dictionary in losses["groups"]:
 			var section: Variant = group["section"]
@@ -126,7 +168,6 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 	if losses["terminal_count"] > 0:
 		_table_row([tr("Strip terminals (%d), all together") % losses["terminal_count"], _given(losses["terminals"], "")], widths, ["l", "r"])
 	_table_row([tr("At the rated currents"), _given(losses["rated"], "")], widths, ["l", "r"], true)
-	var rdf: Variant = losses["rdf"]
 	_table_row([tr("With the rated diversity factor: RDF² · %s = %s² · %s") % [_given(losses["rated"], ""), _given(rdf, ""), _given(losses["rated"], "")],
 		_given(rdf * rdf * losses["rated"] if rdf != null and losses["rated"] != null else null, "")], widths, ["l", "r"])
 	_table_row([tr("Further losses (lighting, fans, heaters …)"), _given(losses["extra"], "")], widths, ["l", "r"])
@@ -143,8 +184,8 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 		_heading(tr("Not worked out: still to give"))
 		for gap: Dictionary in gaps:
 			_text("• " + (tr(gap["text"]) % gap["args"] if not (gap["args"] as Array).is_empty() else tr(gap["text"])), false)
+		_protocol_gaps(board, s, losses, false)
 		return _rows
-	var r: Dictionary = e["result"]
 	var section_data: Dictionary = r["section"]
 	var h: float = size.x / 1000.0
 	var depth: float = size.z / 1000.0
@@ -218,7 +259,99 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 		_heading(tr("Notes"))
 		for w: Dictionary in r["warnings"]:
 			_text("• " + (tr(w["text"]) % w["args"] if not (w["args"] as Array).is_empty() else tr(w["text"])), true)
+	_protocol_gaps(board, s, losses, true)
 	return _rows
+
+
+## The devices of [param losses] (see [method HeatRise.losses]) of
+## [param doc] grouped as the parameters list them: by name, the maker's
+## type, data and loss, in the order the names first come: [{"name", "type",
+## "data", "power" (W each, null while not given), "designations"}].
+static func device_groups(doc: SchematicDocument, losses: Dictionary) -> Array[Dictionary]:
+	var parts: PartsList = PartsList.new()
+	var groups: Array[Dictionary] = []
+	var names: Array[String] = []
+	for device: Dictionary in losses["devices"]:
+		var designation: String = device["designation"]
+		var name: String = parts.name_of(doc, designation)
+		# An RCD or AFDD is no plain circuit breaker.
+		var c: CircuitComponent = CabinetDevices.device(doc.circuit, designation)
+		if c is ArcFaultDevice:
+			name = TranslationServer.translate("Arc fault detection device with circuit breaker")
+		elif c is ResidualCurrentDevice:
+			name = TranslationServer.translate("Residual current device with overcurrent release (RCBO)" if (c as ResidualCurrentDevice).overcurrent else "Residual current device (RCD)")
+		var data: String = device_text(doc, designation)
+		for prefix: String in [name + ", ", name + " "]:
+			if data.begins_with(prefix):
+				data = data.substr(prefix.length())
+		if data == name:
+			data = ""
+		if not names.has(name):
+			names.append(name)
+		var found: Dictionary = {}
+		for group: Dictionary in groups:
+			if group["name"] == name and group["type"] == device["type"] and group["data"] == data and group["power"] == device["power"]:
+				found = group
+		if found.is_empty():
+			found = {"name": name, "type": device["type"], "data": data, "power": device["power"], "designations": PackedStringArray()}
+			groups.append(found)
+		var designations: PackedStringArray = found["designations"]
+		designations.append("-" + designation)
+		found["designations"] = designations
+	var result: Array[Dictionary] = []
+	for name: String in names:
+		for group: Dictionary in groups:
+			if group["name"] == name:
+				result.append(group)
+	return result
+
+
+## The evaluation of [param e] (see [method HeatRise.evaluate]) with the
+## remaining power loss [param balance]: complies or not, the temperature
+## and the balance.
+func _evaluation(e: Dictionary, balance: Variant) -> String:
+	if not e["missing"].is_empty():
+		return tr("not made, values are still to give (see the end).")
+	var r: Dictionary = e["result"]
+	var s: Dictionary = e["settings"]
+	var total: String = _n(e["losses"]["total"], 1)
+	var parts: PackedStringArray = PackedStringArray()
+	if r["ok"]:
+		parts.append(tr("the air at the top reaches %s °C, within the %s °C allowed") % [_n(r["temperature"], 1), _n(s["limit"], 0)])
+	else:
+		parts.append(tr("the air at the top reaches %s °C, warmer than the %s °C allowed") % [_n(r["temperature"], 1), _n(s["limit"], 0)])
+	if balance == null:
+		parts.append(tr("the power loss the enclosure takes is not given"))
+	elif balance >= 0.0:
+		parts.append(tr("the %s W lost are within the %s W the enclosure takes (%s W left)") % [total, _n(s["enclosure_loss"], 1), _n(balance, 1)])
+	else:
+		parts.append(tr("the %s W lost are %s W more than the %s W the enclosure takes") % [total, _n(-balance, 1), _n(s["enclosure_loss"], 1)])
+	var complies: bool = r["ok"] and balance != null and balance >= 0.0
+	var verdict: String = tr("Complies") if complies else (tr("Does not comply") if not r["ok"] or (balance != null and balance < 0.0) else tr("Not decided"))
+	return "%s: %s." % [verdict, "; ".join(parts)]
+
+
+## What the protocol of [param board] still lacks beyond the calculation
+## (the enclosure's power loss, the devices' types, the switchboard's type,
+## material and location), under a heading of its own when
+## [param heading].
+func _protocol_gaps(board: Switchboard, s: Dictionary, losses: Dictionary, heading: bool) -> void:
+	var gaps: PackedStringArray = PackedStringArray()
+	if not s.has("enclosure_loss"):
+		gaps.append(tr("The power loss the enclosure takes (from its maker)"))
+	for device: Dictionary in losses["devices"]:
+		if device["type"].is_empty():
+			gaps.append(tr("The maker's type of -%s") % device["designation"])
+	var docs: Dictionary = BoardDocumentation.clean(board.documentation)
+	for key: String in ["board_type", "material", "location"]:
+		if not docs.has(key):
+			gaps.append(tr("%s (in Documentation…)") % tr(BoardDocumentation.field(key)["title"]))
+	if gaps.is_empty():
+		return
+	if heading:
+		_heading(tr("Still to give for the protocol"))
+	for gap: String in gaps:
+		_text("• " + gap, false)
 
 
 ## Where on the height (0 the floor, 1 the top) the middle of rail
@@ -227,42 +360,3 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 static func _height_of(rail: Rect2, size: Vector3, plate: Vector2) -> float:
 	var from_top: float = (size.x - plate.y) / 2.0 + rail.get_center().y
 	return clampf(1.0 - from_top / size.x, 0.0, 1.0)
-
-
-func _add(row: Dictionary) -> void:
-	_rows.append(row)
-
-
-func _heading(text: String) -> void:
-	_add({"type": "heading", "text": text})
-
-
-func _text(text: String, muted: bool) -> void:
-	_add({"type": "text", "text": text, "muted": muted})
-
-
-func _gap() -> void:
-	_add({"type": "gap"})
-
-
-func _table_head(cells: Array, widths: Array[float], align: Array) -> void:
-	_table += 1
-	_add({"type": "table", "cells": cells, "widths": widths, "align": align, "head": true, "table": _table})
-
-
-func _table_row(cells: Array, widths: Array[float], align: Array, bold: bool = false) -> void:
-	_add({"type": "table", "cells": cells, "widths": widths, "align": align, "head": false, "table": _table, "bold": bold})
-
-
-## A value given, with its unit; "not given" while it is not.
-func _given(value: Variant, unit: String) -> String:
-	if value == null:
-		return tr("not given")
-	var text: String = _n(float(value), 2)
-	return text if unit.is_empty() else "%s %s" % [text, unit]
-
-
-static func _n(value: float, places: int) -> String:
-	if absf(value - roundf(value)) < pow(10.0, -places) / 2.0:
-		return str(roundi(value))
-	return String.num(value, places)

@@ -1,10 +1,13 @@
-class_name HeatRiseSheet
+class_name ReportSheet
 extends Node2D
-## A sheet of a switchboard's temperature rise protocol for the export
-## ([HeatRiseReport]): its title, headings, texts, tables and the curve, on
-## A4 portrait ([method split] shares the rows out over the sheets: a long
-## text is wrapped, a heading never ends a sheet, a table going on to the
-## next sheet repeats its heading row there).
+## A sheet of a switchboard's documents for the export: its temperature rise
+## protocol ([HeatRiseReport]), interface characteristics
+## ([InterfaceReport]) and operating instructions ([InstructionsReport]):
+## titles, headings, texts, tables and the curve, on A4 portrait
+## ([method split] shares the rows out over the sheets: a long text is
+## wrapped, so is a table row's cell where the row asks for it, a heading
+## never ends a sheet, a table going on to the next sheet repeats its
+## heading row there).
 
 const G: float = float(SymbolGeometry.GRID)
 ## The protocol, in world pixels: A4 portrait inside the frame at full size.
@@ -14,6 +17,8 @@ const TITLE_SIZE: int = 16
 ## Heights of the rows by type.
 const HEIGHTS: Dictionary = {"title": 36.0, "heading": 32.0, "text": 18.0, "table": 22.0, "curve": 300.0, "gap": 10.0}
 const PAD: float = 6.0
+## Height of a line of a wrapped table cell.
+const LINE: float = 16.0
 
 ## Rows of this sheet (see [method HeatRiseReport.rows]).
 var rows: Array = []
@@ -31,6 +36,8 @@ static func split(all: Array[Dictionary]) -> Array[Array]:
 				var piece: Dictionary = row.duplicate()
 				piece["text"] = line
 				lines.append(piece)
+		elif row["type"] == "table" and row.get("wrap", false):
+			lines.append(_wrapped(row))
 		else:
 			lines.append(row)
 	var sheets: Array[Array] = []
@@ -41,23 +48,48 @@ static func split(all: Array[Dictionary]) -> Array[Array]:
 		var row: Dictionary = lines[i]
 		if row["type"] == "table" and row["head"]:
 			heads[row["table"]] = row
-		var height: float = HEIGHTS[row["type"]]
+		var height: float = height_of(row)
 		# A heading (or a table's heading row) keeps the row after it on its sheet.
 		var keep: float = 0.0
 		if (row["type"] == "heading" or (row["type"] == "table" and row["head"])) and i + 1 < lines.size():
-			keep = HEIGHTS[lines[i + 1]["type"]]
+			keep = height_of(lines[i + 1])
 		if not sheet.is_empty() and used + height + keep > SIZE.y:
 			sheets.append(sheet)
 			sheet = []
 			used = 0.0
 			if row["type"] == "table" and not row["head"] and heads.has(row["table"]):
 				sheet.append(heads[row["table"]])
-				used += HEIGHTS["table"]
+				used += height_of(heads[row["table"]])
 		sheet.append(row)
 		used += height
 	if not sheet.is_empty():
 		sheets.append(sheet)
 	return sheets
+
+
+## How tall [param row] is: a wrapped table row by its most lines, the
+## others by their type.
+static func height_of(row: Dictionary) -> float:
+	if row.has("lines"):
+		var most: int = 1
+		for cell: PackedStringArray in row["lines"]:
+			most = maxi(most, cell.size())
+		return most * LINE + 6.0
+	return HEIGHTS[row["type"]]
+
+
+## Table row [param row] with its cells wrapped to their widths ("lines").
+static func _wrapped(row: Dictionary) -> Dictionary:
+	var face: Font = AppTheme.bold_font() if row["head"] or row.get("bold", false) else AppTheme.schematic_font()
+	var result: Dictionary = row.duplicate()
+	var cells: Array[PackedStringArray] = []
+	for c: int in (row["widths"] as Array).size():
+		var lines: PackedStringArray = PackedStringArray()
+		for paragraph: String in str(row["cells"][c]).split("\n"):
+			lines.append_array(wrap_text(face, paragraph, SIZE.x * float(row["widths"][c]) - 2.0 * PAD, TEXT_SIZE))
+		cells.append(lines)
+	result["lines"] = cells
+	return result
 
 
 ## [param text] in lines no wider than [param width] at [param size].
@@ -95,7 +127,7 @@ func _ready() -> void:
 			curve.position = Vector2(0.0, y + 8.0)
 			curve.size = Vector2(SIZE.x * 0.7, HEIGHTS["curve"] - 16.0)
 			add_child(curve)
-		y += HEIGHTS[row["type"]]
+		y += height_of(row)
 
 
 func _draw() -> void:
@@ -105,7 +137,7 @@ func _draw() -> void:
 	var faint: Color = line.lerp(SchematicTheme.BACKGROUND, 0.6)
 	var y: float = 0.0
 	for row: Dictionary in rows:
-		var height: float = HEIGHTS[row["type"]]
+		var height: float = height_of(row)
 		match row["type"]:
 			"title":
 				draw_string(bold, Vector2(PAD, y + 24.0), row["text"], HORIZONTAL_ALIGNMENT_LEFT, SIZE.x - 2.0 * PAD, TITLE_SIZE, SchematicTheme.TEXT)
@@ -120,10 +152,17 @@ func _draw() -> void:
 				var widths: Array = row["widths"]
 				for c: int in widths.size():
 					var w: float = SIZE.x * float(widths[c])
-					var fitted: Dictionary = PartsSheet.fit(face, str(row["cells"][c]), w - 2.0 * PAD)
-					var text_w: float = face.get_string_size(fitted["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, fitted["size"]).x
-					var at_x: float = x + PAD if row["align"][c] == "l" else x + w - PAD - text_w
-					draw_string(face, Vector2(at_x, y + height - 7.0), fitted["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, fitted["size"], SchematicTheme.TEXT)
+					if row.has("lines"):
+						var lines: PackedStringArray = row["lines"][c]
+						for l: int in lines.size():
+							var line_w: float = face.get_string_size(lines[l], HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE).x
+							var line_x: float = x + PAD if row["align"][c] == "l" else x + w - PAD - line_w
+							draw_string(face, Vector2(line_x, y + (l + 1) * LINE - 1.0), lines[l], HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, SchematicTheme.TEXT)
+					else:
+						var fitted: Dictionary = PartsSheet.fit(face, str(row["cells"][c]), w - 2.0 * PAD)
+						var text_w: float = face.get_string_size(fitted["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, fitted["size"]).x
+						var at_x: float = x + PAD if row["align"][c] == "l" else x + w - PAD - text_w
+						draw_string(face, Vector2(at_x, y + height - 7.0), fitted["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, fitted["size"], SchematicTheme.TEXT)
 					if c > 0:
 						draw_line(Vector2(x, y), Vector2(x, y + height), faint, 0.5)
 					x += w
