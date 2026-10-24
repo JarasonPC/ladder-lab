@@ -404,8 +404,8 @@ func _fill_result() -> void:
 	var gaps: Array = _evaluated["missing"]
 	if not gaps.is_empty():
 		var lines: PackedStringArray = PackedStringArray([tr("Still to give:")])
-		for gap: Dictionary in gaps:
-			lines.append("• " + (tr(gap["text"]) % gap["args"] if not (gap["args"] as Array).is_empty() else tr(gap["text"])))
+		for gap: String in HeatRiseReport.gap_texts(_document, gaps, _evaluated["losses"]):
+			lines.append("• " + gap)
 		_results.text = "\n".join(lines)
 		_verdict.text = ""
 		_warnings.text = ""
