@@ -45,6 +45,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   worked it out, the evaluation) and the parameters: the devices grouped by name, maker's type,
   data and loss with how many of each, the wires, the totals and the overall balance. The
   calculation asks for each device's type and the enclosure's power loss for it
+- In the temperature rise calculation devices alike (breakers of the same characteristic,
+  current and poles) are one row: their type and loss are given once for all of them
 - A room's environment can be any combination of the external influences of ČSN 33 2000-5-51:
   the List button beside the environment field shows them all in a table (code and meaning,
   grouped as in the standard's Annex A) to tick those of the room, one class of each; the

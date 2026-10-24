@@ -182,9 +182,9 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 	var gaps: Array = e["missing"]
 	if not gaps.is_empty():
 		_heading(tr("Not worked out: still to give"))
-		for gap: Dictionary in gaps:
-			_text("• " + (tr(gap["text"]) % gap["args"] if not (gap["args"] as Array).is_empty() else tr(gap["text"])), false)
-		_protocol_gaps(board, s, losses, false)
+		for gap: String in gap_texts(doc, gaps, losses):
+			_text("• " + gap, false)
+		_protocol_gaps(doc, board, s, losses, false)
 		return _rows
 	var section_data: Dictionary = r["section"]
 	var h: float = size.x / 1000.0
@@ -259,7 +259,7 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 		_heading(tr("Notes"))
 		for w: Dictionary in r["warnings"]:
 			_text("• " + (tr(w["text"]) % w["args"] if not (w["args"] as Array).is_empty() else tr(w["text"])), true)
-	_protocol_gaps(board, s, losses, true)
+	_protocol_gaps(doc, board, s, losses, true)
 	return _rows
 
 
@@ -306,6 +306,28 @@ static func device_groups(doc: SchematicDocument, losses: Dictionary) -> Array[D
 	return result
 
 
+## What [param missing] (see [method HeatRise.missing]) asks for,
+## translated, the losses of devices alike (see [method device_groups]) of
+## [param losses] asked for once: "The loss of -FA1…-FA4".
+static func gap_texts(doc: SchematicDocument, missing: Array, losses: Dictionary) -> PackedStringArray:
+	var groups: Array[Dictionary] = device_groups(doc, losses)
+	var asked: Dictionary[int, bool] = {}
+	var lines: PackedStringArray = PackedStringArray()
+	for gap: Dictionary in missing:
+		var text: String = gap["text"]
+		var args: Array = gap["args"]
+		if text == "The loss of -%s":
+			for i: int in groups.size():
+				if (groups[i]["designations"] as PackedStringArray).has("-" + str(args[0])):
+					if not asked.has(i):
+						asked[i] = true
+						lines.append(TranslationServer.translate(text) % PartsList.designations(groups[i]["designations"]).trim_prefix("-"))
+					break
+			continue
+		lines.append(TranslationServer.translate(text) % args if not args.is_empty() else TranslationServer.translate(text))
+	return lines
+
+
 ## The evaluation of [param e] (see [method HeatRise.evaluate]) with the
 ## remaining power loss [param balance]: complies or not, the temperature
 ## and the balance.
@@ -335,13 +357,13 @@ func _evaluation(e: Dictionary, balance: Variant) -> String:
 ## (the enclosure's power loss, the devices' types, the switchboard's type,
 ## material and location), under a heading of its own when
 ## [param heading].
-func _protocol_gaps(board: Switchboard, s: Dictionary, losses: Dictionary, heading: bool) -> void:
+func _protocol_gaps(doc: SchematicDocument, board: Switchboard, s: Dictionary, losses: Dictionary, heading: bool) -> void:
 	var gaps: PackedStringArray = PackedStringArray()
 	if not s.has("enclosure_loss"):
 		gaps.append(tr("The power loss the enclosure takes (from its maker)"))
-	for device: Dictionary in losses["devices"]:
-		if device["type"].is_empty():
-			gaps.append(tr("The maker's type of -%s") % device["designation"])
+	for alike: Dictionary in device_groups(doc, losses):
+		if (alike["type"] as String).is_empty():
+			gaps.append(tr("The maker's type of -%s") % PartsList.designations(alike["designations"]).trim_prefix("-"))
 	var docs: Dictionary = BoardDocumentation.clean(board.documentation)
 	for key: String in ["board_type", "material", "location"]:
 		if not docs.has(key):
