@@ -7497,3 +7497,66 @@ msgstr ""
 
 msgid "not saved"
 msgstr ""
+
+msgid "2 and 3 outgoing circuits"
+msgstr ""
+
+msgid "4 and 5 outgoing circuits"
+msgstr ""
+
+msgid "6 to 9 outgoing circuits"
+msgstr ""
+
+msgid "10 and more outgoing circuits"
+msgstr ""
+
+msgid "Electric actuator"
+msgstr ""
+
+msgid "Motors up to 100 kW"
+msgstr ""
+
+msgid "Motors over 100 kW"
+msgstr ""
+
+msgid "RDF"
+msgstr ""
+
+msgid "Rated diversity factor"
+msgstr ""
+
+msgid "Rated diversity factor RDF"
+msgstr ""
+
+msgid "The rated diversity factor RDF"
+msgstr ""
+
+msgid "One RDF for the whole switchboard: the outgoing circuits loaded together at RDF times their rated currents lose RDF² times what they lose at them; further losses stay as they are. 1 is without diversity, as IEC 890 reckons. When the maker gives none, the standards assume (a click on a value puts it in):"
+msgstr ""
+
+msgid "ČSN EN 61439-2 (PSC, power)"
+msgstr ""
+
+msgid "ČSN EN 61439-3 (DBO, ordinary persons)"
+msgstr ""
+
+msgid "Use RDF = %s"
+msgstr ""
+
+msgid "At the rated currents"
+msgstr ""
+
+msgid "Total P = RDF² · %s + further losses (RDF = %s)"
+msgstr ""
+
+msgid "With the rated diversity factor: RDF² · %s = %s² · %s"
+msgstr ""
+
+msgid "Total P = RDF² · losses at the rated currents + further losses"
+msgstr ""
+
+msgid "Rated diversity factor RDF = %s, one for the whole switchboard (ČSN EN 61439-1): the outgoing circuits loaded together at RDF times their rated currents lose RDF² times what they lose at them; RDF = 1 is without diversity, as IEC 890 reckons. The values the standards assume when the maker gives none:"
+msgstr ""
+
+msgid "Total P (RDF = %s)"
+msgstr ""

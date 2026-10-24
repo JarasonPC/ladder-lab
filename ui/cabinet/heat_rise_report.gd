@@ -95,6 +95,7 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 	_table_row([tr("Horizontal partitions"), str(s["partitions"]) if s.has("partitions") else tr("not given")], widths, ["l", "l"])
 	_table_row([tr("Ambient temperature"), _given(s.get("ambient"), "°C")], widths, ["l", "l"])
 	_table_row([tr("Most allowed inside"), _given(s.get("limit"), "°C")], widths, ["l", "l"])
+	_table_row([tr("Rated diversity factor RDF"), _given(s.get("rdf"), "")], widths, ["l", "l"])
 	# The losses.
 	_heading(tr("2. Power lost at the rated currents P"))
 	widths = [0.12, 0.7, 0.18]
@@ -124,8 +125,19 @@ func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictiona
 	_table_row([tr("Wires (%d, %s m)") % [losses["wire_count"], _n(losses["wire_length"], 2)], _given(wire_sum, "")], widths, ["l", "r"])
 	if losses["terminal_count"] > 0:
 		_table_row([tr("Strip terminals (%d), all together") % losses["terminal_count"], _given(losses["terminals"], "")], widths, ["l", "r"])
+	_table_row([tr("At the rated currents"), _given(losses["rated"], "")], widths, ["l", "r"], true)
+	var rdf: Variant = losses["rdf"]
+	_table_row([tr("With the rated diversity factor: RDF² · %s = %s² · %s") % [_given(losses["rated"], ""), _given(rdf, ""), _given(losses["rated"], "")],
+		_given(rdf * rdf * losses["rated"] if rdf != null and losses["rated"] != null else null, "")], widths, ["l", "r"])
 	_table_row([tr("Further losses (lighting, fans, heaters …)"), _given(losses["extra"], "")], widths, ["l", "r"])
-	_table_row([tr("Total P"), _given(losses["total"], "")], widths, ["l", "r"], true)
+	_table_row([tr("Total P = RDF² · losses at the rated currents + further losses"), _given(losses["total"], "")], widths, ["l", "r"], true)
+	# The diversity factor given, and what the standards assume without a maker's.
+	_gap()
+	_text(tr("Rated diversity factor RDF = %s, one for the whole switchboard (ČSN EN 61439-1): the outgoing circuits loaded together at RDF times their rated currents lose RDF² times what they lose at them; RDF = 1 is without diversity, as IEC 890 reckons. The values the standards assume when the maker gives none:") % _given(rdf, ""), true)
+	widths = [0.5, 0.25, 0.25]
+	_table_head([tr("What"), tr("ČSN EN 61439-2 (PSC, power)"), tr("ČSN EN 61439-3 (DBO, ordinary persons)")], widths, ["l", "r", "r"])
+	for entry: Array in HeatRise.RDF_TABLE:
+		_table_row([tr(entry[0]), _n(entry[1], 1), _n(entry[2], 1) if entry[2] != null else "–"], widths, ["l", "r", "r"])
 	var gaps: Array = e["missing"]
 	if not gaps.is_empty():
 		_heading(tr("Not worked out: still to give"))

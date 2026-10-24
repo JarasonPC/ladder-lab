@@ -12,7 +12,7 @@ func after_all() -> void:
 
 ## Everything the calculation needs about the enclosure and the air.
 func _given(changes: Dictionary) -> Dictionary:
-	var s: Dictionary = {"mounting": 1, "vented": false, "partitions": 0, "ambient": 35.0, "limit": 55.0}
+	var s: Dictionary = {"mounting": 1, "vented": false, "partitions": 0, "ambient": 35.0, "limit": 55.0, "rdf": 1.0}
 	s.merge(changes, true)
 	return s
 
@@ -121,7 +121,8 @@ func test_nothing_estimated_everything_asked_for() -> void:
 	var texts: Array = e["missing"].map(func(g: Dictionary) -> String: return g["text"])
 	for text: String in ["The enclosure's height", "The enclosure's width", "The enclosure's depth", "How the enclosure is installed",
 			"Whether it has ventilation openings", "The horizontal partitions", "The ambient temperature", "The most allowed inside",
-			"The loss of -%s", "The cross-section of the wires carrying %s A", "The loss of the strip terminals", "The further losses"]:
+			"The loss of -%s", "The cross-section of the wires carrying %s A", "The loss of the strip terminals", "The further losses",
+			"The rated diversity factor RDF"]:
 		assert_true(texts.has(text), text)
 	# All given: worked out, the total the sum of what was given.
 	var s: Dictionary = _given({"height": 800.0, "width": 600.0, "depth": 250.0, "terminals": 0.5, "extra": 2.0})
@@ -185,7 +186,7 @@ func test_panel_asks_and_the_dialog_saves_what_is_given() -> void:
 		assert_eq((fields[key] as LineEdit).text, "", "%s empty until given" % key)
 	assert_string_contains((dialog.get("_results") as Label).text, "Still to give")
 	# Give it all.
-	for pair: Array in [["height", "800"], ["width", "600"], ["depth", "250"], ["ambient", "35"], ["limit", "55"]]:
+	for pair: Array in [["height", "800"], ["width", "600"], ["depth", "250"], ["ambient", "35"], ["limit", "55"], ["rdf", "1"]]:
 		(fields[pair[0]] as LineEdit).text = pair[1]
 		(fields[pair[0]] as LineEdit).text_changed.emit(pair[1])
 	(dialog.get("_mounting") as OptionButton).select(2)
@@ -300,6 +301,46 @@ func test_protocol_of_a_ventilated_board_in_sections() -> void:
 	assert_string_contains(all, "fig. 4 (with openings): inlet 610 cm²")
 	assert_string_contains(all, "table 5 (with openings), 2 partitions")
 	assert_string_contains(all, "fig. 5: inlet 610 cm²")
+
+
+func test_rated_diversity_factor() -> void:
+	var doc: SchematicDocument = _filled_board()
+	var wires: Array = HeatRiseReport.layout(doc, 0).wiring.wires
+	_all_given(doc, {"extra": 2.0, "rdf": 0.6})
+	var e: Dictionary = HeatRise.evaluate(doc, 0, wires)
+	var lost: Dictionary = e["losses"]
+	assert_eq(lost["rdf"], 0.6)
+	assert_almost_eq(lost["total"], 0.36 * lost["rated"] + 2.0, 1e-6, "RDF² times the losses at the rated currents, further losses as they are")
+	var full: Dictionary = HeatRise.evaluate(doc, 0, wires, HeatRise.settings(doc.switchboards[0].heat.merged({"rdf": 1.0}, true)))
+	assert_lt(e["result"]["top"], full["result"]["top"], "less warm with diversity")
+	assert_false(HeatRise.settings({"rdf": 1.2}).has("rdf"), "at most 1")
+	assert_false(HeatRise.settings({"rdf": 0}).has("rdf"), "over 0")
+	assert_eq(HeatRise.RDF_TABLE.size(), 7)
+	assert_eq(HeatRise.RDF_TABLE[2], ["6 to 9 outgoing circuits", 0.7, 0.6])
+	# The dialog: the table's values put in by a click, a wrong one typed not taken.
+	var dialog: HeatRiseDialog = HeatRiseDialog.new()
+	add_child_autofree(dialog)
+	doc.switchboards[0].heat.erase("rdf")
+	dialog.open(doc, 0, HeatRiseReport.layout(doc, 0))
+	assert_false(dialog.settings().has("rdf"))
+	var buttons: Array = dialog.get("_rdf_buttons")
+	assert_eq(buttons.size(), 11, "seven PSC values and four DBO ones")
+	(buttons[5] as Button).pressed.emit()
+	assert_eq(dialog.settings()["rdf"], 0.6, "6 to 9 circuits, DBO")
+	assert_eq((dialog.get("_fields")["rdf"] as LineEdit).text, "0.6")
+	var field: LineEdit = dialog.get("_fields")["rdf"]
+	field.text = "1,5"
+	field.text_changed.emit("1,5")
+	assert_false(dialog.settings().has("rdf"), "over 1 not taken")
+	dialog.hide()
+	# The protocol shows it and the table.
+	_all_given(doc, {"rdf": 0.6})
+	var all: String = ""
+	for row: Dictionary in HeatRiseReport.new().rows(doc, 0):
+		all += str(row.get("text", "")) + " | ".join(PackedStringArray(row.get("cells", []).map(func(c: Variant) -> String: return str(c)))) + "\n"
+	assert_string_contains(all, "Rated diversity factor RDF | 0.6")
+	assert_string_contains(all, "6 to 9 outgoing circuits | 0.7 | 0.6")
+	assert_string_contains(all, "Total P = RDF²")
 
 
 func test_protocol_says_what_it_was_exported_from() -> void:

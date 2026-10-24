@@ -25,6 +25,9 @@ What changed in each LadderLab version. Version numbers follow the rules in
   characteristic, rated current and poles, an RCD its residual current, type and poles, an
   overload relay its setting …), each value to give has a text field of its own saying
   "enter" until it is filled in, and the list of losses opens over the whole screen
+- The temperature rise calculation asks for the rated diversity factor RDF of the
+  switchboard: its losses at the rated currents count RDF² times; the values ČSN EN 61439-2
+  and 61439-3 assume are shown beside it to put in with a click, and in the protocol
 - The temperature rise protocol says what it was exported from: the program and its version,
   the file, the schematic and when
 - A room's environment can be any combination of the external influences of ČSN 33 2000-5-51:
