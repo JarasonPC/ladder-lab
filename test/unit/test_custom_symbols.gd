@@ -282,7 +282,8 @@ func test_marks_put_from_the_palette_found_and_in_the_legend() -> void:
 	var palette: Palette = autofree(Palette.new())
 	palette.environment = SchematicDocument.Kind.RESIDENTIAL
 	palette.plan = true
-	assert_eq(palette.entries().size(), Palette.PLAN_ENTRIES.size() + 1, "the plan's parts, then the user's symbols")
+	var parts: int = Palette.PLAN_ENTRIES.filter(func(entry: Dictionary) -> bool: return Palette.entry_group(entry) != "furniture").size()
+	assert_eq(palette.entries().size(), parts + 1, "the plan's parts, then the user's symbols")
 	var canvas: FloorPlanCanvas = autofree(FloorPlanCanvas.new())
 	canvas.document = doc
 	canvas.editing = true

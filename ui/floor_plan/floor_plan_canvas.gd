@@ -177,6 +177,9 @@ var offset: Vector2 = Vector2(60.0, 60.0)
 ## Drawn for a sheet: the legend of the symbols and the standard heights
 ## under the plan (see [method paper_area]).
 var legend: bool = false
+## The legend of the rooms beside the plan on the screen too (a user
+## setting; a sheet always has it).
+static var room_legend_shown: bool = false
 ## The layer new parts, notes, dimensions, fixtures and marks go on ("" none).
 var active_layer: String = ""
 ## On a sheet: the scale it is printed at (50 for 1:50), 0 for none; its
@@ -263,7 +266,7 @@ func paper_area() -> Rect2:
 	var area: Rect2 = plan().bounds().grow(0.8)
 	if not area.has_area():
 		area = Rect2(0, 0, 4, 3)
-	if installation() and not plan().rooms.is_empty():
+	if _room_legend_drawn():
 		# The room legend beside the plan.
 		area = area.merge(_room_legend_rect().grow(0.4))
 	for i: int in plan().dimensions.size():
@@ -300,6 +303,12 @@ func _legend_row() -> float:
 	return 0.55 * maxf(1.0, maxf(_symbols(), plan().text_scale))
 
 
+## Whether the legend of the rooms is drawn: an installation's with rooms,
+## on a sheet or while [member room_legend_shown].
+func _room_legend_drawn() -> bool:
+	return installation() and not plan().rooms.is_empty() and (legend or room_legend_shown)
+
+
 ## Where the room legend of a residential installation is (m): right of the rooms.
 func _room_legend_rect() -> Rect2:
 	var rooms_area: Rect2 = plan().bounds()
@@ -317,7 +326,7 @@ func _room_legend_rect() -> Rect2:
 ## Shows everything, as large as fits.
 func fit() -> void:
 	var area: Rect2 = plan().bounds() if plan() != null else Rect2()
-	if installation() and not plan().rooms.is_empty():
+	if _room_legend_drawn():
 		area = area.merge(_room_legend_rect())
 	if not area.has_area() or size.x < 10.0:
 		zoom = 1.0
@@ -1443,7 +1452,7 @@ func _pressed(point: Vector2) -> Dictionary:
 	var fixture: int = fixture_at(point)
 	if fixture >= 0:
 		return {"kind": "fixture", "index": fixture}
-	if installation() and not plan().rooms.is_empty() and _room_legend_rect().has_point(to_plan(point)):
+	if _room_legend_drawn() and _room_legend_rect().has_point(to_plan(point)):
 		return {"kind": "room_legend"}
 	var room: int = plan().room_at(to_plan(point))
 	if room >= 0:
@@ -2843,7 +2852,7 @@ func _draw() -> void:
 		draw_rect(box, SchematicTheme.SELECTED, false, 1.5)
 	if editing and tool in [Tool.MEASURE, Tool.DIMENSION] and _press.get("kind", "") in ["measure", "new_dimension"] and _dragging:
 		_draw_measure(font)
-	if installation() and not plan().rooms.is_empty():
+	if _room_legend_drawn():
 		_draw_room_legend(s, font)
 	if _dimensioned_room() >= 0:
 		_draw_dimensions(_dimensioned_room(), s, font)

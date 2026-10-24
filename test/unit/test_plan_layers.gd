@@ -167,7 +167,7 @@ func test_layers_menu() -> void:
 	assert_eq(doc.plan_layers.size(), 1)
 	assert_eq(view.canvas.active_layer, "Lighting", "a new layer takes what is put on next")
 	view._fill_layers_menu()
-	assert_gt(view._layers_menu.get_popup().item_count, 3)
+	assert_gt(view._layers_popup.item_count, 3)
 	# Hidden from the menu: neither the selection nor the layer new things go on.
 	view.canvas.selected = {"kind": "part", "designation": "SF1"}
 	view._on_layers_menu(100)
@@ -192,7 +192,7 @@ func test_layers_menu() -> void:
 	assert_eq(doc.floor_plan.fixtures[0].layer, "", "on none once its layer is gone")
 	# The dimensions and notes' layer: always in the menu, hidden and shown.
 	view._fill_layers_menu()
-	var popup: PopupMenu = view._layers_menu.get_popup()
+	var popup: PopupMenu = view._layers_popup
 	assert_ne(popup.get_item_index(99), -1, "always there")
 	view.canvas.selected = {"kind": "note", "index": 0}
 	view._on_layers_menu(99)

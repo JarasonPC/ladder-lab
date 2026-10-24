@@ -1,18 +1,22 @@
 class_name FloorPlanView
 extends VBoxContainer
-## The floor plan of a house installation (Schematic | Floor plan in the
-## toolbar of a residential schematic): a bar with the tools above the list
-## of parts not placed yet and the [FloorPlanCanvas]. In Edit mode rooms are
+## The floor plan of a house installation (Floor plan in the toolbar of a
+## residential schematic): a bar with the tools over the [FloorPlanCanvas],
+## the tools on tabs by what they are for ([method show_tab]: building,
+## the electrics, dimensions and notes), the Drawing menu with the plan's
+## settings, the underlay and the layers. In Edit mode rooms are
 ## drawn (Room, by dragging) or added ready-made (Add room), doors and
-## windows put in walls (Door, Window), the walls' thickness set (Walls),
-## luminaires spread over a selected room or parts in a row along a
+## windows put in walls (Door, Window), the walls' thickness set (Plan
+## settings), luminaires spread over a selected room or parts in a row along a
 ## selected wall (Array), notes with leaders written (Note), furniture put
 ## in from the palette (a double click sets its size, R turns it), the
 ## architect's drawing put under the plan, scaled and moved (Underlay),
 ## layers made, shown or hidden and the one new things go on chosen
 ## (Layers; a right click on a part, note, dimension, piece of furniture or
-## mark puts it on another), floors added and chosen (the tabs over the plan), and a part chosen in the list is put where the plan is
-## clicked next. A residential installation also draws its lighting (Wire),
+## mark puts it on another), floors added and chosen (the tabs over the plan), and a part chosen in the list of those not on the plan
+## ([member parts_head]) is put where the plan is clicked next. What is
+## selected is edited in the main window's side panel ([member inspector],
+## [member part_box]). A residential installation also draws its lighting (Wire),
 ## takes new parts from the palette ([method begin_place_template]) onto
 ## the circuit chosen beside the plan (where a selected part's circuit is
 ## changed too), and gives each room its number, environment and
@@ -35,8 +39,24 @@ signal operate_requested(designation: String)
 signal floor_changed(index: int)
 ## The consumer unit was opened in place of the plan (true) or closed.
 signal unit_shown(open: bool)
-## The wall thickness new plans start with was set (to save it).
+## The wall thickness new plans start with, or whether the room legend
+## shows on the screen, was set (to save it).
 signal defaults_changed
+## Tab [param tab] of the tools is shown (the palette offers its parts).
+signal tab_changed(tab: int)
+## A part was selected on the plan ([param designation], "" for none).
+signal part_selected(designation: String)
+## What [member inspector] shows changed (the main window shows or hides it).
+signal inspector_changed
+
+## Tabs of the tools: building (rooms, walls, doors, windows, furniture), the
+## electrics (lighting, rows, symbols, the check), dimensions and notes.
+const TAB_BUILDING: int = 0
+const TAB_ELECTRICS: int = 1
+const TAB_ANNOTATIONS: int = 2
+## Items of the Drawing menu.
+const MENU_LEGEND: int = 1
+const MENU_SETTINGS: int = 2
 
 ## Size of the icons of the plan's tools (logical pixels).
 const ICON_SIZE: int = 22
@@ -61,9 +81,15 @@ var _join_button: Button
 var _window_button: Button
 var _dimension_button: Button
 var _note_button: Button
-var _underlay_menu: MenuButton
+## The plan's settings, the underlay and the layers (the last two submenus).
+var _drawing_menu: MenuButton
+var _underlay_popup: PopupMenu
 var _underlay_file: FileDialog
-var _layers_menu: MenuButton
+var _layers_popup: PopupMenu
+## Tabs of the tools ([constant TAB_BUILDING] …) and the one shown.
+var _tabs_track: PanelContainer
+var _tab_buttons: Array[Button] = []
+var _tab: int = TAB_BUILDING
 ## The layers to put the selection on (a right click on it).
 var _layer_picker: PopupMenu
 var _layer_dialog: ConfirmationDialog
@@ -92,7 +118,6 @@ var _fixture_depth: SpinBox
 ## The fixture the dialog edits.
 var _fixture: int = -1
 var _measure_button: Button
-var _walls_button: Button
 var _symbols_button: Button
 var _symbols_dialog: SymbolLibraryDialog
 var _window_dialog: ConfirmationDialog
@@ -135,10 +160,28 @@ var _door_side: OptionButton
 var _door: int = -1
 var _circuit_title: Label
 var _circuit: OptionButton
+var _circuit_note: Label
+## The circuit of the part selected, in [member part_box].
+var _part_circuit_title: Label
+var _part_circuit: OptionButton
+## The circuits offered by [member _part_circuit], by item index.
+var _part_circuits: PackedInt32Array = PackedInt32Array()
+## The parts not on the plan and the circuit new parts go on (see
+## [method place_parts_head]).
+var parts_head: VBoxContainer
+## The check's results and the room or walls picked (see [member part_box]).
+var inspector: VBoxContainer
+## The circuit of the part picked, shown under its properties.
+var part_box: VBoxContainer
+var _side_panel: PanelContainer
 ## Circuits offered (their numbers), by item index of [member _circuit]
 ## (for new parts first by kind, then none; the last: a new one).
 var _circuits: PackedInt32Array = PackedInt32Array()
 var _room_fields: GridContainer
+## Headings of the room panel: its dimensions, electrics, the rest.
+var _size_caption: Label
+var _electrics_caption: Label
+var _other_caption: Label
 var _width_field: SpinBox
 var _height_field: SpinBox
 var _length_dialog: ConfirmationDialog
@@ -172,6 +215,7 @@ var _environment_note: Label
 var _presets: MenuButton
 var _delete_button: Button
 var _fit_button: Button
+var _zoom_buttons: Array[Button] = []
 var _side: VBoxContainer
 var _list_title: Label
 var _list: ItemList
@@ -247,31 +291,12 @@ func _ready() -> void:
 	_presets.get_popup().id_pressed.connect(_add_preset)
 	_bar.add_child(_presets)
 	_array_button = Button.new()
+	_array_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_array_button.theme_type_variation = "ToolButton"
 	_array_button.focus_mode = Control.FOCUS_NONE
 	_array_button.icon = AppTheme.icon("plan_array", ICON_SIZE)
 	_array_button.pressed.connect(_ask_array)
 	_bar.add_child(_array_button)
-	_underlay_menu = MenuButton.new()
-	_underlay_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_underlay_menu.theme_type_variation = "ToolButton"
-	_underlay_menu.icon = AppTheme.icon("plan_underlay", ICON_SIZE)
-	_underlay_menu.get_popup().id_pressed.connect(_on_underlay_menu)
-	_underlay_menu.about_to_popup.connect(_fill_underlay_menu)
-	_bar.add_child(_underlay_menu)
-	_layers_menu = MenuButton.new()
-	_layers_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_layers_menu.theme_type_variation = "ToolButton"
-	_layers_menu.icon = AppTheme.icon("plan_layers", ICON_SIZE)
-	_layers_menu.get_popup().id_pressed.connect(_on_layers_menu)
-	_layers_menu.about_to_popup.connect(_fill_layers_menu)
-	_bar.add_child(_layers_menu)
-	_walls_button = Button.new()
-	_walls_button.theme_type_variation = "ToolButton"
-	_walls_button.focus_mode = Control.FOCUS_NONE
-	_walls_button.icon = AppTheme.icon("walls", ICON_SIZE)
-	_walls_button.pressed.connect(_ask_walls)
-	_bar.add_child(_walls_button)
 	_symbols_button = Button.new()
 	_symbols_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_symbols_button.theme_type_variation = "ToolButton"
@@ -286,7 +311,8 @@ func _ready() -> void:
 	_check_button.icon = AppTheme.icon("check", ICON_SIZE)
 	_check_button.pressed.connect(func() -> void:
 		_check_box.visible = true
-		_fill_check())
+		_fill_check()
+		inspector_changed.emit())
 	_bar.add_child(_check_button)
 	_delete_button = Button.new()
 	_delete_button.theme_type_variation = "ToolButton"
@@ -294,83 +320,128 @@ func _ready() -> void:
 	_delete_button.icon = AppTheme.icon("delete", ICON_SIZE)
 	_delete_button.pressed.connect(func() -> void: canvas.delete_selected())
 	_bar.add_child(_delete_button)
-	# The tools in groups: selecting, building, the electrics, dimensions
-	# and notes, what is drawn under the plan and how it shows.
-	var groups: Array = [[_select_button, _delete_button],
-		[_outline_button, _wall_button, _room_button, _presets, _join_button, _door_button, _window_button],
-		[_wire_button, _array_button, _symbols_button, _check_button],
-		[_dimension_button, _measure_button, _note_button],
-		[_underlay_menu, _layers_menu, _walls_button]]
-	var at: int = 0
-	for g: int in groups.size():
-		if g > 0:
-			var gap: VSeparator = VSeparator.new()
-			_bar.add_child(gap)
-			_bar.move_child(gap, at)
-			_tool_gaps.append(gap)
-			at += 1
-		for control: Control in groups[g]:
-			_bar.move_child(control, at)
-			at += 1
+	# The tools by what they are for, on tabs: building, the electrics,
+	# dimensions and notes; selecting and deleting beside them always.
+	var track: PanelContainer = PanelContainer.new()
+	track.theme_type_variation = "SegmentTrack"
+	_bar.add_child(track)
+	_tabs_track = track
+	var segments: HBoxContainer = HBoxContainer.new()
+	segments.add_theme_constant_override("separation", 2)
+	track.add_child(segments)
+	var tabs: ButtonGroup = ButtonGroup.new()
+	for tab: int in 3:
+		var button: Button = Button.new()
+		button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		button.theme_type_variation = "SegmentButton"
+		button.focus_mode = Control.FOCUS_NONE
+		button.toggle_mode = true
+		button.button_group = tabs
+		button.pressed.connect(func() -> void: show_tab(tab))
+		segments.add_child(button)
+		_tab_buttons.append(button)
+	_tab_buttons[_tab].set_pressed_no_signal(true)
+	var order: Array[Control] = [_select_button, _delete_button, track]
+	order.append_array(_tab_tools(TAB_BUILDING) + _tab_tools(TAB_ELECTRICS) + _tab_tools(TAB_ANNOTATIONS))
+	for i: int in order.size():
+		_bar.move_child(order[i], i)
+	var gap: VSeparator = VSeparator.new()
+	_bar.add_child(gap)
+	_bar.move_child(gap, 2)
+	_tool_gaps.append(gap)
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bar.add_child(spacer)
-	_fit_button = Button.new()
-	_fit_button.theme_type_variation = "ToolButton"
-	_fit_button.focus_mode = Control.FOCUS_NONE
-	_fit_button.pressed.connect(func() -> void: canvas.fit())
-	_bar.add_child(_fit_button)
+	# What is drawn under the plan, the layers and the plan's settings.
+	_drawing_menu = MenuButton.new()
+	_drawing_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_drawing_menu.flat = false
+	_drawing_menu.theme_type_variation = "ToolButton"
+	_drawing_menu.icon = AppTheme.icon("plan_layers", ICON_SIZE)
+	_drawing_menu.about_to_popup.connect(_fill_drawing_menu)
+	_drawing_menu.get_popup().id_pressed.connect(_on_drawing_menu)
+	_bar.add_child(_drawing_menu)
+	_underlay_popup = PopupMenu.new()
+	_underlay_popup.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_underlay_popup.id_pressed.connect(_on_underlay_menu)
+	_underlay_popup.about_to_popup.connect(_fill_underlay_menu)
+	_drawing_menu.get_popup().add_child(_underlay_popup)
+	_layers_popup = PopupMenu.new()
+	_layers_popup.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_layers_popup.id_pressed.connect(_on_layers_menu)
+	_layers_popup.about_to_popup.connect(_fill_layers_menu)
+	_drawing_menu.get_popup().add_child(_layers_popup)
 
 	var body: HBoxContainer = HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 0)
 	add_child(body)
 	_body = body
-	var side_panel: PanelContainer = PanelContainer.new()
-	side_panel.theme_type_variation = "LeftPanel"
-	side_panel.custom_minimum_size.x = 200.0
-	body.add_child(side_panel)
+	# The parts to put on the plan and the circuit they go on: in the
+	# palette's head for an installation ([method place_parts_head]), else
+	# in a panel of their own beside the plan.
+	_side_panel = PanelContainer.new()
+	_side_panel.theme_type_variation = "LeftPanel"
+	_side_panel.custom_minimum_size.x = 200.0
+	body.add_child(_side_panel)
 	_side = VBoxContainer.new()
 	_side.add_theme_constant_override("separation", 6)
-	side_panel.add_child(_side)
+	_side_panel.add_child(_side)
+	parts_head = VBoxContainer.new()
+	parts_head.add_theme_constant_override("separation", 6)
+	_side.add_child(parts_head)
 	_circuit_title = Label.new()
 	_circuit_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_circuit_title.theme_type_variation = "HeaderLabel"
-	_side.add_child(_circuit_title)
-	_circuit = OptionButton.new()
-	_circuit.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	# A long circuit name is cut, never widening the panel over the plan.
-	_circuit.fit_to_longest_item = false
-	_circuit.clip_text = true
-	_circuit.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_circuit.item_selected.connect(_on_circuit_chosen)
-	_side.add_child(_circuit)
+	parts_head.add_child(_circuit_title)
+	_circuit = _circuit_picker(parts_head)
+	_circuit_note = Label.new()
+	_circuit_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_circuit_note.theme_type_variation = "MutedLabel"
+	_circuit_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_circuit_note.custom_minimum_size.x = 160.0
+	parts_head.add_child(_circuit_note)
 	_list_title = Label.new()
 	_list_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_list_title.theme_type_variation = "HeaderLabel"
-	_side.add_child(_list_title)
+	parts_head.add_child(_list_title)
 	_list = ItemList.new()
 	_list.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_list.auto_height = true
 	_list.item_selected.connect(_on_listed)
-	_side.add_child(_list)
+	parts_head.add_child(_list)
 	_list_hint = Label.new()
 	_list_hint.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_list_hint.theme_type_variation = "MutedLabel"
 	_list_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_list_hint.custom_minimum_size.x = 180.0
-	_side.add_child(_list_hint)
+	_list_hint.custom_minimum_size.x = 160.0
+	parts_head.add_child(_list_hint)
+	# What is selected on the plan, shown by the main window in its side
+	# panel: the check's results, the room or the walls picked over the
+	# properties of a part, its circuit under them ([member inspector],
+	# [member part_box]).
+	inspector = VBoxContainer.new()
+	inspector.add_theme_constant_override("separation", 8)
+	part_box = VBoxContainer.new()
+	part_box.add_theme_constant_override("separation", 6)
+	_part_circuit_title = Label.new()
+	_part_circuit_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_part_circuit_title.theme_type_variation = "CaptionLabel"
+	part_box.add_child(_part_circuit_title)
+	_part_circuit = _circuit_picker(part_box)
+	# Beside the plan until the main window takes them into its side panel.
+	_side.add_child(inspector)
+	_side.add_child(part_box)
 
 	var plan_column: VBoxContainer = VBoxContainer.new()
 	plan_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	plan_column.add_theme_constant_override("separation", 0)
 	body.add_child(plan_column)
-	# The floors as tabs over the plan, with what can be done with them.
+	# The floors as tabs over the plan, adding one right after them.
 	_floor_row = HBoxContainer.new()
 	plan_column.add_child(_floor_row)
 	_floor_tabs = TabBar.new()
 	_floor_tabs.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_floor_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_floor_tabs.tab_changed.connect(func(index: int) -> void:
 		if not _filling_floors and _document != null and index != _document.floor:
 			show_floor(index))
@@ -378,7 +449,7 @@ func _ready() -> void:
 	_floor_menu = MenuButton.new()
 	_floor_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_floor_menu.theme_type_variation = "ToolButton"
-	_floor_menu.icon = AppTheme.icon("plan_floors", ICON_SIZE)
+	_floor_menu.icon = AppTheme.icon("plus", 14)
 	_floor_menu.get_popup().id_pressed.connect(_on_floor_menu)
 	_floor_menu.about_to_popup.connect(_fill_floor_menu)
 	_floor_row.add_child(_floor_menu)
@@ -395,6 +466,10 @@ func _ready() -> void:
 	canvas.selection_changed.connect(_update_parts_side)
 	canvas.tool_changed.connect(_update_parts_side)
 	canvas.selection_changed.connect(_update_array_button)
+	canvas.selection_changed.connect(func() -> void:
+		_fill_part()
+		part_selected.emit(_selected_part())
+		inspector_changed.emit())
 	canvas.length_requested.connect(_ask_length)
 	canvas.free_wall_requested.connect(_ask_free_wall)
 	canvas.door_requested.connect(_ask_door)
@@ -407,6 +482,31 @@ func _ready() -> void:
 			_fit_pending = false
 			canvas.fit())
 	plan_column.add_child(canvas)
+	# Zoom out, in, show all: in the corner of the plan.
+	var zoom: HBoxContainer = HBoxContainer.new()
+	zoom.add_theme_constant_override("separation", 4)
+	zoom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	zoom.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	zoom.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	zoom.offset_left = -10.0
+	zoom.offset_top = -10.0
+	zoom.offset_right = -10.0
+	zoom.offset_bottom = -10.0
+	canvas.add_child(zoom)
+	for step: float in [1.0 / FloorPlanCanvas.ZOOM_STEP, FloorPlanCanvas.ZOOM_STEP]:
+		var button: Button = Button.new()
+		button.focus_mode = Control.FOCUS_NONE
+		button.icon = AppTheme.icon("zoom_out" if step < 1.0 else "zoom_in")
+		AppTheme.frame(button)
+		button.pressed.connect(func() -> void: _zoom_by(step))
+		zoom.add_child(button)
+		_zoom_buttons.append(button)
+	_fit_button = Button.new()
+	_fit_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_fit_button.focus_mode = Control.FOCUS_NONE
+	AppTheme.frame(_fit_button)
+	_fit_button.pressed.connect(func() -> void: canvas.fit())
+	zoom.add_child(_fit_button)
 
 	_build_room_panel()
 	_name_picker = PopupMenu.new()
@@ -633,6 +733,99 @@ func _ready() -> void:
 	retranslate()
 
 
+## The tools on tab [param tab] (see [constant TAB_BUILDING]), in their order.
+func _tab_tools(tab: int) -> Array[Control]:
+	match tab:
+		TAB_BUILDING:
+			return [_outline_button, _wall_button, _room_button, _presets, _join_button, _door_button, _window_button]
+		TAB_ELECTRICS:
+			return [_wire_button, _array_button, _symbols_button, _check_button]
+	return [_dimension_button, _measure_button, _note_button]
+
+
+## Shows the tools of tab [param tab]; a tool of another tab in use gives
+## way to selecting.
+func show_tab(tab: int) -> void:
+	_tab = tab
+	if not _tab_buttons.is_empty():
+		_tab_buttons[tab].set_pressed_no_signal(true)
+	var tools: Array[Control] = _tab_tools(tab)
+	for button: Button in [_room_button, _outline_button, _wall_button, _door_button, _window_button, _wire_button, _join_button, _dimension_button, _measure_button, _note_button]:
+		if button.button_pressed and not tools.has(button):
+			_select_button.button_pressed = true
+	refresh()
+	tab_changed.emit(tab)
+
+
+## The tab of the tools shown (see [constant TAB_BUILDING]).
+func shown_tab() -> int:
+	return _tab
+
+
+## Zooms by [param factor] about the middle of the plan.
+func _zoom_by(factor: float) -> void:
+	var middle: Vector2 = canvas.size * 0.5
+	var before: Vector2 = (middle - canvas.offset) / canvas.zoom
+	canvas.zoom = clampf(canvas.zoom * factor, FloorPlanCanvas.MIN_ZOOM, FloorPlanCanvas.MAX_ZOOM)
+	canvas.offset = middle - before * canvas.zoom
+	canvas.queue_redraw()
+
+
+## A drop-down list of the circuits under [param parent].
+func _circuit_picker(parent: Control) -> OptionButton:
+	var picker: OptionButton = OptionButton.new()
+	picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	# A long circuit name is cut, never widening the panel over the plan.
+	picker.fit_to_longest_item = false
+	picker.clip_text = true
+	picker.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	picker.item_selected.connect(_on_circuit_chosen.bind(picker))
+	parent.add_child(picker)
+	return picker
+
+
+## Puts the parts not on the plan and the circuit new parts go on under
+## [param parent] (the palette's head of an installation), or back into the
+## panel beside the plan for null.
+func place_parts_head(parent: Control) -> void:
+	var target: Control = parent if parent != null else _side
+	if parts_head.get_parent() != target:
+		parts_head.reparent(target)
+		if parent == null:
+			_side.move_child(parts_head, 0)
+	refresh()
+
+
+## The Drawing menu: the underlay and the layers as submenus, the room
+## legend on the screen, the plan's settings.
+func _fill_drawing_menu() -> void:
+	var popup: PopupMenu = _drawing_menu.get_popup()
+	popup.clear()
+	popup.add_submenu_node_item(tr("Underlay"), _underlay_popup)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Underlay: the architect's drawing under the plan, to trace the walls over it (a PDF page saved as a PNG or JPG first); it does not print"))
+	var layers: String = tr("Layers") + ("  (%s)" % canvas.active_layer if not canvas.active_layer.is_empty() else "")
+	popup.add_submenu_node_item(layers, _layers_popup)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts and furniture go on (dimensions and notes always go on their own); a right click on something puts it on another"))
+	if canvas.installation():
+		popup.add_separator()
+		popup.add_check_item(tr("Room legend on the screen"), MENU_LEGEND)
+		popup.set_item_checked(popup.item_count - 1, FloorPlanCanvas.room_legend_shown)
+		popup.set_item_tooltip(popup.item_count - 1, tr("The table of the rooms (number, purpose, environment, illuminance) beside the plan; it is always on the exported sheet"))
+	popup.add_separator()
+	popup.add_item(tr("Plan settings…"), MENU_SETTINGS)
+	popup.set_item_tooltip(popup.item_count - 1, tr("Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn"))
+
+
+func _on_drawing_menu(id: int) -> void:
+	match id:
+		MENU_LEGEND:
+			FloorPlanCanvas.room_legend_shown = not FloorPlanCanvas.room_legend_shown
+			canvas.queue_redraw()
+			defaults_changed.emit()
+		MENU_SETTINGS:
+			_ask_walls()
+
+
 func _tool_button(icon_name: String, tool: FloorPlanCanvas.Tool, group: ButtonGroup) -> Button:
 	var button: Button = Button.new()
 	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -672,6 +865,11 @@ func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> v
 		_select_button.set_pressed_no_signal(true)
 	if fit:
 		canvas.selected = {}
+		# A new plan is built first; one with rooms is wired.
+		_tab = TAB_ELECTRICS if canvas.installation() and not doc.floor_plan.rooms.is_empty() else TAB_BUILDING
+		if not _tab_buttons.is_empty():
+			_tab_buttons[_tab].set_pressed_no_signal(true)
+		tab_changed.emit(_tab)
 		if canvas.size.x > 10.0:
 			canvas.fit()
 		else:
@@ -736,33 +934,41 @@ func refresh() -> void:
 	(_bar.get_parent() as Control).visible = plan_shown
 	if _unit != null:
 		_unit.heading = "%s %s" % [tr("Consumer unit"), FloorPlan.UNIT]
-	for button: Control in [_select_button, _room_button, _outline_button, _wall_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _layers_menu, _walls_button, _delete_button]:
-		button.visible = _editing and plan_shown
+	var tools: bool = _editing and plan_shown
+	for button: Control in [_select_button, _delete_button, _tabs_track, _drawing_menu]:
+		button.visible = tools
+	for gap: VSeparator in _tool_gaps:
+		gap.visible = tools
+	# The electrics' tab is a house installation's: lighting, symbols, the check.
+	var installation: bool = canvas.installation()
+	_tab_buttons[TAB_ELECTRICS].visible = installation
+	if _tab == TAB_ELECTRICS and not installation:
+		_tab = TAB_BUILDING
+		_tab_buttons[_tab].set_pressed_no_signal(true)
+	for tab: int in 3:
+		for control: Control in _tab_tools(tab):
+			control.visible = tools and tab == _tab
 	# The layer new things go on, while the schematic has it (an undo may
 	# have taken it away).
 	if _document.plan_layer(canvas.active_layer) == null:
 		canvas.active_layer = ""
-	_layers_menu.text = canvas.active_layer
+	_drawing_menu.text = tr("Drawing")
 	_update_array_button()
 	_fill_floor_tabs()
-	_wire_button.visible = _editing and plan_shown and canvas.installation()
-	_check_button.visible = _editing and plan_shown and canvas.installation()
-	for gap: VSeparator in _tool_gaps:
-		gap.visible = _editing and plan_shown
-	_symbols_button.visible = _editing and plan_shown and canvas.installation()
-	_join_button.visible = _editing and plan_shown
-	_update_parts_side()
 	_fit_button.visible = plan_shown
-	(_side.get_parent() as Control).visible = _editing
+	_side_panel.visible = _editing and plan_shown and (parts_head.get_parent() == _side or inspector.get_parent() == _side)
 	_listed = _document.unplaced_parts()
 	_list.clear()
 	for designation: String in _listed:
 		_list.add_item(_entry_text(designation))
-	_list_hint.text = tr("Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling.") if not _listed.is_empty() else tr("Every part is on the plan.")
+	_list_hint.text = tr("Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling.")
+	_update_parts_side()
 	_fill_room()
 	_fill_wall()
 	_fill_check()
+	_fill_part()
 	canvas.queue_redraw()
+	inspector_changed.emit()
 
 
 ## The simulation stepped: lights, sockets and appliances are drawn anew.
@@ -773,6 +979,17 @@ func show_step(result: StepResult) -> void:
 
 
 func retranslate() -> void:
+	var tab_names: Array[String] = [tr("Building"), tr("Electrics"), tr("Dimensions")]
+	var tab_tips: Array[String] = [tr("Rooms, walls, doors, windows and furniture"), tr("The lighting, rows of parts, your own symbols and the check of the installation"), tr("Dimensions, measuring and notes")]
+	for i: int in _tab_buttons.size():
+		_tab_buttons[i].text = tab_names[i]
+		_tab_buttons[i].tooltip_text = tab_tips[i]
+	var names: Dictionary = {_outline_button: tr("Outline"), _wall_button: tr("Walls"), _room_button: tr("Room"), _join_button: tr("Join"),
+		_door_button: tr("Door"), _window_button: tr("Window"), _wire_button: tr("Lighting"), _array_button: tr("Row"),
+		_dimension_button: tr("Dimension"), _measure_button: tr("Measure"), _note_button: tr("Note")}
+	for button: Button in names:
+		button.text = names[button]
+	_floor_menu.text = tr("Floor")
 	_select_button.tooltip_text = tr("Select and move rooms, doors and parts; drag a room's edge to resize it")
 	_room_button.tooltip_text = tr("Draw a room: drag from corner to corner, or click both corners; type its width, Tab, its depth in mm and Enter for an exact size; it snaps to the walls of the others")
 	_door_button.tooltip_text = tr("Put a door in a wall by clicking it (of the kind chosen last); a double click on a door sets its kind, width, double door and swing; a selected door: drag the handle at the end of its leaf to another corner to turn it, F swaps its hinge, Shift+F opens it to the other side")
@@ -780,7 +997,6 @@ func retranslate() -> void:
 	_window_button.tooltip_text = tr("Put a window in a wall by clicking it; a double click on a window sets its width, sill and height")
 	_dimension_button.tooltip_text = tr("Dimensions printed with the plan: click a wall for a chain along it (corners, parts, doors and windows), or drag between two points; drag a dimension to set it off, Delete takes it away")
 	_measure_button.tooltip_text = tr("Measure: drag between two points (corners, parts and the ends of doors and windows are caught) to see the distance; nothing is drawn")
-	_underlay_menu.tooltip_text = tr("Underlay: the architect's drawing under the plan, to trace the walls over it (a PDF page saved as a PNG or JPG first); it does not print")
 	_scale_dialog.title = tr("Scale of the underlay")
 	_scale_dialog.ok_button_text = tr("OK")
 	_scale_dialog.cancel_button_text = tr("Cancel")
@@ -789,7 +1005,6 @@ func retranslate() -> void:
 	_floor_dialog.title = tr("Name of the floor")
 	_floor_dialog.ok_button_text = tr("OK")
 	_floor_dialog.cancel_button_text = tr("Cancel")
-	_layers_menu.tooltip_text = tr("Layers: show or hide what is on each (on the screen and on the exported sheets) and choose the one new parts and furniture go on (dimensions and notes always go on their own); a right click on something puts it on another")
 	_layer_dialog.ok_button_text = tr("OK")
 	_layer_dialog.cancel_button_text = tr("Cancel")
 	_note_button.tooltip_text = tr("Note: press where it points and drag to where its text goes, then type it; a double click edits a note, an empty text takes it away")
@@ -811,7 +1026,7 @@ func retranslate() -> void:
 		(_array_grid.get_child(2 * k) as Label).text = array_labels[k]
 	_symbols_button.text = tr("Symbols")
 	_symbols_button.tooltip_text = tr("My symbols: draw your own from lines, shapes, curves and text, sorted into your categories; the palette offers them for the plan, drawings or loads on a circuit")
-	_walls_button.tooltip_text = tr("Plan settings: the thickness of the outside walls and of those between rooms, where north is, how large the symbols and texts are drawn")
+	_drawing_menu.tooltip_text = tr("The underlay, the layers and the plan's settings")
 	_window_dialog.title = tr("Window")
 	_window_dialog.ok_button_text = tr("OK")
 	_window_dialog.cancel_button_text = tr("Cancel")
@@ -847,7 +1062,7 @@ func retranslate() -> void:
 	var size_labels: Array[String] = [tr("Width"), tr("Depth")]
 	var size_grid: GridContainer = _width_field.get_parent() as GridContainer
 	for k: int in size_labels.size():
-		(size_grid.get_child(2 * k) as Label).text = size_labels[k]
+		(size_grid.get_child(k) as Label).text = size_labels[k]
 	_length_dialog.title = tr("Wall")
 	var wall_grid: GridContainer = _length_field.get_parent() as GridContainer
 	var line_labels: Array[String] = [tr("Length"), tr("Direction"), tr("Thickness (0: the plan's)"), tr("Lies")]
@@ -862,9 +1077,16 @@ func retranslate() -> void:
 	_stairs_field.text = tr("Staircase")
 	_stairs_field.tooltip_text = tr("Draws the stairs in the room: straight in a rectangle, turning in an L-shaped room")
 	_stairs_reverse_field.text = tr("Up the other way")
-	var labels: Array[String] = [tr("Number"), tr("Environment (ČSN 33 2000-5-51)"), tr("Illuminance (lx)")]
+	_number_field.tooltip_text = tr("Number")
+	_electrics_caption.text = tr("Electrics").to_upper()
+	var labels: Array[String] = [tr("Environment (ČSN 33 2000-5-51)"), tr("Illuminance (lx)")]
 	for k: int in labels.size():
-		(_room_fields.get_child(2 * k) as Label).text = labels[k]
+		(_room_fields.get_child(1 + 2 * k) as Label).text = labels[k]
+	_size_caption.text = tr("Size").to_upper()
+	_other_caption.text = tr("Other").to_upper()
+	_room_duplicate.text = tr("Duplicate")
+	_room_split.text = tr("Split")
+	_room_delete.text = tr("Delete room")
 	_influences_button.text = tr("List")
 	_influences_button.tooltip_text = tr("The external influences of ČSN 33 2000-5-51 as a table: tick those of the room")
 	_presets.text = tr("Add room")
@@ -877,6 +1099,8 @@ func retranslate() -> void:
 		popup.add_item("%s%s  %s × %s m" % [shape, tr(preset["name"]), String.num(size.x, 2), String.num(size.y, 2)], i)
 	_delete_button.tooltip_text = tr("Take the selected room, door or part away")
 	_fit_button.text = tr("Show all")
+	_zoom_buttons[0].tooltip_text = tr("Zoom out")
+	_zoom_buttons[1].tooltip_text = tr("Zoom in")
 	_list_title.text = tr("Not on the plan").to_upper()
 	_room_title.text = tr("Room").to_upper()
 	_wall_thickness_label.text = tr("Thickness (0: the plan's)")
@@ -915,69 +1139,107 @@ func begin_place_template(template: Dictionary) -> void:
 	canvas.grab_focus()
 
 
-## Whether the side panel is about parts (the circuit new ones go on, those
+## Whether the parts' head is shown (the circuit new parts go on, those
 ## not on the plan yet): not while rooms are drawn or one is picked.
 func _parts_side() -> bool:
 	return canvas.tool not in ROOM_TOOLS and canvas.selected.get("kind", "") not in ["room", "edge"]
 
 
-## The parts' side of the panel, shown or hidden by [method _parts_side].
+## The parts' head, shown or hidden by [method _parts_side]; the list of
+## the parts not on the plan only while there are some.
 func _update_parts_side() -> void:
 	if _list == null:
 		return
-	var shown: bool = _parts_side()
+	var shown: bool = _parts_side() and _list.item_count > 0 and (_tab == TAB_ELECTRICS or not canvas.installation())
 	for control: Control in [_list_title, _list, _list_hint]:
 		control.visible = shown
 	_fill_circuits()
 
 
-## The circuit picker of a residential installation: the circuit of the
-## selected part (changed there), or the one new parts go on.
+## Whether [member inspector] has something to show: the check's results,
+## the room or the walls picked.
+func inspector_shown() -> bool:
+	return _editing and _unit == null and (_check_box.visible or _room_box.visible or _wall_box.visible)
+
+
+## The part selected on the plan ("" for none or the consumer unit).
+func selected_part() -> String:
+	return _selected_part()
+
+
+## The part selected on the plan ("" for none or the consumer unit).
+func _selected_part() -> String:
+	var part: String = canvas.selected.get("designation", "") if canvas.selected.get("kind", "") == "part" else ""
+	return "" if part == FloorPlan.UNIT else part
+
+
+## The circuit picker of a residential installation in the parts' head:
+## the one new parts go on.
 func _fill_circuits() -> void:
 	if _document == null or _circuit == null:
 		return
-	var shown: bool = canvas.installation() and _parts_side()
-	_circuit_title.visible = shown
-	_circuit.visible = shown
+	var shown: bool = canvas.installation() and _parts_side() and _tab == TAB_ELECTRICS
+	for control: Control in [_circuit_title, _circuit, _circuit_note]:
+		control.visible = shown
 	if not shown:
 		return
+	_circuit_title.text = tr("New parts go on").to_upper()
+	_circuits = _offer_circuits(_circuit, "")
+	_circuit.select(maxi(_circuits.find(canvas.circuit), 0))
+	_circuit_note.text = tr("Luminaires and switches on the lighting, sockets on a circuit of their room") if canvas.circuit == SingleLine.BY_KIND else ""
+	_circuit_note.visible = not _circuit_note.text.is_empty()
+
+
+## The circuit of the part selected, under its properties (an installation's).
+func _fill_part() -> void:
+	if part_box == null or _document == null:
+		return
+	var part: String = _selected_part()
+	part_box.visible = _editing and _unit == null and canvas.installation() and not part.is_empty()
+	if not part_box.visible:
+		return
+	_part_circuit_title.text = tr("Circuit")
+	_part_circuits = _offer_circuits(_part_circuit, part)
+	var fed: SingleLine.Feeder = _document.single_line.feeder_feeding(part)
+	_part_circuit.select(maxi(_part_circuits.find(fed.number if fed != null else 0), 0))
+
+
+## Fills [param picker] with the circuits by number, protected or waiting,
+## no circuit and a new one (by kind first, for new parts: [param part]
+## ""); returns the circuit number of each item.
+func _offer_circuits(picker: OptionButton, part: String) -> PackedInt32Array:
 	var line: SingleLine = _document.single_line
-	var part: String = canvas.selected.get("designation", "") if canvas.selected.get("kind", "") == "part" else ""
-	if part == FloorPlan.UNIT:
-		part = ""
-	_circuit_title.text = (tr("Circuit of -%s") % part if not part.is_empty() else tr("Circuit for new parts")).to_upper()
-	_circuits = PackedInt32Array()
-	_circuit.clear()
+	var numbers: PackedInt32Array = PackedInt32Array()
+	picker.clear()
 	if part.is_empty():
 		# The default: each part on a circuit by its kind.
-		_circuits.append(SingleLine.BY_KIND)
-		_circuit.add_item(tr("By kind (lighting, sockets, appliances)"))
-		_circuit.set_item_tooltip(0, tr("Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own") % SingleLine.SOCKETS_PER_CIRCUIT)
-	_circuits.append(0)
-	_circuit.add_item(tr("No circuit"))
-	var current: int = canvas.circuit
+		numbers.append(SingleLine.BY_KIND)
+		picker.add_item(tr("By kind (lighting, sockets, appliances)"))
+		picker.set_item_tooltip(0, tr("Luminaires and light switches go on the lighting circuit, sockets on a socket circuit of their room (up to %d sockets), large appliances on circuits of their own") % SingleLine.SOCKETS_PER_CIRCUIT)
+	numbers.append(0)
+	picker.add_item(tr("No circuit"))
 	for f: SingleLine.Feeder in line.circuits():
-		_circuits.append(f.number)
+		numbers.append(f.number)
 		var by: String = ("-" + f.device) if not f.device.is_empty() else tr("not protected yet")
-		_circuit.add_item("%s  [%s]" % [SingleLineView.circuit_text(f, _document), by])
+		picker.add_item("%s  [%s]" % [SingleLineView.circuit_text(f, _document), by])
 	# A new circuit: the one picked for new parts that has nothing yet, else the next number.
-	var fresh: int = current if current > 0 and not _circuits.has(current) and part.is_empty() else line.next_number()
-	_circuits.append(fresh)
-	_circuit.add_item(tr("New circuit %d") % fresh)
-	if not part.is_empty():
-		var fed: SingleLine.Feeder = line.feeder_feeding(part)
-		current = fed.number if fed != null else 0
-	_circuit.select(maxi(_circuits.find(current), 0))
+	var current: int = canvas.circuit
+	var fresh: int = current if current > 0 and not numbers.has(current) and part.is_empty() else line.next_number()
+	numbers.append(fresh)
+	picker.add_item(tr("New circuit %d") % fresh)
+	return numbers
 
 
-func _on_circuit_chosen(index: int) -> void:
-	var number: int = _circuits[index] if index < _circuits.size() else 0
-	var part: String = canvas.selected.get("designation", "") if canvas.selected.get("kind", "") == "part" else ""
-	if part.is_empty() or part == FloorPlan.UNIT:
-		canvas.circuit = number
+func _on_circuit_chosen(index: int, picker: OptionButton) -> void:
+	if picker == _circuit:
+		canvas.circuit = _circuits[index] if index < _circuits.size() else 0
 		_fill_circuits()
 		return
+	var part: String = _selected_part()
+	if part.is_empty():
+		return
 	# The selected part moves to the circuit chosen.
+	var number: int = _part_circuits[index] if index < _part_circuits.size() else 0
 	edit_requested.emit(func(doc: SchematicDocument) -> void: doc.single_line.feed(part, number))
 
 
@@ -1313,7 +1575,7 @@ func _apply_floor_name() -> void:
 
 
 func _fill_underlay_menu() -> void:
-	var popup: PopupMenu = _underlay_menu.get_popup()
+	var popup: PopupMenu = _underlay_popup
 	popup.clear()
 	var plan: FloorPlan = _document.floor_plan
 	var has: bool = not plan.underlay.is_empty()
@@ -1348,7 +1610,7 @@ func _on_underlay_menu(id: int) -> void:
 
 
 func _fill_layers_menu() -> void:
-	var popup: PopupMenu = _layers_menu.get_popup()
+	var popup: PopupMenu = _layers_popup
 	popup.clear()
 	var layers: Array[FloorPlan.Layer] = _document.plan_layers
 	popup.add_separator(tr("Shown"))
@@ -1653,15 +1915,21 @@ func _apply_walls() -> void:
 ## picked in Edit mode).
 func _build_room_panel() -> void:
 	_room_box = VBoxContainer.new()
-	_room_box.add_theme_constant_override("separation", 4)
-	_side.add_child(_room_box)
-	_side.move_child(_room_box, 0)
+	_room_box.add_theme_constant_override("separation", 6)
+	inspector.add_child(_room_box)
 	_room_title = Label.new()
 	_room_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_room_title.theme_type_variation = "HeaderLabel"
 	_room_box.add_child(_room_title)
+	# Its number (an installation's) and name in one row.
 	var name_row: HBoxContainer = HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 4)
 	_room_box.add_child(name_row)
+	_number_field = LineEdit.new()
+	_number_field.custom_minimum_size.x = 56.0
+	_number_field.text_submitted.connect(func(_text: String) -> void: _apply_rename())
+	_number_field.focus_exited.connect(_apply_rename)
+	name_row.add_child(_number_field)
 	_rename_field = LineEdit.new()
 	_rename_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rename_field.text_submitted.connect(func(_text: String) -> void: _apply_rename())
@@ -1675,16 +1943,20 @@ func _build_room_panel() -> void:
 	_name_menu.about_to_popup.connect(func() -> void: _fill_names(_name_menu.get_popup(), false))
 	_name_menu.get_popup().id_pressed.connect(func(id: int) -> void: _set_room_name(_renaming, _usual_names()[id]))
 	name_row.add_child(_name_menu)
-	# Its inside, as typed lengths.
+	# Its inside, as typed lengths, side by side.
+	_size_caption = _room_caption()
 	var size_fields: GridContainer = GridContainer.new()
 	size_fields.columns = 2
+	size_fields.add_theme_constant_override("h_separation", 6)
 	_room_box.add_child(size_fields)
 	_width_field = _metres()
 	_height_field = _metres()
 	for field: SpinBox in [_width_field, _height_field]:
 		var label: Label = Label.new()
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		label.theme_type_variation = "CaptionLabel"
 		size_fields.add_child(label)
+	for field: SpinBox in [_width_field, _height_field]:
 		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		field.value_changed.connect(func(_value: float) -> void: _apply_rename())
 		size_fields.add_child(field)
@@ -1692,12 +1964,15 @@ func _build_room_panel() -> void:
 	_area_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_area_label.theme_type_variation = "MutedLabel"
 	_room_box.add_child(_area_label)
-	# A residential installation's room: its number, environment, illuminance.
-	# Each label over its field: the panel stays narrow.
+	# A residential installation's room: its environment and illuminance,
+	# each label over its field: the panel stays narrow.
 	_room_fields = GridContainer.new()
 	_room_fields.columns = 1
 	_room_box.add_child(_room_fields)
-	_number_field = LineEdit.new()
+	_electrics_caption = Label.new()
+	_electrics_caption.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_electrics_caption.theme_type_variation = "HeaderLabel"
+	_room_fields.add_child(_electrics_caption)
 	_environment_field = OptionButton.new()
 	_environment_field.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_environment_field.fit_to_longest_item = false
@@ -1719,41 +1994,72 @@ func _build_room_panel() -> void:
 		_apply_rename())
 	add_child(_influences_dialog)
 	_lux_field = LineEdit.new()
-	for field: Control in [_number_field, environment_row, _lux_field]:
+	_lux_field.text_submitted.connect(func(_text: String) -> void: _apply_rename())
+	_lux_field.focus_exited.connect(_apply_rename)
+	for field: Control in [environment_row, _lux_field]:
 		var label: Label = Label.new()
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		label.theme_type_variation = "CaptionLabel"
 		_room_fields.add_child(label)
 		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_room_fields.add_child(field)
-		if field is LineEdit:
-			(field as LineEdit).text_submitted.connect(func(_text: String) -> void: _apply_rename())
-			field.focus_exited.connect(_apply_rename)
+	# What the environment means: in the field's tooltip and the list's.
 	_environment_note = Label.new()
 	_environment_note.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_environment_note.theme_type_variation = "MutedLabel"
 	_environment_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_environment_note.custom_minimum_size.x = 180.0
+	_environment_note.visible = false
 	_room_box.add_child(_environment_note)
 	_environment_field.item_selected.connect(func(_index: int) -> void:
 		_environment_note.text = FloorPlan.environment_note(_chosen_environment())
 		_apply_rename())
 	# A staircase: its stairs drawn in it.
+	_other_caption = _room_caption()
 	_stairs_field = CheckBox.new()
 	_stairs_field.toggled.connect(func(_on: bool) -> void: _apply_rename())
 	_room_box.add_child(_stairs_field)
 	_stairs_reverse_field = CheckBox.new()
 	_stairs_reverse_field.toggled.connect(func(_on: bool) -> void: _apply_rename())
 	_room_box.add_child(_stairs_reverse_field)
-	var actions: HBoxContainer = HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 4)
+	# What can be done with it, named.
+	var actions: GridContainer = GridContainer.new()
+	actions.columns = 2
+	actions.add_theme_constant_override("h_separation", 4)
+	actions.add_theme_constant_override("v_separation", 4)
 	_room_box.add_child(actions)
-	_room_duplicate = _room_action(actions, "duplicate", func() -> void: _duplicate_room(_renaming))
-	_room_split = _room_action(actions, "room_split", func() -> void: _wall_button.button_pressed = true)
-	_room_delete = _room_action(actions, "delete", func() -> void: canvas.delete_selected())
-	_room_box.add_child(HSeparator.new())
+	_room_duplicate = _room_button_named(actions, "duplicate", func() -> void: _duplicate_room(_renaming))
+	_room_split = _room_button_named(actions, "room_split", func() -> void:
+		show_tab(TAB_BUILDING)
+		_wall_button.button_pressed = true)
+	_room_delete = _room_button_named(actions, "delete", func() -> void: canvas.delete_selected())
+	_room_delete.add_theme_color_override("font_color", AppTheme.danger)
 	canvas.selection_changed.connect(_fill_room)
 	_build_wall_panel()
 	_build_check_panel()
+
+
+## A heading of the room panel (its text set by [method retranslate]).
+func _room_caption() -> Label:
+	var caption: Label = Label.new()
+	caption.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	caption.theme_type_variation = "HeaderLabel"
+	_room_box.add_child(caption)
+	return caption
+
+
+## A button with icon [param icon_name] and a text (set by [method retranslate]).
+func _room_button_named(parent: Control, icon_name: String, action: Callable) -> Button:
+	var button: Button = Button.new()
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.focus_mode = Control.FOCUS_NONE
+	button.icon = AppTheme.icon(icon_name, 16)
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	AppTheme.frame(button)
+	button.pressed.connect(action)
+	parent.add_child(button)
+	return button
 
 
 ## The problems the check of the installation found, each a button that
@@ -1762,8 +2068,8 @@ func _build_check_panel() -> void:
 	_check_box = VBoxContainer.new()
 	_check_box.add_theme_constant_override("separation", 4)
 	_check_box.visible = false
-	_side.add_child(_check_box)
-	_side.move_child(_check_box, 0)
+	inspector.add_child(_check_box)
+	inspector.move_child(_check_box, 0)
 	var header: HBoxContainer = HBoxContainer.new()
 	_check_box.add_child(header)
 	_check_title = Label.new()
@@ -1775,7 +2081,9 @@ func _build_check_panel() -> void:
 	close.theme_type_variation = "ToolButton"
 	close.focus_mode = Control.FOCUS_NONE
 	close.icon = AppTheme.icon("close", 14)
-	close.pressed.connect(func() -> void: _check_box.visible = false)
+	close.pressed.connect(func() -> void:
+		_check_box.visible = false
+		inspector_changed.emit())
 	header.add_child(close)
 	_check_list = VBoxContainer.new()
 	_check_box.add_child(_check_list)
@@ -1784,13 +2092,23 @@ func _build_check_panel() -> void:
 
 ## The check run again (while its results show).
 func _fill_check() -> void:
-	if _check_box == null or not _check_box.visible or _document == null:
+	if _check_box == null or _document == null:
+		return
+	# How many problems there are, on the button, whether or not they show.
+	var issues: Array[Dictionary] = []
+	if canvas.installation():
+		issues = InstallationCheck.run(_document)
+	_check_button.text = tr("Check") + ("  (%d)" % issues.size() if not issues.is_empty() else "")
+	if issues.is_empty():
+		_check_button.remove_theme_color_override("font_color")
+	else:
+		_check_button.add_theme_color_override("font_color", AppTheme.warning)
+	if not _check_box.visible:
 		return
 	# Freed once the click on one of them is over.
 	for child: Node in _check_list.get_children():
 		_check_list.remove_child(child)
 		child.queue_free()
-	var issues: Array[Dictionary] = InstallationCheck.run(_document)
 	_check_title.text = (tr("Check") if issues.is_empty() else tr_n("Check: %d problem", "Check: %d problems", issues.size()) % issues.size()).to_upper()
 	if issues.is_empty():
 		var fine: Label = Label.new()
@@ -1831,8 +2149,7 @@ func _show_issue(ids: PackedStringArray) -> void:
 func _build_wall_panel() -> void:
 	_wall_box = VBoxContainer.new()
 	_wall_box.add_theme_constant_override("separation", 4)
-	_side.add_child(_wall_box)
-	_side.move_child(_wall_box, 1)
+	inspector.add_child(_wall_box)
 	_wall_title = Label.new()
 	_wall_title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_wall_title.theme_type_variation = "HeaderLabel"
@@ -1945,13 +2262,14 @@ func _fill_room() -> void:
 		_rename_field.text = tr(room.name)
 	# Width and depth of a rectangle; an L's walls are dragged or typed one by one.
 	(_width_field.get_parent() as Control).visible = room.is_rectangle()
+	_size_caption.visible = room.is_rectangle()
 	_width_field.set_value_no_signal(room.rect.size.x)
 	_height_field.set_value_no_signal(room.rect.size.y)
 	_width_field.get_line_edit().text = String.num(room.rect.size.x, 2) + " m"
 	_height_field.get_line_edit().text = String.num(room.rect.size.y, 2) + " m"
 	_area_label.text = tr("Area %s m²") % String.num(room.area(), 2) + ("" if room.is_rectangle() else "  ·  %s × %s m" % [String.num(room.rect.size.x, 2), String.num(room.rect.size.y, 2)])
 	_room_fields.visible = canvas.installation()
-	_environment_note.visible = _room_fields.visible
+	_number_field.visible = _room_fields.visible
 	if changed_room or not _number_field.has_focus():
 		_number_field.text = room.number
 	_number_field.placeholder_text = plan.room_number(index)
@@ -2033,8 +2351,8 @@ func _show_environment(environment: String) -> void:
 	_offer_environments(environment)
 	var index: int = FloorPlan.ENVIRONMENTS.find(environment)
 	_environment_field.select(index if index >= 0 else FloorPlan.ENVIRONMENTS.size())
-	_environment_field.tooltip_text = environment
 	_environment_note.text = FloorPlan.environment_note(environment)
+	_environment_field.tooltip_text = environment + ("\n" + _environment_note.text if not _environment_note.text.is_empty() else "")
 
 
 ## The environment picked in the room panel.

@@ -257,14 +257,23 @@ func test_plan_palette_draws_the_plan_symbols() -> void:
 	add_child(palette)
 	palette.environment = SchematicDocument.Kind.RESIDENTIAL
 	palette.plan = true
-	assert_eq(palette.entries(), Palette.PLAN_ENTRIES)
+	var parts: Array[Dictionary] = []
+	var furniture: Array[Dictionary] = []
+	for entry: Dictionary in Palette.PLAN_ENTRIES:
+		(furniture if Palette.entry_group(entry) == "furniture" else parts).append(entry)
+	assert_eq(palette.entries(), parts, "the parts with the electrics")
 	var glyphs: int = 0
 	for button: Button in palette._buttons:
 		for tile: Node in button.get_children():
 			for child: Node in tile.get_children():
 				if child is PlanGlyph:
 					glyphs += 1
-	assert_eq(glyphs, Palette.PLAN_ENTRIES.size(), "every part as the plan draws it")
+	assert_eq(glyphs, parts.size(), "every part as the plan draws it")
+	palette.plan_tab = FloorPlanView.TAB_BUILDING
+	assert_eq(palette.entries(), furniture, "the furniture while building")
+	# Each name whole on two lines: what it is, what tells it apart.
+	assert_eq(Palette.split_title("Switch no. 1 (one-way)"), PackedStringArray(["Switch no. 1", "one-way"]))
+	assert_eq(Palette.split_title("Bath"), PackedStringArray(["Bath", ""]))
 
 
 func test_door_swing_and_undo_on_the_plan() -> void:
@@ -861,3 +870,26 @@ func test_floor_added_over_the_one_below() -> void:
 	assert_almost_eq(area, 6.0 * 8.0, 1e-3, "the whole house")
 	assert_true(upper.rooms.any(func(r: FloorPlan.Room) -> bool: return r.stairs and r.rect == Rect2(4, 5, 2, 3)), "the staircase in its place")
 	assert_eq(upper.overlaps().size(), 0)
+
+
+func test_tools_on_tabs_and_the_drawing_menu() -> void:
+	var doc: SchematicDocument = SchematicDocument.new("house")
+	doc.environment = SchematicDocument.Kind.RESIDENTIAL
+	doc.floor_plan.rooms.append(FloorPlan.Room.new("Hall", Rect2(0, 0, 3, 2)))
+	var view: FloorPlanView = FloorPlanView.new()
+	add_child_autofree(view)
+	view.set_document(doc, true, true)
+	assert_eq(view.shown_tab(), FloorPlanView.TAB_ELECTRICS, "a plan with rooms opens on the electrics")
+	assert_true(view._wire_button.visible)
+	assert_false(view._room_button.visible, "the building tools on their own tab")
+	view.show_tab(FloorPlanView.TAB_BUILDING)
+	assert_true(view._room_button.visible)
+	assert_false(view._wire_button.visible)
+	view._fill_drawing_menu()
+	var popup: PopupMenu = view._drawing_menu.get_popup()
+	assert_ne(popup.get_item_index(FloorPlanView.MENU_SETTINGS), -1, "the plan settings in the Drawing menu")
+	FloorPlanCanvas.room_legend_shown = false
+	assert_false(view.canvas._room_legend_drawn(), "no room legend on the screen until asked for")
+	view._on_drawing_menu(FloorPlanView.MENU_LEGEND)
+	assert_true(view.canvas._room_legend_drawn())
+	FloorPlanCanvas.room_legend_shown = false

@@ -4995,9 +4995,6 @@ msgstr "Montážní výška %s m"
 msgid "Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling."
 msgstr "Vyberte přístroj a klikněte, kam patří: vypínače, zásuvky a spotřebiče jdou na nejbližší stěnu, svítidla na strop."
 
-msgid "Every part is on the plan."
-msgstr "Všechny přístroje jsou v půdorysu."
-
 msgid "Select and move rooms, doors and parts; drag a room's edge to resize it"
 msgstr "Výběr a přesun místností, dveří a přístrojů; tažením stěny místnosti změníte její velikost"
 
@@ -5253,13 +5250,6 @@ msgstr "Osvětlení (lx)"
 
 msgid "Draw the lighting: drag from a light switch (of two rockers, from the side of the one) to a luminaire it switches, or to the other switch of a staircase; it is wired by itself"
 msgstr "Kreslení osvětlení: táhněte od vypínače (u dvou kolébek od strany té jedné) ke svítidlu, které spíná, nebo k druhému schodišťovému přepínači; zapojí se samo"
-
-#, c-format
-msgid "Circuit of -%s"
-msgstr "Obvod prvku -%s"
-
-msgid "Circuit for new parts"
-msgstr "Obvod pro nové prvky"
 
 msgid "No circuit"
 msgstr "Bez obvodu"
@@ -8233,3 +8223,80 @@ msgstr "Rozváděč %s, jak je postavený: lišty s přístroji, zapojení, otep
 
 msgid "The consumer unit's circuits and their protection"
 msgstr "Obvody rozváděče a jejich jištění"
+
+
+msgid "Building"
+msgstr "Stavba"
+
+msgid "Delete room"
+msgstr "Smazat místnost"
+
+msgid "Dimension"
+msgstr "Kóta"
+
+msgid "Dimensions"
+msgstr "Kóty"
+
+msgid "Dimensions, measuring and notes"
+msgstr "Kóty, měření a poznámky"
+
+msgid "Drawing"
+msgstr "Výkres"
+
+msgid "Electrics"
+msgstr "Elektro"
+
+msgid "Floor"
+msgstr "Podlaží"
+
+msgid "Join"
+msgstr "Spojit"
+
+msgid "Layers"
+msgstr "Vrstvy"
+
+msgid "Luminaires and switches on the lighting, sockets on a circuit of their room"
+msgstr "Svítidla a vypínače na osvětlení, zásuvky na obvod své místnosti"
+
+msgid "Measure"
+msgstr "Měřit"
+
+msgid "New parts go on"
+msgstr "Nové prvky na obvod"
+
+msgid "Other"
+msgstr "Ostatní"
+
+msgid "Outline"
+msgstr "Obrys"
+
+msgid "Plan settings…"
+msgstr "Nastavení výkresu…"
+
+msgid "Room legend on the screen"
+msgstr "Legenda místností na obrazovce"
+
+msgid "Rooms, walls, doors, windows and furniture"
+msgstr "Místnosti, zdi, dveře, okna a nábytek"
+
+msgid "Row"
+msgstr "Řada"
+
+msgid "Split"
+msgstr "Rozdělit"
+
+msgid "The lighting, rows of parts, your own symbols and the check of the installation"
+msgstr "Osvětlení, řady prvků, vlastní značky a kontrola instalace"
+
+msgid "The table of the rooms (number, purpose, environment, illuminance) beside the plan; it is always on the exported sheet"
+msgstr "Tabulka místností (číslo, účel, prostředí, osvětlení) vedle půdorysu; na exportovaném výkresu je vždy"
+
+msgid "The underlay, the layers and the plan's settings"
+msgstr "Podklad, vrstvy a nastavení výkresu"
+
+msgid "Underlay"
+msgstr "Podklad"
+
+
+msgid "Size"
+msgstr "Rozměry"

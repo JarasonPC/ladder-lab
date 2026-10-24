@@ -161,6 +161,10 @@ var _properties: PropertiesPanel
 ## properties) and its checks (under them), in the side panel.
 var _single_line_top: PanelContainer
 var _single_line_bottom: PanelContainer
+## The floor plan's room, walls and check results (over the properties of a
+## part picked) and the part's circuit (under them).
+var _plan_top: PanelContainer
+var _plan_bottom: PanelContainer
 var _datasheet_window: DatasheetWindow = null
 ## Switchboards, control stations and parts in the field (both modes).
 var _workspace: WorkspaceView
@@ -350,6 +354,11 @@ func _ready() -> void:
 	_floor_plan.cabinet_edit_requested.connect(_edit_cabinet)
 	_floor_plan.operate_requested.connect(view.operate_device)
 	# The floor shown is the same in the schematic edited and the one simulated.
+	_floor_plan.tab_changed.connect(func(_tab: int) -> void: _update_mode_ui())
+	_floor_plan.part_selected.connect(_on_single_line_selected)
+	_floor_plan.inspector_changed.connect(func() -> void:
+		if _side_bar != null:
+			_update_side_bar())
 	_floor_plan.unit_shown.connect(func(_open: bool) -> void:
 		_sync_area_buttons()
 		_update_mode_ui())
@@ -743,6 +752,12 @@ func _build_ui() -> void:
 	_canvas_area.add_child(_short_banner)
 	_side = VBoxContainer.new()
 	_side.add_theme_constant_override("separation", 0)
+	# What is selected on the floor plan: the check's results, the room or
+	# walls picked, a part's properties with its circuit under them.
+	_plan_top = PanelContainer.new()
+	_plan_top.theme_type_variation = "RightPanel"
+	_floor_plan.inspector.reparent(_plan_top, false)
+	_side.add_child(_plan_top)
 	# The single-line diagram's circuit over the properties of its device,
 	# the circuit's checks under them: one panel.
 	_single_line_top = PanelContainer.new()
@@ -752,6 +767,11 @@ func _build_ui() -> void:
 	_properties = PropertiesPanel.new()
 	_properties.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_side.add_child(_properties)
+	_plan_bottom = PanelContainer.new()
+	_plan_bottom.theme_type_variation = "RightSection"
+	_plan_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_floor_plan.part_box.reparent(_plan_bottom, false)
+	_side.add_child(_plan_bottom)
 	_single_line_bottom = PanelContainer.new()
 	_single_line_bottom.theme_type_variation = "RightSection"
 	_single_line_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1564,14 +1584,20 @@ func _set_control_rolled(rolled: bool) -> void:
 ## mode while something is selected or the check results are shown.
 func _update_side_bar() -> void:
 	var single_line: bool = _single_line_shown() and mode == Mode.EDIT
-	_side_bar.visible = single_line or (area == Area.SCHEMATIC and mode == Mode.EDIT and not _training() and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible))
+	var plan: bool = _plan_shown() and mode == Mode.EDIT
+	var part: bool = plan and _single_selected() != null
+	_side_bar.visible = single_line or (plan and (part or _floor_plan.inspector_shown())) or (area == Area.SCHEMATIC and mode == Mode.EDIT and not _training() and (not editor.selected_components.is_empty() or not editor.selected_wires.is_empty() or _check_panel.visible))
 	# The single-line diagram's circuit and checks round the properties of
-	# the device selected (none while nothing is).
+	# the device selected (none while nothing is); the floor plan's room,
+	# walls and check over a part's properties, its circuit under them.
 	_single_line_top.visible = single_line
 	_single_line_bottom.visible = single_line
-	_properties.visible = not single_line or _single_selected() != null
-	_properties.size_flags_vertical = Control.SIZE_FILL if single_line else Control.SIZE_EXPAND_FILL
-	_properties.theme_type_variation = "RightSection" if single_line else "RightPanel"
+	_plan_top.visible = plan and _floor_plan.inspector_shown()
+	_plan_bottom.visible = part and _floor_plan.part_box.visible
+	_properties.visible = (not single_line and not plan) or _single_selected() != null
+	var under: bool = single_line or (plan and _plan_top.visible)
+	_properties.size_flags_vertical = Control.SIZE_FILL if single_line or _plan_bottom.visible else Control.SIZE_EXPAND_FILL
+	_properties.theme_type_variation = "RightSection" if under else "RightPanel"
 
 
 ## Shows the simulation as currents ([param on]) or as voltages.
@@ -1642,7 +1668,11 @@ func _update_mode_ui() -> void:
 	# too; its consumer unit none (devices come from the single-line diagram).
 	var plan_parts: bool = not schematic and edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL and not _floor_plan.unit_open()
 	_palette.plan = plan_parts
-	_palette_bar.visible = editing and (schematic or plan_parts) and not training
+	# Building offers furniture, the electrics the parts, dimensions nothing.
+	_palette.plan_tab = _floor_plan.shown_tab()
+	_palette_bar.visible = editing and (schematic or (plan_parts and _floor_plan.shown_tab() != FloorPlanView.TAB_ANNOTATIONS)) and not training
+	# The parts not on the plan and the circuit new parts go on head the palette.
+	_floor_plan.place_parts_head(_palette.header_slot if plan_parts else null)
 	_lesson_bar.visible = schematic and _lesson_run != null
 	_training_bar.visible = training
 	_training_panel.simulating = training and not editing
@@ -1774,6 +1804,9 @@ func _set_area(new_area: Area) -> void:
 	if new_area == area:
 		return
 	area = new_area
+	if _installation():
+		# The properties shown are of what is selected in the area shown.
+		_on_single_line_selected(_floor_plan.selected_part() if area == Area.WORKSPACE else _single_line.canvas.selected)
 	_sync_area_buttons()
 	_update_mode_ui()
 	if area == Area.SCHEMATIC:
@@ -2035,13 +2068,18 @@ func _on_selection_changed(c: CircuitComponent) -> void:
 ## headed by the device, without orientation and markings (which it has not).
 func _set_properties_look() -> void:
 	var c: CircuitComponent = _single_selected()
-	_properties.drawing = not _single_line_shown()
+	_properties.drawing = not _single_line_shown() and not _plan_shown()
 	_properties.heading = "%s -%s" % [PartsList.new().name_of(edit_doc, c.designation), c.designation] if c != null and not _properties.drawing else ""
 
 
 ## Whether the edited schematic is a house installation (drawn, never simulated).
 func _installation() -> bool:
 	return edit_doc != null and edit_doc.environment == SchematicDocument.Kind.RESIDENTIAL
+
+
+## Whether the floor plan of a house (not its consumer unit) shows.
+func _plan_shown() -> bool:
+	return area == Area.WORKSPACE and edit_doc != null and edit_doc.residential and not _floor_plan.unit_open()
 
 
 ## Whether the single-line diagram of a residential installation shows.
@@ -3095,6 +3133,7 @@ func _load_settings() -> void:
 		CabinetView.duct_covers = bool(config.get_value("view", "duct_covers", false))
 		FloorPlan.default_outer = clampf(float(config.get_value("floor_plan", "outer_wall", FloorPlan.OUTER_WALL)), FloorPlan.MIN_WALL_THICKNESS, FloorPlan.MAX_WALL_THICKNESS)
 		FloorPlan.default_inner = clampf(float(config.get_value("floor_plan", "inner_wall", FloorPlan.INNER_WALL)), FloorPlan.MIN_WALL_THICKNESS, FloorPlan.MAX_WALL_THICKNESS)
+		FloorPlanCanvas.room_legend_shown = config.get_value("floor_plan", "room_legend", false) == true
 		_wire_numbers = bool(config.get_value("view", "wire_numbers", true))
 		_path_numbers = bool(config.get_value("view", "path_numbers", true))
 		var guide: String = str(config.get_value("view", "paper_guide", ""))
@@ -3145,6 +3184,7 @@ func _save_settings() -> void:
 	config.set_value("view", "duct_covers", CabinetView.duct_covers)
 	config.set_value("floor_plan", "outer_wall", FloorPlan.default_outer)
 	config.set_value("floor_plan", "inner_wall", FloorPlan.default_inner)
+	config.set_value("floor_plan", "room_legend", FloorPlanCanvas.room_legend_shown)
 	config.set_value("view", "wire_numbers", _wire_numbers)
 	config.set_value("view", "path_numbers", _path_numbers)
 	config.set_value("view", "paper_guide", _paper_guide)

@@ -4980,9 +4980,6 @@ msgstr ""
 msgid "Pick a part, then click where it goes: switches, sockets and appliances go onto the nearest wall, luminaires on the ceiling."
 msgstr ""
 
-msgid "Every part is on the plan."
-msgstr ""
-
 msgid "Select and move rooms, doors and parts; drag a room's edge to resize it"
 msgstr ""
 
@@ -5237,13 +5234,6 @@ msgid "Illuminance (lx)"
 msgstr ""
 
 msgid "Draw the lighting: drag from a light switch (of two rockers, from the side of the one) to a luminaire it switches, or to the other switch of a staircase; it is wired by itself"
-msgstr ""
-
-#, c-format
-msgid "Circuit of -%s"
-msgstr ""
-
-msgid "Circuit for new parts"
 msgstr ""
 
 msgid "No circuit"
@@ -8206,4 +8196,81 @@ msgid "The consumer unit %s as it is built: its rails with the devices, the wiri
 msgstr ""
 
 msgid "The consumer unit's circuits and their protection"
+msgstr ""
+
+
+msgid "Building"
+msgstr ""
+
+msgid "Delete room"
+msgstr ""
+
+msgid "Dimension"
+msgstr ""
+
+msgid "Dimensions"
+msgstr ""
+
+msgid "Dimensions, measuring and notes"
+msgstr ""
+
+msgid "Drawing"
+msgstr ""
+
+msgid "Electrics"
+msgstr ""
+
+msgid "Floor"
+msgstr ""
+
+msgid "Join"
+msgstr ""
+
+msgid "Layers"
+msgstr ""
+
+msgid "Luminaires and switches on the lighting, sockets on a circuit of their room"
+msgstr ""
+
+msgid "Measure"
+msgstr ""
+
+msgid "New parts go on"
+msgstr ""
+
+msgid "Other"
+msgstr ""
+
+msgid "Outline"
+msgstr ""
+
+msgid "Plan settings…"
+msgstr ""
+
+msgid "Room legend on the screen"
+msgstr ""
+
+msgid "Rooms, walls, doors, windows and furniture"
+msgstr ""
+
+msgid "Row"
+msgstr ""
+
+msgid "Split"
+msgstr ""
+
+msgid "The lighting, rows of parts, your own symbols and the check of the installation"
+msgstr ""
+
+msgid "The table of the rooms (number, purpose, environment, illuminance) beside the plan; it is always on the exported sheet"
+msgstr ""
+
+msgid "The underlay, the layers and the plan's settings"
+msgstr ""
+
+msgid "Underlay"
+msgstr ""
+
+
+msgid "Size"
 msgstr ""

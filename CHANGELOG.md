@@ -221,6 +221,22 @@ What changed in each LadderLab version. Version numbers follow the rules in
   the rails is named as what it is, not as a circuit breaker
 - The designations on a switchboard's plate are drawn over the wires, so no wire crosses
   one out
+- The floor plan's tools are on three tabs, Building, Electrics and Dimensions, each tool
+  with its name; the underlay, the layers and the plan settings are in the Drawing menu,
+  and zoom buttons with Show all sit in the plan's corner. The palette offers furniture
+  while building and the parts with the electrics; the circuit new parts go on and the
+  parts not on the plan yet (only while there are some) are at its top, so the plan has
+  one panel less beside it
+- A part picked on the floor plan shows all its properties on the right (its height,
+  single or double socket, an appliance's power …) with its circuit under them; a room is
+  edited there too, in groups (size, electrics, other) with named buttons
+- The check of the installation says on its button how many problems it found, and lists
+  them on the right
+- The room legend shows beside the floor plan only when ticked in the Drawing menu (it is
+  always on the exported sheet); floors are added by the Floor button right after their
+  tabs
+- The palette shows each part's name in full on two lines: what it is, and under it what
+  tells it apart
 
 ### Application
 - A house installation has three views in the toolbar, in the order it is drawn: Floor

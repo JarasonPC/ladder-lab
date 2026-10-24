@@ -91,7 +91,9 @@ Architecture and conventions of the code base. Read this before changing the cod
   the control panel) are SideBars: resizable by a grip, zoomed with Ctrl+wheel (ZoomBox: scaled with
   oversampling_with_scale, so text stays sharp), scrolled when taller than the window and shown
   at most SideBar.MAX_WIDTH_SHARE (30 %) of the window wide (the chosen width is kept); the
-  palette is a list (symbol and name) or a grid of symbols alone (Palette.grid, saved; fuses,
+  palette is a list (symbol and name, the name on two lines: what it is, and under it in
+  small muted letters what its title has in brackets, Palette.split_title, the whole title
+  in the tooltip) or a grid of symbols alone (Palette.grid, saved; fuses,
   breakers, multi-pole devices, motors and sensors upright, other two-terminal symbols lying; symbols too wide
   for a tile draw a simpler version there, SchematicSymbol.preview_rect: the inverter a box saying
   "VFD 3~ f", PLCs a box saying "PLC relay" / "PLC CPU", the temperature sensor a thermometer → U,
@@ -414,13 +416,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   switches and the parts; main.gd routes the template to FloorPlanView.begin_place_template;
   placing_template made with SingleLineCanvas.new_designation on the hidden page and put on
   circuit number FloorPlanCanvas.circuit by SingleLine.feed, again until a right click).
-  Beside the plan a circuit picker (FloorPlanView._fill_circuits): the circuits by number,
-  protected or waiting, and a new one; the circuit of the selected part, changed there, or
-  the one new parts go on: by default by kind (SingleLine.BY_KIND, circuit_by_kind when the
+  At the head of the palette (Palette.header_slot; FloorPlanView.parts_head put there by
+  main.gd through place_parts_head, in a panel of its own beside the plan for a prototype)
+  a circuit picker on the electrics' tab (FloorPlanView._fill_circuits, _offer_circuits):
+  the circuits by number, protected or waiting, and a new one; the one new parts go on: by default by kind (SingleLine.BY_KIND, circuit_by_kind when the
   part is made, FloorPlanCanvas.add_part: luminaires and light switches on the lighting
   circuit, OWN_CIRCUIT appliances on new circuits of their own, sockets and other appliances
   on a socket circuit feeding their room, _room_of, with fewer than SOCKETS_PER_CIRCUIT
-  sockets counted by gangs, else a new one), else the circuit picked or "No circuit".
+  sockets counted by gangs, else a new one), else the circuit picked or "No circuit"; the
+  selected part's circuit is changed under its properties in the main window's side panel
+  (FloorPlanView.part_box, _fill_part, _part_circuit; main.gd _plan_bottom: a part picked on
+  the plan, part_selected, is selected in the editor and its properties shown as on the
+  single-line diagram, PropertiesPanel.drawing false).
   Bathroom zones after ČSN 33 2000-7-701 (FloorPlan.bath_zones: zone 1 over each bath and
   shower tray, zone 2 ZONE_TWO past it within its room; zone_of a point at a height, none
   above ZONE_HEIGHT), drawn on an installation's plan (FloorPlanCanvas._draw_bath_zones).
@@ -428,11 +435,14 @@ Architecture and conventions of the code base. Read this before changing the cod
   for protection, more sockets than SingleLine.SOCKETS_PER_CIRCUIT on a circuit, a circuit
   feeding sockets or a bathroom not behind a 30 mA RCD of its own or of a group it is in,
   a socket outlet or light switch in zone 1 or 2) runs from the plan's Check button
-  (FloorPlanView._check_button), its problems listed at the top of the side panel
-  (_fill_check, run again with every refresh while shown; a click selects the first part
-  on a plan, its floor shown). It and the list of the
-  parts not on the plan hide while rooms, walls, doors or windows are drawn (ROOM_TOOLS) or
-  a room is picked (_parts_side, _update_parts_side on FloorPlanCanvas.tool_changed and
+  (FloorPlanView._check_button, saying how many problems there are in the warning colour,
+  counted with every refresh), its problems listed at the top of the main window's side
+  panel (FloorPlanView.inspector in main.gd's _plan_top, inspector_shown, inspector_changed;
+  _fill_check, run again with every refresh while shown; a click selects the first part
+  on a plan, its floor shown). The circuit picker and the list of the parts not on the plan
+  (that only while there are some, the list as tall as its items) hide while rooms, walls,
+  doors or windows are drawn (ROOM_TOOLS), a room is picked or another tab than the
+  electrics' is shown (_parts_side, _update_parts_side on FloorPlanCanvas.tool_changed and
   selection_changed). Luminaires and switches
   have their circuit's number after their designation ("-EA1 /3"). Light switches are parts
   a circuit feeds too (SingleLine.is_load; end_part, end_count leave them out at the circuit's
@@ -455,7 +465,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   2000-5-51 (room_environment: set, else N, a Bathroom ČSN 33 2000-7-701; ENVIRONMENTS
   offered), illuminance (room_lux: set, else LUX by its name); the number in the room, and
   beside the plan the legend of the rooms (_draw_room_legend, ROOM_COLUMNS; in paper_area and
-  fit); the room dialog (double click) asks them too, each environment offered with what
+  fit; on the screen only while FloorPlanCanvas.room_legend_shown, the Drawing menu's tick,
+  user settings "floor_plan"/"room_legend", _room_legend_drawn; always on a sheet); the room dialog (double click) asks them too, each environment offered with what
   it means (FloorPlan.ENVIRONMENT_NOTES), the ones used explained under the legend
   (FloorPlan.environment_note). An environment is a list joined by ", ": the names of
   ENVIRONMENTS or classes of the external influences (ExternalInfluences, no nodes: ČSN 33
@@ -505,7 +516,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   (room, wall): anywhere on a wall's band as drawn (of a wall between two rooms, the room
   the point is nearer to), else near its line. A wall clicked is selected alone ("edge":
   drawn thick in the selection colour, the corners at its ends as handles, the wall panel
-  in place of the room panel: FloorPlanView._fill_wall), Ctrl+click adds or takes off more
+  in place of the room panel in the main window's side panel: FloorPlanView._fill_wall), Ctrl+click adds or takes off more
   ("more", selected_walls, _toggle_wall); the panel sets the own thickness of all of them
   (set_wall_look), takes an outside wall away or puts it back (Room.open: its walls taken
   away by index, saved "open"; not grown in _draw_building, no piece in wall_pieces) and
@@ -634,7 +645,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   unplaced_parts (none on any floor); _forget_device and renames go through every floor, the
   lighting graph takes every floor's links; saved "floors" and "floor" with more than one,
   else "floor_plan". FloorPlanView: the floors as tabs over the plan (show_floor, floor_changed
-  -> main.gd sets both copies of the document) and a menu to add one above or a basement
+  -> main.gd sets both copies of the document) and right after them the Floor button's menu
+  to add one above or a basement
   (drawn over the floor next to it: FloorPlan.start_over, a room of each of its building's
   outlines, building_outlines, its staircases put in their places), rename or remove the
   one shown; while editing, the floor below (for the lowest the one
@@ -672,13 +684,18 @@ Architecture and conventions of the code base. Read this before changing the cod
   unit and the room legend always. New ones go on FloorPlanCanvas.active_layer (new_layer:
   "" while the schematic has no such layer; a view setting, not saved); a right click on one
   (_layered_at) -> layer_menu_requested -> FloorPlanView's layer picker (set_item_layer, or a
-  new layer it goes on). The plan's tools are in groups (FloorPlanView: selecting;
-  building: outline, walls, rooms, ready rooms, joining, doors, windows; the electrics:
-  lighting, rows, symbols, check; dimensions, measuring, notes; the underlay, layers and
-  the plan settings), lines between them (_tool_gaps); an empty plan says how a house is
-  drawn (its outline by its corners, then walls across it). FloorPlanView's Layers menu
-  (editing only; its text the active
-  layer): a tick per layer shows or hides it (hiding drops the selection and, if it is the
+  new layer it goes on). The plan's tools are on tabs (FloorPlanView.show_tab, _tab_tools,
+  tab_changed; a segmented switch after selecting and deleting): Building (outline, walls,
+  rooms, ready rooms, joining, doors, windows; the palette offers the furniture,
+  Palette.plan_tab), Electrics (a house installation's: lighting, rows, symbols, check;
+  the palette the parts) and Dimensions (dimensions, measuring, notes; no palette); each
+  tool with its icon and name; a new plan opens on Building, one with rooms on Electrics; a
+  tool of another tab gives way to selecting. Zoom out, zoom in and Show all sit in the
+  plan's bottom right corner. The Drawing menu (FloorPlanView._drawing_menu, right of the
+  tools) holds the underlay and the layers as submenus (_underlay_popup, _layers_popup),
+  the room legend's tick and Plan settings…; an empty plan says how a house is
+  drawn (its outline by its corners, then walls across it). The Layers submenu (its title
+  with the active layer): a tick per layer shows or hides it (hiding drops the selection and, if it is the
   active one, the active layer), the layer new things go on (choosing a hidden one shows it),
   New, Rename and Remove the active one, Show all; every change one undoable edit.
   Sheets: a floor plan sheet a floor with the layers shown (the copy exported keeps
@@ -728,9 +745,12 @@ Architecture and conventions of the code base. Read this before changing the cod
   (_usual_names; a name sets a bathroom's environment and illuminance as before);
   room_menu_requested on a right click -> its menu (rename, duplicate, split, join with
   begin_join, delete); Ctrl+D (FloorPlan.duplicate_room) and the arrows (5 cm, Shift 50 cm)
-  on the room picked (_room_key). The room picked is edited in the panel at the top of the
-  side panel (_room_box, _fill_room, _apply_rename: one edit, none when nothing changed; a
-  double click on a room focuses its name). Feedback (_draw_room_feedback): _hover_at
+  on the room picked (_room_key). The room picked is edited in the main window's side panel
+  (_room_box in FloorPlanView.inspector: its number and name in one row, Size with the width
+  and depth side by side and the area, Electrics with the environment, what it means in the
+  field's tooltip, and the illuminance, Other with the staircase, and named buttons
+  Duplicate, Split and Delete room; _fill_room, _apply_rename: one edit, none when nothing
+  changed; a double click on a room focuses its name). Feedback (_draw_room_feedback): _hover_at
   lights the wall or room under the mouse with the cursor of a drag there, a drag shows the
   size and area by the mouse and _draw_wall_guides along walls lined up with another
   room's; corners dragged snap onto other rooms' walls (_corner_target); FloorPlan.overlaps
