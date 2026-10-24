@@ -561,7 +561,9 @@ static func resistance(mm2: float) -> float:
 ## in mm) set up as [param s] losing [param power] W inside: {"sections"
 ## (how many of equal width it is reckoned in), "section" (the one that
 ## gets warmest: {"width" (m), "surfaces" ([name (English), A0 m², b]),
-## "ae" (m²), "small" (Ae <= [constant SMALL]), "vented", "power" (W), "k",
+## "ae" (m²), "small" (Ae <= [constant SMALL]), "vented", "power" (W),
+## "inlet" (cm² of the section's openings, 0 closed), "curve" (of fig. 3),
+## "partitions", "k",
 ## "d", "x", "factor" ("f" or "g"), "factor_value", "c", "half" (Δt0,5 K),
 ## "top" (Δt1,0 K)}), "half", "top" (K), "temperature" (°C at the top),
 ## "ok" (no warmer than the limit), "warnings" ([{"text" (English), "args"}])}.
@@ -636,6 +638,7 @@ static func _section(h: float, w: float, depth: float, mounting: Dictionary, lef
 		c = _row(FIG3[int(mounting["curve"]) - 1], FIG3_FROM, FIG3_STEP, factor_value, "f", 3, notes)
 	var half: float = k * d * pow(maxf(power, 0.0), x)
 	return {"width": w, "surfaces": surfaces, "ae": ae, "small": small, "vented": vented, "power": power,
+		"inlet": inlet if vented else 0.0, "curve": int(mounting["curve"]), "partitions": partitions,
 		"k": k, "d": d, "x": x, "factor": factor, "factor_value": factor_value, "c": c, "half": half, "top": c * half}
 
 

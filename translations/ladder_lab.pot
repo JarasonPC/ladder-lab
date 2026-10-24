@@ -7320,3 +7320,174 @@ msgstr[2] ""
 
 msgid "Ventilation openings"
 msgstr ""
+
+msgid "%s (fig. 1, curve %d)"
+msgstr ""
+
+msgid "1. Data given"
+msgstr ""
+
+msgid "2. Power lost at the rated currents P"
+msgstr ""
+
+msgid "3. Effective cooling surface Ae (table 3)"
+msgstr ""
+
+msgid "4. Temperature rise"
+msgstr ""
+
+msgid "5. Temperature of the air inside"
+msgstr ""
+
+msgid "= Δt1,0 (the top quarter of a small enclosure)"
+msgstr ""
+
+msgid "After IEC 890 (ČSN 33 7107 part 1), the calculation ČSN EN 61439-1 allows for verifying the temperature rise of an assembly: the effective cooling surface Ae = Σ A0 · b, the rise of the air half way up Δt0,5 = k · d · P^x and at the top Δt1,0 = c · Δt0,5, k and c off the method's charts. The losses at the rated currents as given; the wires' losses by annex H of ČSN EN 61439-1."
+msgstr ""
+
+msgid "At the top (1.0 h)"
+msgstr ""
+
+msgid "Depth of the enclosure"
+msgstr ""
+
+msgid "Devices (%d)"
+msgstr ""
+
+msgid "From"
+msgstr ""
+
+msgid "Half way up (0.5 h)"
+msgstr ""
+
+msgid "Height of the enclosure h"
+msgstr ""
+
+msgid "How it is installed"
+msgstr ""
+
+msgid "Losses"
+msgstr ""
+
+msgid "Mounting plate as laid out (w × h)"
+msgstr ""
+
+msgid "Not worked out: still to give"
+msgstr ""
+
+msgid "Notes"
+msgstr ""
+
+msgid "Power lost in +%s"
+msgstr ""
+
+msgid "Quantity symbol"
+msgstr ""
+
+msgid "Rail %d (at %s h)"
+msgstr ""
+
+msgid "Result: at the top %s °C, warmer than the %s °C allowed."
+msgstr ""
+
+msgid "Result: at the top %s °C, within the %s °C allowed."
+msgstr ""
+
+msgid "Size (m)"
+msgstr ""
+
+msgid "Surface"
+msgstr ""
+
+msgid "Temperature (°C)"
+msgstr ""
+
+msgid "Temperature rise"
+msgstr ""
+
+msgid "Temperature rise +%s"
+msgstr ""
+
+msgid "Temperature rise of switchboard +%s: calculation"
+msgstr ""
+
+msgid "The protocol of each switchboard's temperature rise calculation: the data given, the losses, Ae, each step of the calculation, the temperatures and the curve"
+msgstr ""
+
+msgid "Three quarters up (0.75 h)"
+msgstr ""
+
+msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires; an empty cell is not given."
+msgstr ""
+
+msgid "Value"
+msgstr ""
+
+msgid "Where"
+msgstr ""
+
+msgid "Whole list over the screen"
+msgstr ""
+
+msgid "Wider than %s m or over %s m² of Ae: reckoned in %d sections %s m wide, each with P/%d and its share of the openings; the dividing walls do not count. The warmest section:"
+msgstr ""
+
+msgid "Width of the enclosure w"
+msgstr ""
+
+msgid "Wires"
+msgstr ""
+
+msgid "Wires (%d, %s m)"
+msgstr ""
+
+msgid "Wires laid out, by the rated current I of the breaker, fuse or overload relay on their net: P = I² · R20 · (1 + α (Tc − 20 °C)) · L, α = %s 1/K, Tc = %s °C (annex H of ČSN EN 61439-1)."
+msgstr ""
+
+msgid "closed"
+msgstr ""
+
+msgid "fig. 2 (closed): Ae = %s m²"
+msgstr ""
+
+msgid "fig. 3, curve %d: f = %s"
+msgstr ""
+
+msgid "fig. 4 (with openings): inlet %s cm², Ae = %s m²"
+msgstr ""
+
+msgid "fig. 5: inlet %s cm², f = %s"
+msgstr ""
+
+msgid "fig. 6 (Ae ≤ %s m²): k = %s · Ae^%s"
+msgstr ""
+
+msgid "fig. 7: g = %s"
+msgstr ""
+
+msgid "none (closed)"
+msgstr ""
+
+msgid "not given"
+msgstr ""
+
+msgid "not used for Ae ≤ 1.25 m²"
+msgstr ""
+
+msgid "table 4 (closed), %d partitions"
+msgstr ""
+
+msgid "table 5 (with openings), %d partitions"
+msgstr ""
+
+msgid "total P (part 2)"
+msgstr ""
+
+msgid "total P / %d, the section's share"
+msgstr ""
+
+msgid "with openings"
+msgstr ""
+
+msgid "with openings: inlet %s, outlet %s"
+msgstr ""

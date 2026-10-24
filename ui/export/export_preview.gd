@@ -15,8 +15,8 @@ signal contents_changed
 signal paper_changed
 
 ## What a PDF can hold, in order (keys of [method contents]).
-const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "plc_programs", "timers", "workspace", "parts_list"]
-const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "PLC programs", "Time relays", "Workspace", "Parts list"]
+const CONTENTS: PackedStringArray = ["schematic", "stations", "switchboards", "heat_rise", "plc_programs", "timers", "workspace", "parts_list"]
+const CONTENT_TITLES: PackedStringArray = ["Schematic", "Control stations", "Switchboards", "Temperature rise", "PLC programs", "Time relays", "Workspace", "Parts list"]
 
 var _picture: TextureRect
 var _status: Label
@@ -110,6 +110,7 @@ func open(pdf: bool, chosen: Dictionary = {}, available: Dictionary = {}, larges
 		check.set_pressed_no_signal(bool(chosen.get(CONTENTS[i], true)))
 		check.disabled = not bool(available.get(CONTENTS[i], true))
 	_contents["timers"].tooltip_text = tr("The function, times and control input of each time relay, with the timing diagram of its function")
+	_contents["heat_rise"].tooltip_text = tr("The protocol of each switchboard's temperature rise calculation: the data given, the losses, Ae, each step of the calculation, the temperatures and the curve")
 	_contents["workspace"].tooltip_text = tr("Each floor on a sheet of its own, with the layers shown on its plan") if residential else ""
 	_update_numbers()
 	rendering()
