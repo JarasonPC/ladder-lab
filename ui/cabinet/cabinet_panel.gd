@@ -34,6 +34,14 @@ const KIND_TITLES: PackedStringArray = ["", "Circuit breaker", "Fuse holder", "C
 
 ## Name of the switchboard shown ([member Switchboard.name]).
 var board_name: String = ""
+## Shown before Inside | Door | Door open ("" for nothing): the consumer
+## unit of a house says what it is there, having no bar of its own over it.
+var heading: String = "":
+	set(value):
+		heading = value
+		if _heading != null:
+			_heading.text = value
+			_heading.visible = not value.is_empty()
 ## The door is shown instead of the inside.
 var door_shown: bool = false:
 	set(value):
@@ -59,6 +67,7 @@ var _picked: Dictionary[String, bool] = {}
 var _tools: PanelContainer
 var _list: VBoxContainer
 var _note: Label
+var _heading: Label
 var _view: CabinetView
 ## Scrolls the zoomed switchboard sideways.
 var _across: ScrollContainer
@@ -93,7 +102,14 @@ func _ready() -> void:
 	left.add_theme_constant_override("separation", 6)
 	margin.add_child(left)
 	var top: HBoxContainer = HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
 	left.add_child(top)
+	_heading = Label.new()
+	_heading.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_heading.theme_type_variation = "TitleLabel"
+	_heading.text = heading
+	_heading.visible = not heading.is_empty()
+	top.add_child(_heading)
 	# Inside | Door as one segmented switch.
 	var track: PanelContainer = PanelContainer.new()
 	track.theme_type_variation = "SegmentTrack"
@@ -388,78 +404,135 @@ func _rebuild() -> void:
 		_bus_editor(b, _selected.x, _view.place_of(_selected.x, _selected.y))
 	elif _selected.x >= 0:
 		_place_editor(b, _selected.x, _selected.y)
+	_caption(tr("Rails"))
 	for r: int in rails.size():
 		_rail_row(b, r)
-	_list.add_child(HSeparator.new())
 	var add_rail: Button = _button(tr("Add rail"), "plus")
 	add_rail.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	add_rail.tooltip_text = tr("Add an empty DIN rail at the bottom")
 	add_rail.pressed.connect(func() -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.add_cabinet_rail(b)))
 	_list.add_child(add_rail)
-	var fill: Button = _button(tr("Fill from the schematic"), "cabinet")
-	fill.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	fill.tooltip_text = tr("Add rails with every device and terminal strip of the schematic that is not in a switchboard yet")
-	fill.disabled = _document.cabinet_unplaced().is_empty()
-	fill.pressed.connect(func() -> void:
-		edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet(b)))
-	_list.add_child(fill)
-	_list.add_child(HSeparator.new())
+	# Only while the schematic has something no switchboard holds yet.
+	var unplaced: int = _document.cabinet_unplaced().size()
+	if unplaced > 0:
+		var fill: Button = _button(tr_n("Add %d new part from the schematic", "Add %d new parts from the schematic", unplaced) % unplaced, "cabinet")
+		fill.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		fill.tooltip_text = tr("Add rails with every device and terminal strip of the schematic that is not in a switchboard yet")
+		fill.pressed.connect(func() -> void:
+			edit_requested.emit(func(doc: SchematicDocument) -> void: doc.fill_cabinet(b)))
+		_list.add_child(fill)
+	_caption(tr("Calculations and documents"))
 	_heat_tools(b)
 
 
+## A heading of the tools ([param text] in capitals).
+func _caption(text: String) -> void:
+	var caption: Label = Label.new()
+	caption.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	caption.theme_type_variation = "HeaderLabel"
+	caption.text = text.to_upper()
+	_list.add_child(caption)
+
+
+## A card of the calculations and documents: [param title] with
+## [param status] on its right in [param color], a bar of [param given] out
+## of [param total] while some are still to give, [param summary] under it
+## and the button opening it.
+func _card(title: String, status: String, color: Color, given: int, total: int, summary: Label, open: Button) -> void:
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "FunctionCard"
+	_list.add_child(card)
+	var fields: VBoxContainer = VBoxContainer.new()
+	fields.add_theme_constant_override("separation", 6)
+	card.add_child(fields)
+	var head: HBoxContainer = HBoxContainer.new()
+	fields.add_child(head)
+	var name: Label = Label.new()
+	name.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	name.text = title
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(name)
+	var state: Label = Label.new()
+	state.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	state.text = status
+	state.add_theme_color_override("font_color", color)
+	head.add_child(state)
+	if given < total:
+		var bar: ProgressBar = ProgressBar.new()
+		bar.show_percentage = false
+		bar.custom_minimum_size.y = 4.0
+		bar.max_value = total
+		bar.value = given
+		fields.add_child(bar)
+	summary.theme_type_variation = "MutedLabel"
+	# While values are still to give the bar says it; the summary says the result.
+	summary.visible = given >= total
+	fields.add_child(summary)
+	fields.add_child(open)
+
+
 ## How warm switchboard [param b] gets inside with what is on its rails (see
-## [HeatRise]), and the button opening the calculation to fill in.
+## [HeatRise]), and the button opening the calculation to fill in: a card
+## with how many values are given, or once all are, the temperature at the top.
 func _heat_tools(b: int) -> void:
 	# Laid out as the calculation always is (the view's scale moves the wires a little).
 	var layout: CabinetLayout = HeatRiseReport.layout(_document, b) if not _document.switchboards[b].rails.is_empty() else null
+	var summary: Label = Label.new()
+	summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var status: String = ""
+	var color: Color = AppTheme.text_muted
+	var given: int = 0
+	var total: int = 0
 	if layout != null:
-		var evaluated: Dictionary = HeatRise.evaluate(_document, b, layout.wiring.wires if layout.wiring != null else [])
-		var summary: Label = Label.new()
-		summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var wires: Array = layout.wiring.wires if layout.wiring != null else []
+		var evaluated: Dictionary = HeatRise.evaluate(_document, b, wires)
 		var gaps: int = (evaluated["missing"] as Array).size()
+		# What the calculation asks for with nothing given (the openings once vented).
+		total = maxi((HeatRise.evaluate(_document, b, wires, {})["missing"] as Array).size(), gaps)
+		given = total - gaps
 		if gaps > 0:
 			summary.text = tr_n("Temperature rise: %d value still to give", "Temperature rise: %d values still to give", gaps) % gaps
-			summary.add_theme_color_override("font_color", AppTheme.warning)
+			status = "%d / %d" % [given, total]
 		else:
 			var r: Dictionary = evaluated["result"]
 			var s: Dictionary = evaluated["settings"]
 			summary.text = tr("Temperature rise: at the top about %s °C (%s °C around, at most %s °C), %s W lost inside") % [
 				String.num(r["temperature"], 0), String.num(s["ambient"], 0), String.num(s["limit"], 0), String.num(evaluated["losses"]["total"], 0)]
-			summary.add_theme_color_override("font_color", AppTheme.success if r["ok"] else AppTheme.danger)
-		_list.add_child(summary)
+			status = "%s °C %s" % [String.num(r["temperature"], 0), "✓" if r["ok"] else "✕"]
+			color = AppTheme.success if r["ok"] else AppTheme.danger
 	var open: Button = _button(tr("Temperature rise…"), "thermometer")
 	open.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	open.tooltip_text = tr("Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections")
 	open.disabled = layout == null or _document.switchboards[b].rails.is_empty()
 	open.pressed.connect(func() -> void: _heat_dialog.open(_document, b, HeatRiseReport.layout(_document, b)))
-	_list.add_child(open)
+	_card(tr("Temperature rise"), status, color, given, total, summary, open)
 	_documentation_tools(b)
 
 
 ## How much of switchboard [param b]'s documentation is still to give (see
-## [BoardDocumentation]), and the button opening it.
+## [BoardDocumentation]), and the button opening it: a card like the
+## temperature rise's.
 func _documentation_tools(b: int) -> void:
 	var board: Switchboard = _document.switchboards[b]
 	var gaps: int = BoardDocumentation.missing(board).size() + Manufacturer.missing().size()
+	var total: int = BoardDocumentation.fields().size() + Manufacturer.REQUIRED
 	var summary: Label = Label.new()
 	summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if gaps > 0:
 		summary.text = tr_n("Documentation: %d value still to give", "Documentation: %d values still to give", gaps) % gaps
-		summary.add_theme_color_override("font_color", AppTheme.warning)
 	else:
 		summary.text = tr("Documentation: all given")
-		summary.add_theme_color_override("font_color", AppTheme.success)
 	summary.tooltip_text = tr("The switchboard maker (Settings > Switchboard manufacturer…), the switchboard's type, serial number, customer and interface characteristics, exported as its interface characteristics and operating instructions")
 	summary.mouse_filter = Control.MOUSE_FILTER_PASS
-	_list.add_child(summary)
 	var open: Button = _button(tr("Documentation…"), "datasheet")
 	open.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	open.tooltip_text = tr("Give what the switchboard's interface characteristics, operating instructions and temperature rise protocol say about it: its type, serial number, customer, voltages, currents, degree of protection …")
 	open.pressed.connect(func() -> void: _documentation_dialog.open(_document.switchboards[b]))
-	_list.add_child(open)
+	var status: String = "%d / %d" % [total - gaps, total] if gaps > 0 else "✓"
+	_card(tr("Documentation"), status, AppTheme.text_muted if gaps > 0 else AppTheme.success, total - gaps, total, summary, open)
 
 
 ## The student mounting the parts of a training plan in switchboard
@@ -793,6 +866,12 @@ func _item_title(item: CabinetItem) -> String:
 	var c: CircuitComponent = CabinetDevices.device(_document.circuit, item.designation)
 	if c == null:
 		return "-%s (%s)" % [item.designation, tr("not in the schematic")]
+	# Drawn as breakers on the rail, named as what they are.
+	if c is ArcFaultDevice:
+		return tr("Arc fault detection device with breaker (AFDD)") + " -" + item.designation
+	if c is ResidualCurrentDevice:
+		var rcbo: bool = (c as ResidualCurrentDevice).overcurrent
+		return (tr("RCD with overcurrent release (RCBO)") if rcbo else tr("Residual current device (RCD)")) + " -" + item.designation
 	return tr(KIND_TITLES[CabinetDevices.kind_of(c)]) + " -" + item.designation
 
 

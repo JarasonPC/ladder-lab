@@ -9,7 +9,7 @@ extends Control
 ## relay. While editing, a click selects a place.
 ##
 ## Painted in layers ([Layer]: the plate with its rails and ducts, each place
-## on its own with its labels, the wires, the selection) that are painted
+## on its own, the wires with the places' labels over them, the selection) that are painted
 ## again only when what they show changed, so a simulation step paints only
 ## the devices that changed and moving the view paints nothing. While the
 ## zoom changes the layers painted last are scaled, and painted sharp again
@@ -688,17 +688,21 @@ func _paint_base(canvas: CanvasItem) -> void:
 		CabinetParts.duct(p.shifted(r.position), r.size.y if duct["vertical"] else r.size.x, r.size.x if duct["vertical"] else r.size.y, duct["vertical"])
 
 
-## A place with its labels, under the wires running past them.
+## A place, under the wires running past it.
 func _paint_place(canvas: CanvasItem, index: int) -> void:
 	if index >= _layout.places.size():
 		return
-	var p: CabinetPainter = _painter(canvas)
-	var place: Dictionary = _layout.places[index]
-	_draw_place(p, place)
-	if place["label_w"] > 0.0:
-		CabinetParts.label(p, place["label_at"], "-" + str(place["designation"]), place["label_w"])
-	if place.has("under_label_at"):
-		CabinetParts.label(p, place["under_label_at"], "-" + str(place["under_designation"]), 12.0)
+	_draw_place(_painter(canvas), _layout.places[index])
+
+
+## The places' labels on the plate, over the wires running past them (as a
+## label stuck on is), so a designation is never crossed out by a wire.
+func _paint_labels(p: CabinetPainter) -> void:
+	for place: Dictionary in _layout.places:
+		if place["label_w"] > 0.0:
+			CabinetParts.label(p, place["label_at"], "-" + str(place["designation"]), place["label_w"])
+		if place.has("under_label_at"):
+			CabinetParts.label(p, place["under_label_at"], "-" + str(place["under_designation"]), 12.0)
 
 
 ## The ducts' covers are drawn (see [member duct_covers]).
@@ -718,6 +722,7 @@ func _paint_top(canvas: CanvasItem) -> void:
 		for duct: Dictionary in _layout.ducts:
 			var r: Rect2 = duct["rect"]
 			CabinetParts.duct_cover(p.shifted(r.position), r.size.y if duct["vertical"] else r.size.x, r.size.x if duct["vertical"] else r.size.y, duct["vertical"])
+	_paint_labels(p)
 	# The marker sleeves over every wire, so a wire running past never hides one.
 	for wire: Dictionary in _wiring.wires:
 		CabinetParts.wire_markers(p, wire["markers"], wire["mark"], wire["width"])

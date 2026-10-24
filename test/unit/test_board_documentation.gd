@@ -278,7 +278,7 @@ func test_panel_opens_the_documentation() -> void:
 	await wait_process_frames(2)
 	var open: Button = null
 	var summary: Label = null
-	for child: Node in (panel.get("_list") as VBoxContainer).get_children():
+	for child: Node in (panel.get("_list") as VBoxContainer).find_children("*", "", true, false):
 		if child is Button and (child as Button).text == "Documentation…":
 			open = child
 		if child is Label and (child as Label).text.begins_with("Documentation:"):
@@ -331,3 +331,27 @@ func test_type_completed_from_the_same_device() -> void:
 	(fa3["type"] as LineEdit).text_changed.emit("X")
 	assert_eq(dialog.settings()["types"]["FA3"], "X")
 	dialog.hide()
+
+
+func test_consumer_unit_tools_in_groups() -> void:
+	var doc: SchematicDocument = _house()
+	var panel: CabinetPanel = CabinetPanel.new()
+	panel.board_name = doc.switchboards[0].name
+	add_child_autofree(panel)
+	panel.set_document(doc, true)
+	await wait_process_frames(2)
+	var texts: Array[String] = []
+	for child: Node in (panel.get("_list") as VBoxContainer).find_children("*", "", true, false):
+		if child is Label or child is Button:
+			texts.append(child.get("text"))
+	assert_true(texts.has("RAILS"), "the rails under their heading")
+	assert_true(texts.has("CALCULATIONS AND DOCUMENTS"))
+	assert_false(texts.any(func(t: String) -> bool: return t.begins_with("Add ") and t.ends_with("from the schematic")), "nothing left to add from the schematic")
+	assert_true(texts.any(func(t: String) -> bool: return t.begins_with("0 / ")), "how many values are given")
+	# An RCD picked on the rail is named as what it is.
+	panel.select_item(CabinetItem.Kind.DEVICE, "FB1")
+	await wait_process_frames(1)
+	texts.clear()
+	for child: Node in (panel.get("_list") as VBoxContainer).find_children("*", "Label", true, false):
+		texts.append((child as Label).text)
+	assert_true(texts.has("Residual current device (RCD) -FB1"), str(texts))

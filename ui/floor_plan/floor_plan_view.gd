@@ -33,6 +33,8 @@ signal operate_requested(designation: String)
 ## Floor [param index] is shown (not an edit; the other copy of the
 ## document should show it too).
 signal floor_changed(index: int)
+## The consumer unit was opened in place of the plan (true) or closed.
+signal unit_shown(open: bool)
 ## The wall thickness new plans start with was set (to save it).
 signal defaults_changed
 
@@ -183,7 +185,6 @@ var _check_list: VBoxContainer
 var _listed: PackedStringArray = PackedStringArray()
 ## The consumer unit opened in place of the plan, null while the plan shows.
 var _unit: CabinetPanel
-var _back_button: Button
 var _body: HBoxContainer
 ## The room picked, at the top of the side panel: its name (typed or
 ## picked from the usual ones), size, area, number, environment and
@@ -226,14 +227,6 @@ func _ready() -> void:
 	_bar.custom_minimum_size.y = 30.0
 	bar.add_child(_bar)
 	var group: ButtonGroup = ButtonGroup.new()
-	_back_button = Button.new()
-	_back_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_back_button.theme_type_variation = "ToolButton"
-	_back_button.focus_mode = Control.FOCUS_NONE
-	_back_button.icon = AppTheme.icon("chevron_left")
-	_back_button.visible = false
-	_back_button.pressed.connect(close_unit)
-	_bar.add_child(_back_button)
 	_select_button = _tool_button("select", FloorPlanCanvas.Tool.SELECT, group)
 	_room_button = _tool_button("room", FloorPlanCanvas.Tool.ROOM, group)
 	_outline_button = _tool_button("room_outline", FloorPlanCanvas.Tool.OUTLINE, group)
@@ -308,7 +301,7 @@ func _ready() -> void:
 		[_wire_button, _array_button, _symbols_button, _check_button],
 		[_dimension_button, _measure_button, _note_button],
 		[_underlay_menu, _layers_menu, _walls_button]]
-	var at: int = _back_button.get_index() + 1
+	var at: int = 0
 	for g: int in groups.size():
 		if g > 0:
 			var gap: VSeparator = VSeparator.new()
@@ -707,6 +700,7 @@ func open_unit() -> void:
 		_unit.set_document(_document, _editing)
 	_body.visible = false
 	refresh()
+	unit_shown.emit(true)
 
 
 ## Back from the consumer unit to the plan.
@@ -716,6 +710,12 @@ func close_unit() -> void:
 		_unit = null
 	_body.visible = true
 	refresh()
+	unit_shown.emit(false)
+
+
+## Whether the consumer unit is shown in place of the plan.
+func unit_open() -> bool:
+	return _unit != null
 
 
 func _board_index(board_name: String) -> int:
@@ -732,8 +732,10 @@ func refresh() -> void:
 	var plan_shown: bool = _unit == null
 	if _unit != null:
 		_unit.refresh()
-	_back_button.visible = not plan_shown
-	_back_button.text = tr("Floor plan") if not plan_shown else ""
+	# The consumer unit has its own heading; the plan's tools are for the plan.
+	(_bar.get_parent() as Control).visible = plan_shown
+	if _unit != null:
+		_unit.heading = "%s %s" % [tr("Consumer unit"), FloorPlan.UNIT]
 	for button: Control in [_select_button, _room_button, _outline_button, _wall_button, _door_button, _window_button, _dimension_button, _measure_button, _note_button, _presets, _array_button, _underlay_menu, _layers_menu, _walls_button, _delete_button]:
 		button.visible = _editing and plan_shown
 	# The layer new things go on, while the schematic has it (an undo may

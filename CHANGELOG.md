@@ -214,8 +214,18 @@ What changed in each LadderLab version. Version numbers follow the rules in
   without the orientation buttons the diagram has no use for; its help is two sentences
   until opened, and zoom buttons with Show all sit in the corner of the drawing instead of a
   bar over it
+- The switchboard's tools are in groups, Rails and Calculations and documents: the
+  temperature rise and the documentation are cards saying how many values are given (with
+  a bar), or the result once all are; the button adding parts from the schematic shows only
+  while there are some, saying how many; a residual current device, RCBO or AFDD picked on
+  the rails is named as what it is, not as a circuit breaker
+- The designations on a switchboard's plate are drawn over the wires, so no wire crosses
+  one out
 
 ### Application
+- A house installation has three views in the toolbar, in the order it is drawn: Floor
+  plan, Single-line diagram and Consumer unit; the consumer unit opens with one click, its
+  name beside Inside | Door, without the floor plan's palette
 - A house installation is drawn, not simulated: its toolbar has no Edit | Simulate switch,
   so the floor plan, single-line diagram and consumer unit are always ready for editing
 - LadderLab opens with a start window: create a project or open one; tick Program guide to
