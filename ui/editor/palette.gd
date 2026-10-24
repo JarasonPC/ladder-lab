@@ -185,6 +185,18 @@ var residential: bool:
 		return environment != SchematicDocument.Kind.INDUSTRIAL
 	set(value):
 		environment = SchematicDocument.Kind.PROTOTYPE if value else SchematicDocument.Kind.INDUSTRIAL
+## The tab of the floor plan's tools shown ([constant FloorPlanView.TAB_BUILDING]
+## …): building offers the furniture and fixtures, the electrics the rest.
+var plan_tab: int = FloorPlanView.TAB_ELECTRICS:
+	set(value):
+		if value == plan_tab:
+			return
+		plan_tab = value
+		if _list != null and plan:
+			_build()
+## Above the parts (in plan mode the floor plan's parts not on it and the
+## circuit new parts go on, see [method FloorPlanView.place_parts_head]).
+var header_slot: VBoxContainer
 ## Symbols alone in a grid instead of the list with names.
 var grid: bool = false:
 	set(value):
@@ -201,6 +213,10 @@ var _buttons: Array[Button] = []
 var _tiles: Array[Panel] = []
 var _symbols: Array[SchematicSymbol] = []
 var _headers: Array[Label] = []
+## Per button in the list: its name and, under it, what tells it apart
+## (the part of its title in brackets), so neither is cut short.
+var _names: Array[Label] = []
+var _details: Array[Label] = []
 var _header_titles: PackedStringArray = []
 
 
@@ -213,8 +229,13 @@ func entries() -> Array[Dictionary]:
 		SchematicDocument.Kind.RESIDENTIAL:
 			if not plan:
 				return INSTALLATION_ENTRIES
-			var result: Array[Dictionary] = PLAN_ENTRIES.duplicate()
-			result.append_array(symbol_entries())
+			var all: Array[Dictionary] = PLAN_ENTRIES.duplicate()
+			all.append_array(symbol_entries())
+			# Furniture while building, the parts with the electrics.
+			var result: Array[Dictionary] = []
+			for entry: Dictionary in all:
+				if (entry_group(entry) == "furniture") == (plan_tab == FloorPlanView.TAB_BUILDING):
+					result.append(entry)
 			return result
 	return ENTRIES
 
@@ -339,6 +360,8 @@ func _ready() -> void:
 			_grid_button = button
 		else:
 			_list_button = button
+	header_slot = VBoxContainer.new()
+	outer.add_child(header_slot)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -359,6 +382,8 @@ func _build() -> void:
 		_list.remove_child(child)
 		child.queue_free()
 	_buttons.clear()
+	_names.clear()
+	_details.clear()
 	_tiles.clear()
 	_symbols.clear()
 	_headers.clear()
@@ -411,6 +436,8 @@ func _build() -> void:
 			button.add_theme_color_override("icon_hover_pressed_color", Color.TRANSPARENT)
 		button.pressed.connect(func() -> void: template_chosen.emit(template.duplicate()))
 		_add_icon(button, template)
+		if not grid:
+			_add_name(button)
 		row.add_child(button)
 		_buttons.append(button)
 	retranslate()
@@ -491,10 +518,50 @@ func retranslate() -> void:
 	var shown: Array[Dictionary] = entries()
 	for i: int in mini(_buttons.size(), shown.size()):
 		var title: String = shown[i]["title"] if shown[i].get("custom", false) else tr(shown[i]["title"])
-		_buttons[i].text = "" if grid else title
-		_buttons[i].tooltip_text = title if grid else ""
+		_buttons[i].tooltip_text = title
+		if i < _names.size():
+			var parts: PackedStringArray = split_title(title)
+			_names[i].text = parts[0]
+			_details[i].text = parts[1]
+			_details[i].visible = not parts[1].is_empty()
 	for i: int in _headers.size():
 		_headers[i].text = _group_title(_header_titles[i]).to_upper()
+
+
+## [param title] as its name and what tells it apart: "Switch no. 1
+## (one-way)" is ["Switch no. 1", "one-way"]; without brackets at its end
+## the whole title and "".
+static func split_title(title: String) -> PackedStringArray:
+	var open: int = title.rfind(" (")
+	if not title.ends_with(")") or open <= 0:
+		return PackedStringArray([title, ""])
+	return PackedStringArray([title.substr(0, open), title.substr(open + 2, title.length() - open - 3)])
+
+
+## The name of a list entry beside its tile, on two lines (see [method split_title]).
+func _add_name(button: Button) -> void:
+	var lines: VBoxContainer = VBoxContainer.new()
+	lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lines.alignment = BoxContainer.ALIGNMENT_CENTER
+	lines.add_theme_constant_override("separation", 0)
+	lines.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lines.offset_left = TILE.end.x + 10.0
+	lines.offset_right = -4.0
+	button.add_child(lines)
+	var name: Label = Label.new()
+	name.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name.clip_text = true
+	lines.add_child(name)
+	var detail: Label = Label.new()
+	detail.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	detail.theme_type_variation = "MutedLabel"
+	detail.add_theme_font_size_override("font_size", 11)
+	detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	detail.clip_text = true
+	lines.add_child(detail)
+	_names.append(name)
+	_details.append(detail)
 
 
 ## Draws the symbol on a paper tile at the left of the button, scaled to fit
