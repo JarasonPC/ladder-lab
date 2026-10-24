@@ -7228,9 +7228,6 @@ msgstr ""
 msgid "Item"
 msgstr ""
 
-msgid "Not given yet (%s)"
-msgstr ""
-
 msgid "Still to give:"
 msgstr ""
 
@@ -7279,22 +7276,13 @@ msgstr ""
 msgid "The warmest the air round the devices may get: see their makers' data"
 msgstr ""
 
-msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty cell is not given."
-msgstr ""
-
 msgid "W"
-msgstr ""
-
-msgid "W, from the maker"
 msgstr ""
 
 msgid "What"
 msgstr ""
 
 msgid "Whether it has ventilation openings"
-msgstr ""
-
-msgid "Wires (%d, %s m), cross-section mm²"
 msgstr ""
 
 msgid "With ventilation openings"
@@ -7304,9 +7292,6 @@ msgid "Without ventilation openings"
 msgstr ""
 
 msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections"
-msgstr ""
-
-msgid "mm²"
 msgstr ""
 
 msgid "— choose —"
@@ -7417,9 +7402,6 @@ msgstr ""
 msgid "Three quarters up (0.75 h)"
 msgstr ""
 
-msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires; an empty cell is not given."
-msgstr ""
-
 msgid "Value"
 msgstr ""
 
@@ -7490,4 +7472,28 @@ msgid "with openings"
 msgstr ""
 
 msgid "with openings: inlet %s, outlet %s"
+msgstr ""
+
+msgid "Cross-section of these wires (mm²)"
+msgstr ""
+
+msgid "Exported from LadderLab %s: file %s, schematic \"%s\", on %s."
+msgstr ""
+
+msgid "Loss of -%s at its rated current, from its maker (W)"
+msgstr ""
+
+msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires into the fields; an empty field is not given."
+msgstr ""
+
+msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given."
+msgstr ""
+
+msgid "Wires (%d, %s m), cross-section"
+msgstr ""
+
+msgid "enter"
+msgstr ""
+
+msgid "not saved"
 msgstr ""

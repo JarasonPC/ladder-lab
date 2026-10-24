@@ -22,8 +22,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   surface by surface and each step of the calculation with its figures, the temperatures
   over the height and at each rail, the result and the curve
 - In the temperature rise calculation each device shows what tells it apart (a breaker its
-  characteristic, rated current and poles, an overload relay its setting …), and the list of
-  losses opens over the whole screen
+  characteristic, rated current and poles, an RCD its residual current, type and poles, an
+  overload relay its setting …), each value to give has a text field of its own saying
+  "enter" until it is filled in, and the list of losses opens over the whole screen
+- The temperature rise protocol says what it was exported from: the program and its version,
+  the file, the schematic and when
 - A room's environment can be any combination of the external influences of ČSN 33 2000-5-51:
   the List button beside the environment field shows them all in a table (code and meaning,
   grouped as in the standard's Annex A) to tick those of the room, one class of each; the
@@ -185,6 +188,8 @@ What changed in each LadderLab version. Version numbers follow the rules in
   the language is chosen)
 
 ### Fixed
+- The parts list no longer gives a circuit breaker or a fuse an auxiliary NC contact for its
+  own pole
 - A long circuit name no longer widens the floor plan's side panel over the plan
 - No more steps in the floor plan where a wall between two rooms meets a wall going on
   outside: the wall between them lies out of the way of the room whose wall goes on, so its

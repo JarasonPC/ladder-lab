@@ -7253,9 +7253,6 @@ msgstr "Způsob instalace krytu"
 msgid "Item"
 msgstr "Položka"
 
-msgid "Not given yet (%s)"
-msgstr "Zatím nezadáno (%s)"
-
 msgid "Still to give:"
 msgstr "Zbývá zadat:"
 
@@ -7304,23 +7301,14 @@ msgstr "Výstupní otvory"
 msgid "The warmest the air round the devices may get: see their makers' data"
 msgstr "Nejvyšší teplota vzduchu kolem přístrojů: viz údaje výrobců"
 
-msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty cell is not given."
-msgstr "Zadejte ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez vodičů na sítích každého jmenovitého proudu: jejich délky se berou z nakreslené kabeláže a ztráta se počítá podle přílohy H ČSN EN 61439-1 při 70 °C. Prázdná buňka není zadána."
-
 msgid "W"
 msgstr "W"
-
-msgid "W, from the maker"
-msgstr "W, podle výrobce"
 
 msgid "What"
 msgstr "Popis"
 
 msgid "Whether it has ventilation openings"
 msgstr "Zda má větrací otvory"
-
-msgid "Wires (%d, %s m), cross-section mm²"
-msgstr "Vodiče (%d, %s m), průřez mm²"
 
 msgid "With ventilation openings"
 msgstr "S větracími otvory"
@@ -7330,9 +7318,6 @@ msgstr "Bez větracích otvorů"
 
 msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections"
 msgstr "Výpočet oteplení vzduchu uvnitř (IEC 890 / ČSN 33 7107): zadejte kryt, způsob instalace, ztráty přístrojů a průřezy vodičů"
-
-msgid "mm²"
-msgstr "mm²"
 
 msgid "— choose —"
 msgstr "— vyberte —"
@@ -7442,9 +7427,6 @@ msgstr "Protokol o výpočtu oteplení každého rozváděče: zadané údaje, z
 msgid "Three quarters up (0.75 h)"
 msgstr "Ve třech čtvrtinách výšky (0,75 h)"
 
-msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires; an empty cell is not given."
-msgstr "Zadejte ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez každé skupiny vodičů; prázdná buňka není zadána."
-
 msgid "Value"
 msgstr "Hodnota"
 
@@ -7516,3 +7498,27 @@ msgstr "s otvory"
 
 msgid "with openings: inlet %s, outlet %s"
 msgstr "s otvory: vstupní %s, výstupní %s"
+
+msgid "Cross-section of these wires (mm²)"
+msgstr "Průřez těchto vodičů (mm²)"
+
+msgid "Exported from LadderLab %s: file %s, schematic \"%s\", on %s."
+msgstr "Exportováno z LadderLab %s: soubor %s, schéma „%s“, dne %s."
+
+msgid "Loss of -%s at its rated current, from its maker (W)"
+msgstr "Ztráta -%s při jmenovitém proudu podle výrobce (W)"
+
+msgid "Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires into the fields; an empty field is not given."
+msgstr "Do polí zapište ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez každé skupiny vodičů; prázdné pole není zadáno."
+
+msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given."
+msgstr "Do polí zapište ztrátu každého přístroje při jmenovitém proudu podle údajů výrobce a průřez vodičů na sítích každého jmenovitého proudu: jejich délky se berou z nakreslené kabeláže a ztráta se počítá podle přílohy H ČSN EN 61439-1 při 70 °C. Prázdné pole není zadáno."
+
+msgid "Wires (%d, %s m), cross-section"
+msgstr "Vodiče (%d, %s m), průřez"
+
+msgid "enter"
+msgstr "zadejte"
+
+msgid "not saved"
+msgstr "neuloženo"

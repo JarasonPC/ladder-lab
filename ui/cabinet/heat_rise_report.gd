@@ -35,14 +35,33 @@ static func device_text(doc: SchematicDocument, designation: String) -> String:
 	var parts: PartsList = PartsList.new()
 	var name: String = parts.name_of(doc, designation)
 	var data: String = parts.data_of(doc, designation)
+	var c: CircuitComponent = CabinetDevices.device(doc.circuit, designation)
+	if c is MotorBreaker and (c as MotorBreaker).poles > 1:
+		# An RCD's data leaves its poles out.
+		var poles: String = TranslationServer.translate("%d poles") % (c as MotorBreaker).poles
+		if not data.contains(poles):
+			data = poles if data.is_empty() else "%s, %s" % [data, poles]
 	if data.is_empty():
 		return name
-	# A breaker's or fuse's data names it already ("Circuit breaker C16, 3 poles").
-	return data if data.begins_with(name) else "%s, %s" % [name, data]
+	# A breaker's, an RCD's or a fuse's data names it already ("Circuit breaker
+	# C16, 3 poles", "Residual current device (RCD) 40 A 30 mA A").
+	if c is ProtectiveDevice or c is MotorBreaker or c is ThreePoleFuse or data.begins_with(name):
+		return data
+	return "%s, %s" % [name, data]
 
 
-## The protocol rows of switchboard [param b] of [param doc].
-func rows(doc: SchematicDocument, b: int) -> Array[Dictionary]:
+## What a protocol was exported from: the program and its version, the
+## file ([param file_name], "" when not saved), the schematic's
+## [param title] and when.
+func source_text(file_name: String, title: String) -> String:
+	var version: String = str(ProjectSettings.get_setting("application/config/version", ""))
+	var when: String = Time.get_datetime_string_from_system(false, true)
+	return tr("Exported from LadderLab %s: file %s, schematic \"%s\", on %s.") % [version, file_name if not file_name.is_empty() else tr("not saved"), title, when]
+
+
+## The protocol rows of switchboard [param b] of [param doc]; [param source]
+## says what it was exported from (see [method source_text]).
+func rows(doc: SchematicDocument, b: int, source: String = "") -> Array[Dictionary]:
 	_rows = []
 	_table = 0
 	var board: Switchboard = doc.switchboards[b]
@@ -52,6 +71,8 @@ func rows(doc: SchematicDocument, b: int) -> Array[Dictionary]:
 	var s: Dictionary = e["settings"]
 	var losses: Dictionary = e["losses"]
 	_add({"type": "title", "text": tr("Temperature rise of switchboard +%s: calculation") % board.name + ("  ·  " + board.title if not board.title.is_empty() else "")})
+	if not source.is_empty():
+		_text(source, false)
 	_text(tr("After IEC 890 (ČSN 33 7107 part 1), the calculation ČSN EN 61439-1 allows for verifying the temperature rise of an assembly: the effective cooling surface Ae = Σ A0 · b, the rise of the air half way up Δt0,5 = k · d · P^x and at the top Δt1,0 = c · Δt0,5, k and c off the method's charts. The losses at the rated currents as given; the wires' losses by annex H of ČSN EN 61439-1."), true)
 	# The data given.
 	_heading(tr("1. Data given"))

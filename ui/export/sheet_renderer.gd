@@ -155,7 +155,8 @@ func sheets(doc: SchematicDocument, pages: PackedInt32Array) -> Array[Dictionary
 	if heat_rise:
 		for b: int in doc.switchboards.size():
 			if _on_rails(doc.switchboards[b]):
-				for rows: Array in HeatRiseSheet.split(HeatRiseReport.new().rows(doc, b)):
+				var report: HeatRiseReport = HeatRiseReport.new()
+				for rows: Array in HeatRiseSheet.split(report.rows(doc, b, report.source_text(file_name, title))):
 					result.append({"kind": "heat_rise", "board": b, "rows": rows})
 	if plc_programs:
 		for plc: Plc in _programs(doc):

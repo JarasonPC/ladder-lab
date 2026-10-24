@@ -42,10 +42,10 @@ var _mounting: OptionButton
 var _vented_label: Label
 var _vented: OptionButton
 var _partitions: OptionButton
-var _losses: Tree
+var _losses: HeatLossTable
 ## The losses table over the whole screen, and the button opening it.
 var _wide: AcceptDialog
-var _wide_losses: Tree
+var _wide_losses: HeatLossTable
 var _wide_hint: Label
 var _wide_button: Button
 var _loss_hint: Label
@@ -92,15 +92,17 @@ func _init() -> void:
 	# The losses.
 	var middle: VBoxContainer = _column(row, 380.0)
 	_caption(middle)
-	_losses = _new_tree(64.0, 76.0)
-	_losses.custom_minimum_size = Vector2(380, 260)
+	_losses = HeatLossTable.new()
+	_losses.custom_minimum_size = Vector2(400, 260)
+	_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_losses.typed.connect(_loss_typed)
 	middle.add_child(_losses)
 	_wide_button = Button.new()
 	_wide_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_wide_button.focus_mode = Control.FOCUS_NONE
 	_wide_button.icon = AppTheme.icon("window")
 	_wide_button.pressed.connect(func() -> void:
-		_fill_tree(_wide_losses)
+		_wide_losses.fill(_document, _evaluated["losses"])
 		_wide.popup_centered_ratio(0.97))
 	middle.add_child(_wide_button)
 	_loss_hint = _muted(middle)
@@ -110,11 +112,15 @@ func _init() -> void:
 	var wide_column: VBoxContainer = VBoxContainer.new()
 	_wide.add_child(wide_column)
 	_wide_hint = _muted(wide_column)
-	_wide_losses = _new_tree(110.0, 130.0)
+	_wide_losses = HeatLossTable.new()
+	_wide_losses.field_width = 140.0
+	_wide_losses.item_width = 100.0
+	_wide_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_wide_losses.typed.connect(_loss_typed)
 	wide_column.add_child(_wide_losses)
 	_wide.visibility_changed.connect(func() -> void:
 		if not _wide.visible:
-			_fill_tree(_losses))
+			_losses.fill(_document, _evaluated["losses"]))
 	add_child(_wide)
 	# The result.
 	var right: VBoxContainer = _column(row, 330.0)
@@ -174,17 +180,13 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	_partitions.add_item(choose)
 	for n: int in HeatRise.MAX_PARTITIONS + 1:
 		_partitions.add_item(str(n))
-	for tree: Tree in [_losses, _wide_losses]:
-		tree.set_column_title(0, tr("Item"))
-		tree.set_column_title(1, tr("What"))
-		tree.set_column_title(2, tr("Given"))
-		tree.set_column_title(3, tr("Loss (W)"))
 	_wide_button.text = tr("Whole list over the screen")
 	_wide.title = tr("Power lost in +%s") % doc.switchboards[b].name
 	_wide.ok_button_text = tr("Close")
-	_wide_hint.text = tr("Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires; an empty cell is not given.")
-	_loss_hint.text = tr("Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty cell is not given.")
+	_wide_hint.text = tr("Type each device's loss at its rated current from its maker's data and the cross-section of each group of wires into the fields; an empty field is not given.")
+	_loss_hint.text = tr("Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current, into the fields: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty field is not given.")
 	_fill()
+	_losses.fill(_document, _evaluated["losses"])
 	popup_centered_clamped(Vector2i(1100, 680), 0.92)
 
 
@@ -203,7 +205,7 @@ func evaluated() -> Dictionary:
 func _typed(key: String, text: String) -> void:
 	if _filling:
 		return
-	var value: Variant = _number(text)
+	var value: Variant = number(text)
 	if value == null:
 		_settings.erase(key)
 	else:
@@ -222,40 +224,34 @@ func _choose(key: String, value: Variant) -> void:
 	_fill()
 
 
-## A cell typed in losses table [param tree]: a device's loss, a
-## cross-section, the strip terminals' or the further losses (empty: not
-## given).
-func _cell_typed(tree: Tree) -> void:
-	for item: TreeItem in tree.get_root().get_children():
-		var what: Variant = item.get_metadata(0)
-		if what == null:
-			continue
-		var value: Variant = _number(item.get_text(2))
-		match what:
-			ROW_DEVICE, ROW_WIRES:
-				var store: String = "losses" if what == ROW_DEVICE else "sections"
-				var given: Dictionary = _settings.get(store, {})
-				var name: String = item.get_metadata(1)
-				if value == null or (what == ROW_WIRES and value <= 0.0):
-					given.erase(name)
-				else:
-					given[name] = value
-				if given.is_empty():
-					_settings.erase(store)
-				else:
-					_settings[store] = given
-			_:
-				var key: String = "terminals" if what == ROW_TERMINALS else "extra"
-				if value == null:
-					_settings.erase(key)
-				else:
-					_settings[key] = value
-	_refresh.call_deferred()
+## [param value] typed in the losses table for row [param what] of
+## [param name]: a device's loss, a cross-section, the strip terminals' or
+## the further losses (null: not given).
+func _loss_typed(what: String, name: String, value: Variant) -> void:
+	match what:
+		ROW_DEVICE, ROW_WIRES:
+			var store: String = "losses" if what == ROW_DEVICE else "sections"
+			var given: Dictionary = _settings.get(store, {})
+			if value == null or (what == ROW_WIRES and value <= 0.0):
+				given.erase(name)
+			else:
+				given[name] = value
+			if given.is_empty():
+				_settings.erase(store)
+			else:
+				_settings[store] = given
+		_:
+			var key: String = "terminals" if what == ROW_TERMINALS else "extra"
+			if value == null:
+				_settings.erase(key)
+			else:
+				_settings[key] = value
+	_refresh()
 
 
 ## [param text] as a number (a decimal comma too), null when it is empty or
 ## not a number or negative.
-static func _number(text: String) -> Variant:
+static func number(text: String) -> Variant:
 	var t: String = text.strip_edges().replace(",", ".")
 	if t.is_empty() or not t.is_valid_float() or t.to_float() < 0.0:
 		return null
@@ -267,7 +263,7 @@ func _fill() -> void:
 	_filling = true
 	for key: String in _fields:
 		var field: LineEdit = _fields[key]
-		field.text = _shown(_settings.get(key)) if not field.has_focus() else field.text
+		field.text = shown(_settings.get(key)) if not field.has_focus() else field.text
 	_mounting.select(int(_settings.get("mounting", -1)) + 1)
 	_vented.select(0 if not _settings.has("vented") else (2 if _settings["vented"] else 1))
 	_partitions.select(int(_settings.get("partitions", -1)) + 1)
@@ -279,73 +275,14 @@ func _fill() -> void:
 	_refresh()
 
 
-## The tables and the result again (the fields as they are).
+## The losses beside the fields and the result again (the fields as they
+## are).
 func _refresh() -> void:
 	_evaluated = HeatRise.evaluate(_document, _board, _wires, _settings)
-	for tree: Tree in [_losses, _wide_losses]:
-		if tree == _losses or _wide.visible:
-			_fill_tree(tree)
+	_losses.show_losses(_evaluated["losses"])
+	if _wide.visible:
+		_wide_losses.show_losses(_evaluated["losses"])
 	_fill_result()
-
-
-## A losses table: a row per device, per group of wires, the strip
-## terminals, further losses; the total.
-func _new_tree(first: float, numbers: float) -> Tree:
-	var tree: Tree = Tree.new()
-	tree.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	tree.hide_root = true
-	tree.columns = 4
-	tree.column_titles_visible = true
-	tree.select_mode = Tree.SELECT_ROW
-	tree.set_column_expand(0, false)
-	tree.set_column_custom_minimum_width(0, int(first))
-	for c: int in [2, 3]:
-		tree.set_column_expand(c, false)
-		tree.set_column_custom_minimum_width(c, int(numbers))
-	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tree.item_edited.connect(_cell_typed.bind(tree))
-	return tree
-
-
-func _fill_tree(tree: Tree) -> void:
-	var losses: Dictionary = _evaluated["losses"]
-	tree.clear()
-	var root: TreeItem = tree.create_item()
-	for device: Dictionary in losses["devices"]:
-		_row(root, ROW_DEVICE, device["designation"], "-" + device["designation"], HeatRiseReport.device_text(_document, device["designation"]), device["power"], device["power"], tr("W, from the maker"))
-	for group: Dictionary in losses["groups"]:
-		var what: String = tr("Wires (%d, %s m), cross-section mm²") % [group["count"], String.num(group["length"], 1)]
-		_row(root, ROW_WIRES, group["key"], "%s A" % group["key"], what, group["section"], group["power"], tr("mm²"))
-	if losses["terminal_count"] > 0:
-		_row(root, ROW_TERMINALS, "", "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], losses["terminals"], tr("W"))
-	_row(root, ROW_EXTRA, "", "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], losses["extra"], tr("W"))
-	var total: TreeItem = tree.create_item(root)
-	total.set_text(1, tr("Total P"))
-	total.set_text(3, String.num(losses["total"], 1) if losses["total"] != null else "?")
-	total.set_text_alignment(3, HORIZONTAL_ALIGNMENT_RIGHT)
-	for c: int in 4:
-		total.set_custom_color(c, AppTheme.accent)
-
-
-## A row of the losses table asking [param what] ([param name] the device or
-## the current), [param given] typed in column 2 (null: not given yet,
-## marked), [param loss] in column 3.
-func _row(root: TreeItem, what: String, name: String, item_text: String, text: String, given: Variant, loss: Variant, unit: String) -> void:
-	var item: TreeItem = root.get_tree().create_item(root)
-	item.set_metadata(0, what)
-	item.set_metadata(1, name)
-	item.set_text(0, item_text)
-	item.set_text(1, text)
-	item.set_tooltip_text(1, text)
-	item.set_text(2, _shown(given))
-	item.set_editable(2, true)
-	item.set_text_alignment(2, HORIZONTAL_ALIGNMENT_RIGHT)
-	item.set_tooltip_text(2, unit)
-	item.set_text(3, String.num(loss, 1) if loss != null else "")
-	item.set_text_alignment(3, HORIZONTAL_ALIGNMENT_RIGHT)
-	if given == null:
-		item.set_custom_bg_color(2, Color(AppTheme.warning, 0.25))
-		item.set_tooltip_text(2, tr("Not given yet (%s)") % unit)
 
 
 func _fill_result() -> void:
@@ -410,7 +347,7 @@ func _height_of(rail: Rect2, size: Vector3) -> float:
 
 
 ## A number as typed back into its field ("" for none).
-static func _shown(value: Variant) -> String:
+static func shown(value: Variant) -> String:
 	if value == null:
 		return ""
 	return HeatRise._num(float(value)) if absf(float(value) - roundf(float(value))) < 0.005 else String.num(float(value), 3)
