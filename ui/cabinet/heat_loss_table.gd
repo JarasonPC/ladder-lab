@@ -198,6 +198,7 @@ func _row(what: String, name: String, item: String, text: String, given: Variant
 		types_menu = MenuButton.new()
 		types_menu.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		types_menu.flat = false
+		AppTheme.frame(types_menu)
 		types_menu.icon = AppTheme.icon("chevron_down")
 		types_menu.focus_mode = Control.FOCUS_NONE
 		types_menu.tooltip_text = tr("Types already given to the same device")

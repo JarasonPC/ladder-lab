@@ -1322,7 +1322,8 @@ Architecture and conventions of the code base. Read this before changing the cod
   (a grid: the item, what it is, a device's type (a LineEdit, typed emits ROW_TYPE with the
   text; known gives the types of the same device (device_text alike) on these rails and in
   the other switchboards with their losses: letters added at the end are completed with one,
-  the rest selected; a MenuButton beside lists them; one taken (chosen, Enter, focus left)
+  the rest selected; a MenuButton beside lists them (framed like the field, AppTheme.frame, as
+  the RDF field's "?"); one taken (chosen, Enter, focus left)
   brings its loss into an empty loss field), a LineEdit for the value to give with its unit, "enter" in the warning colour while empty, the loss; the total;
   typed emits each value, show_losses puts the losses in without touching the fields). Each
   device in it is named with what tells it apart (HeatRiseReport.device_text: the parts

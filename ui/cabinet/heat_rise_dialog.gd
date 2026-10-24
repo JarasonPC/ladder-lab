@@ -196,11 +196,7 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	cancel_button_text = tr("Cancel")
 	var captions: Array[String] = [tr("Enclosure"), tr("Installation and air"), tr("Rated diversity factor"), tr("Power lost at the rated currents"), tr("Result")]
 	_rdf_help_button.tooltip_text = tr("What the rated diversity factor is, and the values the standards assume")
-	# Framed like a field beside it, so it reads as a button (the theme's are flat).
-	_rdf_help_button.add_theme_stylebox_override("normal", AppTheme.box(AppTheme.bg1, AppTheme.RADIUS, 9.0, 4.0, AppTheme.border, 1))
-	_rdf_help_button.add_theme_stylebox_override("hover", AppTheme.box(AppTheme.bg2, AppTheme.RADIUS, 9.0, 4.0, AppTheme.border_strong, 1))
-	_rdf_help_button.add_theme_stylebox_override("pressed", AppTheme.box(AppTheme.accent_soft, AppTheme.RADIUS, 9.0, 4.0, AppTheme.accent, 1))
-	_rdf_help_button.add_theme_stylebox_override("hover_pressed", AppTheme.box(AppTheme.accent_soft, AppTheme.RADIUS, 9.0, 4.0, AppTheme.accent, 1))
+	AppTheme.frame(_rdf_help_button)
 	for i: int in _captions.size():
 		_captions[i].text = captions[i].to_upper()
 	var labels: Array[String] = [tr("Height"), tr("Width"), tr("Depth"), tr("Power loss it takes"), tr("Inlet openings"), tr("Outlet openings"),
