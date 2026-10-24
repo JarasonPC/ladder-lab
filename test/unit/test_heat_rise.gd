@@ -413,3 +413,20 @@ func test_whole_list_over_the_screen_takes_what_is_typed() -> void:
 	var small: HeatLossTable = dialog.get("_losses")
 	assert_eq(small.field(HeatRiseDialog.ROW_DEVICE, designation).text, "4.2", "the dialog's table follows")
 	dialog.hide()
+
+
+func test_rdf_help_beside_its_field() -> void:
+	var doc: SchematicDocument = _filled_board()
+	var dialog: HeatRiseDialog = HeatRiseDialog.new()
+	add_child_autofree(dialog)
+	dialog.open(doc, 0, HeatRiseReport.layout(doc, 0))
+	var help_button: Button = dialog.get("_rdf_help_button")
+	assert_eq(help_button.text, "?")
+	assert_eq(help_button.get_parent(), (dialog.get("_fields") as Dictionary)["rdf"].get_parent(), "right beside the RDF field")
+	help_button.pressed.emit()
+	var help: AcceptDialog = dialog.get("_rdf_help")
+	assert_true(help.visible)
+	assert_string_contains(help.dialog_text, "RDF²")
+	assert_false((dialog.get("_rdf_hint") as Label).text.contains("RDF²"), "the explanation is in the help, not under the field")
+	help.hide()
+	dialog.hide()
