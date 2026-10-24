@@ -293,29 +293,3 @@ func test_panel_opens_the_documentation() -> void:
 	dialog.confirmed.emit()
 	dialog.hide()
 	assert_eq(doc.switchboards[0].documentation, {"serial_number": "24004"})
-
-
-func test_devices_alike_given_once() -> void:
-	var doc: SchematicDocument = _house()
-	var dialog: HeatRiseDialog = HeatRiseDialog.new()
-	add_child_autofree(dialog)
-	dialog.open(doc, 0, HeatRiseReport.layout(doc, 0))
-	var table: HeatLossTable = dialog.get("_losses")
-	var devices: Array = (table.get("_rows") as Array).filter(func(r: Dictionary) -> bool: return r["what"] == HeatRiseDialog.ROW_DEVICE)
-	assert_eq(devices.size(), 3, "the RCD, the three B16 breakers as one row, the C10")
-	var b16: Dictionary = devices.filter(func(r: Dictionary) -> bool: return (r["names"] as PackedStringArray).size() == 3)[0]
-	assert_eq(b16["names"], PackedStringArray(["FA1", "FA2", "FA3"]))
-	assert_eq(table.field(HeatRiseDialog.ROW_DEVICE, "FA2"), b16["field"], "any of them finds the row")
-	var gaps: PackedStringArray = HeatRiseReport.gap_texts(doc, dialog.evaluated()["missing"], dialog.evaluated()["losses"])
-	assert_true(gaps.has("The loss of -FA1…-FA3"), "asked for once: %s" % str(gaps))
-	assert_false(gaps.has("The loss of -FA2"))
-	# Typed once, given to each.
-	(b16["field"] as LineEdit).text_changed.emit("1,8")
-	(b16["type"] as LineEdit).text_changed.emit("LTE-16B-1")
-	var s: Dictionary = dialog.settings()
-	for designation: String in ["FA1", "FA2", "FA3"]:
-		assert_eq(s["losses"][designation], 1.8)
-		assert_eq(s["types"][designation], "LTE-16B-1")
-	assert_false(s["losses"].has("FA4"), "the C10 is no B16")
-	assert_eq((b16["loss"] as Label).text, "5.4", "the three together")
-	dialog.hide()

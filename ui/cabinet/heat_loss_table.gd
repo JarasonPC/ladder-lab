@@ -6,10 +6,7 @@ extends VBoxContainer
 ## terminals' and further losses (W). A field not filled in says "enter" in
 ## the warning colour. Beside each its loss (W), under them the total.
 ## A device's type from its maker has a text field of its own (column
-## "Type"). Devices alike (the same name and data, type and loss as given,
-## [method HeatRiseReport.device_groups]) are one row, "-FA1…-FA4" with how
-## many: their type and loss are given once for all of them, the loss
-## beside them all together. Used in the dialog and over the whole screen ([HeatRiseDialog]).
+## "Type"). Used in the dialog and over the whole screen ([HeatRiseDialog]).
 
 ## [param value] was typed for row [param what] ([constant HeatRiseDialog.ROW_DEVICE]
 ## …) of [param name] (the device's designation, the current); null when
@@ -25,9 +22,8 @@ var type_width: float = 96.0
 var text_width: float = 120.0
 
 var _grid: GridContainer
-## Per row: {"what", "name" (the first of "names"), "names" (the devices'
-## designations, a wire group's current, else ""), "field" (LineEdit),
-## "type" (the devices' LineEdit for their type, else null), "loss" (Label)}.
+## Per row: {"what", "name", "field" (LineEdit), "type" (a device's LineEdit
+## for its type, else null), "loss" (Label)}.
 var _rows: Array[Dictionary] = []
 var _total: Label
 var _total_title: Label
@@ -64,20 +60,14 @@ func fill(doc: SchematicDocument, losses: Dictionary) -> void:
 		head.theme_type_variation = "MutedLabel"
 		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if i == 4 else HORIZONTAL_ALIGNMENT_LEFT
 		_grid.add_child(head)
-	for alike: Dictionary in HeatRiseReport.device_groups(doc, losses):
-		var names: PackedStringArray = PackedStringArray()
-		for designation: String in alike["designations"]:
-			names.append(designation.trim_prefix("-"))
-		var text: String = HeatRiseReport.device_text(doc, names[0])
-		if names.size() > 1:
-			text = tr("%d × %s") % [names.size(), text]
-		_row(HeatRiseDialog.ROW_DEVICE, names, PartsList.designations(alike["designations"]), text, alike["power"], "W", alike["type"])
+	for device: Dictionary in losses["devices"]:
+		_row(HeatRiseDialog.ROW_DEVICE, device["designation"], "-" + device["designation"], HeatRiseReport.device_text(doc, device["designation"]), device["power"], "W", device["type"])
 	for group: Dictionary in losses["groups"]:
-		_row(HeatRiseDialog.ROW_WIRES, PackedStringArray([group["key"]]), "%s A" % group["key"], tr("Wires (%d, %s m), cross-section") % [group["count"], String.num(group["length"], 1)], group["section"], "mm²")
+		_row(HeatRiseDialog.ROW_WIRES, group["key"], "%s A" % group["key"], tr("Wires (%d, %s m), cross-section") % [group["count"], String.num(group["length"], 1)], group["section"], "mm²")
 	if losses["terminal_count"] > 0:
-		_row(HeatRiseDialog.ROW_TERMINALS, PackedStringArray([""]), "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], "W")
+		_row(HeatRiseDialog.ROW_TERMINALS, "", "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], "W")
 	_rated = _sum_row(tr("At the rated currents"))
-	_row(HeatRiseDialog.ROW_EXTRA, PackedStringArray([""]), "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], "W")
+	_row(HeatRiseDialog.ROW_EXTRA, "", "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], "W")
 	_total = _sum_row("")
 	_total_title = _grid.get_child(_grid.get_child_count() - 4)
 	show_losses(losses)
@@ -94,11 +84,7 @@ func show_losses(losses: Dictionary) -> void:
 	by_row[HeatRiseDialog.ROW_TERMINALS + "|"] = losses["terminals"]
 	by_row[HeatRiseDialog.ROW_EXTRA + "|"] = losses["extra"]
 	for row: Dictionary in _rows:
-		# Devices alike lose together.
-		var loss: Variant = 0.0
-		for name: String in row["names"]:
-			var part: Variant = by_row.get(row["what"] + "|" + name)
-			loss = null if loss == null or part == null else loss + part
+		var loss: Variant = by_row.get(row["what"] + "|" + row["name"])
 		(row["loss"] as Label).text = String.num(loss, 1) if loss != null else ""
 		var field: LineEdit = row["field"]
 		field.placeholder_text = tr("enter")
@@ -111,11 +97,10 @@ func show_losses(losses: Dictionary) -> void:
 		_total_title.mouse_filter = Control.MOUSE_FILTER_PASS
 
 
-## The text field of row [param what] of [param name] (a device's
-## designation: the row of it and the devices alike), null for none.
+## The text field of row [param what] of [param name], null for none.
 func field(what: String, name: String) -> LineEdit:
 	for row: Dictionary in _rows:
-		if row["what"] == what and (row["names"] as PackedStringArray).has(name):
+		if row["what"] == what and row["name"] == name:
 			return row["field"]
 	return null
 
@@ -123,7 +108,7 @@ func field(what: String, name: String) -> LineEdit:
 ## The text field for the type of device [param name], null for none.
 func type_field(name: String) -> LineEdit:
 	for row: Dictionary in _rows:
-		if row["what"] == HeatRiseDialog.ROW_DEVICE and (row["names"] as PackedStringArray).has(name):
+		if row["what"] == HeatRiseDialog.ROW_DEVICE and row["name"] == name:
 			return row["type"]
 	return null
 
@@ -136,11 +121,9 @@ func fields() -> Array[LineEdit]:
 	return result
 
 
-## A row of [param names] (devices alike: what is typed goes to each); [param
-## type] is the devices' type as given (null: a row that is not a device's,
-## without a type field).
-func _row(what: String, names: PackedStringArray, item: String, text: String, given: Variant, unit: String, type: Variant = null) -> void:
-	var shown_names: String = item.trim_prefix("-")
+## A row; [param type] is the device's type as given (null: a row that is
+## not a device's, without a type field).
+func _row(what: String, name: String, item: String, text: String, given: Variant, unit: String, type: Variant = null) -> void:
 	_grid.add_child(_label(item, item_width))
 	var description: Label = _label(text, -1.0)
 	description.custom_minimum_size.x = text_width
@@ -157,10 +140,8 @@ func _row(what: String, names: PackedStringArray, item: String, text: String, gi
 		type_input.text = str(type)
 		type_input.placeholder_text = tr("enter")
 		type_input.add_theme_color_override("font_placeholder_color", AppTheme.warning)
-		type_input.tooltip_text = tr("Type of -%s from its maker (e.g. its order code)") % shown_names
-		type_input.text_changed.connect(func(value: String) -> void:
-			for name: String in names:
-				typed.emit(HeatRiseDialog.ROW_TYPE, name, value))
+		type_input.tooltip_text = tr("Type of -%s from its maker (e.g. its order code)") % name
+		type_input.text_changed.connect(func(value: String) -> void: typed.emit(HeatRiseDialog.ROW_TYPE, name, value))
 		_grid.add_child(type_input)
 	else:
 		var none: Control = Control.new()
@@ -175,10 +156,8 @@ func _row(what: String, names: PackedStringArray, item: String, text: String, gi
 	input.text = HeatRiseDialog.shown(given)
 	input.placeholder_text = tr("enter")
 	input.add_theme_color_override("font_placeholder_color", AppTheme.warning)
-	input.tooltip_text = tr("Loss of -%s at its rated current, from its maker (W)") % shown_names if what == HeatRiseDialog.ROW_DEVICE else (tr("Cross-section of these wires (mm²)") if what == HeatRiseDialog.ROW_WIRES else tr("W"))
-	input.text_changed.connect(func(value: String) -> void:
-		for name: String in names:
-			typed.emit(what, name, HeatRiseDialog.number(value)))
+	input.tooltip_text = tr("Loss of -%s at its rated current, from its maker (W)") % name if what == HeatRiseDialog.ROW_DEVICE else (tr("Cross-section of these wires (mm²)") if what == HeatRiseDialog.ROW_WIRES else tr("W"))
+	input.text_changed.connect(func(value: String) -> void: typed.emit(what, name, HeatRiseDialog.number(value)))
 	box.add_child(input)
 	var unit_label: Label = Label.new()
 	unit_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -190,7 +169,7 @@ func _row(what: String, names: PackedStringArray, item: String, text: String, gi
 	var loss: Label = _label("", 70.0)
 	loss.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_grid.add_child(loss)
-	_rows.append({"what": what, "name": names[0], "names": names, "field": input, "type": type_input, "loss": loss})
+	_rows.append({"what": what, "name": name, "field": input, "type": type_input, "loss": loss})
 
 
 ## A row of a sum: [param title] across, its value (returned) on the right.

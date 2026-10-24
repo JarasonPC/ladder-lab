@@ -1318,9 +1318,7 @@ Architecture and conventions of the code base. Read this before changing the cod
   round it, the limit, the rails), all following each change; OK saves the settings as one
   edit. The enclosure's power loss is a field under its size. The losses are a HeatLossTable
   (a grid: the item, what it is, a device's type (a LineEdit, typed emits ROW_TYPE with the
-  text; devices alike, HeatRiseReport.device_groups, are one row "-FA1…-FA4" "4 × …" whose
-  type and loss go to each of them and whose loss is theirs together; HeatRiseReport.gap_texts
-  asks for their loss once, in the dialog, the panel's count and the protocol), a LineEdit for the value to give with its unit, "enter" in the warning colour while empty, the loss; the total;
+  text), a LineEdit for the value to give with its unit, "enter" in the warning colour while empty, the loss; the total;
   typed emits each value, show_losses puts the losses in without touching the fields). Each
   device in it is named with what tells it apart (HeatRiseReport.device_text: the parts
   list's name and data, a breaker's, RCD's or fuse's data alone as it names it, an RCD's poles
