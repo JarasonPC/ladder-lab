@@ -14,12 +14,6 @@ extends VBoxContainer
 signal edit_requested(change: Callable)
 ## Device or part [param designation] was selected ("" for none).
 signal selection_changed(designation: String)
-## A breaker or RCD was clicked while simulating.
-signal operate_requested(designation: String)
-## The main switch or the ripple control contact was clicked while simulating.
-signal switch_toggled(designation: String, steps: int)
-## A test button was clicked while simulating.
-signal test_requested(designation: String)
 ## A circuit's room link was clicked.
 signal room_requested(room: String)
 
@@ -99,9 +93,6 @@ func _ready() -> void:
 	canvas.selection_changed.connect(func(designation: String) -> void:
 		_fill()
 		selection_changed.emit(designation))
-	canvas.operate_requested.connect(func(designation: String) -> void: operate_requested.emit(designation))
-	canvas.switch_toggled.connect(func(designation: String, steps: int) -> void: switch_toggled.emit(designation, steps))
-	canvas.test_requested.connect(func(designation: String) -> void: test_requested.emit(designation))
 	canvas.room_requested.connect(func(room: String) -> void: room_requested.emit(room))
 	canvas.resized.connect(func() -> void:
 		if _fit_pending and canvas.size.x > 10.0 and _document != null:
@@ -198,7 +189,7 @@ func _label(parent: Control, variation: String = "") -> Label:
 
 
 ## Shows the diagram of [param doc]; [param editing] lets it be changed,
-## otherwise it operates the simulation. [param fit] shows all of it again.
+## otherwise it is only shown. [param fit] shows all of it again.
 func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> void:
 	_document = doc
 	_editing = editing
@@ -206,7 +197,6 @@ func set_document(doc: SchematicDocument, editing: bool, fit: bool = false) -> v
 	canvas.editing = editing
 	if not editing:
 		canvas.end_place()
-		canvas.step = null
 	if fit:
 		_fit_pending = true
 		if canvas.size.x > 10.0:
@@ -224,11 +214,6 @@ func refresh() -> void:
 	_delete_button.visible = _editing
 	_side.visible = _editing
 	_fill()
-	canvas.queue_redraw()
-
-
-func show_step(result: StepResult) -> void:
-	canvas.step = result if not _editing else null
 	canvas.queue_redraw()
 
 

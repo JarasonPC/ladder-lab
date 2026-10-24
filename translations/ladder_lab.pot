@@ -5156,23 +5156,14 @@ msgstr ""
 msgid "A house installation: the consumer unit as a single-line diagram, with its floor plan"
 msgstr ""
 
-msgid "Main switch: click to switch it while simulating"
-msgstr ""
-
 msgid "Main switch"
 msgstr ""
 
-msgid "Ripple control contactor (HDO, low tariff): click to switch it while simulating"
-msgstr ""
-
-msgid "Test button: click to press it while simulating"
+msgid "Ripple control contactor (HDO, low tariff)"
 msgstr ""
 
 #, c-format
 msgid "Show room %s on the floor plan"
-msgstr ""
-
-msgid "Click to switch it while simulating"
 msgstr ""
 
 msgid "Pick a circuit breaker or an RCD in the palette and click under the busbars to add a circuit."

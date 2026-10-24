@@ -5171,24 +5171,15 @@ msgstr "Vypínače, svítidla a zásuvky volně kreslené a zapojené, k vyzkou�
 msgid "A house installation: the consumer unit as a single-line diagram, with its floor plan"
 msgstr "Domovní instalace: rozváděč jako jednopólové schéma, s půdorysem"
 
-msgid "Main switch: click to switch it while simulating"
-msgstr "Hlavní vypínač: při simulaci ho kliknutím přepnete"
-
 msgid "Main switch"
 msgstr "Hlavní vypínač"
 
-msgid "Ripple control contactor (HDO, low tariff): click to switch it while simulating"
-msgstr "Stykač HDO (nízký tarif): při simulaci ho kliknutím přepnete"
-
-msgid "Test button: click to press it while simulating"
-msgstr "Testovací tlačítko: při simulaci ho kliknutím stisknete"
+msgid "Ripple control contactor (HDO, low tariff)"
+msgstr "Stykač HDO (nízký tarif)"
 
 #, c-format
 msgid "Show room %s on the floor plan"
 msgstr "Ukázat místnost %s na půdorysu"
-
-msgid "Click to switch it while simulating"
-msgstr "Při simulaci ho kliknutím přepnete"
 
 msgid "Pick a circuit breaker or an RCD in the palette and click under the busbars to add a circuit."
 msgstr "Vyberte jistič nebo chránič v paletě a kliknutím pod přípojnice přidáte obvod."

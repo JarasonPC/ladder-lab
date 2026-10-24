@@ -19,7 +19,7 @@ extends Control
 ## the room it goes to (a link to the floor plan). Wheel zooms at the
 ## mouse, right or middle drag pans.
 ##
-## Edit mode: a click selects a device (the main switch too) or a part fed, Shift or Ctrl+click
+## A click selects a device (the main switch too) or a part fed, Shift or Ctrl+click
 ## adds one or takes it out, a drag from an empty place selects what is in
 ## its box; with [method begin_place] the part from the palette goes where
 ## it is clicked (a breaker or RCD between the columns or into a group, a
@@ -27,21 +27,13 @@ extends Control
 ## diagram has none; a breaker, RCBO or AFDD takes the first circuit
 ## waiting for its protection); the devices selected dragged
 ## move their circuits or groups; while placing or dragging the diagram
-## makes room where they go. Delete takes the selection away. Simulate mode: the
-## circuits in the colours of their voltage; a click switches the main
-## switch, a breaker or RCD, the ripple control contact, or presses an RCD's
-## test button.
+## makes room where they go. Delete takes the selection away. A house
+## installation is not simulated: the diagram is only edited.
 
 ## Changes the diagram: [param change] is called with the document.
 signal edit_requested(change: Callable)
 ## Device or part [param designation] was selected ("" for none).
 signal selection_changed(designation: String)
-## Breaker or RCD [param designation] was clicked while simulating.
-signal operate_requested(designation: String)
-## The main switch or the ripple control contact was clicked while simulating.
-signal switch_toggled(designation: String, steps: int)
-## The test button of [param designation] was clicked while simulating.
-signal test_requested(designation: String)
 ## The room link of a circuit was clicked.
 signal room_requested(room: String)
 
@@ -124,8 +116,6 @@ var selected: String = ""
 var selection: PackedStringArray = PackedStringArray()
 ## The palette template put down by a click ({} while not placing).
 var placing: Dictionary = {}
-## Last simulation step shown (null in Edit mode).
-var step: StepResult = null
 ## Drawn for a sheet: no selection, placing or hint.
 var sheet: bool = false
 
@@ -694,8 +684,6 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					end_place()
 		MOUSE_BUTTON_LEFT:
 			if not editing:
-				if mb.pressed:
-					_operate(mb.position)
 				return
 			if mb.pressed:
 				if not placing.is_empty():
@@ -818,19 +806,6 @@ func show_selected(designation: String) -> void:
 	queue_redraw()
 
 
-func _operate(point: Vector2) -> void:
-	var thing: Dictionary = thing_at(point)
-	match thing.get("kind", ""):
-		"main", "hdo":
-			switch_toggled.emit(thing["designation"], 0)
-		"device":
-			operate_requested.emit(thing["designation"])
-		"test":
-			test_requested.emit(thing["designation"])
-		"room":
-			room_requested.emit(thing["designation"])
-
-
 func _place(point: Vector2) -> void:
 	var target: Dictionary = drop_target(point, placing)
 	if target.is_empty():
@@ -908,17 +883,15 @@ static func new_designation(doc: SchematicDocument, template: Dictionary) -> Str
 func _tooltip(thing: Dictionary) -> String:
 	match thing.get("kind", ""):
 		"main":
-			return tr("Main switch: click to switch it while simulating") if not editing else tr("Main switch: Delete takes it away (the supply then goes straight onto the busbars)")
+			return tr("Main switch: Delete takes it away (the supply then goes straight onto the busbars)")
 		"hdo":
-			return tr("Ripple control contactor (HDO, low tariff): click to switch it while simulating")
-		"test":
-			return tr("Test button: click to press it while simulating")
+			return tr("Ripple control contactor (HDO, low tariff)")
 		"room":
 			return tr("Show room %s on the floor plan") % thing["designation"]
 		"warning":
 			return NO_RCD_TEXT
 		"device":
-			return tr("Click to switch it while simulating") if not editing else tr("Drag to move its circuit (the ones selected along); Shift+click selects more; Delete takes them away")
+			return tr("Drag to move its circuit (the ones selected along); Shift+click selects more; Delete takes them away")
 	return ""
 
 
@@ -1005,13 +978,6 @@ func _draw_ghost() -> void:
 			_draw_circuit(entry)
 
 
-## Colour of the voltage that reaches terminal [param key] while simulating.
-func _reach(key: String) -> Color:
-	if step == null or key.is_empty():
-		return SchematicTheme.LINE
-	return SchematicTheme.reach_color(step.terminal_reach.get(key, StepResult.REACH_NONE))
-
-
 func _width(color: Color) -> float:
 	return clampf(1.4 * zoom, 1.0, 3.0) * (1.4 if color != SchematicTheme.LINE else 1.0)
 
@@ -1080,34 +1046,17 @@ static func afdd_color() -> Color:
 	return Color("ff7d6b") if SchematicTheme.dark else Color("e2261c")
 
 
-## Terminal keys of the incoming conductors L1 L2 L3 N: into and out of
-## the main switch's poles (both the supply point without one).
-func _main_keys() -> PackedStringArray:
-	var main: CircuitComponent = document.circuit.get_component(SingleLine.MAIN)
-	if main != null:
-		return main.get_terminal_keys()
-	var keys: PackedStringArray = PackedStringArray()
-	for k: int in 4:
-		keys.append(SingleLine.SUPPLIES[k])
-		keys.append(SingleLine.SUPPLIES[k])
-	return keys
-
-
 func _draw_busbars() -> void:
-	var keys: PackedStringArray = _main_keys()
 	var v1: float = _end_v - SPACING * 0.4
 	# Each from where its conductor comes onto it.
 	for k: int in 3:
-		var color: Color = _reach(keys[2 * k + 1])
-		_seg(BUS_U[k], _main_v(k), BUS_U[k], v1, color, 1.6)
+		_seg(BUS_U[k], _main_v(k), BUS_U[k], v1, SchematicTheme.LINE, 1.6)
 		_across(BUS_U[k], v1, [["L%d" % (k + 1), 12.0, SchematicTheme.TEXT]], false, 8.0)
-	var n_color: Color = _reach(keys[7])
-	_seg(N_U, _main_v(3), N_U, v1, n_color, 1.6)
+	_seg(N_U, _main_v(3), N_U, v1, SchematicTheme.LINE, 1.6)
 	_across(N_U, v1, [["N", 12.0, SchematicTheme.TEXT]], false, 8.0)
 
 
 func _draw_incoming() -> void:
-	var keys: PackedStringArray = _main_keys()
 	var line_color: Color = SchematicTheme.LINE
 	var supply: String = line().supply_cable if not line().supply_cable.is_empty() else SingleLine.SUPPLY_CABLE
 	var main: CamSwitch = document.circuit.get_component(SingleLine.MAIN) as CamSwitch
@@ -1117,12 +1066,12 @@ func _draw_incoming() -> void:
 	for k: int in 4:
 		var v: float = _main_v(k)
 		if main == null:
-			_seg(SUPPLY_U, v, bus[k], v, _reach(keys[2 * k]))
+			_seg(SUPPLY_U, v, bus[k], v, SchematicTheme.LINE)
 		else:
-			_seg(SUPPLY_U, v, MAIN_U, v, _reach(keys[2 * k]))
-			_switch(MAIN_U, v, _reach(keys[2 * k]), _reach(keys[2 * k + 1]), main.position != CamSwitch.OFF, "circle")
-			_seg(MAIN_U + 60.0, v, bus[k], v, _reach(keys[2 * k + 1]))
-		_dot(bus[k], v, _reach(keys[2 * k + 1]))
+			_seg(SUPPLY_U, v, MAIN_U, v, SchematicTheme.LINE)
+			_switch(MAIN_U, v, SchematicTheme.LINE, SchematicTheme.LINE, main.position != CamSwitch.OFF, "circle")
+			_seg(MAIN_U + 60.0, v, bus[k], v, SchematicTheme.LINE)
+		_dot(bus[k], v, SchematicTheme.LINE)
 	_across(SUPPLY_U + 8.0, _main_v(0), [[tr("Incoming supply"), DESIGNATION_SIZE, designation_color()], [supply, DATA_SIZE, data_color()]], true, 10.0)
 	if main != null:
 		_link(MAIN_U, _main_v(0), _main_v(3))
@@ -1135,8 +1084,8 @@ func _draw_incoming() -> void:
 		var box_u: float = SPD_U
 		for k: int in 4:
 			var v: float = SPD_V + k * SPD_POLE
-			_seg(bus[k], v, box_u, v, _reach(keys[2 * k + 1]))
-			_dot(bus[k], v, _reach(keys[2 * k + 1]))
+			_seg(bus[k], v, box_u, v, SchematicTheme.LINE)
+			_dot(bus[k], v, SchematicTheme.LINE)
 		var vc: float = SPD_V + 1.5 * SPD_POLE
 		var box: Rect2 = Rect2(at(box_u, SPD_V - 6.0), Vector2(3.0 * SPD_POLE + 12.0, 28.0) * zoom)
 		draw_rect(box, SchematicTheme.BACKGROUND)
@@ -1154,15 +1103,15 @@ func _draw_incoming() -> void:
 	_bar(BAR_U, pe0, pe1, Color("3aa34a"), Color("f2d21b"))
 	_across(BAR_U + 5.0, pe1, [["PE", 11.0, SchematicTheme.TEXT]], false, 6.0)
 	var pm: float = (pe0 + pe1) * 0.5
-	_seg(BAR_U, pm, SUPPLY_U + 25.0, pm, SchematicTheme.PE if step != null else line_color)
+	_seg(BAR_U, pm, SUPPLY_U + 25.0, pm, line_color)
 	_across(SUPPLY_U + 25.0, pm, [[tr("Earth electrode"), DATA_SIZE, designation_color()]], false, 6.0)
 	var n0: float = SPACING * 2.9
 	var n1: float = SPACING * 4.3
 	_bar(BAR_U, n0, n1, SchematicTheme.NEUTRAL)
 	_across(BAR_U + 5.0, n1, [["N", 11.0, SchematicTheme.TEXT]], false, 6.0)
 	var nm: float = (n0 + n1) * 0.5
-	_seg(BAR_U + 10.0, nm, N_U, nm, _reach(keys[7]))
-	_dot(N_U, nm, _reach(keys[7]))
+	_seg(BAR_U + 10.0, nm, N_U, nm, SchematicTheme.LINE)
+	_dot(N_U, nm, SchematicTheme.LINE)
 
 
 ## The dashed link joining the poles of a device from [param v0] to
@@ -1317,7 +1266,6 @@ func _draw_group(g: Dictionary) -> void:
 	var depth: int = g["depth"]
 	var parent: String = g["parent"]
 	var ru: float = _rcd_u(depth)
-	var keys: PackedStringArray = head.get_terminal_keys()
 	var phases: int = SingleLine.phase_count(head)
 	var n_pole: bool = SingleLine.has_n_pole(head)
 	var poles: PackedFloat32Array = _group_poles(v0, head)
@@ -1333,8 +1281,8 @@ func _draw_group(g: Dictionary) -> void:
 	for k: int in phases:
 		var ph: int = group.phase if phases == 1 else k + 1
 		var pv: float = poles[k]
-		var color_in: Color = _reach(keys[2 * k])
-		var color_out: Color = _reach(keys[2 * k + 1])
+		var color_in: Color = SchematicTheme.LINE
+		var color_out: Color = SchematicTheme.LINE
 		var source: float = _row_u(parent, ph)
 		_seg(source, pv, ru, pv, color_in)
 		_dot(source, pv, color_in)
@@ -1349,8 +1297,8 @@ func _draw_group(g: Dictionary) -> void:
 	if n_pole:
 		# The N from the busbar or the N bar over it, through its N pole onto its N bar.
 		var nv: float = poles[phases]
-		var n_in: Color = _reach(keys[2 * phases])
-		var n_out: Color = _reach(keys[2 * phases + 1])
+		var n_in: Color = SchematicTheme.LINE
+		var n_out: Color = SchematicTheme.LINE
 		_seg(g["n_u"], nv, ru, nv, n_in)
 		_dot(g["n_u"], nv, n_in)
 		_switch(ru, nv, n_in, n_out, closed, "", tripped)
@@ -1416,7 +1364,6 @@ func _draw_circuit(entry: Dictionary) -> void:
 	var v: float = entry["v"]
 	var depth: int = entry["depth"]
 	var parent: String = entry["group"]
-	var keys: PackedStringArray = device.get_terminal_keys()
 	var phases: PackedInt32Array = _shown().phases_of(f, document.circuit, device)
 	var top: float = _breaker_u(depth)
 	var poles: PackedFloat32Array = _circuit_poles(v, device)
@@ -1432,8 +1379,8 @@ func _draw_circuit(entry: Dictionary) -> void:
 	var outs: Array[Color] = []
 	for k: int in phases.size():
 		var pv: float = poles[k]
-		var color_in: Color = _reach(keys[2 * k])
-		var color_out: Color = _reach(keys[2 * k + 1])
+		var color_in: Color = SchematicTheme.LINE
+		var color_out: Color = SchematicTheme.LINE
 		var source: float = _row_u(parent, phases[k])
 		_seg(source, pv, top, pv, color_in)
 		_dot(source, pv, color_in)
@@ -1442,8 +1389,8 @@ func _draw_circuit(entry: Dictionary) -> void:
 		outs.append(color_out)
 	if SingleLine.has_n_pole(device):
 		var nv: float = poles[phases.size()]
-		var n_in: Color = _reach(keys[2 * phases.size()])
-		var n_out: Color = _reach(keys[2 * phases.size() + 1])
+		var n_in: Color = SchematicTheme.LINE
+		var n_out: Color = SchematicTheme.LINE
 		_seg(entry["n_u"], nv, top, nv, n_in)
 		_dot(entry["n_u"], nv, n_in)
 		_switch(top, nv, n_in, n_out, closed, "", tripped)
@@ -1463,11 +1410,10 @@ func _draw_circuit(entry: Dictionary) -> void:
 	if hdo:
 		_seg(u, first, HDO_U, first, outs[0])
 		var contact: CircuitComponent = _hdo_contact(f)
-		var contact_keys: PackedStringArray = contact.get_terminal_keys() if contact != null else PackedStringArray(["", ""])
 		var hdo_closed: bool = contact != null and contact.is_path_closed(0)
-		_switch(HDO_U - 10.0, first, outs[0], _reach(contact_keys[1]), hdo_closed, "arc")
+		_switch(HDO_U - 10.0, first, outs[0], SchematicTheme.LINE, hdo_closed, "arc")
 		_across(HDO_U + 20.0, first, [[_dash(SingleLine.HDO), DATA_SIZE, designation_color()], [tr("HDO"), SMALL_SIZE, SchematicTheme.TEXT]], true, 16.0)
-		outs[0] = _reach(contact_keys[1])
+		outs[0] = SchematicTheme.LINE
 	for k: int in poles.size():
 		var from_u: float = HDO_U + 50.0 if k == 0 and hdo else u
 		_seg(from_u, poles[k], merge_u, poles[k], outs[k])
@@ -1495,9 +1441,8 @@ func _draw_circuit(entry: Dictionary) -> void:
 		var part: CircuitComponent = parts[i]
 		var part_chosen: bool = selection.has(part.designation) and not sheet
 		var color: Color = SchematicTheme.HOVER if part_chosen else SchematicTheme.LINE
-		var on: bool = step != null and part is Load and (part as Load).energized
 		var def: CustomSymbol = document.symbol((part as Appliance).symbol) if part is Appliance else null
-		draw_load(self, part, at(_part_u(i), v), zoom, color, _width(SchematicTheme.LINE), on, def, _font)
+		draw_load(self, part, at(_part_u(i), v), zoom, color, _width(SchematicTheme.LINE), false, def, _font)
 		if i < parts.size() - 1:
 			_dot(_part_u(i), v, out_color)
 		_across(_part_u(i) - 9.0, v, [[_dash(part.designation), SMALL_SIZE, designation_color()]], false, 44.0)
