@@ -1,18 +1,26 @@
 class_name HeatRiseDialog
 extends ConfirmationDialog
 ## The temperature rise of a switchboard ([HeatRise]) worked out from what
-## is on its rails and what is filled in here: the enclosure (its size,
-## from the mounting plate unless typed, how it is installed, ventilation
-## openings, horizontal partitions), the air round it and the most the air
-## inside may reach; the losses of each device at its rated current (an
-## estimate until a maker's figure is typed over it), of the wires and
-## terminals laid out and further losses. The result follows every change:
-## Ae, k, c, the rise half way up and at the top, the temperature of each
-## rail, the curve over the height, what the method could not cover. OK
-## gives the settings back ([signal saved]).
+## is on its rails and what the user gives here, nothing assumed: the
+## enclosure (its size, how it is installed, whether it has ventilation
+## openings and how large, horizontal partitions), the air round it and the
+## most the air inside may reach; each device's loss at its rated current
+## (from its maker), the cross-section of the wires on the nets of each rated
+## current (their lengths come from the wiring laid out), what the strip
+## terminals lose and further losses. An empty field is not given. Until all
+## is, the result says what is missing; then it follows every change: Ae, k,
+## c, the rise half way up and at the top, the temperature of each rail, the
+## curve over the height, what the method could not cover. OK gives the
+## settings back ([signal saved]).
 
 ## The settings were confirmed (see [method HeatRise.settings]).
 signal saved(settings: Dictionary)
+
+## Rows of the losses table by what they ask (metadata of column 0).
+const ROW_DEVICE: String = "device"
+const ROW_WIRES: String = "wires"
+const ROW_TERMINALS: String = "terminals"
+const ROW_EXTRA: String = "extra"
 
 var _document: SchematicDocument
 var _board: int = -1
@@ -27,21 +35,15 @@ var _filling: bool = false
 
 var _captions: Array[Label] = []
 var _labels: Array[Label] = []
-var _height: SpinBox
-var _width: SpinBox
-var _depth: SpinBox
-var _plate_button: Button
+var _fields: Dictionary[String, LineEdit] = {}
+var _plate_note: Label
+var _mounting_label: Label
 var _mounting: OptionButton
-var _vented: CheckBox
-var _inlet: SpinBox
-var _outlet: SpinBox
-var _partitions: SpinBox
-var _ambient: SpinBox
-var _limit: SpinBox
-var _extra: SpinBox
+var _vented_label: Label
+var _vented: OptionButton
+var _partitions: OptionButton
 var _losses: Tree
 var _loss_hint: Label
-var _estimates_button: Button
 var _results: Label
 var _verdict: Label
 var _warnings: Label
@@ -49,89 +51,58 @@ var _curve: HeatRiseCurve
 
 
 func _init() -> void:
-	min_size = Vector2i(980, 560)
+	min_size = Vector2i(1020, 560)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	add_child(row)
 	# The enclosure and the air round it.
-	var left: VBoxContainer = _column(row, 250.0)
+	var left: VBoxContainer = _column(row, 260.0)
 	_caption(left)
-	var grid: GridContainer = GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 8)
-	left.add_child(grid)
-	_height = _number(grid, 0.0, 5000.0, 10.0, " mm")
-	_width = _number(grid, 0.0, 10000.0, 10.0, " mm")
-	_depth = _number(grid, 0.0, 2000.0, 10.0, " mm")
-	_plate_button = Button.new()
-	_plate_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_plate_button.focus_mode = Control.FOCUS_NONE
-	_plate_button.pressed.connect(func() -> void:
-		for key: String in ["height", "width", "depth"]:
-			_settings[key] = 0.0
-		_fill())
-	left.add_child(_plate_button)
+	var grid: GridContainer = _grid(left)
+	for key: String in ["height", "width", "depth"]:
+		_field(grid, key, " mm")
+	_plate_note = _muted(left)
 	_caption(left)
-	_mounting = OptionButton.new()
-	_mounting.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_mounting.fit_to_longest_item = false
-	_mounting.clip_text = true
-	_mounting.item_selected.connect(func(index: int) -> void: _put("mounting", index))
-	left.add_child(_mounting)
-	_vented = CheckBox.new()
-	_vented.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_vented.toggled.connect(func(on: bool) -> void:
-		if _filling:
-			return
-		_settings["inlet"] = maxf(_inlet.value, 100.0) if on else 0.0
-		if on and _settings["outlet"] < HeatRise.OUTLET_SHARE * _settings["inlet"]:
-			_settings["outlet"] = ceilf(HeatRise.OUTLET_SHARE * _settings["inlet"])
-		_fill())
-	left.add_child(_vented)
-	var vents: GridContainer = GridContainer.new()
-	vents.columns = 2
-	vents.add_theme_constant_override("h_separation", 8)
-	left.add_child(vents)
-	_inlet = _number(vents, 0.0, 20000.0, 10.0, " cm²")
-	_outlet = _number(vents, 0.0, 20000.0, 10.0, " cm²")
-	var more: GridContainer = GridContainer.new()
-	more.columns = 2
-	more.add_theme_constant_override("h_separation", 8)
-	left.add_child(more)
-	_partitions = _number(more, 0.0, HeatRise.MAX_PARTITIONS, 1.0, "")
-	_ambient = _number(more, -40.0, 80.0, 1.0, " °C")
-	_limit = _number(more, 0.0, 150.0, 1.0, " °C")
-	_extra = _number(more, 0.0, 10000.0, 1.0, " W")
-	var fields: Dictionary[String, SpinBox] = {"height": _height, "width": _width, "depth": _depth, "inlet": _inlet,
-		"outlet": _outlet, "partitions": _partitions, "ambient": _ambient, "limit": _limit, "extra": _extra}
-	for key: String in fields:
-		var field: SpinBox = fields[key]
-		field.value_changed.connect(func(value: float) -> void: _put(key, int(value) if key == "partitions" else value))
+	_mounting_label = _plain(left)
+	_mounting = _option(left)
+	_mounting.item_selected.connect(func(index: int) -> void: _choose("mounting", index - 1))
+	_vented_label = _plain(left)
+	_vented = _option(left)
+	_vented.item_selected.connect(func(index: int) -> void: _choose("vented", null if index == 0 else index == 2))
+	var vents: GridContainer = _grid(left)
+	_field(vents, "inlet", " cm²")
+	_field(vents, "outlet", " cm²")
+	var more: GridContainer = _grid(left)
+	var label: Label = Label.new()
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	more.add_child(label)
+	_labels.append(label)
+	_partitions = OptionButton.new()
+	_partitions.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_partitions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_partitions.item_selected.connect(func(index: int) -> void: _choose("partitions", index - 1))
+	more.add_child(_partitions)
+	_field(more, "ambient", " °C")
+	_field(more, "limit", " °C")
 	# The losses.
-	var middle: VBoxContainer = _column(row, 330.0)
+	var middle: VBoxContainer = _column(row, 380.0)
 	_caption(middle)
 	_losses = Tree.new()
 	_losses.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_losses.hide_root = true
-	_losses.columns = 3
+	_losses.columns = 4
 	_losses.column_titles_visible = true
 	_losses.select_mode = Tree.SELECT_ROW
 	_losses.set_column_expand(0, false)
-	_losses.set_column_custom_minimum_width(0, 70)
-	_losses.set_column_expand(2, false)
-	_losses.set_column_custom_minimum_width(2, 90)
+	_losses.set_column_custom_minimum_width(0, 64)
+	for c: int in [2, 3]:
+		_losses.set_column_expand(c, false)
+		_losses.set_column_custom_minimum_width(c, 76)
 	_losses.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_losses.custom_minimum_size = Vector2(330, 260)
-	_losses.item_edited.connect(_loss_typed)
+	_losses.custom_minimum_size = Vector2(380, 280)
+	_losses.item_edited.connect(_cell_typed)
 	middle.add_child(_losses)
 	_loss_hint = _muted(middle)
-	_estimates_button = Button.new()
-	_estimates_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_estimates_button.focus_mode = Control.FOCUS_NONE
-	_estimates_button.pressed.connect(func() -> void:
-		_settings["losses"] = {}
-		_fill())
-	middle.add_child(_estimates_button)
 	# The result.
 	var right: VBoxContainer = _column(row, 330.0)
 	_caption(right)
@@ -170,25 +141,33 @@ func open(doc: SchematicDocument, b: int, layout: CabinetLayout) -> void:
 	for i: int in _captions.size():
 		_captions[i].text = captions[i].to_upper()
 	var labels: Array[String] = [tr("Height"), tr("Width"), tr("Depth"), tr("Inlet openings"), tr("Outlet openings"),
-		tr("Horizontal partitions"), tr("Ambient temperature"), tr("Most allowed inside"), tr("Further losses")]
+		tr("Horizontal partitions"), tr("Ambient temperature"), tr("Most allowed inside")]
 	for i: int in _labels.size():
 		_labels[i].text = labels[i]
-	_extra.tooltip_text = tr("Losses of what is not drawn: lighting, fans, heaters, transformers …")
-	_limit.tooltip_text = tr("The warmest the air round the devices may get: see their makers' data (55 °C is common; breakers are rated at 30 °C and carry less above it)")
-	_plate_button.text = tr("Size from the mounting plate")
-	_plate_button.tooltip_text = tr("The enclosure round the mounting plate as laid out, rounded up to 50 mm")
-	_vented.text = tr("Ventilation openings")
+	_fields["limit"].tooltip_text = tr("The warmest the air round the devices may get: see their makers' data")
+	_plate_note.text = tr("The mounting plate as laid out: %s × %s mm (width × height); the enclosure is larger.") % [String.num(_plate.x, 0), String.num(_plate.y, 0)] if _plate.x > 0.0 else ""
+	_mounting_label.text = tr("How the enclosure is installed")
+	_vented_label.text = tr("Ventilation openings")
+	var choose: String = tr("— choose —")
 	_mounting.clear()
+	_mounting.add_item(choose)
 	for mounting: Dictionary in HeatRise.MOUNTINGS:
 		_mounting.add_item("%d · %s" % [mounting["curve"], tr(mounting["title"])])
 	_mounting.tooltip_text = tr("How the enclosure is installed (fig. 1 of the method): which of its surfaces give off heat")
-	_losses.set_column_title(0, tr("Device"))
-	_losses.set_column_title(1, tr("Kind"))
-	_losses.set_column_title(2, tr("Loss (W)"))
-	_loss_hint.text = tr("Estimates (breakers and RCDs the most ČSN EN 60898-1 allows); type the maker's figure over them. Wires and terminals from the wiring laid out, at the rated current of the breaker or fuse on their net.")
-	_estimates_button.text = tr("Back to the estimates")
+	_vented.clear()
+	for text: String in [choose, tr("Without ventilation openings"), tr("With ventilation openings")]:
+		_vented.add_item(text)
+	_partitions.clear()
+	_partitions.add_item(choose)
+	for n: int in HeatRise.MAX_PARTITIONS + 1:
+		_partitions.add_item(str(n))
+	_losses.set_column_title(0, tr("Item"))
+	_losses.set_column_title(1, tr("What"))
+	_losses.set_column_title(2, tr("Given"))
+	_losses.set_column_title(3, tr("Loss (W)"))
+	_loss_hint.text = tr("Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty cell is not given.")
 	_fill()
-	popup_centered_clamped(Vector2i(1060, 680), 0.92)
+	popup_centered_clamped(Vector2i(1100, 680), 0.92)
 
 
 ## The settings being edited.
@@ -201,50 +180,89 @@ func evaluated() -> Dictionary:
 	return _evaluated
 
 
-func _put(key: String, value: Variant) -> void:
+## A number typed in field [param key]: given, or not when it is empty or
+## not a number.
+func _typed(key: String, text: String) -> void:
 	if _filling:
 		return
-	_settings[key] = value
+	var value: Variant = _number(text)
+	if value == null:
+		_settings.erase(key)
+	else:
+		_settings[key] = value
+	_refresh()
+
+
+## [param value] chosen for [param key] (null or a negative index: none).
+func _choose(key: String, value: Variant) -> void:
+	if _filling:
+		return
+	if value == null or (value is int and value < 0):
+		_settings.erase(key)
+	else:
+		_settings[key] = value
 	_fill()
 
 
-## A loss typed in the table: the devices' losses as the table has them,
-## kept by hand where they differ from the estimate.
-func _loss_typed() -> void:
-	var losses: Dictionary = _settings["losses"]
+## A cell typed in the losses table: a device's loss, a cross-section, the
+## strip terminals' or the further losses (empty: not given).
+func _cell_typed() -> void:
 	for item: TreeItem in _losses.get_root().get_children():
-		if item.get_metadata(0) == null:
+		var what: Variant = item.get_metadata(0)
+		if what == null:
 			continue
-		var designation: String = item.get_metadata(0)
-		var value: float = maxf(item.get_range(2), 0.0)
-		if is_equal_approx(value, float(item.get_metadata(2))):
-			losses.erase(designation)
-		else:
-			losses[designation] = value
-	_fill.call_deferred()
+		var value: Variant = _number(item.get_text(2))
+		match what:
+			ROW_DEVICE, ROW_WIRES:
+				var store: String = "losses" if what == ROW_DEVICE else "sections"
+				var given: Dictionary = _settings.get(store, {})
+				var name: String = item.get_metadata(1)
+				if value == null or (what == ROW_WIRES and value <= 0.0):
+					given.erase(name)
+				else:
+					given[name] = value
+				if given.is_empty():
+					_settings.erase(store)
+				else:
+					_settings[store] = given
+			_:
+				var key: String = "terminals" if what == ROW_TERMINALS else "extra"
+				if value == null:
+					_settings.erase(key)
+				else:
+					_settings[key] = value
+	_refresh.call_deferred()
 
 
-## The fields, the table and the result from the settings.
+## [param text] as a number (a decimal comma too), null when it is empty or
+## not a number or negative.
+static func _number(text: String) -> Variant:
+	var t: String = text.strip_edges().replace(",", ".")
+	if t.is_empty() or not t.is_valid_float() or t.to_float() < 0.0:
+		return null
+	return t.to_float()
+
+
+## The fields from the settings, then the table and the result.
 func _fill() -> void:
 	_filling = true
-	_evaluated = HeatRise.evaluate(_document, _board, _plate, _wires, _settings)
-	var size: Vector3 = _evaluated["size"]
-	_height.value = size.x
-	_width.value = size.y
-	_depth.value = size.z
-	_plate_button.disabled = _settings["height"] == 0.0 and _settings["width"] == 0.0 and _settings["depth"] == 0.0
-	_mounting.select(_settings["mounting"])
-	var vented: bool = _settings["inlet"] > 0.0
-	_vented.button_pressed = vented
-	_inlet.editable = vented
-	_outlet.editable = vented
-	_inlet.value = _settings["inlet"]
-	_outlet.value = _settings["outlet"]
-	_partitions.value = _settings["partitions"]
-	_ambient.value = _settings["ambient"]
-	_limit.value = _settings["limit"]
-	_extra.value = _settings["extra"]
+	for key: String in _fields:
+		var field: LineEdit = _fields[key]
+		field.text = _shown(_settings.get(key)) if not field.has_focus() else field.text
+	_mounting.select(int(_settings.get("mounting", -1)) + 1)
+	_vented.select(0 if not _settings.has("vented") else (2 if _settings["vented"] else 1))
+	_partitions.select(int(_settings.get("partitions", -1)) + 1)
+	var vented: bool = _settings.get("vented", false)
+	for key: String in ["inlet", "outlet"]:
+		_fields[key].editable = vented
+		_fields[key].placeholder_text = "" if vented else "—"
 	_filling = false
+	_refresh()
+
+
+## The table and the result again (the fields as they are).
+func _refresh() -> void:
+	_evaluated = HeatRise.evaluate(_document, _board, _wires, _settings)
 	_fill_losses()
 	_fill_result()
 
@@ -254,49 +272,58 @@ func _fill_losses() -> void:
 	_losses.clear()
 	var root: TreeItem = _losses.create_item()
 	for device: Dictionary in losses["devices"]:
-		var item: TreeItem = _losses.create_item(root)
-		item.set_text(0, device["designation"])
-		item.set_text(1, tr(CabinetPanel.KIND_TITLES[device["kind"]]))
-		item.set_cell_mode(2, TreeItem.CELL_MODE_RANGE)
-		item.set_range_config(2, 0.0, 10000.0, 0.1)
-		item.set_range(2, device["power"])
-		item.set_editable(2, true)
-		item.set_metadata(0, device["designation"])
-		item.set_metadata(2, device["estimate"])
-		if not device["set"]:
-			item.set_custom_color(2, AppTheme.text_muted)
-			item.set_tooltip_text(2, tr("Estimate: type the maker's figure"))
-	var rows: Array[Array] = [
-		[tr("Wires (%d, %s m)") % [losses["wire_count"], String.num(losses["wire_length"], 1)], losses["wires"]],
-		[tr("Strip terminals (%d)") % losses["terminal_count"], losses["terminals"]],
-		[tr("Further losses"), losses["extra"]],
-	]
-	for entry: Array in rows:
-		var item: TreeItem = _losses.create_item(root)
-		item.set_text(1, entry[0])
-		item.set_text(2, String.num(entry[1], 1))
-		item.set_text_alignment(2, HORIZONTAL_ALIGNMENT_RIGHT)
-		item.set_selectable(1, false)
+		_row(root, ROW_DEVICE, device["designation"], device["designation"], tr(CabinetPanel.KIND_TITLES[device["kind"]]), device["power"], device["power"], tr("W, from the maker"))
+	for group: Dictionary in losses["groups"]:
+		var what: String = tr("Wires (%d, %s m), cross-section mm²") % [group["count"], String.num(group["length"], 1)]
+		_row(root, ROW_WIRES, group["key"], "%s A" % group["key"], what, group["section"], group["power"], tr("mm²"))
+	if losses["terminal_count"] > 0:
+		_row(root, ROW_TERMINALS, "", "", tr("Strip terminals (%d), all together") % losses["terminal_count"], losses["terminals"], losses["terminals"], tr("W"))
+	_row(root, ROW_EXTRA, "", "", tr("Further losses (lighting, fans, heaters …)"), losses["extra"], losses["extra"], tr("W"))
 	var total: TreeItem = _losses.create_item(root)
 	total.set_text(1, tr("Total P"))
-	total.set_text(2, String.num(losses["total"], 1))
-	total.set_text_alignment(2, HORIZONTAL_ALIGNMENT_RIGHT)
-	for c: int in 3:
+	total.set_text(3, String.num(losses["total"], 1) if losses["total"] != null else "?")
+	total.set_text_alignment(3, HORIZONTAL_ALIGNMENT_RIGHT)
+	for c: int in 4:
 		total.set_custom_color(c, AppTheme.accent)
 
 
+## A row of the losses table asking [param what] ([param name] the device or
+## the current), [param given] typed in column 2 (null: not given yet,
+## marked), [param loss] in column 3.
+func _row(root: TreeItem, what: String, name: String, item_text: String, text: String, given: Variant, loss: Variant, unit: String) -> void:
+	var item: TreeItem = _losses.create_item(root)
+	item.set_metadata(0, what)
+	item.set_metadata(1, name)
+	item.set_text(0, item_text)
+	item.set_text(1, text)
+	item.set_tooltip_text(1, text)
+	item.set_text(2, _shown(given))
+	item.set_editable(2, true)
+	item.set_text_alignment(2, HORIZONTAL_ALIGNMENT_RIGHT)
+	item.set_tooltip_text(2, unit)
+	item.set_text(3, String.num(loss, 1) if loss != null else "")
+	item.set_text_alignment(3, HORIZONTAL_ALIGNMENT_RIGHT)
+	if given == null:
+		item.set_custom_bg_color(2, Color(AppTheme.warning, 0.25))
+		item.set_tooltip_text(2, tr("Not given yet (%s)") % unit)
+
+
 func _fill_result() -> void:
-	var r: Dictionary = _evaluated["result"]
-	var section: Dictionary = r["section"]
-	var size: Vector3 = _evaluated["size"]
-	var lines: PackedStringArray = PackedStringArray()
-	if size.x <= 0.0 or size.y <= 0.0 or size.z <= 0.0:
-		_results.text = tr("Give the enclosure's size (nothing is on the rails yet to size it by).")
+	var gaps: Array = _evaluated["missing"]
+	if not gaps.is_empty():
+		var lines: PackedStringArray = PackedStringArray([tr("Still to give:")])
+		for gap: Dictionary in gaps:
+			lines.append("• " + (tr(gap["text"]) % gap["args"] if not (gap["args"] as Array).is_empty() else tr(gap["text"])))
+		_results.text = "\n".join(lines)
 		_verdict.text = ""
 		_warnings.text = ""
 		_curve.result = {}
 		_curve.queue_redraw()
 		return
+	var r: Dictionary = _evaluated["result"]
+	var section: Dictionary = r["section"]
+	var size: Vector3 = _evaluated["size"]
+	var lines: PackedStringArray = PackedStringArray()
 	if r["sections"] > 1:
 		lines.append(tr("Reckoned in %d sections %s m wide (the warmest shown).") % [r["sections"], String.num(section["width"], 2)])
 	var parts: PackedStringArray = PackedStringArray()
@@ -338,10 +365,15 @@ func _fill_result() -> void:
 ## [param rail] (mm on the plate) is, the plate in the middle of an
 ## enclosure [param size] high.
 func _height_of(rail: Rect2, size: Vector3) -> float:
-	if size.x <= 0.0:
-		return 0.5
 	var from_top: float = (size.x - _plate.y) / 2.0 + rail.get_center().y
 	return clampf(1.0 - from_top / size.x, 0.0, 1.0)
+
+
+## A number as typed back into its field ("" for none).
+static func _shown(value: Variant) -> String:
+	if value == null:
+		return ""
+	return HeatRise._num(float(value)) if absf(float(value) - roundf(float(value))) < 0.005 else String.num(float(value), 3)
 
 
 func _column(row: HBoxContainer, width: float) -> VBoxContainer:
@@ -371,17 +403,49 @@ func _muted(column: VBoxContainer) -> Label:
 	return label
 
 
-func _number(grid: GridContainer, low: float, high: float, step: float, suffix: String) -> SpinBox:
+func _plain(column: VBoxContainer) -> Label:
+	var label: Label = Label.new()
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	column.add_child(label)
+	return label
+
+
+func _grid(column: VBoxContainer) -> GridContainer:
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 8)
+	column.add_child(grid)
+	return grid
+
+
+func _option(column: VBoxContainer) -> OptionButton:
+	var option: OptionButton = OptionButton.new()
+	option.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	option.fit_to_longest_item = false
+	option.clip_text = true
+	column.add_child(option)
+	return option
+
+
+## A labelled number field for [param key] ([param unit] after it); empty
+## while not given.
+func _field(grid: GridContainer, key: String, unit: String) -> void:
 	var label: Label = Label.new()
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	grid.add_child(label)
 	_labels.append(label)
-	var field: SpinBox = SpinBox.new()
-	field.min_value = low
-	field.max_value = high
-	field.step = step
-	field.suffix = suffix
-	field.select_all_on_focus = true
+	var box: HBoxContainer = HBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_child(box)
+	var field: LineEdit = LineEdit.new()
 	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_child(field)
-	return field
+	field.select_all_on_focus = true
+	field.text_changed.connect(func(text: String) -> void: _typed(key, text))
+	box.add_child(field)
+	var suffix: Label = Label.new()
+	suffix.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	suffix.theme_type_variation = "MutedLabel"
+	suffix.text = unit.strip_edges()
+	suffix.custom_minimum_size.x = 30.0
+	box.add_child(suffix)
+	_fields[key] = field

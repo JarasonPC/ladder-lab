@@ -20,9 +20,8 @@ var rails: Array[CabinetRail] = []
 var door: ControlBox = ControlBox.new("", DOOR_COLUMNS)
 ## Top-left corner of its tile on the workspace.
 var position: Vector2 = Vector2.ZERO
-## What its temperature rise calculation is given beyond the drawing (see
-## [method HeatRise.settings]): only what differs from
-## [constant HeatRise.DEFAULTS].
+## What its temperature rise calculation was given beyond the drawing (see
+## [method HeatRise.settings]); nothing for what was not.
 var heat: Dictionary = {}
 
 
@@ -66,5 +65,5 @@ static func from_data(data: Variant) -> Switchboard:
 		if door != null:
 			board.door = door
 	board.door.name = ""
-	board.heat = HeatRise.changed(HeatRise.settings(d.get("heat", {})))
+	board.heat = HeatRise.settings(d.get("heat", {}))
 	return board

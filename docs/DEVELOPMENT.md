@@ -1281,26 +1281,33 @@ Architecture and conventions of the code base. Read this before changing the cod
   MAX_AE or wider than MAX_WIDTH in sections of equal width (the ends with their sides, the
   dividing walls not counted), Ae up to SMALL by figs. 6 and 7 (openings ignored, noted);
   rise_at the curve over the height (the straight line, the top quarter of a small one flat,
-  the line on down under the middle). losses(doc, board, wires, settings): each device on its
-  rails (an overload relay under its contactor too) at its rated current, estimate (breakers,
-  RCDs and motor breakers per pole the most ČSN EN 60898-1 allows, fuse links by size, fixed
-  figures for the others) unless set by hand ("losses" by designation); the wires laid out
-  (CabinetWiring.wires: their length, the largest rated current of a breaker, fuse or
-  overload relay on their net, net_currents; section_for by the current, resistance from
-  CONDUCTORS of annex H of ČSN EN 61439-1 at CONDUCTOR_TEMPERATURE; PE and Ethernet none),
-  strip terminals TERMINAL_RESISTANCE each, "extra". Switchboard.heat keeps what differs from
-  DEFAULTS (settings cleans, changed strips; saved as the switchboard's "heat", ProjectFile 55):
-  the enclosure's size (0: the mounting plate laid out with PLATE_MARGIN rounded up to
-  ROUND_TO, depth DEPTH or UNIT_DEPTH for a consumer unit, enclosure), "mounting", "inlet" /
-  "outlet" openings (cm², 0 closed), "partitions", "ambient", "limit" (°C), "extra" (W).
-  evaluate(doc, board, plate, wires) runs it all. CabinetPanel (Edit mode) shows under its
-  tools how warm it gets at the top (green within the limit, red above) and "Temperature
-  rise…" opening HeatRiseDialog (ui/cabinet/): the enclosure and air fields, the losses as a
-  Tree (each device's loss typed over its estimate, muted while estimated; wires, strip
-  terminals, further losses, total), the result (Ae with its surfaces, k, d, x, Δt0,5, f or
-  g and c, Δt1,0, each rail's temperature at its height on the plate, the verdict, the
-  warnings) and HeatRiseCurve (the curve over the height as figs. 8 and 9, the air round it,
-  the limit, the rails), all following each change; OK saves the settings as one edit
+  the line on down under the middle). Nothing is assumed: no default values, no estimated
+  losses; what the drawing does not tell is given by the user and the calculation is made
+  only when all of it is (missing lists the rest: the enclosure's height, width and depth,
+  "mounting", "vented" and then "inlet" and "outlet", "partitions", "ambient", "limit", each
+  device's loss, the cross-section of each group of wires, the strip terminals' loss when
+  there are any, "extra"). losses(doc, board, wires, settings): the devices on its rails (an
+  overload relay under its contactor too) with their losses as given ("losses" by
+  designation, null while not); the wires laid out (CabinetWiring.wires) grouped by the
+  largest rated current of a breaker, RCD, fuse or overload relay on their net
+  (net_currents; a net without one, and PE and Ethernet, not counted), each group's length
+  and its cross-section as given ("sections" by the current as text, _num), loss by
+  conductor_loss as annex H of ČSN EN 61439-1 at CONDUCTOR_TEMPERATURE with CONDUCTORS'
+  resistances; "terminals" and "extra" as given; the total null while anything is missing.
+  Switchboard.heat keeps what was given (settings cleans: right kind and range only; saved
+  as the switchboard's "heat", ProjectFile 55). evaluate(doc, board, wires) runs it all
+  ({"settings", "losses", "missing", "size", "result"}). CabinetPanel (Edit mode) shows under
+  its tools how many values are still to give, or once all are, how warm it gets at the top
+  (green within the limit, red above), and "Temperature rise…" opening HeatRiseDialog
+  (ui/cabinet/): number fields empty until typed (a decimal comma taken), the installation,
+  ventilation and partitions chosen from "— choose —", the mounting plate's size shown as a
+  fact; the losses as a Tree (device losses, each wire group's cross-section, the strip
+  terminals, further losses typed in column "Given", marked while not given; the loss and the
+  total beside); the result: what is still to give, else Ae with its surfaces, k, d, x,
+  Δt0,5, f or g and c, Δt1,0, each rail's temperature at its height on the plate, the
+  verdict, the warnings and HeatRiseCurve (the curve over the height as figs. 8 and 9, the air
+  round it, the limit, the rails), all following each change; OK saves the settings as one
+  edit
 - Training plans (wiring exercises): File > Save as training plan… (main.gd _save_plan, the
   plan dialog's tick "List the mistakes…") writes a copy of an industrial schematic with
   switchboards as a .ladplan (TrainingPlan.EXTENSION; the .ladder format, the document's

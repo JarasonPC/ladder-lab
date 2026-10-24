@@ -156,7 +156,7 @@ func _ready() -> void:
 		edit_requested.emit(func(doc: SchematicDocument) -> void:
 			for sb: Switchboard in doc.switchboards:
 				if sb.name == board:
-					sb.heat = HeatRise.changed(settings)))
+					sb.heat = HeatRise.settings(settings)))
 	add_child(_heat_dialog)
 	_across = ScrollContainer.new()
 	_across.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -403,20 +403,25 @@ func _rebuild() -> void:
 ## [HeatRise]), and the button opening the calculation to fill in.
 func _heat_tools(b: int) -> void:
 	var layout: CabinetLayout = _view.layout()
-	if not _document.switchboards[b].rails.is_empty() and layout != null and layout.size.x > 0.0:
-		var evaluated: Dictionary = HeatRise.evaluate(_document, b, layout.size, layout.wiring.wires if layout.wiring != null else [])
-		var r: Dictionary = evaluated["result"]
-		var s: Dictionary = evaluated["settings"]
+	if not _document.switchboards[b].rails.is_empty() and layout != null:
+		var evaluated: Dictionary = HeatRise.evaluate(_document, b, layout.wiring.wires if layout.wiring != null else [])
 		var summary: Label = Label.new()
 		summary.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		summary.text = tr("Temperature rise: at the top about %s °C (%s °C around, at most %s °C), %s W lost inside") % [
-			String.num(r["temperature"], 0), String.num(s["ambient"], 0), String.num(s["limit"], 0), String.num(evaluated["losses"]["total"], 0)]
-		summary.add_theme_color_override("font_color", AppTheme.success if r["ok"] else AppTheme.danger)
+		var gaps: int = (evaluated["missing"] as Array).size()
+		if gaps > 0:
+			summary.text = tr_n("Temperature rise: %d value still to give", "Temperature rise: %d values still to give", gaps) % gaps
+			summary.add_theme_color_override("font_color", AppTheme.warning)
+		else:
+			var r: Dictionary = evaluated["result"]
+			var s: Dictionary = evaluated["settings"]
+			summary.text = tr("Temperature rise: at the top about %s °C (%s °C around, at most %s °C), %s W lost inside") % [
+				String.num(r["temperature"], 0), String.num(s["ambient"], 0), String.num(s["limit"], 0), String.num(evaluated["losses"]["total"], 0)]
+			summary.add_theme_color_override("font_color", AppTheme.success if r["ok"] else AppTheme.danger)
 		_list.add_child(summary)
 	var open: Button = _button(tr("Temperature rise…"), "thermometer")
 	open.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	open.tooltip_text = tr("Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): fill in the enclosure, how it is installed and the devices' losses")
+	open.tooltip_text = tr("Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections")
 	open.disabled = layout == null or _document.switchboards[b].rails.is_empty()
 	open.pressed.connect(func() -> void: _heat_dialog.open(_document, b, _view.layout()))
 	_list.add_child(open)

@@ -568,8 +568,6 @@ msgstr ""
 msgid "Simulate"
 msgstr ""
 
-
-
 msgid "Direction of the current paths"
 msgstr ""
 
@@ -1129,7 +1127,6 @@ msgstr ""
 
 msgid "Export page as PNG…"
 msgstr ""
-
 
 msgid "Export PDF"
 msgstr ""
@@ -4563,7 +4560,6 @@ msgstr ""
 msgid "10 V (reference)"
 msgstr ""
 
-
 #, c-format
 msgid "%s is not on this CPU or its modules."
 msgstr ""
@@ -4612,7 +4608,6 @@ msgstr ""
 msgid "Light switch no. %s of a house installation"
 msgstr ""
 
-
 #, c-format
 msgid "Pole %d, supply"
 msgstr ""
@@ -4625,35 +4620,24 @@ msgstr ""
 msgid "Pole %d, output"
 msgstr ""
 
-
 msgid "The supply of both rockers."
 msgstr ""
-
 
 #, c-format
 msgid "Closed to %s by the first rocker."
 msgstr ""
 
-
 #, c-format
 msgid "Closed to %s by the second rocker."
 msgstr ""
-
 
 #, c-format
 msgid "Closed to %s at rest."
 msgstr ""
 
-
 #, c-format
 msgid "Closed to %s switched over."
 msgstr ""
-
-
-
-
-
-
 
 msgid "Traveller in"
 msgstr ""
@@ -4726,7 +4710,6 @@ msgstr ""
 msgid "(standard)"
 msgstr ""
 
-
 msgid "Rated power (W)"
 msgstr ""
 
@@ -4738,7 +4721,6 @@ msgstr ""
 
 msgid "Double"
 msgstr ""
-
 
 msgid "Mounting height (m)"
 msgstr ""
@@ -4755,8 +4737,6 @@ msgstr ""
 
 msgid "5 - series (two rockers)"
 msgstr ""
-
-
 
 msgid "6 - two-way (staircase)"
 msgstr ""
@@ -4784,8 +4764,6 @@ msgstr ""
 
 msgid "Switch no. 5 (series, two rockers)"
 msgstr ""
-
-
 
 msgid "Switch no. 6 (two-way, staircase)"
 msgstr ""
@@ -7145,22 +7123,7 @@ msgstr ""
 msgid "At the top %s °C: within %s °C."
 msgstr ""
 
-msgid "Back to the estimates"
-msgstr ""
-
 msgid "Enclosure"
-msgstr ""
-
-msgid "Estimate: type the maker's figure"
-msgstr ""
-
-msgid "Estimates (breakers and RCDs the most ČSN EN 60898-1 allows); type the maker's figure over them. Wires and terminals from the wiring laid out, at the rated current of the breaker or fuse on their net."
-msgstr ""
-
-msgid "Further losses"
-msgstr ""
-
-msgid "Give the enclosure's size (nothing is on the rails yet to size it by)."
 msgstr ""
 
 msgid "Horizontal partitions"
@@ -7176,9 +7139,6 @@ msgid "Installation and air"
 msgstr ""
 
 msgid "Loss (W)"
-msgstr ""
-
-msgid "Losses of what is not drawn: lighting, fans, heaters, transformers …"
 msgstr ""
 
 msgid "Most allowed inside"
@@ -7199,12 +7159,6 @@ msgstr ""
 msgid "Result"
 msgstr ""
 
-msgid "Size from the mounting plate"
-msgstr ""
-
-msgid "Strip terminals (%d)"
-msgstr ""
-
 msgid "Temperature rise of +%s"
 msgstr ""
 
@@ -7214,22 +7168,7 @@ msgstr ""
 msgid "Temperature rise…"
 msgstr ""
 
-msgid "The enclosure round the mounting plate as laid out, rounded up to 50 mm"
-msgstr ""
-
-msgid "The warmest the air round the devices may get: see their makers' data (55 °C is common; breakers are rated at 30 °C and carry less above it)"
-msgstr ""
-
 msgid "Total P"
-msgstr ""
-
-msgid "Ventilation openings"
-msgstr ""
-
-msgid "Wires (%d, %s m)"
-msgstr ""
-
-msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): fill in the enclosure, how it is installed and the devices' losses"
 msgstr ""
 
 msgid "Separate enclosure, free on all sides"
@@ -7275,4 +7214,109 @@ msgid "Right side"
 msgstr ""
 
 msgid "Back wall"
+msgstr ""
+
+msgid "Further losses (lighting, fans, heaters …)"
+msgstr ""
+
+msgid "Given"
+msgstr ""
+
+msgid "How the enclosure is installed"
+msgstr ""
+
+msgid "Item"
+msgstr ""
+
+msgid "Not given yet (%s)"
+msgstr ""
+
+msgid "Still to give:"
+msgstr ""
+
+msgid "Strip terminals (%d), all together"
+msgstr ""
+
+msgid "The ambient temperature"
+msgstr ""
+
+msgid "The cross-section of the wires carrying %s A"
+msgstr ""
+
+msgid "The enclosure's depth"
+msgstr ""
+
+msgid "The enclosure's height"
+msgstr ""
+
+msgid "The enclosure's width"
+msgstr ""
+
+msgid "The further losses"
+msgstr ""
+
+msgid "The horizontal partitions"
+msgstr ""
+
+msgid "The inlet openings"
+msgstr ""
+
+msgid "The loss of -%s"
+msgstr ""
+
+msgid "The loss of the strip terminals"
+msgstr ""
+
+msgid "The most allowed inside"
+msgstr ""
+
+msgid "The mounting plate as laid out: %s × %s mm (width × height); the enclosure is larger."
+msgstr ""
+
+msgid "The outlet openings"
+msgstr ""
+
+msgid "The warmest the air round the devices may get: see their makers' data"
+msgstr ""
+
+msgid "Type each device's loss at its rated current from its maker's data, and the cross-section of the wires on the nets of each rated current: their lengths come from the wiring laid out and the loss as annex H of ČSN EN 61439-1 reckons it at 70 °C. An empty cell is not given."
+msgstr ""
+
+msgid "W"
+msgstr ""
+
+msgid "W, from the maker"
+msgstr ""
+
+msgid "What"
+msgstr ""
+
+msgid "Whether it has ventilation openings"
+msgstr ""
+
+msgid "Wires (%d, %s m), cross-section mm²"
+msgstr ""
+
+msgid "With ventilation openings"
+msgstr ""
+
+msgid "Without ventilation openings"
+msgstr ""
+
+msgid "Work out how warm the air inside gets (IEC 890 / ČSN 33 7107): give the enclosure, how it is installed, the devices' losses and the wires' cross-sections"
+msgstr ""
+
+msgid "mm²"
+msgstr ""
+
+msgid "— choose —"
+msgstr ""
+
+msgid "Temperature rise: %d value still to give"
+msgid_plural "Temperature rise: %d values still to give"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+msgid "Ventilation openings"
 msgstr ""
