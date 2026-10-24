@@ -1,14 +1,16 @@
 class_name SingleLineView
 extends VBoxContainer
 ## The single-line diagram of a residential installation's consumer unit
-## (the Schematic area of a residential schematic): a bar with Delete and
-## Fit over the [SingleLineCanvas] and, in Edit mode, a panel beside it with
-## what the diagram keeps of the selected circuit (the circuit its device
-## protects, chosen from those waiting for protection, its phase, where it
-## goes, the room, its cable, ripple control) or, with nothing selected, of
-## the supply (its cable, the SPD) and the circuits made on the floor plan
-## that nothing protects yet. Every change is emitted as one undoable edit
-## of the document.
+## (the Schematic area of a residential schematic): the [SingleLineCanvas]
+## with zoom buttons in its corner and, in Edit mode, what the diagram keeps
+## of the selected circuit (the circuit its device protects, chosen from
+## those waiting for protection, its phase, where it goes, the room, its
+## cable, ripple control) or, with nothing selected, of the supply (its
+## cable, the SPD) and the circuits made on the floor plan that nothing
+## protects yet. Those fields ([member panel]) and the circuit's checks
+## under them ([member checks_panel]) are shown by the main window in its
+## side panel, above and below the properties of the device selected. Every
+## change is emitted as one undoable edit of the document.
 
 ## A change of the diagram: [param change] is called with the document.
 signal edit_requested(change: Callable)
@@ -21,9 +23,13 @@ var canvas: SingleLineCanvas
 var _document: SchematicDocument
 var _editing: bool = false
 var _fit_pending: bool = true
-var _delete_button: Button
+## The fields of the selected circuit, group or the supply (shown by the
+## main window over the properties of the device selected).
+var panel: VBoxContainer
+## The selected circuit's checks and the help (shown under those properties).
+var checks_panel: VBoxContainer
 var _fit_button: Button
-var _side: PanelContainer
+var _zoom_buttons: Array[Button] = []
 var _title: Label
 ## The circuit the selected device protects: its own, a waiting one, or a new one.
 var _number_label: Label
@@ -46,8 +52,14 @@ var _spd: CheckBox
 var _hint: Label
 ## What a circuit without a 30 mA RCD lacks.
 var _warning: Label
-## A circuit's cable length from the plan, its voltage drop and loop impedance.
-var _checks: Label
+## A circuit's cable length from the plan, its voltage drop and loop impedance,
+## a row each with its mark.
+var _checks: VBoxContainer
+var _checks_label: Label
+## The help: two sentences while nothing is selected ([member _intro]),
+## the whole of it under a link.
+var _intro: Label
+var _help_link: Button
 ## The supply's loop impedance at the consumer unit.
 var _ze_label: Label
 var _ze: SpinBox
@@ -60,32 +72,6 @@ var _shown: String = ""
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 0)
-	var bar_panel: PanelContainer = PanelContainer.new()
-	bar_panel.theme_type_variation = "PageBar"
-	add_child(bar_panel)
-	var bar: HBoxContainer = HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 4)
-	bar.custom_minimum_size.y = 30.0
-	bar_panel.add_child(bar)
-	_delete_button = Button.new()
-	_delete_button.theme_type_variation = "ToolButton"
-	_delete_button.focus_mode = Control.FOCUS_NONE
-	_delete_button.icon = AppTheme.icon("delete")
-	_delete_button.pressed.connect(func() -> void: canvas.delete_selected())
-	bar.add_child(_delete_button)
-	var spacer: Control = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(spacer)
-	_fit_button = Button.new()
-	_fit_button.theme_type_variation = "ToolButton"
-	_fit_button.focus_mode = Control.FOCUS_NONE
-	_fit_button.pressed.connect(func() -> void: canvas.fit())
-	bar.add_child(_fit_button)
-
-	var body: HBoxContainer = HBoxContainer.new()
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 0)
-	add_child(body)
 	canvas = SingleLineCanvas.new()
 	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -98,19 +84,42 @@ func _ready() -> void:
 		if _fit_pending and canvas.size.x > 10.0 and _document != null:
 			_fit_pending = false
 			canvas.fit())
-	body.add_child(canvas)
+	add_child(canvas)
+	# Zoom out, in, show all: in the corner of the drawing.
+	var zoom: HBoxContainer = HBoxContainer.new()
+	zoom.add_theme_constant_override("separation", 4)
+	zoom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	zoom.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	zoom.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	zoom.offset_left = -10.0
+	zoom.offset_top = -10.0
+	zoom.offset_right = -10.0
+	zoom.offset_bottom = -10.0
+	canvas.add_child(zoom)
+	for step: float in [1.0 / SingleLineCanvas.ZOOM_STEP, SingleLineCanvas.ZOOM_STEP]:
+		var button: Button = Button.new()
+		button.focus_mode = Control.FOCUS_NONE
+		button.icon = AppTheme.icon("zoom_out" if step < 1.0 else "zoom_in")
+		AppTheme.frame(button)
+		button.pressed.connect(func() -> void: _zoom_by(step))
+		zoom.add_child(button)
+		_zoom_buttons.append(button)
+	_fit_button = Button.new()
+	_fit_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_fit_button.focus_mode = Control.FOCUS_NONE
+	AppTheme.frame(_fit_button)
+	_fit_button.pressed.connect(func() -> void: canvas.fit())
+	zoom.add_child(_fit_button)
 
-	_side = PanelContainer.new()
-	_side.theme_type_variation = "LeftPanel"
-	_side.custom_minimum_size.x = 220.0
-	body.add_child(_side)
-	var fields: VBoxContainer = VBoxContainer.new()
-	fields.add_theme_constant_override("separation", 6)
-	_side.add_child(fields)
+	panel = VBoxContainer.new()
+	panel.add_theme_constant_override("separation", 6)
+	var fields: VBoxContainer = panel
 	_title = _label(fields, "HeaderLabel")
 	_number_label = _label(fields)
 	_number = OptionButton.new()
 	_number.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_number.fit_to_longest_item = false
+	_number.clip_text = true
 	_number.item_selected.connect(func(index: int) -> void:
 		var f: SingleLine.Feeder = _feeder()
 		if f == null or index >= _numbers.size():
@@ -136,6 +145,8 @@ func _ready() -> void:
 	_room_label = _label(fields)
 	_room = OptionButton.new()
 	_room.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_room.fit_to_longest_item = false
+	_room.clip_text = true
 	_room.item_selected.connect(func(index: int) -> void:
 		var room: String = _rooms[index] if index < _rooms.size() else ""
 		_edit_feeder(func(f: SingleLine.Feeder) -> void: f.room = room))
@@ -166,17 +177,44 @@ func _ready() -> void:
 	_waiting = _label(fields)
 	_waiting.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_waiting.custom_minimum_size.x = 200.0
-	_checks = _label(fields)
-	_checks.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_checks.custom_minimum_size.x = 200.0
-	_warning = _label(fields)
+
+	checks_panel = VBoxContainer.new()
+	checks_panel.add_theme_constant_override("separation", 6)
+	_checks_label = _label(checks_panel, "HeaderLabel")
+	_checks = VBoxContainer.new()
+	_checks.add_theme_constant_override("separation", 4)
+	checks_panel.add_child(_checks)
+	_warning = _label(checks_panel)
 	_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_warning.custom_minimum_size.x = 200.0
 	_warning.add_theme_color_override("font_color", SchematicTheme.WARNING)
-	_hint = _label(fields, "MutedLabel")
+	_help_link = Button.new()
+	_help_link.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_help_link.theme_type_variation = "ListButton"
+	_help_link.focus_mode = Control.FOCUS_NONE
+	_help_link.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_help_link.toggle_mode = true
+	_help_link.toggled.connect(func(on: bool) -> void:
+		_hint.visible = on
+		_fill())
+	_intro = _label(checks_panel, "MutedLabel")
+	_intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_intro.custom_minimum_size.x = 200.0
+	checks_panel.add_child(_help_link)
+	_hint = _label(checks_panel, "MutedLabel")
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.custom_minimum_size.x = 200.0
+	_hint.visible = false
 	retranslate()
+
+
+## Zooms by [param factor] about the middle of the drawing.
+func _zoom_by(factor: float) -> void:
+	var middle: Vector2 = canvas.size * 0.5
+	var before: Vector2 = (middle - canvas.offset) / canvas.zoom
+	canvas.zoom = clampf(canvas.zoom * factor, SingleLineCanvas.MIN_ZOOM, SingleLineCanvas.MAX_ZOOM)
+	canvas.offset = middle - before * canvas.zoom
+	canvas.queue_redraw()
 
 
 func _label(parent: Control, variation: String = "") -> Label:
@@ -211,8 +249,6 @@ func refresh() -> void:
 		return
 	if not canvas.selected.is_empty() and _document.circuit.get_component(canvas.selected) == null:
 		canvas.show_selected("")
-	_delete_button.visible = _editing
-	_side.visible = _editing
 	_fill()
 	canvas.queue_redraw()
 
@@ -283,10 +319,14 @@ func _fill() -> void:
 	_ze.visible = _spd.visible
 	_ze.set_value_no_signal(line.supply_impedance)
 	_checks.visible = feeder_shown
+	_checks_label.visible = feeder_shown
+	for row: Node in _checks.get_children():
+		_checks.remove_child(row)
+		row.queue_free()
 	if feeder_shown:
 		var check: Dictionary = SingleLineView.checks(line, f, _document)
-		_checks.text = check["text"]
-		_checks.add_theme_color_override("font_color", SchematicTheme.WARNING if check["bad"] else SchematicTheme.TEXT)
+		for item: Dictionary in check["rows"]:
+			_checks.add_child(_check_row(item["text"], item["state"]))
 	_phase_label.visible = feeder_shown or group != null
 	_phase.visible = _phase_label.visible
 	_number_label.visible = feeder_shown
@@ -301,7 +341,7 @@ func _fill() -> void:
 	_waiting.text = "\n".join(listed) if not listed.is_empty() else tr("None: every circuit of the floor plan is protected.")
 	_shown = f.device if feeder_shown else group.device if group != null else ""
 	if feeder_shown:
-		_title.text = tr("Circuit %d (%s)") % [f.number, "-" + f.device]
+		_title.text = (tr("Circuit") + " " + SingleLineView.circuit_text(f, _document)).to_upper()
 		_numbers = PackedInt32Array([f.number])
 		_number.clear()
 		_number.add_item(SingleLineView.circuit_text(f, _document))
@@ -335,20 +375,49 @@ func _fill() -> void:
 		_phase.select(f.phase - 1)
 		_phase.disabled = phases.size() > 1 or (rcd != null and rcd.poles == 2)
 	elif group != null:
-		_title.text = tr("Group %s") % ("-" + group.device)
+		_title.text = (tr("Group %s") % ("-" + group.device)).to_upper()
 		var rcd: ResidualCurrentDevice = _document.circuit.get_component(group.device) as ResidualCurrentDevice
 		var holder: SingleLine.Group = line.group_holding(group)
 		var holder_rcd: ResidualCurrentDevice = _document.circuit.get_component(holder.device) as ResidualCurrentDevice if holder != null else null
 		_phase.select(group.phase - 1)
 		_phase.disabled = rcd == null or rcd.poles != 2 or (holder_rcd != null and holder_rcd.poles == 2)
 	else:
-		_title.text = tr("Incoming supply")
+		_title.text = tr("Incoming supply").to_upper()
 		_cable.text = line.supply_cable
 		_cable.placeholder_text = SingleLine.SUPPLY_CABLE
 		_spd.set_pressed_no_signal(line.spd)
 	_warning.visible = feeder_shown and line.lacks_rcd(f, _document.circuit)
 	_warning.text = tr(SingleLineCanvas.NO_RCD_TEXT)
+	# The help: two sentences with nothing selected, the rest under a link.
+	var nothing: bool = canvas.selected.is_empty()
+	_intro.visible = nothing
+	_intro.text = tr("Drag a breaker or an RCD from the palette between the circuits, a socket, luminaire or appliance onto a circuit. A click selects, Shift+click adds.")
+	_help_link.text = ("▾ " if _help_link.button_pressed else "▸ ") + (tr("More about groups and protection") if nothing else tr("How to"))
 	_hint.text = tr("Pick a breaker or an RCD in the palette and click between the circuits; under a group's busbar, or below the breaker of a circuit feeding nothing, to put it under that device (a 30 mA RCD under a selective 300 mA one, breakers under a breaker); a socket, luminaire or appliance onto a circuit. A breaker, RCBO or AFDD put in protects the first circuit of the floor plan waiting for one; choose another in its Circuit. Its poles, characteristic and rating are set in its properties. Drag a breaker or RCD to move it. Shift+click or a box drawn from an empty place selects several, to drag or delete together.")
+
+
+## A row of the circuit's checks: its mark (✓ within bounds, ✕ out of
+## them, ≈ a fact) and [param text].
+func _check_row(text: String, state: String) -> HBoxContainer:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var mark: Label = Label.new()
+	mark.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	mark.text = {"ok": "✓", "bad": "✕"}.get(state, "≈")
+	mark.add_theme_color_override("font_color", {"ok": AppTheme.success, "bad": AppTheme.danger}.get(state, AppTheme.text_muted))
+	mark.custom_minimum_size.x = 14.0
+	mark.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(mark)
+	var label: Label = Label.new()
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size.x = 180.0
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if state == "info":
+		label.theme_type_variation = "MutedLabel"
+	row.add_child(label)
+	return row
 
 
 ## Circuit [param f] as listed: its number, where it goes (else the kind
@@ -381,22 +450,28 @@ static func circuit_text(f: SingleLine.Feeder, doc: SchematicDocument) -> String
 static func checks(line: SingleLine, f: SingleLine.Feeder, doc: SchematicDocument) -> Dictionary:
 	var length: float = line.cable_length(f, doc)
 	if length < 0.0:
-		return {"text": TranslationServer.translate("Put the consumer unit and the circuit's parts on the floor plan to work out its cable's length and voltage drop."), "bad": false, "length": -1.0, "drop": -1.0}
+		var text: String = TranslationServer.translate("Put the consumer unit and the circuit's parts on the floor plan to work out its cable's length and voltage drop.")
+		return {"text": text, "rows": [{"text": text, "state": "info"}], "bad": false, "length": -1.0, "drop": -1.0}
 	var drop: float = line.voltage_drop(f, doc, length)
 	var limit: float = line.drop_limit(f, doc.circuit)
 	var z: float = line.loop_impedance(f, doc, length)
 	var trips: bool = line.disconnects_in_time(f, doc, length)
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append(TranslationServer.translate("Cable about %s m (from the plan, with 10 %% reserve)") % roundi(length))
+	var rows: Array[Dictionary] = []
+	rows.append({"text": TranslationServer.translate("Cable about %s m (from the plan, with 10 %% reserve)") % roundi(length), "state": "info"})
 	if drop >= 0.0:
-		lines.append(TranslationServer.translate("Voltage drop %s %% at In (at most %s %%)") % [SingleLineCanvas._decimal(String.num(drop, 1)), SingleLineCanvas._decimal(String.num(limit, 0))])
+		rows.append({"text": TranslationServer.translate("Voltage drop %s %% at In (at most %s %%)") % [SingleLineCanvas._decimal(String.num(drop, 1)), SingleLineCanvas._decimal(String.num(limit, 0))], "state": "bad" if drop > limit else "ok"})
 	if z >= 0.0:
-		lines.append((TranslationServer.translate("Loop impedance %s Ω: trips at once on a fault") if trips else TranslationServer.translate("Loop impedance %s Ω: too high to trip at once on a fault")) % SingleLineCanvas._decimal(String.num(z, 2)))
-	return {"text": "\n".join(lines), "bad": drop > limit or (z >= 0.0 and not trips), "length": length, "drop": drop}
+		rows.append({"text": (TranslationServer.translate("Loop impedance %s Ω: trips at once on a fault") if trips else TranslationServer.translate("Loop impedance %s Ω: too high to trip at once on a fault")) % SingleLineCanvas._decimal(String.num(z, 2)), "state": "ok" if trips else "bad"})
+	for row: Dictionary in rows:
+		lines.append(row["text"])
+	return {"text": "\n".join(lines), "rows": rows, "bad": drop > limit or (z >= 0.0 and not trips), "length": length, "drop": drop}
 
 
 func retranslate() -> void:
-	_delete_button.tooltip_text = tr("Delete the selected breaker, RCD or part (Delete)")
+	_zoom_buttons[0].tooltip_text = tr("Zoom out")
+	_zoom_buttons[1].tooltip_text = tr("Zoom in")
+	_checks_label.text = tr("Checks").to_upper()
 	_fit_button.text = tr("Show all")
 	_phase_label.text = tr("Phase")
 	_number_label.text = tr("Circuit")

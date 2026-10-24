@@ -209,6 +209,11 @@ What changed in each LadderLab version. Version numbers follow the rules in
   Next to give goes to the next one, the openings are asked only for a vented enclosure, and
   the enclosure's power loss and the devices' types say they are optional (for the
   protocol). The losses table has the whole tab, so the list over the whole screen is gone
+- The single-line diagram of a house has one panel beside it: the selected circuit, the
+  properties of its breaker or RCD and the circuit's checks, each with a tick or a cross,
+  without the orientation buttons the diagram has no use for; its help is two sentences
+  until opened, and zoom buttons with Show all sit in the corner of the drawing instead of a
+  bar over it
 
 ### Application
 - A house installation is drawn, not simulated: its toolbar has no Edit | Simulate switch,

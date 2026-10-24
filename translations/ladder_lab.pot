@@ -5212,9 +5212,6 @@ msgstr ""
 msgid "Group %s"
 msgstr ""
 
-msgid "Delete the selected breaker, RCD or part (Delete)"
-msgstr ""
-
 msgid "Destination"
 msgstr ""
 
@@ -6405,10 +6402,6 @@ msgid "Main switch: Delete takes it away (the supply then goes straight onto the
 msgstr ""
 
 msgid "None: every circuit of the floor plan is protected."
-msgstr ""
-
-#, c-format
-msgid "Circuit %d (%s)"
 msgstr ""
 
 msgid "A new circuit (spare), this one waiting"
@@ -8177,4 +8170,17 @@ msgstr ""
 
 #, c-format
 msgid "Still to give: %s."
+msgstr ""
+
+
+msgid "Checks"
+msgstr ""
+
+msgid "Drag a breaker or an RCD from the palette between the circuits, a socket, luminaire or appliance onto a circuit. A click selects, Shift+click adds."
+msgstr ""
+
+msgid "How to"
+msgstr ""
+
+msgid "More about groups and protection"
 msgstr ""

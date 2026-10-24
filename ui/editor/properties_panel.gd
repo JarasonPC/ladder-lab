@@ -15,6 +15,16 @@ signal plc_requested(component_id: String)
 ## The datasheet of the shown part was asked for.
 signal datasheet_requested(component_id: String)
 
+## Shown for a part on a page of the schematic: its orientation buttons and
+## the note on markings; off on the single-line diagram, which has neither.
+var drawing: bool = true
+## Heading in place of "Properties" ("" for that): on the single-line
+## diagram what the part is and its designation.
+var heading: String = ""
+## Whether the time-current characteristic is shown (off the drawing it is
+## folded under its caption until opened).
+static var _curve_shown: bool = false
+
 var _component_id: String = ""
 ## The part shown (fields are built anew from it after a refused edit).
 var _component: CircuitComponent = null
@@ -44,7 +54,7 @@ func show_component(component: CircuitComponent) -> void:
 	_group = null
 	_fields.clear()
 	_component = component
-	_title = _note(tr("Properties"), "TitleLabel")
+	_title = _note(tr("Properties") if heading.is_empty() else heading.to_upper(), "TitleLabel" if heading.is_empty() else "HeaderLabel")
 	if component == null:
 		_component_id = ""
 		_note(tr("Select one component to edit it."), "MutedLabel")
@@ -261,10 +271,12 @@ func show_component(component: CircuitComponent) -> void:
 	if not VoltageRating.offered(kind).is_empty() and not (component is CompactPlc):
 		_rating(component)
 	if not (component is Junction):
-		_orientation()
+		if drawing:
+			_orientation()
 		_datasheet_button()
 	_group = null
-	_note(tr("Double-click a marking on the drawing (designation, terminal number, label) to edit it."), "MutedLabel")
+	if drawing:
+		_note(tr("Double-click a marking on the drawing (designation, terminal number, label) to edit it."), "MutedLabel")
 	_message = _note("", "MutedLabel")
 	_message.add_theme_color_override("font_color", SchematicTheme.FAULT)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -761,10 +773,29 @@ static func light_switch_title(circuit: String) -> String:
 
 ## Time-current characteristic of a protective device.
 func _trip_curve(curve: TripCurve.Kind) -> void:
-	_label(tr("Time-current characteristic"))
+	var caption: Label = _label(tr("Time-current characteristic"))
 	var diagram: TripCurveDiagram = TripCurveDiagram.new()
 	diagram.kind = curve
 	_add(diagram)
+	if drawing:
+		return
+	# Folded under its caption, a click opens or closes it.
+	var fold: Button = Button.new()
+	fold.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	fold.theme_type_variation = "ListButton"
+	fold.focus_mode = Control.FOCUS_NONE
+	fold.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	fold.toggle_mode = true
+	fold.button_pressed = _curve_shown
+	fold.text = ("▾ " if _curve_shown else "▸ ") + caption.text
+	diagram.visible = _curve_shown
+	fold.toggled.connect(func(on: bool) -> void:
+		_curve_shown = on
+		diagram.visible = on
+		fold.text = ("▾ " if on else "▸ ") + caption.text)
+	caption.get_parent().add_child(fold)
+	caption.get_parent().move_child(fold, 0)
+	caption.visible = false
 
 
 ## Timing diagram of the chosen function (Un, S, R).
